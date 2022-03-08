@@ -499,118 +499,6 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
                        r[22] = t22 & 0x1fffffff;
 }
 
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_2048_sqr_12(sp_digit* r, const sp_digit* a)
-{
-    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
-    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint64)a[ 1]) * a[ 1];
-    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
-                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
-                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint64)a[ 2]) * a[ 2];
-    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
-                 +  ((sp_uint64)a[ 1]) * a[ 4]
-                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
-                 +  ((sp_uint64)a[ 1]) * a[ 5]
-                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint64)a[ 3]) * a[ 3];
-    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
-                 +  ((sp_uint64)a[ 1]) * a[ 6]
-                 +  ((sp_uint64)a[ 2]) * a[ 5]
-                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
-                 +  ((sp_uint64)a[ 1]) * a[ 7]
-                 +  ((sp_uint64)a[ 2]) * a[ 6]
-                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint64)a[ 4]) * a[ 4];
-    sp_uint64 t9   = (((sp_uint64)a[ 0]) * a[ 9]
-                 +  ((sp_uint64)a[ 1]) * a[ 8]
-                 +  ((sp_uint64)a[ 2]) * a[ 7]
-                 +  ((sp_uint64)a[ 3]) * a[ 6]
-                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    sp_uint64 t10  = (((sp_uint64)a[ 0]) * a[10]
-                 +  ((sp_uint64)a[ 1]) * a[ 9]
-                 +  ((sp_uint64)a[ 2]) * a[ 8]
-                 +  ((sp_uint64)a[ 3]) * a[ 7]
-                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint64)a[ 5]) * a[ 5];
-    sp_uint64 t11  = (((sp_uint64)a[ 0]) * a[11]
-                 +  ((sp_uint64)a[ 1]) * a[10]
-                 +  ((sp_uint64)a[ 2]) * a[ 9]
-                 +  ((sp_uint64)a[ 3]) * a[ 8]
-                 +  ((sp_uint64)a[ 4]) * a[ 7]
-                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    sp_uint64 t12  = (((sp_uint64)a[ 1]) * a[11]
-                 +  ((sp_uint64)a[ 2]) * a[10]
-                 +  ((sp_uint64)a[ 3]) * a[ 9]
-                 +  ((sp_uint64)a[ 4]) * a[ 8]
-                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint64)a[ 6]) * a[ 6];
-    sp_uint64 t13  = (((sp_uint64)a[ 2]) * a[11]
-                 +  ((sp_uint64)a[ 3]) * a[10]
-                 +  ((sp_uint64)a[ 4]) * a[ 9]
-                 +  ((sp_uint64)a[ 5]) * a[ 8]
-                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    sp_uint64 t14  = (((sp_uint64)a[ 3]) * a[11]
-                 +  ((sp_uint64)a[ 4]) * a[10]
-                 +  ((sp_uint64)a[ 5]) * a[ 9]
-                 +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint64)a[ 7]) * a[ 7];
-    sp_uint64 t15  = (((sp_uint64)a[ 4]) * a[11]
-                 +  ((sp_uint64)a[ 5]) * a[10]
-                 +  ((sp_uint64)a[ 6]) * a[ 9]
-                 +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    sp_uint64 t16  = (((sp_uint64)a[ 5]) * a[11]
-                 +  ((sp_uint64)a[ 6]) * a[10]
-                 +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
-                 +  ((sp_uint64)a[ 8]) * a[ 8];
-    sp_uint64 t17  = (((sp_uint64)a[ 6]) * a[11]
-                 +  ((sp_uint64)a[ 7]) * a[10]
-                 +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
-    sp_uint64 t18  = (((sp_uint64)a[ 7]) * a[11]
-                 +  ((sp_uint64)a[ 8]) * a[10]) * 2
-                 +  ((sp_uint64)a[ 9]) * a[ 9];
-    sp_uint64 t19  = (((sp_uint64)a[ 8]) * a[11]
-                 +  ((sp_uint64)a[ 9]) * a[10]) * 2;
-    sp_uint64 t20  = (((sp_uint64)a[ 9]) * a[11]) * 2
-                 +  ((sp_uint64)a[10]) * a[10];
-    sp_uint64 t21  = (((sp_uint64)a[10]) * a[11]) * 2;
-    sp_uint64 t22  =  ((sp_uint64)a[11]) * a[11];
-
-    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
-    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
-    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
-    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
-    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
-    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
-    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
-    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
-    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
-    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
-    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
-    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
-    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
-    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
-    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
-    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
-    t17  += t16 >> 29; r[16] = t16 & 0x1fffffff;
-    t18  += t17 >> 29; r[17] = t17 & 0x1fffffff;
-    t19  += t18 >> 29; r[18] = t18 & 0x1fffffff;
-    t20  += t19 >> 29; r[19] = t19 & 0x1fffffff;
-    t21  += t20 >> 29; r[20] = t20 & 0x1fffffff;
-    t22  += t21 >> 29; r[21] = t21 & 0x1fffffff;
-    r[23] = (sp_digit)(t22 >> 29);
-                       r[22] = t22 & 0x1fffffff;
-}
-
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -807,55 +695,6 @@ SP_NOINLINE static void sp_2048_mul_36(sp_digit* r, const sp_digit* a,
     sp_2048_norm_72(r);
 }
 
-/* Square a into r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
-{
-    sp_digit p0[24];
-    sp_digit p1[24];
-    sp_digit p2[24];
-    sp_digit p3[24];
-    sp_digit p4[24];
-    sp_digit p5[24];
-    sp_digit t0[24];
-    sp_digit t1[24];
-    sp_digit t2[24];
-    sp_digit a0[12];
-    sp_digit a1[12];
-    sp_digit a2[12];
-    (void)sp_2048_add_12(a0, a, &a[12]);
-    sp_2048_norm_12(a0);
-    (void)sp_2048_add_12(a1, &a[12], &a[24]);
-    sp_2048_norm_12(a1);
-    (void)sp_2048_add_12(a2, a0, &a[24]);
-    sp_2048_norm_12(a2);
-    sp_2048_sqr_12(p0, a);
-    sp_2048_sqr_12(p2, &a[12]);
-    sp_2048_sqr_12(p4, &a[24]);
-    sp_2048_sqr_12(p1, a0);
-    sp_2048_sqr_12(p3, a1);
-    sp_2048_sqr_12(p5, a2);
-    XMEMSET(r, 0, sizeof(*r)*2U*36U);
-    (void)sp_2048_sub_24(t0, p3, p2);
-    (void)sp_2048_sub_24(t1, p1, p2);
-    (void)sp_2048_sub_24(t2, p5, t0);
-    (void)sp_2048_sub_24(t2, t2, t1);
-    sp_2048_norm_24(t2);
-    (void)sp_2048_sub_24(t0, t0, p4);
-    sp_2048_norm_24(t0);
-    (void)sp_2048_sub_24(t1, t1, p0);
-    sp_2048_norm_24(t1);
-    (void)sp_2048_add_24(r, r, p0);
-    (void)sp_2048_add_24(&r[12], &r[12], t1);
-    (void)sp_2048_add_24(&r[24], &r[24], t2);
-    (void)sp_2048_add_24(&r[36], &r[36], t0);
-    (void)sp_2048_add_24(&r[48], &r[48], p4);
-    sp_2048_norm_72(r);
-}
-
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -994,6 +833,167 @@ SP_NOINLINE static void sp_2048_mul_72(sp_digit* r, const sp_digit* a,
     (void)sp_2048_sub_72(z1, z1, z0);
     (void)sp_2048_add_72(r + 36, r + 36, z1);
     sp_2048_norm_144(r);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_sqr_12(sp_digit* r, const sp_digit* a)
+{
+    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
+    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
+    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
+                 +  ((sp_uint64)a[ 1]) * a[ 1];
+    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
+                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
+    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
+                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
+                 +  ((sp_uint64)a[ 2]) * a[ 2];
+    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
+                 +  ((sp_uint64)a[ 1]) * a[ 4]
+                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
+    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
+                 +  ((sp_uint64)a[ 1]) * a[ 5]
+                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
+                 +  ((sp_uint64)a[ 3]) * a[ 3];
+    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
+                 +  ((sp_uint64)a[ 1]) * a[ 6]
+                 +  ((sp_uint64)a[ 2]) * a[ 5]
+                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
+    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
+                 +  ((sp_uint64)a[ 1]) * a[ 7]
+                 +  ((sp_uint64)a[ 2]) * a[ 6]
+                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
+                 +  ((sp_uint64)a[ 4]) * a[ 4];
+    sp_uint64 t9   = (((sp_uint64)a[ 0]) * a[ 9]
+                 +  ((sp_uint64)a[ 1]) * a[ 8]
+                 +  ((sp_uint64)a[ 2]) * a[ 7]
+                 +  ((sp_uint64)a[ 3]) * a[ 6]
+                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
+    sp_uint64 t10  = (((sp_uint64)a[ 0]) * a[10]
+                 +  ((sp_uint64)a[ 1]) * a[ 9]
+                 +  ((sp_uint64)a[ 2]) * a[ 8]
+                 +  ((sp_uint64)a[ 3]) * a[ 7]
+                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
+                 +  ((sp_uint64)a[ 5]) * a[ 5];
+    sp_uint64 t11  = (((sp_uint64)a[ 0]) * a[11]
+                 +  ((sp_uint64)a[ 1]) * a[10]
+                 +  ((sp_uint64)a[ 2]) * a[ 9]
+                 +  ((sp_uint64)a[ 3]) * a[ 8]
+                 +  ((sp_uint64)a[ 4]) * a[ 7]
+                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
+    sp_uint64 t12  = (((sp_uint64)a[ 1]) * a[11]
+                 +  ((sp_uint64)a[ 2]) * a[10]
+                 +  ((sp_uint64)a[ 3]) * a[ 9]
+                 +  ((sp_uint64)a[ 4]) * a[ 8]
+                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
+                 +  ((sp_uint64)a[ 6]) * a[ 6];
+    sp_uint64 t13  = (((sp_uint64)a[ 2]) * a[11]
+                 +  ((sp_uint64)a[ 3]) * a[10]
+                 +  ((sp_uint64)a[ 4]) * a[ 9]
+                 +  ((sp_uint64)a[ 5]) * a[ 8]
+                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
+    sp_uint64 t14  = (((sp_uint64)a[ 3]) * a[11]
+                 +  ((sp_uint64)a[ 4]) * a[10]
+                 +  ((sp_uint64)a[ 5]) * a[ 9]
+                 +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
+                 +  ((sp_uint64)a[ 7]) * a[ 7];
+    sp_uint64 t15  = (((sp_uint64)a[ 4]) * a[11]
+                 +  ((sp_uint64)a[ 5]) * a[10]
+                 +  ((sp_uint64)a[ 6]) * a[ 9]
+                 +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
+    sp_uint64 t16  = (((sp_uint64)a[ 5]) * a[11]
+                 +  ((sp_uint64)a[ 6]) * a[10]
+                 +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
+                 +  ((sp_uint64)a[ 8]) * a[ 8];
+    sp_uint64 t17  = (((sp_uint64)a[ 6]) * a[11]
+                 +  ((sp_uint64)a[ 7]) * a[10]
+                 +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
+    sp_uint64 t18  = (((sp_uint64)a[ 7]) * a[11]
+                 +  ((sp_uint64)a[ 8]) * a[10]) * 2
+                 +  ((sp_uint64)a[ 9]) * a[ 9];
+    sp_uint64 t19  = (((sp_uint64)a[ 8]) * a[11]
+                 +  ((sp_uint64)a[ 9]) * a[10]) * 2;
+    sp_uint64 t20  = (((sp_uint64)a[ 9]) * a[11]) * 2
+                 +  ((sp_uint64)a[10]) * a[10];
+    sp_uint64 t21  = (((sp_uint64)a[10]) * a[11]) * 2;
+    sp_uint64 t22  =  ((sp_uint64)a[11]) * a[11];
+
+    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
+    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
+    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
+    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
+    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
+    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
+    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
+    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
+    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
+    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
+    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
+    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
+    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
+    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
+    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
+    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
+    t17  += t16 >> 29; r[16] = t16 & 0x1fffffff;
+    t18  += t17 >> 29; r[17] = t17 & 0x1fffffff;
+    t19  += t18 >> 29; r[18] = t18 & 0x1fffffff;
+    t20  += t19 >> 29; r[19] = t19 & 0x1fffffff;
+    t21  += t20 >> 29; r[20] = t20 & 0x1fffffff;
+    t22  += t21 >> 29; r[21] = t21 & 0x1fffffff;
+    r[23] = (sp_digit)(t22 >> 29);
+                       r[22] = t22 & 0x1fffffff;
+}
+
+/* Square a into r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
+{
+    sp_digit p0[24];
+    sp_digit p1[24];
+    sp_digit p2[24];
+    sp_digit p3[24];
+    sp_digit p4[24];
+    sp_digit p5[24];
+    sp_digit t0[24];
+    sp_digit t1[24];
+    sp_digit t2[24];
+    sp_digit a0[12];
+    sp_digit a1[12];
+    sp_digit a2[12];
+    (void)sp_2048_add_12(a0, a, &a[12]);
+    sp_2048_norm_12(a0);
+    (void)sp_2048_add_12(a1, &a[12], &a[24]);
+    sp_2048_norm_12(a1);
+    (void)sp_2048_add_12(a2, a0, &a[24]);
+    sp_2048_norm_12(a2);
+    sp_2048_sqr_12(p0, a);
+    sp_2048_sqr_12(p2, &a[12]);
+    sp_2048_sqr_12(p4, &a[24]);
+    sp_2048_sqr_12(p1, a0);
+    sp_2048_sqr_12(p3, a1);
+    sp_2048_sqr_12(p5, a2);
+    XMEMSET(r, 0, sizeof(*r)*2U*36U);
+    (void)sp_2048_sub_24(t0, p3, p2);
+    (void)sp_2048_sub_24(t1, p1, p2);
+    (void)sp_2048_sub_24(t2, p5, t0);
+    (void)sp_2048_sub_24(t2, t2, t1);
+    sp_2048_norm_24(t2);
+    (void)sp_2048_sub_24(t0, t0, p4);
+    sp_2048_norm_24(t0);
+    (void)sp_2048_sub_24(t1, t1, p0);
+    sp_2048_norm_24(t1);
+    (void)sp_2048_add_24(r, r, p0);
+    (void)sp_2048_add_24(&r[12], &r[12], t1);
+    (void)sp_2048_add_24(&r[24], &r[24], t2);
+    (void)sp_2048_add_24(&r[36], &r[36], t0);
+    (void)sp_2048_add_24(&r[48], &r[48], p4);
+    sp_2048_norm_72(r);
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -1750,7 +1750,7 @@ static void sp_2048_mont_reduce_36(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_2048_mont_mul_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mont_mul_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_36(r, a, b);
@@ -1764,7 +1764,7 @@ static void sp_2048_mont_mul_36(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_2048_mont_sqr_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mont_sqr_36(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_2048_sqr_36(r, a);
@@ -1824,6 +1824,7 @@ SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -1835,13 +1836,26 @@ SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
 static void sp_2048_cond_add_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
     for (i = 0; i < 36; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_2048_cond_add_36(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     int i;
 
     for (i = 0; i < 32; i += 8) {
@@ -1858,8 +1872,8 @@ static void sp_2048_cond_add_36(sp_digit* r, const sp_digit* a,
     r[33] = a[33] + (b[33] & m);
     r[34] = a[34] + (b[34] & m);
     r[35] = a[35] + (b[35] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_2048_rshift_36(sp_digit* r, const sp_digit* a,
         byte n)
@@ -2831,7 +2845,7 @@ static void sp_2048_mont_reduce_72(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_2048_mont_mul_72(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mont_mul_72(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_72(r, a, b);
@@ -2845,7 +2859,7 @@ static void sp_2048_mont_mul_72(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_2048_mont_sqr_72(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mont_sqr_72(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_2048_sqr_72(r, a);
@@ -2938,6 +2952,7 @@ SP_NOINLINE static void sp_2048_mul_d_144(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -2949,16 +2964,29 @@ SP_NOINLINE static void sp_2048_mul_d_144(sp_digit* r, const sp_digit* a,
 static void sp_2048_cond_add_72(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
-    for (i = 0; i < 71; i++) {
+    for (i = 0; i < 72; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_2048_cond_add_72(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     int i;
 
-    for (i = 0; i < 64; i += 8) {
+    for (i = 0; i < 72; i += 8) {
         r[i + 0] = a[i + 0] + (b[i + 0] & m);
         r[i + 1] = a[i + 1] + (b[i + 1] & m);
         r[i + 2] = a[i + 2] + (b[i + 2] & m);
@@ -2968,15 +2996,8 @@ static void sp_2048_cond_add_72(sp_digit* r, const sp_digit* a,
         r[i + 6] = a[i + 6] + (b[i + 6] & m);
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
-    r[64] = a[64] + (b[64] & m);
-    r[65] = a[65] + (b[65] & m);
-    r[66] = a[66] + (b[66] & m);
-    r[67] = a[67] + (b[67] & m);
-    r[68] = a[68] + (b[68] & m);
-    r[69] = a[69] + (b[69] & m);
-    r[70] = a[70] + (b[70] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_2048_rshift_72(sp_digit* r, const sp_digit* a,
         byte n)
@@ -5532,7 +5553,7 @@ SP_NOINLINE static void sp_3072_mul_53(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_mul_53(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_mul_53(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_53(r, a, b);
@@ -5610,7 +5631,7 @@ SP_NOINLINE static void sp_3072_sqr_53(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_sqr_53(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_sqr_53(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_53(r, a);
@@ -5638,6 +5659,7 @@ SP_NOINLINE static void sp_3072_mul_d_53(sp_digit* r, const sp_digit* a,
     r[53] = (sp_digit)t;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -5655,6 +5677,7 @@ static void sp_3072_cond_add_53(sp_digit* r, const sp_digit* a,
         r[i] = a[i] + (b[i] & m);
     }
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Add b to a into r. (r = a + b)
  *
@@ -6499,7 +6522,7 @@ static void sp_3072_mont_reduce_106(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_mul_106(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_mul_106(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_106(r, a, b);
@@ -6513,7 +6536,7 @@ static void sp_3072_mont_mul_106(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_sqr_106(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_sqr_106(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_106(r, a);
@@ -6541,6 +6564,7 @@ SP_NOINLINE static void sp_3072_mul_d_212(sp_digit* r, const sp_digit* a,
     r[212] = (sp_digit)t;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -6554,10 +6578,11 @@ static void sp_3072_cond_add_106(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 53; i++) {
+    for (i = 0; i < 106; i++) {
         r[i] = a[i] + (b[i] & m);
     }
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Add b to a into r. (r = a + b)
  *
@@ -8867,6 +8892,341 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
                        r[26] = t26 & 0xfffffff;
 }
 
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_add_14(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    r[ 0] = a[ 0] + b[ 0];
+    r[ 1] = a[ 1] + b[ 1];
+    r[ 2] = a[ 2] + b[ 2];
+    r[ 3] = a[ 3] + b[ 3];
+    r[ 4] = a[ 4] + b[ 4];
+    r[ 5] = a[ 5] + b[ 5];
+    r[ 6] = a[ 6] + b[ 6];
+    r[ 7] = a[ 7] + b[ 7];
+    r[ 8] = a[ 8] + b[ 8];
+    r[ 9] = a[ 9] + b[ 9];
+    r[10] = a[10] + b[10];
+    r[11] = a[11] + b[11];
+    r[12] = a[12] + b[12];
+    r[13] = a[13] + b[13];
+
+    return 0;
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_add_28(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 24; i += 8) {
+        r[i + 0] = a[i + 0] + b[i + 0];
+        r[i + 1] = a[i + 1] + b[i + 1];
+        r[i + 2] = a[i + 2] + b[i + 2];
+        r[i + 3] = a[i + 3] + b[i + 3];
+        r[i + 4] = a[i + 4] + b[i + 4];
+        r[i + 5] = a[i + 5] + b[i + 5];
+        r[i + 6] = a[i + 6] + b[i + 6];
+        r[i + 7] = a[i + 7] + b[i + 7];
+    }
+    r[24] = a[24] + b[24];
+    r[25] = a[25] + b[25];
+    r[26] = a[26] + b[26];
+    r[27] = a[27] + b[27];
+
+    return 0;
+}
+
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_sub_28(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 24; i += 8) {
+        r[i + 0] = a[i + 0] - b[i + 0];
+        r[i + 1] = a[i + 1] - b[i + 1];
+        r[i + 2] = a[i + 2] - b[i + 2];
+        r[i + 3] = a[i + 3] - b[i + 3];
+        r[i + 4] = a[i + 4] - b[i + 4];
+        r[i + 5] = a[i + 5] - b[i + 5];
+        r[i + 6] = a[i + 6] - b[i + 6];
+        r[i + 7] = a[i + 7] - b[i + 7];
+    }
+    r[24] = a[24] - b[24];
+    r[25] = a[25] - b[25];
+    r[26] = a[26] - b[26];
+    r[27] = a[27] - b[27];
+
+    return 0;
+}
+
+/* Normalize the values in each word to 28 bits.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_3072_norm_14(sp_digit* a)
+{
+    a[1] += a[0] >> 28; a[0] &= 0xfffffff;
+    a[2] += a[1] >> 28; a[1] &= 0xfffffff;
+    a[3] += a[2] >> 28; a[2] &= 0xfffffff;
+    a[4] += a[3] >> 28; a[3] &= 0xfffffff;
+    a[5] += a[4] >> 28; a[4] &= 0xfffffff;
+    a[6] += a[5] >> 28; a[5] &= 0xfffffff;
+    a[7] += a[6] >> 28; a[6] &= 0xfffffff;
+    a[8] += a[7] >> 28; a[7] &= 0xfffffff;
+    a[9] += a[8] >> 28; a[8] &= 0xfffffff;
+    a[10] += a[9] >> 28; a[9] &= 0xfffffff;
+    a[11] += a[10] >> 28; a[10] &= 0xfffffff;
+    a[12] += a[11] >> 28; a[11] &= 0xfffffff;
+    a[13] += a[12] >> 28; a[12] &= 0xfffffff;
+}
+
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_mul_28(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
+{
+    sp_digit* z0 = r;
+    sp_digit z1[28];
+    sp_digit* a1 = z1;
+    sp_digit b1[14];
+    sp_digit* z2 = r + 28;
+    (void)sp_3072_add_14(a1, a, &a[14]);
+    sp_3072_norm_14(a1);
+    (void)sp_3072_add_14(b1, b, &b[14]);
+    sp_3072_norm_14(b1);
+    sp_3072_mul_14(z2, &a[14], &b[14]);
+    sp_3072_mul_14(z0, a, b);
+    sp_3072_mul_14(z1, a1, b1);
+    (void)sp_3072_sub_28(z1, z1, z2);
+    (void)sp_3072_sub_28(z1, z1, z0);
+    (void)sp_3072_add_28(r + 14, r + 14, z1);
+    sp_3072_norm_56(r);
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_add_56(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 56; i += 8) {
+        r[i + 0] = a[i + 0] + b[i + 0];
+        r[i + 1] = a[i + 1] + b[i + 1];
+        r[i + 2] = a[i + 2] + b[i + 2];
+        r[i + 3] = a[i + 3] + b[i + 3];
+        r[i + 4] = a[i + 4] + b[i + 4];
+        r[i + 5] = a[i + 5] + b[i + 5];
+        r[i + 6] = a[i + 6] + b[i + 6];
+        r[i + 7] = a[i + 7] + b[i + 7];
+    }
+
+    return 0;
+}
+
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_sub_56(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 56; i += 8) {
+        r[i + 0] = a[i + 0] - b[i + 0];
+        r[i + 1] = a[i + 1] - b[i + 1];
+        r[i + 2] = a[i + 2] - b[i + 2];
+        r[i + 3] = a[i + 3] - b[i + 3];
+        r[i + 4] = a[i + 4] - b[i + 4];
+        r[i + 5] = a[i + 5] - b[i + 5];
+        r[i + 6] = a[i + 6] - b[i + 6];
+        r[i + 7] = a[i + 7] - b[i + 7];
+    }
+
+    return 0;
+}
+
+/* Normalize the values in each word to 28 bits.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_3072_norm_28(sp_digit* a)
+{
+    int i;
+    for (i = 0; i < 24; i += 8) {
+        a[i+1] += a[i+0] >> 28; a[i+0] &= 0xfffffff;
+        a[i+2] += a[i+1] >> 28; a[i+1] &= 0xfffffff;
+        a[i+3] += a[i+2] >> 28; a[i+2] &= 0xfffffff;
+        a[i+4] += a[i+3] >> 28; a[i+3] &= 0xfffffff;
+        a[i+5] += a[i+4] >> 28; a[i+4] &= 0xfffffff;
+        a[i+6] += a[i+5] >> 28; a[i+5] &= 0xfffffff;
+        a[i+7] += a[i+6] >> 28; a[i+6] &= 0xfffffff;
+        a[i+8] += a[i+7] >> 28; a[i+7] &= 0xfffffff;
+    }
+    a[25] += a[24] >> 28; a[24] &= 0xfffffff;
+    a[26] += a[25] >> 28; a[25] &= 0xfffffff;
+    a[27] += a[26] >> 28; a[26] &= 0xfffffff;
+}
+
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_mul_56(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
+{
+    sp_digit* z0 = r;
+    sp_digit z1[56];
+    sp_digit* a1 = z1;
+    sp_digit b1[28];
+    sp_digit* z2 = r + 56;
+    (void)sp_3072_add_28(a1, a, &a[28]);
+    sp_3072_norm_28(a1);
+    (void)sp_3072_add_28(b1, b, &b[28]);
+    sp_3072_norm_28(b1);
+    sp_3072_mul_28(z2, &a[28], &b[28]);
+    sp_3072_mul_28(z0, a, b);
+    sp_3072_mul_28(z1, a1, b1);
+    (void)sp_3072_sub_56(z1, z1, z2);
+    (void)sp_3072_sub_56(z1, z1, z0);
+    (void)sp_3072_add_56(r + 28, r + 28, z1);
+    sp_3072_norm_112(r);
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_add_112(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 112; i += 8) {
+        r[i + 0] = a[i + 0] + b[i + 0];
+        r[i + 1] = a[i + 1] + b[i + 1];
+        r[i + 2] = a[i + 2] + b[i + 2];
+        r[i + 3] = a[i + 3] + b[i + 3];
+        r[i + 4] = a[i + 4] + b[i + 4];
+        r[i + 5] = a[i + 5] + b[i + 5];
+        r[i + 6] = a[i + 6] + b[i + 6];
+        r[i + 7] = a[i + 7] + b[i + 7];
+    }
+
+    return 0;
+}
+
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_3072_sub_112(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 112; i += 8) {
+        r[i + 0] = a[i + 0] - b[i + 0];
+        r[i + 1] = a[i + 1] - b[i + 1];
+        r[i + 2] = a[i + 2] - b[i + 2];
+        r[i + 3] = a[i + 3] - b[i + 3];
+        r[i + 4] = a[i + 4] - b[i + 4];
+        r[i + 5] = a[i + 5] - b[i + 5];
+        r[i + 6] = a[i + 6] - b[i + 6];
+        r[i + 7] = a[i + 7] - b[i + 7];
+    }
+
+    return 0;
+}
+
+/* Normalize the values in each word to 28 bits.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_3072_norm_224(sp_digit* a)
+{
+    int i;
+    for (i = 0; i < 216; i += 8) {
+        a[i+1] += a[i+0] >> 28; a[i+0] &= 0xfffffff;
+        a[i+2] += a[i+1] >> 28; a[i+1] &= 0xfffffff;
+        a[i+3] += a[i+2] >> 28; a[i+2] &= 0xfffffff;
+        a[i+4] += a[i+3] >> 28; a[i+3] &= 0xfffffff;
+        a[i+5] += a[i+4] >> 28; a[i+4] &= 0xfffffff;
+        a[i+6] += a[i+5] >> 28; a[i+5] &= 0xfffffff;
+        a[i+7] += a[i+6] >> 28; a[i+6] &= 0xfffffff;
+        a[i+8] += a[i+7] >> 28; a[i+7] &= 0xfffffff;
+    }
+    a[217] += a[216] >> 28; a[216] &= 0xfffffff;
+    a[218] += a[217] >> 28; a[217] &= 0xfffffff;
+    a[219] += a[218] >> 28; a[218] &= 0xfffffff;
+    a[220] += a[219] >> 28; a[219] &= 0xfffffff;
+    a[221] += a[220] >> 28; a[220] &= 0xfffffff;
+    a[222] += a[221] >> 28; a[221] &= 0xfffffff;
+    a[223] += a[222] >> 28; a[222] &= 0xfffffff;
+}
+
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_mul_112(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
+{
+    sp_digit* z0 = r;
+    sp_digit z1[112];
+    sp_digit* a1 = z1;
+    sp_digit b1[56];
+    sp_digit* z2 = r + 112;
+    (void)sp_3072_add_56(a1, a, &a[56]);
+    sp_3072_norm_56(a1);
+    (void)sp_3072_add_56(b1, b, &b[56]);
+    sp_3072_norm_56(b1);
+    sp_3072_mul_56(z2, &a[56], &b[56]);
+    sp_3072_mul_56(z0, a, b);
+    sp_3072_mul_56(z1, a1, b1);
+    (void)sp_3072_sub_112(z1, z1, z2);
+    (void)sp_3072_sub_112(z1, z1, z0);
+    (void)sp_3072_add_112(r + 56, r + 56, z1);
+    sp_3072_norm_224(r);
+}
+
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
@@ -9010,139 +9370,6 @@ SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
                        r[26] = t26 & 0xfffffff;
 }
 
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_add_14(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    r[ 0] = a[ 0] + b[ 0];
-    r[ 1] = a[ 1] + b[ 1];
-    r[ 2] = a[ 2] + b[ 2];
-    r[ 3] = a[ 3] + b[ 3];
-    r[ 4] = a[ 4] + b[ 4];
-    r[ 5] = a[ 5] + b[ 5];
-    r[ 6] = a[ 6] + b[ 6];
-    r[ 7] = a[ 7] + b[ 7];
-    r[ 8] = a[ 8] + b[ 8];
-    r[ 9] = a[ 9] + b[ 9];
-    r[10] = a[10] + b[10];
-    r[11] = a[11] + b[11];
-    r[12] = a[12] + b[12];
-    r[13] = a[13] + b[13];
-
-    return 0;
-}
-
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_add_28(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 24; i += 8) {
-        r[i + 0] = a[i + 0] + b[i + 0];
-        r[i + 1] = a[i + 1] + b[i + 1];
-        r[i + 2] = a[i + 2] + b[i + 2];
-        r[i + 3] = a[i + 3] + b[i + 3];
-        r[i + 4] = a[i + 4] + b[i + 4];
-        r[i + 5] = a[i + 5] + b[i + 5];
-        r[i + 6] = a[i + 6] + b[i + 6];
-        r[i + 7] = a[i + 7] + b[i + 7];
-    }
-    r[24] = a[24] + b[24];
-    r[25] = a[25] + b[25];
-    r[26] = a[26] + b[26];
-    r[27] = a[27] + b[27];
-
-    return 0;
-}
-
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_sub_28(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 24; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
-    }
-    r[24] = a[24] - b[24];
-    r[25] = a[25] - b[25];
-    r[26] = a[26] - b[26];
-    r[27] = a[27] - b[27];
-
-    return 0;
-}
-
-/* Normalize the values in each word to 28 bits.
- *
- * a  Array of sp_digit to normalize.
- */
-static void sp_3072_norm_14(sp_digit* a)
-{
-    a[1] += a[0] >> 28; a[0] &= 0xfffffff;
-    a[2] += a[1] >> 28; a[1] &= 0xfffffff;
-    a[3] += a[2] >> 28; a[2] &= 0xfffffff;
-    a[4] += a[3] >> 28; a[3] &= 0xfffffff;
-    a[5] += a[4] >> 28; a[4] &= 0xfffffff;
-    a[6] += a[5] >> 28; a[5] &= 0xfffffff;
-    a[7] += a[6] >> 28; a[6] &= 0xfffffff;
-    a[8] += a[7] >> 28; a[7] &= 0xfffffff;
-    a[9] += a[8] >> 28; a[8] &= 0xfffffff;
-    a[10] += a[9] >> 28; a[9] &= 0xfffffff;
-    a[11] += a[10] >> 28; a[10] &= 0xfffffff;
-    a[12] += a[11] >> 28; a[11] &= 0xfffffff;
-    a[13] += a[12] >> 28; a[12] &= 0xfffffff;
-}
-
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static void sp_3072_mul_28(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
-{
-    sp_digit* z0 = r;
-    sp_digit z1[28];
-    sp_digit* a1 = z1;
-    sp_digit b1[14];
-    sp_digit* z2 = r + 28;
-    (void)sp_3072_add_14(a1, a, &a[14]);
-    sp_3072_norm_14(a1);
-    (void)sp_3072_add_14(b1, b, &b[14]);
-    sp_3072_norm_14(b1);
-    sp_3072_mul_14(z2, &a[14], &b[14]);
-    sp_3072_mul_14(z0, a, b);
-    sp_3072_mul_14(z1, a1, b1);
-    (void)sp_3072_sub_28(z1, z1, z2);
-    (void)sp_3072_sub_28(z1, z1, z0);
-    (void)sp_3072_add_28(r + 14, r + 14, z1);
-    sp_3072_norm_56(r);
-}
-
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
@@ -9165,105 +9392,6 @@ SP_NOINLINE static void sp_3072_sqr_28(sp_digit* r, const sp_digit* a)
     sp_3072_norm_56(r);
 }
 
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_add_56(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 56; i += 8) {
-        r[i + 0] = a[i + 0] + b[i + 0];
-        r[i + 1] = a[i + 1] + b[i + 1];
-        r[i + 2] = a[i + 2] + b[i + 2];
-        r[i + 3] = a[i + 3] + b[i + 3];
-        r[i + 4] = a[i + 4] + b[i + 4];
-        r[i + 5] = a[i + 5] + b[i + 5];
-        r[i + 6] = a[i + 6] + b[i + 6];
-        r[i + 7] = a[i + 7] + b[i + 7];
-    }
-
-    return 0;
-}
-
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_sub_56(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 56; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
-    }
-
-    return 0;
-}
-
-/* Normalize the values in each word to 28 bits.
- *
- * a  Array of sp_digit to normalize.
- */
-static void sp_3072_norm_28(sp_digit* a)
-{
-    int i;
-    for (i = 0; i < 24; i += 8) {
-        a[i+1] += a[i+0] >> 28; a[i+0] &= 0xfffffff;
-        a[i+2] += a[i+1] >> 28; a[i+1] &= 0xfffffff;
-        a[i+3] += a[i+2] >> 28; a[i+2] &= 0xfffffff;
-        a[i+4] += a[i+3] >> 28; a[i+3] &= 0xfffffff;
-        a[i+5] += a[i+4] >> 28; a[i+4] &= 0xfffffff;
-        a[i+6] += a[i+5] >> 28; a[i+5] &= 0xfffffff;
-        a[i+7] += a[i+6] >> 28; a[i+6] &= 0xfffffff;
-        a[i+8] += a[i+7] >> 28; a[i+7] &= 0xfffffff;
-    }
-    a[25] += a[24] >> 28; a[24] &= 0xfffffff;
-    a[26] += a[25] >> 28; a[25] &= 0xfffffff;
-    a[27] += a[26] >> 28; a[26] &= 0xfffffff;
-}
-
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static void sp_3072_mul_56(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
-{
-    sp_digit* z0 = r;
-    sp_digit z1[56];
-    sp_digit* a1 = z1;
-    sp_digit b1[28];
-    sp_digit* z2 = r + 56;
-    (void)sp_3072_add_28(a1, a, &a[28]);
-    sp_3072_norm_28(a1);
-    (void)sp_3072_add_28(b1, b, &b[28]);
-    sp_3072_norm_28(b1);
-    sp_3072_mul_28(z2, &a[28], &b[28]);
-    sp_3072_mul_28(z0, a, b);
-    sp_3072_mul_28(z1, a1, b1);
-    (void)sp_3072_sub_56(z1, z1, z2);
-    (void)sp_3072_sub_56(z1, z1, z0);
-    (void)sp_3072_add_56(r + 28, r + 28, z1);
-    sp_3072_norm_112(r);
-}
-
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
@@ -9284,109 +9412,6 @@ SP_NOINLINE static void sp_3072_sqr_56(sp_digit* r, const sp_digit* a)
     (void)sp_3072_sub_56(z1, z1, z0);
     (void)sp_3072_add_56(r + 28, r + 28, z1);
     sp_3072_norm_112(r);
-}
-
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_add_112(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 112; i += 8) {
-        r[i + 0] = a[i + 0] + b[i + 0];
-        r[i + 1] = a[i + 1] + b[i + 1];
-        r[i + 2] = a[i + 2] + b[i + 2];
-        r[i + 3] = a[i + 3] + b[i + 3];
-        r[i + 4] = a[i + 4] + b[i + 4];
-        r[i + 5] = a[i + 5] + b[i + 5];
-        r[i + 6] = a[i + 6] + b[i + 6];
-        r[i + 7] = a[i + 7] + b[i + 7];
-    }
-
-    return 0;
-}
-
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static int sp_3072_sub_112(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    int i;
-
-    for (i = 0; i < 112; i += 8) {
-        r[i + 0] = a[i + 0] - b[i + 0];
-        r[i + 1] = a[i + 1] - b[i + 1];
-        r[i + 2] = a[i + 2] - b[i + 2];
-        r[i + 3] = a[i + 3] - b[i + 3];
-        r[i + 4] = a[i + 4] - b[i + 4];
-        r[i + 5] = a[i + 5] - b[i + 5];
-        r[i + 6] = a[i + 6] - b[i + 6];
-        r[i + 7] = a[i + 7] - b[i + 7];
-    }
-
-    return 0;
-}
-
-/* Normalize the values in each word to 28 bits.
- *
- * a  Array of sp_digit to normalize.
- */
-static void sp_3072_norm_224(sp_digit* a)
-{
-    int i;
-    for (i = 0; i < 216; i += 8) {
-        a[i+1] += a[i+0] >> 28; a[i+0] &= 0xfffffff;
-        a[i+2] += a[i+1] >> 28; a[i+1] &= 0xfffffff;
-        a[i+3] += a[i+2] >> 28; a[i+2] &= 0xfffffff;
-        a[i+4] += a[i+3] >> 28; a[i+3] &= 0xfffffff;
-        a[i+5] += a[i+4] >> 28; a[i+4] &= 0xfffffff;
-        a[i+6] += a[i+5] >> 28; a[i+5] &= 0xfffffff;
-        a[i+7] += a[i+6] >> 28; a[i+6] &= 0xfffffff;
-        a[i+8] += a[i+7] >> 28; a[i+7] &= 0xfffffff;
-    }
-    a[217] += a[216] >> 28; a[216] &= 0xfffffff;
-    a[218] += a[217] >> 28; a[217] &= 0xfffffff;
-    a[219] += a[218] >> 28; a[218] &= 0xfffffff;
-    a[220] += a[219] >> 28; a[219] &= 0xfffffff;
-    a[221] += a[220] >> 28; a[220] &= 0xfffffff;
-    a[222] += a[221] >> 28; a[221] &= 0xfffffff;
-    a[223] += a[222] >> 28; a[222] &= 0xfffffff;
-}
-
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static void sp_3072_mul_112(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
-{
-    sp_digit* z0 = r;
-    sp_digit z1[112];
-    sp_digit* a1 = z1;
-    sp_digit b1[56];
-    sp_digit* z2 = r + 112;
-    (void)sp_3072_add_56(a1, a, &a[56]);
-    sp_3072_norm_56(a1);
-    (void)sp_3072_add_56(b1, b, &b[56]);
-    sp_3072_norm_56(b1);
-    sp_3072_mul_56(z2, &a[56], &b[56]);
-    sp_3072_mul_56(z0, a, b);
-    sp_3072_mul_56(z1, a1, b1);
-    (void)sp_3072_sub_112(z1, z1, z2);
-    (void)sp_3072_sub_112(z1, z1, z0);
-    (void)sp_3072_add_112(r + 56, r + 56, z1);
-    sp_3072_norm_224(r);
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -9717,7 +9742,7 @@ static void sp_3072_mont_reduce_56(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_mul_56(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_mul_56(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_56(r, a, b);
@@ -9731,7 +9756,7 @@ static void sp_3072_mont_mul_56(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_sqr_56(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_sqr_56(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_56(r, a);
@@ -9778,6 +9803,7 @@ SP_NOINLINE static void sp_3072_mul_d_56(sp_digit* r, const sp_digit* a,
     r[56] = (sp_digit)(t & 0xfffffff);
 }
 
+#ifndef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -9791,7 +9817,7 @@ static void sp_3072_cond_add_56(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 48; i += 8) {
+    for (i = 0; i < 56; i += 8) {
         r[i + 0] = a[i + 0] + (b[i + 0] & m);
         r[i + 1] = a[i + 1] + (b[i + 1] & m);
         r[i + 2] = a[i + 2] + (b[i + 2] & m);
@@ -9801,14 +9827,8 @@ static void sp_3072_cond_add_56(sp_digit* r, const sp_digit* a,
         r[i + 6] = a[i + 6] + (b[i + 6] & m);
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
-    r[48] = a[48] + (b[48] & m);
-    r[49] = a[49] + (b[49] & m);
-    r[50] = a[50] + (b[50] & m);
-    r[51] = a[51] + (b[51] & m);
-    r[52] = a[52] + (b[52] & m);
-    r[53] = a[53] + (b[53] & m);
-    r[54] = a[54] + (b[54] & m);
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_3072_rshift_56(sp_digit* r, const sp_digit* a,
         byte n)
@@ -10666,7 +10686,7 @@ static void sp_3072_mont_reduce_112(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_mul_112(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_mul_112(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_112(r, a, b);
@@ -10680,7 +10700,7 @@ static void sp_3072_mont_mul_112(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_3072_mont_sqr_112(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mont_sqr_112(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_112(r, a);
@@ -10727,6 +10747,7 @@ SP_NOINLINE static void sp_3072_mul_d_224(sp_digit* r, const sp_digit* a,
     r[224] = (sp_digit)(t & 0xfffffff);
 }
 
+#ifndef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -10740,7 +10761,7 @@ static void sp_3072_cond_add_112(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 104; i += 8) {
+    for (i = 0; i < 112; i += 8) {
         r[i + 0] = a[i + 0] + (b[i + 0] & m);
         r[i + 1] = a[i + 1] + (b[i + 1] & m);
         r[i + 2] = a[i + 2] + (b[i + 2] & m);
@@ -10750,13 +10771,8 @@ static void sp_3072_cond_add_112(sp_digit* r, const sp_digit* a,
         r[i + 6] = a[i + 6] + (b[i + 6] & m);
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
-    r[104] = a[104] + (b[104] & m);
-    r[105] = a[105] + (b[105] & m);
-    r[106] = a[106] + (b[106] & m);
-    r[107] = a[107] + (b[107] & m);
-    r[108] = a[108] + (b[108] & m);
-    r[109] = a[109] + (b[109] & m);
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_3072_rshift_112(sp_digit* r, const sp_digit* a,
         byte n)
@@ -13348,7 +13364,7 @@ SP_NOINLINE static void sp_4096_mul_71(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_mul_71(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_mul_71(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_4096_mul_71(r, a, b);
@@ -13426,7 +13442,7 @@ SP_NOINLINE static void sp_4096_sqr_71(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_sqr_71(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_sqr_71(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_4096_sqr_71(r, a);
@@ -13454,6 +13470,7 @@ SP_NOINLINE static void sp_4096_mul_d_71(sp_digit* r, const sp_digit* a,
     r[71] = (sp_digit)t;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -13471,6 +13488,7 @@ static void sp_4096_cond_add_71(sp_digit* r, const sp_digit* a,
         r[i] = a[i] + (b[i] & m);
     }
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Add b to a into r. (r = a + b)
  *
@@ -14316,7 +14334,7 @@ static void sp_4096_mont_reduce_142(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_mul_142(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_mul_142(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_4096_mul_142(r, a, b);
@@ -14330,7 +14348,7 @@ static void sp_4096_mont_mul_142(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_sqr_142(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_sqr_142(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_4096_sqr_142(r, a);
@@ -14358,6 +14376,7 @@ SP_NOINLINE static void sp_4096_mul_d_284(sp_digit* r, const sp_digit* a,
     r[284] = (sp_digit)t;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -14371,10 +14390,11 @@ static void sp_4096_cond_add_142(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 71; i++) {
+    for (i = 0; i < 142; i++) {
         r[i] = a[i] + (b[i] & m);
     }
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Add b to a into r. (r = a + b)
  *
@@ -16406,79 +16426,6 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
                        r[16] = t16 & 0x3ffffff;
 }
 
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_4096_sqr_9(sp_digit* r, const sp_digit* a)
-{
-    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
-    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint64)a[ 1]) * a[ 1];
-    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
-                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
-                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint64)a[ 2]) * a[ 2];
-    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
-                 +  ((sp_uint64)a[ 1]) * a[ 4]
-                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
-                 +  ((sp_uint64)a[ 1]) * a[ 5]
-                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint64)a[ 3]) * a[ 3];
-    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
-                 +  ((sp_uint64)a[ 1]) * a[ 6]
-                 +  ((sp_uint64)a[ 2]) * a[ 5]
-                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
-                 +  ((sp_uint64)a[ 1]) * a[ 7]
-                 +  ((sp_uint64)a[ 2]) * a[ 6]
-                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint64)a[ 4]) * a[ 4];
-    sp_uint64 t9   = (((sp_uint64)a[ 1]) * a[ 8]
-                 +  ((sp_uint64)a[ 2]) * a[ 7]
-                 +  ((sp_uint64)a[ 3]) * a[ 6]
-                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    sp_uint64 t10  = (((sp_uint64)a[ 2]) * a[ 8]
-                 +  ((sp_uint64)a[ 3]) * a[ 7]
-                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint64)a[ 5]) * a[ 5];
-    sp_uint64 t11  = (((sp_uint64)a[ 3]) * a[ 8]
-                 +  ((sp_uint64)a[ 4]) * a[ 7]
-                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    sp_uint64 t12  = (((sp_uint64)a[ 4]) * a[ 8]
-                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint64)a[ 6]) * a[ 6];
-    sp_uint64 t13  = (((sp_uint64)a[ 5]) * a[ 8]
-                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    sp_uint64 t14  = (((sp_uint64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint64)a[ 7]) * a[ 7];
-    sp_uint64 t15  = (((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    sp_uint64 t16  =  ((sp_uint64)a[ 8]) * a[ 8];
-
-    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
-    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
-    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
-    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
-    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
-    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
-    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
-    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
-    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
-    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
-    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
-    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
-    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
-    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
-    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
-    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
-    r[17] = (sp_digit)(t16 >> 26);
-                       r[16] = t16 & 0x3ffffff;
-}
-
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -16675,55 +16622,6 @@ SP_NOINLINE static void sp_4096_mul_27(sp_digit* r, const sp_digit* a,
     sp_4096_norm_54(r);
 }
 
-/* Square a into r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_4096_sqr_27(sp_digit* r, const sp_digit* a)
-{
-    sp_digit p0[18];
-    sp_digit p1[18];
-    sp_digit p2[18];
-    sp_digit p3[18];
-    sp_digit p4[18];
-    sp_digit p5[18];
-    sp_digit t0[18];
-    sp_digit t1[18];
-    sp_digit t2[18];
-    sp_digit a0[9];
-    sp_digit a1[9];
-    sp_digit a2[9];
-    (void)sp_4096_add_9(a0, a, &a[9]);
-    sp_4096_norm_9(a0);
-    (void)sp_4096_add_9(a1, &a[9], &a[18]);
-    sp_4096_norm_9(a1);
-    (void)sp_4096_add_9(a2, a0, &a[18]);
-    sp_4096_norm_9(a2);
-    sp_4096_sqr_9(p0, a);
-    sp_4096_sqr_9(p2, &a[9]);
-    sp_4096_sqr_9(p4, &a[18]);
-    sp_4096_sqr_9(p1, a0);
-    sp_4096_sqr_9(p3, a1);
-    sp_4096_sqr_9(p5, a2);
-    XMEMSET(r, 0, sizeof(*r)*2U*27U);
-    (void)sp_4096_sub_18(t0, p3, p2);
-    (void)sp_4096_sub_18(t1, p1, p2);
-    (void)sp_4096_sub_18(t2, p5, t0);
-    (void)sp_4096_sub_18(t2, t2, t1);
-    sp_4096_norm_18(t2);
-    (void)sp_4096_sub_18(t0, t0, p4);
-    sp_4096_norm_18(t0);
-    (void)sp_4096_sub_18(t1, t1, p0);
-    sp_4096_norm_18(t1);
-    (void)sp_4096_add_18(r, r, p0);
-    (void)sp_4096_add_18(&r[9], &r[9], t1);
-    (void)sp_4096_add_18(&r[18], &r[18], t2);
-    (void)sp_4096_add_18(&r[27], &r[27], t0);
-    (void)sp_4096_add_18(&r[36], &r[36], p4);
-    sp_4096_norm_54(r);
-}
-
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -16895,55 +16793,6 @@ SP_NOINLINE static void sp_4096_mul_81(sp_digit* r, const sp_digit* a,
     sp_4096_norm_162(r);
 }
 
-/* Square a into r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_4096_sqr_81(sp_digit* r, const sp_digit* a)
-{
-    sp_digit p0[54];
-    sp_digit p1[54];
-    sp_digit p2[54];
-    sp_digit p3[54];
-    sp_digit p4[54];
-    sp_digit p5[54];
-    sp_digit t0[54];
-    sp_digit t1[54];
-    sp_digit t2[54];
-    sp_digit a0[27];
-    sp_digit a1[27];
-    sp_digit a2[27];
-    (void)sp_4096_add_27(a0, a, &a[27]);
-    sp_4096_norm_27(a0);
-    (void)sp_4096_add_27(a1, &a[27], &a[54]);
-    sp_4096_norm_27(a1);
-    (void)sp_4096_add_27(a2, a0, &a[54]);
-    sp_4096_norm_27(a2);
-    sp_4096_sqr_27(p0, a);
-    sp_4096_sqr_27(p2, &a[27]);
-    sp_4096_sqr_27(p4, &a[54]);
-    sp_4096_sqr_27(p1, a0);
-    sp_4096_sqr_27(p3, a1);
-    sp_4096_sqr_27(p5, a2);
-    XMEMSET(r, 0, sizeof(*r)*2U*81U);
-    (void)sp_4096_sub_54(t0, p3, p2);
-    (void)sp_4096_sub_54(t1, p1, p2);
-    (void)sp_4096_sub_54(t2, p5, t0);
-    (void)sp_4096_sub_54(t2, t2, t1);
-    sp_4096_norm_54(t2);
-    (void)sp_4096_sub_54(t0, t0, p4);
-    sp_4096_norm_54(t0);
-    (void)sp_4096_sub_54(t1, t1, p0);
-    sp_4096_norm_54(t1);
-    (void)sp_4096_add_54(r, r, p0);
-    (void)sp_4096_add_54(&r[27], &r[27], t1);
-    (void)sp_4096_add_54(&r[54], &r[54], t2);
-    (void)sp_4096_add_54(&r[81], &r[81], t0);
-    (void)sp_4096_add_54(&r[108], &r[108], p4);
-    sp_4096_norm_162(r);
-}
-
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -17071,6 +16920,177 @@ SP_NOINLINE static void sp_4096_mul_162(sp_digit* r, const sp_digit* a,
     (void)sp_4096_sub_162(z1, z1, z0);
     (void)sp_4096_add_162(r + 81, r + 81, z1);
     sp_4096_norm_324(r);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_4096_sqr_9(sp_digit* r, const sp_digit* a)
+{
+    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
+    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
+    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
+                 +  ((sp_uint64)a[ 1]) * a[ 1];
+    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
+                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
+    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
+                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
+                 +  ((sp_uint64)a[ 2]) * a[ 2];
+    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
+                 +  ((sp_uint64)a[ 1]) * a[ 4]
+                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
+    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
+                 +  ((sp_uint64)a[ 1]) * a[ 5]
+                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
+                 +  ((sp_uint64)a[ 3]) * a[ 3];
+    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
+                 +  ((sp_uint64)a[ 1]) * a[ 6]
+                 +  ((sp_uint64)a[ 2]) * a[ 5]
+                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
+    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
+                 +  ((sp_uint64)a[ 1]) * a[ 7]
+                 +  ((sp_uint64)a[ 2]) * a[ 6]
+                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
+                 +  ((sp_uint64)a[ 4]) * a[ 4];
+    sp_uint64 t9   = (((sp_uint64)a[ 1]) * a[ 8]
+                 +  ((sp_uint64)a[ 2]) * a[ 7]
+                 +  ((sp_uint64)a[ 3]) * a[ 6]
+                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
+    sp_uint64 t10  = (((sp_uint64)a[ 2]) * a[ 8]
+                 +  ((sp_uint64)a[ 3]) * a[ 7]
+                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
+                 +  ((sp_uint64)a[ 5]) * a[ 5];
+    sp_uint64 t11  = (((sp_uint64)a[ 3]) * a[ 8]
+                 +  ((sp_uint64)a[ 4]) * a[ 7]
+                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
+    sp_uint64 t12  = (((sp_uint64)a[ 4]) * a[ 8]
+                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
+                 +  ((sp_uint64)a[ 6]) * a[ 6];
+    sp_uint64 t13  = (((sp_uint64)a[ 5]) * a[ 8]
+                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
+    sp_uint64 t14  = (((sp_uint64)a[ 6]) * a[ 8]) * 2
+                 +  ((sp_uint64)a[ 7]) * a[ 7];
+    sp_uint64 t15  = (((sp_uint64)a[ 7]) * a[ 8]) * 2;
+    sp_uint64 t16  =  ((sp_uint64)a[ 8]) * a[ 8];
+
+    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
+    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
+    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
+    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
+    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
+    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
+    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
+    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
+    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
+    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
+    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
+    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
+    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
+    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
+    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
+    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
+    r[17] = (sp_digit)(t16 >> 26);
+                       r[16] = t16 & 0x3ffffff;
+}
+
+/* Square a into r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_4096_sqr_27(sp_digit* r, const sp_digit* a)
+{
+    sp_digit p0[18];
+    sp_digit p1[18];
+    sp_digit p2[18];
+    sp_digit p3[18];
+    sp_digit p4[18];
+    sp_digit p5[18];
+    sp_digit t0[18];
+    sp_digit t1[18];
+    sp_digit t2[18];
+    sp_digit a0[9];
+    sp_digit a1[9];
+    sp_digit a2[9];
+    (void)sp_4096_add_9(a0, a, &a[9]);
+    sp_4096_norm_9(a0);
+    (void)sp_4096_add_9(a1, &a[9], &a[18]);
+    sp_4096_norm_9(a1);
+    (void)sp_4096_add_9(a2, a0, &a[18]);
+    sp_4096_norm_9(a2);
+    sp_4096_sqr_9(p0, a);
+    sp_4096_sqr_9(p2, &a[9]);
+    sp_4096_sqr_9(p4, &a[18]);
+    sp_4096_sqr_9(p1, a0);
+    sp_4096_sqr_9(p3, a1);
+    sp_4096_sqr_9(p5, a2);
+    XMEMSET(r, 0, sizeof(*r)*2U*27U);
+    (void)sp_4096_sub_18(t0, p3, p2);
+    (void)sp_4096_sub_18(t1, p1, p2);
+    (void)sp_4096_sub_18(t2, p5, t0);
+    (void)sp_4096_sub_18(t2, t2, t1);
+    sp_4096_norm_18(t2);
+    (void)sp_4096_sub_18(t0, t0, p4);
+    sp_4096_norm_18(t0);
+    (void)sp_4096_sub_18(t1, t1, p0);
+    sp_4096_norm_18(t1);
+    (void)sp_4096_add_18(r, r, p0);
+    (void)sp_4096_add_18(&r[9], &r[9], t1);
+    (void)sp_4096_add_18(&r[18], &r[18], t2);
+    (void)sp_4096_add_18(&r[27], &r[27], t0);
+    (void)sp_4096_add_18(&r[36], &r[36], p4);
+    sp_4096_norm_54(r);
+}
+
+/* Square a into r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_4096_sqr_81(sp_digit* r, const sp_digit* a)
+{
+    sp_digit p0[54];
+    sp_digit p1[54];
+    sp_digit p2[54];
+    sp_digit p3[54];
+    sp_digit p4[54];
+    sp_digit p5[54];
+    sp_digit t0[54];
+    sp_digit t1[54];
+    sp_digit t2[54];
+    sp_digit a0[27];
+    sp_digit a1[27];
+    sp_digit a2[27];
+    (void)sp_4096_add_27(a0, a, &a[27]);
+    sp_4096_norm_27(a0);
+    (void)sp_4096_add_27(a1, &a[27], &a[54]);
+    sp_4096_norm_27(a1);
+    (void)sp_4096_add_27(a2, a0, &a[54]);
+    sp_4096_norm_27(a2);
+    sp_4096_sqr_27(p0, a);
+    sp_4096_sqr_27(p2, &a[27]);
+    sp_4096_sqr_27(p4, &a[54]);
+    sp_4096_sqr_27(p1, a0);
+    sp_4096_sqr_27(p3, a1);
+    sp_4096_sqr_27(p5, a2);
+    XMEMSET(r, 0, sizeof(*r)*2U*81U);
+    (void)sp_4096_sub_54(t0, p3, p2);
+    (void)sp_4096_sub_54(t1, p1, p2);
+    (void)sp_4096_sub_54(t2, p5, t0);
+    (void)sp_4096_sub_54(t2, t2, t1);
+    sp_4096_norm_54(t2);
+    (void)sp_4096_sub_54(t0, t0, p4);
+    sp_4096_norm_54(t0);
+    (void)sp_4096_sub_54(t1, t1, p0);
+    sp_4096_norm_54(t1);
+    (void)sp_4096_add_54(r, r, p0);
+    (void)sp_4096_add_54(&r[27], &r[27], t1);
+    (void)sp_4096_add_54(&r[54], &r[54], t2);
+    (void)sp_4096_add_54(&r[81], &r[81], t0);
+    (void)sp_4096_add_54(&r[108], &r[108], p4);
+    sp_4096_norm_162(r);
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -17416,7 +17436,7 @@ static void sp_4096_mont_reduce_81(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_mul_81(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_mul_81(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_4096_mul_81(r, a, b);
@@ -17430,7 +17450,7 @@ static void sp_4096_mont_mul_81(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_sqr_81(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_sqr_81(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_4096_sqr_81(r, a);
@@ -17480,6 +17500,7 @@ SP_NOINLINE static void sp_4096_mul_d_81(sp_digit* r, const sp_digit* a,
     r[81] = (sp_digit)(t & 0x3ffffff);
 }
 
+#ifndef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -17493,7 +17514,7 @@ static void sp_4096_cond_add_81(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 72; i += 8) {
+    for (i = 0; i < 80; i += 8) {
         r[i + 0] = a[i + 0] + (b[i + 0] & m);
         r[i + 1] = a[i + 1] + (b[i + 1] & m);
         r[i + 2] = a[i + 2] + (b[i + 2] & m);
@@ -17503,14 +17524,9 @@ static void sp_4096_cond_add_81(sp_digit* r, const sp_digit* a,
         r[i + 6] = a[i + 6] + (b[i + 6] & m);
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
-    r[72] = a[72] + (b[72] & m);
-    r[73] = a[73] + (b[73] & m);
-    r[74] = a[74] + (b[74] & m);
-    r[75] = a[75] + (b[75] & m);
-    r[76] = a[76] + (b[76] & m);
-    r[77] = a[77] + (b[77] & m);
-    r[78] = a[78] + (b[78] & m);
+    r[80] = a[80] + (b[80] & m);
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_4096_rshift_81(sp_digit* r, const sp_digit* a,
         byte n)
@@ -18319,7 +18335,7 @@ static void sp_4096_mont_reduce_162(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_mul_162(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_mul_162(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_4096_mul_162(r, a, b);
@@ -18333,7 +18349,7 @@ static void sp_4096_mont_mul_162(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_4096_mont_sqr_162(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mont_sqr_162(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_4096_sqr_162(r, a);
@@ -18380,6 +18396,7 @@ SP_NOINLINE static void sp_4096_mul_d_324(sp_digit* r, const sp_digit* a,
     r[324] = (sp_digit)(t & 0x3ffffff);
 }
 
+#ifndef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -18393,7 +18410,7 @@ static void sp_4096_cond_add_162(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i = 0; i < 152; i += 8) {
+    for (i = 0; i < 160; i += 8) {
         r[i + 0] = a[i + 0] + (b[i + 0] & m);
         r[i + 1] = a[i + 1] + (b[i + 1] & m);
         r[i + 2] = a[i + 2] + (b[i + 2] & m);
@@ -18403,13 +18420,10 @@ static void sp_4096_cond_add_162(sp_digit* r, const sp_digit* a,
         r[i + 6] = a[i + 6] + (b[i + 6] & m);
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
-    r[152] = a[152] + (b[152] & m);
-    r[153] = a[153] + (b[153] & m);
-    r[154] = a[154] + (b[154] & m);
-    r[155] = a[155] + (b[155] & m);
-    r[156] = a[156] + (b[156] & m);
-    r[157] = a[157] + (b[157] & m);
+    r[160] = a[160] + (b[160] & m);
+    r[161] = a[161] + (b[161] & m);
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 SP_NOINLINE static void sp_4096_rshift_162(sp_digit* r, const sp_digit* a,
         byte n)
@@ -21270,7 +21284,7 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_256_mont_mul_9(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_256_mont_mul_9(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_256_mul_9(r, a, b);
@@ -21284,7 +21298,7 @@ static void sp_256_mont_mul_9(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_256_mont_sqr_9(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_256_mont_sqr_9(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_256_sqr_9(r, a);
@@ -21482,6 +21496,7 @@ static void sp_256_mont_tpl_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
     sp_256_norm_9(r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -21493,13 +21508,26 @@ static void sp_256_mont_tpl_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static void sp_256_cond_add_9(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
     for (i = 0; i < 9; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_256_cond_add_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     r[ 0] = a[ 0] + (b[ 0] & m);
     r[ 1] = a[ 1] + (b[ 1] & m);
     r[ 2] = a[ 2] + (b[ 2] & m);
@@ -21509,8 +21537,8 @@ static void sp_256_cond_add_9(sp_digit* r, const sp_digit* a,
     r[ 6] = a[ 6] + (b[ 6] & m);
     r[ 7] = a[ 7] + (b[ 7] & m);
     r[ 8] = a[ 8] + (b[ 8] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
@@ -28489,7 +28517,7 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_384_mont_mul_15(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_384_mont_mul_15(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_384_mul_15(r, a, b);
@@ -28503,7 +28531,7 @@ static void sp_384_mont_mul_15(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_384_mont_sqr_15(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_384_mont_sqr_15(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_384_sqr_15(r, a);
@@ -28717,6 +28745,7 @@ static void sp_384_mont_tpl_15(sp_digit* r, const sp_digit* a, const sp_digit* m
     sp_384_norm_15(r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -28728,13 +28757,26 @@ static void sp_384_mont_tpl_15(sp_digit* r, const sp_digit* a, const sp_digit* m
 static void sp_384_cond_add_15(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
     for (i = 0; i < 15; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_384_cond_add_15(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     r[ 0] = a[ 0] + (b[ 0] & m);
     r[ 1] = a[ 1] + (b[ 1] & m);
     r[ 2] = a[ 2] + (b[ 2] & m);
@@ -28750,8 +28792,8 @@ static void sp_384_cond_add_15(sp_digit* r, const sp_digit* a,
     r[12] = a[12] + (b[12] & m);
     r[13] = a[13] + (b[13] & m);
     r[14] = a[14] + (b[14] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
@@ -35985,7 +36027,7 @@ static void sp_521_mont_reduce_order_21(sp_digit* a, const sp_digit* m, sp_digit
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_521_mont_mul_21(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_521_mont_mul_21(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_521_mul_21(r, a, b);
@@ -35999,7 +36041,7 @@ static void sp_521_mont_mul_21(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_521_mont_sqr_21(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_521_mont_sqr_21(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_521_sqr_21(r, a);
@@ -36210,6 +36252,7 @@ static void sp_521_mont_tpl_21(sp_digit* r, const sp_digit* a, const sp_digit* m
     sp_521_norm_21(r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -36221,13 +36264,26 @@ static void sp_521_mont_tpl_21(sp_digit* r, const sp_digit* a, const sp_digit* m
 static void sp_521_cond_add_21(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
     for (i = 0; i < 21; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_521_cond_add_21(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     int i;
 
     for (i = 0; i < 16; i += 8) {
@@ -36245,8 +36301,8 @@ static void sp_521_cond_add_21(sp_digit* r, const sp_digit* a,
     r[18] = a[18] + (b[18] & m);
     r[19] = a[19] + (b[19] & m);
     r[20] = a[20] + (b[20] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
@@ -43830,6 +43886,7 @@ SP_NOINLINE static void sp_1024_mul_d_84(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -43841,13 +43898,26 @@ SP_NOINLINE static void sp_1024_mul_d_84(sp_digit* r, const sp_digit* a,
 static void sp_1024_cond_add_42(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
-    for (i = 0; i < 41; i++) {
+    for (i = 0; i < 42; i++) {
         r[i] = a[i] + (b[i] & m);
     }
-#else
+}
+#endif /* WOLFSSL_SP_SMALL */
+
+#ifndef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_1024_cond_add_42(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
     int i;
 
     for (i = 0; i < 40; i += 8) {
@@ -43862,8 +43932,8 @@ static void sp_1024_cond_add_42(sp_digit* r, const sp_digit* a,
     }
     r[40] = a[40] + (b[40] & m);
     r[41] = a[41] + (b[41] & m);
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* !WOLFSSL_SP_SMALL */
 
 #ifdef WOLFSSL_SP_SMALL
 /* Sub b from a into r. (r = a - b)
@@ -44618,7 +44688,7 @@ static void sp_1024_mont_reduce_42(sp_digit* a, const sp_digit* m, sp_digit mp)
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_1024_mont_mul_42(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_1024_mont_mul_42(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_1024_mul_42(r, a, b);
@@ -44632,7 +44702,7 @@ static void sp_1024_mont_mul_42(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montgomery mulitplier.
  */
-static void sp_1024_mont_sqr_42(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_1024_mont_sqr_42(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
 {
     sp_1024_sqr_42(r, a);

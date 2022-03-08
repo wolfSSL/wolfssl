@@ -5958,7 +5958,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes
@@ -5973,7 +5973,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes
@@ -5988,7 +5988,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes

@@ -6152,6 +6152,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         #endif
         }
     #endif
+        (void)sign_k;
     }
 #else
    (void)inlen;
