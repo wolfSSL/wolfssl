@@ -38799,7 +38799,7 @@ static void test_wolfSSL_BIO_Qt_usecase()
      * then writes the read data into read-bio.
      */
     SSL_set_bio(ssl, readBio, writeBio);
-    AssertIntEQ(ret = SSL_connect(ssl), -1);
+    AssertIntEQ(ret = SSL_connect(ssl), WOLFSSL_FATAL_ERROR);
     err = SSL_get_error(ssl, ret);
     /* in this use case, should return WANT READ
      * so that Qt will read the data from plain packet for next state.
