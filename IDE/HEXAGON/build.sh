@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ -z $1 ]; then
 	echo "./build <Debug | Release>"
-	exit -1
+	exit 1
 fi
 
 printf "Erasing previous hexagon_$1_dynamic_toolv83_v65 and UbuntuARM_$1_aarch64\n"

@@ -43,7 +43,7 @@ do_cleanup() {
 do_trap() {
     echo "got trap"
     do_cleanup
-    exit -1
+    exit 1
 }
 
 trap do_trap INT TERM

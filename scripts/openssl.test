@@ -407,11 +407,12 @@ command -v $OPENSSL >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
 currentDir=`pwd`
-if [ "$currentDir" = *"_build" ]
-then
+case "$currentDir" in
+*_build)
     echo -e "_build directory detected, moving a directory back"
     cd ..
-fi
+    ;;
+esac
 echo -e "\nChecking for wolfSSL client - needed for cipher list"
 wolfssl_client_avail=`$WOLFSSL_CLIENT -?`
 case $wolfssl_client_avail in

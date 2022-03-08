@@ -120,7 +120,7 @@ check_dtls_srtp() {
     echo -n "check dtls $1 $2... "
     if [ $check_ret -ne 0 ];then
         echo "failed"
-        exit -1
+        exit 1
     else
         echo "ok"
     fi
