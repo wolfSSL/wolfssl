@@ -54,13 +54,16 @@ build_test_cert_conf() {
     echo ""                                             >> "$1".conf
     if [ -n "$3" ]; then
         echo "[ req_ext ]"                              >> "$1".conf
-        if [ "$3" != *"DER"* ]; then
-            echo "subjectAltName = @alt_names"          >> "$1".conf
-            echo "[alt_names]"                          >> "$1".conf
-            echo "DNS.1 = $3"                           >> "$1".conf
-        else
-            echo "subjectAltName = $3"                  >> "$1".conf
-        fi
+	case "$3" in
+	    *DER*)
+               echo "subjectAltName = $3"               >> "$1".conf
+	       ;;
+	    *)
+               echo "subjectAltName = @alt_names"       >> "$1".conf
+               echo "[alt_names]"                       >> "$1".conf
+               echo "DNS.1 = $3"                        >> "$1".conf
+	       ;;
+	esac
     fi
 }
 

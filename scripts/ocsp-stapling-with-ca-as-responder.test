@@ -230,7 +230,7 @@ openssl ocsp -port $port1 -nmin 1                               \
     -rsigner certs/ocsp/intermediate1-ca-cert.pem               \
     -rkey    certs/ocsp/intermediate1-ca-key.pem                \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
-    $@                                                          \
+    "$@"                                                        \
     &
 
 sleep 0.1

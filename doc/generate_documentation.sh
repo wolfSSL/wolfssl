@@ -34,7 +34,7 @@ fi
 
 # Checking arguments and setting appropriate option variables
 
-for var in $@
+for var in "$@"
 do
     case $var in
     -install)

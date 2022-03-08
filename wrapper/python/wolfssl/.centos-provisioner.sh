@@ -1,3 +1,5 @@
+#!/bin/sh
+
 [ "$(whoami)" != "root" ] && echo "Sorry, you are not root." && exit 1
 
 rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm

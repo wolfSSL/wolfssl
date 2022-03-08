@@ -296,34 +296,34 @@ sleep 0.1
 # OLD: ./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $port1 -nmin 1                \
+openssl ocsp -port $port1 -nmin 1                         \
     -index   certs/ocsp/index-ca-and-intermediate-cas.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem           \
     -rkey    certs/ocsp/ocsp-responder-key.pem            \
     -CA      certs/ocsp/root-ca-cert.pem                  \
-    $@                                                    \
+    "$@"                                                  \
     &
 
 # OLD: ./certs/ocsp/ocspd-intermediate2-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $port2 -nmin 1                      \
+openssl ocsp -port $port2 -nmin 1                               \
     -index   certs/ocsp/index-intermediate2-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
     -rkey    certs/ocsp/ocsp-responder-key.pem                  \
     -CA      certs/ocsp/intermediate2-ca-cert.pem               \
-    $@                                                          \
+    "$@"                                                        \
     &
 
 # OLD: ./certs/ocsp/ocspd-intermediate3-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $port3 -nmin 1                      \
+openssl ocsp -port $port3 -nmin 1                               \
     -index   certs/ocsp/index-intermediate3-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
     -rkey    certs/ocsp/ocsp-responder-key.pem                  \
     -CA      certs/ocsp/intermediate3-ca-cert.pem               \
-    $@                                                          \
+    "$@"                                                        \
     &
 
 sleep 0.1
