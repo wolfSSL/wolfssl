@@ -1927,6 +1927,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
+    int    customVerifyCert = 0;
     const char* verifyCert;
     const char* ourCert;
     const char* ourKey;
@@ -2060,6 +2061,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)resumeScr;
     (void)ourKey;
     (void)ourCert;
+    (void)customVerifyCert;
     (void)verifyCert;
     (void)useClientCert;
     (void)disableCRL;
@@ -2284,6 +2286,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'A' :
+                customVerifyCert = 1;
                 verifyCert = myoptarg;
                 break;
 
@@ -3179,7 +3182,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("can't load ecc ca buffer");
         }
         #elif !defined(TEST_LOAD_BUFFER)
-        if (doPeerCheck != 0 &&
+        if (doPeerCheck != 0 && !customVerifyCert &&
             wolfSSL_CTX_load_verify_locations_ex(ctx, eccCertFile, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
