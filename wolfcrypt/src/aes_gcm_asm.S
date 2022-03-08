@@ -11597,7 +11597,7 @@ _AES_GCM_encrypt_avx2:
         je	L_AES_GCM_encrypt_avx2_iv_12
         # Calculate values when IV is not 12 bytes
         # H = Encrypt X(=0)
-        vmovdqa	(%rsi), %xmm5
+        vmovdqu	(%rsi), %xmm5
         vaesenc	16(%rsi), %xmm5, %xmm5
         vaesenc	32(%rsi), %xmm5, %xmm5
         vaesenc	48(%rsi), %xmm5, %xmm5
@@ -11608,16 +11608,16 @@ _AES_GCM_encrypt_avx2:
         vaesenc	128(%rsi), %xmm5, %xmm5
         vaesenc	144(%rsi), %xmm5, %xmm5
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	176(%rsi), %xmm5, %xmm5
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	208(%rsi), %xmm5, %xmm5
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_encrypt_avx2_calc_iv_1_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm5, %xmm5
@@ -11655,7 +11655,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_16_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -11705,7 +11705,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -11741,7 +11741,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_done:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -11751,7 +11751,7 @@ L_AES_GCM_encrypt_avx2_calc_iv_done:
         vpxor	%xmm1, %xmm4, %xmm4
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
         #   Encrypt counter
-        vmovdqa	(%rsi), %xmm15
+        vmovdqu	(%rsi), %xmm15
         vpxor	%xmm4, %xmm15, %xmm15
         vaesenc	16(%rsi), %xmm15, %xmm15
         vaesenc	32(%rsi), %xmm15, %xmm15
@@ -11763,71 +11763,71 @@ L_AES_GCM_encrypt_avx2_calc_iv_done:
         vaesenc	128(%rsi), %xmm15, %xmm15
         vaesenc	144(%rsi), %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm15, %xmm15
         vaesenc	176(%rsi), %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm15, %xmm15
         vaesenc	208(%rsi), %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_encrypt_avx2_calc_iv_2_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm15, %xmm15
         jmp	L_AES_GCM_encrypt_avx2_iv_done
 L_AES_GCM_encrypt_avx2_iv_12:
         # # Calculate values when IV is 12 bytes
         # Set counter based on IV
-        vmovdqa	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
-        vmovdqa	(%rsi), %xmm5
+        vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
+        vmovdqu	(%rsi), %xmm5
         vpblendd	$7, (%rax), %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
-        vmovdqa	16(%rsi), %xmm7
+        vmovdqu	16(%rsi), %xmm7
         vpxor	%xmm5, %xmm4, %xmm15
         vaesenc	%xmm7, %xmm5, %xmm5
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	32(%rsi), %xmm0
+        vmovdqu	32(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	48(%rsi), %xmm0
+        vmovdqu	48(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	64(%rsi), %xmm0
+        vmovdqu	64(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	80(%rsi), %xmm0
+        vmovdqu	80(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	96(%rsi), %xmm0
+        vmovdqu	96(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	112(%rsi), %xmm0
+        vmovdqu	112(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	128(%rsi), %xmm0
+        vmovdqu	128(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	144(%rsi), %xmm0
+        vmovdqu	144(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	176(%rsi), %xmm0
+        vmovdqu	176(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	208(%rsi), %xmm0
+        vmovdqu	208(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_encrypt_avx2_calc_iv_12_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vaesenclast	%xmm0, %xmm15, %xmm15
@@ -11867,7 +11867,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_16_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -11917,7 +11917,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -11942,9 +11942,9 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         movl	%r10d, %r13d
         jl	L_AES_GCM_encrypt_avx2_done_128
         andl	$0xffffff80, %r13d
-        vmovdqa	%xmm4, 128(%rsp)
-        vmovdqa	%xmm15, 144(%rsp)
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        vmovdqu	%xmm4, 128(%rsp)
+        vmovdqu	%xmm15, 144(%rsp)
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
         # H ^ 1 and H ^ 2
         vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
         vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
@@ -11955,8 +11955,8 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpshufd	$0x4e, %xmm9, %xmm9
         vpxor	%xmm8, %xmm9, %xmm9
         vpxor	%xmm9, %xmm10, %xmm0
-        vmovdqa	%xmm5, (%rsp)
-        vmovdqa	%xmm0, 16(%rsp)
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
         # H ^ 3 and H ^ 4
         vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
         vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
@@ -11983,8 +11983,8 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm2
         vpxor	%xmm9, %xmm10, %xmm1
-        vmovdqa	%xmm1, 32(%rsp)
-        vmovdqa	%xmm2, 48(%rsp)
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
         # H ^ 5 and H ^ 6
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
         vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
@@ -12011,8 +12011,8 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 64(%rsp)
-        vmovdqa	%xmm0, 80(%rsp)
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
         # H ^ 7 and H ^ 8
         vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
         vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
@@ -12039,13 +12039,13 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 96(%rsp)
-        vmovdqa	%xmm0, 112(%rsp)
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
         # First 128 bytes of input
         # aesenc_128
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -12063,8 +12063,8 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rsi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rsi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -12073,7 +12073,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vpxor	%xmm7, %xmm13, %xmm13
         vpxor	%xmm7, %xmm14, %xmm14
         vpxor	%xmm7, %xmm15, %xmm15
-        vmovdqa	16(%rsi), %xmm7
+        vmovdqu	16(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12082,7 +12082,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	32(%rsi), %xmm7
+        vmovdqu	32(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12091,7 +12091,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	48(%rsi), %xmm7
+        vmovdqu	48(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12100,7 +12100,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	64(%rsi), %xmm7
+        vmovdqu	64(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12109,7 +12109,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	80(%rsi), %xmm7
+        vmovdqu	80(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12118,7 +12118,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	96(%rsi), %xmm7
+        vmovdqu	96(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12127,7 +12127,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	112(%rsi), %xmm7
+        vmovdqu	112(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12136,7 +12136,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	128(%rsi), %xmm7
+        vmovdqu	128(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12145,7 +12145,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	144(%rsi), %xmm7
+        vmovdqu	144(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12155,7 +12155,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm7
+        vmovdqu	160(%rsi), %xmm7
         jl	L_AES_GCM_encrypt_avx2_aesenc_128_enc_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -12165,7 +12165,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rsi), %xmm7
+        vmovdqu	176(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12175,7 +12175,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm7
+        vmovdqu	192(%rsi), %xmm7
         jl	L_AES_GCM_encrypt_avx2_aesenc_128_enc_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -12185,7 +12185,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rsi), %xmm7
+        vmovdqu	208(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12194,7 +12194,7 @@ L_AES_GCM_encrypt_avx2_calc_aad_done:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm7
+        vmovdqu	224(%rsi), %xmm7
 L_AES_GCM_encrypt_avx2_aesenc_128_enc_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -12238,8 +12238,8 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         leaq	(%rdi,%rbx,1), %rcx
         leaq	(%r8,%rbx,1), %rdx
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -12257,8 +12257,8 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rsi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rsi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -12271,7 +12271,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vmovdqu	-128(%rdx), %xmm1
         vmovdqu	16(%rsi), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
-        vmovdqa	112(%rsp), %xmm2
+        vmovdqu	112(%rsp), %xmm2
         vpxor	%xmm6, %xmm1, %xmm1
         vpclmulqdq	$16, %xmm2, %xmm1, %xmm5
         vpclmulqdq	$0x01, %xmm2, %xmm1, %xmm3
@@ -12287,7 +12287,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_2
         vmovdqu	-112(%rdx), %xmm1
-        vmovdqa	96(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm3, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12306,7 +12306,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-96(%rdx), %xmm1
-        vmovdqa	80(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12327,7 +12327,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-80(%rdx), %xmm1
-        vmovdqa	64(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12348,7 +12348,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-64(%rdx), %xmm1
-        vmovdqa	48(%rsp), %xmm0
+        vmovdqu	48(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12369,7 +12369,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-48(%rdx), %xmm1
-        vmovdqa	32(%rsp), %xmm0
+        vmovdqu	32(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12390,7 +12390,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-32(%rdx), %xmm1
-        vmovdqa	16(%rsp), %xmm0
+        vmovdqu	16(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12411,7 +12411,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-16(%rdx), %xmm1
-        vmovdqa	(%rsp), %xmm0
+        vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -12436,8 +12436,8 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vpxor	%xmm3, %xmm5, %xmm5
         vpslldq	$8, %xmm5, %xmm1
         vpsrldq	$8, %xmm5, %xmm5
-        vmovdqa	144(%rsi), %xmm4
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
+        vmovdqu	144(%rsi), %xmm4
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
         vaesenc	%xmm4, %xmm8, %xmm8
         vpxor	%xmm1, %xmm6, %xmm6
         vpxor	%xmm5, %xmm7, %xmm7
@@ -12456,7 +12456,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vpxor	%xmm7, %xmm6, %xmm6
         vaesenc	%xmm4, %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm7
+        vmovdqu	160(%rsi), %xmm7
         jl	L_AES_GCM_encrypt_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -12466,7 +12466,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rsi), %xmm7
+        vmovdqu	176(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12476,7 +12476,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm7
+        vmovdqu	192(%rsi), %xmm7
         jl	L_AES_GCM_encrypt_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -12486,7 +12486,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rsi), %xmm7
+        vmovdqu	208(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -12495,7 +12495,7 @@ L_AES_GCM_encrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm7
+        vmovdqu	224(%rsi), %xmm7
 L_AES_GCM_encrypt_avx2_aesenc_128_ghash_avx_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -12535,7 +12535,7 @@ L_AES_GCM_encrypt_avx2_aesenc_128_ghash_avx_done:
         cmpl	%r13d, %ebx
         jl	L_AES_GCM_encrypt_avx2_ghash_128
 L_AES_GCM_encrypt_avx2_end_128:
-        vmovdqa	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
+        vmovdqu	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
         vpshufb	%xmm4, %xmm9, %xmm9
         vpshufb	%xmm4, %xmm10, %xmm10
@@ -12619,7 +12619,7 @@ L_AES_GCM_encrypt_avx2_end_128:
         vpxor	%xmm7, %xmm4, %xmm4
         vpxor	%xmm5, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm4, %xmm0
         vpshufd	$0x4e, %xmm4, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -12627,7 +12627,7 @@ L_AES_GCM_encrypt_avx2_end_128:
         vpshufd	$0x4e, %xmm1, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
         vpxor	%xmm1, %xmm6, %xmm6
-        vmovdqa	(%rsp), %xmm5
+        vmovdqu	(%rsp), %xmm5
         vmovdqu	128(%rsp), %xmm4
         vmovdqu	144(%rsp), %xmm15
 L_AES_GCM_encrypt_avx2_done_128:
@@ -12638,42 +12638,42 @@ L_AES_GCM_encrypt_avx2_done_128:
         cmpl	%r13d, %ebx
         jge	L_AES_GCM_encrypt_avx2_last_block_done
         # aesenc_block
-        vmovdqa	%xmm4, %xmm1
+        vmovdqu	%xmm4, %xmm1
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1, %xmm0
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm1, %xmm1
         vpxor	(%rsi), %xmm0, %xmm0
-        vmovdqa	16(%rsi), %xmm2
+        vmovdqu	16(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	32(%rsi), %xmm2
+        vmovdqu	32(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	48(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	64(%rsi), %xmm2
+        vmovdqu	64(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	80(%rsi), %xmm2
+        vmovdqu	80(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	96(%rsi), %xmm2
+        vmovdqu	96(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	112(%rsi), %xmm2
+        vmovdqu	112(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	128(%rsi), %xmm2
+        vmovdqu	128(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	144(%rsi), %xmm2
+        vmovdqu	144(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	%xmm1, %xmm4
+        vmovdqu	%xmm1, %xmm4
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm1
+        vmovdqu	160(%rsi), %xmm1
         jl	L_AES_GCM_encrypt_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	176(%rsi), %xmm2
+        vmovdqu	176(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm1
+        vmovdqu	192(%rsi), %xmm1
         jl	L_AES_GCM_encrypt_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	208(%rsi), %xmm2
+        vmovdqu	208(%rsi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	224(%rsi), %xmm1
+        vmovdqu	224(%rsi), %xmm1
 L_AES_GCM_encrypt_avx2_aesenc_block_last:
         vaesenclast	%xmm1, %xmm0, %xmm0
         vmovdqu	(%rdi,%rbx,1), %xmm1
@@ -12714,17 +12714,17 @@ L_AES_GCM_encrypt_avx2_last_block_start:
         vaesenc	144(%rsi), %xmm11, %xmm11
         vpxor	%xmm3, %xmm8, %xmm8
         vpxor	%xmm8, %xmm2, %xmm2
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         cmpl	$11, %r9d
         jl	L_AES_GCM_encrypt_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm11, %xmm11
         vaesenc	176(%rsi), %xmm11, %xmm11
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         cmpl	$13, %r9d
         jl	L_AES_GCM_encrypt_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm11, %xmm11
         vaesenc	208(%rsi), %xmm11, %xmm11
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_encrypt_avx2_aesenc_gfmul_sb_last:
         vaesenclast	%xmm0, %xmm11, %xmm11
         vpxor	%xmm1, %xmm2, %xmm6
@@ -12771,16 +12771,16 @@ L_AES_GCM_encrypt_avx2_last_block_done:
         vaesenc	128(%rsi), %xmm4, %xmm4
         vaesenc	144(%rsi), %xmm4, %xmm4
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_aesenc_avx_last
         vaesenc	%xmm0, %xmm4, %xmm4
         vaesenc	176(%rsi), %xmm4, %xmm4
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_aesenc_avx_last
         vaesenc	%xmm0, %xmm4, %xmm4
         vaesenc	208(%rsi), %xmm4, %xmm4
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_encrypt_avx2_aesenc_last15_enc_avx_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm4, %xmm4
         xorl	%ecx, %ecx
@@ -12907,7 +12907,7 @@ _AES_GCM_decrypt_avx2:
         je	L_AES_GCM_decrypt_avx2_iv_12
         # Calculate values when IV is not 12 bytes
         # H = Encrypt X(=0)
-        vmovdqa	(%rsi), %xmm5
+        vmovdqu	(%rsi), %xmm5
         vaesenc	16(%rsi), %xmm5, %xmm5
         vaesenc	32(%rsi), %xmm5, %xmm5
         vaesenc	48(%rsi), %xmm5, %xmm5
@@ -12918,16 +12918,16 @@ _AES_GCM_decrypt_avx2:
         vaesenc	128(%rsi), %xmm5, %xmm5
         vaesenc	144(%rsi), %xmm5, %xmm5
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	176(%rsi), %xmm5, %xmm5
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	208(%rsi), %xmm5, %xmm5
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_decrypt_avx2_calc_iv_1_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm5, %xmm5
@@ -12965,7 +12965,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_16_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13015,7 +13015,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13051,7 +13051,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_done:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13061,7 +13061,7 @@ L_AES_GCM_decrypt_avx2_calc_iv_done:
         vpxor	%xmm1, %xmm4, %xmm4
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
         #   Encrypt counter
-        vmovdqa	(%rsi), %xmm15
+        vmovdqu	(%rsi), %xmm15
         vpxor	%xmm4, %xmm15, %xmm15
         vaesenc	16(%rsi), %xmm15, %xmm15
         vaesenc	32(%rsi), %xmm15, %xmm15
@@ -13073,71 +13073,71 @@ L_AES_GCM_decrypt_avx2_calc_iv_done:
         vaesenc	128(%rsi), %xmm15, %xmm15
         vaesenc	144(%rsi), %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm15, %xmm15
         vaesenc	176(%rsi), %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm15, %xmm15
         vaesenc	208(%rsi), %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_decrypt_avx2_calc_iv_2_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm15, %xmm15
         jmp	L_AES_GCM_decrypt_avx2_iv_done
 L_AES_GCM_decrypt_avx2_iv_12:
         # # Calculate values when IV is 12 bytes
         # Set counter based on IV
-        vmovdqa	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
-        vmovdqa	(%rsi), %xmm5
+        vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
+        vmovdqu	(%rsi), %xmm5
         vpblendd	$7, (%rax), %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
-        vmovdqa	16(%rsi), %xmm7
+        vmovdqu	16(%rsi), %xmm7
         vpxor	%xmm5, %xmm4, %xmm15
         vaesenc	%xmm7, %xmm5, %xmm5
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	32(%rsi), %xmm0
+        vmovdqu	32(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	48(%rsi), %xmm0
+        vmovdqu	48(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	64(%rsi), %xmm0
+        vmovdqu	64(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	80(%rsi), %xmm0
+        vmovdqu	80(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	96(%rsi), %xmm0
+        vmovdqu	96(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	112(%rsi), %xmm0
+        vmovdqu	112(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	128(%rsi), %xmm0
+        vmovdqu	128(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	144(%rsi), %xmm0
+        vmovdqu	144(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	176(%rsi), %xmm0
+        vmovdqu	176(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         jl	L_AES_GCM_decrypt_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	208(%rsi), %xmm0
+        vmovdqu	208(%rsi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_decrypt_avx2_calc_iv_12_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vaesenclast	%xmm0, %xmm15, %xmm15
@@ -13177,7 +13177,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_16_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13227,7 +13227,7 @@ L_AES_GCM_decrypt_avx2_calc_aad_loop:
         vpor	%xmm0, %xmm7, %xmm7
         vpor	%xmm1, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm7, %xmm0
         vpshufd	$0x4e, %xmm7, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13252,9 +13252,9 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         movl	%r10d, %r13d
         jl	L_AES_GCM_decrypt_avx2_done_128
         andl	$0xffffff80, %r13d
-        vmovdqa	%xmm4, 128(%rsp)
-        vmovdqa	%xmm15, 144(%rsp)
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        vmovdqu	%xmm4, 128(%rsp)
+        vmovdqu	%xmm15, 144(%rsp)
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
         # H ^ 1 and H ^ 2
         vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
         vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
@@ -13265,8 +13265,8 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         vpshufd	$0x4e, %xmm9, %xmm9
         vpxor	%xmm8, %xmm9, %xmm9
         vpxor	%xmm9, %xmm10, %xmm0
-        vmovdqa	%xmm5, (%rsp)
-        vmovdqa	%xmm0, 16(%rsp)
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
         # H ^ 3 and H ^ 4
         vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
         vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
@@ -13293,8 +13293,8 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm2
         vpxor	%xmm9, %xmm10, %xmm1
-        vmovdqa	%xmm1, 32(%rsp)
-        vmovdqa	%xmm2, 48(%rsp)
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
         # H ^ 5 and H ^ 6
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
         vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
@@ -13321,8 +13321,8 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 64(%rsp)
-        vmovdqa	%xmm0, 80(%rsp)
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
         # H ^ 7 and H ^ 8
         vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
         vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
@@ -13349,15 +13349,15 @@ L_AES_GCM_decrypt_avx2_calc_aad_done:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 96(%rsp)
-        vmovdqa	%xmm0, 112(%rsp)
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
 L_AES_GCM_decrypt_avx2_ghash_128:
         # aesenc_128_ghash
         leaq	(%rdi,%rbx,1), %rcx
         leaq	(%r8,%rbx,1), %rdx
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -13375,8 +13375,8 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rsi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rsi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -13389,7 +13389,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vmovdqu	(%rcx), %xmm1
         vmovdqu	16(%rsi), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
-        vmovdqa	112(%rsp), %xmm2
+        vmovdqu	112(%rsp), %xmm2
         vpxor	%xmm6, %xmm1, %xmm1
         vpclmulqdq	$16, %xmm2, %xmm1, %xmm5
         vpclmulqdq	$0x01, %xmm2, %xmm1, %xmm3
@@ -13405,7 +13405,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_2
         vmovdqu	16(%rcx), %xmm1
-        vmovdqa	96(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm3, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13424,7 +13424,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	32(%rcx), %xmm1
-        vmovdqa	80(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13445,7 +13445,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	48(%rcx), %xmm1
-        vmovdqa	64(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13466,7 +13466,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	64(%rcx), %xmm1
-        vmovdqa	48(%rsp), %xmm0
+        vmovdqu	48(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13487,7 +13487,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	80(%rcx), %xmm1
-        vmovdqa	32(%rsp), %xmm0
+        vmovdqu	32(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13508,7 +13508,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	96(%rcx), %xmm1
-        vmovdqa	16(%rsp), %xmm0
+        vmovdqu	16(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13529,7 +13529,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	112(%rcx), %xmm1
-        vmovdqa	(%rsp), %xmm0
+        vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -13554,8 +13554,8 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vpxor	%xmm3, %xmm5, %xmm5
         vpslldq	$8, %xmm5, %xmm1
         vpsrldq	$8, %xmm5, %xmm5
-        vmovdqa	144(%rsi), %xmm4
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
+        vmovdqu	144(%rsi), %xmm4
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
         vaesenc	%xmm4, %xmm8, %xmm8
         vpxor	%xmm1, %xmm6, %xmm6
         vpxor	%xmm5, %xmm7, %xmm7
@@ -13574,7 +13574,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vpxor	%xmm7, %xmm6, %xmm6
         vaesenc	%xmm4, %xmm15, %xmm15
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm7
+        vmovdqu	160(%rsi), %xmm7
         jl	L_AES_GCM_decrypt_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -13584,7 +13584,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rsi), %xmm7
+        vmovdqu	176(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -13594,7 +13594,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm7
+        vmovdqu	192(%rsi), %xmm7
         jl	L_AES_GCM_decrypt_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -13604,7 +13604,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rsi), %xmm7
+        vmovdqu	208(%rsi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -13613,7 +13613,7 @@ L_AES_GCM_decrypt_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rsi), %xmm7
+        vmovdqu	224(%rsi), %xmm7
 L_AES_GCM_decrypt_avx2_aesenc_128_ghash_avx_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -13652,9 +13652,9 @@ L_AES_GCM_decrypt_avx2_aesenc_128_ghash_avx_done:
         addl	$0x80, %ebx
         cmpl	%r13d, %ebx
         jl	L_AES_GCM_decrypt_avx2_ghash_128
-        vmovdqa	(%rsp), %xmm5
-        vmovdqa	128(%rsp), %xmm4
-        vmovdqa	144(%rsp), %xmm15
+        vmovdqu	(%rsp), %xmm5
+        vmovdqu	128(%rsp), %xmm4
+        vmovdqu	144(%rsp), %xmm15
 L_AES_GCM_decrypt_avx2_done_128:
         cmpl	%r10d, %ebx
         jge	L_AES_GCM_decrypt_avx2_done_dec
@@ -13694,17 +13694,17 @@ L_AES_GCM_decrypt_avx2_last_block_start:
         vaesenc	144(%rsi), %xmm10, %xmm10
         vpxor	%xmm3, %xmm8, %xmm8
         vpxor	%xmm8, %xmm2, %xmm2
-        vmovdqa	160(%rsi), %xmm0
+        vmovdqu	160(%rsi), %xmm0
         cmpl	$11, %r9d
         jl	L_AES_GCM_decrypt_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm10, %xmm10
         vaesenc	176(%rsi), %xmm10, %xmm10
-        vmovdqa	192(%rsi), %xmm0
+        vmovdqu	192(%rsi), %xmm0
         cmpl	$13, %r9d
         jl	L_AES_GCM_decrypt_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm10, %xmm10
         vaesenc	208(%rsi), %xmm10, %xmm10
-        vmovdqa	224(%rsi), %xmm0
+        vmovdqu	224(%rsi), %xmm0
 L_AES_GCM_decrypt_avx2_aesenc_gfmul_sb_last:
         vaesenclast	%xmm0, %xmm10, %xmm10
         vpxor	%xmm1, %xmm2, %xmm6
@@ -13731,16 +13731,16 @@ L_AES_GCM_decrypt_avx2_last_block_done:
         vaesenc	128(%rsi), %xmm4, %xmm4
         vaesenc	144(%rsi), %xmm4, %xmm4
         cmpl	$11, %r9d
-        vmovdqa	160(%rsi), %xmm1
+        vmovdqu	160(%rsi), %xmm1
         jl	L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_aesenc_avx_last
         vaesenc	%xmm1, %xmm4, %xmm4
         vaesenc	176(%rsi), %xmm4, %xmm4
         cmpl	$13, %r9d
-        vmovdqa	192(%rsi), %xmm1
+        vmovdqu	192(%rsi), %xmm1
         jl	L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_aesenc_avx_last
         vaesenc	%xmm1, %xmm4, %xmm4
         vaesenc	208(%rsi), %xmm4, %xmm4
-        vmovdqa	224(%rsi), %xmm1
+        vmovdqu	224(%rsi), %xmm1
 L_AES_GCM_decrypt_avx2_aesenc_last15_dec_avx_aesenc_avx_last:
         vaesenclast	%xmm1, %xmm4, %xmm4
         xorl	%ecx, %ecx
@@ -13866,7 +13866,7 @@ _AES_GCM_init_avx2:
         je	L_AES_GCM_init_avx2_iv_12
         # Calculate values when IV is not 12 bytes
         # H = Encrypt X(=0)
-        vmovdqa	(%rdi), %xmm5
+        vmovdqu	(%rdi), %xmm5
         vaesenc	16(%rdi), %xmm5, %xmm5
         vaesenc	32(%rdi), %xmm5, %xmm5
         vaesenc	48(%rdi), %xmm5, %xmm5
@@ -13877,16 +13877,16 @@ _AES_GCM_init_avx2:
         vaesenc	128(%rdi), %xmm5, %xmm5
         vaesenc	144(%rdi), %xmm5, %xmm5
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm0
+        vmovdqu	160(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	176(%rdi), %xmm5, %xmm5
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm0
+        vmovdqu	192(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_1_aesenc_avx_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	208(%rdi), %xmm5, %xmm5
-        vmovdqa	224(%rdi), %xmm0
+        vmovdqu	224(%rdi), %xmm0
 L_AES_GCM_init_avx2_calc_iv_1_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm5, %xmm5
@@ -13924,7 +13924,7 @@ L_AES_GCM_init_avx2_calc_iv_16_loop:
         vpor	%xmm0, %xmm6, %xmm6
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm6, %xmm0
         vpshufd	$0x4e, %xmm6, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -13974,7 +13974,7 @@ L_AES_GCM_init_avx2_calc_iv_loop:
         vpor	%xmm0, %xmm6, %xmm6
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm6, %xmm0
         vpshufd	$0x4e, %xmm6, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -14010,7 +14010,7 @@ L_AES_GCM_init_avx2_calc_iv_done:
         vpor	%xmm0, %xmm6, %xmm6
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm6, %xmm0
         vpshufd	$0x4e, %xmm6, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -14020,7 +14020,7 @@ L_AES_GCM_init_avx2_calc_iv_done:
         vpxor	%xmm1, %xmm4, %xmm4
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4, %xmm4
         #   Encrypt counter
-        vmovdqa	(%rdi), %xmm7
+        vmovdqu	(%rdi), %xmm7
         vpxor	%xmm4, %xmm7, %xmm7
         vaesenc	16(%rdi), %xmm7, %xmm7
         vaesenc	32(%rdi), %xmm7, %xmm7
@@ -14032,81 +14032,81 @@ L_AES_GCM_init_avx2_calc_iv_done:
         vaesenc	128(%rdi), %xmm7, %xmm7
         vaesenc	144(%rdi), %xmm7, %xmm7
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm0
+        vmovdqu	160(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm7, %xmm7
         vaesenc	176(%rdi), %xmm7, %xmm7
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm0
+        vmovdqu	192(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_2_aesenc_avx_last
         vaesenc	%xmm0, %xmm7, %xmm7
         vaesenc	208(%rdi), %xmm7, %xmm7
-        vmovdqa	224(%rdi), %xmm0
+        vmovdqu	224(%rdi), %xmm0
 L_AES_GCM_init_avx2_calc_iv_2_aesenc_avx_last:
         vaesenclast	%xmm0, %xmm7, %xmm7
         jmp	L_AES_GCM_init_avx2_iv_done
 L_AES_GCM_init_avx2_iv_12:
         # # Calculate values when IV is 12 bytes
         # Set counter based on IV
-        vmovdqa	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
-        vmovdqa	(%rdi), %xmm5
+        vmovdqu	L_avx2_aes_gcm_bswap_one(%rip), %xmm4
+        vmovdqu	(%rdi), %xmm5
         vpblendd	$7, (%r10), %xmm4, %xmm4
         # H = Encrypt X(=0) and T = Encrypt counter
-        vmovdqa	16(%rdi), %xmm6
+        vmovdqu	16(%rdi), %xmm6
         vpxor	%xmm5, %xmm4, %xmm7
         vaesenc	%xmm6, %xmm5, %xmm5
         vaesenc	%xmm6, %xmm7, %xmm7
-        vmovdqa	32(%rdi), %xmm0
+        vmovdqu	32(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	48(%rdi), %xmm0
+        vmovdqu	48(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	64(%rdi), %xmm0
+        vmovdqu	64(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	80(%rdi), %xmm0
+        vmovdqu	80(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	96(%rdi), %xmm0
+        vmovdqu	96(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	112(%rdi), %xmm0
+        vmovdqu	112(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	128(%rdi), %xmm0
+        vmovdqu	128(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	144(%rdi), %xmm0
+        vmovdqu	144(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm0
+        vmovdqu	160(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	176(%rdi), %xmm0
+        vmovdqu	176(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm0
+        vmovdqu	192(%rdi), %xmm0
         jl	L_AES_GCM_init_avx2_calc_iv_12_last
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	208(%rdi), %xmm0
+        vmovdqu	208(%rdi), %xmm0
         vaesenc	%xmm0, %xmm5, %xmm5
         vaesenc	%xmm0, %xmm7, %xmm7
-        vmovdqa	224(%rdi), %xmm0
+        vmovdqu	224(%rdi), %xmm0
 L_AES_GCM_init_avx2_calc_iv_12_last:
         vaesenclast	%xmm0, %xmm5, %xmm5
         vaesenclast	%xmm0, %xmm7, %xmm7
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm5, %xmm5
 L_AES_GCM_init_avx2_iv_done:
-        vmovdqa	%xmm7, (%rax)
+        vmovdqu	%xmm7, (%rax)
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm4, %xmm4
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm4, %xmm4
-        vmovdqa	%xmm5, (%r8)
-        vmovdqa	%xmm4, (%r9)
+        vmovdqu	%xmm5, (%r8)
+        vmovdqu	%xmm4, (%r9)
         vzeroupper
         addq	$16, %rsp
         popq	%r12
@@ -14128,8 +14128,8 @@ AES_GCM_aad_update_avx2:
 _AES_GCM_aad_update_avx2:
 #endif /* __APPLE__ */
         movq	%rcx, %rax
-        vmovdqa	(%rdx), %xmm4
-        vmovdqa	(%rax), %xmm5
+        vmovdqu	(%rdx), %xmm4
+        vmovdqu	(%rax), %xmm5
         xorl	%ecx, %ecx
 L_AES_GCM_aad_update_avx2_16_loop:
         vmovdqu	(%rdi,%rcx,1), %xmm0
@@ -14157,7 +14157,7 @@ L_AES_GCM_aad_update_avx2_16_loop:
         vpor	%xmm0, %xmm6, %xmm6
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm6, %xmm0
         vpshufd	$0x4e, %xmm6, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -14168,7 +14168,7 @@ L_AES_GCM_aad_update_avx2_16_loop:
         addl	$16, %ecx
         cmpl	%esi, %ecx
         jl	L_AES_GCM_aad_update_avx2_16_loop
-        vmovdqa	%xmm4, (%rdx)
+        vmovdqu	%xmm4, (%rdx)
         vzeroupper
         repz retq
 #ifndef __APPLE__
@@ -14189,50 +14189,50 @@ _AES_GCM_encrypt_block_avx2:
         movq	%rdx, %r10
         movq	%rcx, %r11
         subq	$0x98, %rsp
-        vmovdqa	(%r8), %xmm3
+        vmovdqu	(%r8), %xmm3
         # aesenc_block
-        vmovdqa	%xmm3, %xmm1
+        vmovdqu	%xmm3, %xmm1
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1, %xmm0
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm1, %xmm1
         vpxor	(%rdi), %xmm0, %xmm0
-        vmovdqa	16(%rdi), %xmm2
+        vmovdqu	16(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	32(%rdi), %xmm2
+        vmovdqu	32(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	48(%rdi), %xmm2
+        vmovdqu	48(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	64(%rdi), %xmm2
+        vmovdqu	64(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	80(%rdi), %xmm2
+        vmovdqu	80(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	96(%rdi), %xmm2
+        vmovdqu	96(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	112(%rdi), %xmm2
+        vmovdqu	112(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	128(%rdi), %xmm2
+        vmovdqu	128(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	144(%rdi), %xmm2
+        vmovdqu	144(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	%xmm1, %xmm3
+        vmovdqu	%xmm1, %xmm3
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm1
+        vmovdqu	160(%rdi), %xmm1
         jl	L_AES_GCM_encrypt_block_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	176(%rdi), %xmm2
+        vmovdqu	176(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm1
+        vmovdqu	192(%rdi), %xmm1
         jl	L_AES_GCM_encrypt_block_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	208(%rdi), %xmm2
+        vmovdqu	208(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	224(%rdi), %xmm1
+        vmovdqu	224(%rdi), %xmm1
 L_AES_GCM_encrypt_block_avx2_aesenc_block_last:
         vaesenclast	%xmm1, %xmm0, %xmm0
         vmovdqu	(%r11), %xmm1
         vpxor	%xmm1, %xmm0, %xmm0
         vmovdqu	%xmm0, (%r10)
-        vmovdqa	%xmm3, (%r8)
+        vmovdqu	%xmm3, (%r8)
         vzeroupper
         addq	$0x98, %rsp
         repz retq
@@ -14251,8 +14251,8 @@ AES_GCM_ghash_block_avx2:
 .p2align	4
 _AES_GCM_ghash_block_avx2:
 #endif /* __APPLE__ */
-        vmovdqa	(%rsi), %xmm4
-        vmovdqa	(%rdx), %xmm5
+        vmovdqu	(%rsi), %xmm4
+        vmovdqu	(%rdx), %xmm5
         vmovdqu	(%rdi), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm0, %xmm0
         vpxor	%xmm0, %xmm4, %xmm4
@@ -14278,7 +14278,7 @@ _AES_GCM_ghash_block_avx2:
         vpor	%xmm0, %xmm6, %xmm6
         vpor	%xmm1, %xmm4, %xmm4
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm6, %xmm0
         vpshufd	$0x4e, %xmm6, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -14286,7 +14286,7 @@ _AES_GCM_ghash_block_avx2:
         vpshufd	$0x4e, %xmm1, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
         vpxor	%xmm1, %xmm4, %xmm4
-        vmovdqa	%xmm4, (%rsi)
+        vmovdqu	%xmm4, (%rsi)
         vzeroupper
         repz retq
 #ifndef __APPLE__
@@ -14312,9 +14312,9 @@ _AES_GCM_encrypt_update_avx2:
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0x98, %rsp
-        vmovdqa	(%r9), %xmm6
-        vmovdqa	(%rax), %xmm5
-        vmovdqa	(%r12), %xmm4
+        vmovdqu	(%r9), %xmm6
+        vmovdqu	(%rax), %xmm5
+        vmovdqu	(%r12), %xmm4
         vpsrlq	$63, %xmm5, %xmm1
         vpsllq	$0x01, %xmm5, %xmm0
         vpslldq	$8, %xmm1, %xmm1
@@ -14328,8 +14328,8 @@ _AES_GCM_encrypt_update_avx2:
         movl	%r8d, %r13d
         jl	L_AES_GCM_encrypt_update_avx2_done_128
         andl	$0xffffff80, %r13d
-        vmovdqa	%xmm4, 128(%rsp)
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        vmovdqu	%xmm4, 128(%rsp)
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
         # H ^ 1 and H ^ 2
         vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
         vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
@@ -14340,8 +14340,8 @@ _AES_GCM_encrypt_update_avx2:
         vpshufd	$0x4e, %xmm9, %xmm9
         vpxor	%xmm8, %xmm9, %xmm9
         vpxor	%xmm9, %xmm10, %xmm0
-        vmovdqa	%xmm5, (%rsp)
-        vmovdqa	%xmm0, 16(%rsp)
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
         # H ^ 3 and H ^ 4
         vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
         vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
@@ -14368,8 +14368,8 @@ _AES_GCM_encrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm2
         vpxor	%xmm9, %xmm10, %xmm1
-        vmovdqa	%xmm1, 32(%rsp)
-        vmovdqa	%xmm2, 48(%rsp)
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
         # H ^ 5 and H ^ 6
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
         vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
@@ -14396,8 +14396,8 @@ _AES_GCM_encrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 64(%rsp)
-        vmovdqa	%xmm0, 80(%rsp)
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
         # H ^ 7 and H ^ 8
         vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
         vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
@@ -14424,13 +14424,13 @@ _AES_GCM_encrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 96(%rsp)
-        vmovdqa	%xmm0, 112(%rsp)
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
         # First 128 bytes of input
         # aesenc_128
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -14448,8 +14448,8 @@ _AES_GCM_encrypt_update_avx2:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rdi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rdi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -14458,7 +14458,7 @@ _AES_GCM_encrypt_update_avx2:
         vpxor	%xmm7, %xmm13, %xmm13
         vpxor	%xmm7, %xmm14, %xmm14
         vpxor	%xmm7, %xmm15, %xmm15
-        vmovdqa	16(%rdi), %xmm7
+        vmovdqu	16(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14467,7 +14467,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	32(%rdi), %xmm7
+        vmovdqu	32(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14476,7 +14476,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	48(%rdi), %xmm7
+        vmovdqu	48(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14485,7 +14485,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	64(%rdi), %xmm7
+        vmovdqu	64(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14494,7 +14494,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	80(%rdi), %xmm7
+        vmovdqu	80(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14503,7 +14503,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	96(%rdi), %xmm7
+        vmovdqu	96(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14512,7 +14512,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	112(%rdi), %xmm7
+        vmovdqu	112(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14521,7 +14521,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	128(%rdi), %xmm7
+        vmovdqu	128(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14530,7 +14530,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	144(%rdi), %xmm7
+        vmovdqu	144(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14540,7 +14540,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm7
+        vmovdqu	160(%rdi), %xmm7
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_128_enc_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -14550,7 +14550,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rdi), %xmm7
+        vmovdqu	176(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14560,7 +14560,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm7
+        vmovdqu	192(%rdi), %xmm7
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_128_enc_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -14570,7 +14570,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rdi), %xmm7
+        vmovdqu	208(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14579,7 +14579,7 @@ _AES_GCM_encrypt_update_avx2:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rdi), %xmm7
+        vmovdqu	224(%rdi), %xmm7
 L_AES_GCM_encrypt_update_avx2_aesenc_128_enc_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -14623,8 +14623,8 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         leaq	(%r11,%r14,1), %rcx
         leaq	(%r10,%r14,1), %rdx
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -14642,8 +14642,8 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rdi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rdi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -14656,7 +14656,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vmovdqu	-128(%rdx), %xmm1
         vmovdqu	16(%rdi), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
-        vmovdqa	112(%rsp), %xmm2
+        vmovdqu	112(%rsp), %xmm2
         vpxor	%xmm6, %xmm1, %xmm1
         vpclmulqdq	$16, %xmm2, %xmm1, %xmm5
         vpclmulqdq	$0x01, %xmm2, %xmm1, %xmm3
@@ -14672,7 +14672,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_2
         vmovdqu	-112(%rdx), %xmm1
-        vmovdqa	96(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm3, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14691,7 +14691,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-96(%rdx), %xmm1
-        vmovdqa	80(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14712,7 +14712,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-80(%rdx), %xmm1
-        vmovdqa	64(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14733,7 +14733,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-64(%rdx), %xmm1
-        vmovdqa	48(%rsp), %xmm0
+        vmovdqu	48(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14754,7 +14754,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-48(%rdx), %xmm1
-        vmovdqa	32(%rsp), %xmm0
+        vmovdqu	32(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14775,7 +14775,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-32(%rdx), %xmm1
-        vmovdqa	16(%rsp), %xmm0
+        vmovdqu	16(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14796,7 +14796,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	-16(%rdx), %xmm1
-        vmovdqa	(%rsp), %xmm0
+        vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -14821,8 +14821,8 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vpxor	%xmm3, %xmm5, %xmm5
         vpslldq	$8, %xmm5, %xmm1
         vpsrldq	$8, %xmm5, %xmm5
-        vmovdqa	144(%rdi), %xmm4
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
+        vmovdqu	144(%rdi), %xmm4
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
         vaesenc	%xmm4, %xmm8, %xmm8
         vpxor	%xmm1, %xmm6, %xmm6
         vpxor	%xmm5, %xmm7, %xmm7
@@ -14841,7 +14841,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vpxor	%xmm7, %xmm6, %xmm6
         vaesenc	%xmm4, %xmm15, %xmm15
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm7
+        vmovdqu	160(%rdi), %xmm7
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -14851,7 +14851,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rdi), %xmm7
+        vmovdqu	176(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14861,7 +14861,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm7
+        vmovdqu	192(%rdi), %xmm7
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -14871,7 +14871,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rdi), %xmm7
+        vmovdqu	208(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -14880,7 +14880,7 @@ L_AES_GCM_encrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rdi), %xmm7
+        vmovdqu	224(%rdi), %xmm7
 L_AES_GCM_encrypt_update_avx2_aesenc_128_ghash_avx_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -14920,7 +14920,7 @@ L_AES_GCM_encrypt_update_avx2_aesenc_128_ghash_avx_done:
         cmpl	%r13d, %r14d
         jl	L_AES_GCM_encrypt_update_avx2_ghash_128
 L_AES_GCM_encrypt_update_avx2_end_128:
-        vmovdqa	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
+        vmovdqu	L_avx2_aes_gcm_bswap_mask(%rip), %xmm4
         vpshufb	%xmm4, %xmm8, %xmm8
         vpshufb	%xmm4, %xmm9, %xmm9
         vpshufb	%xmm4, %xmm10, %xmm10
@@ -15004,7 +15004,7 @@ L_AES_GCM_encrypt_update_avx2_end_128:
         vpxor	%xmm7, %xmm4, %xmm4
         vpxor	%xmm5, %xmm6, %xmm6
         # ghash_red
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm2
         vpclmulqdq	$16, %xmm2, %xmm4, %xmm0
         vpshufd	$0x4e, %xmm4, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
@@ -15012,7 +15012,7 @@ L_AES_GCM_encrypt_update_avx2_end_128:
         vpshufd	$0x4e, %xmm1, %xmm1
         vpxor	%xmm0, %xmm1, %xmm1
         vpxor	%xmm1, %xmm6, %xmm6
-        vmovdqa	(%rsp), %xmm5
+        vmovdqu	(%rsp), %xmm5
         vmovdqu	128(%rsp), %xmm4
 L_AES_GCM_encrypt_update_avx2_done_128:
         cmpl	%r8d, %r14d
@@ -15022,42 +15022,42 @@ L_AES_GCM_encrypt_update_avx2_done_128:
         cmpl	%r13d, %r14d
         jge	L_AES_GCM_encrypt_update_avx2_last_block_done
         # aesenc_block
-        vmovdqa	%xmm4, %xmm1
+        vmovdqu	%xmm4, %xmm1
         vpshufb	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1, %xmm0
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm1, %xmm1
         vpxor	(%rdi), %xmm0, %xmm0
-        vmovdqa	16(%rdi), %xmm2
+        vmovdqu	16(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	32(%rdi), %xmm2
+        vmovdqu	32(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	48(%rdi), %xmm2
+        vmovdqu	48(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	64(%rdi), %xmm2
+        vmovdqu	64(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	80(%rdi), %xmm2
+        vmovdqu	80(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	96(%rdi), %xmm2
+        vmovdqu	96(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	112(%rdi), %xmm2
+        vmovdqu	112(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	128(%rdi), %xmm2
+        vmovdqu	128(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	144(%rdi), %xmm2
+        vmovdqu	144(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	%xmm1, %xmm4
+        vmovdqu	%xmm1, %xmm4
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm1
+        vmovdqu	160(%rdi), %xmm1
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	176(%rdi), %xmm2
+        vmovdqu	176(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm1
+        vmovdqu	192(%rdi), %xmm1
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_block_last
         vaesenc	%xmm1, %xmm0, %xmm0
-        vmovdqa	208(%rdi), %xmm2
+        vmovdqu	208(%rdi), %xmm2
         vaesenc	%xmm2, %xmm0, %xmm0
-        vmovdqa	224(%rdi), %xmm1
+        vmovdqu	224(%rdi), %xmm1
 L_AES_GCM_encrypt_update_avx2_aesenc_block_last:
         vaesenclast	%xmm1, %xmm0, %xmm0
         vmovdqu	(%r11,%r14,1), %xmm1
@@ -15098,17 +15098,17 @@ L_AES_GCM_encrypt_update_avx2_last_block_start:
         vaesenc	144(%rdi), %xmm11, %xmm11
         vpxor	%xmm3, %xmm8, %xmm8
         vpxor	%xmm8, %xmm2, %xmm2
-        vmovdqa	160(%rdi), %xmm0
+        vmovdqu	160(%rdi), %xmm0
         cmpl	$11, %esi
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm11, %xmm11
         vaesenc	176(%rdi), %xmm11, %xmm11
-        vmovdqa	192(%rdi), %xmm0
+        vmovdqu	192(%rdi), %xmm0
         cmpl	$13, %esi
         jl	L_AES_GCM_encrypt_update_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm11, %xmm11
         vaesenc	208(%rdi), %xmm11, %xmm11
-        vmovdqa	224(%rdi), %xmm0
+        vmovdqu	224(%rdi), %xmm0
 L_AES_GCM_encrypt_update_avx2_aesenc_gfmul_sb_last:
         vaesenclast	%xmm0, %xmm11, %xmm11
         vpxor	%xmm1, %xmm2, %xmm6
@@ -15139,8 +15139,8 @@ L_AES_GCM_encrypt_update_avx2_last_block_ghash:
         vpxor	%xmm8, %xmm6, %xmm6
 L_AES_GCM_encrypt_update_avx2_last_block_done:
 L_AES_GCM_encrypt_update_avx2_done_enc:
-        vmovdqa	%xmm6, (%r9)
-        vmovdqa	%xmm4, (%r12)
+        vmovdqu	%xmm6, (%r9)
+        vmovdqu	%xmm4, (%r12)
         vzeroupper
         addq	$0x98, %rsp
         popq	%r14
@@ -15167,9 +15167,9 @@ _AES_GCM_encrypt_final_avx2:
         movl	%r8d, %r11d
         movq	16(%rsp), %rax
         subq	$16, %rsp
-        vmovdqa	(%rdi), %xmm4
-        vmovdqa	(%r9), %xmm5
-        vmovdqa	(%rax), %xmm6
+        vmovdqu	(%rdi), %xmm4
+        vmovdqu	(%r9), %xmm5
+        vmovdqu	(%rax), %xmm6
         vpsrlq	$63, %xmm5, %xmm1
         vpsllq	$0x01, %xmm5, %xmm0
         vpslldq	$8, %xmm1, %xmm1
@@ -15246,9 +15246,9 @@ _AES_GCM_decrypt_update_avx2:
         movq	32(%rsp), %rax
         movq	40(%rsp), %r12
         subq	$0xa8, %rsp
-        vmovdqa	(%r9), %xmm6
-        vmovdqa	(%rax), %xmm5
-        vmovdqa	(%r12), %xmm4
+        vmovdqu	(%r9), %xmm6
+        vmovdqu	(%rax), %xmm5
+        vmovdqu	(%r12), %xmm4
         # Calculate H
         vpsrlq	$63, %xmm5, %xmm1
         vpsllq	$0x01, %xmm5, %xmm0
@@ -15263,9 +15263,9 @@ _AES_GCM_decrypt_update_avx2:
         movl	%r8d, %r13d
         jl	L_AES_GCM_decrypt_update_avx2_done_128
         andl	$0xffffff80, %r13d
-        vmovdqa	%xmm4, 128(%rsp)
-        vmovdqa	%xmm15, 144(%rsp)
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
+        vmovdqu	%xmm4, 128(%rsp)
+        vmovdqu	%xmm15, 144(%rsp)
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm3
         # H ^ 1 and H ^ 2
         vpclmulqdq	$0x00, %xmm5, %xmm5, %xmm9
         vpclmulqdq	$0x11, %xmm5, %xmm5, %xmm10
@@ -15276,8 +15276,8 @@ _AES_GCM_decrypt_update_avx2:
         vpshufd	$0x4e, %xmm9, %xmm9
         vpxor	%xmm8, %xmm9, %xmm9
         vpxor	%xmm9, %xmm10, %xmm0
-        vmovdqa	%xmm5, (%rsp)
-        vmovdqa	%xmm0, 16(%rsp)
+        vmovdqu	%xmm5, (%rsp)
+        vmovdqu	%xmm0, 16(%rsp)
         # H ^ 3 and H ^ 4
         vpclmulqdq	$16, %xmm5, %xmm0, %xmm11
         vpclmulqdq	$0x01, %xmm5, %xmm0, %xmm10
@@ -15304,8 +15304,8 @@ _AES_GCM_decrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm2
         vpxor	%xmm9, %xmm10, %xmm1
-        vmovdqa	%xmm1, 32(%rsp)
-        vmovdqa	%xmm2, 48(%rsp)
+        vmovdqu	%xmm1, 32(%rsp)
+        vmovdqu	%xmm2, 48(%rsp)
         # H ^ 5 and H ^ 6
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm11
         vpclmulqdq	$0x01, %xmm0, %xmm1, %xmm10
@@ -15332,8 +15332,8 @@ _AES_GCM_decrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 64(%rsp)
-        vmovdqa	%xmm0, 80(%rsp)
+        vmovdqu	%xmm7, 64(%rsp)
+        vmovdqu	%xmm0, 80(%rsp)
         # H ^ 7 and H ^ 8
         vpclmulqdq	$16, %xmm1, %xmm2, %xmm11
         vpclmulqdq	$0x01, %xmm1, %xmm2, %xmm10
@@ -15360,15 +15360,15 @@ _AES_GCM_decrypt_update_avx2:
         vpxor	%xmm12, %xmm10, %xmm10
         vpxor	%xmm14, %xmm13, %xmm0
         vpxor	%xmm9, %xmm10, %xmm7
-        vmovdqa	%xmm7, 96(%rsp)
-        vmovdqa	%xmm0, 112(%rsp)
+        vmovdqu	%xmm7, 96(%rsp)
+        vmovdqu	%xmm0, 112(%rsp)
 L_AES_GCM_decrypt_update_avx2_ghash_128:
         # aesenc_128_ghash
         leaq	(%r11,%r14,1), %rcx
         leaq	(%r10,%r14,1), %rdx
         # aesenc_ctr
-        vmovdqa	128(%rsp), %xmm0
-        vmovdqa	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
+        vmovdqu	128(%rsp), %xmm0
+        vmovdqu	L_avx2_aes_gcm_bswap_epi64(%rip), %xmm1
         vpaddd	L_avx2_aes_gcm_one(%rip), %xmm0, %xmm9
         vpshufb	%xmm1, %xmm0, %xmm8
         vpaddd	L_avx2_aes_gcm_two(%rip), %xmm0, %xmm10
@@ -15386,8 +15386,8 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vpaddd	L_avx2_aes_gcm_eight(%rip), %xmm0, %xmm0
         vpshufb	%xmm1, %xmm15, %xmm15
         # aesenc_xor
-        vmovdqa	(%rdi), %xmm7
-        vmovdqa	%xmm0, 128(%rsp)
+        vmovdqu	(%rdi), %xmm7
+        vmovdqu	%xmm0, 128(%rsp)
         vpxor	%xmm7, %xmm8, %xmm8
         vpxor	%xmm7, %xmm9, %xmm9
         vpxor	%xmm7, %xmm10, %xmm10
@@ -15400,7 +15400,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vmovdqu	(%rcx), %xmm1
         vmovdqu	16(%rdi), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
-        vmovdqa	112(%rsp), %xmm2
+        vmovdqu	112(%rsp), %xmm2
         vpxor	%xmm6, %xmm1, %xmm1
         vpclmulqdq	$16, %xmm2, %xmm1, %xmm5
         vpclmulqdq	$0x01, %xmm2, %xmm1, %xmm3
@@ -15416,7 +15416,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_2
         vmovdqu	16(%rcx), %xmm1
-        vmovdqa	96(%rsp), %xmm0
+        vmovdqu	96(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm3, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15435,7 +15435,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	32(%rcx), %xmm1
-        vmovdqa	80(%rsp), %xmm0
+        vmovdqu	80(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15456,7 +15456,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	48(%rcx), %xmm1
-        vmovdqa	64(%rsp), %xmm0
+        vmovdqu	64(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15477,7 +15477,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	64(%rcx), %xmm1
-        vmovdqa	48(%rsp), %xmm0
+        vmovdqu	48(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15498,7 +15498,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	80(%rcx), %xmm1
-        vmovdqa	32(%rsp), %xmm0
+        vmovdqu	32(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15519,7 +15519,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	96(%rcx), %xmm1
-        vmovdqa	16(%rsp), %xmm0
+        vmovdqu	16(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15540,7 +15540,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm0, %xmm15, %xmm15
         # aesenc_pclmul_n
         vmovdqu	112(%rcx), %xmm1
-        vmovdqa	(%rsp), %xmm0
+        vmovdqu	(%rsp), %xmm0
         vpshufb	L_avx2_aes_gcm_bswap_mask(%rip), %xmm1, %xmm1
         vpxor	%xmm2, %xmm5, %xmm5
         vpclmulqdq	$16, %xmm0, %xmm1, %xmm2
@@ -15565,8 +15565,8 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vpxor	%xmm3, %xmm5, %xmm5
         vpslldq	$8, %xmm5, %xmm1
         vpsrldq	$8, %xmm5, %xmm5
-        vmovdqa	144(%rdi), %xmm4
-        vmovdqa	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
+        vmovdqu	144(%rdi), %xmm4
+        vmovdqu	L_avx2_aes_gcm_mod2_128(%rip), %xmm0
         vaesenc	%xmm4, %xmm8, %xmm8
         vpxor	%xmm1, %xmm6, %xmm6
         vpxor	%xmm5, %xmm7, %xmm7
@@ -15585,7 +15585,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vpxor	%xmm7, %xmm6, %xmm6
         vaesenc	%xmm4, %xmm15, %xmm15
         cmpl	$11, %esi
-        vmovdqa	160(%rdi), %xmm7
+        vmovdqu	160(%rdi), %xmm7
         jl	L_AES_GCM_decrypt_update_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -15595,7 +15595,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	176(%rdi), %xmm7
+        vmovdqu	176(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -15605,7 +15605,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
         cmpl	$13, %esi
-        vmovdqa	192(%rdi), %xmm7
+        vmovdqu	192(%rdi), %xmm7
         jl	L_AES_GCM_decrypt_update_avx2_aesenc_128_ghash_avx_done
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
@@ -15615,7 +15615,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	208(%rdi), %xmm7
+        vmovdqu	208(%rdi), %xmm7
         vaesenc	%xmm7, %xmm8, %xmm8
         vaesenc	%xmm7, %xmm9, %xmm9
         vaesenc	%xmm7, %xmm10, %xmm10
@@ -15624,7 +15624,7 @@ L_AES_GCM_decrypt_update_avx2_ghash_128:
         vaesenc	%xmm7, %xmm13, %xmm13
         vaesenc	%xmm7, %xmm14, %xmm14
         vaesenc	%xmm7, %xmm15, %xmm15
-        vmovdqa	224(%rdi), %xmm7
+        vmovdqu	224(%rdi), %xmm7
 L_AES_GCM_decrypt_update_avx2_aesenc_128_ghash_avx_done:
         # aesenc_last
         vaesenclast	%xmm7, %xmm8, %xmm8
@@ -15663,9 +15663,9 @@ L_AES_GCM_decrypt_update_avx2_aesenc_128_ghash_avx_done:
         addl	$0x80, %r14d
         cmpl	%r13d, %r14d
         jl	L_AES_GCM_decrypt_update_avx2_ghash_128
-        vmovdqa	(%rsp), %xmm5
-        vmovdqa	128(%rsp), %xmm4
-        vmovdqa	144(%rsp), %xmm15
+        vmovdqu	(%rsp), %xmm5
+        vmovdqu	128(%rsp), %xmm4
+        vmovdqu	144(%rsp), %xmm15
 L_AES_GCM_decrypt_update_avx2_done_128:
         cmpl	%r8d, %r14d
         jge	L_AES_GCM_decrypt_update_avx2_done_dec
@@ -15705,17 +15705,17 @@ L_AES_GCM_decrypt_update_avx2_last_block_start:
         vaesenc	144(%rdi), %xmm10, %xmm10
         vpxor	%xmm3, %xmm8, %xmm8
         vpxor	%xmm8, %xmm2, %xmm2
-        vmovdqa	160(%rdi), %xmm0
+        vmovdqu	160(%rdi), %xmm0
         cmpl	$11, %esi
         jl	L_AES_GCM_decrypt_update_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm10, %xmm10
         vaesenc	176(%rdi), %xmm10, %xmm10
-        vmovdqa	192(%rdi), %xmm0
+        vmovdqu	192(%rdi), %xmm0
         cmpl	$13, %esi
         jl	L_AES_GCM_decrypt_update_avx2_aesenc_gfmul_sb_last
         vaesenc	%xmm0, %xmm10, %xmm10
         vaesenc	208(%rdi), %xmm10, %xmm10
-        vmovdqa	224(%rdi), %xmm0
+        vmovdqu	224(%rdi), %xmm0
 L_AES_GCM_decrypt_update_avx2_aesenc_gfmul_sb_last:
         vaesenclast	%xmm0, %xmm10, %xmm10
         vpxor	%xmm1, %xmm2, %xmm6
@@ -15726,8 +15726,8 @@ L_AES_GCM_decrypt_update_avx2_aesenc_gfmul_sb_last:
         jl	L_AES_GCM_decrypt_update_avx2_last_block_start
 L_AES_GCM_decrypt_update_avx2_last_block_done:
 L_AES_GCM_decrypt_update_avx2_done_dec:
-        vmovdqa	%xmm6, (%r9)
-        vmovdqa	%xmm4, (%r12)
+        vmovdqu	%xmm6, (%r9)
+        vmovdqu	%xmm4, (%r12)
         vzeroupper
         addq	$0xa8, %rsp
         popq	%r14
@@ -15756,9 +15756,9 @@ _AES_GCM_decrypt_final_avx2:
         movq	24(%rsp), %rax
         movq	32(%rsp), %rbp
         subq	$16, %rsp
-        vmovdqa	(%rdi), %xmm4
-        vmovdqa	(%r9), %xmm5
-        vmovdqa	(%rax), %xmm6
+        vmovdqu	(%rdi), %xmm4
+        vmovdqu	(%r9), %xmm5
+        vmovdqu	(%rax), %xmm6
         vpsrlq	$63, %xmm5, %xmm1
         vpsllq	$0x01, %xmm5, %xmm0
         vpslldq	$8, %xmm1, %xmm1
