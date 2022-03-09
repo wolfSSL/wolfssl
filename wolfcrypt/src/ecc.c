@@ -4049,7 +4049,7 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
     int curve_idx;
 #ifdef HAVE_OID_DECODING
     int ret;
-    word16 decOid[16];
+    word16 decOid[MAX_OID_SZ];
     word32 decOidSz = sizeof(decOid);
 #endif
 

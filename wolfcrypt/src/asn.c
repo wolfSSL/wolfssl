@@ -5119,7 +5119,7 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 
     #ifdef HAVE_OID_DECODING
     {
-        word16 decOid[16];
+        word16 decOid[MAX_OID_SZ];
         word32 decOidSz = sizeof(decOid);
         /* Decode the OID into dotted form. */
         ret = DecodeObjectId(oidData, oidSz, decOid, &decOidSz);
@@ -16978,7 +16978,7 @@ end:
                                       &isUnknownExt);
 #if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING)
             if (isUnknownExt && (cert->unknownExtCallback != NULL)) {
-                word16 decOid[16];
+                word16 decOid[MAX_OID_SZ];
                 word32 decOidSz = sizeof(decOid);
                 ret = DecodeObjectId(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
