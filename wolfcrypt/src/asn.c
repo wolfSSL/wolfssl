@@ -16976,8 +16976,7 @@ end:
             /* Decode the extension by type. */
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert,
                                       &isUnknownExt);
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING)
             if (isUnknownExt && (cert->unknownExtCallback != NULL)) {
                 word16 decOid[16];
                 word32 decOidSz = sizeof(decOid);
@@ -23347,6 +23346,12 @@ enum {
 #define certExtsASN_Length ((sizeof(static_certExtsASN) / sizeof(ASNItem)) \
                             + (NUM_CUSTOM_EXT * 4))
 
+static const ASNItem customExtASN[] = {
+/* CUSTOM_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* CUSTOM_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* CUSTOM_CRIT   */        { 1, ASN_BOOLEAN, 0, 0, 0 },
+/* CUSTOM_STR    */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+};
 
 static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                             int forRequest)
@@ -23402,14 +23407,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     XMEMCPY(certExtsASN, static_certExtsASN, sizeof(static_certExtsASN));
     for (i = sizeof(static_certExtsASN) / sizeof(ASNItem);
          i < (int)(sizeof(certExtsASN) / sizeof(ASNItem)); i += 4) {
-        /* CUSTOM_SEQ */
-        certExtsASN[i+0] = (ASNItem) { 0, ASN_SEQUENCE, 1, 1, 0 };
-        /* CUSTOM_OID */
-        certExtsASN[i+1] = (ASNItem) { 1, ASN_OBJECT_ID, 0, 0, 0 };
-        /* CUSTOM_CRIT */
-        certExtsASN[i+2] = (ASNItem) { 1, ASN_BOOLEAN, 0, 0, 0 };
-        /* CUSTOM_STR */
-        certExtsASN[i+3] = (ASNItem) { 1, ASN_OCTET_STRING, 0, 0, 0 };
+        XMEMCPY(&certExtsASN[i], customExtASN, sizeof(customExtASN));
     }
 
     (void)forRequest;
@@ -23570,7 +23568,8 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     cert->extCustom.oid, cert->extCustom.oidSz);
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_CUSTOM_STR],
                     cert->extCustom.val, cert->extCustom.valSz);
-        } else
+        }
+        else
     #endif
         {
             /* Don't write out custom OID. */
@@ -23583,7 +23582,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         for (; i < cert->customCertExtCount; i++) {
              int idx = CERTEXTSASN_IDX_START_CUSTOM + (i * 4);
              word32 encodedOidSz = MAX_OID_SZ;
-             idx ++; /* Skip one for for SEQ. */
+             idx++; /* Skip one for for SEQ. */
              /* EncodePolicyOID() will never return error since we parsed this
               * OID when it was set. */
              EncodePolicyOID(&encodedOids[i * MAX_OID_SZ], &encodedOidSz,
@@ -23591,7 +23590,11 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
              SetASN_Buffer(&dataASN[idx], &encodedOids[i * MAX_OID_SZ],
                            encodedOidSz);
              idx++;
-             SetASN_Boolean(&dataASN[idx], cert->customCertExt[i].crit);
+             if (cert->customCertExt[i].crit) {
+                 SetASN_Boolean(&dataASN[idx], 1);
+             } else {
+                 dataASN[idx].noOut = 1;
+             }
              idx++;
              SetASN_Buffer(&dataASN[idx], cert->customCertExt[i].val,
                            cert->customCertExt[i].valSz);
