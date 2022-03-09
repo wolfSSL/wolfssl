@@ -2,7 +2,7 @@
 
 # async-check.sh
 
-# This script creates symbolic links to the required asynchronous 
+# This script creates symbolic links to the required asynchronous
 # file for using the asynchronous simulator and make check
 #
 #     $ ./async-check [keep]
@@ -32,7 +32,7 @@ then
 else
     # make a clone of the wolfAsyncCrypt repository
     git clone --depth 1 $ASYNC_REPO async
-    [ $? -ne 0 ] && echo "\n\nCouldn't checkout the wolfAsyncCrypt repository\n\n" && exit 1  
+    [ $? -ne 0 ] && echo "\n\nCouldn't checkout the wolfAsyncCrypt repository\n\n" && exit 1
 fi
 
 # setup auto-conf

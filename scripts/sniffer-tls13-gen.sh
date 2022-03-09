@@ -62,7 +62,7 @@ fi
 
 # Run ./scripts/sniffer-tls13-gen.sh hrr
 if [ "$1" == "hrr" ]; then
-    # TLS v1.3 Hello Retry Request 
+    # TLS v1.3 Hello Retry Request
     ./examples/server/server -v 4 -i -x -g &
     sleep 0.1
 

@@ -27,14 +27,14 @@ if [ "$OUTPUT" = "SNI is: ON" ]; then
     printf '\n\n%s\n\n' "SNI is on, proceed with globalsign test"
 
     if [ "$AM_BWRAPPED" != "yes" ]; then
-	# is our desired server there?
-	"${SCRIPT_DIR}/ping.test" $server 2
-	RESULT=$?
-	if [ $RESULT -ne 0 ]; then
+        # is our desired server there?
+        "${SCRIPT_DIR}/ping.test" $server 2
+        RESULT=$?
+        if [ $RESULT -ne 0 ]; then
             GL_UNREACHABLE=1
-	fi
+        fi
     else
-	RESULT=0
+        RESULT=0
     fi
 
     if [ $RESULT -eq 0 ]; then

@@ -52,12 +52,12 @@ wait_for_readyFile(){
     counter=0
 
     while [ ! -s "$1" -a "$counter" -lt 20 ]; do
-	if [[ -n "${2-}" ]]; then
-	    if ! kill -0 $2 2>&-; then
-		echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
-		exit 1
-	    fi
-	fi
+        if [[ -n "${2-}" ]]; then
+            if ! kill -0 $2 2>&-; then
+                echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
+                exit 1
+            fi
+        fi
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
@@ -159,9 +159,9 @@ cleanup()
     rm -r "$WORKSPACE" || return 1
 
     if [[ ("$exit_status" == 1) && ($RETRIES_REMAINING -gt 0) ]]; then
-	echo "retrying..."
-	RETRIES_REMAINING=$((RETRIES_REMAINING - 1))
-	exec $0 "$@"
+        echo "retrying..."
+        RETRIES_REMAINING=$((RETRIES_REMAINING - 1))
+        exec $0 "$@"
     fi
 }
 trap cleanup EXIT INT TERM HUP
@@ -179,13 +179,13 @@ ca=certs/external/baltimore-cybertrust-root.pem
 get_first_free_port() {
     local ret="$1"
     while :; do
-	if [[ "$ret" -ge 65536 ]]; then
-	    ret=1024
-	fi
-	if ! nc -z 127.0.0.1 "$ret"; then
-	    break
-	fi
-	ret=$((ret+1))
+        if [[ "$ret" -ge 65536 ]]; then
+            ret=1024
+        fi
+        if ! nc -z 127.0.0.1 "$ret"; then
+            break
+        fi
+        ret=$((ret+1))
     done
     echo "$ret"
     return 0

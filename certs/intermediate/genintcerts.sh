@@ -6,9 +6,9 @@
 # RSA Server
 #  ROOT: ./certs/ca-cert.pem
 #      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
-#    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem 
+#    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
-#      INTERMEDIATE2: ./certs/intermediate/ca-int2-cert.pem 
+#      INTERMEDIATE2: ./certs/intermediate/ca-int2-cert.pem
 #          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
 #        SERVER: ./certs/intermediate/server-int-cert.pem
 #            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain/emailAddress=info@wolfssl.com
@@ -16,9 +16,9 @@
 # RSA Client
 #  ROOT: ./certs/ca-cert.pem
 #      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
-#    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem 
+#    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
-#      INTERMEDIATE: ./certs/intermediate/ca-int2-cert.pem 
+#      INTERMEDIATE: ./certs/intermediate/ca-int2-cert.pem
 #          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
 #        CLIENT: ./certs/intermediate/client-int-cert.pem
 #            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain/emailAddress=info@wolfssl.com
@@ -26,9 +26,9 @@
 # ECC Server
 #  ROOT: ./certs/ca-ecc-cert.pem
 #      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
-#    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem 
+#    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
-#      INTERMEDIATE2: ./certs/intermediate/ca-int-ecc-cert.pem 
+#      INTERMEDIATE2: ./certs/intermediate/ca-int-ecc-cert.pem
 #          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
 #        SERVER: ./certs/intermediate/server-int-ecc-cert.pem
 #            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain ECC/emailAddress=info@wolfssl.com
@@ -36,9 +36,9 @@
 # ECC Client
 #  ROOT: ./certs/ca-ecc-cert.pem
 #      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
-#    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem 
+#    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
-#      INTERMEDIATE2: ./certs/intermediate/ca-int2-ecc-cert.pem 
+#      INTERMEDIATE2: ./certs/intermediate/ca-int2-ecc-cert.pem
 #          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
 #        CLIENT: ./certs/intermediate/client-int-ecc-cert.pem
 #            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain ECC/emailAddress=info@wolfssl.com
@@ -203,7 +203,7 @@ fi
 
 # Make sure required CA files exist and are populated
 rm -f ./certs/intermediate/index.*
-touch ./certs/intermediate/index.txt 
+touch ./certs/intermediate/index.txt
 if [ ! -f ./certs/intermediate/serial ]; then
     echo 1000 > ./certs/intermediate/serial
 fi

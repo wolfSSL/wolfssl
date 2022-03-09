@@ -6,7 +6,7 @@
 # save current config
 echo "\n\nSaving current config\n\n"
 cp config.status tmp.status
-cp wolfssl/options.h tmp.options.h 
+cp wolfssl/options.h tmp.options.h
 
 # stash modified files, if any, that are not part of this commit, don't test
 # them
@@ -35,7 +35,7 @@ echo "\nRestoring current config\n"
 mv tmp.status config.status
 # don't show output in case error from above
 ./config.status >/dev/null 2>&1
-mv tmp.options.h wolfssl/options.h 
+mv tmp.options.h wolfssl/options.h
 make clean >/dev/null 2>&1
 make -j 8 >/dev/null 2>&1
 

@@ -6,13 +6,13 @@
 # Git hooks should come before autoreconf.
 if [ -d .git ]; then
     if [ ! -d .git/hooks ]; then
-	mkdir .git/hooks || exit $?
+        mkdir .git/hooks || exit $?
     fi
     if [ ! -e .git/hooks/pre-commit ]; then
-	ln -s ../../pre-commit.sh .git/hooks/pre-commit || exit $?
+        ln -s ../../pre-commit.sh .git/hooks/pre-commit || exit $?
     fi
     if [ ! -e .git/hooks/pre-push ]; then
-	ln -s ../../pre-push.sh .git/hooks/pre-push || exit $?
+        ln -s ../../pre-push.sh .git/hooks/pre-push || exit $?
     fi
 fi
 
