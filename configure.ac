@@ -266,11 +266,13 @@ AS_CASE([$ENABLED_FIPS],
     [v2|cert3389],[
         FIPS_VERSION="v2"
         HAVE_FIPS_VERSION=2
+        HAVE_FIPS_VERSION_MINOR=0
         ENABLED_FIPS="yes"
     ],
     [rand],[
         FIPS_VERSION="rand"
-        HAVE_FIPS_VERSION=3
+        HAVE_FIPS_VERSION=2
+        HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
     ],
     [v5-RC8],[
@@ -857,7 +859,8 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=$enableval ],
     [ ENABLED_TLS13=yes ]
     )
-if test "x$FIPS_VERSION" = "xv1"
+if test "x$FIPS_VERSION" = "xv1" ||
+        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 )
 then
     ENABLED_TLS13="no"
 fi
@@ -1694,8 +1697,8 @@ AC_ARG_ENABLE([aesgcm-stream],
     )
 
 # leanpsk and leantls don't need gcm
-if test "$ENABLED_LEANPSK" = "yes" || ( test "$ENABLED_LEANTLS" = "yes" &&
-                                        test "$ENABLED_TLS13" = "no")
+if test "$FIPS_VERSION" = "rand" || test "$ENABLED_LEANPSK" = "yes" ||
+   (test "$ENABLED_LEANTLS" = "yes" && test "$ENABLED_TLS13" = "no")
 then
     ENABLED_AESGCM=no
 fi
@@ -2262,7 +2265,9 @@ fi
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" = 2 )
+    if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" &&
+        ( test "x$ENABLED_FIPS" = "xno" ||
+          ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" != 1 ) )
     then
         SHA224_DEFAULT=yes
     fi
@@ -5482,7 +5487,7 @@ fi
 # PKCS#12
 # set PKCS#12 default
 PKCS12_DEFAULT=yes
-if test "$ENABLED_ASN" = "no"
+if test "$ENABLED_ASN" = "no" || test "$FIPS_VERSION" = "rand"
 then
     PKCS12_DEFAULT=no
 fi
@@ -6880,7 +6885,8 @@ do
 -DHAVE_FFDHE_2048 | -DTFM_TIMING_RESISTANT | -DECC_TIMING_RESISTANT | \
 -DWC_RSA_BLINDING | -DHAVE_AESGCM | -DWOLFSSL_SHA512 | -DWOLFSSL_SHA384 | \
 -DHAVE_ECC | -DTFM_ECC256 | -DECC_SHAMIR | -DHAVE_TLS_EXTENSIONS | \
--DHAVE_SUPPORTED_CURVES | -DHAVE_EXTENDED_MASTER | -DUSE_FAST_MATH)
+-DHAVE_SUPPORTED_CURVES | -DHAVE_EXTENDED_MASTER | -DUSE_FAST_MATH | \
+-DWOLFSSL_SHA3)
     AS_ECHO(["ignoring $v"])
     ;;
   *)
@@ -7577,11 +7583,11 @@ AM_CONDITIONAL([BUILD_MD5],[test "x$ENABLED_MD5" = "xyes" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_SHA],[test "x$ENABLED_SHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS],[test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
-AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2])
-AM_CONDITIONAL([BUILD_FIPS_RAND],[test "x$FIPS_VERSION" = "xrand"])
-AM_CONDITIONAL([BUILD_FIPS_V3],[test "$HAVE_FIPS_VERSION" = 3])
+AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 0])
+AM_CONDITIONAL([BUILD_FIPS_RAND],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V5],[test "$HAVE_FIPS_VERSION" = 5])
 AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "$HAVE_FIPS_VERSION" -ge 2 ])
+    # BUILD_FIPS_CURRENT is for builds after cert 2425.
 AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
