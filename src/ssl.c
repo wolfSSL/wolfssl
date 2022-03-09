@@ -40089,6 +40089,7 @@ WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
     return p;
 }
 
+#ifndef WOLFSSL_SP_MATH
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -40149,6 +40150,7 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 WOLFSSL_EC_POINT *point,
@@ -40192,7 +40194,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH)
 int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_EC_POINT *p1,
                          const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
@@ -40456,8 +40458,8 @@ cleanup:
     wc_ecc_del_point(tmp);
     return ret;
 }
-#endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
-        * !defined(HAVE_SELFTEST) */
+#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && !HAVE_SELFTEST &&
+        * !WOLFSSL_SP_MATH */
 
 /* (x, y) -> (x, -y) */
 int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
@@ -54186,6 +54188,7 @@ WOLFSSL_API int wolfSSL_BN_mul(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIG
     return ret;
 }
 
+#ifndef WOLFSSL_SP_MATH
 int wolfSSL_BN_div(WOLFSSL_BIGNUM* dv, WOLFSSL_BIGNUM* rem,
                    const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* d,
                    WOLFSSL_BN_CTX* ctx)
@@ -54217,6 +54220,7 @@ int wolfSSL_BN_div(WOLFSSL_BIGNUM* dv, WOLFSSL_BIGNUM* rem,
 
     return ret;
 }
+#endif
 
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) /* Needed to get mp_gcd. */
 int wolfSSL_BN_gcd(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* a, WOLFSSL_BIGNUM* b,
@@ -55170,6 +55174,7 @@ WOLFSSL_API int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
     return ret;
 }
 
+#ifndef WOLFSSL_SP_MATH
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
@@ -55210,6 +55215,7 @@ int wolfSSL_BN_rshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
 
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
@@ -55233,6 +55239,7 @@ int wolfSSL_BN_add(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b)
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef WOLFSSL_SP_MATH
 /* r = a + b (mod m) */
 int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
                        const WOLFSSL_BIGNUM *b, const WOLFSSL_BIGNUM *m,
@@ -55257,6 +55264,7 @@ int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
 
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA))
 

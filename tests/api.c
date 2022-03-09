@@ -2979,11 +2979,12 @@ static int test_wolfSSL_SetMinVersion(void)
 /* Test function for EC_POINT_new, EC_POINT_mul, EC_POINT_free,
     EC_GROUP_new_by_curve_name, EC_GROUP_order_bits
  */
-
-# if defined(OPENSSL_EXTRA) && \
-  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+#ifdef OPENSSL_EXTRA
 static void test_wolfSSL_EC(void)
 {
+#if !defined(WOLFSSL_SP_MATH) && \
+  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+
 #if defined(HAVE_ECC)
     BN_CTX *ctx;
     EC_GROUP *group;
@@ -3186,8 +3187,9 @@ static void test_wolfSSL_EC(void)
     EC_GROUP_free(group2);
     BN_CTX_free(ctx);
 #endif /* HAVE_ECC */
+#endif /* OPENSSL_EXTRA && !WOLFSSL_SP_MATH && ( !HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
 }
-#endif /* OPENSSL_EXTRA && ( !HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
+#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_BIO
 static void test_wolfSSL_PEM_read_bio_ECPKParameters(void)
@@ -34336,7 +34338,7 @@ static void test_X509_STORE_get0_objects(void)
 
 static void test_wolfSSL_BN(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && !defined(WOLFSSL_SP_MATH)
     BIGNUM* a;
     BIGNUM* b;
     BIGNUM* c;
@@ -53167,9 +53169,7 @@ void ApiTest(void)
     /*wolfSSL_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EVP_CIPHER_CTX();
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     test_wolfSSL_EC();
-#endif
     test_wolfSSL_ECDSA_SIG();
     test_ECDSA_size_sign();
     test_ED25519();
