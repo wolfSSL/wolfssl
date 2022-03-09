@@ -10069,6 +10069,15 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             case EXT_KEY_USAGE_OID:
                 if (!isSet)
                     break;
+
+                ret = wolfSSL_ASN1_STRING_set(&ext->value, x509->extKeyUsageSrc,
+                                              x509->extKeyUsageSz);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("ASN1_STRING_set() failed");
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(&cert);
+                    return NULL;
+                }
                 ext->crit = x509->keyUsageCrit;
                 break;
 
