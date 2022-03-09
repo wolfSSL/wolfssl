@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_CAAM) && !defined(NO_HMAC)
+#if defined(WOLFSSL_CAAM) && !defined(NO_HMAC) && defined(WOLFSSL_CAAM_HMAC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

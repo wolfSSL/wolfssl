@@ -73,7 +73,7 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
     switch (info->algo_type) {
         case WC_ALGO_TYPE_PK:
             switch (info->pk.type) {
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) && defined(WOLFSSL_CAAM_ECC)
                 case WC_PK_TYPE_ECDSA_SIGN:
                     ret = wc_CAAM_EccSign(info->pk.eccsign.in,
                             info->pk.eccsign.inlen, info->pk.eccsign.out,
@@ -108,8 +108,8 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                                    info->pk.ecc_check.pubKey,
                                    info->pk.ecc_check.pubKeySz);
                     break;
-            #endif /* HAVE_ECC */
-            #ifndef NO_RSA
+            #endif /* HAVE_ECC && WOLFSSL_CAAM_ECC */
+            #if !defined(NO_RSA) && defined(WOLFSSL_DEVCRYPTO_RSA)
                 case WC_PK_TYPE_RSA:
                     ret = wc_CAAM_Rsa(info->pk.rsa.in,
                                    info->pk.rsa.inLen,
@@ -129,7 +129,7 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                     break;
                 #endif
             #endif /* !NO_RSA */
-            #ifdef HAVE_CURVE25519
+            #if defined(HAVE_CURVE25519) && defined(WOLFSSL_CAAM_CURVE25519)
                 case WC_PK_TYPE_CURVE25519_KEYGEN:
                     ret = wc_CAAM_MakeCurve25519Key(info->pk.curve25519kg.key,
                         info->pk.curve25519kg.size,
@@ -143,13 +143,14 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                         info->pk.curve25519.public_key,
                         info->pk.curve25519.endian);
                     break;
-            #endif /* HAVE_CURVE25519 */
+            #endif /* HAVE_CURVE25519 && WOLFSSL_CAAM_CURVE25519 */
                 default:
                     WOLFSSL_MSG("unsupported public key operation");
             }
             break;
 
         case WC_ALGO_TYPE_CMAC:
+        #ifdef WOLFSSL_CAAM_CMAC
         #ifdef WOLFSSL_SECO_CAAM
             if (devId != WOLFSSL_SECO_DEVID)
                 break;
@@ -169,9 +170,11 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
             WOLFSSL_MSG("CMAC not compiled in");
             ret = NOT_COMPILED_IN;
         #endif
+        #endif /* WOLFSSL_CAAM_CMAC */
             break;
 
         case WC_ALGO_TYPE_HASH:
+        #ifdef WOLFSSL_CAAM_HASH
         #ifdef WOLFSSL_SECO_CAAM
             switch(info->hash.type) {
                 #ifdef WOLFSSL_SHA224
@@ -209,18 +212,22 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                     ret = CRYPTOCB_UNAVAILABLE;
             }
         #endif
+        #endif /* WOLFSSL_CAAM_HASH */
         break;
 
         case WC_ALGO_TYPE_HMAC:
+        #if defined(WOLFSSL_CAAM_HMAC)
             ret = wc_CAAM_Hmac(info->hmac.hmac,
                         info->hmac.macType,
                         info->hmac.in, info->hmac.inSz,
                         info->hmac.digest);
+       #endif
             break;
 
         case WC_ALGO_TYPE_CIPHER:
+        #ifdef WOLFSSL_CAAM_CIPHER
         #ifdef WOLFSSL_SECO_CAAM
-            if (devId == WOLFSSL_CAAM_DEVID)
+            if (devId != WOLFSSL_SECO_DEVID)
                 break; /* only call to SECO if using WOLFSSL_SECO_DEVID */
         #endif
             switch (info->cipher.type) {
@@ -316,6 +323,7 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                     }
         #endif /* HAVE_AES_ECB */
             }
+        #endif /* WOLFSSL_CAAM_CIPHER */
             break;
 
         case WC_ALGO_TYPE_RNG:
