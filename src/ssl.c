@@ -17582,7 +17582,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             rd->flags |= WOLFSSL_BIO_FLAG_READ;
         if (wr && !(wr->flags & WOLFSSL_BIO_FLAG_WRITE))
             wr->flags |= WOLFSSL_BIO_FLAG_WRITE;
-        
+
         ssl->biord = rd;
         ssl->biowr = wr;
 

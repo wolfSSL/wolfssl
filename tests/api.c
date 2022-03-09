@@ -38777,26 +38777,26 @@ static void test_wolfSSL_BIO_connect(void)
 }
 
 
-static void test_wolfSSL_BIO_Qt_usecase()
+static void test_wolfSSL_BIO_Qt_usecase(void)
 {
 #if !defined(NO_BIO) && defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT)
-    
+
     printf(testingFmt, "test_wolfSSL_BIO_Qt_usecase()");
-    
+
     SSL_CTX* ctx;
     SSL *ssl;
     BIO *readBio;
     BIO *writeBio;
     int ret, err;
-    
+
     AssertNotNull(ctx = SSL_CTX_new(SSLv23_method()));
     AssertNotNull(ssl = SSL_new(ctx));
-    
+
     AssertNotNull(readBio = BIO_new(BIO_s_mem()));
     AssertNotNull(writeBio = BIO_new(BIO_s_mem()));
     /* Qt reads data from write-bio,
      * then writes the read data into plain packet.
-     * Qt reads data from plain packet, 
+     * Qt reads data from plain packet,
      * then writes the read data into read-bio.
      */
     SSL_set_bio(ssl, readBio, writeBio);
@@ -38806,10 +38806,10 @@ static void test_wolfSSL_BIO_Qt_usecase()
      * so that Qt will read the data from plain packet for next state.
      */
     AssertIntEQ(err, SSL_ERROR_WANT_READ);
-    
+
     SSL_free(ssl);
     SSL_CTX_free(ctx);
-    
+
     printf(resultFmt, passed);
 #endif
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # tls13.test
 # Copyright wolfSSL 2016-2021
@@ -138,9 +138,9 @@ fi
 do_cleanup
 echo ""
 
-cat ./wolfssl/options.h | grep -F -e 'NO_CERTS'
+grep -F -e 'NO_CERTS' ./wolfssl/options.h
 NO_CERTS=$?
-cat ./wolfssl/options.h | grep -F -e 'WOLFSSL_NO_CLIENT_AUTH'
+grep -F -e 'WOLFSSL_NO_CLIENT_AUTH' ./wolfssl/options.h
 NO_CLIENT_AUTH=$?
 if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
@@ -312,4 +312,3 @@ do_cleanup
 echo -e "\nALL Tests Passed"
 
 exit 0
-

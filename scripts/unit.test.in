@@ -3,10 +3,10 @@
 if [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"
     if [ -n "$bwrap_path" ]; then
-	exec "$bwrap_path" --unshare-net --dev-bind / / "@builddir@/tests/unit.test" "$@"
+        exec "$bwrap_path" --unshare-net --dev-bind / / "@builddir@/tests/unit.test" "$@"
     else
-	exec "@builddir@/tests/unit.test" "$@"
+        exec "@builddir@/tests/unit.test" "$@"
     fi
 else
-	exec "@builddir@/tests/unit.test" "$@"
+        exec "@builddir@/tests/unit.test" "$@"
 fi

@@ -147,7 +147,7 @@ create_an_entity "chainJ" "chainJ-ICA1-no_pathlen.pem" "chainJ-ICA1-key.pem"
 ###########################################################
 # Success: PathLen of 0
 ## chainA-ICA1-pathlen0.pem: signed by ca-cert.pem
-## chainA-entity.pem: signed by chainA-ICA1-pathlen0.pem 
+## chainA-entity.pem: signed by chainA-ICA1-pathlen0.pem
 cat chainA-entity.pem chainA-ICA1-pathlen0.pem > chainA-assembled.pem
 
 # Success: PathLen of 1
