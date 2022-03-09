@@ -413,7 +413,9 @@ int wc_SECO_GenerateKey(int flags, int group, byte* out, int outSz,
         key_args.key_identifier = keyIdOut;
         key_args.out_size = outSz;
         key_args.out_key  = out;
-        key_args.flags     = flags;
+
+        /* default to strict operations with key in NVM */
+        key_args.flags = flags | HSM_OP_KEY_GENERATION_FLAGS_STRICT_OPERATION;
         key_args.key_group = group;
         key_args.key_info  = keyInfo;
         key_args.key_type  = keyType;
