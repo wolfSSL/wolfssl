@@ -6202,9 +6202,6 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])
     fi
-    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
-    fi
     if test "$ENABLED_DSA" = "yes"; then
         AC_MSG_ERROR([Cannot use single precision math and DSA])
     fi
