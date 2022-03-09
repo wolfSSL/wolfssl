@@ -157,70 +157,6 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/wolfcrypt_last.c
 endif BUILD_FIPS_RAND
 
-if BUILD_FIPS_V3
-# FIPS Ready first file
-src_libwolfssl_la_SOURCES += \
-               wolfcrypt/src/wolfcrypt_first.c
-
-src_libwolfssl_la_SOURCES += \
-               wolfcrypt/src/hmac.c \
-               wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
-
-if BUILD_RSA
-src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
-endif
-
-if BUILD_ECC
-src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
-endif
-
-if BUILD_AES
-src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
-endif
-
-if BUILD_AESNI
-src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
-src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
-endif
-
-if BUILD_DES3
-src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
-endif
-
-if BUILD_SHA
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha.c
-if BUILD_INTELASM
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_asm.S
-endif
-endif
-
-if BUILD_SHA512
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
-if BUILD_INTELASM
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512_asm.S
-endif
-endif
-
-if BUILD_SHA3
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
-endif
-
-if BUILD_DH
-src_libwolfssl_la_SOURCES += wolfcrypt/src/dh.c
-endif
-
-if BUILD_CMAC
-src_libwolfssl_la_SOURCES += wolfcrypt/src/cmac.c
-endif
-
-src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
-                             wolfcrypt/src/fips_test.c
-
-# FIPS Ready last file
-src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
-endif BUILD_FIPS_V3
-
 if BUILD_FIPS_V5
 # FIPS 140-3 first file
 src_libwolfssl_la_SOURCES += \
@@ -449,11 +385,9 @@ endif
 endif !BUILD_FIPS_CURRENT
 
 if !BUILD_FIPS_V2
-if !BUILD_FIPS_V3
 if BUILD_DES3
 src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
 endif BUILD_DES3
-endif !BUILD_FIPS_V3
 endif !BUILD_FIPS_V2
 
 if !BUILD_FIPS_CURRENT
