@@ -23423,7 +23423,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
      * above definition of certExtsASN_Length. */
     XMEMCPY(certExtsASN, static_certExtsASN, sizeof(static_certExtsASN));
     for (i = sizeof(static_certExtsASN) / sizeof(ASNItem);
-         i < (int)(sizeof(certExtsASN) / sizeof(ASNItem)); i += 4) {
+         i < (int)certExtsASN_Length; i += 4) {
         XMEMCPY(&certExtsASN[i], customExtASN, sizeof(customExtASN));
     }
 
