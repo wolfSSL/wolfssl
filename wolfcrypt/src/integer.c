@@ -5000,7 +5000,7 @@ LBL_B:mp_clear (&b);
 
 static const int USE_BBS = 1;
 
-int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
+int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 {
     int   err, res, type;
     byte* buf;
@@ -5045,7 +5045,7 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
         buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
 
         /* load value */
-        if ((err = mp_read_unsigned_bin(N, buf, len)) != MP_OKAY) {
+        if ((err = mp_read_unsigned_bin(a, buf, len)) != MP_OKAY) {
             XFREE(buf, heap, DYNAMIC_TYPE_RSA);
             return err;
         }
@@ -5055,7 +5055,7 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
          * of a 1024-bit candidate being a false positive, when it is our
          * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
          * Using 8 because we've always used 8. */
-        if ((err = mp_prime_is_prime_ex(N, 8, &res, rng)) != MP_OKAY) {
+        if ((err = mp_prime_is_prime_ex(a, 8, &res, rng)) != MP_OKAY) {
             XFREE(buf, heap, DYNAMIC_TYPE_RSA);
             return err;
         }
