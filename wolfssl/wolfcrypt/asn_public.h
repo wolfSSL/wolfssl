@@ -322,6 +322,13 @@ typedef struct CertOidField {
     int    valSz;
     char   enc;
 } CertOidField;
+
+typedef struct CertExtension {
+    const char* oid;
+    byte        crit;
+    const byte* val;
+    int         valSz;
+} CertExtension;
 #endif
 #endif /* WOLFSSL_CERT_GEN */
 
@@ -368,6 +375,10 @@ typedef struct CertName {
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
 
 #ifdef WOLFSSL_CERT_GEN
+
+#ifndef NUM_CUSTOM_EXT
+#define NUM_CUSTOM_EXT 16
+#endif
 
 /* for user to fill for certificate generation */
 typedef struct Cert {
@@ -432,9 +443,13 @@ typedef struct Cert {
     int      challengePwPrintableString; /* encode as PrintableString */
 #endif
 #ifdef WOLFSSL_CUSTOM_OID
-    CertOidField extCustom; /* user oid and value to go in req extensions */
-#endif
+    /* user oid and value to go in req extensions */
+    CertOidField extCustom;
 
+    /* Extensions to go into X.509 certificates */
+    CertExtension customCertExt[NUM_CUSTOM_EXT];
+    int customCertExtCount;
+#endif
     void*   decodedCert;    /* internal DecodedCert allocated from heap */
     byte*   der;            /* Pointer to buffer of current DecodedCert cache */
     void*   heap;           /* heap hint */
@@ -530,6 +545,13 @@ WOLFSSL_API int wc_SetExtKeyUsage(Cert *cert, const char *value);
 WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
                                      byte idx, void* heap);
 #endif /* WOLFSSL_EKU_OID */
+
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING)
+WOLFSSL_API int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
+                                      const byte *der, word32 derSz);
+#endif
+
 #endif /* WOLFSSL_CERT_EXT */
 #endif /* WOLFSSL_CERT_GEN */
 

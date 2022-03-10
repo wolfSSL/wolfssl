@@ -4072,17 +4072,37 @@ int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp)
 int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
 {
     int curve_idx;
+#ifdef HAVE_OID_DECODING
+    int ret;
+    word16 decOid[MAX_OID_SZ];
+    word32 decOidSz = sizeof(decOid);
+#endif
 
     if (oid == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef HAVE_OID_DECODING
+    ret = DecodeObjectId(oid, len, decOid, &decOidSz);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
         if (
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             ecc_sets[curve_idx].oid &&
         #endif
+        #ifdef HAVE_OID_DECODING
+            /* We double because decOidSz is a count of word16 elements. */
+            ecc_sets[curve_idx].oidSz == decOidSz &&
+                              XMEMCMP(ecc_sets[curve_idx].oid, decOid,
+                                      decOidSz * 2) == 0
+        #else
             ecc_sets[curve_idx].oidSz == len &&
-                              XMEMCMP(ecc_sets[curve_idx].oid, oid, len) == 0) {
+                              XMEMCMP(ecc_sets[curve_idx].oid, oid, len) == 0
+        #endif
+        ) {
             break;
         }
     }
