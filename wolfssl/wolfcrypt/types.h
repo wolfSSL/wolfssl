@@ -1080,7 +1080,6 @@ decouple library dependencies with standard string, memory and so on.
     /* invalid device id */
     #define INVALID_DEVID    (-2)
 
-
     /* AESNI requires alignment and ARMASM gains some performance from it
      * Xilinx RSA operations require alignment */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
