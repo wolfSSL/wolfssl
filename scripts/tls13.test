@@ -259,6 +259,9 @@ if [ "$early_data" = "yes" ]; then
 
     ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
     ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+
+    echo "earlydata: session_ticket=${session_ticket} ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+
     if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
         -a $ed_srv_status_cnt -ne 2 ]; then
         RESULT=1
@@ -286,16 +289,19 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     # wait for the server to quit and write output
     wait $server_pid
 
-    ed_srv_msgcnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+    ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
     ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
-    if [ $ed_srv_msgcnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
+
+    echo "PSK earlydata: ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+
+    if [ $ed_srv_msg_cnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
         echo
         echo "Server out file"
         cat "$server_out_file"
         echo
         echo "Found lines"
         grep -F -e 'Early Data' "$server_out_file"
-        echo -e "\n\nUnexpected 'Early Data' lines - $early_data_cnt"
+        echo -e "\n\nUnexpected 'Early Data' lines."
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
