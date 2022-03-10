@@ -1457,7 +1457,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
     err |= fp_montgomery_reduce(&pre[i], b, mp);
   }
 
-  fp_sub_d(b, 2, e);
+  err |= fp_sub_d(b, 2, e);
   /* Highest bit is always set. */
   j = 1;
   for (i = fp_count_bits(e)-2; i >= 0; i--) {
@@ -1805,7 +1805,11 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     /* reduce G -> R[1] */
     if (fp_cmp_mag(P, G) != FP_GT) {
        /* G > P so we reduce it first */
-       fp_mod(G, P, &nb->R[1]);
+       err = fp_mod(G, P, &nb->R[1]);
+       if (err != FP_OKAY) {
+         nb->state = TFM_EXPTMOD_NB_INIT;
+         return err;
+       }
     } else {
        fp_copy(G, &nb->R[1]);
     }
@@ -2199,11 +2203,23 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   /* now set M[1] to G * R mod m */
   if (fp_cmp_mag(P, G) != FP_GT) {
      /* G > P so we reduce it first */
-     fp_mod(G, P, &M[1]);
+     err = fp_mod(G, P, &M[1]);
+     if (err != FP_OKAY) {
+     #ifndef WOLFSSL_NO_MALLOC
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
+     #endif
+        return err;
+     }
   } else {
      fp_copy(G, &M[1]);
   }
-  fp_mulmod (&M[1], res, P, &M[1]);
+  err = fp_mulmod (&M[1], res, P, &M[1]);
+  if (err != FP_OKAY) {
+  #ifndef WOLFSSL_NO_MALLOC
+     XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
+  #endif
+     return err;
+  }
 
   /* compute the value at M[1<<(winsize-1)] by
    * squaring M[1] (winsize-1) times */
@@ -4101,7 +4117,8 @@ int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    if (c->size < FP_SIZE) {
      err = fp_sub(a, tmp, tmp);
      fp_copy(tmp, c);
-   } else
+   }
+   else
 #endif
    {
      err = fp_sub(a, tmp, c);
