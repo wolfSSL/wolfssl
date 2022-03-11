@@ -22994,7 +22994,7 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                     break;
                 }
                 /* Copy data into dynamic vars. */
-                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[type],
+                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[i],
                     NAME_OID_SZ, name->name[j].type,
                     (byte*)name->name[j].value, name->name[j].sz);
             }
