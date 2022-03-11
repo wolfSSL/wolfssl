@@ -28418,7 +28418,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM *param,
             param->ipasc[0] = '\0';
         }
         else {
-            XSTRNCPY(param->ipasc, ipasc, WOLFSSL_MAX_IPSTR);
+            XSTRLCPY(param->ipasc, ipasc, WOLFSSL_MAX_IPSTR);
             param->ipasc[WOLFSSL_MAX_IPSTR-1] = '\0';
         }
         ret = WOLFSSL_SUCCESS;
