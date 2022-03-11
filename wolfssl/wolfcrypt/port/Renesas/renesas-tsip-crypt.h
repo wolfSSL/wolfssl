@@ -31,6 +31,18 @@
 #endif
 
 #include "r_tsip_rx_if.h"
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef __cplusplus

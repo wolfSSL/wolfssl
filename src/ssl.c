@@ -34897,7 +34897,7 @@ int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
         return WOLFSSL_FAILURE;
     }
 
-    if (w <= MP_MASK) {
+    if (w <= (WOLFSSL_BN_ULONG) MP_MASK) {
         if (mp_isword((mp_int*)bn->internal, (mp_digit)w) == MP_YES) {
             return WOLFSSL_SUCCESS;
         }
@@ -35548,7 +35548,7 @@ static int wolfSSL_BN_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (w <= MP_MASK) {
+        if (w <= (WOLFSSL_BN_ULONG) MP_MASK) {
             if (sub == 1) {
                 rc = mp_sub_d((mp_int*)bn->internal, (mp_digit)w,
                               (mp_int*)bn->internal);
@@ -35856,7 +35856,7 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
         return (WOLFSSL_BN_ULONG)WOLFSSL_FATAL_ERROR;
     }
 
-    if (w <= MP_MASK) {
+    if (w <= (WOLFSSL_BN_ULONG) MP_MASK) {
         mp_digit bn_ret;
         if (mp_mod_d((mp_int*)bn->internal, (mp_digit)w, &bn_ret) != MP_OKAY) {
             WOLFSSL_MSG("mp_add_d error");
