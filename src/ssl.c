@@ -20576,55 +20576,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-        if (ssl->hsHashes != NULL) {
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-            if (wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap,
-                    ssl->devId) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-        #ifdef WOLFSSL_HASH_FLAGS
-            wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
-        #endif
-#endif
-#ifndef NO_SHA
-            if (wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap,
-                    ssl->devId) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-        #ifdef WOLFSSL_HASH_FLAGS
-            wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
-        #endif
-#endif
-#endif
-#ifndef NO_SHA256
-            if (wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap,
-                    ssl->devId) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-        #ifdef WOLFSSL_HASH_FLAGS
-            wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
-        #endif
-#endif
-#ifdef WOLFSSL_SHA384
-            if (wc_InitSha384_ex(&ssl->hsHashes->hashSha384, ssl->heap,
-                    ssl->devId) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-        #ifdef WOLFSSL_HASH_FLAGS
-            wc_Sha384SetFlags(&ssl->hsHashes->hashSha384, WC_HASH_FLAG_WILLCOPY);
-        #endif
-#endif
-#ifdef WOLFSSL_SHA512
-            if (wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap,
-                    ssl->devId) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-        #ifdef WOLFSSL_HASH_FLAGS
-            wc_Sha512SetFlags(&ssl->hsHashes->hashSha512, WC_HASH_FLAG_WILLCOPY);
-        #endif
-#endif
-        }
+        FreeHandshakeHashes(ssl);
+
 #ifdef SESSION_CERTS
         ssl->session->chain.count = 0;
 #endif
@@ -51807,7 +51760,8 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
             iv, &evpCtx, &hmacCtx, enc);
     if (res != TICKET_KEY_CB_RET_OK && res != TICKET_KEY_CB_RET_RENEW) {
         WOLFSSL_MSG("Ticket callback error");
-        return WOLFSSL_TICKET_RET_FATAL;
+        ret = WOLFSSL_TICKET_RET_FATAL;
+        goto end;
     }
 
     if (enc)
@@ -51861,6 +51815,9 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
     else
         ret = WOLFSSL_TICKET_RET_OK;
 end:
+
+    (void)wc_HmacFree(&hmacCtx.hmac);
+
     return ret;
 }
 
