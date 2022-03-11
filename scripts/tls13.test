@@ -13,6 +13,9 @@ if [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
+# retries to mitigate race on early data:
+early_data_try_max=10
+
 # getting unique port is modeled after resume.test script
 # need a unique port since may run the same time as testsuite
 # use server port zero hack to get one
@@ -244,71 +247,98 @@ if [ $? -eq 0 ]; then
 fi
 
 if [ "$early_data" = "yes" ]; then
-    echo -e "\n\nTLS v1.3 Early Data - session ticket"
-    port=0
-    (./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
-            tee "$server_out_file") &
-    server_pid=$!
-    create_port
-    ./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
-    RESULT=$?
-    cat "$client_out_file"
-    remove_ready_file
-    grep -F -e 'Session Ticket' "$client_out_file"
-    session_ticket=$?
 
-    ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
-    ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+    early_data_try_num=1
+    while :; do
 
-    echo "earlydata: session_ticket=${session_ticket} ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+	echo -e "\n\nTLS v1.3 Early Data - session ticket"
+	port=0
+	(./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
+             tee "$server_out_file") &
+	server_pid=$!
+	create_port
+	./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
+	RESULT=$?
+	cat "$client_out_file"
+	remove_ready_file
+	grep -F -e 'Session Ticket' "$client_out_file"
+	session_ticket=$?
 
-    if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
-        -a $ed_srv_status_cnt -ne 2 ]; then
-        RESULT=1
-    fi
-    if [ $RESULT -ne 0 ]; then
-        echo -e "\n\nIssue with TLS v1.3 Early Data - session ticket"
-        do_cleanup
-        exit 1
-    fi
-    do_cleanup
+	ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+	ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+
+	echo "earlydata: session_ticket=${session_ticket} ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+
+	if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
+			     -a $ed_srv_status_cnt -ne 2 ]; then
+            RESULT=1
+	fi
+	if [ $RESULT -ne 0 ]; then
+            echo -e "\n\nIssue with TLS v1.3 Early Data - session ticket"
+	    if [ $early_data_try_num -lt $early_data_try_max ]; then
+		echo -e "retry #${early_data_try_num}...\n"
+		: $((++early_data_try_num))
+		continue
+	    fi
+            do_cleanup
+            exit 1
+	fi
+	do_cleanup
+	break
+
+    done
+
     echo ""
 fi
 
 if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     echo -e "\n\nTLS v1.3 Early Data - PSK"
     port=0
-    (./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
-            tee "$server_out_file") &
-    server_pid=$!
-    create_port
-    ./examples/client/client -v 4 -s -0 -p $port
-    RESULT=$?
-    remove_ready_file
 
-    # wait for the server to quit and write output
-    wait $server_pid
+    early_data_try_num=1
+    while :; do
 
-    ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
-    ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+	(./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
+             tee "$server_out_file") &
+	server_pid=$!
+	create_port
+	./examples/client/client -v 4 -s -0 -p $port
+	RESULT=$?
+	remove_ready_file
 
-    echo "PSK earlydata: ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+	# wait for the server to quit and write output
+	wait $server_pid
 
-    if [ $ed_srv_msg_cnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
-        echo
-        echo "Server out file"
-        cat "$server_out_file"
-        echo
-        echo "Found lines"
-        grep -F -e 'Early Data' "$server_out_file"
-        echo -e "\n\nUnexpected 'Early Data' lines."
-        RESULT=1
-    fi
-    if [ $RESULT -ne 0 ]; then
-        echo -e "\n\nIssue with TLS v1.3 Early Data - PSK"
-        do_cleanup
-        exit 1
-    fi
+	ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+	ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+
+	echo "PSK earlydata: ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+
+	if [ $ed_srv_msg_cnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
+            echo
+            echo "Server out file"
+            cat "$server_out_file"
+            echo
+            echo "Found lines"
+            grep -F -e 'Early Data' "$server_out_file"
+            echo -e "\n\nUnexpected 'Early Data' lines."
+            RESULT=1
+	fi
+	if [ $RESULT -ne 0 ]; then
+            echo -e "\n\nIssue with TLS v1.3 Early Data - PSK"
+	    if [ $early_data_try_num -lt $early_data_try_max ]; then
+		echo -e "retry #${early_data_try_num}...\n"
+		: $((++early_data_try_num))
+		continue
+	    fi
+            do_cleanup
+            exit 1
+	fi
+
+	break
+
+    done
+
 else
     echo "Early Data not available"
 fi
