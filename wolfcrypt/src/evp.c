@@ -6731,6 +6731,41 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
     return NULL;
 }
 
+static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
+{
+    if(pkey == NULL)
+        return;
+    WOLFSSL_ENTER("clearEVPPkeyKeys");
+#ifndef NO_RSA
+    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
+        wolfSSL_RSA_free(pkey->rsa);
+        pkey->rsa = NULL;
+    }
+    pkey->ownRsa = 0;
+#endif
+#ifndef NO_DSA
+    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
+        wolfSSL_DSA_free(pkey->dsa);
+        pkey->dsa = NULL;
+    }
+    pkey->ownDsa = 0;
+#endif
+#ifndef NO_DH
+    if (pkey->dh != NULL && pkey->ownDh == 1) {
+        wolfSSL_DH_free(pkey->dh);
+        pkey->dh = NULL;
+    }
+    pkey->ownDh = 0;
+#endif
+#ifdef HAVE_ECC
+    if (pkey->ecc != NULL && pkey->ownEcc == 1) {
+        wolfSSL_EC_KEY_free(pkey->ecc);
+        pkey->ecc = NULL;
+    }
+    pkey->ownEcc = 0;
+#endif
+}
+
 #ifndef NO_RSA
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
 static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
@@ -6779,7 +6814,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
     derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz,
             pkey->heap, DYNAMIC_TYPE_DER);
     if (derBuf == NULL) {
-        WOLFSSL_MSG("EVP_PKEY_set1_RSA malloc failed");
+        WOLFSSL_MSG("PopulateRSAEvpPkeyDer malloc failed");
         return WOLFSSL_FAILURE;
     }
     /* Old pointer is invalid from this point on */
@@ -6866,9 +6901,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
         return WOLFSSL_FAILURE;
     }
 
-    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
-        wolfSSL_RSA_free(pkey->rsa);
-    }
+    clearEVPPkeyKeys(pkey);
     pkey->rsa    = key;
     pkey->ownRsa = 1; /* pkey does not own RSA but needs to call free on it */
     pkey->type   = EVP_PKEY_RSA;
@@ -6914,9 +6947,7 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DSA");
 
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
-    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
-        wolfSSL_DSA_free(pkey->dsa);
-    }
+    clearEVPPkeyKeys(pkey);
     pkey->dsa    = key;
     pkey->ownDsa = 0; /* pkey does not own DSA */
     pkey->type   = EVP_PKEY_DSA;
@@ -7020,7 +7051,7 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey)
 {
     WOLFSSL_EC_KEY *eckey = NULL;
-    if (pkey) {
+    if (pkey && pkey->type == EVP_PKEY_EC) {
 #ifdef HAVE_ECC
         eckey = pkey->ecc;
 #endif
@@ -7030,10 +7061,9 @@ WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey)
 
 WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 {
-    WOLFSSL_EC_KEY* local = NULL;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_EC_KEY");
 
-    if (key == NULL) {
+    if (key == NULL || key->type != EVP_PKEY_EC) {
         return NULL;
     }
     if (key->type == EVP_PKEY_EC) {
@@ -7050,27 +7080,12 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
                 return NULL;
             }
 
-            if (wolfSSL_EC_KEY_LoadDer(local,
-                        (const unsigned char*)key->pkey.ptr,
-                        key->pkey_sz) != WOLFSSL_SUCCESS) {
-                /* now try public key */
-                if (wolfSSL_EC_KEY_LoadDer_ex(local,
-                        (const unsigned char*)key->pkey.ptr, key->pkey_sz,
-                        WOLFSSL_EC_KEY_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
-
-                    wolfSSL_EC_KEY_free(local);
-                    local = NULL;
-                }
-            }
-        }
-    }
-    else {
-        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an EC key");
-        wolfSSL_EC_KEY_free(local);
-        local = NULL;
+    if (wolfSSL_EC_KEY_up_ref(key->ecc) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_up_ref error");
+        return NULL;
     }
 
-    return local;
+    return key->ecc;
 }
 #endif /* HAVE_ECC */
 
@@ -7095,33 +7110,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
-    /* free other types if needed */
-#ifndef NO_RSA
-    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
-        wolfSSL_RSA_free(pkey->rsa);
-    }
-    pkey->ownRsa = 0;
-#endif
-#ifndef NO_DSA
-    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
-        wolfSSL_DSA_free(pkey->dsa);
-    }
-    pkey->ownDsa = 0;
-#endif
-#ifdef HAVE_ECC
-    if (pkey->ecc != NULL && pkey->ownEcc == 1) {
-        wolfSSL_EC_KEY_free(pkey->ecc);
-    }
-    pkey->ownEcc = 0;
-#endif
-
-    if (wolfSSL_DH_up_ref(key) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("wolfSSL_DH_up_ref failed");
-        return WOLFSSL_FAILURE;
-    }
-
-    if (pkey->dh != NULL && pkey->ownDh == 1)
-        wolfSSL_DH_free(pkey->dh);
+    clearEVPPkeyKeys(pkey);
 
     pkey->dh    = key;
     pkey->ownDh = 1; /* pkey does not own DH but needs to call free on it */
@@ -7358,39 +7347,13 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
 #ifdef HAVE_ECC
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
-
-    if (pkey == NULL || key == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-#ifndef NO_RSA
-    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
-        wolfSSL_RSA_free(pkey->rsa);
-    }
-    pkey->ownRsa = 0;
-#endif
-#ifndef NO_DSA
-    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
-        wolfSSL_DSA_free(pkey->dsa);
-    }
-    pkey->ownDsa = 0;
-#endif
-#ifndef NO_DH
-    if (pkey->dh != NULL && pkey->ownDh == 1) {
-        wolfSSL_DH_free(pkey->dh);
-    }
-    pkey->ownDh = 0;
-#endif
-
+    clearEVPPkeyKeys(pkey);
     if (wolfSSL_EC_KEY_up_ref(key) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_up_ref failed");
         return WOLFSSL_FAILURE;
     }
-
-    if (pkey->ecc != NULL && pkey->ownEcc == 1) {
-        wolfSSL_EC_KEY_free(pkey->ecc);
-    }
     pkey->ecc    = key;
-    pkey->ownEcc = 1; /* doesn't own EC_KEY but needs to call free on it */
+    pkey->ownEcc = 1; /* pkey needs to call free on key */
     pkey->type   = EVP_PKEY_EC;
     return ECC_populate_EVP_PKEY(pkey, key);
 #else

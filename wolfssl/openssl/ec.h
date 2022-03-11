@@ -127,6 +127,11 @@ struct WOLFSSL_EC_KEY {
     /* option bits */
     byte inSet:1;        /* internal set from external ? */
     byte exSet:1;        /* external set from internal ? */
+
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+#endif
+    int              refCount;                       /* reference count */
 };
 
 struct WOLFSSL_EC_BUILTIN_CURVE {
@@ -208,6 +213,8 @@ WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void);
+WOLFSSL_API
+int wolfSSL_EC_KEY_up_ref(WOLFSSL_EC_KEY* key);
 WOLFSSL_API
 int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
@@ -312,6 +319,7 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 
 #define EC_KEY_new                      wolfSSL_EC_KEY_new
 #define EC_KEY_free                     wolfSSL_EC_KEY_free
+#define EC_KEY_up_ref                   wolfSSL_EC_KEY_up_ref
 #define EC_KEY_dup                      wolfSSL_EC_KEY_dup
 #define EC_KEY_up_ref                   wolfSSL_EC_KEY_up_ref
 #define EC_KEY_get0_public_key          wolfSSL_EC_KEY_get0_public_key

@@ -133,7 +133,12 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
     }
     else {
-        return WOLFSSL_BIO_ERROR;
+        if (bio->eof < 0) /* Sanity check the eof value */
+            return bio->eof;
+        else {
+            WOLFSSL_MSG("Weird bio->eof value. Returning default");
+            return WOLFSSL_BIO_ERROR;
+        }
     }
 
     return sz;
@@ -1583,13 +1588,13 @@ int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
 
 long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
 {
-      WOLFSSL_ENTER("wolfSSL_BIO_set_mem_eof_return");
+    WOLFSSL_ENTER("wolfSSL_BIO_set_mem_eof_return");
 
-      if (bio != NULL) {
+    if (bio != NULL) {
         bio->eof = v;
-      }
+    }
 
-      return 0;
+    return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
@@ -2467,6 +2472,8 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
+            if (method->type == WOLFSSL_BIO_MEMORY)
+                bio->eof = WOLFSSL_BIO_ERROR; /* Return value for empty buffer */
             if (method->type == WOLFSSL_BIO_MEMORY ||
                     method->type == WOLFSSL_BIO_BIO) {
                 bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
