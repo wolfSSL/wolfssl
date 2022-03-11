@@ -6137,7 +6137,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_ED448)
                 args->sigAlgo = ed448_sa_algo;
         #endif
-        #ifdef HAVE_PQC
+		#if defined(HAVE_PQC) && defined(HAVE_FALCON)
             else if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 falcon_key* fkey = (falcon_key*)ssl->hsKey;
                 byte level = 0;
@@ -6231,11 +6231,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 sig->length = ED448_SIG_SIZE;
             }
         #endif /* HAVE_ED448 */
-        #ifdef HAVE_PQC
+		#if defined(HAVE_PQC) && defined(HAVE_FALCON)
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 sig->length = FALCON_MAX_SIG_SIZE;
             }
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_PQC && HAVE_FALCON */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -6287,7 +6287,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = (word16)sig->length;
             }
         #endif
-        #ifdef HAVE_PQC
+		#if defined(HAVE_PQC) && defined(HAVE_FALCON)
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
                                          args->verify + HASH_SIG_SIZE +
@@ -6295,7 +6295,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                          (falcon_key*)ssl->hsKey);
                 args->length = (word16)sig->length;
             }
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_PQC && HAVE_FALCON */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 ret = RsaSign(ssl, sig->buffer, (word32)sig->length,
@@ -6787,7 +6787,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif
-        #ifdef HAVE_PQC
+        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
             if (ssl->peerFalconKeyPresent) {
                 int res = 0;
                 WOLFSSL_MSG("Doing Falcon peer cert verify");
@@ -6801,7 +6801,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ssl->peerFalconKeyPresent = 0;
                 }
             }
-        #endif
+        #endif /* HAVE_PQC && HAVE_FALCON */
 
             /* Check for error */
             if (ret != 0) {

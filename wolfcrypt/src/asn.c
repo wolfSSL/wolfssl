@@ -6266,7 +6266,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     }
     else
     #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
-    #if defined(HAVE_PQC)
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
     if ((ks == FALCON_LEVEL1k) || (ks == FALCON_LEVEL5k)) {
     #ifdef WOLFSSL_SMALL_STACK
         falcon_key* key_pair = NULL;
@@ -6319,7 +6319,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif
     }
     else
-    #endif /* HAVE_PQC */
+    #endif /* HAVE_PQC && HAVE_FALCON */
     {
         ret = 0;
     }
@@ -13280,7 +13280,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 sigCtx->key.ed448 = NULL;
                 break;
         #endif /* HAVE_ED448 */
-        #ifdef HAVE_PQC
+        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 wc_falcon_free(sigCtx->key.falcon);
@@ -13288,7 +13288,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                       DYNAMIC_TYPE_FALCON);
                 sigCtx->key.falcon = NULL;
                 break;
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_PQC && HAVE_FALCON */
             default:
                 break;
         } /* switch (keyOID) */
@@ -13732,7 +13732,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #if defined(HAVE_PQC)
+            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
                 case FALCON_LEVEL1k:
                 {
                     sigCtx->verify = 0;
@@ -13781,7 +13781,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
                     break;
                 }
-            #endif
+            #endif /* HAVE_PQC && HAVE_FALCON */
                 default:
                     WOLFSSL_MSG("Verify Key type unknown");
                     ret = ASN_UNKNOWN_OID_E;
@@ -13883,7 +13883,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #if defined(HAVE_PQC)
+            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
                 case FALCON_LEVEL1k:
                 case FALCON_LEVEL5k:
                 {
@@ -21604,7 +21604,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
-#if defined(HAVE_PQC)
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
 /* Encode the public part of an Falcon key in DER.
  *
  * Pass NULL for output to get the size of the encoding.
@@ -21647,7 +21647,7 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
 
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* HAVE_PQC && HAVE_FALCON */
 
 #ifdef WOLFSSL_CERT_GEN
 
@@ -28627,6 +28627,12 @@ enum {
 #define edKeyASN_Length (sizeof(edKeyASN) / sizeof(ASNItem))
 #endif
 
+#if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
+    || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
+    || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
+    || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
+    || (defined(HAVE_PQC) && defined(HAVE_FALCON)))
+
 static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     byte* privKey, word32* privKeyLen,
     byte* pubKey, word32* pubKeyLen, int keyType)
@@ -28858,6 +28864,7 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
     return ret;
 }
+#endif
 #endif /* WC_ENABLE_ASYM_KEY_IMPORT */
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
@@ -29194,7 +29201,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
-#if defined(HAVE_PQC)
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
 int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                      falcon_key* key, word32 inSz)
 {
@@ -29261,7 +29268,7 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
     }
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* HAVE_PQC && HAVE_FALCON */
 
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
 int wc_Curve448PrivateKeyDecode(const byte* input, word32* inOutIdx,
@@ -29328,7 +29335,7 @@ int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output, word32 inLen)
 
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
-#if defined(HAVE_PQC)
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
 int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
@@ -29367,7 +29374,7 @@ int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
     return BAD_FUNC_ARG;
 }
 
-#endif /* HAVE_PQC */
+#endif /* HAVE_PQC && HAVE_FALCON */
 
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
 /* Write private Curve448 key to DER format,
