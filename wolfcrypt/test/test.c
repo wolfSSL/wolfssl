@@ -28910,6 +28910,7 @@ int eccsi_test(void)
 {
     int ret = 0;
     WC_RNG rng;
+    int rng_inited = 0;
     EccsiKey* priv = NULL;
     EccsiKey* pub  = NULL;
     mp_int* ssk    = NULL;
@@ -28917,24 +28918,27 @@ int eccsi_test(void)
 
     priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL) {
+    if (priv == NULL)
         ret = -10205;
-    }
+    else
+        XMEMSET(priv, 0, sizeof(*priv));
 
     if (ret == 0) {
         pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL) {
-        ret = -10206;
-        }
+        if (pub == NULL)
+            ret = -10206;
+        else
+            XMEMSET(pub, 0, sizeof(*pub));
     }
 
     if (ret == 0) {
         ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT,
                 DYNAMIC_TYPE_TMP_BUFFER);
-        if (ssk == NULL) {
+        if (ssk == NULL)
             ret = -10207;
-        }
+        else
+            XMEMSET(ssk, 0, sizeof(*ssk));
     }
 
     if (ret == 0) {
@@ -28945,6 +28949,8 @@ int eccsi_test(void)
     #endif
         if (ret != 0)
             ret = -10200;
+        else
+            rng_inited = 1;
     }
 
     if (ret == 0) {
@@ -28987,19 +28993,22 @@ int eccsi_test(void)
         ret = eccsi_sign_verify_test(priv, pub, &rng, ssk, pvt);
     }
 
-    wc_FreeEccsiKey(priv);
-    wc_FreeEccsiKey(pub);
-    mp_free(ssk);
-    wc_ecc_del_point(pvt);
-
-    if (ret != -10200)
+    if (pvt != NULL)
+        wc_ecc_del_point(pvt);
+    if (rng_inited)
         wc_FreeRng(&rng);
-    if (ssk != NULL)
+    if (ssk != NULL) {
+        mp_free(ssk);
         XFREE(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub != NULL)
+    }
+    if (pub != NULL) {
+        wc_FreeEccsiKey(pub);
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv != NULL)
+    }
+    if (priv != NULL) {
+        wc_FreeEccsiKey(priv);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }
@@ -30056,6 +30065,7 @@ int sakke_test(void)
 {
     int ret = 0;
     WC_RNG rng;
+    int rng_inited = 0;
     SakkeKey* priv = NULL;
     SakkeKey* pub  = NULL;
     SakkeKey* key  = NULL;
@@ -30063,24 +30073,27 @@ int sakke_test(void)
 
     priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL) {
+    if (priv == NULL)
         ret = -10404;
-    }
+    else
+        XMEMSET(priv, 0, sizeof(*priv));
 
     if (ret == 0) {
         pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (pub == NULL) {
+        if (pub == NULL)
             ret = -10405;
-        }
+        else
+            XMEMSET(pub, 0, sizeof(*pub));
     }
 
     if (ret == 0) {
         key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (key == NULL) {
+        if (key == NULL)
             ret = -10406;
-        }
+        else
+            XMEMSET(key, 0, sizeof(*key));
     }
 
     if (ret == 0) {
@@ -30089,7 +30102,9 @@ int sakke_test(void)
     #else
         ret = wc_InitRng(&rng);
     #endif
-        if (ret != 0)
+        if (ret == 0)
+            rng_inited = 1;
+        else
             ret = -10400;
     }
 
@@ -30131,20 +30146,22 @@ int sakke_test(void)
         ret = sakke_op_test(priv, pub, &rng, rsk);
     }
 
-    wc_FreeSakkeKey(priv);
-    wc_FreeSakkeKey(pub);
-    wc_ecc_forcezero_point(rsk);
-    wc_ecc_del_point(rsk);
-
-    if (ret != -10400)
+    if (rsk != NULL) {
+        wc_ecc_forcezero_point(rsk);
+        wc_ecc_del_point(rsk);
+    }
+    if (rng_inited)
         wc_FreeRng(&rng);
-
     if (key != NULL)
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub != NULL)
+    if (pub != NULL) {
+        wc_FreeSakkeKey(pub);
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv != NULL)
+    }
+    if (priv != NULL) {
+        wc_FreeSakkeKey(priv);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }

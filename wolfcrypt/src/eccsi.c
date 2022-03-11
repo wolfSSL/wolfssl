@@ -155,6 +155,7 @@ void wc_FreeEccsiKey(EccsiKey* key)
         wc_ecc_del_point_h(key->pvt, key->heap);
         wc_ecc_free(&key->pubkey);
         wc_ecc_free(&key->ecc);
+        XMEMSET(key, 0, sizeof(*key));
     }
 }
 
@@ -383,10 +384,12 @@ static int eccsi_compute_hs(EccsiKey* key, enum wc_HashType hashType,
     word32 dataSz = 0;
     int idx = wc_ecc_get_curve_idx(key->ecc.dp->id);
     ecc_point* kpak = &key->ecc.pubkey;
+    int hash_inited = 0;
 
     /* HS = hash( G | KPAK | ID | PVT ) */
     err = wc_HashInit_ex(&key->hash, hashType, key->heap, INVALID_DEVID);
     if (err == 0) {
+        hash_inited = 1;
         /* Base Point - G */
         dataSz = sizeof(key->data);
         err = eccsi_encode_base(key, key->data, &dataSz);
@@ -424,6 +427,10 @@ static int eccsi_compute_hs(EccsiKey* key, enum wc_HashType hashType,
 
     if (err == 0) {
         *hashSz = (byte)wc_HashGetDigestSize(hashType);
+    }
+
+    if (hash_inited) {
+        (void)wc_HashFree(&key->hash, hashType);
     }
 
     return err;
@@ -1774,10 +1781,12 @@ static int eccsi_compute_he(EccsiKey* key, enum wc_HashType hashType,
 {
     int err = 0;
     word32 dataSz = key->ecc.dp->size;
+    int hash_inited = 0;
 
     /* HE = hash( HS | r | M ) */
     err = wc_HashInit_ex(&key->hash, hashType, key->heap, INVALID_DEVID);
     if (err == 0) {
+        hash_inited = 1;
         /* HS */
         err = wc_HashUpdate(&key->hash, hashType, key->idHash, key->idHashSz);
     }
@@ -1797,6 +1806,10 @@ static int eccsi_compute_he(EccsiKey* key, enum wc_HashType hashType,
     }
     if (err == 0) {
         *heSz = wc_HashGetDigestSize(hashType);
+    }
+
+    if (hash_inited) {
+        (void)wc_HashFree(&key->hash, hashType);
     }
 
     return err;
