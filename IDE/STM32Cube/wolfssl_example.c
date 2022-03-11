@@ -1524,16 +1524,15 @@ static int uartIORx(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     msg_length = 0;
     XMEMSET(tb, 0, sizeof(*tb));
 
-    /* Now get the bytes sent */
+    /* Now setup the DMA RX. */
     status = HAL_UARTEx_ReceiveToIdle_DMA(&TLS_UART, (uint8_t *)tb->buf, MAX_RECORD_SIZE);
-
     if (status != HAL_OK) {
         return WOLFSSL_CBIO_ERR_WANT_READ;
     } else {
         /* We now go into an infinite loop waiting for msg_length to be set to a
          * value other than 0. This will be done when the other side writes to
          * UART and then idles. That will trigger HAL_UARTEx_RxEventCallback()
-         * which will seetee msg_length to the length of data written.
+         * which will set msg_length to the length of data written.
          *
          * If you mistakenly get stuck here, please simply reset the board.
          */
@@ -1671,7 +1670,7 @@ done:
 #ifdef WOLFSSL_SMALL_STACK
     if (tbuf != NULL) {
         XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    {
+    }
 #endif
 
     return ret;
@@ -1718,7 +1717,7 @@ static int tls13_uart_client(void)
         goto done;
     }
 
-    wolfSSL_SetIOReadCtx(ssl, &tbuf);
+    wolfSSL_SetIOReadCtx(ssl, tbuf);
 
 #ifdef HAVE_PQC
     if (wolfSSL_UseKeyShare(ssl, WOLFSSL_KYBER_LEVEL1) != WOLFSSL_SUCCESS) {
@@ -1763,13 +1762,13 @@ done:
 #ifdef WOLFSSL_SMALL_STACK
     if (tbuf != NULL) {
         XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    {
+    }
 #endif
 
     return ret;
 }
 #endif
-#endif
+#endif /* !WOLFCRYPT_ONLY && WOLFSSL_TLS13 && !NO_TLS_UART_TEST */
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
