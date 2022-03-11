@@ -251,40 +251,40 @@ if [ "$early_data" = "yes" ]; then
     early_data_try_num=1
     while :; do
 
-	echo -e "\n\nTLS v1.3 Early Data - session ticket"
-	port=0
-	(./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
+        echo -e "\n\nTLS v1.3 Early Data - session ticket"
+        port=0
+        (./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
              tee "$server_out_file") &
-	server_pid=$!
-	create_port
-	./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
-	RESULT=$?
-	cat "$client_out_file"
-	remove_ready_file
-	grep -F -e 'Session Ticket' "$client_out_file"
-	session_ticket=$?
+        server_pid=$!
+        create_port
+        ./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
+        RESULT=$?
+        cat "$client_out_file"
+        remove_ready_file
+        grep -F -e 'Session Ticket' "$client_out_file"
+        session_ticket=$?
 
-	ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
-	ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+        ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+        ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
 
-	echo "earlydata: session_ticket=${session_ticket} ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+        echo "earlydata: session_ticket=${session_ticket} ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
 
-	if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
-			     -a $ed_srv_status_cnt -ne 2 ]; then
+        if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
+                             -a $ed_srv_status_cnt -ne 2 ]; then
             RESULT=1
-	fi
-	if [ $RESULT -ne 0 ]; then
+        fi
+        if [ $RESULT -ne 0 ]; then
             echo -e "\n\nIssue with TLS v1.3 Early Data - session ticket"
-	    if [ $early_data_try_num -lt $early_data_try_max ]; then
-		echo -e "retry #${early_data_try_num}...\n"
-		: $((++early_data_try_num))
-		continue
-	    fi
+            if [ $early_data_try_num -lt $early_data_try_max ]; then
+                echo -e "retry #${early_data_try_num}...\n"
+                : $((++early_data_try_num))
+                continue
+            fi
             do_cleanup
             exit 1
-	fi
-	do_cleanup
-	break
+        fi
+        do_cleanup
+        break
 
     done
 
@@ -298,23 +298,23 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     early_data_try_num=1
     while :; do
 
-	(./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
+        (./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
              tee "$server_out_file") &
-	server_pid=$!
-	create_port
-	./examples/client/client -v 4 -s -0 -p $port
-	RESULT=$?
-	remove_ready_file
+        server_pid=$!
+        create_port
+        ./examples/client/client -v 4 -s -0 -p $port
+        RESULT=$?
+        remove_ready_file
 
-	# wait for the server to quit and write output
-	wait $server_pid
+        # wait for the server to quit and write output
+        wait $server_pid
 
-	ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
-	ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+        ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+        ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
 
-	echo "PSK earlydata: ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
+        echo "PSK earlydata: ed_srv_msg_cnt=${ed_srv_msg_cnt} ed_srv_status_cnt=${ed_srv_status_cnt}"
 
-	if [ $ed_srv_msg_cnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
+        if [ $ed_srv_msg_cnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
             echo
             echo "Server out file"
             cat "$server_out_file"
@@ -323,19 +323,19 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
             grep -F -e 'Early Data' "$server_out_file"
             echo -e "\n\nUnexpected 'Early Data' lines."
             RESULT=1
-	fi
-	if [ $RESULT -ne 0 ]; then
+        fi
+        if [ $RESULT -ne 0 ]; then
             echo -e "\n\nIssue with TLS v1.3 Early Data - PSK"
-	    if [ $early_data_try_num -lt $early_data_try_max ]; then
-		echo -e "retry #${early_data_try_num}...\n"
-		: $((++early_data_try_num))
-		continue
-	    fi
+            if [ $early_data_try_num -lt $early_data_try_max ]; then
+                echo -e "retry #${early_data_try_num}...\n"
+                : $((++early_data_try_num))
+                continue
+            fi
             do_cleanup
             exit 1
-	fi
+        fi
 
-	break
+        break
 
     done
 
