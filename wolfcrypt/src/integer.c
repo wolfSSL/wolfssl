@@ -5005,7 +5005,7 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
     int   err, res, type;
     byte* buf;
 
-    if (N == NULL || rng == NULL)
+    if (a == NULL || rng == NULL)
         return MP_VAL;
 
     /* get type */
