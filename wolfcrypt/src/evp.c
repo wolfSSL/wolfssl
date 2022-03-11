@@ -1419,7 +1419,8 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     if (pkey->ecc && pkey->ecc->group) {
         /* set curve NID from pkey if available */
         ctx->curveNID = pkey->ecc->group->curve_nid;
-    } else {
+    }
+    else {
         ctx->curveNID = ECC_CURVE_DEF;
     }
 #endif
@@ -2104,8 +2105,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
             }
             break;
 #endif
-#if !defined(NO_DH) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION>2)))
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         case EVP_PKEY_DH:
             pkey->dh = wolfSSL_DH_new();
             if (pkey->dh) {
@@ -2226,6 +2226,15 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
                 WOLFSSL_MSG("wolfSSL_DSA_new error");
                 return WOLFSSL_FAILURE;
             }
+
+            /* free existing BIGNUMs if needed before copying over new */
+            wolfSSL_BN_free(to->dsa->p);
+            wolfSSL_BN_free(to->dsa->g);
+            wolfSSL_BN_free(to->dsa->q);
+            to->dsa->p = NULL;
+            to->dsa->g = NULL;
+            to->dsa->q = NULL;
+
             if (!(cpy = wolfSSL_BN_dup(from->dsa->p))) {
                 WOLFSSL_MSG("wolfSSL_BN_dup error");
                 return WOLFSSL_FAILURE;

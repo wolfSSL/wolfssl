@@ -42911,7 +42911,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
     /* Test EC_KEY_up_ref */
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_EC_KEY_up_ref(NULL), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EC_KEY_up_ref(ecKey), WOLFSSL_SUCCESS);
     /* reference count doesn't follow duplicate */
@@ -43529,8 +43529,7 @@ static void test_wolfSSL_EVP_PKEY_keygen(void)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     EVP_PKEY_CTX*     ctx = NULL;
-#if !defined(NO_DH) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION>2)))
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     WOLFSSL_EVP_PKEY* params = NULL;
     DH* dh = NULL;
     const BIGNUM* pubkey = NULL;
@@ -43557,8 +43556,7 @@ static void test_wolfSSL_EVP_PKEY_keygen(void)
     EVP_PKEY_free(pkey);
     pkey = NULL;
 
-#if !defined(NO_DH) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION>2)))
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     /* Test DH keygen */
     {
         AssertNotNull(params = wolfSSL_EVP_PKEY_new());
