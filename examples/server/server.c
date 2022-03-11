@@ -3017,13 +3017,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                         err = SSL_get_error(ssl, 0);
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         if (err == WC_PENDING_E) {
+                            /* returns the number of polled items or <0 for
+                             * error */
                             ret = wolfSSL_AsyncPoll(ssl,
                                                     WOLF_POLL_FLAG_CHECK_HW);
                             if (ret < 0) break;
                         }
                     #endif
                     }
-                    if (ret > 0) {
+                    else if (ret > 0) {
                         input[ret] = 0; /* null terminate message */
                         printf("Early Data Client message: %s\n", input);
                     }
