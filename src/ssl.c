@@ -8811,17 +8811,28 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION > 2))
     {
-        DhKey   dh;
         word32  keyIdx = 0;
         DhKey*  key = NULL;
         int ret;
         int elements;
+    #ifdef WOLFSSL_SMALL_STACK
+        DhKey* dh = (DhKey*)XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
+        if (dh == NULL)
+            return NULL;
+    #else
+        DhKey  dh[1];
+    #endif
+        XMEMSET(dh, 0, sizeof(DhKey));
+
         /* test if DH-public key */
-        if (wc_InitDhKey(&dh) != 0)
+        if (wc_InitDhKey(dh) != 0)
             return NULL;
 
-        ret = wc_DhKeyDecode(mem, &keyIdx, &dh, (word32)memSz);
-        wc_FreeDhKey(&dh);
+        ret = wc_DhKeyDecode(mem, &keyIdx, dh, (word32)memSz);
+        wc_FreeDhKey(dh);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(dh, NULL, DYNAMIC_TYPE_DH);
+    #endif
 
         if (ret == 0) {
             pkey = wolfSSL_EVP_PKEY_new();
@@ -40153,7 +40164,15 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_EC_POINT *p1,
                          const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
 {
-    mp_int a, prime, mu;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* a = NULL;
+    mp_int* prime = NULL;
+    mp_int* mu = NULL;
+#else
+    mp_int a[1];
+    mp_int prime[1];
+    mp_int mu[1];
+#endif
     mp_digit mp = 0;
     ecc_point* montP1 = NULL;
     ecc_point* montP2 = NULL;
@@ -40175,25 +40194,49 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a == NULL) {
+        WOLFSSL_MSG("Failed to allocate memory for mp_int a");
+        return WOLFSSL_FAILURE;
+    }
+    prime = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (prime == NULL) {
+        WOLFSSL_MSG("Failed to allocate memory for mp_int prime");
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+        return WOLFSSL_FAILURE;
+    }
+    mu = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (mu == NULL) {
+        WOLFSSL_MSG("Failed to allocate memory for mp_int mu");
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(a, 0, sizeof(mp_int));
+    XMEMSET(prime, 0, sizeof(mp_int));
+    XMEMSET(mu, 0, sizeof(mp_int));
+#endif
+
     /* read the curve prime and a */
-    if (mp_init_multi(&prime, &a, &mu, NULL, NULL, NULL) != MP_OKAY) {
+    if (mp_init_multi(prime, a, mu, NULL, NULL, NULL) != MP_OKAY) {
         WOLFSSL_MSG("mp_init_multi error");
         goto cleanup;
     }
 
-    if (mp_read_radix(&a, ecc_sets[group->curve_idx].Af, MP_RADIX_HEX)
+    if (mp_read_radix(a, ecc_sets[group->curve_idx].Af, MP_RADIX_HEX)
             != MP_OKAY) {
         WOLFSSL_MSG("mp_read_radix a error");
         goto cleanup;
     }
 
-    if (mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX)
+    if (mp_read_radix(prime, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX)
             != MP_OKAY) {
         WOLFSSL_MSG("mp_read_radix prime error");
         goto cleanup;
     }
 
-    if (mp_montgomery_setup(&prime, &mp) != MP_OKAY) {
+    if (mp_montgomery_setup(prime, &mp) != MP_OKAY) {
         WOLFSSL_MSG("mp_montgomery_setup nqm error");
         goto cleanup;
     }
@@ -40207,51 +40250,56 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         goto cleanup;
     }
 
-    if ((mp_montgomery_calc_normalization(&mu, &prime)) != MP_OKAY) {
+    if ((mp_montgomery_calc_normalization(mu, prime)) != MP_OKAY) {
         WOLFSSL_MSG("mp_montgomery_calc_normalization error");
         goto cleanup;
     }
 
     /* Convert to Montgomery form */
-    if (mp_cmp_d(&mu, 1) == MP_EQ) {
+    if (mp_cmp_d(mu, 1) == MP_EQ) {
         if (wc_ecc_copy_point(eccP1, montP1) != MP_OKAY ||
                 wc_ecc_copy_point(eccP2, montP2) != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_copy_point error");
             goto cleanup;
         }
     } else {
-        if (mp_mulmod(eccP1->x, &mu, &prime, montP1->x) != MP_OKAY ||
-                mp_mulmod(eccP1->y, &mu, &prime, montP1->y) != MP_OKAY ||
-                mp_mulmod(eccP1->z, &mu, &prime, montP1->z) != MP_OKAY) {
+        if (mp_mulmod(eccP1->x, mu, prime, montP1->x) != MP_OKAY ||
+                mp_mulmod(eccP1->y, mu, prime, montP1->y) != MP_OKAY ||
+                mp_mulmod(eccP1->z, mu, prime, montP1->z) != MP_OKAY) {
             WOLFSSL_MSG("mp_mulmod error");
             goto cleanup;
         }
-        if (mp_mulmod(eccP2->x, &mu, &prime, montP2->x) != MP_OKAY ||
-                mp_mulmod(eccP2->y, &mu, &prime, montP2->y) != MP_OKAY ||
-                mp_mulmod(eccP2->z, &mu, &prime, montP2->z) != MP_OKAY) {
+        if (mp_mulmod(eccP2->x, mu, prime, montP2->x) != MP_OKAY ||
+                mp_mulmod(eccP2->y, mu, prime, montP2->y) != MP_OKAY ||
+                mp_mulmod(eccP2->z, mu, prime, montP2->z) != MP_OKAY) {
             WOLFSSL_MSG("mp_mulmod error");
             goto cleanup;
         }
     }
 
     if (ecc_projective_add_point(montP1, montP2, (ecc_point*)r->internal,
-            &a, &prime, mp) != MP_OKAY) {
+            a, prime, mp) != MP_OKAY) {
         WOLFSSL_MSG("ecc_projective_add_point error");
         goto cleanup;
     }
 
-    if (ecc_map((ecc_point*)r->internal, &prime, mp) != MP_OKAY) {
+    if (ecc_map((ecc_point*)r->internal, prime, mp) != MP_OKAY) {
         WOLFSSL_MSG("ecc_map error");
         goto cleanup;
     }
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    mp_clear(&a);
-    mp_clear(&prime);
-    mp_clear(&mu);
+    mp_clear(a);
+    mp_clear(prime);
+    mp_clear(mu);
     wc_ecc_del_point_h(montP1, NULL);
     wc_ecc_del_point_h(montP2, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    XFREE(mu, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
     return ret;
 }
 
@@ -44267,17 +44315,17 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
     {
         int ret = WOLFSSL_FAILURE;
         int totalLen;
-        Cert cert;
+        Cert* cert = NULL;
         void* key = NULL;
         int type = -1;
     #ifndef NO_RSA
-        RsaKey rsa;
+        RsaKey* rsa = NULL;
     #endif
     #ifdef HAVE_ECC
-        ecc_key ecc;
+        ecc_key* ecc = NULL;
     #endif
     #ifndef NO_DSA
-        DsaKey dsa;
+        DsaKey* dsa = NULL;
     #endif
         WC_RNG rng;
         word32 idx = 0;
@@ -44292,83 +44340,137 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         }
     #endif
 
+        /* allocate Cert struct on heap since it is large */
+        cert = (Cert*)XMALLOC(sizeof(Cert), NULL, DYNAMIC_TYPE_CERT);
+        if (cert == NULL) {
+            WOLFSSL_MSG("Failed to allocate memory for Cert struct");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(cert, 0, sizeof(Cert));
+
     #ifdef WOLFSSL_CERT_REQ
         if (req) {
-            if (ReqCertFromX509(&cert, x509) != WOLFSSL_SUCCESS)
+            if (ReqCertFromX509(cert, x509) != WOLFSSL_SUCCESS) {
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
+            }
         }
         else
     #endif
         {
             /* Create a Cert that has the certificate fields. */
-            if (CertFromX509(&cert, x509) != WOLFSSL_SUCCESS)
+            if (CertFromX509(cert, x509) != WOLFSSL_SUCCESS) {
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
+            }
         }
 
         /* Create a public key object from requests public key. */
     #ifndef NO_RSA
         if (x509->pubKeyOID == RSAk) {
+
+            rsa = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+            if (rsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for RsaKey");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
             type = RSA_TYPE;
-            ret = wc_InitRsaKey(&rsa, x509->heap);
-            if (ret != 0)
-                return ret;
-            ret = wc_RsaPublicKeyDecode(x509->pubKey.buffer, &idx, &rsa,
-                                                           x509->pubKey.length);
+            ret = wc_InitRsaKey(rsa, x509->heap);
             if (ret != 0) {
-                wc_FreeRsaKey(&rsa);
+                XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)&rsa;
+            ret = wc_RsaPublicKeyDecode(x509->pubKey.buffer, &idx, rsa,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_FreeRsaKey(rsa);
+                XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)rsa;
         }
     #endif
     #ifdef HAVE_ECC
         if (x509->pubKeyOID == ECDSAk) {
+
+            ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+            if (ecc == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for ecc_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
             type = ECC_TYPE;
-            ret = wc_ecc_init(&ecc);
-            if (ret != 0)
-                return ret;
-            ret = wc_EccPublicKeyDecode(x509->pubKey.buffer, &idx, &ecc,
-                                                           x509->pubKey.length);
+            ret = wc_ecc_init(ecc);
             if (ret != 0) {
-                wc_ecc_free(&ecc);
+                XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)&ecc;
+            ret = wc_EccPublicKeyDecode(x509->pubKey.buffer, &idx, ecc,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_ecc_free(ecc);
+                XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)ecc;
         }
     #endif
     #ifndef NO_DSA
         if (x509->pubKeyOID == DSAk) {
+
+            dsa = (DsaKey*)XMALLOC(sizeof(DsaKey), NULL, DYNAMIC_TYPE_DSA);
+            if (dsa == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for DsaKey");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
             type = DSA_TYPE;
-            ret = wc_InitDsaKey(&dsa);
-            if (ret != 0)
-                return ret;
-            ret = wc_DsaPublicKeyDecode(x509->pubKey.buffer, &idx, &dsa,
-                                                           x509->pubKey.length);
+            ret = wc_InitDsaKey(dsa);
             if (ret != 0) {
-                wc_FreeDsaKey(&dsa);
+                XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return ret;
             }
-            key = (void*)&dsa;
+            ret = wc_DsaPublicKeyDecode(x509->pubKey.buffer, &idx, dsa,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_FreeDsaKey(dsa);
+                XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)dsa;
         }
     #endif
         if (key == NULL) {
             WOLFSSL_MSG("No public key found for certificate");
+            XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
             return WOLFSSL_FAILURE;
         }
 
         /* Make the body of the certificate request. */
     #ifdef WOLFSSL_CERT_REQ
         if (req) {
-            ret = wc_MakeCertReq_ex(&cert, der, *derSz, type, key);
+            ret = wc_MakeCertReq_ex(cert, der, *derSz, type, key);
         }
         else
     #endif
         {
             ret = wc_InitRng(&rng);
-            if (ret != 0)
+            if (ret != 0) {
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
                 return WOLFSSL_FAILURE;
+            }
 
-            ret = wc_MakeCert_ex(&cert, der, *derSz, type, key, &rng);
+            ret = wc_MakeCert_ex(cert, der, *derSz, type, key, &rng);
             wc_FreeRng(&rng);
         }
         if (ret <= 0) {
@@ -44377,8 +44479,8 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         }
 
         if ((x509->serialSz == 0) &&
-                (cert.serialSz <= EXTERNAL_SERIAL_SIZE) &&
-                (cert.serialSz > 0)) {
+                (cert->serialSz <= EXTERNAL_SERIAL_SIZE) &&
+                (cert->serialSz > 0)) {
         #if defined(OPENSSL_EXTRA)
             WOLFSSL_ASN1_INTEGER *i = wolfSSL_ASN1_INTEGER_new();
 
@@ -44388,10 +44490,10 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
                 goto cleanup;
             }
             else {
-                i->length = cert.serialSz + 2;
+                i->length = cert->serialSz + 2;
                 i->data[0] = ASN_INTEGER;
-                i->data[1] = (unsigned char)cert.serialSz;
-                XMEMCPY(i->data + 2, cert.serial, cert.serialSz);
+                i->data[1] = (unsigned char)cert->serialSz;
+                XMEMCPY(i->data + 2, cert->serial, cert->serialSz);
                 if (wolfSSL_X509_set_serialNumber(x509, i) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Issue setting generated serial number");
                     wolfSSL_ASN1_INTEGER_free(i);
@@ -44430,13 +44532,24 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
 cleanup:
         /* Dispose of the public key object. */
     #ifndef NO_RSA
-        if (x509->pubKeyOID == RSAk)
-            wc_FreeRsaKey(&rsa);
+        if (x509->pubKeyOID == RSAk) {
+            wc_FreeRsaKey(rsa);
+            XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+        }
     #endif
     #ifdef HAVE_ECC
-        if (x509->pubKeyOID == ECDSAk)
-            wc_ecc_free(&ecc);
+        if (x509->pubKeyOID == ECDSAk) {
+            wc_ecc_free(ecc);
+            XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
+        }
     #endif
+    #ifndef NO_DSA
+        if (x509->pubKeyOID == DSAk) {
+            wc_FreeDsaKey(dsa);
+            XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+        }
+    #endif
+        XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
 
         return ret;
     }

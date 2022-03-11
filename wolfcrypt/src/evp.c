@@ -8237,19 +8237,48 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int     nid;
     int idx = 0;
     int wsz = 0;
-    mp_int  a;
-    ecc_key key;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* a = NULL;
+    ecc_key* key = NULL;
+#else
+    mp_int  a[1];
+    ecc_key key[1];
+#endif
     char line[32] = { 0 };
     (void)pctx;
 
-    if (mp_init(&a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a == NULL) {
+        WOLFSSL_MSG("Failed to allocate memory for mp_int");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(a, 0, sizeof(mp_int));
+
+    key = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+    if (key == NULL) {
+        WOLFSSL_MSG("Failed to allocate memory for ecc_key");
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    if (mp_init(a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return WOLFSSL_FAILURE;
     }
 
-    if (wc_ecc_init(&key) != 0) {
+    if (wc_ecc_init(key) != 0) {
         /* Return early so we don't have to remember if init succeeded
          * or not. */
-        mp_free(&a);
+        mp_free(a);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return WOLFSSL_FAILURE;
     }
 
@@ -8261,11 +8290,11 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     }
 
     if (res == WOLFSSL_SUCCESS) {
-        res = wc_EccPublicKeyDecode(pkey, &inOutIdx, &key, pkeySz) == 0;
+        res = wc_EccPublicKeyDecode(pkey, &inOutIdx, key, pkeySz) == 0;
     }
 
     if (res == WOLFSSL_SUCCESS) {
-        curveId = wc_ecc_get_oid(key.dp->oidSum, &curveOID, &oidSz);
+        curveId = wc_ecc_get_oid(key->dp->oidSum, &curveOID, &oidSz);
         res = curveId > 0 && oidSz > 0;
     }
 
@@ -8289,7 +8318,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             XMEMSET(pub, 0, ECC_BUFSIZE);
 
             PRIVATE_KEY_UNLOCK();
-            res = wc_ecc_export_x963(&key, pub, &pubSz) == 0;
+            res = wc_ecc_export_x963(key, pub, &pubSz) == 0;
             PRIVATE_KEY_LOCK();
         }
         else {
@@ -8305,10 +8334,10 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
     }
     if (res == WOLFSSL_SUCCESS) {
-        res = mp_set_int(&a, bitlen) == 0;
+        res = mp_set_int(a, bitlen) == 0;
     }
     if (res == WOLFSSL_SUCCESS) {
-        res = mp_todecimal(&a, (char*)buff) == 0;
+        res = mp_todecimal(a, (char*)buff) == 0;
     }
     if (res == WOLFSSL_SUCCESS) {
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8366,8 +8395,13 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         pub = NULL;
     }
 
-    wc_ecc_free(&key);
-    mp_free(&a);
+    wc_ecc_free(key);
+    mp_free(a);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
 
     return res;
 }
