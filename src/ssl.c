@@ -20576,7 +20576,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-        FreeHandshakeHashes(ssl);
+        if (ssl->hsHashes)
+            (void)InitHandshakeHashes(ssl);
 
 #ifdef SESSION_CERTS
         ssl->session->chain.count = 0;
