@@ -18094,20 +18094,34 @@ cleanup:
 
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
     #ifdef HAVE_ECC
-            ecc_key key;
+        #ifdef WOLFSSL_SMALL_STACK
+            ecc_key* key = NULL;
+        #else
+            ecc_key key[1];
+        #endif
             word32 idx = 0;
 
+        #ifdef WOLFSSL_SMALL_STACK
+            key = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
+                                    DYNAMIC_TYPE_ECC);
+            if (key == NULL) {
+                WOLFSSL_MSG("Error allocating memory for ecc_key");
+            }
+        #endif
             if (ssl->options.haveStaticECC && ssl->buffers.key != NULL) {
-                if (wc_ecc_init(&key) >= 0) {
-                    if (wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx, &key,
-                                                   ssl->buffers.key->length) != 0) {
+                if (wc_ecc_init(key) >= 0) {
+                    if (wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
+                            key, ssl->buffers.key->length) != 0) {
                         ssl->options.haveECDSAsig = 0;
                         ssl->options.haveECC = 0;
                         ssl->options.haveStaticECC = 0;
                     }
-                    wc_ecc_free(&key);
+                    wc_ecc_free(key);
                 }
             }
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(key, ssl->heap, DYNAMIC_TYPE_ECC);
+        #endif
     #endif
 
     #ifndef NO_DH
