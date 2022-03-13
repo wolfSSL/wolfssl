@@ -16198,8 +16198,8 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 
     if (ret == 0) {
         /* Parse NameConstraints. */
-        ret = GetASN_Items(nameConstraintsASN, dataASN, nameConstraintsASN_Length,
-                           1, input, &idx, sz);
+        ret = GetASN_Items(nameConstraintsASN, dataASN,
+                           nameConstraintsASN_Length, 1, input, &idx, sz);
     }
     if (ret == 0) {
         /* If there was a permittedSubtrees then parse it. */
@@ -16219,6 +16219,8 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
                     &cert->excludedNames, cert->heap);
         }
     }
+
+    FREE_ASNGETDATA(dataASN, cert->heap);
 
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
