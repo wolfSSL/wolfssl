@@ -38695,6 +38695,14 @@ static void test_wolfSSL_BIO_connect(void)
 
     printf(testingFmt, "wolfSSL_BIO_new_connect()");
 
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
     /* Setup server */
     XMEMSET(&server_args, 0, sizeof(func_args));
     StartTCP();
@@ -38713,13 +38721,6 @@ static void test_wolfSSL_BIO_connect(void)
     AssertNotNull(tcpBio = BIO_new_connect(wolfSSLIP));
     AssertIntEQ(BIO_set_conn_port(tcpBio, buff), 1);
     /* Setup the SSL object */
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    AssertIntEQ(WOLFSSL_SUCCESS,
-            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS,
-          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
-    AssertIntEQ(WOLFSSL_SUCCESS,
-            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
     SSL_set_connect_state(ssl);
     /* Setup the SSL BIO */

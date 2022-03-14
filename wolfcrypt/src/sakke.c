@@ -6088,10 +6088,12 @@ static int sakke_calc_a(SakkeKey* key, enum wc_HashType hashType,
         const byte* data, word32 sz, const byte* extra, word32 extraSz, byte* a)
 {
     int err;
+    int hash_inited = 0;
 
     /* Step 1: A = hashfn( s ), where s = data | extra */
     err = wc_HashInit_ex(&key->hash, hashType, key->heap, INVALID_DEVID);
     if (err == 0) {
+        hash_inited = 1;
         err = wc_HashUpdate(&key->hash, hashType, data, sz);
     }
     if ((err == 0) && (extra != NULL)) {
@@ -6099,6 +6101,10 @@ static int sakke_calc_a(SakkeKey* key, enum wc_HashType hashType,
     }
     if (err == 0) {
         err = wc_HashFinal(&key->hash, hashType, a);
+    }
+
+    if (hash_inited) {
+        (void)wc_HashFree(&key->hash, hashType);
     }
 
     return err;
@@ -6127,13 +6133,19 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
     byte v[WC_MAX_DIGEST_SIZE];
     word32 hashSz = 1;
     word32 i;
+    int hash_inited = 0;
+
+    err = wc_HashInit_ex(&key->hash, hashType, key->heap, INVALID_DEVID);
+    if (err == 0)
+        hash_inited = 1;
 
     /* Step 1: A = hashfn( s ), where s = data | extra
      * See sakke_calc_a (need function parameters to be 7 or less)
      */
 
     /* Step 2: h_0 = 00...00, a string of null bits of length hashlen bits */
-    err = wc_HashGetDigestSize(hashType);
+    if (err == 0)
+        err = wc_HashGetDigestSize(hashType);
     if (err > 0) {
         hashSz = (word32)err;
         XMEMSET(h, 0, hashSz);
@@ -6154,6 +6166,10 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
         if (err == 0) {
             sakke_xor_in_v(v, hashSz, out, i, n);
         }
+    }
+
+    if (hash_inited) {
+        (void)wc_HashFree(&key->hash, hashType);
     }
 
     return err;

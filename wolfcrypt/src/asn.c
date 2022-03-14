@@ -16198,8 +16198,8 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 
     if (ret == 0) {
         /* Parse NameConstraints. */
-        ret = GetASN_Items(nameConstraintsASN, dataASN, nameConstraintsASN_Length,
-                           1, input, &idx, sz);
+        ret = GetASN_Items(nameConstraintsASN, dataASN,
+                           nameConstraintsASN_Length, 1, input, &idx, sz);
     }
     if (ret == 0) {
         /* If there was a permittedSubtrees then parse it. */
@@ -16219,6 +16219,8 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
                     &cert->excludedNames, cert->heap);
         }
     }
+
+    FREE_ASNGETDATA(dataASN, cert->heap);
 
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -22994,7 +22996,7 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                     break;
                 }
                 /* Copy data into dynamic vars. */
-                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[type],
+                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[i],
                     NAME_OID_SZ, name->name[j].type,
                     (byte*)name->name[j].value, name->name[j].sz);
             }
@@ -23423,7 +23425,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
      * above definition of certExtsASN_Length. */
     XMEMCPY(certExtsASN, static_certExtsASN, sizeof(static_certExtsASN));
     for (i = sizeof(static_certExtsASN) / sizeof(ASNItem);
-         i < (int)(sizeof(certExtsASN) / sizeof(ASNItem)); i += 4) {
+         i < (int)certExtsASN_Length; i += 4) {
         XMEMCPY(&certExtsASN[i], customExtASN, sizeof(customExtASN));
     }
 
@@ -31838,6 +31840,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
     if (ret < 0) {
         ret = ASN_PARSE_E;
     }
+
+    FREE_ASNGETDATA(dataASN, dcrl->heap);
+
     return ret;
 }
 #endif /* !WOLFSSL_ASN_TEMPLATE */
