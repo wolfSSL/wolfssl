@@ -349,7 +349,8 @@
     #define NO_INTM_HASH_TEST
 #endif
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
+  (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
 static void initDefaultName(void);
 #endif
 
@@ -766,7 +767,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
+  (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
     initDefaultName();
 #endif
 

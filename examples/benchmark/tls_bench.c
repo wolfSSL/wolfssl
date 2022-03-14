@@ -244,7 +244,7 @@ static const unsigned char dhg[] =
 #endif /* !NO_WOLFSSL_SERVER */
 #endif /* !NO_DH */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 struct group_info {
     word16 group;
     const char *name;
@@ -302,7 +302,7 @@ static struct group_info groups[] = {
 #endif
     { 0, NULL }
 };
-#endif /* WOLFSSL_TLS13 */
+#endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 #ifdef HAVE_PTHREAD
 typedef struct {
@@ -966,7 +966,7 @@ static int bench_tls_client(info_t* info)
             goto exit;
         }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (info->group != 0) {
             ret = wolfSSL_UseKeyShare(cli_ssl, info->group);
             if (ret != WOLFSSL_SUCCESS) {
@@ -1392,7 +1392,7 @@ static int bench_tls_server(info_t* info)
             ret = MEMORY_E; goto exit;
         }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (info->group != 0) {
             ret = wolfSSL_UseKeyShare(srv_ssl, info->group);
             if (ret != WOLFSSL_SUCCESS) {
@@ -1651,7 +1651,7 @@ static void ShowCiphers(void)
         fprintf(stderr, "%s\n", ciphers);
 }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static int SetupSupportedGroups(int verbose)
 {
     int i;
@@ -1713,9 +1713,6 @@ int bench_tls(void* args)
     info_t *theadInfo = NULL, *info;
     stats_t cli_comb, srv_comb;
     int i;
-#ifdef WOLFSSL_TLS13
-    int group_index = 0;
-#endif
     char *cipher, *next_cipher, *ciphers = NULL;
     int     argc = 0;
     char**  argv = NULL;
@@ -1746,7 +1743,8 @@ int bench_tls(void* args)
 #ifdef WOLFSSL_DTLS
     int doDTLS = 0;
 #endif
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+    int group_index = 0;
     int argDoGroups = 0;
 #endif
 
@@ -1793,7 +1791,7 @@ int bench_tls(void* args)
                 goto exit;
 
             case 'g' :
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
                 argDoGroups = 1;
                 break;
 #else
@@ -1878,7 +1876,7 @@ int bench_tls(void* args)
         cipher = ciphers;
     }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (argDoGroups) {
         if (SetupSupportedGroups(argShowVerbose) != 0) {
             goto exit;
@@ -1950,7 +1948,7 @@ int bench_tls(void* args)
             fprintf(stderr, "Cipher: %s\n", cipher);
         }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
             gname = theadInfo[0].group == 0 ? "N/A" : groups[group_index].name;
 
@@ -1967,7 +1965,7 @@ int bench_tls(void* args)
                 info->port = argPort + i; /* threads must have separate ports */
                 info->cipher = cipher;
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
                 if (argDoGroups && XSTRNCMP(theadInfo[0].cipher, "TLS13", 5) == 0)
                     info->group = groups[group_index].group;
                 else
@@ -2115,7 +2113,7 @@ int bench_tls(void* args)
         #endif
             }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
             if (!argDoGroups || theadInfo[0].group == 0) {
                 /* We only needed to do this once because they don't want to
                  * benchmarks groups or this isn't a TLS 1.3 cipher. */

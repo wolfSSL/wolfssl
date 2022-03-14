@@ -264,6 +264,9 @@ if [ "$early_data" = "yes" ]; then
         grep -F -e 'Session Ticket' "$client_out_file"
         session_ticket=$?
 
+        # wait for the server to quit and write output
+        wait $server_pid
+
         ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
         ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
 
