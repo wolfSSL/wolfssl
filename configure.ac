@@ -3512,26 +3512,21 @@ AC_ARG_ENABLE([md5],
     [ ENABLED_MD5=yes ]
     )
 
-
 # SHA
 AC_ARG_ENABLE([sha],
     [AS_HELP_STRING([--enable-sha],[Enable SHA (default: enabled)])],
     [ ENABLED_SHA=$enableval ],
     [ ENABLED_SHA=yes ]
     )
-
-if  test "$ENABLED_WOLFENGINE" = "no"
+if test "$ENABLED_SHA" = "no"
 then
-    if test "$ENABLED_SHA" = "no"
+    AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+else
+    # turn off SHA if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
-    else
-        # turn off SHA if leanpsk or leantls on
-        if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-        then
-            AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
-            ENABLED_SHA=no
-        fi
+        ENABLED_SHA=no
     fi
 fi
 
