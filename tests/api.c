@@ -29562,6 +29562,8 @@ static void test_wolfSSL_X509_NAME(void)
     AssertNotNull(d2i_name = d2i_X509_NAME(NULL, &tmp, sz));
 #endif
 
+    /* if output parameter is NULL, should still return required size. */
+    AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, NULL)), 0);
     /* retry but with the function creating a buffer */
     tmp = NULL;
     AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, &tmp)), 0);
@@ -32591,6 +32593,9 @@ static void test_wolfSSL_X509_Name_canon(void)
     AssertNotNull(x509 = PEM_read_X509(file, NULL, NULL, NULL));
     AssertNotNull(name = X509_get_issuer_name(x509));
 
+    /* When output buffer is NULL, should return necessary output buffer
+     * length.*/
+    AssertIntGT(wolfSSL_i2d_X509_NAME_canon(name, NULL), 0);
     AssertIntGT((len = wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
     AssertIntEQ(wc_ShaHash((const byte*)pbuf, (word32)len, digest), 0);
 

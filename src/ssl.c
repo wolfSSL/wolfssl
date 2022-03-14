@@ -44771,9 +44771,9 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 /*   convert to UTF8                                                        */
 /*   convert to lower case                                                  */
 /*   multi-spaces collapsed                                                 */
-/*   leading SEQUENCE hader is skipped                                      */
+/*   leading SEQUENCE header is skipped                                     */
 /* @param  name a pointer to X509_NAME that is to be converted              */
-/* @param  out  a pointer to conveted data                                  */
+/* @param  out  a pointer to converted data                                 */
 /* @return a number of converted bytes, otherwise <=0 error code            */
 int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
 {
@@ -44785,7 +44785,7 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
     EncodedName  names[MAX_NAME_ENTRIES];
 #endif
 
-    if (out == NULL || name == NULL)
+    if (name == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -44845,6 +44845,14 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
         }
     }
 
+    if (out == NULL) {
+        /* If out is NULL, caller just wants length. */
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return totalBytes;
+    }
+
     /* skip header */
     /* check if using buffer passed in */
     if (*out == NULL) {
@@ -44893,7 +44901,8 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
  *
  * out  pointer to either a pre setup buffer or a pointer to null for
  *      creating a dynamic buffer. In the case that a pre-existing buffer is
- *      used out will be incremented the size of the DER buffer on success.
+ *      used out will be incremented the size of the DER buffer on success. If
+ *      out is NULL, the function returns the necessary output buffer length.
  *
  * returns the size of the buffer on success, or negative value with failure
  */
@@ -44908,7 +44917,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
     EncodedName  names[MAX_NAME_ENTRIES];
 #endif
 
-    if (out == NULL || name == NULL)
+    if (name == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -44976,23 +44985,13 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
         return BUFFER_E;
     }
 
-    /* check if using buffer passed in */
-    if (*out == NULL) {
-        *out = local = (unsigned char*)XMALLOC(totalBytes + idx, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-        if (*out == NULL) {
-            return MEMORY_E;
-        }
-    }
-
-    /* header */
-    idx = SetSequence(totalBytes, temp);
-    if (totalBytes + idx > ASN_NAME_MAX) {
+    if (out == NULL) {
+        /* If out is NULL, caller just wants length. */
+        totalBytes += idx;
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
-        return BUFFER_E;
+        return totalBytes;
     }
 
     /* check if using buffer passed in */
