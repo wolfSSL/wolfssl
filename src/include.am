@@ -16,6 +16,9 @@ BUILT_SOURCES+= $(FIPS_FILES)
 
 MAINTAINERCLEANFILES+= $(FIPS_FILES)
 
+EXTRA_DIST += src/bio.c
+EXTRA_DIST += src/conf.c
+
 $(FIPS_FILES):
 	$(AM_V_at)touch $(srcdir)/$@
 
