@@ -5147,8 +5147,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
             ret = DoClientTicket(ssl, input, length);
             if (ret == WOLFSSL_TICKET_RET_OK) {    /* use ticket to resume */
                 WOLFSSL_MSG("Using existing client ticket");
-                ssl->options.useTicket = 1;
-                ssl->options.resuming  = 1;
+                ssl->options.useTicket    = 1;
+                ssl->options.resuming     = 1;
+                /* SERVER: ticket is peer auth. */
+                ssl->options.peerAuthGood = 1;
             } else if (ret == WOLFSSL_TICKET_RET_CREATE) {
                 WOLFSSL_MSG("Using existing client ticket, creating new one");
                 ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
@@ -5159,6 +5161,8 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                     ssl->options.createTicket = 1;  /* will send ticket msg */
                     ssl->options.useTicket    = 1;
                     ssl->options.resuming     = 1;
+                    /* SERVER: ticket is peer auth. */
+                    ssl->options.peerAuthGood = 1;
                 }
             } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
                 WOLFSSL_MSG("Process client ticket rejected, not using");

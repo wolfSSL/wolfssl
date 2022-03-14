@@ -4470,7 +4470,7 @@ then
 fi
 if test "$ENABLED_TLS13_EARLY_DATA" = "yes"
 then
-    if test "x$ENABLED_TLS13" = "xno"
+    if test "x$ENABLED_TLS13" = "xno" && test "X$ENABLED_ALL" = "xno"
     then
         AC_MSG_ERROR([cannot enable earlydata without enabling tls13.])
     fi
@@ -4478,7 +4478,10 @@ then
     then
         AC_MSG_ERROR([cannot enable earlydata without enabling session tickets and/or PSK.])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EARLY_DATA"
+    if test "x$ENABLED_TLS13" = "xyes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EARLY_DATA"
+    fi
 fi
 
 if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENABLED_SESSION_TICKET" = "xno"

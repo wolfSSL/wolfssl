@@ -3168,6 +3168,8 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
             ret = wolfSSL_UseSessionTicket(ssl);
         #endif
     }
+    /* CLIENT/SERVER: Reset peer authentication for full secure handshake. */
+    ssl->options.peerAuthGood = 0;
 
 #ifdef HAVE_SESSION_TICKET
     if (ret == WOLFSSL_SUCCESS)
@@ -14611,6 +14613,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
         case FIRST_REPLY_SECOND :
+            /* CLIENT: Fail-safe for Server Authentication. */
+            if (!ssl->options.peerAuthGood) {
+                WOLFSSL_MSG("Server authentication did not happen");
+                return WOLFSSL_FATAL_ERROR;
+            }
+
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
@@ -15007,6 +15015,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                             return WOLFSSL_FATAL_ERROR;
                         }
                     }
+                    else {
+                        /* SERVER: Peer auth good if not verifying client. */
+                        ssl->options.peerAuthGood = 1;
+                    }
                 }
             #endif
             ssl->options.acceptState = CERT_REQ_SENT;
@@ -15036,6 +15048,21 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_SECOND_REPLY_DONE :
+        #ifndef NO_CERTS
+            /* SERVER: When not resuming and verifying peer but no certificate
+             * received and not failing when not received then peer auth good.
+             */
+            if (!ssl->options.resuming && ssl->options.verifyPeer &&
+                !ssl->options.havePeerCert && !ssl->options.failNoCert) {
+                ssl->options.peerAuthGood = 1;
+            }
+        #endif /* !NO_CERTS  */
+        #ifdef WOLFSSL_NO_CLIENT_AUTH
+            if (!ssl->options.resuming) {
+                ssl->options.peerAuthGood = 1;
+            }
+        #endif
+
 #ifdef HAVE_SESSION_TICKET
             if (ssl->options.createTicket && !ssl->options.noTicketTls12) {
                 if ( (ssl->error = SendTicket(ssl)) != 0) {
@@ -15049,6 +15076,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case TICKET_SENT:
+            /* SERVER: Fail-safe for CLient Authentication. */
+            if (!ssl->options.peerAuthGood) {
+                WOLFSSL_MSG("Client authentication did not happen");
+                return WOLFSSL_FATAL_ERROR;
+            }
+
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
