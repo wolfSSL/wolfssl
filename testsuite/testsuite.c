@@ -243,6 +243,7 @@ int testsuite_test(int argc, char** argv)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+
 /* Perform a basic TLS handshake.
  *
  * First connection to echo a file.
@@ -256,20 +257,29 @@ static int test_tls(func_args* server_args)
 {
     func_args echo_args;
     char* myArgv[NUMARGS];
-    char arg[3][128];
+    char* arg[3];
+    char* outputNameCopy = NULL;
+    char testSuiteStr[] = "testsuite";
+    char testInputStr[] = "input";
+
+    outputNameCopy = (char*)XMALLOC(XSTRLEN(outputName) + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (outputNameCopy == NULL)
+        return MEMORY_E;
+    XSTRLCPY(outputNameCopy, outputName, XSTRLEN(outputName) + 1);
 
     /* Set up command line arguments for echoclient to send input file
      * and write echoed data to temporary output file. */
-    myArgv[0] = arg[0];
-    myArgv[1] = arg[1];
-    myArgv[2] = arg[2];
+    myArgv[0] = (char*)testSuiteStr;
+    myArgv[1] = (char*)testInputStr;
+    myArgv[2] = (char*)outputNameCopy;
+    arg[0] = (char*)testSuiteStr;
+    arg[1] = (char*)testInputStr;
+    arg[2] = (char*)outputNameCopy;
 
     echo_args.argc = 3;
     echo_args.argv = myArgv;
 
-    XSTRLCPY(arg[0], "testsuite", sizeof(arg[0]));
-    XSTRLCPY(arg[1], "input", sizeof(arg[1]));
-    XSTRLCPY(arg[2], outputName, sizeof(arg[2]));
 
     /* Share the signal, it has the new port number in it. */
     echo_args.signal = server_args->signal;
@@ -303,6 +313,9 @@ static int test_tls(func_args* server_args)
 #else
     echoclient_test(&echo_args);
 #endif
+    if (outputNameCopy != NULL)
+        XFREE(outputNameCopy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     if (echo_args.return_code != 0)
         return echo_args.return_code;
 
