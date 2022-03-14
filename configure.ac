@@ -7338,14 +7338,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=192"
 fi
 
-if test "x$ENABLED_WOLFENGINE" = "xyes" && "x$ENABLED_FIPS" != "xno"
+if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DSha3=wc_Sha3"
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA256_NAMES"
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_MD5_NAME"
 fi
 
-if test "x$ENABLED_WOLFENGINE" = "xyes" && "x$ENABLED_FIPS" = "xno"
+if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_LONG_SALT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
