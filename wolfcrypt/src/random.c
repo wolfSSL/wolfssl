@@ -2500,7 +2500,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 len = sz;
             }
             /* return 4 words random number*/
-            ret = R_TSIP_GenerateRandomNumber(buffer);
+            ret = R_TSIP_GenerateRandomNumber((uint32_t*)buffer);
             if(ret == TSIP_SUCCESS) {
                 XMEMCPY(output, &buffer, len);
                 output += len;

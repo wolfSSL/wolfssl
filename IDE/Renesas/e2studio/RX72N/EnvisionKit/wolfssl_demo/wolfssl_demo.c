@@ -37,43 +37,37 @@
 #include "wolfssl/certs_test.h"
 #include "wolfssl/wolfcrypt/types.h"
 #include "wolfssl_demo.h"
+#include <wolfcrypt/test/test.h>
+#include <wolfcrypt/benchmark/benchmark.h>
 
 #if defined(BENCHMARK)
     #include "r_cmt_rx_if.h"
 #endif
 
+
+#if defined(TLS_CLIENT)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include "key_data.h"
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
     extern const st_key_block_data_t g_key_block_data;
-    user_PKCbInfo            guser_PKCbInfo;
-#endif
+    user_PKCbInfo                    guser_PKCbInfo;
+    uint32_t                         g_encrypted_root_public_key[140];
+    static   TsipUserCtx             userContext;
 
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+    static WOLFSSL_CTX* client_ctx;
+#endif /* TLS_CLIENT */
 
-#define YEAR 2022
-#define MON  1
-#define FREQ 10000 /* Hz */
-
-#define TLSSERVER_IP      "192.168.1.14"
+#define TLSSERVER_IP      "192.168.1.12"
 #define TLSSERVER_PORT    11111
-
-typedef struct func_args {
-    int    argc;
-    char** argv;
-    int    return_code;
-} func_args;
+#define YEAR 2022
+#define MON  3
+#define FREQ 10000 /* Hz */
 
 static long         tick;
 static int          tmTick;
-static WOLFSSL_CTX* client_ctx;
-
-#if defined(WOLFSSL_RENESAS_TSIP_TLS)
-uint32_t g_encrypted_root_public_key[140];
-static   TsipUserCtx userContext;
-#endif
-
 /* time
  * returns seconds from EPOCH
  */
@@ -86,11 +80,13 @@ time_t time(time_t *t)
 /* timeTick
  * called periodically by H/W timer to increase tmTick.
  */
+#if defined(BENCHMARK)
 static void timeTick(void* pdata)
 {
     (void)pdata;
     tick++;
 }
+#endif
 
 double current_time(int reset)
 {
@@ -98,30 +94,30 @@ double current_time(int reset)
       return ((double)tick/FREQ) ;
 }
 
-void wolfcrypt_test();
-void benchmark_test();
+
 
 
 
 /* --------------------------------------------------------*/
 /*  Benchmark_demo                                         */
 /* --------------------------------------------------------*/
+#if defined(BENCHMARK)
 static void Benchmark_demo(void)
 {
     uint32_t channel;
     R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
 
     printf("Start wolfCrypt Benchmark\n");
-    benchmark_test();
+    benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
 }
-
+#endif /* BENCHMARK */
 /* --------------------------------------------------------*/
 /*  CryptTest_demo                                         */
 /* --------------------------------------------------------*/
+#if defined(CRYPT_TEST)
 static void CryptTest_demo(void)
 {
-    func_args args = { 0 };
     int ret;
 
     if ((ret = wolfCrypt_Init()) != 0) {
@@ -129,17 +125,18 @@ static void CryptTest_demo(void)
     }
 
     printf("Start wolfCrypt Test\n");
-    wolfcrypt_test(args);
+    wolfcrypt_test(NULL);
     printf("End wolfCrypt Test\n");
 
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("wolfCrypt_Cleanup failed %d\n", ret);
     }
 }
-
+#endif /* CRYPT_TEST */
 /* --------------------------------------------------------*/
 /*  Tls_client_demo                                        */
 /* --------------------------------------------------------*/
+#if defined(TLS_CLIENT)
 static void Tls_client_init(const char* cipherlist)
 {
 
@@ -169,7 +166,8 @@ static void Tls_client_init(const char* cipherlist)
     #endif
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
+    if ((client_ctx = 
+        wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
@@ -180,7 +178,8 @@ static void Tls_client_init(const char* cipherlist)
 
     #if defined(NO_FILESYSTEM)
     
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, 
+                            SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
            printf("ERROR: can't load certificate data\n");
        return;
     }
@@ -197,7 +196,8 @@ static void Tls_client_init(const char* cipherlist)
 
     /* use specific cipher */
     if (cipherlist != NULL && 
-        wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != WOLFSSL_SUCCESS) {
+        wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != 
+                                                            WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set cipher list");
     }
@@ -270,7 +270,8 @@ static void Tls_client()
     }
 
     if (ret == 0) {
-        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != strlen(sendBuff)) {
+        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != 
+                                                            strlen(sendBuff)) {
             printf("ERROR wolfSSL_write: %d\n", wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -309,7 +310,7 @@ static void Tls_client()
 static void Tls_client_demo(void)
 {
 
-	/* setup ciphersuite list to use for TLS handshake */
+    /* setup ciphersuite list to use for TLS handshake */
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
 
@@ -344,7 +345,7 @@ static void Tls_client_demo(void)
     printf("/*------------------------------------------------*/\n");
     printf("    TLS_Client demo\n");
     printf("    - TLS server address:" TLSSERVER_IP " port: %d\n",
-                                                             TLSSERVER_PORT );
+                                                             TLSSERVER_PORT);
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=109)
     printf("    - with TSIP\n");
@@ -388,7 +389,7 @@ static void Tls_client_demo(void)
 
     printf("End of TLS_Client demo.\n");
 }
-
+#endif /* TLS_CLIENT */
 
 /* Demo entry function called by iot_demo_runner
  * To run this entry function as an aws_iot_demo, define this as 

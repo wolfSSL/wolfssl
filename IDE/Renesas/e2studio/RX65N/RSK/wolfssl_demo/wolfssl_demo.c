@@ -37,42 +37,36 @@
 #include "wolfssl/certs_test.h"
 #include "wolfssl/wolfcrypt/types.h"
 #include "wolfssl_demo.h"
+#include <wolfcrypt/test/test.h>
+#include <wolfcrypt/benchmark/benchmark.h>
 
 #if defined(BENCHMARK)
     #include "r_cmt_rx_if.h"
 #endif
 
+#if defined(TLS_CLIENT)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include "key_data.h"
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
     extern const st_key_block_data_t g_key_block_data;
-    user_PKCbInfo            guser_PKCbInfo;
-#endif
+    user_PKCbInfo                    guser_PKCbInfo;
+    uint32_t                         g_encrypted_root_public_key[140];
+    static   TsipUserCtx             userContext;
 
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
-
-#define YEAR 2022
-#define MON  1
-#define FREQ 10000 /* Hz */
+    static WOLFSSL_CTX* client_ctx;
+#endif /* TLS_CLIENT */
 
 #define TLSSERVER_IP      "192.168.1.14"
 #define TLSSERVER_PORT    11111
-
-typedef struct func_args {
-    int    argc;
-    char** argv;
-    int    return_code;
-} func_args;
+#define YEAR 2022
+#define MON  3
+#define FREQ 10000 /* Hz */
 
 static long         tick;
 static int          tmTick;
-static WOLFSSL_CTX* client_ctx;
-
-#if defined(WOLFSSL_RENESAS_TSIP_TLS)
-uint32_t g_encrypted_root_public_key[140];
-static   TsipUserCtx userContext;
-#endif
 
 /* time
  * returns seconds from EPOCH
@@ -86,11 +80,13 @@ time_t time(time_t *t)
 /* timeTick
  * called periodically by H/W timer to increase tmTick.
  */
+#if defined(BENCHMARK)
 static void timeTick(void* pdata)
 {
     (void)pdata;
     tick++;
 }
+#endif
 
 double current_time(int reset)
 {
@@ -98,30 +94,28 @@ double current_time(int reset)
       return ((double)tick/FREQ) ;
 }
 
-void wolfcrypt_test();
-void benchmark_test();
-
 
 
 /* --------------------------------------------------------*/
 /*  Benchmark_demo                                         */
 /* --------------------------------------------------------*/
+#if defined(BENCHMARK)
 static void Benchmark_demo(void)
 {
     uint32_t channel;
     R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
 
     printf("Start wolfCrypt Benchmark\n");
-    benchmark_test();
+    benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
 }
-
+#endif /* BENCHMARK */
 /* --------------------------------------------------------*/
 /*  CryptTest_demo                                         */
 /* --------------------------------------------------------*/
+#if defined(CRYPT_TEST)
 static void CryptTest_demo(void)
 {
-    func_args args = { 0 };
     int ret;
 
     if ((ret = wolfCrypt_Init()) != 0) {
@@ -129,17 +123,18 @@ static void CryptTest_demo(void)
     }
 
     printf("Start wolfCrypt Test\n");
-    wolfcrypt_test(args);
+    wolfcrypt_test(NULL);
     printf("End wolfCrypt Test\n");
 
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("wolfCrypt_Cleanup failed %d\n", ret);
     }
 }
-
+#endif /* CRYPT_TEST */
 /* --------------------------------------------------------*/
 /*  Tls_client_demo                                        */
 /* --------------------------------------------------------*/
+#if defined(TLS_CLIENT)
 static void Tls_client_init(const char* cipherlist)
 {
 
@@ -392,7 +387,7 @@ static void Tls_client_demo(void)
 
     printf("End of TLS_Client demo.\n");
 }
-
+#endif /* TLS_CLIENT */
 
 /* Demo entry function called by iot_demo_runner
  * To run this entry function as an aws_iot_demo, define this as 

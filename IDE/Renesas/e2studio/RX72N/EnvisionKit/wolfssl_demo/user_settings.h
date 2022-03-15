@@ -105,7 +105,7 @@
    * - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA256
    * 
    */
-  #define USE_ECC_CERT
+  /*#define USE_ECC_CERT*/
 
   /* In this example application, Root CA cert buffer named 
    * "ca_ecc_cert_der_256" is used under the following macro definition 

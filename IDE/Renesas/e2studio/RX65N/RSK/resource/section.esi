@@ -8,9 +8,6 @@
   <sections name="R_2"/>
   <sections name="R"/>
   <sections name="RPFRAM2"/>
-  <sections name="C_BOOTLOADER_KEY_STORAGE*">
-    <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="1048576"/>
-  </sections>
   <sections name="C_PKCS11_STORAGE*">
     <sectionAddress xsi:type="com.renesas.linkersection.model:FixedAddress" fixedAddress="1050624"/>
   </sections>
