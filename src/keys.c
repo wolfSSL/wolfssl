@@ -2064,6 +2064,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
         #endif
 #endif
 
+    if (ssl->specs.sig_algo == anonymous_sa_algo) {
+        /* CLIENT/SERVER: No peer authentication to be performed. */
+        ssl->options.peerAuthGood = 1;
+    }
+
     return 0;
 }
 

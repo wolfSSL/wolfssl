@@ -2781,6 +2781,10 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
                     ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
             return ret;
         }
+        if (!clientHello) {
+            /* CLIENT: using secret in ticket for peer authentication. */
+            ssl->options.peerAuthGood = 1;
+        }
     }
 #endif
 #ifndef NO_PSK
@@ -2902,6 +2906,11 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         if (!clientHello && (psk->cipherSuite0 != suite[0] ||
                                                 psk->cipherSuite != suite[1])) {
             return PSK_KEY_ERROR;
+        }
+
+        if (!clientHello) {
+            /* CLIENT: using PSK for peer authentication. */
+            ssl->options.peerAuthGood = 1;
         }
     }
 #endif
@@ -3629,7 +3638,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if ((ret = SetupPskKey(ssl, psk, 0)) != 0)
                 return ret;
             ssl->options.pskNegotiated = 1;
-            ssl->options.peerAuthGood = 1;
         }
 #endif
 
@@ -3961,6 +3969,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
         if ((ret == 0) && found) {
             /* PSK negotiation has succeeded */
             ssl->options.isPSK = 1;
+            /* SERVER: using PSK for peer authentication. */
+            ssl->options.peerAuthGood = 1;
         }
     }
 
@@ -4055,6 +4065,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             }
         #endif
 
+            /* SERVER: using secret in session ticket for peer auth. */
+            ssl->options.peerAuthGood = 1;
+
         #ifdef WOLFSSL_EARLY_DATA
             ssl->options.maxEarlyDataSz = ssl->session->maxEarlyDataSz;
         #endif
@@ -4068,7 +4081,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             /* Resumption PSK is resumption master secret. */
             ssl->arrays->psk_keySz = ssl->specs.hash_size;
             if ((ret = DeriveResumptionPSK(ssl, ssl->session->ticketNonce.data,
-                    ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+                ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
                 return ret;
             }
 
@@ -4894,7 +4907,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->options.pskNegotiated = (args->usingPSK != 0);
-    ssl->options.peerAuthGood = ssl->options.pskNegotiated;
 #endif
 
     if (!args->usingPSK) {
@@ -6744,6 +6756,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 );
 
                 if (ret >= 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
                     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
                     ssl->peerEccDsaKeyPresent = 0;
                 }
@@ -6762,6 +6777,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 );
 
                 if (ret >= 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
                     FreeKey(ssl, DYNAMIC_TYPE_ED25519,
                                                   (void**)&ssl->peerEd25519Key);
                     ssl->peerEd25519KeyPresent = 0;
@@ -6781,6 +6799,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 );
 
                 if (ret >= 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
                     FreeKey(ssl, DYNAMIC_TYPE_ED448,
                                                     (void**)&ssl->peerEd448Key);
                     ssl->peerEd448KeyPresent = 0;
@@ -6796,6 +6817,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                     &res, ssl->peerFalconKey);
 
                 if ((ret >= 0) && (res == 1)) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
                     FreeKey(ssl, DYNAMIC_TYPE_FALCON,
                                                    (void**)&ssl->peerFalconKey);
                     ssl->peerFalconKeyPresent = 0;
@@ -6822,8 +6846,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if (ret != 0)
                     goto exit_dcv;
 
-                FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
+                /* CLIENT/SERVER: data verified with public key from
+                 * certificate. */
                 ssl->peerRsaKeyPresent = 0;
+                FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
+                ssl->options.peerAuthGood = 1;
             }
         #endif /* !NO_RSA && WC_RSA_PSS */
 
@@ -6835,7 +6862,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_FINALIZE:
         {
             ssl->options.havePeerVerify = 1;
-            ssl->options.peerAuthGood = 1;
 
             /* Set final index */
             args->idx += args->sz;
@@ -7965,10 +7991,6 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 return DUPLICATE_MSG_E;
             }
             ssl->msgsReceived.got_certificate = 1;
-            if (ssl->options.side == WOLFSSL_SERVER_END &&
-                (!ssl->options.verifyPeer || !ssl->options.failNoCert)) {
-                ssl->options.peerAuthGood = 1;
-            }
 
             break;
 
@@ -8732,6 +8754,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_SECOND:
+            /* CLIENT: check peer authentication. */
             if (!ssl->options.peerAuthGood) {
                 WOLFSSL_MSG("Server authentication did not happen");
                 return WOLFSSL_FATAL_ERROR;
@@ -9683,6 +9706,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     }
                 }
                 else {
+                    /* SERVER: Peer auth good if not verifying client. */
                     ssl->options.peerAuthGood = 1;
                 }
             }
@@ -9763,6 +9787,17 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_FINISHED_DONE :
+            /* SERVER: When not resuming and verifying peer but no certificate
+             * received and not failing when not received then peer auth good.
+             */
+            if (!ssl->options.resuming && ssl->options.verifyPeer &&
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                !ssl->options.verifyPostHandshake &&
+        #endif
+                !ssl->options.havePeerCert && !ssl->options.failNoCert) {
+                ssl->options.peerAuthGood = 1;
+            }
+            /* SERVER: check peer authentication. */
             if (!ssl->options.peerAuthGood) {
                 WOLFSSL_MSG("Client authentication did not happen");
                 return WOLFSSL_FATAL_ERROR;
