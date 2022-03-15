@@ -181,13 +181,15 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-#if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
+#if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
+    defined(HAVE_AMD_RDSEED)
     static word32 intel_flags = 0;
     static void wc_InitRng_IntelRD(void)
     {
         intel_flags = cpuid_get_flags();
     }
-    #if defined(HAVE_INTEL_RDSEED) && !defined(WOLFSSL_LINUXKM)
+    #if (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+        !defined(WOLFSSL_LINUXKM)
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
     #ifdef HAVE_INTEL_RDRAND
@@ -232,50 +234,51 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
 
 
-/* For FIPS builds, the user should not be adjusting the values. */
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    #if defined(RNG_SECURITY_STRENGTH) \
-            || defined(ENTROPY_SCALE_FACTOR) \
-            || defined(SEED_BLOCK_SZ)
-
-        #error "Do not change the RNG parameters for FIPS builds."
-    #endif
-#endif
-
-
 /* The security strength for the RNG is the target number of bits of
  * entropy you are looking for in a seed. */
 #ifndef RNG_SECURITY_STRENGTH
-    #if defined(HAVE_FIPS) && \
-        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-        /* SHA-256 requires a minimum of 256-bits of entropy. The goal
-         * of 1024 will provide 4 times that. */
-        #define RNG_SECURITY_STRENGTH (1024)
-    #else
-        /* If not using FIPS or using old FIPS, set the number down a bit.
-         * More is better, but more is also slower. */
-        #define RNG_SECURITY_STRENGTH (256)
-    #endif
+    /* SHA-256 requires a minimum of 256-bits of entropy. */
+    #define RNG_SECURITY_STRENGTH (256)
 #endif
 
 #ifndef ENTROPY_SCALE_FACTOR
     /* The entropy scale factor should be the whole number inverse of the
      * minimum bits of entropy per bit of NDRNG output. */
-    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+    #if defined(HAVE_AMD_RDSEED)
+        /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
+         * we'll add an additional 8kb on top. */
+        #define ENTROPY_SCALE_FACTOR  (512)
+    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
         /* The value of 2 applies to Intel's RDSEED which provides about
-         * 0.5 bits minimum of entropy per bit. */
-        #define ENTROPY_SCALE_FACTOR 2
+         * 0.5 bits minimum of entropy per bit. The value of 4 gives a
+         * conservative margin for FIPS. */
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION >= 2)
+            #define ENTROPY_SCALE_FACTOR (2*4)
+        #else
+            /* Not FIPS, but Intel RDSEED, only double. */
+            #define ENTROPY_SCALE_FACTOR (2)
+        #endif
+    #elif defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION >= 2)
+        /* If doing a FIPS build without a specific scale factor, default
+         * to 4. This will give 1024 bits of entropy. More is better, but
+         * more is also slower. */
+        #define ENTROPY_SCALE_FACTOR (4)
     #else
         /* Setting the default to 1. */
-        #define ENTROPY_SCALE_FACTOR 1
+        #define ENTROPY_SCALE_FACTOR (1)
     #endif
 #endif
 
 #ifndef SEED_BLOCK_SZ
     /* The seed block size, is the size of the output of the underlying NDRNG.
      * This value is used for testing the output of the NDRNG. */
-    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+    #if defined(HAVE_AMD_RDSEED)
+        /* AMD's RDSEED instruction works in 128-bit blocks read 64-bits
+        * at a time. */
+        #define SEED_BLOCK_SZ (sizeof(word64)*2)
+    #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
         /* RDSEED outputs in blocks of 64-bits. */
         #define SEED_BLOCK_SZ sizeof(word64)
     #else
@@ -795,7 +798,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     rng->status = DRBG_NOT_INIT;
 #endif
 
-#if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+#if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND) || \
+    defined(HAVE_AMD_RDSEED)
     /* init the intel RD seed and/or rand */
     wc_InitRng_IntelRD();
 #endif
@@ -1452,7 +1456,8 @@ int wc_FreeNetRandom(void)
 #endif /* HAVE_WNR */
 
 
-#if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
+#if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
+    defined(HAVE_AMD_RDSEED)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* need more retries if multiple cores */
@@ -1461,7 +1466,7 @@ int wc_FreeNetRandom(void)
     #define INTELRD_RETRY 32
 #endif
 
-#ifdef HAVE_INTEL_RDSEED
+#if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
 
 #ifndef USE_INTEL_INTRINSICS
 
@@ -1536,7 +1541,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 }
 #endif
 
-#endif /* HAVE_INTEL_RDSEED */
+#endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
 #ifdef HAVE_INTEL_RDRAND
 
@@ -1613,7 +1618,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 }
 
 #endif /* HAVE_INTEL_RDRAND */
-#endif /* HAVE_INTEL_RDRAND || HAVE_INTEL_RDSEED */
+#endif /* HAVE_INTEL_RDRAND || HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
 
 /* Begin wc_GenerateSeed Implementations */
@@ -2710,7 +2715,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif
 
-    #ifdef HAVE_INTEL_RDSEED
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
         if (IS_INTEL_RDSEED(intel_flags)) {
              ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
              if (ret == 0) {
@@ -2725,7 +2730,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
              ret = 0;
         #endif
         }
-    #endif /* HAVE_INTEL_RDSEED */
+    #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
         os->fd = open("/dev/urandom", O_RDONLY);
