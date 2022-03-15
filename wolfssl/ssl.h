@@ -1175,8 +1175,13 @@ WOLFSSL_API int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_only_dhe_psk(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_only_dhe_psk(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_update_enc_keys(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
+#ifdef WOLFSSL_TLS13_AUTO_REKEY
+WOLFSSL_API int wolfSSL_CTX_set_auto_rekey(WOLFSSL_CTX* ctx, byte invocations);
+WOLFSSL_API int wolfSSL_set_auto_rekey(WOLFSSL* ssl, byte invocations);
+#endif
 WOLFSSL_API int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_request_certificate(WOLFSSL* ssl);

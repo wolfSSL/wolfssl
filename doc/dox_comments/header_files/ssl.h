@@ -13288,9 +13288,44 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     \ingroup IO
 
     \brief This function is called on a TLS v1.3 client or server wolfSSL to
+    force the rollover of encryption keys. A KeyUpdate message is sent to the
+    peer and new keys are calculated for encryption. The peer will
+    calculate new decryption keys.
+    This function can only be called after a handshake has been completed.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
+    \return WANT_WRITE if the writing is not ready.
+    \return WOLFSSL_SUCCESS if successful.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    ...
+    ret = wolfSSL_update_enc_keys(ssl);
+    if (ret == WANT_WRITE) {
+        // need to call again when I/O ready
+    }
+    else if (ret != WOLFSSL_SUCCESS) {
+        // failed to send key update
+    }
+    \endcode
+
+    \sa wolfSSL_write
+    \sa wolfSSL_update_keys
+    \sa wolfSSL_key_update_response
+*/
+WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
+
+/*!
+    \ingroup IO
+
+    \brief This function is called on a TLS v1.3 client or server wolfSSL to
     force the rollover of keys. A KeyUpdate message is sent to the peer and
     new keys are calculated for encryption. The peer will send back a KeyUpdate
-    message and the new decryption keys wil then be calculated.
+    message and the new decryption keys will then be calculated.
     This function can only be called after a handshake has been completed.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -13314,6 +13349,8 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_write
+    \sa wolfSSL_update_enc_keys
+    \sa wolfSSL_key_update_response
 */
 int  wolfSSL_update_keys(WOLFSSL* ssl);
 
@@ -13350,6 +13387,72 @@ int  wolfSSL_update_keys(WOLFSSL* ssl);
     \sa wolfSSL_update_keys
 */
 int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a TLS v1.3 client or server WOLFSSL_CTX to
+    set the number of encrypted and decrypted packets to send with a key.
+    When the number of encrypted packets reaches one less than the maximum then
+    a KeyUpdate message is sent. When the number of decrypted packets reaches
+    the maximum then the handshake fails.
+
+    \param [in,out] ctx a pointer to a WOLFSSL_CTX structure, created
+    with wolfSSL_CTX_new().
+    \param [out] invocations   Raised to the power of 2 to calculate the
+    maximum number of encryption or decryption operations to perform with a key.
+
+    \return 0 on successful.
+    \return BAD_FUNC_ARG if ctx is NULL, not using TLS v1.3 or invocatioans is
+    not in range 8-64.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_set_auto_rekey(ctx, 32);
+    if (ret != 0) {
+        // bad parameters
+    }
+    \endcode
+
+    \sa wolfSSL_set_auto_rekey
+*/
+WOLFSSL_API int wolfSSL_CTX_set_auto_rekey(WOLFSSL_CTX* ctx, byte invocations);
+
+/*!
+    \ingroup Setup
+
+    \brief This function is called on a TLS v1.3 client or server wolfSSL to
+    set the number of encrypted and decrypted packets to send with a key.
+    When the number of encrypted packets reaches one less than the maximum then
+    a KeyUpdate message is sent. When the number of decrypted packets reaches
+    the maximum then the handshake fails.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using
+    wolfSSL_new().
+    \param [out] invocations   Raised to the power of 2 to calculate the
+    maximum number of encryption or decryption operations to perform with a key.
+
+    \return 0 on successful.
+    \return BAD_FUNC_ARG if ssl is NULL, not using TLS v1.3 or invocatioans is
+    not in range 8-64.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    ...
+    ret = wolfSSL_set_auto_rekey(ssl, 32);
+    if (ret != 0) {
+        // bad parameters
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_auto_rekey
+*/
+WOLFSSL_API int wolfSSL_set_auto_rekey(WOLFSSL* ssl, byte invocations);
 
 /*!
     \ingroup Setup

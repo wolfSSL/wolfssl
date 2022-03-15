@@ -9616,10 +9616,11 @@ static int SendTls13Finished(WOLFSSL* ssl)
 /* handle generation TLS v1.3 key_update (24) */
 /* Send the TLS v1.3 KeyUpdate message.
  *
- * ssl  The SSL/TLS object.
+ * ssl   The SSL/TLS object.
+ * resp  Response required to update decryption keys.
  * returns 0 on success, otherwise failure.
  */
-static int SendTls13KeyUpdate(WOLFSSL* ssl)
+static int SendTls13KeyUpdate(WOLFSSL* ssl, int resp)
 {
     int    sendSz;
     byte*  input;
@@ -9659,7 +9660,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
      *   2. This isn't responding to peer KeyUpdate requiring a response then,
      * I want a response.
      */
-    ssl->keys.updateResponseReq = output[i++] =
+    ssl->keys.updateResponseReq = output[i++] = resp &&
          !ssl->keys.updateResponseReq && !ssl->keys.keyUpdateRespond;
     /* Sent response, no longer need to respond. */
     ssl->keys.keyUpdateRespond = 0;
@@ -9692,9 +9693,10 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
 
         ssl->buffers.outputBuffer.length += sendSz;
 
+    #ifdef WOLFSSL_TLS13_AUTO_REKEY
+        ssl->options.rekey = REKEY_IN_PROCESS;
+    #endif
         ret = SendBuffered(ssl);
-
-
         if (ret != 0 && ret != WANT_WRITE)
             return ret;
     }
@@ -9711,6 +9713,12 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
             return ret;
     }
 
+
+#ifdef WOLFSSL_TLS13_AUTO_REKEY
+    if (!ssl->keys.updateResponseReq) {
+        ssl->options.rekey = REKEY_NONE;
+    }
+#endif
 
     WOLFSSL_LEAVE("SendTls13KeyUpdate", ret);
     WOLFSSL_END(WC_FUNC_KEY_UPDATE_SEND);
@@ -9784,21 +9792,21 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->keys.keyUpdateRespond) {
-
 #ifdef WOLFSSL_DTLS13
-        /* we already sent a keyUpdate (either in response to a previous
-           KeyUpdate or initiated by the application) and we are waiting for the
-           ack. We can't send a new KeyUpdate right away but to honor the RFC we
-           should send another KeyUpdate after the one in-flight is acked. We
-           don't do that as it looks redundant, it will make the code more
-           complex and I don't see a good use case for that. */
+        /* We already sent a keyUpdate (either in response to a previous
+         * KeyUpdate or initiated by the application) and we are waiting for the
+         * ack. We can't send a new KeyUpdate right away but to honor the RFC we
+         * should send another KeyUpdate after the one in-flight is acked. We
+         * don't do that as it looks redundant, it will make the code more
+         * complex and I don't see a good use case for that.
+         */
         if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck) {
             ssl->keys.keyUpdateRespond = 0;
             return 0;
         }
 #endif /* WOLFSSL_DTLS13 */
 
-        return SendTls13KeyUpdate(ssl);
+        return SendTls13KeyUpdate(ssl, 0);
     }
 
     WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
@@ -11983,7 +11991,17 @@ int wolfSSL_only_dhe_psk(WOLFSSL* ssl)
 }
 #endif /* HAVE_SUPPORTED_CURVES */
 
-int Tls13UpdateKeys(WOLFSSL* ssl)
+/* Update the keys for encryption and decryption.
+ * If using non-blocking I/O and WOLFSSL_ERROR_WANT_WRITE is returned then
+ * calling wolfSSL_write() will have the message sent when ready.
+ *
+ * ssl   The SSL/TLS object.
+ * resp  Response required to update decryption keys.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * WANT_WRITE when non-blocking I/O is not ready to write,
+ * 0 on success and otherwise failure.
+ */
+int Tls13UpdateKeys(WOLFSSL* ssl, int resp)
 {
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
@@ -11999,7 +12017,31 @@ int Tls13UpdateKeys(WOLFSSL* ssl)
         return 0;
 #endif /* WOLFSSL_DTLS13 */
 
-    return SendTls13KeyUpdate(ssl);
+    return SendTls13KeyUpdate(ssl, resp);
+}
+
+/* Update the keys for encryption.
+ * If using non-blocking I/O and WOLFSSL_ERROR_WANT_WRITE is returned then
+ * calling wolfSSL_write() will have the message sent when ready.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * WOLFSSL_ERROR_WANT_WRITE when non-blocking I/O is not ready to write,
+ * WOLFSSL_SUCCESS on success and otherwise failure.
+ */
+int wolfSSL_update_enc_keys(WOLFSSL* ssl)
+{
+    int ret;
+
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+    ret = Tls13UpdateKeys(ssl, 0);
+    if (ret == WANT_WRITE)
+        ret = WOLFSSL_ERROR_WANT_WRITE;
+    else if (ret == 0)
+        ret = WOLFSSL_SUCCESS;
+    return ret;
 }
 
 /* Update the keys for encryption and decryption.
@@ -12014,7 +12056,8 @@ int Tls13UpdateKeys(WOLFSSL* ssl)
 int wolfSSL_update_keys(WOLFSSL* ssl)
 {
     int ret;
-    ret = Tls13UpdateKeys(ssl);
+
+    ret = Tls13UpdateKeys(ssl, 1);
     if (ret == WANT_WRITE)
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
@@ -12039,6 +12082,48 @@ int wolfSSL_key_update_response(WOLFSSL* ssl, int* required)
 
     return 0;
 }
+
+#ifdef WOLFSSL_TLS13_AUTO_REKEY
+/**
+ * Sets the number of invocations of encrypt or decrypt before auto re-keying.
+ *
+ * ctx          The SSL/TLS CTX object.
+ * invocations  Number of invocations of encrypt or decrypt. Valid range: 8-64.
+ *              Count is 2^inv.
+ * returns BAD_FUNC_ARG when: ctx is NULL, not using TLS v1.3, or invocations
+ * is greater than 64 or invocations is less than 8.
+ */
+int wolfSSL_CTX_set_auto_rekey(WOLFSSL_CTX* ctx, byte invocations)
+{
+    if ((ctx == NULL) || (invocations < 8) || (invocations > 64)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->maxInvocations = invocations;
+
+    return 0;
+}
+
+/**
+ * Sets the number of invocations of encrypt or decrypt before auto re-keying.
+ *
+ * ssl          The SSL/TLS object.
+ * invocations  Number of invocations of encrypt or decrypt. Valid range: 8-64.
+ *              Count is 2^inv.
+ * returns BAD_FUNC_ARG when: ssl is NULL, or invocations is greater than 64
+ * or invocations is less than 8.
+ */
+int wolfSSL_set_auto_rekey(WOLFSSL* ssl, byte invocations)
+{
+    if ((ssl == NULL) || (invocations < 8) || (invocations > 64)) {
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->keys.maxInvocations = invocations;
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13_AUTO_REKEY */
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 /* Allow post-handshake authentication in TLS v1.3 connections.

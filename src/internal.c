@@ -79,6 +79,10 @@
  *     by default.
  *     https://www.rfc-editor.org/rfc/rfc8446#section-5.5
  *     https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
+ * WOLFSSL_TLS13_AUTO_REKEY
+ *     Detect when maximum number of encryption or decryption operations have
+ *     been made for a key. For encryption, the key is updated. For decryption,
+ *     the handshake fails.
  */
 
 
@@ -6943,6 +6947,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         XMEMCPY(ssl->group, ctx->group, sizeof(*ctx->group) * ctx->numGroups);
         ssl->numGroups = ctx->numGroups;
     }
+    #ifdef WOLFSSL_TLS13_AUTO_REKEY
+        ssl->keys.maxInvocations = ctx->maxInvocations;
+    #endif
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
@@ -22357,11 +22364,49 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
     }
 
     if (w64GTE(seq, limit))
-        return Tls13UpdateKeys(ssl); /* Need to generate new keys */
+        return Tls13UpdateKeys(ssl, 1); /* Need to generate new keys */
 
     return 0;
 }
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+/**
+ * Set rekey required if sequence number is equal to 2^maxInv.
+ *
+ * ssl     SSL/TLS object.
+ * maxInv  Maximum number of invocations of cipher. Count = 2^maxInv.
+ * hi      Next hi 32-bits of sequence number.
+ * lo      Next lo 32-bits of sequence number.
+ * sub     Amount to subtract from sequence number.
+ * returns 0 when no rekey required and 1 when rekey required.
+ */
+static int Tls13_NeedRekey(WOLFSSL* ssl, byte maxInv, word32 hi, word32 lo,
+    word32 sub)
+{
+    if (ssl->options.rekey != REKEY_NONE)
+        return 0;
+
+    hi -= (lo < sub) ? 1 : 0;
+    lo -= sub;
+
+    if (maxInv == 0 || maxInv == 64) {
+        if (hi == 0xffffffff && lo == 0xffffffff) {
+            return 1;
+        }
+    }
+    else if (maxInv < 32) {
+        if (lo == ((1U << maxInv) - 1)) {
+            return 1;
+        }
+    }
+    else if ((hi == ((1U << (maxInv - 32)) - 1)) && (lo == 0xffffffff)) {
+        return 1;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TLS13_AUTO_REKEY */
 
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
@@ -22454,6 +22499,16 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+    if (IsAtLeastTLSv1_3(ssl->version) &&
+        (ssl->options.rekey != REKEY_IN_PROCESS) && Tls13_NeedRekey(ssl,
+            ssl->keys.maxInvocations, ssl->keys.sequence_number_hi,
+            ssl->keys.sequence_number_lo, 0)) {
+        ret = wolfSSL_update_enc_keys(ssl);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+    }
+#endif
 
     for (;;) {
         byte* out;
@@ -22722,6 +22777,16 @@ startScr:
             }
         }
 #endif /* WOLFSSL_DTLS13 */
+
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+        if (IsAtLeastTLSv1_3(ssl->version) && Tls13_NeedRekey(ssl,
+                ssl->keys.maxInvocations, ssl->keys.peer_sequence_number_hi,
+                ssl->keys.peer_sequence_number_lo, 1)) {
+            /* No sequence numbers left to rekey with. */
+            return WOLFSSL_FATAL_ERROR;
+        }
+    #endif
+
         #ifdef HAVE_SECURE_RENEGOTIATION
             if (ssl->secure_renegotiation &&
                 ssl->secure_renegotiation->startScr) {

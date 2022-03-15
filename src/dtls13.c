@@ -2410,7 +2410,7 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
 
     if (ssl->dtls13DoKeyUpdate) {
         ssl->dtls13DoKeyUpdate = 0;
-        ret = Tls13UpdateKeys(ssl);
+        ret = Tls13UpdateKeys(ssl, 1);
         if (ret != 0)
             return ret;
     }

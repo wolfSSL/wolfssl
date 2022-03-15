@@ -2517,6 +2517,9 @@ typedef struct Keys {
     byte   encryptionOn;          /* true after change cipher spec */
     byte   decryptedCur;          /* only decrypt current record once */
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13_AUTO_REKEY
+    byte   maxInvocations;
+#endif
     byte   updateResponseReq:1;   /* KeyUpdate response from peer required. */
     byte   keyUpdateRespond:1;    /* KeyUpdate is to be responded to. */
 #endif
@@ -3285,6 +3288,9 @@ struct WOLFSSL_CTX {
 #endif
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+    byte        maxInvocations;
+#endif
 
 #ifdef WOLFSSL_SRTP
     word16      dtlsSrtpProfiles;  /* DTLS-with-SRTP mode
@@ -4173,6 +4179,14 @@ enum cipherState {
     CIPHER_STATE_END,
 };
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+enum rekeyState {
+    REKEY_NONE = 0,
+    REKEY_REQUIRED = 1,
+    REKEY_IN_PROCESS = 2,
+};
+#endif
+
 typedef struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
@@ -4338,6 +4352,9 @@ typedef struct Options {
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(HAVE_ECH)
     byte              useEch:1;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+    word16            rekey:2;                /* Re-key required */
 #endif
 
     /* need full byte values for this section */
@@ -5951,7 +5968,7 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
-WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl, int resp);
 #endif
 
 WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);

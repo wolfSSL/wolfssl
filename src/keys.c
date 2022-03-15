@@ -2982,6 +2982,13 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     {
         ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
                       ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_AUTO_REKEY)
+        if (ret == 0 && ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm &&
+            ssl->keys.maxInvocations == 0) {
+            /* RFC 7714, Section 10. */
+            ssl->keys.maxInvocations = 48;
+        }
+    #endif
     }
 
 #ifdef WOLFSSL_DTLS13
