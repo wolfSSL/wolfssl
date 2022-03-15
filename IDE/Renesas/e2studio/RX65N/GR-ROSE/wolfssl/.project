@@ -72,7 +72,7 @@
 		<link>
 			<name>wolfcrypt/port/renesas_common.c</name>
 			<type>1</type>
-			<location>F:/Work/1_Renesas/tsip113_integrate/wolfssl/wolfcrypt/src/port/Renesas/renesas_common.c</location>
+			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_common.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/port/renesas_tsip_aes.c</name>
