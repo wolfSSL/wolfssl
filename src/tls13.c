@@ -9968,7 +9968,8 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
         return SIDE_ERROR;
 
     if (ssl->options.handShakeState == NULL_STATE) {
-        ssl->earlyData = expecting_early_data;
+        if (ssl->error != WC_PENDING_E)
+            ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)
             return WOLFSSL_FATAL_ERROR;
@@ -10030,7 +10031,8 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         return SIDE_ERROR;
 
     if (ssl->options.handShakeState == NULL_STATE) {
-        ssl->earlyData = expecting_early_data;
+        if (ssl->error != WC_PENDING_E)
+            ssl->earlyData = expecting_early_data;
         ret = wolfSSL_accept_TLSv13(ssl);
         if (ret <= 0)
             return WOLFSSL_FATAL_ERROR;

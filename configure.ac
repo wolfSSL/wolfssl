@@ -585,11 +585,7 @@ then
     test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
-
-    # don't add earlydata when assynccrypt, pending fix:
-    if test "$enable_asynccrypt" != "yes"; then
-        test "$enable_earlydata" = "" && enable_earlydata=yes
-    fi
+    test "$enable_earlydata" = "" && enable_earlydata=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
