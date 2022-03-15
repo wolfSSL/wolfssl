@@ -2069,1100 +2069,6 @@ _sp_2048_mul_16:
 #ifndef __APPLE__
 .size	sp_2048_mul_16,.-sp_2048_mul_16
 #endif /* __APPLE__ */
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_sqr_16
-.type	sp_2048_sqr_16,@function
-.align	16
-sp_2048_sqr_16:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_sqr_16
-.p2align	4
-_sp_2048_sqr_16:
-#endif /* __APPLE__ */
-        pushq	%r12
-        subq	$0x80, %rsp
-        # A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        xorq	%r9, %r9
-        movq	%rax, (%rsp)
-        movq	%rdx, %r8
-        # A[0] * A[1]
-        movq	8(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 8(%rsp)
-        # A[0] * A[2]
-        movq	16(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        # A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        movq	%r9, 16(%rsp)
-        # A[0] * A[3]
-        movq	24(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        # A[1] * A[2]
-        movq	16(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        movq	%rcx, 24(%rsp)
-        # A[0] * A[4]
-        movq	32(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[1] * A[3]
-        movq	24(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 32(%rsp)
-        # A[0] * A[5]
-        movq	40(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[4]
-        movq	32(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[3]
-        movq	24(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 40(%rsp)
-        # A[0] * A[6]
-        movq	48(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[5]
-        movq	40(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[4]
-        movq	32(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 48(%rsp)
-        # A[0] * A[7]
-        movq	56(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[6]
-        movq	48(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[5]
-        movq	40(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[4]
-        movq	32(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 56(%rsp)
-        # A[0] * A[8]
-        movq	64(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[7]
-        movq	56(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[6]
-        movq	48(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[5]
-        movq	40(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[4]
-        movq	32(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 64(%rsp)
-        # A[0] * A[9]
-        movq	72(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[8]
-        movq	64(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[7]
-        movq	56(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[6]
-        movq	48(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[5]
-        movq	40(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 72(%rsp)
-        # A[0] * A[10]
-        movq	80(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[9]
-        movq	72(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[8]
-        movq	64(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[7]
-        movq	56(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[6]
-        movq	48(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[5]
-        movq	40(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 80(%rsp)
-        # A[0] * A[11]
-        movq	88(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[10]
-        movq	80(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[9]
-        movq	72(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[8]
-        movq	64(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[7]
-        movq	56(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[6]
-        movq	48(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 88(%rsp)
-        # A[0] * A[12]
-        movq	96(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[11]
-        movq	88(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[10]
-        movq	80(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[9]
-        movq	72(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[8]
-        movq	64(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[7]
-        movq	56(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[6]
-        movq	48(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 96(%rsp)
-        # A[0] * A[13]
-        movq	104(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[12]
-        movq	96(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[11]
-        movq	88(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[10]
-        movq	80(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[9]
-        movq	72(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[8]
-        movq	64(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[7]
-        movq	56(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 104(%rsp)
-        # A[0] * A[14]
-        movq	112(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[13]
-        movq	104(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[12]
-        movq	96(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[11]
-        movq	88(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[10]
-        movq	80(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[9]
-        movq	72(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[8]
-        movq	64(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[7]
-        movq	56(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 112(%rsp)
-        # A[0] * A[15]
-        movq	120(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[14]
-        movq	112(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[13]
-        movq	104(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[12]
-        movq	96(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[11]
-        movq	88(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[10]
-        movq	80(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[9]
-        movq	72(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[8]
-        movq	64(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 120(%rsp)
-        # A[1] * A[15]
-        movq	120(%rsi), %rax
-        mulq	8(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[2] * A[14]
-        movq	112(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[13]
-        movq	104(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[12]
-        movq	96(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[11]
-        movq	88(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[10]
-        movq	80(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[9]
-        movq	72(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[8]
-        movq	64(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 128(%rdi)
-        # A[2] * A[15]
-        movq	120(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[3] * A[14]
-        movq	112(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[13]
-        movq	104(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[12]
-        movq	96(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[11]
-        movq	88(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[10]
-        movq	80(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[9]
-        movq	72(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 136(%rdi)
-        # A[3] * A[15]
-        movq	120(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[4] * A[14]
-        movq	112(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[13]
-        movq	104(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[12]
-        movq	96(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[11]
-        movq	88(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[10]
-        movq	80(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[9] * A[9]
-        movq	72(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 144(%rdi)
-        # A[4] * A[15]
-        movq	120(%rsi), %rax
-        mulq	32(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[5] * A[14]
-        movq	112(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[13]
-        movq	104(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[12]
-        movq	96(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[11]
-        movq	88(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[9] * A[10]
-        movq	80(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 152(%rdi)
-        # A[5] * A[15]
-        movq	120(%rsi), %rax
-        mulq	40(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[6] * A[14]
-        movq	112(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[13]
-        movq	104(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[12]
-        movq	96(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[9] * A[11]
-        movq	88(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[10] * A[10]
-        movq	80(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 160(%rdi)
-        # A[6] * A[15]
-        movq	120(%rsi), %rax
-        mulq	48(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[7] * A[14]
-        movq	112(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[13]
-        movq	104(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[9] * A[12]
-        movq	96(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[10] * A[11]
-        movq	88(%rsi), %rax
-        mulq	80(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 168(%rdi)
-        # A[7] * A[15]
-        movq	120(%rsi), %rax
-        mulq	56(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[8] * A[14]
-        movq	112(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[9] * A[13]
-        movq	104(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[10] * A[12]
-        movq	96(%rsi), %rax
-        mulq	80(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[11] * A[11]
-        movq	88(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 176(%rdi)
-        # A[8] * A[15]
-        movq	120(%rsi), %rax
-        mulq	64(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[9] * A[14]
-        movq	112(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[10] * A[13]
-        movq	104(%rsi), %rax
-        mulq	80(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[11] * A[12]
-        movq	96(%rsi), %rax
-        mulq	88(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 184(%rdi)
-        # A[9] * A[15]
-        movq	120(%rsi), %rax
-        mulq	72(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[10] * A[14]
-        movq	112(%rsi), %rax
-        mulq	80(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[11] * A[13]
-        movq	104(%rsi), %rax
-        mulq	88(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[12] * A[12]
-        movq	96(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 192(%rdi)
-        # A[10] * A[15]
-        movq	120(%rsi), %rax
-        mulq	80(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[11] * A[14]
-        movq	112(%rsi), %rax
-        mulq	88(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[12] * A[13]
-        movq	104(%rsi), %rax
-        mulq	96(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 200(%rdi)
-        # A[11] * A[15]
-        movq	120(%rsi), %rax
-        mulq	88(%rsi)
-        xorq	%r8, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        # A[12] * A[14]
-        movq	112(%rsi), %rax
-        mulq	96(%rsi)
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        # A[13] * A[13]
-        movq	104(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        movq	%r9, 208(%rdi)
-        # A[12] * A[15]
-        movq	120(%rsi), %rax
-        mulq	96(%rsi)
-        xorq	%r9, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        # A[13] * A[14]
-        movq	112(%rsi), %rax
-        mulq	104(%rsi)
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        movq	%rcx, 216(%rdi)
-        # A[13] * A[15]
-        movq	120(%rsi), %rax
-        mulq	104(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[14] * A[14]
-        movq	112(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 224(%rdi)
-        # A[14] * A[15]
-        movq	120(%rsi), %rax
-        mulq	112(%rsi)
-        xorq	%r8, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        movq	%r9, 232(%rdi)
-        # A[15] * A[15]
-        movq	120(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        movq	%rcx, 240(%rdi)
-        movq	%r8, 248(%rdi)
-        movq	(%rsp), %rax
-        movq	8(%rsp), %rdx
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        movq	%rax, (%rdi)
-        movq	%rdx, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	32(%rsp), %rax
-        movq	40(%rsp), %rdx
-        movq	48(%rsp), %r10
-        movq	56(%rsp), %r11
-        movq	%rax, 32(%rdi)
-        movq	%rdx, 40(%rdi)
-        movq	%r10, 48(%rdi)
-        movq	%r11, 56(%rdi)
-        movq	64(%rsp), %rax
-        movq	72(%rsp), %rdx
-        movq	80(%rsp), %r10
-        movq	88(%rsp), %r11
-        movq	%rax, 64(%rdi)
-        movq	%rdx, 72(%rdi)
-        movq	%r10, 80(%rdi)
-        movq	%r11, 88(%rdi)
-        movq	96(%rsp), %rax
-        movq	104(%rsp), %rdx
-        movq	112(%rsp), %r10
-        movq	120(%rsp), %r11
-        movq	%rax, 96(%rdi)
-        movq	%rdx, 104(%rdi)
-        movq	%r10, 112(%rdi)
-        movq	%r11, 120(%rdi)
-        addq	$0x80, %rsp
-        popq	%r12
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_sqr_16,.-sp_2048_sqr_16
-#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -4840,6 +3746,2819 @@ L_end_2048_mul_avx2_16:
 .size	sp_2048_mul_avx2_16,.-sp_2048_mul_avx2_16
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_add_16
+.type	sp_2048_add_16,@function
+.align	16
+sp_2048_add_16:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_add_16
+.p2align	4
+_sp_2048_add_16:
+#endif /* __APPLE__ */
+        # Add
+        movq	(%rsi), %rcx
+        xorq	%rax, %rax
+        addq	(%rdx), %rcx
+        movq	8(%rsi), %r8
+        movq	%rcx, (%rdi)
+        adcq	8(%rdx), %r8
+        movq	16(%rsi), %rcx
+        movq	%r8, 8(%rdi)
+        adcq	16(%rdx), %rcx
+        movq	24(%rsi), %r8
+        movq	%rcx, 16(%rdi)
+        adcq	24(%rdx), %r8
+        movq	32(%rsi), %rcx
+        movq	%r8, 24(%rdi)
+        adcq	32(%rdx), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%rdi)
+        adcq	40(%rdx), %r8
+        movq	48(%rsi), %rcx
+        movq	%r8, 40(%rdi)
+        adcq	48(%rdx), %rcx
+        movq	56(%rsi), %r8
+        movq	%rcx, 48(%rdi)
+        adcq	56(%rdx), %r8
+        movq	64(%rsi), %rcx
+        movq	%r8, 56(%rdi)
+        adcq	64(%rdx), %rcx
+        movq	72(%rsi), %r8
+        movq	%rcx, 64(%rdi)
+        adcq	72(%rdx), %r8
+        movq	80(%rsi), %rcx
+        movq	%r8, 72(%rdi)
+        adcq	80(%rdx), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%rdi)
+        adcq	88(%rdx), %r8
+        movq	96(%rsi), %rcx
+        movq	%r8, 88(%rdi)
+        adcq	96(%rdx), %rcx
+        movq	104(%rsi), %r8
+        movq	%rcx, 96(%rdi)
+        adcq	104(%rdx), %r8
+        movq	112(%rsi), %rcx
+        movq	%r8, 104(%rdi)
+        adcq	112(%rdx), %rcx
+        movq	120(%rsi), %r8
+        movq	%rcx, 112(%rdi)
+        adcq	120(%rdx), %r8
+        movq	%r8, 120(%rdi)
+        adcq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_add_16,.-sp_2048_add_16
+#endif /* __APPLE__ */
+/* Sub b from a into a. (a -= b)
+ *
+ * a  A single precision integer and result.
+ * b  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_sub_in_place_32
+.type	sp_2048_sub_in_place_32,@function
+.align	16
+sp_2048_sub_in_place_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_sub_in_place_32
+.p2align	4
+_sp_2048_sub_in_place_32:
+#endif /* __APPLE__ */
+        movq	(%rdi), %rdx
+        xorq	%rax, %rax
+        subq	(%rsi), %rdx
+        movq	8(%rdi), %rcx
+        movq	%rdx, (%rdi)
+        sbbq	8(%rsi), %rcx
+        movq	16(%rdi), %rdx
+        movq	%rcx, 8(%rdi)
+        sbbq	16(%rsi), %rdx
+        movq	24(%rdi), %rcx
+        movq	%rdx, 16(%rdi)
+        sbbq	24(%rsi), %rcx
+        movq	32(%rdi), %rdx
+        movq	%rcx, 24(%rdi)
+        sbbq	32(%rsi), %rdx
+        movq	40(%rdi), %rcx
+        movq	%rdx, 32(%rdi)
+        sbbq	40(%rsi), %rcx
+        movq	48(%rdi), %rdx
+        movq	%rcx, 40(%rdi)
+        sbbq	48(%rsi), %rdx
+        movq	56(%rdi), %rcx
+        movq	%rdx, 48(%rdi)
+        sbbq	56(%rsi), %rcx
+        movq	64(%rdi), %rdx
+        movq	%rcx, 56(%rdi)
+        sbbq	64(%rsi), %rdx
+        movq	72(%rdi), %rcx
+        movq	%rdx, 64(%rdi)
+        sbbq	72(%rsi), %rcx
+        movq	80(%rdi), %rdx
+        movq	%rcx, 72(%rdi)
+        sbbq	80(%rsi), %rdx
+        movq	88(%rdi), %rcx
+        movq	%rdx, 80(%rdi)
+        sbbq	88(%rsi), %rcx
+        movq	96(%rdi), %rdx
+        movq	%rcx, 88(%rdi)
+        sbbq	96(%rsi), %rdx
+        movq	104(%rdi), %rcx
+        movq	%rdx, 96(%rdi)
+        sbbq	104(%rsi), %rcx
+        movq	112(%rdi), %rdx
+        movq	%rcx, 104(%rdi)
+        sbbq	112(%rsi), %rdx
+        movq	120(%rdi), %rcx
+        movq	%rdx, 112(%rdi)
+        sbbq	120(%rsi), %rcx
+        movq	128(%rdi), %rdx
+        movq	%rcx, 120(%rdi)
+        sbbq	128(%rsi), %rdx
+        movq	136(%rdi), %rcx
+        movq	%rdx, 128(%rdi)
+        sbbq	136(%rsi), %rcx
+        movq	144(%rdi), %rdx
+        movq	%rcx, 136(%rdi)
+        sbbq	144(%rsi), %rdx
+        movq	152(%rdi), %rcx
+        movq	%rdx, 144(%rdi)
+        sbbq	152(%rsi), %rcx
+        movq	160(%rdi), %rdx
+        movq	%rcx, 152(%rdi)
+        sbbq	160(%rsi), %rdx
+        movq	168(%rdi), %rcx
+        movq	%rdx, 160(%rdi)
+        sbbq	168(%rsi), %rcx
+        movq	176(%rdi), %rdx
+        movq	%rcx, 168(%rdi)
+        sbbq	176(%rsi), %rdx
+        movq	184(%rdi), %rcx
+        movq	%rdx, 176(%rdi)
+        sbbq	184(%rsi), %rcx
+        movq	192(%rdi), %rdx
+        movq	%rcx, 184(%rdi)
+        sbbq	192(%rsi), %rdx
+        movq	200(%rdi), %rcx
+        movq	%rdx, 192(%rdi)
+        sbbq	200(%rsi), %rcx
+        movq	208(%rdi), %rdx
+        movq	%rcx, 200(%rdi)
+        sbbq	208(%rsi), %rdx
+        movq	216(%rdi), %rcx
+        movq	%rdx, 208(%rdi)
+        sbbq	216(%rsi), %rcx
+        movq	224(%rdi), %rdx
+        movq	%rcx, 216(%rdi)
+        sbbq	224(%rsi), %rdx
+        movq	232(%rdi), %rcx
+        movq	%rdx, 224(%rdi)
+        sbbq	232(%rsi), %rcx
+        movq	240(%rdi), %rdx
+        movq	%rcx, 232(%rdi)
+        sbbq	240(%rsi), %rdx
+        movq	248(%rdi), %rcx
+        movq	%rdx, 240(%rdi)
+        sbbq	248(%rsi), %rcx
+        movq	%rcx, 248(%rdi)
+        sbbq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_sub_in_place_32,.-sp_2048_sub_in_place_32
+#endif /* __APPLE__ */
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_add_32
+.type	sp_2048_add_32,@function
+.align	16
+sp_2048_add_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_add_32
+.p2align	4
+_sp_2048_add_32:
+#endif /* __APPLE__ */
+        # Add
+        movq	(%rsi), %rcx
+        xorq	%rax, %rax
+        addq	(%rdx), %rcx
+        movq	8(%rsi), %r8
+        movq	%rcx, (%rdi)
+        adcq	8(%rdx), %r8
+        movq	16(%rsi), %rcx
+        movq	%r8, 8(%rdi)
+        adcq	16(%rdx), %rcx
+        movq	24(%rsi), %r8
+        movq	%rcx, 16(%rdi)
+        adcq	24(%rdx), %r8
+        movq	32(%rsi), %rcx
+        movq	%r8, 24(%rdi)
+        adcq	32(%rdx), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%rdi)
+        adcq	40(%rdx), %r8
+        movq	48(%rsi), %rcx
+        movq	%r8, 40(%rdi)
+        adcq	48(%rdx), %rcx
+        movq	56(%rsi), %r8
+        movq	%rcx, 48(%rdi)
+        adcq	56(%rdx), %r8
+        movq	64(%rsi), %rcx
+        movq	%r8, 56(%rdi)
+        adcq	64(%rdx), %rcx
+        movq	72(%rsi), %r8
+        movq	%rcx, 64(%rdi)
+        adcq	72(%rdx), %r8
+        movq	80(%rsi), %rcx
+        movq	%r8, 72(%rdi)
+        adcq	80(%rdx), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%rdi)
+        adcq	88(%rdx), %r8
+        movq	96(%rsi), %rcx
+        movq	%r8, 88(%rdi)
+        adcq	96(%rdx), %rcx
+        movq	104(%rsi), %r8
+        movq	%rcx, 96(%rdi)
+        adcq	104(%rdx), %r8
+        movq	112(%rsi), %rcx
+        movq	%r8, 104(%rdi)
+        adcq	112(%rdx), %rcx
+        movq	120(%rsi), %r8
+        movq	%rcx, 112(%rdi)
+        adcq	120(%rdx), %r8
+        movq	128(%rsi), %rcx
+        movq	%r8, 120(%rdi)
+        adcq	128(%rdx), %rcx
+        movq	136(%rsi), %r8
+        movq	%rcx, 128(%rdi)
+        adcq	136(%rdx), %r8
+        movq	144(%rsi), %rcx
+        movq	%r8, 136(%rdi)
+        adcq	144(%rdx), %rcx
+        movq	152(%rsi), %r8
+        movq	%rcx, 144(%rdi)
+        adcq	152(%rdx), %r8
+        movq	160(%rsi), %rcx
+        movq	%r8, 152(%rdi)
+        adcq	160(%rdx), %rcx
+        movq	168(%rsi), %r8
+        movq	%rcx, 160(%rdi)
+        adcq	168(%rdx), %r8
+        movq	176(%rsi), %rcx
+        movq	%r8, 168(%rdi)
+        adcq	176(%rdx), %rcx
+        movq	184(%rsi), %r8
+        movq	%rcx, 176(%rdi)
+        adcq	184(%rdx), %r8
+        movq	192(%rsi), %rcx
+        movq	%r8, 184(%rdi)
+        adcq	192(%rdx), %rcx
+        movq	200(%rsi), %r8
+        movq	%rcx, 192(%rdi)
+        adcq	200(%rdx), %r8
+        movq	208(%rsi), %rcx
+        movq	%r8, 200(%rdi)
+        adcq	208(%rdx), %rcx
+        movq	216(%rsi), %r8
+        movq	%rcx, 208(%rdi)
+        adcq	216(%rdx), %r8
+        movq	224(%rsi), %rcx
+        movq	%r8, 216(%rdi)
+        adcq	224(%rdx), %rcx
+        movq	232(%rsi), %r8
+        movq	%rcx, 224(%rdi)
+        adcq	232(%rdx), %r8
+        movq	240(%rsi), %rcx
+        movq	%r8, 232(%rdi)
+        adcq	240(%rdx), %rcx
+        movq	248(%rsi), %r8
+        movq	%rcx, 240(%rdi)
+        adcq	248(%rdx), %r8
+        movq	%r8, 248(%rdi)
+        adcq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_add_32,.-sp_2048_add_32
+#endif /* __APPLE__ */
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_mul_32
+.type	sp_2048_mul_32,@function
+.align	16
+sp_2048_mul_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_mul_32
+.p2align	4
+_sp_2048_mul_32:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        subq	$0x328, %rsp
+        movq	%rdi, 768(%rsp)
+        movq	%rsi, 776(%rsp)
+        movq	%rdx, 784(%rsp)
+        leaq	512(%rsp), %r10
+        leaq	128(%rsi), %r12
+        # Add
+        movq	(%rsi), %rax
+        xorq	%r13, %r13
+        addq	(%r12), %rax
+        movq	8(%rsi), %rcx
+        movq	%rax, (%r10)
+        adcq	8(%r12), %rcx
+        movq	16(%rsi), %r8
+        movq	%rcx, 8(%r10)
+        adcq	16(%r12), %r8
+        movq	24(%rsi), %rax
+        movq	%r8, 16(%r10)
+        adcq	24(%r12), %rax
+        movq	32(%rsi), %rcx
+        movq	%rax, 24(%r10)
+        adcq	32(%r12), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%r10)
+        adcq	40(%r12), %r8
+        movq	48(%rsi), %rax
+        movq	%r8, 40(%r10)
+        adcq	48(%r12), %rax
+        movq	56(%rsi), %rcx
+        movq	%rax, 48(%r10)
+        adcq	56(%r12), %rcx
+        movq	64(%rsi), %r8
+        movq	%rcx, 56(%r10)
+        adcq	64(%r12), %r8
+        movq	72(%rsi), %rax
+        movq	%r8, 64(%r10)
+        adcq	72(%r12), %rax
+        movq	80(%rsi), %rcx
+        movq	%rax, 72(%r10)
+        adcq	80(%r12), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%r10)
+        adcq	88(%r12), %r8
+        movq	96(%rsi), %rax
+        movq	%r8, 88(%r10)
+        adcq	96(%r12), %rax
+        movq	104(%rsi), %rcx
+        movq	%rax, 96(%r10)
+        adcq	104(%r12), %rcx
+        movq	112(%rsi), %r8
+        movq	%rcx, 104(%r10)
+        adcq	112(%r12), %r8
+        movq	120(%rsi), %rax
+        movq	%r8, 112(%r10)
+        adcq	120(%r12), %rax
+        movq	%rax, 120(%r10)
+        adcq	$0x00, %r13
+        movq	%r13, 792(%rsp)
+        leaq	640(%rsp), %r11
+        leaq	128(%rdx), %r12
+        # Add
+        movq	(%rdx), %rax
+        xorq	%r14, %r14
+        addq	(%r12), %rax
+        movq	8(%rdx), %rcx
+        movq	%rax, (%r11)
+        adcq	8(%r12), %rcx
+        movq	16(%rdx), %r8
+        movq	%rcx, 8(%r11)
+        adcq	16(%r12), %r8
+        movq	24(%rdx), %rax
+        movq	%r8, 16(%r11)
+        adcq	24(%r12), %rax
+        movq	32(%rdx), %rcx
+        movq	%rax, 24(%r11)
+        adcq	32(%r12), %rcx
+        movq	40(%rdx), %r8
+        movq	%rcx, 32(%r11)
+        adcq	40(%r12), %r8
+        movq	48(%rdx), %rax
+        movq	%r8, 40(%r11)
+        adcq	48(%r12), %rax
+        movq	56(%rdx), %rcx
+        movq	%rax, 48(%r11)
+        adcq	56(%r12), %rcx
+        movq	64(%rdx), %r8
+        movq	%rcx, 56(%r11)
+        adcq	64(%r12), %r8
+        movq	72(%rdx), %rax
+        movq	%r8, 64(%r11)
+        adcq	72(%r12), %rax
+        movq	80(%rdx), %rcx
+        movq	%rax, 72(%r11)
+        adcq	80(%r12), %rcx
+        movq	88(%rdx), %r8
+        movq	%rcx, 80(%r11)
+        adcq	88(%r12), %r8
+        movq	96(%rdx), %rax
+        movq	%r8, 88(%r11)
+        adcq	96(%r12), %rax
+        movq	104(%rdx), %rcx
+        movq	%rax, 96(%r11)
+        adcq	104(%r12), %rcx
+        movq	112(%rdx), %r8
+        movq	%rcx, 104(%r11)
+        adcq	112(%r12), %r8
+        movq	120(%rdx), %rax
+        movq	%r8, 112(%r11)
+        adcq	120(%r12), %rax
+        movq	%rax, 120(%r11)
+        adcq	$0x00, %r14
+        movq	%r14, 800(%rsp)
+        movq	%r11, %rdx
+        movq	%r10, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_2048_mul_16@plt
+#else
+        callq	_sp_2048_mul_16
+#endif /* __APPLE__ */
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        leaq	256(%rsp), %rdi
+        addq	$0x80, %rdx
+        addq	$0x80, %rsi
+#ifndef __APPLE__
+        callq	sp_2048_mul_16@plt
+#else
+        callq	_sp_2048_mul_16
+#endif /* __APPLE__ */
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        movq	768(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_2048_mul_16@plt
+#else
+        callq	_sp_2048_mul_16
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        movq	768(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	792(%rsp), %r13
+        movq	800(%rsp), %r14
+        movq	768(%rsp), %r15
+        movq	%r13, %r9
+        leaq	512(%rsp), %r10
+        leaq	640(%rsp), %r11
+        andq	%r14, %r9
+        negq	%r13
+        negq	%r14
+        addq	$0x100, %r15
+        movq	(%r10), %rax
+        movq	(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, (%r10)
+        movq	%rcx, (%r11)
+        movq	8(%r10), %rax
+        movq	8(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 8(%r10)
+        movq	%rcx, 8(%r11)
+        movq	16(%r10), %rax
+        movq	16(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 16(%r10)
+        movq	%rcx, 16(%r11)
+        movq	24(%r10), %rax
+        movq	24(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 24(%r10)
+        movq	%rcx, 24(%r11)
+        movq	32(%r10), %rax
+        movq	32(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 32(%r10)
+        movq	%rcx, 32(%r11)
+        movq	40(%r10), %rax
+        movq	40(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 40(%r10)
+        movq	%rcx, 40(%r11)
+        movq	48(%r10), %rax
+        movq	48(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 48(%r10)
+        movq	%rcx, 48(%r11)
+        movq	56(%r10), %rax
+        movq	56(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 56(%r10)
+        movq	%rcx, 56(%r11)
+        movq	64(%r10), %rax
+        movq	64(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 64(%r10)
+        movq	%rcx, 64(%r11)
+        movq	72(%r10), %rax
+        movq	72(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 72(%r10)
+        movq	%rcx, 72(%r11)
+        movq	80(%r10), %rax
+        movq	80(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 80(%r10)
+        movq	%rcx, 80(%r11)
+        movq	88(%r10), %rax
+        movq	88(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 88(%r10)
+        movq	%rcx, 88(%r11)
+        movq	96(%r10), %rax
+        movq	96(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 96(%r10)
+        movq	%rcx, 96(%r11)
+        movq	104(%r10), %rax
+        movq	104(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 104(%r10)
+        movq	%rcx, 104(%r11)
+        movq	112(%r10), %rax
+        movq	112(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 112(%r10)
+        movq	%rcx, 112(%r11)
+        movq	120(%r10), %rax
+        movq	120(%r11), %rcx
+        andq	%r14, %rax
+        andq	%r13, %rcx
+        movq	%rax, 120(%r10)
+        movq	%rcx, 120(%r11)
+        movq	(%r10), %rax
+        addq	(%r11), %rax
+        movq	8(%r10), %rcx
+        movq	%rax, (%r15)
+        adcq	8(%r11), %rcx
+        movq	16(%r10), %r8
+        movq	%rcx, 8(%r15)
+        adcq	16(%r11), %r8
+        movq	24(%r10), %rax
+        movq	%r8, 16(%r15)
+        adcq	24(%r11), %rax
+        movq	32(%r10), %rcx
+        movq	%rax, 24(%r15)
+        adcq	32(%r11), %rcx
+        movq	40(%r10), %r8
+        movq	%rcx, 32(%r15)
+        adcq	40(%r11), %r8
+        movq	48(%r10), %rax
+        movq	%r8, 40(%r15)
+        adcq	48(%r11), %rax
+        movq	56(%r10), %rcx
+        movq	%rax, 48(%r15)
+        adcq	56(%r11), %rcx
+        movq	64(%r10), %r8
+        movq	%rcx, 56(%r15)
+        adcq	64(%r11), %r8
+        movq	72(%r10), %rax
+        movq	%r8, 64(%r15)
+        adcq	72(%r11), %rax
+        movq	80(%r10), %rcx
+        movq	%rax, 72(%r15)
+        adcq	80(%r11), %rcx
+        movq	88(%r10), %r8
+        movq	%rcx, 80(%r15)
+        adcq	88(%r11), %r8
+        movq	96(%r10), %rax
+        movq	%r8, 88(%r15)
+        adcq	96(%r11), %rax
+        movq	104(%r10), %rcx
+        movq	%rax, 96(%r15)
+        adcq	104(%r11), %rcx
+        movq	112(%r10), %r8
+        movq	%rcx, 104(%r15)
+        adcq	112(%r11), %r8
+        movq	120(%r10), %rax
+        movq	%r8, 112(%r15)
+        adcq	120(%r11), %rax
+        movq	%rax, 120(%r15)
+        adcq	$0x00, %r9
+        leaq	256(%rsp), %r11
+        movq	%rsp, %r10
+        movq	(%r10), %rax
+        subq	(%r11), %rax
+        movq	8(%r10), %rcx
+        movq	%rax, (%r10)
+        sbbq	8(%r11), %rcx
+        movq	16(%r10), %r8
+        movq	%rcx, 8(%r10)
+        sbbq	16(%r11), %r8
+        movq	24(%r10), %rax
+        movq	%r8, 16(%r10)
+        sbbq	24(%r11), %rax
+        movq	32(%r10), %rcx
+        movq	%rax, 24(%r10)
+        sbbq	32(%r11), %rcx
+        movq	40(%r10), %r8
+        movq	%rcx, 32(%r10)
+        sbbq	40(%r11), %r8
+        movq	48(%r10), %rax
+        movq	%r8, 40(%r10)
+        sbbq	48(%r11), %rax
+        movq	56(%r10), %rcx
+        movq	%rax, 48(%r10)
+        sbbq	56(%r11), %rcx
+        movq	64(%r10), %r8
+        movq	%rcx, 56(%r10)
+        sbbq	64(%r11), %r8
+        movq	72(%r10), %rax
+        movq	%r8, 64(%r10)
+        sbbq	72(%r11), %rax
+        movq	80(%r10), %rcx
+        movq	%rax, 72(%r10)
+        sbbq	80(%r11), %rcx
+        movq	88(%r10), %r8
+        movq	%rcx, 80(%r10)
+        sbbq	88(%r11), %r8
+        movq	96(%r10), %rax
+        movq	%r8, 88(%r10)
+        sbbq	96(%r11), %rax
+        movq	104(%r10), %rcx
+        movq	%rax, 96(%r10)
+        sbbq	104(%r11), %rcx
+        movq	112(%r10), %r8
+        movq	%rcx, 104(%r10)
+        sbbq	112(%r11), %r8
+        movq	120(%r10), %rax
+        movq	%r8, 112(%r10)
+        sbbq	120(%r11), %rax
+        movq	128(%r10), %rcx
+        movq	%rax, 120(%r10)
+        sbbq	128(%r11), %rcx
+        movq	136(%r10), %r8
+        movq	%rcx, 128(%r10)
+        sbbq	136(%r11), %r8
+        movq	144(%r10), %rax
+        movq	%r8, 136(%r10)
+        sbbq	144(%r11), %rax
+        movq	152(%r10), %rcx
+        movq	%rax, 144(%r10)
+        sbbq	152(%r11), %rcx
+        movq	160(%r10), %r8
+        movq	%rcx, 152(%r10)
+        sbbq	160(%r11), %r8
+        movq	168(%r10), %rax
+        movq	%r8, 160(%r10)
+        sbbq	168(%r11), %rax
+        movq	176(%r10), %rcx
+        movq	%rax, 168(%r10)
+        sbbq	176(%r11), %rcx
+        movq	184(%r10), %r8
+        movq	%rcx, 176(%r10)
+        sbbq	184(%r11), %r8
+        movq	192(%r10), %rax
+        movq	%r8, 184(%r10)
+        sbbq	192(%r11), %rax
+        movq	200(%r10), %rcx
+        movq	%rax, 192(%r10)
+        sbbq	200(%r11), %rcx
+        movq	208(%r10), %r8
+        movq	%rcx, 200(%r10)
+        sbbq	208(%r11), %r8
+        movq	216(%r10), %rax
+        movq	%r8, 208(%r10)
+        sbbq	216(%r11), %rax
+        movq	224(%r10), %rcx
+        movq	%rax, 216(%r10)
+        sbbq	224(%r11), %rcx
+        movq	232(%r10), %r8
+        movq	%rcx, 224(%r10)
+        sbbq	232(%r11), %r8
+        movq	240(%r10), %rax
+        movq	%r8, 232(%r10)
+        sbbq	240(%r11), %rax
+        movq	248(%r10), %rcx
+        movq	%rax, 240(%r10)
+        sbbq	248(%r11), %rcx
+        movq	%rcx, 248(%r10)
+        sbbq	$0x00, %r9
+        movq	(%r10), %rax
+        subq	(%rdi), %rax
+        movq	8(%r10), %rcx
+        movq	%rax, (%r10)
+        sbbq	8(%rdi), %rcx
+        movq	16(%r10), %r8
+        movq	%rcx, 8(%r10)
+        sbbq	16(%rdi), %r8
+        movq	24(%r10), %rax
+        movq	%r8, 16(%r10)
+        sbbq	24(%rdi), %rax
+        movq	32(%r10), %rcx
+        movq	%rax, 24(%r10)
+        sbbq	32(%rdi), %rcx
+        movq	40(%r10), %r8
+        movq	%rcx, 32(%r10)
+        sbbq	40(%rdi), %r8
+        movq	48(%r10), %rax
+        movq	%r8, 40(%r10)
+        sbbq	48(%rdi), %rax
+        movq	56(%r10), %rcx
+        movq	%rax, 48(%r10)
+        sbbq	56(%rdi), %rcx
+        movq	64(%r10), %r8
+        movq	%rcx, 56(%r10)
+        sbbq	64(%rdi), %r8
+        movq	72(%r10), %rax
+        movq	%r8, 64(%r10)
+        sbbq	72(%rdi), %rax
+        movq	80(%r10), %rcx
+        movq	%rax, 72(%r10)
+        sbbq	80(%rdi), %rcx
+        movq	88(%r10), %r8
+        movq	%rcx, 80(%r10)
+        sbbq	88(%rdi), %r8
+        movq	96(%r10), %rax
+        movq	%r8, 88(%r10)
+        sbbq	96(%rdi), %rax
+        movq	104(%r10), %rcx
+        movq	%rax, 96(%r10)
+        sbbq	104(%rdi), %rcx
+        movq	112(%r10), %r8
+        movq	%rcx, 104(%r10)
+        sbbq	112(%rdi), %r8
+        movq	120(%r10), %rax
+        movq	%r8, 112(%r10)
+        sbbq	120(%rdi), %rax
+        movq	128(%r10), %rcx
+        movq	%rax, 120(%r10)
+        sbbq	128(%rdi), %rcx
+        movq	136(%r10), %r8
+        movq	%rcx, 128(%r10)
+        sbbq	136(%rdi), %r8
+        movq	144(%r10), %rax
+        movq	%r8, 136(%r10)
+        sbbq	144(%rdi), %rax
+        movq	152(%r10), %rcx
+        movq	%rax, 144(%r10)
+        sbbq	152(%rdi), %rcx
+        movq	160(%r10), %r8
+        movq	%rcx, 152(%r10)
+        sbbq	160(%rdi), %r8
+        movq	168(%r10), %rax
+        movq	%r8, 160(%r10)
+        sbbq	168(%rdi), %rax
+        movq	176(%r10), %rcx
+        movq	%rax, 168(%r10)
+        sbbq	176(%rdi), %rcx
+        movq	184(%r10), %r8
+        movq	%rcx, 176(%r10)
+        sbbq	184(%rdi), %r8
+        movq	192(%r10), %rax
+        movq	%r8, 184(%r10)
+        sbbq	192(%rdi), %rax
+        movq	200(%r10), %rcx
+        movq	%rax, 192(%r10)
+        sbbq	200(%rdi), %rcx
+        movq	208(%r10), %r8
+        movq	%rcx, 200(%r10)
+        sbbq	208(%rdi), %r8
+        movq	216(%r10), %rax
+        movq	%r8, 208(%r10)
+        sbbq	216(%rdi), %rax
+        movq	224(%r10), %rcx
+        movq	%rax, 216(%r10)
+        sbbq	224(%rdi), %rcx
+        movq	232(%r10), %r8
+        movq	%rcx, 224(%r10)
+        sbbq	232(%rdi), %r8
+        movq	240(%r10), %rax
+        movq	%r8, 232(%r10)
+        sbbq	240(%rdi), %rax
+        movq	248(%r10), %rcx
+        movq	%rax, 240(%r10)
+        sbbq	248(%rdi), %rcx
+        movq	%rcx, 248(%r10)
+        sbbq	$0x00, %r9
+        subq	$0x80, %r15
+        # Add
+        movq	(%r15), %rax
+        addq	(%r10), %rax
+        movq	8(%r15), %rcx
+        movq	%rax, (%r15)
+        adcq	8(%r10), %rcx
+        movq	16(%r15), %r8
+        movq	%rcx, 8(%r15)
+        adcq	16(%r10), %r8
+        movq	24(%r15), %rax
+        movq	%r8, 16(%r15)
+        adcq	24(%r10), %rax
+        movq	32(%r15), %rcx
+        movq	%rax, 24(%r15)
+        adcq	32(%r10), %rcx
+        movq	40(%r15), %r8
+        movq	%rcx, 32(%r15)
+        adcq	40(%r10), %r8
+        movq	48(%r15), %rax
+        movq	%r8, 40(%r15)
+        adcq	48(%r10), %rax
+        movq	56(%r15), %rcx
+        movq	%rax, 48(%r15)
+        adcq	56(%r10), %rcx
+        movq	64(%r15), %r8
+        movq	%rcx, 56(%r15)
+        adcq	64(%r10), %r8
+        movq	72(%r15), %rax
+        movq	%r8, 64(%r15)
+        adcq	72(%r10), %rax
+        movq	80(%r15), %rcx
+        movq	%rax, 72(%r15)
+        adcq	80(%r10), %rcx
+        movq	88(%r15), %r8
+        movq	%rcx, 80(%r15)
+        adcq	88(%r10), %r8
+        movq	96(%r15), %rax
+        movq	%r8, 88(%r15)
+        adcq	96(%r10), %rax
+        movq	104(%r15), %rcx
+        movq	%rax, 96(%r15)
+        adcq	104(%r10), %rcx
+        movq	112(%r15), %r8
+        movq	%rcx, 104(%r15)
+        adcq	112(%r10), %r8
+        movq	120(%r15), %rax
+        movq	%r8, 112(%r15)
+        adcq	120(%r10), %rax
+        movq	128(%r15), %rcx
+        movq	%rax, 120(%r15)
+        adcq	128(%r10), %rcx
+        movq	136(%r15), %r8
+        movq	%rcx, 128(%r15)
+        adcq	136(%r10), %r8
+        movq	144(%r15), %rax
+        movq	%r8, 136(%r15)
+        adcq	144(%r10), %rax
+        movq	152(%r15), %rcx
+        movq	%rax, 144(%r15)
+        adcq	152(%r10), %rcx
+        movq	160(%r15), %r8
+        movq	%rcx, 152(%r15)
+        adcq	160(%r10), %r8
+        movq	168(%r15), %rax
+        movq	%r8, 160(%r15)
+        adcq	168(%r10), %rax
+        movq	176(%r15), %rcx
+        movq	%rax, 168(%r15)
+        adcq	176(%r10), %rcx
+        movq	184(%r15), %r8
+        movq	%rcx, 176(%r15)
+        adcq	184(%r10), %r8
+        movq	192(%r15), %rax
+        movq	%r8, 184(%r15)
+        adcq	192(%r10), %rax
+        movq	200(%r15), %rcx
+        movq	%rax, 192(%r15)
+        adcq	200(%r10), %rcx
+        movq	208(%r15), %r8
+        movq	%rcx, 200(%r15)
+        adcq	208(%r10), %r8
+        movq	216(%r15), %rax
+        movq	%r8, 208(%r15)
+        adcq	216(%r10), %rax
+        movq	224(%r15), %rcx
+        movq	%rax, 216(%r15)
+        adcq	224(%r10), %rcx
+        movq	232(%r15), %r8
+        movq	%rcx, 224(%r15)
+        adcq	232(%r10), %r8
+        movq	240(%r15), %rax
+        movq	%r8, 232(%r15)
+        adcq	240(%r10), %rax
+        movq	248(%r15), %rcx
+        movq	%rax, 240(%r15)
+        adcq	248(%r10), %rcx
+        movq	%rcx, 248(%r15)
+        adcq	$0x00, %r9
+        movq	%r9, 384(%rdi)
+        addq	$0x80, %r15
+        # Add
+        movq	(%r15), %rax
+        xorq	%r9, %r9
+        addq	(%r11), %rax
+        movq	8(%r15), %rcx
+        movq	%rax, (%r15)
+        adcq	8(%r11), %rcx
+        movq	16(%r15), %r8
+        movq	%rcx, 8(%r15)
+        adcq	16(%r11), %r8
+        movq	24(%r15), %rax
+        movq	%r8, 16(%r15)
+        adcq	24(%r11), %rax
+        movq	32(%r15), %rcx
+        movq	%rax, 24(%r15)
+        adcq	32(%r11), %rcx
+        movq	40(%r15), %r8
+        movq	%rcx, 32(%r15)
+        adcq	40(%r11), %r8
+        movq	48(%r15), %rax
+        movq	%r8, 40(%r15)
+        adcq	48(%r11), %rax
+        movq	56(%r15), %rcx
+        movq	%rax, 48(%r15)
+        adcq	56(%r11), %rcx
+        movq	64(%r15), %r8
+        movq	%rcx, 56(%r15)
+        adcq	64(%r11), %r8
+        movq	72(%r15), %rax
+        movq	%r8, 64(%r15)
+        adcq	72(%r11), %rax
+        movq	80(%r15), %rcx
+        movq	%rax, 72(%r15)
+        adcq	80(%r11), %rcx
+        movq	88(%r15), %r8
+        movq	%rcx, 80(%r15)
+        adcq	88(%r11), %r8
+        movq	96(%r15), %rax
+        movq	%r8, 88(%r15)
+        adcq	96(%r11), %rax
+        movq	104(%r15), %rcx
+        movq	%rax, 96(%r15)
+        adcq	104(%r11), %rcx
+        movq	112(%r15), %r8
+        movq	%rcx, 104(%r15)
+        adcq	112(%r11), %r8
+        movq	120(%r15), %rax
+        movq	%r8, 112(%r15)
+        adcq	120(%r11), %rax
+        movq	128(%r15), %rcx
+        movq	%rax, 120(%r15)
+        adcq	128(%r11), %rcx
+        movq	%rcx, 128(%r15)
+        adcq	$0x00, %r9
+        # Add to zero
+        movq	136(%r11), %rax
+        adcq	$0x00, %rax
+        movq	144(%r11), %rcx
+        movq	%rax, 136(%r15)
+        adcq	$0x00, %rcx
+        movq	152(%r11), %r8
+        movq	%rcx, 144(%r15)
+        adcq	$0x00, %r8
+        movq	160(%r11), %rax
+        movq	%r8, 152(%r15)
+        adcq	$0x00, %rax
+        movq	168(%r11), %rcx
+        movq	%rax, 160(%r15)
+        adcq	$0x00, %rcx
+        movq	176(%r11), %r8
+        movq	%rcx, 168(%r15)
+        adcq	$0x00, %r8
+        movq	184(%r11), %rax
+        movq	%r8, 176(%r15)
+        adcq	$0x00, %rax
+        movq	192(%r11), %rcx
+        movq	%rax, 184(%r15)
+        adcq	$0x00, %rcx
+        movq	200(%r11), %r8
+        movq	%rcx, 192(%r15)
+        adcq	$0x00, %r8
+        movq	208(%r11), %rax
+        movq	%r8, 200(%r15)
+        adcq	$0x00, %rax
+        movq	216(%r11), %rcx
+        movq	%rax, 208(%r15)
+        adcq	$0x00, %rcx
+        movq	224(%r11), %r8
+        movq	%rcx, 216(%r15)
+        adcq	$0x00, %r8
+        movq	232(%r11), %rax
+        movq	%r8, 224(%r15)
+        adcq	$0x00, %rax
+        movq	240(%r11), %rcx
+        movq	%rax, 232(%r15)
+        adcq	$0x00, %rcx
+        movq	248(%r11), %r8
+        movq	%rcx, 240(%r15)
+        adcq	$0x00, %r8
+        movq	%r8, 248(%r15)
+        addq	$0x328, %rsp
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_mul_32,.-sp_2048_mul_32
+#endif /* __APPLE__ */
+#ifdef HAVE_INTEL_AVX2
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_mul_avx2_32
+.type	sp_2048_mul_avx2_32,@function
+.align	16
+sp_2048_mul_avx2_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_mul_avx2_32
+.p2align	4
+_sp_2048_mul_avx2_32:
+#endif /* __APPLE__ */
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        subq	$0x328, %rsp
+        movq	%rdi, 768(%rsp)
+        movq	%rsi, 776(%rsp)
+        movq	%rdx, 784(%rsp)
+        leaq	512(%rsp), %r10
+        leaq	128(%rsi), %r12
+        # Add
+        movq	(%rsi), %rax
+        xorq	%r13, %r13
+        addq	(%r12), %rax
+        movq	8(%rsi), %rcx
+        movq	%rax, (%r10)
+        adcq	8(%r12), %rcx
+        movq	16(%rsi), %r8
+        movq	%rcx, 8(%r10)
+        adcq	16(%r12), %r8
+        movq	24(%rsi), %rax
+        movq	%r8, 16(%r10)
+        adcq	24(%r12), %rax
+        movq	32(%rsi), %rcx
+        movq	%rax, 24(%r10)
+        adcq	32(%r12), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%r10)
+        adcq	40(%r12), %r8
+        movq	48(%rsi), %rax
+        movq	%r8, 40(%r10)
+        adcq	48(%r12), %rax
+        movq	56(%rsi), %rcx
+        movq	%rax, 48(%r10)
+        adcq	56(%r12), %rcx
+        movq	64(%rsi), %r8
+        movq	%rcx, 56(%r10)
+        adcq	64(%r12), %r8
+        movq	72(%rsi), %rax
+        movq	%r8, 64(%r10)
+        adcq	72(%r12), %rax
+        movq	80(%rsi), %rcx
+        movq	%rax, 72(%r10)
+        adcq	80(%r12), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%r10)
+        adcq	88(%r12), %r8
+        movq	96(%rsi), %rax
+        movq	%r8, 88(%r10)
+        adcq	96(%r12), %rax
+        movq	104(%rsi), %rcx
+        movq	%rax, 96(%r10)
+        adcq	104(%r12), %rcx
+        movq	112(%rsi), %r8
+        movq	%rcx, 104(%r10)
+        adcq	112(%r12), %r8
+        movq	120(%rsi), %rax
+        movq	%r8, 112(%r10)
+        adcq	120(%r12), %rax
+        movq	%rax, 120(%r10)
+        adcq	$0x00, %r13
+        movq	%r13, 792(%rsp)
+        leaq	640(%rsp), %r11
+        leaq	128(%rdx), %r12
+        # Add
+        movq	(%rdx), %rax
+        xorq	%r14, %r14
+        addq	(%r12), %rax
+        movq	8(%rdx), %rcx
+        movq	%rax, (%r11)
+        adcq	8(%r12), %rcx
+        movq	16(%rdx), %r8
+        movq	%rcx, 8(%r11)
+        adcq	16(%r12), %r8
+        movq	24(%rdx), %rax
+        movq	%r8, 16(%r11)
+        adcq	24(%r12), %rax
+        movq	32(%rdx), %rcx
+        movq	%rax, 24(%r11)
+        adcq	32(%r12), %rcx
+        movq	40(%rdx), %r8
+        movq	%rcx, 32(%r11)
+        adcq	40(%r12), %r8
+        movq	48(%rdx), %rax
+        movq	%r8, 40(%r11)
+        adcq	48(%r12), %rax
+        movq	56(%rdx), %rcx
+        movq	%rax, 48(%r11)
+        adcq	56(%r12), %rcx
+        movq	64(%rdx), %r8
+        movq	%rcx, 56(%r11)
+        adcq	64(%r12), %r8
+        movq	72(%rdx), %rax
+        movq	%r8, 64(%r11)
+        adcq	72(%r12), %rax
+        movq	80(%rdx), %rcx
+        movq	%rax, 72(%r11)
+        adcq	80(%r12), %rcx
+        movq	88(%rdx), %r8
+        movq	%rcx, 80(%r11)
+        adcq	88(%r12), %r8
+        movq	96(%rdx), %rax
+        movq	%r8, 88(%r11)
+        adcq	96(%r12), %rax
+        movq	104(%rdx), %rcx
+        movq	%rax, 96(%r11)
+        adcq	104(%r12), %rcx
+        movq	112(%rdx), %r8
+        movq	%rcx, 104(%r11)
+        adcq	112(%r12), %r8
+        movq	120(%rdx), %rax
+        movq	%r8, 112(%r11)
+        adcq	120(%r12), %rax
+        movq	%rax, 120(%r11)
+        adcq	$0x00, %r14
+        movq	%r14, 800(%rsp)
+        movq	%r11, %rdx
+        movq	%r10, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_2048_mul_avx2_16@plt
+#else
+        callq	_sp_2048_mul_avx2_16
+#endif /* __APPLE__ */
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        leaq	256(%rsp), %rdi
+        addq	$0x80, %rdx
+        addq	$0x80, %rsi
+#ifndef __APPLE__
+        callq	sp_2048_mul_avx2_16@plt
+#else
+        callq	_sp_2048_mul_avx2_16
+#endif /* __APPLE__ */
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        movq	768(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_2048_mul_avx2_16@plt
+#else
+        callq	_sp_2048_mul_avx2_16
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	784(%rsp), %rdx
+        movq	776(%rsp), %rsi
+        movq	768(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	792(%rsp), %r13
+        movq	800(%rsp), %r14
+        movq	768(%rsp), %r15
+        movq	%r13, %r9
+        leaq	512(%rsp), %r10
+        leaq	640(%rsp), %r11
+        andq	%r14, %r9
+        negq	%r13
+        negq	%r14
+        addq	$0x100, %r15
+        movq	(%r10), %rax
+        movq	(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        addq	%rcx, %rax
+        movq	8(%r10), %rcx
+        movq	8(%r11), %r8
+        pextq	%r14, %rcx, %rcx
+        pextq	%r13, %r8, %r8
+        movq	%rax, (%r15)
+        adcq	%r8, %rcx
+        movq	16(%r10), %r8
+        movq	16(%r11), %rax
+        pextq	%r14, %r8, %r8
+        pextq	%r13, %rax, %rax
+        movq	%rcx, 8(%r15)
+        adcq	%rax, %r8
+        movq	24(%r10), %rax
+        movq	24(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        movq	%r8, 16(%r15)
+        adcq	%rcx, %rax
+        movq	32(%r10), %rcx
+        movq	32(%r11), %r8
+        pextq	%r14, %rcx, %rcx
+        pextq	%r13, %r8, %r8
+        movq	%rax, 24(%r15)
+        adcq	%r8, %rcx
+        movq	40(%r10), %r8
+        movq	40(%r11), %rax
+        pextq	%r14, %r8, %r8
+        pextq	%r13, %rax, %rax
+        movq	%rcx, 32(%r15)
+        adcq	%rax, %r8
+        movq	48(%r10), %rax
+        movq	48(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        movq	%r8, 40(%r15)
+        adcq	%rcx, %rax
+        movq	56(%r10), %rcx
+        movq	56(%r11), %r8
+        pextq	%r14, %rcx, %rcx
+        pextq	%r13, %r8, %r8
+        movq	%rax, 48(%r15)
+        adcq	%r8, %rcx
+        movq	64(%r10), %r8
+        movq	64(%r11), %rax
+        pextq	%r14, %r8, %r8
+        pextq	%r13, %rax, %rax
+        movq	%rcx, 56(%r15)
+        adcq	%rax, %r8
+        movq	72(%r10), %rax
+        movq	72(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        movq	%r8, 64(%r15)
+        adcq	%rcx, %rax
+        movq	80(%r10), %rcx
+        movq	80(%r11), %r8
+        pextq	%r14, %rcx, %rcx
+        pextq	%r13, %r8, %r8
+        movq	%rax, 72(%r15)
+        adcq	%r8, %rcx
+        movq	88(%r10), %r8
+        movq	88(%r11), %rax
+        pextq	%r14, %r8, %r8
+        pextq	%r13, %rax, %rax
+        movq	%rcx, 80(%r15)
+        adcq	%rax, %r8
+        movq	96(%r10), %rax
+        movq	96(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        movq	%r8, 88(%r15)
+        adcq	%rcx, %rax
+        movq	104(%r10), %rcx
+        movq	104(%r11), %r8
+        pextq	%r14, %rcx, %rcx
+        pextq	%r13, %r8, %r8
+        movq	%rax, 96(%r15)
+        adcq	%r8, %rcx
+        movq	112(%r10), %r8
+        movq	112(%r11), %rax
+        pextq	%r14, %r8, %r8
+        pextq	%r13, %rax, %rax
+        movq	%rcx, 104(%r15)
+        adcq	%rax, %r8
+        movq	120(%r10), %rax
+        movq	120(%r11), %rcx
+        pextq	%r14, %rax, %rax
+        pextq	%r13, %rcx, %rcx
+        movq	%r8, 112(%r15)
+        adcq	%rcx, %rax
+        movq	%rax, 120(%r15)
+        adcq	$0x00, %r9
+        leaq	256(%rsp), %r11
+        movq	%rsp, %r10
+        movq	(%r10), %rax
+        subq	(%r11), %rax
+        movq	8(%r10), %rcx
+        movq	%rax, (%r10)
+        sbbq	8(%r11), %rcx
+        movq	16(%r10), %r8
+        movq	%rcx, 8(%r10)
+        sbbq	16(%r11), %r8
+        movq	24(%r10), %rax
+        movq	%r8, 16(%r10)
+        sbbq	24(%r11), %rax
+        movq	32(%r10), %rcx
+        movq	%rax, 24(%r10)
+        sbbq	32(%r11), %rcx
+        movq	40(%r10), %r8
+        movq	%rcx, 32(%r10)
+        sbbq	40(%r11), %r8
+        movq	48(%r10), %rax
+        movq	%r8, 40(%r10)
+        sbbq	48(%r11), %rax
+        movq	56(%r10), %rcx
+        movq	%rax, 48(%r10)
+        sbbq	56(%r11), %rcx
+        movq	64(%r10), %r8
+        movq	%rcx, 56(%r10)
+        sbbq	64(%r11), %r8
+        movq	72(%r10), %rax
+        movq	%r8, 64(%r10)
+        sbbq	72(%r11), %rax
+        movq	80(%r10), %rcx
+        movq	%rax, 72(%r10)
+        sbbq	80(%r11), %rcx
+        movq	88(%r10), %r8
+        movq	%rcx, 80(%r10)
+        sbbq	88(%r11), %r8
+        movq	96(%r10), %rax
+        movq	%r8, 88(%r10)
+        sbbq	96(%r11), %rax
+        movq	104(%r10), %rcx
+        movq	%rax, 96(%r10)
+        sbbq	104(%r11), %rcx
+        movq	112(%r10), %r8
+        movq	%rcx, 104(%r10)
+        sbbq	112(%r11), %r8
+        movq	120(%r10), %rax
+        movq	%r8, 112(%r10)
+        sbbq	120(%r11), %rax
+        movq	128(%r10), %rcx
+        movq	%rax, 120(%r10)
+        sbbq	128(%r11), %rcx
+        movq	136(%r10), %r8
+        movq	%rcx, 128(%r10)
+        sbbq	136(%r11), %r8
+        movq	144(%r10), %rax
+        movq	%r8, 136(%r10)
+        sbbq	144(%r11), %rax
+        movq	152(%r10), %rcx
+        movq	%rax, 144(%r10)
+        sbbq	152(%r11), %rcx
+        movq	160(%r10), %r8
+        movq	%rcx, 152(%r10)
+        sbbq	160(%r11), %r8
+        movq	168(%r10), %rax
+        movq	%r8, 160(%r10)
+        sbbq	168(%r11), %rax
+        movq	176(%r10), %rcx
+        movq	%rax, 168(%r10)
+        sbbq	176(%r11), %rcx
+        movq	184(%r10), %r8
+        movq	%rcx, 176(%r10)
+        sbbq	184(%r11), %r8
+        movq	192(%r10), %rax
+        movq	%r8, 184(%r10)
+        sbbq	192(%r11), %rax
+        movq	200(%r10), %rcx
+        movq	%rax, 192(%r10)
+        sbbq	200(%r11), %rcx
+        movq	208(%r10), %r8
+        movq	%rcx, 200(%r10)
+        sbbq	208(%r11), %r8
+        movq	216(%r10), %rax
+        movq	%r8, 208(%r10)
+        sbbq	216(%r11), %rax
+        movq	224(%r10), %rcx
+        movq	%rax, 216(%r10)
+        sbbq	224(%r11), %rcx
+        movq	232(%r10), %r8
+        movq	%rcx, 224(%r10)
+        sbbq	232(%r11), %r8
+        movq	240(%r10), %rax
+        movq	%r8, 232(%r10)
+        sbbq	240(%r11), %rax
+        movq	248(%r10), %rcx
+        movq	%rax, 240(%r10)
+        sbbq	248(%r11), %rcx
+        movq	%rcx, 248(%r10)
+        sbbq	$0x00, %r9
+        movq	(%r10), %rax
+        subq	(%rdi), %rax
+        movq	8(%r10), %rcx
+        movq	%rax, (%r10)
+        sbbq	8(%rdi), %rcx
+        movq	16(%r10), %r8
+        movq	%rcx, 8(%r10)
+        sbbq	16(%rdi), %r8
+        movq	24(%r10), %rax
+        movq	%r8, 16(%r10)
+        sbbq	24(%rdi), %rax
+        movq	32(%r10), %rcx
+        movq	%rax, 24(%r10)
+        sbbq	32(%rdi), %rcx
+        movq	40(%r10), %r8
+        movq	%rcx, 32(%r10)
+        sbbq	40(%rdi), %r8
+        movq	48(%r10), %rax
+        movq	%r8, 40(%r10)
+        sbbq	48(%rdi), %rax
+        movq	56(%r10), %rcx
+        movq	%rax, 48(%r10)
+        sbbq	56(%rdi), %rcx
+        movq	64(%r10), %r8
+        movq	%rcx, 56(%r10)
+        sbbq	64(%rdi), %r8
+        movq	72(%r10), %rax
+        movq	%r8, 64(%r10)
+        sbbq	72(%rdi), %rax
+        movq	80(%r10), %rcx
+        movq	%rax, 72(%r10)
+        sbbq	80(%rdi), %rcx
+        movq	88(%r10), %r8
+        movq	%rcx, 80(%r10)
+        sbbq	88(%rdi), %r8
+        movq	96(%r10), %rax
+        movq	%r8, 88(%r10)
+        sbbq	96(%rdi), %rax
+        movq	104(%r10), %rcx
+        movq	%rax, 96(%r10)
+        sbbq	104(%rdi), %rcx
+        movq	112(%r10), %r8
+        movq	%rcx, 104(%r10)
+        sbbq	112(%rdi), %r8
+        movq	120(%r10), %rax
+        movq	%r8, 112(%r10)
+        sbbq	120(%rdi), %rax
+        movq	128(%r10), %rcx
+        movq	%rax, 120(%r10)
+        sbbq	128(%rdi), %rcx
+        movq	136(%r10), %r8
+        movq	%rcx, 128(%r10)
+        sbbq	136(%rdi), %r8
+        movq	144(%r10), %rax
+        movq	%r8, 136(%r10)
+        sbbq	144(%rdi), %rax
+        movq	152(%r10), %rcx
+        movq	%rax, 144(%r10)
+        sbbq	152(%rdi), %rcx
+        movq	160(%r10), %r8
+        movq	%rcx, 152(%r10)
+        sbbq	160(%rdi), %r8
+        movq	168(%r10), %rax
+        movq	%r8, 160(%r10)
+        sbbq	168(%rdi), %rax
+        movq	176(%r10), %rcx
+        movq	%rax, 168(%r10)
+        sbbq	176(%rdi), %rcx
+        movq	184(%r10), %r8
+        movq	%rcx, 176(%r10)
+        sbbq	184(%rdi), %r8
+        movq	192(%r10), %rax
+        movq	%r8, 184(%r10)
+        sbbq	192(%rdi), %rax
+        movq	200(%r10), %rcx
+        movq	%rax, 192(%r10)
+        sbbq	200(%rdi), %rcx
+        movq	208(%r10), %r8
+        movq	%rcx, 200(%r10)
+        sbbq	208(%rdi), %r8
+        movq	216(%r10), %rax
+        movq	%r8, 208(%r10)
+        sbbq	216(%rdi), %rax
+        movq	224(%r10), %rcx
+        movq	%rax, 216(%r10)
+        sbbq	224(%rdi), %rcx
+        movq	232(%r10), %r8
+        movq	%rcx, 224(%r10)
+        sbbq	232(%rdi), %r8
+        movq	240(%r10), %rax
+        movq	%r8, 232(%r10)
+        sbbq	240(%rdi), %rax
+        movq	248(%r10), %rcx
+        movq	%rax, 240(%r10)
+        sbbq	248(%rdi), %rcx
+        movq	%rcx, 248(%r10)
+        sbbq	$0x00, %r9
+        subq	$0x80, %r15
+        # Add
+        movq	(%r15), %rax
+        addq	(%r10), %rax
+        movq	8(%r15), %rcx
+        movq	%rax, (%r15)
+        adcq	8(%r10), %rcx
+        movq	16(%r15), %r8
+        movq	%rcx, 8(%r15)
+        adcq	16(%r10), %r8
+        movq	24(%r15), %rax
+        movq	%r8, 16(%r15)
+        adcq	24(%r10), %rax
+        movq	32(%r15), %rcx
+        movq	%rax, 24(%r15)
+        adcq	32(%r10), %rcx
+        movq	40(%r15), %r8
+        movq	%rcx, 32(%r15)
+        adcq	40(%r10), %r8
+        movq	48(%r15), %rax
+        movq	%r8, 40(%r15)
+        adcq	48(%r10), %rax
+        movq	56(%r15), %rcx
+        movq	%rax, 48(%r15)
+        adcq	56(%r10), %rcx
+        movq	64(%r15), %r8
+        movq	%rcx, 56(%r15)
+        adcq	64(%r10), %r8
+        movq	72(%r15), %rax
+        movq	%r8, 64(%r15)
+        adcq	72(%r10), %rax
+        movq	80(%r15), %rcx
+        movq	%rax, 72(%r15)
+        adcq	80(%r10), %rcx
+        movq	88(%r15), %r8
+        movq	%rcx, 80(%r15)
+        adcq	88(%r10), %r8
+        movq	96(%r15), %rax
+        movq	%r8, 88(%r15)
+        adcq	96(%r10), %rax
+        movq	104(%r15), %rcx
+        movq	%rax, 96(%r15)
+        adcq	104(%r10), %rcx
+        movq	112(%r15), %r8
+        movq	%rcx, 104(%r15)
+        adcq	112(%r10), %r8
+        movq	120(%r15), %rax
+        movq	%r8, 112(%r15)
+        adcq	120(%r10), %rax
+        movq	128(%r15), %rcx
+        movq	%rax, 120(%r15)
+        adcq	128(%r10), %rcx
+        movq	136(%r15), %r8
+        movq	%rcx, 128(%r15)
+        adcq	136(%r10), %r8
+        movq	144(%r15), %rax
+        movq	%r8, 136(%r15)
+        adcq	144(%r10), %rax
+        movq	152(%r15), %rcx
+        movq	%rax, 144(%r15)
+        adcq	152(%r10), %rcx
+        movq	160(%r15), %r8
+        movq	%rcx, 152(%r15)
+        adcq	160(%r10), %r8
+        movq	168(%r15), %rax
+        movq	%r8, 160(%r15)
+        adcq	168(%r10), %rax
+        movq	176(%r15), %rcx
+        movq	%rax, 168(%r15)
+        adcq	176(%r10), %rcx
+        movq	184(%r15), %r8
+        movq	%rcx, 176(%r15)
+        adcq	184(%r10), %r8
+        movq	192(%r15), %rax
+        movq	%r8, 184(%r15)
+        adcq	192(%r10), %rax
+        movq	200(%r15), %rcx
+        movq	%rax, 192(%r15)
+        adcq	200(%r10), %rcx
+        movq	208(%r15), %r8
+        movq	%rcx, 200(%r15)
+        adcq	208(%r10), %r8
+        movq	216(%r15), %rax
+        movq	%r8, 208(%r15)
+        adcq	216(%r10), %rax
+        movq	224(%r15), %rcx
+        movq	%rax, 216(%r15)
+        adcq	224(%r10), %rcx
+        movq	232(%r15), %r8
+        movq	%rcx, 224(%r15)
+        adcq	232(%r10), %r8
+        movq	240(%r15), %rax
+        movq	%r8, 232(%r15)
+        adcq	240(%r10), %rax
+        movq	248(%r15), %rcx
+        movq	%rax, 240(%r15)
+        adcq	248(%r10), %rcx
+        movq	%rcx, 248(%r15)
+        adcq	$0x00, %r9
+        movq	%r9, 384(%rdi)
+        addq	$0x80, %r15
+        # Add
+        movq	(%r15), %rax
+        xorq	%r9, %r9
+        addq	(%r11), %rax
+        movq	8(%r15), %rcx
+        movq	%rax, (%r15)
+        adcq	8(%r11), %rcx
+        movq	16(%r15), %r8
+        movq	%rcx, 8(%r15)
+        adcq	16(%r11), %r8
+        movq	24(%r15), %rax
+        movq	%r8, 16(%r15)
+        adcq	24(%r11), %rax
+        movq	32(%r15), %rcx
+        movq	%rax, 24(%r15)
+        adcq	32(%r11), %rcx
+        movq	40(%r15), %r8
+        movq	%rcx, 32(%r15)
+        adcq	40(%r11), %r8
+        movq	48(%r15), %rax
+        movq	%r8, 40(%r15)
+        adcq	48(%r11), %rax
+        movq	56(%r15), %rcx
+        movq	%rax, 48(%r15)
+        adcq	56(%r11), %rcx
+        movq	64(%r15), %r8
+        movq	%rcx, 56(%r15)
+        adcq	64(%r11), %r8
+        movq	72(%r15), %rax
+        movq	%r8, 64(%r15)
+        adcq	72(%r11), %rax
+        movq	80(%r15), %rcx
+        movq	%rax, 72(%r15)
+        adcq	80(%r11), %rcx
+        movq	88(%r15), %r8
+        movq	%rcx, 80(%r15)
+        adcq	88(%r11), %r8
+        movq	96(%r15), %rax
+        movq	%r8, 88(%r15)
+        adcq	96(%r11), %rax
+        movq	104(%r15), %rcx
+        movq	%rax, 96(%r15)
+        adcq	104(%r11), %rcx
+        movq	112(%r15), %r8
+        movq	%rcx, 104(%r15)
+        adcq	112(%r11), %r8
+        movq	120(%r15), %rax
+        movq	%r8, 112(%r15)
+        adcq	120(%r11), %rax
+        movq	128(%r15), %rcx
+        movq	%rax, 120(%r15)
+        adcq	128(%r11), %rcx
+        movq	%rcx, 128(%r15)
+        adcq	$0x00, %r9
+        # Add to zero
+        movq	136(%r11), %rax
+        adcq	$0x00, %rax
+        movq	144(%r11), %rcx
+        movq	%rax, 136(%r15)
+        adcq	$0x00, %rcx
+        movq	152(%r11), %r8
+        movq	%rcx, 144(%r15)
+        adcq	$0x00, %r8
+        movq	160(%r11), %rax
+        movq	%r8, 152(%r15)
+        adcq	$0x00, %rax
+        movq	168(%r11), %rcx
+        movq	%rax, 160(%r15)
+        adcq	$0x00, %rcx
+        movq	176(%r11), %r8
+        movq	%rcx, 168(%r15)
+        adcq	$0x00, %r8
+        movq	184(%r11), %rax
+        movq	%r8, 176(%r15)
+        adcq	$0x00, %rax
+        movq	192(%r11), %rcx
+        movq	%rax, 184(%r15)
+        adcq	$0x00, %rcx
+        movq	200(%r11), %r8
+        movq	%rcx, 192(%r15)
+        adcq	$0x00, %r8
+        movq	208(%r11), %rax
+        movq	%r8, 200(%r15)
+        adcq	$0x00, %rax
+        movq	216(%r11), %rcx
+        movq	%rax, 208(%r15)
+        adcq	$0x00, %rcx
+        movq	224(%r11), %r8
+        movq	%rcx, 216(%r15)
+        adcq	$0x00, %r8
+        movq	232(%r11), %rax
+        movq	%r8, 224(%r15)
+        adcq	$0x00, %rax
+        movq	240(%r11), %rcx
+        movq	%rax, 232(%r15)
+        adcq	$0x00, %rcx
+        movq	248(%r11), %r8
+        movq	%rcx, 240(%r15)
+        adcq	$0x00, %r8
+        movq	%r8, 248(%r15)
+        addq	$0x328, %rsp
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_mul_avx2_32,.-sp_2048_mul_avx2_32
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_sqr_16
+.type	sp_2048_sqr_16,@function
+.align	16
+sp_2048_sqr_16:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_sqr_16
+.p2align	4
+_sp_2048_sqr_16:
+#endif /* __APPLE__ */
+        pushq	%r12
+        subq	$0x80, %rsp
+        # A[0] * A[0]
+        movq	(%rsi), %rax
+        mulq	%rax
+        xorq	%r9, %r9
+        movq	%rax, (%rsp)
+        movq	%rdx, %r8
+        # A[0] * A[1]
+        movq	8(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 8(%rsp)
+        # A[0] * A[2]
+        movq	16(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        # A[1] * A[1]
+        movq	8(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        movq	%r9, 16(%rsp)
+        # A[0] * A[3]
+        movq	24(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        # A[1] * A[2]
+        movq	16(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        movq	%rcx, 24(%rsp)
+        # A[0] * A[4]
+        movq	32(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[1] * A[3]
+        movq	24(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[2] * A[2]
+        movq	16(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 32(%rsp)
+        # A[0] * A[5]
+        movq	40(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[4]
+        movq	32(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[3]
+        movq	24(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 40(%rsp)
+        # A[0] * A[6]
+        movq	48(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[5]
+        movq	40(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[4]
+        movq	32(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[3]
+        movq	24(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 48(%rsp)
+        # A[0] * A[7]
+        movq	56(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[6]
+        movq	48(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[5]
+        movq	40(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[4]
+        movq	32(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 56(%rsp)
+        # A[0] * A[8]
+        movq	64(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[7]
+        movq	56(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[6]
+        movq	48(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[5]
+        movq	40(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[4]
+        movq	32(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 64(%rsp)
+        # A[0] * A[9]
+        movq	72(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[8]
+        movq	64(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[7]
+        movq	56(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[6]
+        movq	48(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[5]
+        movq	40(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 72(%rsp)
+        # A[0] * A[10]
+        movq	80(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[9]
+        movq	72(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[8]
+        movq	64(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[7]
+        movq	56(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[6]
+        movq	48(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[5]
+        movq	40(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 80(%rsp)
+        # A[0] * A[11]
+        movq	88(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[10]
+        movq	80(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[9]
+        movq	72(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[8]
+        movq	64(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[7]
+        movq	56(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[6]
+        movq	48(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 88(%rsp)
+        # A[0] * A[12]
+        movq	96(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[11]
+        movq	88(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[10]
+        movq	80(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[9]
+        movq	72(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[8]
+        movq	64(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[7]
+        movq	56(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[6]
+        movq	48(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 96(%rsp)
+        # A[0] * A[13]
+        movq	104(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[12]
+        movq	96(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[11]
+        movq	88(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[10]
+        movq	80(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[9]
+        movq	72(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[8]
+        movq	64(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[7]
+        movq	56(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 104(%rsp)
+        # A[0] * A[14]
+        movq	112(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[13]
+        movq	104(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[12]
+        movq	96(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[11]
+        movq	88(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[10]
+        movq	80(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[9]
+        movq	72(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[8]
+        movq	64(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[7]
+        movq	56(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 112(%rsp)
+        # A[0] * A[15]
+        movq	120(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[14]
+        movq	112(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[13]
+        movq	104(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[12]
+        movq	96(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[11]
+        movq	88(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[10]
+        movq	80(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[9]
+        movq	72(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[8]
+        movq	64(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 120(%rsp)
+        # A[1] * A[15]
+        movq	120(%rsi), %rax
+        mulq	8(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[2] * A[14]
+        movq	112(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[13]
+        movq	104(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[12]
+        movq	96(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[11]
+        movq	88(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[10]
+        movq	80(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[9]
+        movq	72(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[8]
+        movq	64(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 128(%rdi)
+        # A[2] * A[15]
+        movq	120(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[3] * A[14]
+        movq	112(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[13]
+        movq	104(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[12]
+        movq	96(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[11]
+        movq	88(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[10]
+        movq	80(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[9]
+        movq	72(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 136(%rdi)
+        # A[3] * A[15]
+        movq	120(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[4] * A[14]
+        movq	112(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[13]
+        movq	104(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[12]
+        movq	96(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[11]
+        movq	88(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[10]
+        movq	80(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[9] * A[9]
+        movq	72(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 144(%rdi)
+        # A[4] * A[15]
+        movq	120(%rsi), %rax
+        mulq	32(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[5] * A[14]
+        movq	112(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[13]
+        movq	104(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[12]
+        movq	96(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[11]
+        movq	88(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[9] * A[10]
+        movq	80(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 152(%rdi)
+        # A[5] * A[15]
+        movq	120(%rsi), %rax
+        mulq	40(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[6] * A[14]
+        movq	112(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[13]
+        movq	104(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[12]
+        movq	96(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[9] * A[11]
+        movq	88(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[10] * A[10]
+        movq	80(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 160(%rdi)
+        # A[6] * A[15]
+        movq	120(%rsi), %rax
+        mulq	48(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[7] * A[14]
+        movq	112(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[13]
+        movq	104(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[9] * A[12]
+        movq	96(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[10] * A[11]
+        movq	88(%rsi), %rax
+        mulq	80(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 168(%rdi)
+        # A[7] * A[15]
+        movq	120(%rsi), %rax
+        mulq	56(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[8] * A[14]
+        movq	112(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[9] * A[13]
+        movq	104(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[10] * A[12]
+        movq	96(%rsi), %rax
+        mulq	80(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[11] * A[11]
+        movq	88(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 176(%rdi)
+        # A[8] * A[15]
+        movq	120(%rsi), %rax
+        mulq	64(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[9] * A[14]
+        movq	112(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[10] * A[13]
+        movq	104(%rsi), %rax
+        mulq	80(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[11] * A[12]
+        movq	96(%rsi), %rax
+        mulq	88(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 184(%rdi)
+        # A[9] * A[15]
+        movq	120(%rsi), %rax
+        mulq	72(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[10] * A[14]
+        movq	112(%rsi), %rax
+        mulq	80(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[11] * A[13]
+        movq	104(%rsi), %rax
+        mulq	88(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[12] * A[12]
+        movq	96(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 192(%rdi)
+        # A[10] * A[15]
+        movq	120(%rsi), %rax
+        mulq	80(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[11] * A[14]
+        movq	112(%rsi), %rax
+        mulq	88(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[12] * A[13]
+        movq	104(%rsi), %rax
+        mulq	96(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 200(%rdi)
+        # A[11] * A[15]
+        movq	120(%rsi), %rax
+        mulq	88(%rsi)
+        xorq	%r8, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        # A[12] * A[14]
+        movq	112(%rsi), %rax
+        mulq	96(%rsi)
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        # A[13] * A[13]
+        movq	104(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        movq	%r9, 208(%rdi)
+        # A[12] * A[15]
+        movq	120(%rsi), %rax
+        mulq	96(%rsi)
+        xorq	%r9, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        # A[13] * A[14]
+        movq	112(%rsi), %rax
+        mulq	104(%rsi)
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        movq	%rcx, 216(%rdi)
+        # A[13] * A[15]
+        movq	120(%rsi), %rax
+        mulq	104(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[14] * A[14]
+        movq	112(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 224(%rdi)
+        # A[14] * A[15]
+        movq	120(%rsi), %rax
+        mulq	112(%rsi)
+        xorq	%r8, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        movq	%r9, 232(%rdi)
+        # A[15] * A[15]
+        movq	120(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        movq	%rcx, 240(%rdi)
+        movq	%r8, 248(%rdi)
+        movq	(%rsp), %rax
+        movq	8(%rsp), %rdx
+        movq	16(%rsp), %r10
+        movq	24(%rsp), %r11
+        movq	%rax, (%rdi)
+        movq	%rdx, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        movq	32(%rsp), %rax
+        movq	40(%rsp), %rdx
+        movq	48(%rsp), %r10
+        movq	56(%rsp), %r11
+        movq	%rax, 32(%rdi)
+        movq	%rdx, 40(%rdi)
+        movq	%r10, 48(%rdi)
+        movq	%r11, 56(%rdi)
+        movq	64(%rsp), %rax
+        movq	72(%rsp), %rdx
+        movq	80(%rsp), %r10
+        movq	88(%rsp), %r11
+        movq	%rax, 64(%rdi)
+        movq	%rdx, 72(%rdi)
+        movq	%r10, 80(%rdi)
+        movq	%r11, 88(%rdi)
+        movq	96(%rsp), %rax
+        movq	104(%rsp), %rdx
+        movq	112(%rsp), %r10
+        movq	120(%rsp), %r11
+        movq	%rax, 96(%rdi)
+        movq	%rdx, 104(%rdi)
+        movq	%r10, 112(%rdi)
+        movq	%r11, 120(%rdi)
+        addq	$0x80, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_sqr_16,.-sp_2048_sqr_16
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
@@ -5899,1045 +7618,6 @@ L_end_2048_sqr_avx2_16:
 .size	sp_2048_sqr_avx2_16,.-sp_2048_sqr_avx2_16
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_add_16
-.type	sp_2048_add_16,@function
-.align	16
-sp_2048_add_16:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_add_16
-.p2align	4
-_sp_2048_add_16:
-#endif /* __APPLE__ */
-        # Add
-        movq	(%rsi), %rcx
-        xorq	%rax, %rax
-        addq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        adcq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        adcq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        adcq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        adcq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        adcq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        adcq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        adcq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        adcq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        adcq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        adcq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        adcq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        adcq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        adcq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        adcq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        adcq	120(%rdx), %r8
-        movq	%r8, 120(%rdi)
-        adcq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_add_16,.-sp_2048_add_16
-#endif /* __APPLE__ */
-/* Sub b from a into a. (a -= b)
- *
- * a  A single precision integer and result.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_sub_in_place_32
-.type	sp_2048_sub_in_place_32,@function
-.align	16
-sp_2048_sub_in_place_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_sub_in_place_32
-.p2align	4
-_sp_2048_sub_in_place_32:
-#endif /* __APPLE__ */
-        movq	(%rdi), %rdx
-        xorq	%rax, %rax
-        subq	(%rsi), %rdx
-        movq	8(%rdi), %rcx
-        movq	%rdx, (%rdi)
-        sbbq	8(%rsi), %rcx
-        movq	16(%rdi), %rdx
-        movq	%rcx, 8(%rdi)
-        sbbq	16(%rsi), %rdx
-        movq	24(%rdi), %rcx
-        movq	%rdx, 16(%rdi)
-        sbbq	24(%rsi), %rcx
-        movq	32(%rdi), %rdx
-        movq	%rcx, 24(%rdi)
-        sbbq	32(%rsi), %rdx
-        movq	40(%rdi), %rcx
-        movq	%rdx, 32(%rdi)
-        sbbq	40(%rsi), %rcx
-        movq	48(%rdi), %rdx
-        movq	%rcx, 40(%rdi)
-        sbbq	48(%rsi), %rdx
-        movq	56(%rdi), %rcx
-        movq	%rdx, 48(%rdi)
-        sbbq	56(%rsi), %rcx
-        movq	64(%rdi), %rdx
-        movq	%rcx, 56(%rdi)
-        sbbq	64(%rsi), %rdx
-        movq	72(%rdi), %rcx
-        movq	%rdx, 64(%rdi)
-        sbbq	72(%rsi), %rcx
-        movq	80(%rdi), %rdx
-        movq	%rcx, 72(%rdi)
-        sbbq	80(%rsi), %rdx
-        movq	88(%rdi), %rcx
-        movq	%rdx, 80(%rdi)
-        sbbq	88(%rsi), %rcx
-        movq	96(%rdi), %rdx
-        movq	%rcx, 88(%rdi)
-        sbbq	96(%rsi), %rdx
-        movq	104(%rdi), %rcx
-        movq	%rdx, 96(%rdi)
-        sbbq	104(%rsi), %rcx
-        movq	112(%rdi), %rdx
-        movq	%rcx, 104(%rdi)
-        sbbq	112(%rsi), %rdx
-        movq	120(%rdi), %rcx
-        movq	%rdx, 112(%rdi)
-        sbbq	120(%rsi), %rcx
-        movq	128(%rdi), %rdx
-        movq	%rcx, 120(%rdi)
-        sbbq	128(%rsi), %rdx
-        movq	136(%rdi), %rcx
-        movq	%rdx, 128(%rdi)
-        sbbq	136(%rsi), %rcx
-        movq	144(%rdi), %rdx
-        movq	%rcx, 136(%rdi)
-        sbbq	144(%rsi), %rdx
-        movq	152(%rdi), %rcx
-        movq	%rdx, 144(%rdi)
-        sbbq	152(%rsi), %rcx
-        movq	160(%rdi), %rdx
-        movq	%rcx, 152(%rdi)
-        sbbq	160(%rsi), %rdx
-        movq	168(%rdi), %rcx
-        movq	%rdx, 160(%rdi)
-        sbbq	168(%rsi), %rcx
-        movq	176(%rdi), %rdx
-        movq	%rcx, 168(%rdi)
-        sbbq	176(%rsi), %rdx
-        movq	184(%rdi), %rcx
-        movq	%rdx, 176(%rdi)
-        sbbq	184(%rsi), %rcx
-        movq	192(%rdi), %rdx
-        movq	%rcx, 184(%rdi)
-        sbbq	192(%rsi), %rdx
-        movq	200(%rdi), %rcx
-        movq	%rdx, 192(%rdi)
-        sbbq	200(%rsi), %rcx
-        movq	208(%rdi), %rdx
-        movq	%rcx, 200(%rdi)
-        sbbq	208(%rsi), %rdx
-        movq	216(%rdi), %rcx
-        movq	%rdx, 208(%rdi)
-        sbbq	216(%rsi), %rcx
-        movq	224(%rdi), %rdx
-        movq	%rcx, 216(%rdi)
-        sbbq	224(%rsi), %rdx
-        movq	232(%rdi), %rcx
-        movq	%rdx, 224(%rdi)
-        sbbq	232(%rsi), %rcx
-        movq	240(%rdi), %rdx
-        movq	%rcx, 232(%rdi)
-        sbbq	240(%rsi), %rdx
-        movq	248(%rdi), %rcx
-        movq	%rdx, 240(%rdi)
-        sbbq	248(%rsi), %rcx
-        movq	%rcx, 248(%rdi)
-        sbbq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_sub_in_place_32,.-sp_2048_sub_in_place_32
-#endif /* __APPLE__ */
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_add_32
-.type	sp_2048_add_32,@function
-.align	16
-sp_2048_add_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_add_32
-.p2align	4
-_sp_2048_add_32:
-#endif /* __APPLE__ */
-        # Add
-        movq	(%rsi), %rcx
-        xorq	%rax, %rax
-        addq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        adcq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        adcq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        adcq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        adcq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        adcq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        adcq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        adcq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        adcq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        adcq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        adcq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        adcq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        adcq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        adcq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        adcq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        adcq	120(%rdx), %r8
-        movq	128(%rsi), %rcx
-        movq	%r8, 120(%rdi)
-        adcq	128(%rdx), %rcx
-        movq	136(%rsi), %r8
-        movq	%rcx, 128(%rdi)
-        adcq	136(%rdx), %r8
-        movq	144(%rsi), %rcx
-        movq	%r8, 136(%rdi)
-        adcq	144(%rdx), %rcx
-        movq	152(%rsi), %r8
-        movq	%rcx, 144(%rdi)
-        adcq	152(%rdx), %r8
-        movq	160(%rsi), %rcx
-        movq	%r8, 152(%rdi)
-        adcq	160(%rdx), %rcx
-        movq	168(%rsi), %r8
-        movq	%rcx, 160(%rdi)
-        adcq	168(%rdx), %r8
-        movq	176(%rsi), %rcx
-        movq	%r8, 168(%rdi)
-        adcq	176(%rdx), %rcx
-        movq	184(%rsi), %r8
-        movq	%rcx, 176(%rdi)
-        adcq	184(%rdx), %r8
-        movq	192(%rsi), %rcx
-        movq	%r8, 184(%rdi)
-        adcq	192(%rdx), %rcx
-        movq	200(%rsi), %r8
-        movq	%rcx, 192(%rdi)
-        adcq	200(%rdx), %r8
-        movq	208(%rsi), %rcx
-        movq	%r8, 200(%rdi)
-        adcq	208(%rdx), %rcx
-        movq	216(%rsi), %r8
-        movq	%rcx, 208(%rdi)
-        adcq	216(%rdx), %r8
-        movq	224(%rsi), %rcx
-        movq	%r8, 216(%rdi)
-        adcq	224(%rdx), %rcx
-        movq	232(%rsi), %r8
-        movq	%rcx, 224(%rdi)
-        adcq	232(%rdx), %r8
-        movq	240(%rsi), %rcx
-        movq	%r8, 232(%rdi)
-        adcq	240(%rdx), %rcx
-        movq	248(%rsi), %r8
-        movq	%rcx, 240(%rdi)
-        adcq	248(%rdx), %r8
-        movq	%r8, 248(%rdi)
-        adcq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_add_32,.-sp_2048_add_32
-#endif /* __APPLE__ */
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_mul_32
-.type	sp_2048_mul_32,@function
-.align	16
-sp_2048_mul_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_mul_32
-.p2align	4
-_sp_2048_mul_32:
-#endif /* __APPLE__ */
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x328, %rsp
-        movq	%rdi, 768(%rsp)
-        movq	%rsi, 776(%rsp)
-        movq	%rdx, 784(%rsp)
-        leaq	512(%rsp), %r10
-        leaq	128(%rsi), %r12
-        # Add
-        movq	(%rsi), %rax
-        xorq	%r13, %r13
-        addq	(%r12), %rax
-        movq	8(%rsi), %rcx
-        movq	%rax, (%r10)
-        adcq	8(%r12), %rcx
-        movq	16(%rsi), %r8
-        movq	%rcx, 8(%r10)
-        adcq	16(%r12), %r8
-        movq	24(%rsi), %rax
-        movq	%r8, 16(%r10)
-        adcq	24(%r12), %rax
-        movq	32(%rsi), %rcx
-        movq	%rax, 24(%r10)
-        adcq	32(%r12), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%r10)
-        adcq	40(%r12), %r8
-        movq	48(%rsi), %rax
-        movq	%r8, 40(%r10)
-        adcq	48(%r12), %rax
-        movq	56(%rsi), %rcx
-        movq	%rax, 48(%r10)
-        adcq	56(%r12), %rcx
-        movq	64(%rsi), %r8
-        movq	%rcx, 56(%r10)
-        adcq	64(%r12), %r8
-        movq	72(%rsi), %rax
-        movq	%r8, 64(%r10)
-        adcq	72(%r12), %rax
-        movq	80(%rsi), %rcx
-        movq	%rax, 72(%r10)
-        adcq	80(%r12), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%r10)
-        adcq	88(%r12), %r8
-        movq	96(%rsi), %rax
-        movq	%r8, 88(%r10)
-        adcq	96(%r12), %rax
-        movq	104(%rsi), %rcx
-        movq	%rax, 96(%r10)
-        adcq	104(%r12), %rcx
-        movq	112(%rsi), %r8
-        movq	%rcx, 104(%r10)
-        adcq	112(%r12), %r8
-        movq	120(%rsi), %rax
-        movq	%r8, 112(%r10)
-        adcq	120(%r12), %rax
-        movq	%rax, 120(%r10)
-        adcq	$0x00, %r13
-        movq	%r13, 792(%rsp)
-        leaq	640(%rsp), %r11
-        leaq	128(%rdx), %r12
-        # Add
-        movq	(%rdx), %rax
-        xorq	%r14, %r14
-        addq	(%r12), %rax
-        movq	8(%rdx), %rcx
-        movq	%rax, (%r11)
-        adcq	8(%r12), %rcx
-        movq	16(%rdx), %r8
-        movq	%rcx, 8(%r11)
-        adcq	16(%r12), %r8
-        movq	24(%rdx), %rax
-        movq	%r8, 16(%r11)
-        adcq	24(%r12), %rax
-        movq	32(%rdx), %rcx
-        movq	%rax, 24(%r11)
-        adcq	32(%r12), %rcx
-        movq	40(%rdx), %r8
-        movq	%rcx, 32(%r11)
-        adcq	40(%r12), %r8
-        movq	48(%rdx), %rax
-        movq	%r8, 40(%r11)
-        adcq	48(%r12), %rax
-        movq	56(%rdx), %rcx
-        movq	%rax, 48(%r11)
-        adcq	56(%r12), %rcx
-        movq	64(%rdx), %r8
-        movq	%rcx, 56(%r11)
-        adcq	64(%r12), %r8
-        movq	72(%rdx), %rax
-        movq	%r8, 64(%r11)
-        adcq	72(%r12), %rax
-        movq	80(%rdx), %rcx
-        movq	%rax, 72(%r11)
-        adcq	80(%r12), %rcx
-        movq	88(%rdx), %r8
-        movq	%rcx, 80(%r11)
-        adcq	88(%r12), %r8
-        movq	96(%rdx), %rax
-        movq	%r8, 88(%r11)
-        adcq	96(%r12), %rax
-        movq	104(%rdx), %rcx
-        movq	%rax, 96(%r11)
-        adcq	104(%r12), %rcx
-        movq	112(%rdx), %r8
-        movq	%rcx, 104(%r11)
-        adcq	112(%r12), %r8
-        movq	120(%rdx), %rax
-        movq	%r8, 112(%r11)
-        adcq	120(%r12), %rax
-        movq	%rax, 120(%r11)
-        adcq	$0x00, %r14
-        movq	%r14, 800(%rsp)
-        movq	%r11, %rdx
-        movq	%r10, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_2048_mul_16@plt
-#else
-        callq	_sp_2048_mul_16
-#endif /* __APPLE__ */
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        leaq	256(%rsp), %rdi
-        addq	$0x80, %rdx
-        addq	$0x80, %rsi
-#ifndef __APPLE__
-        callq	sp_2048_mul_16@plt
-#else
-        callq	_sp_2048_mul_16
-#endif /* __APPLE__ */
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        movq	768(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_2048_mul_16@plt
-#else
-        callq	_sp_2048_mul_16
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        movq	768(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	792(%rsp), %r13
-        movq	800(%rsp), %r14
-        movq	768(%rsp), %r15
-        movq	%r13, %r9
-        leaq	512(%rsp), %r10
-        leaq	640(%rsp), %r11
-        andq	%r14, %r9
-        negq	%r13
-        negq	%r14
-        addq	$0x100, %r15
-        movq	(%r10), %rax
-        movq	(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, (%r10)
-        movq	%rcx, (%r11)
-        movq	8(%r10), %rax
-        movq	8(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 8(%r10)
-        movq	%rcx, 8(%r11)
-        movq	16(%r10), %rax
-        movq	16(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 16(%r10)
-        movq	%rcx, 16(%r11)
-        movq	24(%r10), %rax
-        movq	24(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 24(%r10)
-        movq	%rcx, 24(%r11)
-        movq	32(%r10), %rax
-        movq	32(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 32(%r10)
-        movq	%rcx, 32(%r11)
-        movq	40(%r10), %rax
-        movq	40(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 40(%r10)
-        movq	%rcx, 40(%r11)
-        movq	48(%r10), %rax
-        movq	48(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 48(%r10)
-        movq	%rcx, 48(%r11)
-        movq	56(%r10), %rax
-        movq	56(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 56(%r10)
-        movq	%rcx, 56(%r11)
-        movq	64(%r10), %rax
-        movq	64(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 64(%r10)
-        movq	%rcx, 64(%r11)
-        movq	72(%r10), %rax
-        movq	72(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 72(%r10)
-        movq	%rcx, 72(%r11)
-        movq	80(%r10), %rax
-        movq	80(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 80(%r10)
-        movq	%rcx, 80(%r11)
-        movq	88(%r10), %rax
-        movq	88(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 88(%r10)
-        movq	%rcx, 88(%r11)
-        movq	96(%r10), %rax
-        movq	96(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 96(%r10)
-        movq	%rcx, 96(%r11)
-        movq	104(%r10), %rax
-        movq	104(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 104(%r10)
-        movq	%rcx, 104(%r11)
-        movq	112(%r10), %rax
-        movq	112(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 112(%r10)
-        movq	%rcx, 112(%r11)
-        movq	120(%r10), %rax
-        movq	120(%r11), %rcx
-        andq	%r14, %rax
-        andq	%r13, %rcx
-        movq	%rax, 120(%r10)
-        movq	%rcx, 120(%r11)
-        movq	(%r10), %rax
-        addq	(%r11), %rax
-        movq	8(%r10), %rcx
-        movq	%rax, (%r15)
-        adcq	8(%r11), %rcx
-        movq	16(%r10), %r8
-        movq	%rcx, 8(%r15)
-        adcq	16(%r11), %r8
-        movq	24(%r10), %rax
-        movq	%r8, 16(%r15)
-        adcq	24(%r11), %rax
-        movq	32(%r10), %rcx
-        movq	%rax, 24(%r15)
-        adcq	32(%r11), %rcx
-        movq	40(%r10), %r8
-        movq	%rcx, 32(%r15)
-        adcq	40(%r11), %r8
-        movq	48(%r10), %rax
-        movq	%r8, 40(%r15)
-        adcq	48(%r11), %rax
-        movq	56(%r10), %rcx
-        movq	%rax, 48(%r15)
-        adcq	56(%r11), %rcx
-        movq	64(%r10), %r8
-        movq	%rcx, 56(%r15)
-        adcq	64(%r11), %r8
-        movq	72(%r10), %rax
-        movq	%r8, 64(%r15)
-        adcq	72(%r11), %rax
-        movq	80(%r10), %rcx
-        movq	%rax, 72(%r15)
-        adcq	80(%r11), %rcx
-        movq	88(%r10), %r8
-        movq	%rcx, 80(%r15)
-        adcq	88(%r11), %r8
-        movq	96(%r10), %rax
-        movq	%r8, 88(%r15)
-        adcq	96(%r11), %rax
-        movq	104(%r10), %rcx
-        movq	%rax, 96(%r15)
-        adcq	104(%r11), %rcx
-        movq	112(%r10), %r8
-        movq	%rcx, 104(%r15)
-        adcq	112(%r11), %r8
-        movq	120(%r10), %rax
-        movq	%r8, 112(%r15)
-        adcq	120(%r11), %rax
-        movq	%rax, 120(%r15)
-        adcq	$0x00, %r9
-        leaq	256(%rsp), %r11
-        movq	%rsp, %r10
-        movq	(%r10), %rax
-        subq	(%r11), %rax
-        movq	8(%r10), %rcx
-        movq	%rax, (%r10)
-        sbbq	8(%r11), %rcx
-        movq	16(%r10), %r8
-        movq	%rcx, 8(%r10)
-        sbbq	16(%r11), %r8
-        movq	24(%r10), %rax
-        movq	%r8, 16(%r10)
-        sbbq	24(%r11), %rax
-        movq	32(%r10), %rcx
-        movq	%rax, 24(%r10)
-        sbbq	32(%r11), %rcx
-        movq	40(%r10), %r8
-        movq	%rcx, 32(%r10)
-        sbbq	40(%r11), %r8
-        movq	48(%r10), %rax
-        movq	%r8, 40(%r10)
-        sbbq	48(%r11), %rax
-        movq	56(%r10), %rcx
-        movq	%rax, 48(%r10)
-        sbbq	56(%r11), %rcx
-        movq	64(%r10), %r8
-        movq	%rcx, 56(%r10)
-        sbbq	64(%r11), %r8
-        movq	72(%r10), %rax
-        movq	%r8, 64(%r10)
-        sbbq	72(%r11), %rax
-        movq	80(%r10), %rcx
-        movq	%rax, 72(%r10)
-        sbbq	80(%r11), %rcx
-        movq	88(%r10), %r8
-        movq	%rcx, 80(%r10)
-        sbbq	88(%r11), %r8
-        movq	96(%r10), %rax
-        movq	%r8, 88(%r10)
-        sbbq	96(%r11), %rax
-        movq	104(%r10), %rcx
-        movq	%rax, 96(%r10)
-        sbbq	104(%r11), %rcx
-        movq	112(%r10), %r8
-        movq	%rcx, 104(%r10)
-        sbbq	112(%r11), %r8
-        movq	120(%r10), %rax
-        movq	%r8, 112(%r10)
-        sbbq	120(%r11), %rax
-        movq	128(%r10), %rcx
-        movq	%rax, 120(%r10)
-        sbbq	128(%r11), %rcx
-        movq	136(%r10), %r8
-        movq	%rcx, 128(%r10)
-        sbbq	136(%r11), %r8
-        movq	144(%r10), %rax
-        movq	%r8, 136(%r10)
-        sbbq	144(%r11), %rax
-        movq	152(%r10), %rcx
-        movq	%rax, 144(%r10)
-        sbbq	152(%r11), %rcx
-        movq	160(%r10), %r8
-        movq	%rcx, 152(%r10)
-        sbbq	160(%r11), %r8
-        movq	168(%r10), %rax
-        movq	%r8, 160(%r10)
-        sbbq	168(%r11), %rax
-        movq	176(%r10), %rcx
-        movq	%rax, 168(%r10)
-        sbbq	176(%r11), %rcx
-        movq	184(%r10), %r8
-        movq	%rcx, 176(%r10)
-        sbbq	184(%r11), %r8
-        movq	192(%r10), %rax
-        movq	%r8, 184(%r10)
-        sbbq	192(%r11), %rax
-        movq	200(%r10), %rcx
-        movq	%rax, 192(%r10)
-        sbbq	200(%r11), %rcx
-        movq	208(%r10), %r8
-        movq	%rcx, 200(%r10)
-        sbbq	208(%r11), %r8
-        movq	216(%r10), %rax
-        movq	%r8, 208(%r10)
-        sbbq	216(%r11), %rax
-        movq	224(%r10), %rcx
-        movq	%rax, 216(%r10)
-        sbbq	224(%r11), %rcx
-        movq	232(%r10), %r8
-        movq	%rcx, 224(%r10)
-        sbbq	232(%r11), %r8
-        movq	240(%r10), %rax
-        movq	%r8, 232(%r10)
-        sbbq	240(%r11), %rax
-        movq	248(%r10), %rcx
-        movq	%rax, 240(%r10)
-        sbbq	248(%r11), %rcx
-        movq	%rcx, 248(%r10)
-        sbbq	$0x00, %r9
-        movq	(%r10), %rax
-        subq	(%rdi), %rax
-        movq	8(%r10), %rcx
-        movq	%rax, (%r10)
-        sbbq	8(%rdi), %rcx
-        movq	16(%r10), %r8
-        movq	%rcx, 8(%r10)
-        sbbq	16(%rdi), %r8
-        movq	24(%r10), %rax
-        movq	%r8, 16(%r10)
-        sbbq	24(%rdi), %rax
-        movq	32(%r10), %rcx
-        movq	%rax, 24(%r10)
-        sbbq	32(%rdi), %rcx
-        movq	40(%r10), %r8
-        movq	%rcx, 32(%r10)
-        sbbq	40(%rdi), %r8
-        movq	48(%r10), %rax
-        movq	%r8, 40(%r10)
-        sbbq	48(%rdi), %rax
-        movq	56(%r10), %rcx
-        movq	%rax, 48(%r10)
-        sbbq	56(%rdi), %rcx
-        movq	64(%r10), %r8
-        movq	%rcx, 56(%r10)
-        sbbq	64(%rdi), %r8
-        movq	72(%r10), %rax
-        movq	%r8, 64(%r10)
-        sbbq	72(%rdi), %rax
-        movq	80(%r10), %rcx
-        movq	%rax, 72(%r10)
-        sbbq	80(%rdi), %rcx
-        movq	88(%r10), %r8
-        movq	%rcx, 80(%r10)
-        sbbq	88(%rdi), %r8
-        movq	96(%r10), %rax
-        movq	%r8, 88(%r10)
-        sbbq	96(%rdi), %rax
-        movq	104(%r10), %rcx
-        movq	%rax, 96(%r10)
-        sbbq	104(%rdi), %rcx
-        movq	112(%r10), %r8
-        movq	%rcx, 104(%r10)
-        sbbq	112(%rdi), %r8
-        movq	120(%r10), %rax
-        movq	%r8, 112(%r10)
-        sbbq	120(%rdi), %rax
-        movq	128(%r10), %rcx
-        movq	%rax, 120(%r10)
-        sbbq	128(%rdi), %rcx
-        movq	136(%r10), %r8
-        movq	%rcx, 128(%r10)
-        sbbq	136(%rdi), %r8
-        movq	144(%r10), %rax
-        movq	%r8, 136(%r10)
-        sbbq	144(%rdi), %rax
-        movq	152(%r10), %rcx
-        movq	%rax, 144(%r10)
-        sbbq	152(%rdi), %rcx
-        movq	160(%r10), %r8
-        movq	%rcx, 152(%r10)
-        sbbq	160(%rdi), %r8
-        movq	168(%r10), %rax
-        movq	%r8, 160(%r10)
-        sbbq	168(%rdi), %rax
-        movq	176(%r10), %rcx
-        movq	%rax, 168(%r10)
-        sbbq	176(%rdi), %rcx
-        movq	184(%r10), %r8
-        movq	%rcx, 176(%r10)
-        sbbq	184(%rdi), %r8
-        movq	192(%r10), %rax
-        movq	%r8, 184(%r10)
-        sbbq	192(%rdi), %rax
-        movq	200(%r10), %rcx
-        movq	%rax, 192(%r10)
-        sbbq	200(%rdi), %rcx
-        movq	208(%r10), %r8
-        movq	%rcx, 200(%r10)
-        sbbq	208(%rdi), %r8
-        movq	216(%r10), %rax
-        movq	%r8, 208(%r10)
-        sbbq	216(%rdi), %rax
-        movq	224(%r10), %rcx
-        movq	%rax, 216(%r10)
-        sbbq	224(%rdi), %rcx
-        movq	232(%r10), %r8
-        movq	%rcx, 224(%r10)
-        sbbq	232(%rdi), %r8
-        movq	240(%r10), %rax
-        movq	%r8, 232(%r10)
-        sbbq	240(%rdi), %rax
-        movq	248(%r10), %rcx
-        movq	%rax, 240(%r10)
-        sbbq	248(%rdi), %rcx
-        movq	%rcx, 248(%r10)
-        sbbq	$0x00, %r9
-        subq	$0x80, %r15
-        # Add
-        movq	(%r15), %rax
-        addq	(%r10), %rax
-        movq	8(%r15), %rcx
-        movq	%rax, (%r15)
-        adcq	8(%r10), %rcx
-        movq	16(%r15), %r8
-        movq	%rcx, 8(%r15)
-        adcq	16(%r10), %r8
-        movq	24(%r15), %rax
-        movq	%r8, 16(%r15)
-        adcq	24(%r10), %rax
-        movq	32(%r15), %rcx
-        movq	%rax, 24(%r15)
-        adcq	32(%r10), %rcx
-        movq	40(%r15), %r8
-        movq	%rcx, 32(%r15)
-        adcq	40(%r10), %r8
-        movq	48(%r15), %rax
-        movq	%r8, 40(%r15)
-        adcq	48(%r10), %rax
-        movq	56(%r15), %rcx
-        movq	%rax, 48(%r15)
-        adcq	56(%r10), %rcx
-        movq	64(%r15), %r8
-        movq	%rcx, 56(%r15)
-        adcq	64(%r10), %r8
-        movq	72(%r15), %rax
-        movq	%r8, 64(%r15)
-        adcq	72(%r10), %rax
-        movq	80(%r15), %rcx
-        movq	%rax, 72(%r15)
-        adcq	80(%r10), %rcx
-        movq	88(%r15), %r8
-        movq	%rcx, 80(%r15)
-        adcq	88(%r10), %r8
-        movq	96(%r15), %rax
-        movq	%r8, 88(%r15)
-        adcq	96(%r10), %rax
-        movq	104(%r15), %rcx
-        movq	%rax, 96(%r15)
-        adcq	104(%r10), %rcx
-        movq	112(%r15), %r8
-        movq	%rcx, 104(%r15)
-        adcq	112(%r10), %r8
-        movq	120(%r15), %rax
-        movq	%r8, 112(%r15)
-        adcq	120(%r10), %rax
-        movq	128(%r15), %rcx
-        movq	%rax, 120(%r15)
-        adcq	128(%r10), %rcx
-        movq	136(%r15), %r8
-        movq	%rcx, 128(%r15)
-        adcq	136(%r10), %r8
-        movq	144(%r15), %rax
-        movq	%r8, 136(%r15)
-        adcq	144(%r10), %rax
-        movq	152(%r15), %rcx
-        movq	%rax, 144(%r15)
-        adcq	152(%r10), %rcx
-        movq	160(%r15), %r8
-        movq	%rcx, 152(%r15)
-        adcq	160(%r10), %r8
-        movq	168(%r15), %rax
-        movq	%r8, 160(%r15)
-        adcq	168(%r10), %rax
-        movq	176(%r15), %rcx
-        movq	%rax, 168(%r15)
-        adcq	176(%r10), %rcx
-        movq	184(%r15), %r8
-        movq	%rcx, 176(%r15)
-        adcq	184(%r10), %r8
-        movq	192(%r15), %rax
-        movq	%r8, 184(%r15)
-        adcq	192(%r10), %rax
-        movq	200(%r15), %rcx
-        movq	%rax, 192(%r15)
-        adcq	200(%r10), %rcx
-        movq	208(%r15), %r8
-        movq	%rcx, 200(%r15)
-        adcq	208(%r10), %r8
-        movq	216(%r15), %rax
-        movq	%r8, 208(%r15)
-        adcq	216(%r10), %rax
-        movq	224(%r15), %rcx
-        movq	%rax, 216(%r15)
-        adcq	224(%r10), %rcx
-        movq	232(%r15), %r8
-        movq	%rcx, 224(%r15)
-        adcq	232(%r10), %r8
-        movq	240(%r15), %rax
-        movq	%r8, 232(%r15)
-        adcq	240(%r10), %rax
-        movq	248(%r15), %rcx
-        movq	%rax, 240(%r15)
-        adcq	248(%r10), %rcx
-        movq	%rcx, 248(%r15)
-        adcq	$0x00, %r9
-        movq	%r9, 384(%rdi)
-        addq	$0x80, %r15
-        # Add
-        movq	(%r15), %rax
-        xorq	%r9, %r9
-        addq	(%r11), %rax
-        movq	8(%r15), %rcx
-        movq	%rax, (%r15)
-        adcq	8(%r11), %rcx
-        movq	16(%r15), %r8
-        movq	%rcx, 8(%r15)
-        adcq	16(%r11), %r8
-        movq	24(%r15), %rax
-        movq	%r8, 16(%r15)
-        adcq	24(%r11), %rax
-        movq	32(%r15), %rcx
-        movq	%rax, 24(%r15)
-        adcq	32(%r11), %rcx
-        movq	40(%r15), %r8
-        movq	%rcx, 32(%r15)
-        adcq	40(%r11), %r8
-        movq	48(%r15), %rax
-        movq	%r8, 40(%r15)
-        adcq	48(%r11), %rax
-        movq	56(%r15), %rcx
-        movq	%rax, 48(%r15)
-        adcq	56(%r11), %rcx
-        movq	64(%r15), %r8
-        movq	%rcx, 56(%r15)
-        adcq	64(%r11), %r8
-        movq	72(%r15), %rax
-        movq	%r8, 64(%r15)
-        adcq	72(%r11), %rax
-        movq	80(%r15), %rcx
-        movq	%rax, 72(%r15)
-        adcq	80(%r11), %rcx
-        movq	88(%r15), %r8
-        movq	%rcx, 80(%r15)
-        adcq	88(%r11), %r8
-        movq	96(%r15), %rax
-        movq	%r8, 88(%r15)
-        adcq	96(%r11), %rax
-        movq	104(%r15), %rcx
-        movq	%rax, 96(%r15)
-        adcq	104(%r11), %rcx
-        movq	112(%r15), %r8
-        movq	%rcx, 104(%r15)
-        adcq	112(%r11), %r8
-        movq	120(%r15), %rax
-        movq	%r8, 112(%r15)
-        adcq	120(%r11), %rax
-        movq	128(%r15), %rcx
-        movq	%rax, 120(%r15)
-        adcq	128(%r11), %rcx
-        movq	%rcx, 128(%r15)
-        adcq	$0x00, %r9
-        # Add to zero
-        movq	136(%r11), %rax
-        adcq	$0x00, %rax
-        movq	144(%r11), %rcx
-        movq	%rax, 136(%r15)
-        adcq	$0x00, %rcx
-        movq	152(%r11), %r8
-        movq	%rcx, 144(%r15)
-        adcq	$0x00, %r8
-        movq	160(%r11), %rax
-        movq	%r8, 152(%r15)
-        adcq	$0x00, %rax
-        movq	168(%r11), %rcx
-        movq	%rax, 160(%r15)
-        adcq	$0x00, %rcx
-        movq	176(%r11), %r8
-        movq	%rcx, 168(%r15)
-        adcq	$0x00, %r8
-        movq	184(%r11), %rax
-        movq	%r8, 176(%r15)
-        adcq	$0x00, %rax
-        movq	192(%r11), %rcx
-        movq	%rax, 184(%r15)
-        adcq	$0x00, %rcx
-        movq	200(%r11), %r8
-        movq	%rcx, 192(%r15)
-        adcq	$0x00, %r8
-        movq	208(%r11), %rax
-        movq	%r8, 200(%r15)
-        adcq	$0x00, %rax
-        movq	216(%r11), %rcx
-        movq	%rax, 208(%r15)
-        adcq	$0x00, %rcx
-        movq	224(%r11), %r8
-        movq	%rcx, 216(%r15)
-        adcq	$0x00, %r8
-        movq	232(%r11), %rax
-        movq	%r8, 224(%r15)
-        adcq	$0x00, %rax
-        movq	240(%r11), %rcx
-        movq	%rax, 232(%r15)
-        adcq	$0x00, %rcx
-        movq	248(%r11), %r8
-        movq	%rcx, 240(%r15)
-        adcq	$0x00, %r8
-        movq	%r8, 248(%r15)
-        addq	$0x328, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_mul_32,.-sp_2048_mul_32
-#endif /* __APPLE__ */
 /* Add a to a into r. (r = a + a)
  *
  * r  A single precision integer.
@@ -7610,686 +8290,6 @@ _sp_2048_sqr_32:
 #ifndef __APPLE__
 .size	sp_2048_sqr_32,.-sp_2048_sqr_32
 #endif /* __APPLE__ */
-#ifdef HAVE_INTEL_AVX2
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_mul_avx2_32
-.type	sp_2048_mul_avx2_32,@function
-.align	16
-sp_2048_mul_avx2_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_mul_avx2_32
-.p2align	4
-_sp_2048_mul_avx2_32:
-#endif /* __APPLE__ */
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        subq	$0x328, %rsp
-        movq	%rdi, 768(%rsp)
-        movq	%rsi, 776(%rsp)
-        movq	%rdx, 784(%rsp)
-        leaq	512(%rsp), %r10
-        leaq	128(%rsi), %r12
-        # Add
-        movq	(%rsi), %rax
-        xorq	%r13, %r13
-        addq	(%r12), %rax
-        movq	8(%rsi), %rcx
-        movq	%rax, (%r10)
-        adcq	8(%r12), %rcx
-        movq	16(%rsi), %r8
-        movq	%rcx, 8(%r10)
-        adcq	16(%r12), %r8
-        movq	24(%rsi), %rax
-        movq	%r8, 16(%r10)
-        adcq	24(%r12), %rax
-        movq	32(%rsi), %rcx
-        movq	%rax, 24(%r10)
-        adcq	32(%r12), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%r10)
-        adcq	40(%r12), %r8
-        movq	48(%rsi), %rax
-        movq	%r8, 40(%r10)
-        adcq	48(%r12), %rax
-        movq	56(%rsi), %rcx
-        movq	%rax, 48(%r10)
-        adcq	56(%r12), %rcx
-        movq	64(%rsi), %r8
-        movq	%rcx, 56(%r10)
-        adcq	64(%r12), %r8
-        movq	72(%rsi), %rax
-        movq	%r8, 64(%r10)
-        adcq	72(%r12), %rax
-        movq	80(%rsi), %rcx
-        movq	%rax, 72(%r10)
-        adcq	80(%r12), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%r10)
-        adcq	88(%r12), %r8
-        movq	96(%rsi), %rax
-        movq	%r8, 88(%r10)
-        adcq	96(%r12), %rax
-        movq	104(%rsi), %rcx
-        movq	%rax, 96(%r10)
-        adcq	104(%r12), %rcx
-        movq	112(%rsi), %r8
-        movq	%rcx, 104(%r10)
-        adcq	112(%r12), %r8
-        movq	120(%rsi), %rax
-        movq	%r8, 112(%r10)
-        adcq	120(%r12), %rax
-        movq	%rax, 120(%r10)
-        adcq	$0x00, %r13
-        movq	%r13, 792(%rsp)
-        leaq	640(%rsp), %r11
-        leaq	128(%rdx), %r12
-        # Add
-        movq	(%rdx), %rax
-        xorq	%r14, %r14
-        addq	(%r12), %rax
-        movq	8(%rdx), %rcx
-        movq	%rax, (%r11)
-        adcq	8(%r12), %rcx
-        movq	16(%rdx), %r8
-        movq	%rcx, 8(%r11)
-        adcq	16(%r12), %r8
-        movq	24(%rdx), %rax
-        movq	%r8, 16(%r11)
-        adcq	24(%r12), %rax
-        movq	32(%rdx), %rcx
-        movq	%rax, 24(%r11)
-        adcq	32(%r12), %rcx
-        movq	40(%rdx), %r8
-        movq	%rcx, 32(%r11)
-        adcq	40(%r12), %r8
-        movq	48(%rdx), %rax
-        movq	%r8, 40(%r11)
-        adcq	48(%r12), %rax
-        movq	56(%rdx), %rcx
-        movq	%rax, 48(%r11)
-        adcq	56(%r12), %rcx
-        movq	64(%rdx), %r8
-        movq	%rcx, 56(%r11)
-        adcq	64(%r12), %r8
-        movq	72(%rdx), %rax
-        movq	%r8, 64(%r11)
-        adcq	72(%r12), %rax
-        movq	80(%rdx), %rcx
-        movq	%rax, 72(%r11)
-        adcq	80(%r12), %rcx
-        movq	88(%rdx), %r8
-        movq	%rcx, 80(%r11)
-        adcq	88(%r12), %r8
-        movq	96(%rdx), %rax
-        movq	%r8, 88(%r11)
-        adcq	96(%r12), %rax
-        movq	104(%rdx), %rcx
-        movq	%rax, 96(%r11)
-        adcq	104(%r12), %rcx
-        movq	112(%rdx), %r8
-        movq	%rcx, 104(%r11)
-        adcq	112(%r12), %r8
-        movq	120(%rdx), %rax
-        movq	%r8, 112(%r11)
-        adcq	120(%r12), %rax
-        movq	%rax, 120(%r11)
-        adcq	$0x00, %r14
-        movq	%r14, 800(%rsp)
-        movq	%r11, %rdx
-        movq	%r10, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_2048_mul_avx2_16@plt
-#else
-        callq	_sp_2048_mul_avx2_16
-#endif /* __APPLE__ */
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        leaq	256(%rsp), %rdi
-        addq	$0x80, %rdx
-        addq	$0x80, %rsi
-#ifndef __APPLE__
-        callq	sp_2048_mul_avx2_16@plt
-#else
-        callq	_sp_2048_mul_avx2_16
-#endif /* __APPLE__ */
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        movq	768(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_2048_mul_avx2_16@plt
-#else
-        callq	_sp_2048_mul_avx2_16
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	784(%rsp), %rdx
-        movq	776(%rsp), %rsi
-        movq	768(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	792(%rsp), %r13
-        movq	800(%rsp), %r14
-        movq	768(%rsp), %r15
-        movq	%r13, %r9
-        leaq	512(%rsp), %r10
-        leaq	640(%rsp), %r11
-        andq	%r14, %r9
-        negq	%r13
-        negq	%r14
-        addq	$0x100, %r15
-        movq	(%r10), %rax
-        movq	(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        addq	%rcx, %rax
-        movq	8(%r10), %rcx
-        movq	8(%r11), %r8
-        pextq	%r14, %rcx, %rcx
-        pextq	%r13, %r8, %r8
-        movq	%rax, (%r15)
-        adcq	%r8, %rcx
-        movq	16(%r10), %r8
-        movq	16(%r11), %rax
-        pextq	%r14, %r8, %r8
-        pextq	%r13, %rax, %rax
-        movq	%rcx, 8(%r15)
-        adcq	%rax, %r8
-        movq	24(%r10), %rax
-        movq	24(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        movq	%r8, 16(%r15)
-        adcq	%rcx, %rax
-        movq	32(%r10), %rcx
-        movq	32(%r11), %r8
-        pextq	%r14, %rcx, %rcx
-        pextq	%r13, %r8, %r8
-        movq	%rax, 24(%r15)
-        adcq	%r8, %rcx
-        movq	40(%r10), %r8
-        movq	40(%r11), %rax
-        pextq	%r14, %r8, %r8
-        pextq	%r13, %rax, %rax
-        movq	%rcx, 32(%r15)
-        adcq	%rax, %r8
-        movq	48(%r10), %rax
-        movq	48(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        movq	%r8, 40(%r15)
-        adcq	%rcx, %rax
-        movq	56(%r10), %rcx
-        movq	56(%r11), %r8
-        pextq	%r14, %rcx, %rcx
-        pextq	%r13, %r8, %r8
-        movq	%rax, 48(%r15)
-        adcq	%r8, %rcx
-        movq	64(%r10), %r8
-        movq	64(%r11), %rax
-        pextq	%r14, %r8, %r8
-        pextq	%r13, %rax, %rax
-        movq	%rcx, 56(%r15)
-        adcq	%rax, %r8
-        movq	72(%r10), %rax
-        movq	72(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        movq	%r8, 64(%r15)
-        adcq	%rcx, %rax
-        movq	80(%r10), %rcx
-        movq	80(%r11), %r8
-        pextq	%r14, %rcx, %rcx
-        pextq	%r13, %r8, %r8
-        movq	%rax, 72(%r15)
-        adcq	%r8, %rcx
-        movq	88(%r10), %r8
-        movq	88(%r11), %rax
-        pextq	%r14, %r8, %r8
-        pextq	%r13, %rax, %rax
-        movq	%rcx, 80(%r15)
-        adcq	%rax, %r8
-        movq	96(%r10), %rax
-        movq	96(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        movq	%r8, 88(%r15)
-        adcq	%rcx, %rax
-        movq	104(%r10), %rcx
-        movq	104(%r11), %r8
-        pextq	%r14, %rcx, %rcx
-        pextq	%r13, %r8, %r8
-        movq	%rax, 96(%r15)
-        adcq	%r8, %rcx
-        movq	112(%r10), %r8
-        movq	112(%r11), %rax
-        pextq	%r14, %r8, %r8
-        pextq	%r13, %rax, %rax
-        movq	%rcx, 104(%r15)
-        adcq	%rax, %r8
-        movq	120(%r10), %rax
-        movq	120(%r11), %rcx
-        pextq	%r14, %rax, %rax
-        pextq	%r13, %rcx, %rcx
-        movq	%r8, 112(%r15)
-        adcq	%rcx, %rax
-        movq	%rax, 120(%r15)
-        adcq	$0x00, %r9
-        leaq	256(%rsp), %r11
-        movq	%rsp, %r10
-        movq	(%r10), %rax
-        subq	(%r11), %rax
-        movq	8(%r10), %rcx
-        movq	%rax, (%r10)
-        sbbq	8(%r11), %rcx
-        movq	16(%r10), %r8
-        movq	%rcx, 8(%r10)
-        sbbq	16(%r11), %r8
-        movq	24(%r10), %rax
-        movq	%r8, 16(%r10)
-        sbbq	24(%r11), %rax
-        movq	32(%r10), %rcx
-        movq	%rax, 24(%r10)
-        sbbq	32(%r11), %rcx
-        movq	40(%r10), %r8
-        movq	%rcx, 32(%r10)
-        sbbq	40(%r11), %r8
-        movq	48(%r10), %rax
-        movq	%r8, 40(%r10)
-        sbbq	48(%r11), %rax
-        movq	56(%r10), %rcx
-        movq	%rax, 48(%r10)
-        sbbq	56(%r11), %rcx
-        movq	64(%r10), %r8
-        movq	%rcx, 56(%r10)
-        sbbq	64(%r11), %r8
-        movq	72(%r10), %rax
-        movq	%r8, 64(%r10)
-        sbbq	72(%r11), %rax
-        movq	80(%r10), %rcx
-        movq	%rax, 72(%r10)
-        sbbq	80(%r11), %rcx
-        movq	88(%r10), %r8
-        movq	%rcx, 80(%r10)
-        sbbq	88(%r11), %r8
-        movq	96(%r10), %rax
-        movq	%r8, 88(%r10)
-        sbbq	96(%r11), %rax
-        movq	104(%r10), %rcx
-        movq	%rax, 96(%r10)
-        sbbq	104(%r11), %rcx
-        movq	112(%r10), %r8
-        movq	%rcx, 104(%r10)
-        sbbq	112(%r11), %r8
-        movq	120(%r10), %rax
-        movq	%r8, 112(%r10)
-        sbbq	120(%r11), %rax
-        movq	128(%r10), %rcx
-        movq	%rax, 120(%r10)
-        sbbq	128(%r11), %rcx
-        movq	136(%r10), %r8
-        movq	%rcx, 128(%r10)
-        sbbq	136(%r11), %r8
-        movq	144(%r10), %rax
-        movq	%r8, 136(%r10)
-        sbbq	144(%r11), %rax
-        movq	152(%r10), %rcx
-        movq	%rax, 144(%r10)
-        sbbq	152(%r11), %rcx
-        movq	160(%r10), %r8
-        movq	%rcx, 152(%r10)
-        sbbq	160(%r11), %r8
-        movq	168(%r10), %rax
-        movq	%r8, 160(%r10)
-        sbbq	168(%r11), %rax
-        movq	176(%r10), %rcx
-        movq	%rax, 168(%r10)
-        sbbq	176(%r11), %rcx
-        movq	184(%r10), %r8
-        movq	%rcx, 176(%r10)
-        sbbq	184(%r11), %r8
-        movq	192(%r10), %rax
-        movq	%r8, 184(%r10)
-        sbbq	192(%r11), %rax
-        movq	200(%r10), %rcx
-        movq	%rax, 192(%r10)
-        sbbq	200(%r11), %rcx
-        movq	208(%r10), %r8
-        movq	%rcx, 200(%r10)
-        sbbq	208(%r11), %r8
-        movq	216(%r10), %rax
-        movq	%r8, 208(%r10)
-        sbbq	216(%r11), %rax
-        movq	224(%r10), %rcx
-        movq	%rax, 216(%r10)
-        sbbq	224(%r11), %rcx
-        movq	232(%r10), %r8
-        movq	%rcx, 224(%r10)
-        sbbq	232(%r11), %r8
-        movq	240(%r10), %rax
-        movq	%r8, 232(%r10)
-        sbbq	240(%r11), %rax
-        movq	248(%r10), %rcx
-        movq	%rax, 240(%r10)
-        sbbq	248(%r11), %rcx
-        movq	%rcx, 248(%r10)
-        sbbq	$0x00, %r9
-        movq	(%r10), %rax
-        subq	(%rdi), %rax
-        movq	8(%r10), %rcx
-        movq	%rax, (%r10)
-        sbbq	8(%rdi), %rcx
-        movq	16(%r10), %r8
-        movq	%rcx, 8(%r10)
-        sbbq	16(%rdi), %r8
-        movq	24(%r10), %rax
-        movq	%r8, 16(%r10)
-        sbbq	24(%rdi), %rax
-        movq	32(%r10), %rcx
-        movq	%rax, 24(%r10)
-        sbbq	32(%rdi), %rcx
-        movq	40(%r10), %r8
-        movq	%rcx, 32(%r10)
-        sbbq	40(%rdi), %r8
-        movq	48(%r10), %rax
-        movq	%r8, 40(%r10)
-        sbbq	48(%rdi), %rax
-        movq	56(%r10), %rcx
-        movq	%rax, 48(%r10)
-        sbbq	56(%rdi), %rcx
-        movq	64(%r10), %r8
-        movq	%rcx, 56(%r10)
-        sbbq	64(%rdi), %r8
-        movq	72(%r10), %rax
-        movq	%r8, 64(%r10)
-        sbbq	72(%rdi), %rax
-        movq	80(%r10), %rcx
-        movq	%rax, 72(%r10)
-        sbbq	80(%rdi), %rcx
-        movq	88(%r10), %r8
-        movq	%rcx, 80(%r10)
-        sbbq	88(%rdi), %r8
-        movq	96(%r10), %rax
-        movq	%r8, 88(%r10)
-        sbbq	96(%rdi), %rax
-        movq	104(%r10), %rcx
-        movq	%rax, 96(%r10)
-        sbbq	104(%rdi), %rcx
-        movq	112(%r10), %r8
-        movq	%rcx, 104(%r10)
-        sbbq	112(%rdi), %r8
-        movq	120(%r10), %rax
-        movq	%r8, 112(%r10)
-        sbbq	120(%rdi), %rax
-        movq	128(%r10), %rcx
-        movq	%rax, 120(%r10)
-        sbbq	128(%rdi), %rcx
-        movq	136(%r10), %r8
-        movq	%rcx, 128(%r10)
-        sbbq	136(%rdi), %r8
-        movq	144(%r10), %rax
-        movq	%r8, 136(%r10)
-        sbbq	144(%rdi), %rax
-        movq	152(%r10), %rcx
-        movq	%rax, 144(%r10)
-        sbbq	152(%rdi), %rcx
-        movq	160(%r10), %r8
-        movq	%rcx, 152(%r10)
-        sbbq	160(%rdi), %r8
-        movq	168(%r10), %rax
-        movq	%r8, 160(%r10)
-        sbbq	168(%rdi), %rax
-        movq	176(%r10), %rcx
-        movq	%rax, 168(%r10)
-        sbbq	176(%rdi), %rcx
-        movq	184(%r10), %r8
-        movq	%rcx, 176(%r10)
-        sbbq	184(%rdi), %r8
-        movq	192(%r10), %rax
-        movq	%r8, 184(%r10)
-        sbbq	192(%rdi), %rax
-        movq	200(%r10), %rcx
-        movq	%rax, 192(%r10)
-        sbbq	200(%rdi), %rcx
-        movq	208(%r10), %r8
-        movq	%rcx, 200(%r10)
-        sbbq	208(%rdi), %r8
-        movq	216(%r10), %rax
-        movq	%r8, 208(%r10)
-        sbbq	216(%rdi), %rax
-        movq	224(%r10), %rcx
-        movq	%rax, 216(%r10)
-        sbbq	224(%rdi), %rcx
-        movq	232(%r10), %r8
-        movq	%rcx, 224(%r10)
-        sbbq	232(%rdi), %r8
-        movq	240(%r10), %rax
-        movq	%r8, 232(%r10)
-        sbbq	240(%rdi), %rax
-        movq	248(%r10), %rcx
-        movq	%rax, 240(%r10)
-        sbbq	248(%rdi), %rcx
-        movq	%rcx, 248(%r10)
-        sbbq	$0x00, %r9
-        subq	$0x80, %r15
-        # Add
-        movq	(%r15), %rax
-        addq	(%r10), %rax
-        movq	8(%r15), %rcx
-        movq	%rax, (%r15)
-        adcq	8(%r10), %rcx
-        movq	16(%r15), %r8
-        movq	%rcx, 8(%r15)
-        adcq	16(%r10), %r8
-        movq	24(%r15), %rax
-        movq	%r8, 16(%r15)
-        adcq	24(%r10), %rax
-        movq	32(%r15), %rcx
-        movq	%rax, 24(%r15)
-        adcq	32(%r10), %rcx
-        movq	40(%r15), %r8
-        movq	%rcx, 32(%r15)
-        adcq	40(%r10), %r8
-        movq	48(%r15), %rax
-        movq	%r8, 40(%r15)
-        adcq	48(%r10), %rax
-        movq	56(%r15), %rcx
-        movq	%rax, 48(%r15)
-        adcq	56(%r10), %rcx
-        movq	64(%r15), %r8
-        movq	%rcx, 56(%r15)
-        adcq	64(%r10), %r8
-        movq	72(%r15), %rax
-        movq	%r8, 64(%r15)
-        adcq	72(%r10), %rax
-        movq	80(%r15), %rcx
-        movq	%rax, 72(%r15)
-        adcq	80(%r10), %rcx
-        movq	88(%r15), %r8
-        movq	%rcx, 80(%r15)
-        adcq	88(%r10), %r8
-        movq	96(%r15), %rax
-        movq	%r8, 88(%r15)
-        adcq	96(%r10), %rax
-        movq	104(%r15), %rcx
-        movq	%rax, 96(%r15)
-        adcq	104(%r10), %rcx
-        movq	112(%r15), %r8
-        movq	%rcx, 104(%r15)
-        adcq	112(%r10), %r8
-        movq	120(%r15), %rax
-        movq	%r8, 112(%r15)
-        adcq	120(%r10), %rax
-        movq	128(%r15), %rcx
-        movq	%rax, 120(%r15)
-        adcq	128(%r10), %rcx
-        movq	136(%r15), %r8
-        movq	%rcx, 128(%r15)
-        adcq	136(%r10), %r8
-        movq	144(%r15), %rax
-        movq	%r8, 136(%r15)
-        adcq	144(%r10), %rax
-        movq	152(%r15), %rcx
-        movq	%rax, 144(%r15)
-        adcq	152(%r10), %rcx
-        movq	160(%r15), %r8
-        movq	%rcx, 152(%r15)
-        adcq	160(%r10), %r8
-        movq	168(%r15), %rax
-        movq	%r8, 160(%r15)
-        adcq	168(%r10), %rax
-        movq	176(%r15), %rcx
-        movq	%rax, 168(%r15)
-        adcq	176(%r10), %rcx
-        movq	184(%r15), %r8
-        movq	%rcx, 176(%r15)
-        adcq	184(%r10), %r8
-        movq	192(%r15), %rax
-        movq	%r8, 184(%r15)
-        adcq	192(%r10), %rax
-        movq	200(%r15), %rcx
-        movq	%rax, 192(%r15)
-        adcq	200(%r10), %rcx
-        movq	208(%r15), %r8
-        movq	%rcx, 200(%r15)
-        adcq	208(%r10), %r8
-        movq	216(%r15), %rax
-        movq	%r8, 208(%r15)
-        adcq	216(%r10), %rax
-        movq	224(%r15), %rcx
-        movq	%rax, 216(%r15)
-        adcq	224(%r10), %rcx
-        movq	232(%r15), %r8
-        movq	%rcx, 224(%r15)
-        adcq	232(%r10), %r8
-        movq	240(%r15), %rax
-        movq	%r8, 232(%r15)
-        adcq	240(%r10), %rax
-        movq	248(%r15), %rcx
-        movq	%rax, 240(%r15)
-        adcq	248(%r10), %rcx
-        movq	%rcx, 248(%r15)
-        adcq	$0x00, %r9
-        movq	%r9, 384(%rdi)
-        addq	$0x80, %r15
-        # Add
-        movq	(%r15), %rax
-        xorq	%r9, %r9
-        addq	(%r11), %rax
-        movq	8(%r15), %rcx
-        movq	%rax, (%r15)
-        adcq	8(%r11), %rcx
-        movq	16(%r15), %r8
-        movq	%rcx, 8(%r15)
-        adcq	16(%r11), %r8
-        movq	24(%r15), %rax
-        movq	%r8, 16(%r15)
-        adcq	24(%r11), %rax
-        movq	32(%r15), %rcx
-        movq	%rax, 24(%r15)
-        adcq	32(%r11), %rcx
-        movq	40(%r15), %r8
-        movq	%rcx, 32(%r15)
-        adcq	40(%r11), %r8
-        movq	48(%r15), %rax
-        movq	%r8, 40(%r15)
-        adcq	48(%r11), %rax
-        movq	56(%r15), %rcx
-        movq	%rax, 48(%r15)
-        adcq	56(%r11), %rcx
-        movq	64(%r15), %r8
-        movq	%rcx, 56(%r15)
-        adcq	64(%r11), %r8
-        movq	72(%r15), %rax
-        movq	%r8, 64(%r15)
-        adcq	72(%r11), %rax
-        movq	80(%r15), %rcx
-        movq	%rax, 72(%r15)
-        adcq	80(%r11), %rcx
-        movq	88(%r15), %r8
-        movq	%rcx, 80(%r15)
-        adcq	88(%r11), %r8
-        movq	96(%r15), %rax
-        movq	%r8, 88(%r15)
-        adcq	96(%r11), %rax
-        movq	104(%r15), %rcx
-        movq	%rax, 96(%r15)
-        adcq	104(%r11), %rcx
-        movq	112(%r15), %r8
-        movq	%rcx, 104(%r15)
-        adcq	112(%r11), %r8
-        movq	120(%r15), %rax
-        movq	%r8, 112(%r15)
-        adcq	120(%r11), %rax
-        movq	128(%r15), %rcx
-        movq	%rax, 120(%r15)
-        adcq	128(%r11), %rcx
-        movq	%rcx, 128(%r15)
-        adcq	$0x00, %r9
-        # Add to zero
-        movq	136(%r11), %rax
-        adcq	$0x00, %rax
-        movq	144(%r11), %rcx
-        movq	%rax, 136(%r15)
-        adcq	$0x00, %rcx
-        movq	152(%r11), %r8
-        movq	%rcx, 144(%r15)
-        adcq	$0x00, %r8
-        movq	160(%r11), %rax
-        movq	%r8, 152(%r15)
-        adcq	$0x00, %rax
-        movq	168(%r11), %rcx
-        movq	%rax, 160(%r15)
-        adcq	$0x00, %rcx
-        movq	176(%r11), %r8
-        movq	%rcx, 168(%r15)
-        adcq	$0x00, %r8
-        movq	184(%r11), %rax
-        movq	%r8, 176(%r15)
-        adcq	$0x00, %rax
-        movq	192(%r11), %rcx
-        movq	%rax, 184(%r15)
-        adcq	$0x00, %rcx
-        movq	200(%r11), %r8
-        movq	%rcx, 192(%r15)
-        adcq	$0x00, %r8
-        movq	208(%r11), %rax
-        movq	%r8, 200(%r15)
-        adcq	$0x00, %rax
-        movq	216(%r11), %rcx
-        movq	%rax, 208(%r15)
-        adcq	$0x00, %rcx
-        movq	224(%r11), %r8
-        movq	%rcx, 216(%r15)
-        adcq	$0x00, %r8
-        movq	232(%r11), %rax
-        movq	%r8, 224(%r15)
-        adcq	$0x00, %rax
-        movq	240(%r11), %rcx
-        movq	%rax, 232(%r15)
-        adcq	$0x00, %rcx
-        movq	248(%r11), %r8
-        movq	%rcx, 240(%r15)
-        adcq	$0x00, %r8
-        movq	%r8, 248(%r15)
-        addq	$0x328, %rsp
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_mul_avx2_32,.-sp_2048_mul_avx2_32
-#endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
@@ -14149,680 +14149,6 @@ _sp_3072_mul_12:
 #ifndef __APPLE__
 .size	sp_3072_mul_12,.-sp_3072_mul_12
 #endif /* __APPLE__ */
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sqr_12
-.type	sp_3072_sqr_12,@function
-.align	16
-sp_3072_sqr_12:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sqr_12
-.p2align	4
-_sp_3072_sqr_12:
-#endif /* __APPLE__ */
-        pushq	%r12
-        subq	$0x60, %rsp
-        # A[0] * A[0]
-        movq	(%rsi), %rax
-        mulq	%rax
-        xorq	%r9, %r9
-        movq	%rax, (%rsp)
-        movq	%rdx, %r8
-        # A[0] * A[1]
-        movq	8(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 8(%rsp)
-        # A[0] * A[2]
-        movq	16(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        # A[1] * A[1]
-        movq	8(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        movq	%r9, 16(%rsp)
-        # A[0] * A[3]
-        movq	24(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        # A[1] * A[2]
-        movq	16(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        movq	%rcx, 24(%rsp)
-        # A[0] * A[4]
-        movq	32(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[1] * A[3]
-        movq	24(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[2] * A[2]
-        movq	16(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 32(%rsp)
-        # A[0] * A[5]
-        movq	40(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[4]
-        movq	32(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[3]
-        movq	24(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 40(%rsp)
-        # A[0] * A[6]
-        movq	48(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[5]
-        movq	40(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[4]
-        movq	32(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[3]
-        movq	24(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 48(%rsp)
-        # A[0] * A[7]
-        movq	56(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[6]
-        movq	48(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[5]
-        movq	40(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[4]
-        movq	32(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 56(%rsp)
-        # A[0] * A[8]
-        movq	64(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[7]
-        movq	56(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[6]
-        movq	48(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[5]
-        movq	40(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[4]
-        movq	32(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 64(%rsp)
-        # A[0] * A[9]
-        movq	72(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[8]
-        movq	64(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[7]
-        movq	56(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[6]
-        movq	48(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[5]
-        movq	40(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 72(%rsp)
-        # A[0] * A[10]
-        movq	80(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[9]
-        movq	72(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[8]
-        movq	64(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[7]
-        movq	56(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[6]
-        movq	48(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[5]
-        movq	40(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 80(%rsp)
-        # A[0] * A[11]
-        movq	88(%rsi), %rax
-        mulq	(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[1] * A[10]
-        movq	80(%rsi), %rax
-        mulq	8(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[2] * A[9]
-        movq	72(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[8]
-        movq	64(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[7]
-        movq	56(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[6]
-        movq	48(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 88(%rsp)
-        # A[1] * A[11]
-        movq	88(%rsi), %rax
-        mulq	8(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[2] * A[10]
-        movq	80(%rsi), %rax
-        mulq	16(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[3] * A[9]
-        movq	72(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[8]
-        movq	64(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[7]
-        movq	56(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[6]
-        movq	48(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 96(%rdi)
-        # A[2] * A[11]
-        movq	88(%rsi), %rax
-        mulq	16(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[3] * A[10]
-        movq	80(%rsi), %rax
-        mulq	24(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[4] * A[9]
-        movq	72(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[8]
-        movq	64(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[7]
-        movq	56(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 104(%rdi)
-        # A[3] * A[11]
-        movq	88(%rsi), %rax
-        mulq	24(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[4] * A[10]
-        movq	80(%rsi), %rax
-        mulq	32(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[5] * A[9]
-        movq	72(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[8]
-        movq	64(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[7]
-        movq	56(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 112(%rdi)
-        # A[4] * A[11]
-        movq	88(%rsi), %rax
-        mulq	32(%rsi)
-        xorq	%r9, %r9
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[5] * A[10]
-        movq	80(%rsi), %rax
-        mulq	40(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[6] * A[9]
-        movq	72(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[8]
-        movq	64(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %rcx
-        adcq	%r11, %r8
-        adcq	%r12, %r9
-        movq	%rcx, 120(%rdi)
-        # A[5] * A[11]
-        movq	88(%rsi), %rax
-        mulq	40(%rsi)
-        xorq	%rcx, %rcx
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[6] * A[10]
-        movq	80(%rsi), %rax
-        mulq	48(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[7] * A[9]
-        movq	72(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[8]
-        movq	64(%rsi), %rax
-        mulq	%rax
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r8
-        adcq	%r11, %r9
-        adcq	%r12, %rcx
-        movq	%r8, 128(%rdi)
-        # A[6] * A[11]
-        movq	88(%rsi), %rax
-        mulq	48(%rsi)
-        xorq	%r8, %r8
-        xorq	%r12, %r12
-        movq	%rax, %r10
-        movq	%rdx, %r11
-        # A[7] * A[10]
-        movq	80(%rsi), %rax
-        mulq	56(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        # A[8] * A[9]
-        movq	72(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %r10
-        adcq	%rdx, %r11
-        adcq	$0x00, %r12
-        addq	%r10, %r10
-        adcq	%r11, %r11
-        adcq	%r12, %r12
-        addq	%r10, %r9
-        adcq	%r11, %rcx
-        adcq	%r12, %r8
-        movq	%r9, 136(%rdi)
-        # A[7] * A[11]
-        movq	88(%rsi), %rax
-        mulq	56(%rsi)
-        xorq	%r9, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        # A[8] * A[10]
-        movq	80(%rsi), %rax
-        mulq	64(%rsi)
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        # A[9] * A[9]
-        movq	72(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        movq	%rcx, 144(%rdi)
-        # A[8] * A[11]
-        movq	88(%rsi), %rax
-        mulq	64(%rsi)
-        xorq	%rcx, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        # A[9] * A[10]
-        movq	80(%rsi), %rax
-        mulq	72(%rsi)
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        adcq	$0x00, %rcx
-        movq	%r8, 152(%rdi)
-        # A[9] * A[11]
-        movq	88(%rsi), %rax
-        mulq	72(%rsi)
-        xorq	%r8, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        # A[10] * A[10]
-        movq	80(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r9
-        adcq	%rdx, %rcx
-        adcq	$0x00, %r8
-        movq	%r9, 160(%rdi)
-        # A[10] * A[11]
-        movq	88(%rsi), %rax
-        mulq	80(%rsi)
-        xorq	%r9, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        addq	%rax, %rcx
-        adcq	%rdx, %r8
-        adcq	$0x00, %r9
-        movq	%rcx, 168(%rdi)
-        # A[11] * A[11]
-        movq	88(%rsi), %rax
-        mulq	%rax
-        addq	%rax, %r8
-        adcq	%rdx, %r9
-        movq	%r8, 176(%rdi)
-        movq	%r9, 184(%rdi)
-        movq	(%rsp), %rax
-        movq	8(%rsp), %rdx
-        movq	16(%rsp), %r10
-        movq	24(%rsp), %r11
-        movq	%rax, (%rdi)
-        movq	%rdx, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	32(%rsp), %rax
-        movq	40(%rsp), %rdx
-        movq	48(%rsp), %r10
-        movq	56(%rsp), %r11
-        movq	%rax, 32(%rdi)
-        movq	%rdx, 40(%rdi)
-        movq	%r10, 48(%rdi)
-        movq	%r11, 56(%rdi)
-        movq	64(%rsp), %rax
-        movq	72(%rsp), %rdx
-        movq	80(%rsp), %r10
-        movq	88(%rsp), %r11
-        movq	%rax, 64(%rdi)
-        movq	%rdx, 72(%rdi)
-        movq	%r10, 80(%rdi)
-        movq	%r11, 88(%rdi)
-        addq	$0x60, %rsp
-        popq	%r12
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sqr_12,.-sp_3072_sqr_12
-#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -15800,654 +15126,6 @@ L_end_3072_mul_avx2_12:
 .size	sp_3072_mul_avx2_12,.-sp_3072_mul_avx2_12
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#ifdef HAVE_INTEL_AVX2
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sqr_avx2_12
-.type	sp_3072_sqr_avx2_12,@function
-.align	16
-sp_3072_sqr_avx2_12:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sqr_avx2_12
-.p2align	4
-_sp_3072_sqr_avx2_12:
-#endif /* __APPLE__ */
-        pushq	%rbp
-        pushq	%r12
-        pushq	%r13
-        pushq	%r14
-        pushq	%r15
-        pushq	%rbx
-        subq	$0x60, %rsp
-        cmpq	%rdi, %rsi
-        movq	%rsp, %rbp
-        cmovne	%rdi, %rbp
-        addq	$0x60, %rdi
-        xorq	%r10, %r10
-        # Diagonal 1
-        # Zero into %r9
-        # A[1] x A[0]
-        movq	(%rsi), %rdx
-        mulxq	8(%rsi), %r8, %r9
-        movq	%r8, 8(%rbp)
-        # Zero into %r8
-        # A[2] x A[0]
-        mulxq	16(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 16(%rbp)
-        # Zero into %r9
-        # A[3] x A[0]
-        mulxq	24(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 24(%rbp)
-        # Zero into %r8
-        # A[4] x A[0]
-        mulxq	32(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 32(%rbp)
-        # Zero into %r9
-        # A[5] x A[0]
-        mulxq	40(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 40(%rbp)
-        # No load %r12 - %r8
-        # A[6] x A[0]
-        mulxq	48(%rsi), %rax, %r12
-        adcxq	%rax, %r9
-        adoxq	%r10, %r12
-        movq	%r9, 48(%rbp)
-        # No load %r13 - %r9
-        # A[7] x A[0]
-        mulxq	56(%rsi), %rax, %r13
-        adcxq	%rax, %r12
-        adoxq	%r10, %r13
-        # No store %r12 - %r8
-        # No load %r14 - %r8
-        # A[8] x A[0]
-        mulxq	64(%rsi), %rax, %r14
-        adcxq	%rax, %r13
-        adoxq	%r10, %r14
-        # No store %r13 - %r9
-        # No load %r15 - %r9
-        # A[9] x A[0]
-        mulxq	72(%rsi), %rax, %r15
-        adcxq	%rax, %r14
-        adoxq	%r10, %r15
-        # No store %r14 - %r8
-        # No load %rbx - %r8
-        # A[10] x A[0]
-        mulxq	80(%rsi), %rax, %rbx
-        adcxq	%rax, %r15
-        adoxq	%r10, %rbx
-        # No store %r15 - %r9
-        # Zero into %r9
-        # A[11] x A[0]
-        mulxq	88(%rsi), %rax, %r9
-        adcxq	%rax, %rbx
-        adoxq	%r10, %r9
-        # No store %rbx - %r8
-        #  Carry
-        adcxq	%r10, %r9
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r9, (%rdi)
-        # Diagonal 2
-        movq	24(%rbp), %r9
-        movq	32(%rbp), %r8
-        # A[2] x A[1]
-        movq	8(%rsi), %rdx
-        mulxq	16(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 24(%rbp)
-        movq	40(%rbp), %r9
-        # A[3] x A[1]
-        mulxq	24(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 32(%rbp)
-        movq	48(%rbp), %r8
-        # A[4] x A[1]
-        mulxq	32(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 40(%rbp)
-        # No load %r12 - %r9
-        # A[5] x A[1]
-        mulxq	40(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r12
-        movq	%r8, 48(%rbp)
-        # No load %r13 - %r8
-        # A[6] x A[1]
-        mulxq	48(%rsi), %rax, %rcx
-        adcxq	%rax, %r12
-        adoxq	%rcx, %r13
-        # No store %r12 - %r9
-        # No load %r14 - %r9
-        # A[7] x A[1]
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rcx, %r14
-        # No store %r13 - %r8
-        # No load %r15 - %r8
-        # A[8] x A[1]
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r14
-        adoxq	%rcx, %r15
-        # No store %r14 - %r9
-        # No load %rbx - %r9
-        # A[9] x A[1]
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %rbx
-        # No store %r15 - %r8
-        movq	(%rdi), %r8
-        # A[10] x A[1]
-        mulxq	80(%rsi), %rax, %rcx
-        adcxq	%rax, %rbx
-        adoxq	%rcx, %r8
-        # No store %rbx - %r9
-        # Zero into %r9
-        # A[11] x A[1]
-        mulxq	88(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, (%rdi)
-        # Zero into %r8
-        # A[11] x A[2]
-        movq	16(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 8(%rdi)
-        #  Carry
-        adcxq	%r11, %r8
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r8, 16(%rdi)
-        # Diagonal 3
-        movq	40(%rbp), %r8
-        movq	48(%rbp), %r9
-        # A[3] x A[2]
-        mulxq	24(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 40(%rbp)
-        # No load %r12 - %r8
-        # A[4] x A[2]
-        mulxq	32(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r12
-        movq	%r9, 48(%rbp)
-        # No load %r13 - %r9
-        # A[5] x A[2]
-        mulxq	40(%rsi), %rax, %rcx
-        adcxq	%rax, %r12
-        adoxq	%rcx, %r13
-        # No store %r12 - %r8
-        # No load %r14 - %r8
-        # A[6] x A[2]
-        mulxq	48(%rsi), %rax, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rcx, %r14
-        # No store %r13 - %r9
-        # No load %r15 - %r9
-        # A[7] x A[2]
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %r14
-        adoxq	%rcx, %r15
-        # No store %r14 - %r8
-        # No load %rbx - %r8
-        # A[8] x A[2]
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %rbx
-        # No store %r15 - %r9
-        movq	(%rdi), %r9
-        # A[9] x A[2]
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %rbx
-        adoxq	%rcx, %r9
-        # No store %rbx - %r8
-        movq	8(%rdi), %r8
-        # A[10] x A[2]
-        mulxq	80(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, (%rdi)
-        movq	16(%rdi), %r9
-        # A[10] x A[3]
-        movq	24(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 8(%rdi)
-        # Zero into %r8
-        # A[10] x A[4]
-        movq	32(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 16(%rdi)
-        # Zero into %r9
-        # A[10] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 24(%rdi)
-        #  Carry
-        adcxq	%r11, %r9
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r9, 32(%rdi)
-        # Diagonal 4
-        # No load %r13 - %r8
-        # A[4] x A[3]
-        movq	24(%rsi), %rdx
-        mulxq	32(%rsi), %rax, %rcx
-        adcxq	%rax, %r12
-        adoxq	%rcx, %r13
-        # No store %r12 - %r9
-        # No load %r14 - %r9
-        # A[5] x A[3]
-        mulxq	40(%rsi), %rax, %rcx
-        adcxq	%rax, %r13
-        adoxq	%rcx, %r14
-        # No store %r13 - %r8
-        # No load %r15 - %r8
-        # A[6] x A[3]
-        mulxq	48(%rsi), %rax, %rcx
-        adcxq	%rax, %r14
-        adoxq	%rcx, %r15
-        # No store %r14 - %r9
-        # No load %rbx - %r9
-        # A[7] x A[3]
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %rbx
-        # No store %r15 - %r8
-        movq	(%rdi), %r8
-        # A[8] x A[3]
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %rbx
-        adoxq	%rcx, %r8
-        # No store %rbx - %r9
-        movq	8(%rdi), %r9
-        # A[9] x A[3]
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, (%rdi)
-        movq	16(%rdi), %r8
-        # A[9] x A[4]
-        movq	32(%rsi), %rdx
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 8(%rdi)
-        movq	24(%rdi), %r9
-        # A[9] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 16(%rdi)
-        movq	32(%rdi), %r8
-        # A[9] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	72(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 24(%rdi)
-        # Zero into %r9
-        # A[9] x A[7]
-        movq	56(%rsi), %rdx
-        mulxq	72(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 32(%rdi)
-        # Zero into %r8
-        # A[9] x A[8]
-        movq	64(%rsi), %rdx
-        mulxq	72(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 40(%rdi)
-        #  Carry
-        adcxq	%r11, %r8
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r8, 48(%rdi)
-        # Diagonal 5
-        # No load %r15 - %r9
-        # A[5] x A[4]
-        movq	32(%rsi), %rdx
-        mulxq	40(%rsi), %rax, %rcx
-        adcxq	%rax, %r14
-        adoxq	%rcx, %r15
-        # No store %r14 - %r8
-        # No load %rbx - %r8
-        # A[6] x A[4]
-        mulxq	48(%rsi), %rax, %rcx
-        adcxq	%rax, %r15
-        adoxq	%rcx, %rbx
-        # No store %r15 - %r9
-        movq	(%rdi), %r9
-        # A[7] x A[4]
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %rbx
-        adoxq	%rcx, %r9
-        # No store %rbx - %r8
-        movq	8(%rdi), %r8
-        # A[8] x A[4]
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, (%rdi)
-        movq	16(%rdi), %r9
-        # A[8] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 8(%rdi)
-        movq	24(%rdi), %r8
-        # A[8] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 16(%rdi)
-        movq	32(%rdi), %r9
-        # A[8] x A[7]
-        movq	56(%rsi), %rdx
-        mulxq	64(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 24(%rdi)
-        movq	40(%rdi), %r8
-        # A[10] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 32(%rdi)
-        movq	48(%rdi), %r9
-        # A[10] x A[7]
-        movq	56(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 40(%rdi)
-        # Zero into %r8
-        # A[10] x A[8]
-        movq	64(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 48(%rdi)
-        # Zero into %r9
-        # A[10] x A[9]
-        movq	72(%rsi), %rdx
-        mulxq	80(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 56(%rdi)
-        #  Carry
-        adcxq	%r11, %r9
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r9, 64(%rdi)
-        # Diagonal 6
-        movq	(%rdi), %r8
-        # A[6] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	48(%rsi), %rax, %rcx
-        adcxq	%rax, %rbx
-        adoxq	%rcx, %r8
-        # No store %rbx - %r9
-        movq	8(%rdi), %r9
-        # A[7] x A[5]
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, (%rdi)
-        movq	16(%rdi), %r8
-        # A[7] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	56(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 8(%rdi)
-        movq	24(%rdi), %r9
-        # A[11] x A[3]
-        movq	24(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 16(%rdi)
-        movq	32(%rdi), %r8
-        # A[11] x A[4]
-        movq	32(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 24(%rdi)
-        movq	40(%rdi), %r9
-        # A[11] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 32(%rdi)
-        movq	48(%rdi), %r8
-        # A[11] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 40(%rdi)
-        movq	56(%rdi), %r9
-        # A[11] x A[7]
-        movq	56(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r8
-        adoxq	%rcx, %r9
-        movq	%r8, 48(%rdi)
-        movq	64(%rdi), %r8
-        # A[11] x A[8]
-        movq	64(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %rcx
-        adcxq	%rax, %r9
-        adoxq	%rcx, %r8
-        movq	%r9, 56(%rdi)
-        # Zero into %r9
-        # A[11] x A[9]
-        movq	72(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %r9
-        adcxq	%rax, %r8
-        adoxq	%r10, %r9
-        movq	%r8, 64(%rdi)
-        # Zero into %r8
-        # A[11] x A[10]
-        movq	80(%rsi), %rdx
-        mulxq	88(%rsi), %rax, %r8
-        adcxq	%rax, %r9
-        adoxq	%r10, %r8
-        movq	%r9, 72(%rdi)
-        #  Carry
-        adcxq	%r11, %r8
-        movq	%r10, %r11
-        adcxq	%r10, %r11
-        adoxq	%r10, %r11
-        movq	%r8, 80(%rdi)
-        movq	%r11, 88(%rdi)
-        # Double and Add in A[i] x A[i]
-        movq	8(%rbp), %r9
-        # A[0] x A[0]
-        movq	(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        movq	%rax, (%rbp)
-        adoxq	%r9, %r9
-        adcxq	%rcx, %r9
-        movq	%r9, 8(%rbp)
-        movq	16(%rbp), %r8
-        movq	24(%rbp), %r9
-        # A[1] x A[1]
-        movq	8(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 16(%rbp)
-        movq	%r9, 24(%rbp)
-        movq	32(%rbp), %r8
-        movq	40(%rbp), %r9
-        # A[2] x A[2]
-        movq	16(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 32(%rbp)
-        movq	%r9, 40(%rbp)
-        movq	48(%rbp), %r8
-        # A[3] x A[3]
-        movq	24(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r12, %r12
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r12
-        movq	%r8, 48(%rbp)
-        # A[4] x A[4]
-        movq	32(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r13, %r13
-        adoxq	%r14, %r14
-        adcxq	%rax, %r13
-        adcxq	%rcx, %r14
-        # A[5] x A[5]
-        movq	40(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r15, %r15
-        adoxq	%rbx, %rbx
-        adcxq	%rax, %r15
-        adcxq	%rcx, %rbx
-        movq	(%rdi), %r8
-        movq	8(%rdi), %r9
-        # A[6] x A[6]
-        movq	48(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	16(%rdi), %r8
-        movq	24(%rdi), %r9
-        # A[7] x A[7]
-        movq	56(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 16(%rdi)
-        movq	%r9, 24(%rdi)
-        movq	32(%rdi), %r8
-        movq	40(%rdi), %r9
-        # A[8] x A[8]
-        movq	64(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 32(%rdi)
-        movq	%r9, 40(%rdi)
-        movq	48(%rdi), %r8
-        movq	56(%rdi), %r9
-        # A[9] x A[9]
-        movq	72(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 48(%rdi)
-        movq	%r9, 56(%rdi)
-        movq	64(%rdi), %r8
-        movq	72(%rdi), %r9
-        # A[10] x A[10]
-        movq	80(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 64(%rdi)
-        movq	%r9, 72(%rdi)
-        movq	80(%rdi), %r8
-        movq	88(%rdi), %r9
-        # A[11] x A[11]
-        movq	88(%rsi), %rdx
-        mulxq	%rdx, %rax, %rcx
-        adoxq	%r8, %r8
-        adoxq	%r9, %r9
-        adcxq	%rax, %r8
-        adcxq	%rcx, %r9
-        movq	%r8, 80(%rdi)
-        movq	%r9, 88(%rdi)
-        movq	%r12, -40(%rdi)
-        movq	%r13, -32(%rdi)
-        movq	%r14, -24(%rdi)
-        movq	%r15, -16(%rdi)
-        movq	%rbx, -8(%rdi)
-        subq	$0x60, %rdi
-        cmpq	%rdi, %rsi
-        jne	L_end_3072_sqr_avx2_12
-        vmovdqu	(%rbp), %xmm0
-        vmovups	%xmm0, (%rdi)
-        vmovdqu	16(%rbp), %xmm0
-        vmovups	%xmm0, 16(%rdi)
-        vmovdqu	32(%rbp), %xmm0
-        vmovups	%xmm0, 32(%rdi)
-        movq	48(%rbp), %rax
-        movq	%rax, 48(%rdi)
-L_end_3072_sqr_avx2_12:
-        addq	$0x60, %rsp
-        popq	%rbx
-        popq	%r15
-        popq	%r14
-        popq	%r13
-        popq	%r12
-        popq	%rbp
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sqr_avx2_12,.-sp_3072_sqr_avx2_12
-#endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -17269,535 +15947,6 @@ _sp_3072_mul_24:
 #ifndef __APPLE__
 .size	sp_3072_mul_24,.-sp_3072_mul_24
 #endif /* __APPLE__ */
-/* Add a to a into r. (r = a + a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_dbl_12
-.type	sp_3072_dbl_12,@function
-.align	16
-sp_3072_dbl_12:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_dbl_12
-.p2align	4
-_sp_3072_dbl_12:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rdx
-        xorq	%rax, %rax
-        addq	%rdx, %rdx
-        movq	8(%rsi), %rcx
-        movq	%rdx, (%rdi)
-        adcq	%rcx, %rcx
-        movq	16(%rsi), %rdx
-        movq	%rcx, 8(%rdi)
-        adcq	%rdx, %rdx
-        movq	24(%rsi), %rcx
-        movq	%rdx, 16(%rdi)
-        adcq	%rcx, %rcx
-        movq	32(%rsi), %rdx
-        movq	%rcx, 24(%rdi)
-        adcq	%rdx, %rdx
-        movq	40(%rsi), %rcx
-        movq	%rdx, 32(%rdi)
-        adcq	%rcx, %rcx
-        movq	48(%rsi), %rdx
-        movq	%rcx, 40(%rdi)
-        adcq	%rdx, %rdx
-        movq	56(%rsi), %rcx
-        movq	%rdx, 48(%rdi)
-        adcq	%rcx, %rcx
-        movq	64(%rsi), %rdx
-        movq	%rcx, 56(%rdi)
-        adcq	%rdx, %rdx
-        movq	72(%rsi), %rcx
-        movq	%rdx, 64(%rdi)
-        adcq	%rcx, %rcx
-        movq	80(%rsi), %rdx
-        movq	%rcx, 72(%rdi)
-        adcq	%rdx, %rdx
-        movq	88(%rsi), %rcx
-        movq	%rdx, 80(%rdi)
-        adcq	%rcx, %rcx
-        movq	%rcx, 88(%rdi)
-        adcq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_dbl_12,.-sp_3072_dbl_12
-#endif /* __APPLE__ */
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sqr_24
-.type	sp_3072_sqr_24,@function
-.align	16
-sp_3072_sqr_24:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sqr_24
-.p2align	4
-_sp_3072_sqr_24:
-#endif /* __APPLE__ */
-        subq	$0x1f8, %rsp
-        movq	%rdi, 480(%rsp)
-        movq	%rsi, 488(%rsp)
-        leaq	384(%rsp), %r8
-        leaq	96(%rsi), %r9
-        # Add
-        movq	(%rsi), %rdx
-        xorq	%rcx, %rcx
-        addq	(%r9), %rdx
-        movq	8(%rsi), %rax
-        movq	%rdx, (%r8)
-        adcq	8(%r9), %rax
-        movq	16(%rsi), %rdx
-        movq	%rax, 8(%r8)
-        adcq	16(%r9), %rdx
-        movq	24(%rsi), %rax
-        movq	%rdx, 16(%r8)
-        adcq	24(%r9), %rax
-        movq	32(%rsi), %rdx
-        movq	%rax, 24(%r8)
-        adcq	32(%r9), %rdx
-        movq	40(%rsi), %rax
-        movq	%rdx, 32(%r8)
-        adcq	40(%r9), %rax
-        movq	48(%rsi), %rdx
-        movq	%rax, 40(%r8)
-        adcq	48(%r9), %rdx
-        movq	56(%rsi), %rax
-        movq	%rdx, 48(%r8)
-        adcq	56(%r9), %rax
-        movq	64(%rsi), %rdx
-        movq	%rax, 56(%r8)
-        adcq	64(%r9), %rdx
-        movq	72(%rsi), %rax
-        movq	%rdx, 64(%r8)
-        adcq	72(%r9), %rax
-        movq	80(%rsi), %rdx
-        movq	%rax, 72(%r8)
-        adcq	80(%r9), %rdx
-        movq	88(%rsi), %rax
-        movq	%rdx, 80(%r8)
-        adcq	88(%r9), %rax
-        movq	%rax, 88(%r8)
-        adcq	$0x00, %rcx
-        movq	%rcx, 496(%rsp)
-        movq	%r8, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_12@plt
-#else
-        callq	_sp_3072_sqr_12
-#endif /* __APPLE__ */
-        movq	488(%rsp), %rsi
-        leaq	192(%rsp), %rdi
-        addq	$0x60, %rsi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_12@plt
-#else
-        callq	_sp_3072_sqr_12
-#endif /* __APPLE__ */
-        movq	488(%rsp), %rsi
-        movq	480(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_12@plt
-#else
-        callq	_sp_3072_sqr_12
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	488(%rsp), %rsi
-        movq	480(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	496(%rsp), %r10
-        movq	%rdi, %r9
-        leaq	384(%rsp), %r8
-        movq	%r10, %rcx
-        negq	%r10
-        addq	$0xc0, %r9
-        movq	(%r8), %rdx
-        movq	8(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, (%r9)
-        movq	%rax, 8(%r9)
-        movq	16(%r8), %rdx
-        movq	24(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 16(%r9)
-        movq	%rax, 24(%r9)
-        movq	32(%r8), %rdx
-        movq	40(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 32(%r9)
-        movq	%rax, 40(%r9)
-        movq	48(%r8), %rdx
-        movq	56(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 48(%r9)
-        movq	%rax, 56(%r9)
-        movq	64(%r8), %rdx
-        movq	72(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 64(%r9)
-        movq	%rax, 72(%r9)
-        movq	80(%r8), %rdx
-        movq	88(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 80(%r9)
-        movq	%rax, 88(%r9)
-        movq	(%r9), %rdx
-        addq	%rdx, %rdx
-        movq	8(%r9), %rax
-        movq	%rdx, (%r9)
-        adcq	%rax, %rax
-        movq	16(%r9), %rdx
-        movq	%rax, 8(%r9)
-        adcq	%rdx, %rdx
-        movq	24(%r9), %rax
-        movq	%rdx, 16(%r9)
-        adcq	%rax, %rax
-        movq	32(%r9), %rdx
-        movq	%rax, 24(%r9)
-        adcq	%rdx, %rdx
-        movq	40(%r9), %rax
-        movq	%rdx, 32(%r9)
-        adcq	%rax, %rax
-        movq	48(%r9), %rdx
-        movq	%rax, 40(%r9)
-        adcq	%rdx, %rdx
-        movq	56(%r9), %rax
-        movq	%rdx, 48(%r9)
-        adcq	%rax, %rax
-        movq	64(%r9), %rdx
-        movq	%rax, 56(%r9)
-        adcq	%rdx, %rdx
-        movq	72(%r9), %rax
-        movq	%rdx, 64(%r9)
-        adcq	%rax, %rax
-        movq	80(%r9), %rdx
-        movq	%rax, 72(%r9)
-        adcq	%rdx, %rdx
-        movq	88(%r9), %rax
-        movq	%rdx, 80(%r9)
-        adcq	%rax, %rax
-        movq	%rax, 88(%r9)
-        adcq	$0x00, %rcx
-        leaq	192(%rsp), %rsi
-        movq	%rsp, %r8
-        movq	(%r8), %rdx
-        subq	(%rsi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rsi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rsi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rsi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rsi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rsi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rsi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rsi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rsi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rsi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rsi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rsi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rsi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rsi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rsi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rsi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rsi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rsi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rsi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rsi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rsi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rsi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rsi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rsi), %rax
-        movq	%rax, 184(%r8)
-        sbbq	$0x00, %rcx
-        movq	(%r8), %rdx
-        subq	(%rdi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rdi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rdi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rdi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rdi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rdi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rdi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rdi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rdi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rdi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rdi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rdi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rdi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rdi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rdi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rdi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rdi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rdi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rdi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rdi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rdi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rdi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rdi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rdi), %rax
-        movq	%rax, 184(%r8)
-        sbbq	$0x00, %rcx
-        subq	$0x60, %r9
-        # Add in place
-        movq	(%r9), %rdx
-        addq	(%r8), %rdx
-        movq	8(%r9), %rax
-        movq	%rdx, (%r9)
-        adcq	8(%r8), %rax
-        movq	16(%r9), %rdx
-        movq	%rax, 8(%r9)
-        adcq	16(%r8), %rdx
-        movq	24(%r9), %rax
-        movq	%rdx, 16(%r9)
-        adcq	24(%r8), %rax
-        movq	32(%r9), %rdx
-        movq	%rax, 24(%r9)
-        adcq	32(%r8), %rdx
-        movq	40(%r9), %rax
-        movq	%rdx, 32(%r9)
-        adcq	40(%r8), %rax
-        movq	48(%r9), %rdx
-        movq	%rax, 40(%r9)
-        adcq	48(%r8), %rdx
-        movq	56(%r9), %rax
-        movq	%rdx, 48(%r9)
-        adcq	56(%r8), %rax
-        movq	64(%r9), %rdx
-        movq	%rax, 56(%r9)
-        adcq	64(%r8), %rdx
-        movq	72(%r9), %rax
-        movq	%rdx, 64(%r9)
-        adcq	72(%r8), %rax
-        movq	80(%r9), %rdx
-        movq	%rax, 72(%r9)
-        adcq	80(%r8), %rdx
-        movq	88(%r9), %rax
-        movq	%rdx, 80(%r9)
-        adcq	88(%r8), %rax
-        movq	96(%r9), %rdx
-        movq	%rax, 88(%r9)
-        adcq	96(%r8), %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	104(%r8), %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	112(%r8), %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	120(%r8), %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	128(%r8), %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	136(%r8), %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	144(%r8), %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	152(%r8), %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	160(%r8), %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	168(%r8), %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	176(%r8), %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	184(%r8), %rax
-        movq	%rax, 184(%r9)
-        adcq	$0x00, %rcx
-        movq	%rcx, 288(%rdi)
-        # Add in place
-        movq	96(%r9), %rdx
-        addq	(%rsi), %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	8(%rsi), %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	16(%rsi), %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	24(%rsi), %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	32(%rsi), %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	40(%rsi), %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	48(%rsi), %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	56(%rsi), %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	64(%rsi), %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	72(%rsi), %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	80(%rsi), %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	88(%rsi), %rax
-        movq	192(%r9), %rdx
-        movq	%rax, 184(%r9)
-        adcq	96(%rsi), %rdx
-        movq	%rdx, 192(%r9)
-        # Add to zero
-        movq	104(%rsi), %rdx
-        adcq	$0x00, %rdx
-        movq	112(%rsi), %rax
-        movq	%rdx, 200(%r9)
-        adcq	$0x00, %rax
-        movq	120(%rsi), %rdx
-        movq	%rax, 208(%r9)
-        adcq	$0x00, %rdx
-        movq	128(%rsi), %rax
-        movq	%rdx, 216(%r9)
-        adcq	$0x00, %rax
-        movq	136(%rsi), %rdx
-        movq	%rax, 224(%r9)
-        adcq	$0x00, %rdx
-        movq	144(%rsi), %rax
-        movq	%rdx, 232(%r9)
-        adcq	$0x00, %rax
-        movq	152(%rsi), %rdx
-        movq	%rax, 240(%r9)
-        adcq	$0x00, %rdx
-        movq	160(%rsi), %rax
-        movq	%rdx, 248(%r9)
-        adcq	$0x00, %rax
-        movq	168(%rsi), %rdx
-        movq	%rax, 256(%r9)
-        adcq	$0x00, %rdx
-        movq	176(%rsi), %rax
-        movq	%rdx, 264(%r9)
-        adcq	$0x00, %rax
-        movq	184(%rsi), %rdx
-        movq	%rax, 272(%r9)
-        adcq	$0x00, %rdx
-        movq	%rdx, 280(%r9)
-        addq	$0x1f8, %rsp
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sqr_24,.-sp_3072_sqr_24
-#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -18330,454 +16479,6 @@ _sp_3072_mul_avx2_24:
         repz retq
 #ifndef __APPLE__
 .size	sp_3072_mul_avx2_24,.-sp_3072_mul_avx2_24
-#endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
-#ifdef HAVE_INTEL_AVX2
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sqr_avx2_24
-.type	sp_3072_sqr_avx2_24,@function
-.align	16
-sp_3072_sqr_avx2_24:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sqr_avx2_24
-.p2align	4
-_sp_3072_sqr_avx2_24:
-#endif /* __APPLE__ */
-        subq	$0x1f8, %rsp
-        movq	%rdi, 480(%rsp)
-        movq	%rsi, 488(%rsp)
-        leaq	384(%rsp), %r8
-        leaq	96(%rsi), %r9
-        # Add
-        movq	(%rsi), %rdx
-        xorq	%rcx, %rcx
-        addq	(%r9), %rdx
-        movq	8(%rsi), %rax
-        movq	%rdx, (%r8)
-        adcq	8(%r9), %rax
-        movq	16(%rsi), %rdx
-        movq	%rax, 8(%r8)
-        adcq	16(%r9), %rdx
-        movq	24(%rsi), %rax
-        movq	%rdx, 16(%r8)
-        adcq	24(%r9), %rax
-        movq	32(%rsi), %rdx
-        movq	%rax, 24(%r8)
-        adcq	32(%r9), %rdx
-        movq	40(%rsi), %rax
-        movq	%rdx, 32(%r8)
-        adcq	40(%r9), %rax
-        movq	48(%rsi), %rdx
-        movq	%rax, 40(%r8)
-        adcq	48(%r9), %rdx
-        movq	56(%rsi), %rax
-        movq	%rdx, 48(%r8)
-        adcq	56(%r9), %rax
-        movq	64(%rsi), %rdx
-        movq	%rax, 56(%r8)
-        adcq	64(%r9), %rdx
-        movq	72(%rsi), %rax
-        movq	%rdx, 64(%r8)
-        adcq	72(%r9), %rax
-        movq	80(%rsi), %rdx
-        movq	%rax, 72(%r8)
-        adcq	80(%r9), %rdx
-        movq	88(%rsi), %rax
-        movq	%rdx, 80(%r8)
-        adcq	88(%r9), %rax
-        movq	%rax, 88(%r8)
-        adcq	$0x00, %rcx
-        movq	%rcx, 496(%rsp)
-        movq	%r8, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_avx2_12@plt
-#else
-        callq	_sp_3072_sqr_avx2_12
-#endif /* __APPLE__ */
-        movq	488(%rsp), %rsi
-        leaq	192(%rsp), %rdi
-        addq	$0x60, %rsi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_avx2_12@plt
-#else
-        callq	_sp_3072_sqr_avx2_12
-#endif /* __APPLE__ */
-        movq	488(%rsp), %rsi
-        movq	480(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_avx2_12@plt
-#else
-        callq	_sp_3072_sqr_avx2_12
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	488(%rsp), %rsi
-        movq	480(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	496(%rsp), %r10
-        movq	%rdi, %r9
-        leaq	384(%rsp), %r8
-        movq	%r10, %rcx
-        negq	%r10
-        addq	$0xc0, %r9
-        movq	(%r8), %rdx
-        pextq	%r10, %rdx, %rdx
-        addq	%rdx, %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r9)
-        pextq	%r10, %rdx, %rdx
-        adcq	%rdx, %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r9)
-        pextq	%r10, %rdx, %rdx
-        adcq	%rdx, %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r9)
-        pextq	%r10, %rdx, %rdx
-        adcq	%rdx, %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r9)
-        pextq	%r10, %rdx, %rdx
-        adcq	%rdx, %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r9)
-        pextq	%r10, %rdx, %rdx
-        adcq	%rdx, %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r9)
-        pextq	%r10, %rax, %rax
-        adcq	%rax, %rax
-        movq	%rax, 88(%r9)
-        adcq	$0x00, %rcx
-        leaq	192(%rsp), %rsi
-        movq	%rsp, %r8
-        movq	(%r8), %rdx
-        subq	(%rsi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rsi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rsi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rsi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rsi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rsi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rsi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rsi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rsi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rsi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rsi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rsi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rsi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rsi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rsi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rsi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rsi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rsi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rsi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rsi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rsi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rsi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rsi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rsi), %rax
-        movq	%rax, 184(%r8)
-        sbbq	$0x00, %rcx
-        movq	(%r8), %rdx
-        subq	(%rdi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rdi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rdi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rdi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rdi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rdi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rdi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rdi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rdi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rdi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rdi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rdi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rdi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rdi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rdi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rdi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rdi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rdi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rdi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rdi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rdi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rdi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rdi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rdi), %rax
-        movq	%rax, 184(%r8)
-        sbbq	$0x00, %rcx
-        subq	$0x60, %r9
-        # Add in place
-        movq	(%r9), %rdx
-        addq	(%r8), %rdx
-        movq	8(%r9), %rax
-        movq	%rdx, (%r9)
-        adcq	8(%r8), %rax
-        movq	16(%r9), %rdx
-        movq	%rax, 8(%r9)
-        adcq	16(%r8), %rdx
-        movq	24(%r9), %rax
-        movq	%rdx, 16(%r9)
-        adcq	24(%r8), %rax
-        movq	32(%r9), %rdx
-        movq	%rax, 24(%r9)
-        adcq	32(%r8), %rdx
-        movq	40(%r9), %rax
-        movq	%rdx, 32(%r9)
-        adcq	40(%r8), %rax
-        movq	48(%r9), %rdx
-        movq	%rax, 40(%r9)
-        adcq	48(%r8), %rdx
-        movq	56(%r9), %rax
-        movq	%rdx, 48(%r9)
-        adcq	56(%r8), %rax
-        movq	64(%r9), %rdx
-        movq	%rax, 56(%r9)
-        adcq	64(%r8), %rdx
-        movq	72(%r9), %rax
-        movq	%rdx, 64(%r9)
-        adcq	72(%r8), %rax
-        movq	80(%r9), %rdx
-        movq	%rax, 72(%r9)
-        adcq	80(%r8), %rdx
-        movq	88(%r9), %rax
-        movq	%rdx, 80(%r9)
-        adcq	88(%r8), %rax
-        movq	96(%r9), %rdx
-        movq	%rax, 88(%r9)
-        adcq	96(%r8), %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	104(%r8), %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	112(%r8), %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	120(%r8), %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	128(%r8), %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	136(%r8), %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	144(%r8), %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	152(%r8), %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	160(%r8), %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	168(%r8), %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	176(%r8), %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	184(%r8), %rax
-        movq	%rax, 184(%r9)
-        adcq	$0x00, %rcx
-        movq	%rcx, 288(%rdi)
-        # Add in place
-        movq	96(%r9), %rdx
-        addq	(%rsi), %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	8(%rsi), %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	16(%rsi), %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	24(%rsi), %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	32(%rsi), %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	40(%rsi), %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	48(%rsi), %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	56(%rsi), %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	64(%rsi), %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	72(%rsi), %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	80(%rsi), %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	88(%rsi), %rax
-        movq	192(%r9), %rdx
-        movq	%rax, 184(%r9)
-        adcq	96(%rsi), %rdx
-        movq	%rdx, 192(%r9)
-        # Add to zero
-        movq	104(%rsi), %rdx
-        adcq	$0x00, %rdx
-        movq	112(%rsi), %rax
-        movq	%rdx, 200(%r9)
-        adcq	$0x00, %rax
-        movq	120(%rsi), %rdx
-        movq	%rax, 208(%r9)
-        adcq	$0x00, %rdx
-        movq	128(%rsi), %rax
-        movq	%rdx, 216(%r9)
-        adcq	$0x00, %rax
-        movq	136(%rsi), %rdx
-        movq	%rax, 224(%r9)
-        adcq	$0x00, %rdx
-        movq	144(%rsi), %rax
-        movq	%rdx, 232(%r9)
-        adcq	$0x00, %rax
-        movq	152(%rsi), %rdx
-        movq	%rax, 240(%r9)
-        adcq	$0x00, %rdx
-        movq	160(%rsi), %rax
-        movq	%rdx, 248(%r9)
-        adcq	$0x00, %rax
-        movq	168(%rsi), %rdx
-        movq	%rax, 256(%r9)
-        adcq	$0x00, %rdx
-        movq	176(%rsi), %rax
-        movq	%rdx, 264(%r9)
-        adcq	$0x00, %rax
-        movq	184(%rsi), %rdx
-        movq	%rax, 272(%r9)
-        adcq	$0x00, %rdx
-        movq	%rdx, 280(%r9)
-        addq	$0x1f8, %rsp
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sqr_avx2_24,.-sp_3072_sqr_avx2_24
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Sub b from a into a. (a -= b)
@@ -20152,967 +17853,6 @@ _sp_3072_mul_48:
 #ifndef __APPLE__
 .size	sp_3072_mul_48,.-sp_3072_mul_48
 #endif /* __APPLE__ */
-/* Add a to a into r. (r = a + a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_dbl_24
-.type	sp_3072_dbl_24,@function
-.align	16
-sp_3072_dbl_24:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_dbl_24
-.p2align	4
-_sp_3072_dbl_24:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rdx
-        xorq	%rax, %rax
-        addq	%rdx, %rdx
-        movq	8(%rsi), %rcx
-        movq	%rdx, (%rdi)
-        adcq	%rcx, %rcx
-        movq	16(%rsi), %rdx
-        movq	%rcx, 8(%rdi)
-        adcq	%rdx, %rdx
-        movq	24(%rsi), %rcx
-        movq	%rdx, 16(%rdi)
-        adcq	%rcx, %rcx
-        movq	32(%rsi), %rdx
-        movq	%rcx, 24(%rdi)
-        adcq	%rdx, %rdx
-        movq	40(%rsi), %rcx
-        movq	%rdx, 32(%rdi)
-        adcq	%rcx, %rcx
-        movq	48(%rsi), %rdx
-        movq	%rcx, 40(%rdi)
-        adcq	%rdx, %rdx
-        movq	56(%rsi), %rcx
-        movq	%rdx, 48(%rdi)
-        adcq	%rcx, %rcx
-        movq	64(%rsi), %rdx
-        movq	%rcx, 56(%rdi)
-        adcq	%rdx, %rdx
-        movq	72(%rsi), %rcx
-        movq	%rdx, 64(%rdi)
-        adcq	%rcx, %rcx
-        movq	80(%rsi), %rdx
-        movq	%rcx, 72(%rdi)
-        adcq	%rdx, %rdx
-        movq	88(%rsi), %rcx
-        movq	%rdx, 80(%rdi)
-        adcq	%rcx, %rcx
-        movq	96(%rsi), %rdx
-        movq	%rcx, 88(%rdi)
-        adcq	%rdx, %rdx
-        movq	104(%rsi), %rcx
-        movq	%rdx, 96(%rdi)
-        adcq	%rcx, %rcx
-        movq	112(%rsi), %rdx
-        movq	%rcx, 104(%rdi)
-        adcq	%rdx, %rdx
-        movq	120(%rsi), %rcx
-        movq	%rdx, 112(%rdi)
-        adcq	%rcx, %rcx
-        movq	128(%rsi), %rdx
-        movq	%rcx, 120(%rdi)
-        adcq	%rdx, %rdx
-        movq	136(%rsi), %rcx
-        movq	%rdx, 128(%rdi)
-        adcq	%rcx, %rcx
-        movq	144(%rsi), %rdx
-        movq	%rcx, 136(%rdi)
-        adcq	%rdx, %rdx
-        movq	152(%rsi), %rcx
-        movq	%rdx, 144(%rdi)
-        adcq	%rcx, %rcx
-        movq	160(%rsi), %rdx
-        movq	%rcx, 152(%rdi)
-        adcq	%rdx, %rdx
-        movq	168(%rsi), %rcx
-        movq	%rdx, 160(%rdi)
-        adcq	%rcx, %rcx
-        movq	176(%rsi), %rdx
-        movq	%rcx, 168(%rdi)
-        adcq	%rdx, %rdx
-        movq	184(%rsi), %rcx
-        movq	%rdx, 176(%rdi)
-        adcq	%rcx, %rcx
-        movq	%rcx, 184(%rdi)
-        adcq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_dbl_24,.-sp_3072_dbl_24
-#endif /* __APPLE__ */
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sqr_48
-.type	sp_3072_sqr_48,@function
-.align	16
-sp_3072_sqr_48:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sqr_48
-.p2align	4
-_sp_3072_sqr_48:
-#endif /* __APPLE__ */
-        subq	$0x3d8, %rsp
-        movq	%rdi, 960(%rsp)
-        movq	%rsi, 968(%rsp)
-        leaq	768(%rsp), %r8
-        leaq	192(%rsi), %r9
-        # Add
-        movq	(%rsi), %rdx
-        xorq	%rcx, %rcx
-        addq	(%r9), %rdx
-        movq	8(%rsi), %rax
-        movq	%rdx, (%r8)
-        adcq	8(%r9), %rax
-        movq	16(%rsi), %rdx
-        movq	%rax, 8(%r8)
-        adcq	16(%r9), %rdx
-        movq	24(%rsi), %rax
-        movq	%rdx, 16(%r8)
-        adcq	24(%r9), %rax
-        movq	32(%rsi), %rdx
-        movq	%rax, 24(%r8)
-        adcq	32(%r9), %rdx
-        movq	40(%rsi), %rax
-        movq	%rdx, 32(%r8)
-        adcq	40(%r9), %rax
-        movq	48(%rsi), %rdx
-        movq	%rax, 40(%r8)
-        adcq	48(%r9), %rdx
-        movq	56(%rsi), %rax
-        movq	%rdx, 48(%r8)
-        adcq	56(%r9), %rax
-        movq	64(%rsi), %rdx
-        movq	%rax, 56(%r8)
-        adcq	64(%r9), %rdx
-        movq	72(%rsi), %rax
-        movq	%rdx, 64(%r8)
-        adcq	72(%r9), %rax
-        movq	80(%rsi), %rdx
-        movq	%rax, 72(%r8)
-        adcq	80(%r9), %rdx
-        movq	88(%rsi), %rax
-        movq	%rdx, 80(%r8)
-        adcq	88(%r9), %rax
-        movq	96(%rsi), %rdx
-        movq	%rax, 88(%r8)
-        adcq	96(%r9), %rdx
-        movq	104(%rsi), %rax
-        movq	%rdx, 96(%r8)
-        adcq	104(%r9), %rax
-        movq	112(%rsi), %rdx
-        movq	%rax, 104(%r8)
-        adcq	112(%r9), %rdx
-        movq	120(%rsi), %rax
-        movq	%rdx, 112(%r8)
-        adcq	120(%r9), %rax
-        movq	128(%rsi), %rdx
-        movq	%rax, 120(%r8)
-        adcq	128(%r9), %rdx
-        movq	136(%rsi), %rax
-        movq	%rdx, 128(%r8)
-        adcq	136(%r9), %rax
-        movq	144(%rsi), %rdx
-        movq	%rax, 136(%r8)
-        adcq	144(%r9), %rdx
-        movq	152(%rsi), %rax
-        movq	%rdx, 144(%r8)
-        adcq	152(%r9), %rax
-        movq	160(%rsi), %rdx
-        movq	%rax, 152(%r8)
-        adcq	160(%r9), %rdx
-        movq	168(%rsi), %rax
-        movq	%rdx, 160(%r8)
-        adcq	168(%r9), %rax
-        movq	176(%rsi), %rdx
-        movq	%rax, 168(%r8)
-        adcq	176(%r9), %rdx
-        movq	184(%rsi), %rax
-        movq	%rdx, 176(%r8)
-        adcq	184(%r9), %rax
-        movq	%rax, 184(%r8)
-        adcq	$0x00, %rcx
-        movq	%rcx, 976(%rsp)
-        movq	%r8, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_24@plt
-#else
-        callq	_sp_3072_sqr_24
-#endif /* __APPLE__ */
-        movq	968(%rsp), %rsi
-        leaq	384(%rsp), %rdi
-        addq	$0xc0, %rsi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_24@plt
-#else
-        callq	_sp_3072_sqr_24
-#endif /* __APPLE__ */
-        movq	968(%rsp), %rsi
-        movq	960(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_3072_sqr_24@plt
-#else
-        callq	_sp_3072_sqr_24
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	968(%rsp), %rsi
-        movq	960(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	976(%rsp), %r10
-        movq	%rdi, %r9
-        leaq	768(%rsp), %r8
-        movq	%r10, %rcx
-        negq	%r10
-        addq	$0x180, %r9
-        movq	(%r8), %rdx
-        movq	8(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, (%r9)
-        movq	%rax, 8(%r9)
-        movq	16(%r8), %rdx
-        movq	24(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 16(%r9)
-        movq	%rax, 24(%r9)
-        movq	32(%r8), %rdx
-        movq	40(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 32(%r9)
-        movq	%rax, 40(%r9)
-        movq	48(%r8), %rdx
-        movq	56(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 48(%r9)
-        movq	%rax, 56(%r9)
-        movq	64(%r8), %rdx
-        movq	72(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 64(%r9)
-        movq	%rax, 72(%r9)
-        movq	80(%r8), %rdx
-        movq	88(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 80(%r9)
-        movq	%rax, 88(%r9)
-        movq	96(%r8), %rdx
-        movq	104(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 96(%r9)
-        movq	%rax, 104(%r9)
-        movq	112(%r8), %rdx
-        movq	120(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 112(%r9)
-        movq	%rax, 120(%r9)
-        movq	128(%r8), %rdx
-        movq	136(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 128(%r9)
-        movq	%rax, 136(%r9)
-        movq	144(%r8), %rdx
-        movq	152(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 144(%r9)
-        movq	%rax, 152(%r9)
-        movq	160(%r8), %rdx
-        movq	168(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 160(%r9)
-        movq	%rax, 168(%r9)
-        movq	176(%r8), %rdx
-        movq	184(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 176(%r9)
-        movq	%rax, 184(%r9)
-        movq	(%r9), %rdx
-        addq	%rdx, %rdx
-        movq	8(%r9), %rax
-        movq	%rdx, (%r9)
-        adcq	%rax, %rax
-        movq	16(%r9), %rdx
-        movq	%rax, 8(%r9)
-        adcq	%rdx, %rdx
-        movq	24(%r9), %rax
-        movq	%rdx, 16(%r9)
-        adcq	%rax, %rax
-        movq	32(%r9), %rdx
-        movq	%rax, 24(%r9)
-        adcq	%rdx, %rdx
-        movq	40(%r9), %rax
-        movq	%rdx, 32(%r9)
-        adcq	%rax, %rax
-        movq	48(%r9), %rdx
-        movq	%rax, 40(%r9)
-        adcq	%rdx, %rdx
-        movq	56(%r9), %rax
-        movq	%rdx, 48(%r9)
-        adcq	%rax, %rax
-        movq	64(%r9), %rdx
-        movq	%rax, 56(%r9)
-        adcq	%rdx, %rdx
-        movq	72(%r9), %rax
-        movq	%rdx, 64(%r9)
-        adcq	%rax, %rax
-        movq	80(%r9), %rdx
-        movq	%rax, 72(%r9)
-        adcq	%rdx, %rdx
-        movq	88(%r9), %rax
-        movq	%rdx, 80(%r9)
-        adcq	%rax, %rax
-        movq	96(%r9), %rdx
-        movq	%rax, 88(%r9)
-        adcq	%rdx, %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	%rax, %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	%rdx, %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	%rax, %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	%rdx, %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	%rax, %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	%rdx, %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	%rax, %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	%rdx, %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	%rax, %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	%rdx, %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	%rax, %rax
-        movq	%rax, 184(%r9)
-        adcq	$0x00, %rcx
-        leaq	384(%rsp), %rsi
-        movq	%rsp, %r8
-        movq	(%r8), %rdx
-        subq	(%rsi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rsi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rsi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rsi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rsi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rsi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rsi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rsi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rsi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rsi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rsi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rsi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rsi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rsi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rsi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rsi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rsi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rsi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rsi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rsi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rsi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rsi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rsi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rsi), %rax
-        movq	192(%r8), %rdx
-        movq	%rax, 184(%r8)
-        sbbq	192(%rsi), %rdx
-        movq	200(%r8), %rax
-        movq	%rdx, 192(%r8)
-        sbbq	200(%rsi), %rax
-        movq	208(%r8), %rdx
-        movq	%rax, 200(%r8)
-        sbbq	208(%rsi), %rdx
-        movq	216(%r8), %rax
-        movq	%rdx, 208(%r8)
-        sbbq	216(%rsi), %rax
-        movq	224(%r8), %rdx
-        movq	%rax, 216(%r8)
-        sbbq	224(%rsi), %rdx
-        movq	232(%r8), %rax
-        movq	%rdx, 224(%r8)
-        sbbq	232(%rsi), %rax
-        movq	240(%r8), %rdx
-        movq	%rax, 232(%r8)
-        sbbq	240(%rsi), %rdx
-        movq	248(%r8), %rax
-        movq	%rdx, 240(%r8)
-        sbbq	248(%rsi), %rax
-        movq	256(%r8), %rdx
-        movq	%rax, 248(%r8)
-        sbbq	256(%rsi), %rdx
-        movq	264(%r8), %rax
-        movq	%rdx, 256(%r8)
-        sbbq	264(%rsi), %rax
-        movq	272(%r8), %rdx
-        movq	%rax, 264(%r8)
-        sbbq	272(%rsi), %rdx
-        movq	280(%r8), %rax
-        movq	%rdx, 272(%r8)
-        sbbq	280(%rsi), %rax
-        movq	288(%r8), %rdx
-        movq	%rax, 280(%r8)
-        sbbq	288(%rsi), %rdx
-        movq	296(%r8), %rax
-        movq	%rdx, 288(%r8)
-        sbbq	296(%rsi), %rax
-        movq	304(%r8), %rdx
-        movq	%rax, 296(%r8)
-        sbbq	304(%rsi), %rdx
-        movq	312(%r8), %rax
-        movq	%rdx, 304(%r8)
-        sbbq	312(%rsi), %rax
-        movq	320(%r8), %rdx
-        movq	%rax, 312(%r8)
-        sbbq	320(%rsi), %rdx
-        movq	328(%r8), %rax
-        movq	%rdx, 320(%r8)
-        sbbq	328(%rsi), %rax
-        movq	336(%r8), %rdx
-        movq	%rax, 328(%r8)
-        sbbq	336(%rsi), %rdx
-        movq	344(%r8), %rax
-        movq	%rdx, 336(%r8)
-        sbbq	344(%rsi), %rax
-        movq	352(%r8), %rdx
-        movq	%rax, 344(%r8)
-        sbbq	352(%rsi), %rdx
-        movq	360(%r8), %rax
-        movq	%rdx, 352(%r8)
-        sbbq	360(%rsi), %rax
-        movq	368(%r8), %rdx
-        movq	%rax, 360(%r8)
-        sbbq	368(%rsi), %rdx
-        movq	376(%r8), %rax
-        movq	%rdx, 368(%r8)
-        sbbq	376(%rsi), %rax
-        movq	%rax, 376(%r8)
-        sbbq	$0x00, %rcx
-        movq	(%r8), %rdx
-        subq	(%rdi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rdi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rdi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rdi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rdi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rdi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rdi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rdi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rdi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rdi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rdi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rdi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rdi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rdi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rdi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rdi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rdi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rdi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rdi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rdi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rdi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rdi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rdi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rdi), %rax
-        movq	192(%r8), %rdx
-        movq	%rax, 184(%r8)
-        sbbq	192(%rdi), %rdx
-        movq	200(%r8), %rax
-        movq	%rdx, 192(%r8)
-        sbbq	200(%rdi), %rax
-        movq	208(%r8), %rdx
-        movq	%rax, 200(%r8)
-        sbbq	208(%rdi), %rdx
-        movq	216(%r8), %rax
-        movq	%rdx, 208(%r8)
-        sbbq	216(%rdi), %rax
-        movq	224(%r8), %rdx
-        movq	%rax, 216(%r8)
-        sbbq	224(%rdi), %rdx
-        movq	232(%r8), %rax
-        movq	%rdx, 224(%r8)
-        sbbq	232(%rdi), %rax
-        movq	240(%r8), %rdx
-        movq	%rax, 232(%r8)
-        sbbq	240(%rdi), %rdx
-        movq	248(%r8), %rax
-        movq	%rdx, 240(%r8)
-        sbbq	248(%rdi), %rax
-        movq	256(%r8), %rdx
-        movq	%rax, 248(%r8)
-        sbbq	256(%rdi), %rdx
-        movq	264(%r8), %rax
-        movq	%rdx, 256(%r8)
-        sbbq	264(%rdi), %rax
-        movq	272(%r8), %rdx
-        movq	%rax, 264(%r8)
-        sbbq	272(%rdi), %rdx
-        movq	280(%r8), %rax
-        movq	%rdx, 272(%r8)
-        sbbq	280(%rdi), %rax
-        movq	288(%r8), %rdx
-        movq	%rax, 280(%r8)
-        sbbq	288(%rdi), %rdx
-        movq	296(%r8), %rax
-        movq	%rdx, 288(%r8)
-        sbbq	296(%rdi), %rax
-        movq	304(%r8), %rdx
-        movq	%rax, 296(%r8)
-        sbbq	304(%rdi), %rdx
-        movq	312(%r8), %rax
-        movq	%rdx, 304(%r8)
-        sbbq	312(%rdi), %rax
-        movq	320(%r8), %rdx
-        movq	%rax, 312(%r8)
-        sbbq	320(%rdi), %rdx
-        movq	328(%r8), %rax
-        movq	%rdx, 320(%r8)
-        sbbq	328(%rdi), %rax
-        movq	336(%r8), %rdx
-        movq	%rax, 328(%r8)
-        sbbq	336(%rdi), %rdx
-        movq	344(%r8), %rax
-        movq	%rdx, 336(%r8)
-        sbbq	344(%rdi), %rax
-        movq	352(%r8), %rdx
-        movq	%rax, 344(%r8)
-        sbbq	352(%rdi), %rdx
-        movq	360(%r8), %rax
-        movq	%rdx, 352(%r8)
-        sbbq	360(%rdi), %rax
-        movq	368(%r8), %rdx
-        movq	%rax, 360(%r8)
-        sbbq	368(%rdi), %rdx
-        movq	376(%r8), %rax
-        movq	%rdx, 368(%r8)
-        sbbq	376(%rdi), %rax
-        movq	%rax, 376(%r8)
-        sbbq	$0x00, %rcx
-        subq	$0xc0, %r9
-        # Add in place
-        movq	(%r9), %rdx
-        addq	(%r8), %rdx
-        movq	8(%r9), %rax
-        movq	%rdx, (%r9)
-        adcq	8(%r8), %rax
-        movq	16(%r9), %rdx
-        movq	%rax, 8(%r9)
-        adcq	16(%r8), %rdx
-        movq	24(%r9), %rax
-        movq	%rdx, 16(%r9)
-        adcq	24(%r8), %rax
-        movq	32(%r9), %rdx
-        movq	%rax, 24(%r9)
-        adcq	32(%r8), %rdx
-        movq	40(%r9), %rax
-        movq	%rdx, 32(%r9)
-        adcq	40(%r8), %rax
-        movq	48(%r9), %rdx
-        movq	%rax, 40(%r9)
-        adcq	48(%r8), %rdx
-        movq	56(%r9), %rax
-        movq	%rdx, 48(%r9)
-        adcq	56(%r8), %rax
-        movq	64(%r9), %rdx
-        movq	%rax, 56(%r9)
-        adcq	64(%r8), %rdx
-        movq	72(%r9), %rax
-        movq	%rdx, 64(%r9)
-        adcq	72(%r8), %rax
-        movq	80(%r9), %rdx
-        movq	%rax, 72(%r9)
-        adcq	80(%r8), %rdx
-        movq	88(%r9), %rax
-        movq	%rdx, 80(%r9)
-        adcq	88(%r8), %rax
-        movq	96(%r9), %rdx
-        movq	%rax, 88(%r9)
-        adcq	96(%r8), %rdx
-        movq	104(%r9), %rax
-        movq	%rdx, 96(%r9)
-        adcq	104(%r8), %rax
-        movq	112(%r9), %rdx
-        movq	%rax, 104(%r9)
-        adcq	112(%r8), %rdx
-        movq	120(%r9), %rax
-        movq	%rdx, 112(%r9)
-        adcq	120(%r8), %rax
-        movq	128(%r9), %rdx
-        movq	%rax, 120(%r9)
-        adcq	128(%r8), %rdx
-        movq	136(%r9), %rax
-        movq	%rdx, 128(%r9)
-        adcq	136(%r8), %rax
-        movq	144(%r9), %rdx
-        movq	%rax, 136(%r9)
-        adcq	144(%r8), %rdx
-        movq	152(%r9), %rax
-        movq	%rdx, 144(%r9)
-        adcq	152(%r8), %rax
-        movq	160(%r9), %rdx
-        movq	%rax, 152(%r9)
-        adcq	160(%r8), %rdx
-        movq	168(%r9), %rax
-        movq	%rdx, 160(%r9)
-        adcq	168(%r8), %rax
-        movq	176(%r9), %rdx
-        movq	%rax, 168(%r9)
-        adcq	176(%r8), %rdx
-        movq	184(%r9), %rax
-        movq	%rdx, 176(%r9)
-        adcq	184(%r8), %rax
-        movq	192(%r9), %rdx
-        movq	%rax, 184(%r9)
-        adcq	192(%r8), %rdx
-        movq	200(%r9), %rax
-        movq	%rdx, 192(%r9)
-        adcq	200(%r8), %rax
-        movq	208(%r9), %rdx
-        movq	%rax, 200(%r9)
-        adcq	208(%r8), %rdx
-        movq	216(%r9), %rax
-        movq	%rdx, 208(%r9)
-        adcq	216(%r8), %rax
-        movq	224(%r9), %rdx
-        movq	%rax, 216(%r9)
-        adcq	224(%r8), %rdx
-        movq	232(%r9), %rax
-        movq	%rdx, 224(%r9)
-        adcq	232(%r8), %rax
-        movq	240(%r9), %rdx
-        movq	%rax, 232(%r9)
-        adcq	240(%r8), %rdx
-        movq	248(%r9), %rax
-        movq	%rdx, 240(%r9)
-        adcq	248(%r8), %rax
-        movq	256(%r9), %rdx
-        movq	%rax, 248(%r9)
-        adcq	256(%r8), %rdx
-        movq	264(%r9), %rax
-        movq	%rdx, 256(%r9)
-        adcq	264(%r8), %rax
-        movq	272(%r9), %rdx
-        movq	%rax, 264(%r9)
-        adcq	272(%r8), %rdx
-        movq	280(%r9), %rax
-        movq	%rdx, 272(%r9)
-        adcq	280(%r8), %rax
-        movq	288(%r9), %rdx
-        movq	%rax, 280(%r9)
-        adcq	288(%r8), %rdx
-        movq	296(%r9), %rax
-        movq	%rdx, 288(%r9)
-        adcq	296(%r8), %rax
-        movq	304(%r9), %rdx
-        movq	%rax, 296(%r9)
-        adcq	304(%r8), %rdx
-        movq	312(%r9), %rax
-        movq	%rdx, 304(%r9)
-        adcq	312(%r8), %rax
-        movq	320(%r9), %rdx
-        movq	%rax, 312(%r9)
-        adcq	320(%r8), %rdx
-        movq	328(%r9), %rax
-        movq	%rdx, 320(%r9)
-        adcq	328(%r8), %rax
-        movq	336(%r9), %rdx
-        movq	%rax, 328(%r9)
-        adcq	336(%r8), %rdx
-        movq	344(%r9), %rax
-        movq	%rdx, 336(%r9)
-        adcq	344(%r8), %rax
-        movq	352(%r9), %rdx
-        movq	%rax, 344(%r9)
-        adcq	352(%r8), %rdx
-        movq	360(%r9), %rax
-        movq	%rdx, 352(%r9)
-        adcq	360(%r8), %rax
-        movq	368(%r9), %rdx
-        movq	%rax, 360(%r9)
-        adcq	368(%r8), %rdx
-        movq	376(%r9), %rax
-        movq	%rdx, 368(%r9)
-        adcq	376(%r8), %rax
-        movq	%rax, 376(%r9)
-        adcq	$0x00, %rcx
-        movq	%rcx, 576(%rdi)
-        # Add in place
-        movq	192(%r9), %rdx
-        addq	(%rsi), %rdx
-        movq	200(%r9), %rax
-        movq	%rdx, 192(%r9)
-        adcq	8(%rsi), %rax
-        movq	208(%r9), %rdx
-        movq	%rax, 200(%r9)
-        adcq	16(%rsi), %rdx
-        movq	216(%r9), %rax
-        movq	%rdx, 208(%r9)
-        adcq	24(%rsi), %rax
-        movq	224(%r9), %rdx
-        movq	%rax, 216(%r9)
-        adcq	32(%rsi), %rdx
-        movq	232(%r9), %rax
-        movq	%rdx, 224(%r9)
-        adcq	40(%rsi), %rax
-        movq	240(%r9), %rdx
-        movq	%rax, 232(%r9)
-        adcq	48(%rsi), %rdx
-        movq	248(%r9), %rax
-        movq	%rdx, 240(%r9)
-        adcq	56(%rsi), %rax
-        movq	256(%r9), %rdx
-        movq	%rax, 248(%r9)
-        adcq	64(%rsi), %rdx
-        movq	264(%r9), %rax
-        movq	%rdx, 256(%r9)
-        adcq	72(%rsi), %rax
-        movq	272(%r9), %rdx
-        movq	%rax, 264(%r9)
-        adcq	80(%rsi), %rdx
-        movq	280(%r9), %rax
-        movq	%rdx, 272(%r9)
-        adcq	88(%rsi), %rax
-        movq	288(%r9), %rdx
-        movq	%rax, 280(%r9)
-        adcq	96(%rsi), %rdx
-        movq	296(%r9), %rax
-        movq	%rdx, 288(%r9)
-        adcq	104(%rsi), %rax
-        movq	304(%r9), %rdx
-        movq	%rax, 296(%r9)
-        adcq	112(%rsi), %rdx
-        movq	312(%r9), %rax
-        movq	%rdx, 304(%r9)
-        adcq	120(%rsi), %rax
-        movq	320(%r9), %rdx
-        movq	%rax, 312(%r9)
-        adcq	128(%rsi), %rdx
-        movq	328(%r9), %rax
-        movq	%rdx, 320(%r9)
-        adcq	136(%rsi), %rax
-        movq	336(%r9), %rdx
-        movq	%rax, 328(%r9)
-        adcq	144(%rsi), %rdx
-        movq	344(%r9), %rax
-        movq	%rdx, 336(%r9)
-        adcq	152(%rsi), %rax
-        movq	352(%r9), %rdx
-        movq	%rax, 344(%r9)
-        adcq	160(%rsi), %rdx
-        movq	360(%r9), %rax
-        movq	%rdx, 352(%r9)
-        adcq	168(%rsi), %rax
-        movq	368(%r9), %rdx
-        movq	%rax, 360(%r9)
-        adcq	176(%rsi), %rdx
-        movq	376(%r9), %rax
-        movq	%rdx, 368(%r9)
-        adcq	184(%rsi), %rax
-        movq	384(%r9), %rdx
-        movq	%rax, 376(%r9)
-        adcq	192(%rsi), %rdx
-        movq	%rdx, 384(%r9)
-        # Add to zero
-        movq	200(%rsi), %rdx
-        adcq	$0x00, %rdx
-        movq	208(%rsi), %rax
-        movq	%rdx, 392(%r9)
-        adcq	$0x00, %rax
-        movq	216(%rsi), %rdx
-        movq	%rax, 400(%r9)
-        adcq	$0x00, %rdx
-        movq	224(%rsi), %rax
-        movq	%rdx, 408(%r9)
-        adcq	$0x00, %rax
-        movq	232(%rsi), %rdx
-        movq	%rax, 416(%r9)
-        adcq	$0x00, %rdx
-        movq	240(%rsi), %rax
-        movq	%rdx, 424(%r9)
-        adcq	$0x00, %rax
-        movq	248(%rsi), %rdx
-        movq	%rax, 432(%r9)
-        adcq	$0x00, %rdx
-        movq	256(%rsi), %rax
-        movq	%rdx, 440(%r9)
-        adcq	$0x00, %rax
-        movq	264(%rsi), %rdx
-        movq	%rax, 448(%r9)
-        adcq	$0x00, %rdx
-        movq	272(%rsi), %rax
-        movq	%rdx, 456(%r9)
-        adcq	$0x00, %rax
-        movq	280(%rsi), %rdx
-        movq	%rax, 464(%r9)
-        adcq	$0x00, %rdx
-        movq	288(%rsi), %rax
-        movq	%rdx, 472(%r9)
-        adcq	$0x00, %rax
-        movq	296(%rsi), %rdx
-        movq	%rax, 480(%r9)
-        adcq	$0x00, %rdx
-        movq	304(%rsi), %rax
-        movq	%rdx, 488(%r9)
-        adcq	$0x00, %rax
-        movq	312(%rsi), %rdx
-        movq	%rax, 496(%r9)
-        adcq	$0x00, %rdx
-        movq	320(%rsi), %rax
-        movq	%rdx, 504(%r9)
-        adcq	$0x00, %rax
-        movq	328(%rsi), %rdx
-        movq	%rax, 512(%r9)
-        adcq	$0x00, %rdx
-        movq	336(%rsi), %rax
-        movq	%rdx, 520(%r9)
-        adcq	$0x00, %rax
-        movq	344(%rsi), %rdx
-        movq	%rax, 528(%r9)
-        adcq	$0x00, %rdx
-        movq	352(%rsi), %rax
-        movq	%rdx, 536(%r9)
-        adcq	$0x00, %rax
-        movq	360(%rsi), %rdx
-        movq	%rax, 544(%r9)
-        adcq	$0x00, %rdx
-        movq	368(%rsi), %rax
-        movq	%rdx, 552(%r9)
-        adcq	$0x00, %rax
-        movq	376(%rsi), %rdx
-        movq	%rax, 560(%r9)
-        adcq	$0x00, %rdx
-        movq	%rdx, 568(%r9)
-        addq	$0x3d8, %rsp
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sqr_48,.-sp_3072_sqr_48
-#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -22079,6 +18819,3266 @@ _sp_3072_mul_avx2_48:
 .size	sp_3072_mul_avx2_48,.-sp_3072_mul_avx2_48
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_sqr_12
+.type	sp_3072_sqr_12,@function
+.align	16
+sp_3072_sqr_12:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_sqr_12
+.p2align	4
+_sp_3072_sqr_12:
+#endif /* __APPLE__ */
+        pushq	%r12
+        subq	$0x60, %rsp
+        # A[0] * A[0]
+        movq	(%rsi), %rax
+        mulq	%rax
+        xorq	%r9, %r9
+        movq	%rax, (%rsp)
+        movq	%rdx, %r8
+        # A[0] * A[1]
+        movq	8(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 8(%rsp)
+        # A[0] * A[2]
+        movq	16(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        # A[1] * A[1]
+        movq	8(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        movq	%r9, 16(%rsp)
+        # A[0] * A[3]
+        movq	24(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        # A[1] * A[2]
+        movq	16(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        movq	%rcx, 24(%rsp)
+        # A[0] * A[4]
+        movq	32(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[1] * A[3]
+        movq	24(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[2] * A[2]
+        movq	16(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 32(%rsp)
+        # A[0] * A[5]
+        movq	40(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[4]
+        movq	32(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[3]
+        movq	24(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 40(%rsp)
+        # A[0] * A[6]
+        movq	48(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[5]
+        movq	40(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[4]
+        movq	32(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[3]
+        movq	24(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 48(%rsp)
+        # A[0] * A[7]
+        movq	56(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[6]
+        movq	48(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[5]
+        movq	40(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[4]
+        movq	32(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 56(%rsp)
+        # A[0] * A[8]
+        movq	64(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[7]
+        movq	56(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[6]
+        movq	48(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[5]
+        movq	40(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[4]
+        movq	32(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 64(%rsp)
+        # A[0] * A[9]
+        movq	72(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[8]
+        movq	64(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[7]
+        movq	56(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[6]
+        movq	48(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[5]
+        movq	40(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 72(%rsp)
+        # A[0] * A[10]
+        movq	80(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[9]
+        movq	72(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[8]
+        movq	64(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[7]
+        movq	56(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[6]
+        movq	48(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[5]
+        movq	40(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 80(%rsp)
+        # A[0] * A[11]
+        movq	88(%rsi), %rax
+        mulq	(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[1] * A[10]
+        movq	80(%rsi), %rax
+        mulq	8(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[2] * A[9]
+        movq	72(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[8]
+        movq	64(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[7]
+        movq	56(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[6]
+        movq	48(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 88(%rsp)
+        # A[1] * A[11]
+        movq	88(%rsi), %rax
+        mulq	8(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[2] * A[10]
+        movq	80(%rsi), %rax
+        mulq	16(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[3] * A[9]
+        movq	72(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[8]
+        movq	64(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[7]
+        movq	56(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[6]
+        movq	48(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 96(%rdi)
+        # A[2] * A[11]
+        movq	88(%rsi), %rax
+        mulq	16(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[3] * A[10]
+        movq	80(%rsi), %rax
+        mulq	24(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[4] * A[9]
+        movq	72(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[8]
+        movq	64(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[7]
+        movq	56(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 104(%rdi)
+        # A[3] * A[11]
+        movq	88(%rsi), %rax
+        mulq	24(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[4] * A[10]
+        movq	80(%rsi), %rax
+        mulq	32(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[5] * A[9]
+        movq	72(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[8]
+        movq	64(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[7]
+        movq	56(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 112(%rdi)
+        # A[4] * A[11]
+        movq	88(%rsi), %rax
+        mulq	32(%rsi)
+        xorq	%r9, %r9
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[5] * A[10]
+        movq	80(%rsi), %rax
+        mulq	40(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[6] * A[9]
+        movq	72(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[8]
+        movq	64(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %rcx
+        adcq	%r11, %r8
+        adcq	%r12, %r9
+        movq	%rcx, 120(%rdi)
+        # A[5] * A[11]
+        movq	88(%rsi), %rax
+        mulq	40(%rsi)
+        xorq	%rcx, %rcx
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[6] * A[10]
+        movq	80(%rsi), %rax
+        mulq	48(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[7] * A[9]
+        movq	72(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[8]
+        movq	64(%rsi), %rax
+        mulq	%rax
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r8
+        adcq	%r11, %r9
+        adcq	%r12, %rcx
+        movq	%r8, 128(%rdi)
+        # A[6] * A[11]
+        movq	88(%rsi), %rax
+        mulq	48(%rsi)
+        xorq	%r8, %r8
+        xorq	%r12, %r12
+        movq	%rax, %r10
+        movq	%rdx, %r11
+        # A[7] * A[10]
+        movq	80(%rsi), %rax
+        mulq	56(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        # A[8] * A[9]
+        movq	72(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %r10
+        adcq	%rdx, %r11
+        adcq	$0x00, %r12
+        addq	%r10, %r10
+        adcq	%r11, %r11
+        adcq	%r12, %r12
+        addq	%r10, %r9
+        adcq	%r11, %rcx
+        adcq	%r12, %r8
+        movq	%r9, 136(%rdi)
+        # A[7] * A[11]
+        movq	88(%rsi), %rax
+        mulq	56(%rsi)
+        xorq	%r9, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        # A[8] * A[10]
+        movq	80(%rsi), %rax
+        mulq	64(%rsi)
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        # A[9] * A[9]
+        movq	72(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        movq	%rcx, 144(%rdi)
+        # A[8] * A[11]
+        movq	88(%rsi), %rax
+        mulq	64(%rsi)
+        xorq	%rcx, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        # A[9] * A[10]
+        movq	80(%rsi), %rax
+        mulq	72(%rsi)
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        adcq	$0x00, %rcx
+        movq	%r8, 152(%rdi)
+        # A[9] * A[11]
+        movq	88(%rsi), %rax
+        mulq	72(%rsi)
+        xorq	%r8, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        # A[10] * A[10]
+        movq	80(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r9
+        adcq	%rdx, %rcx
+        adcq	$0x00, %r8
+        movq	%r9, 160(%rdi)
+        # A[10] * A[11]
+        movq	88(%rsi), %rax
+        mulq	80(%rsi)
+        xorq	%r9, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        addq	%rax, %rcx
+        adcq	%rdx, %r8
+        adcq	$0x00, %r9
+        movq	%rcx, 168(%rdi)
+        # A[11] * A[11]
+        movq	88(%rsi), %rax
+        mulq	%rax
+        addq	%rax, %r8
+        adcq	%rdx, %r9
+        movq	%r8, 176(%rdi)
+        movq	%r9, 184(%rdi)
+        movq	(%rsp), %rax
+        movq	8(%rsp), %rdx
+        movq	16(%rsp), %r10
+        movq	24(%rsp), %r11
+        movq	%rax, (%rdi)
+        movq	%rdx, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        movq	32(%rsp), %rax
+        movq	40(%rsp), %rdx
+        movq	48(%rsp), %r10
+        movq	56(%rsp), %r11
+        movq	%rax, 32(%rdi)
+        movq	%rdx, 40(%rdi)
+        movq	%r10, 48(%rdi)
+        movq	%r11, 56(%rdi)
+        movq	64(%rsp), %rax
+        movq	72(%rsp), %rdx
+        movq	80(%rsp), %r10
+        movq	88(%rsp), %r11
+        movq	%rax, 64(%rdi)
+        movq	%rdx, 72(%rdi)
+        movq	%r10, 80(%rdi)
+        movq	%r11, 88(%rdi)
+        addq	$0x60, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_sqr_12,.-sp_3072_sqr_12
+#endif /* __APPLE__ */
+#ifdef HAVE_INTEL_AVX2
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_sqr_avx2_12
+.type	sp_3072_sqr_avx2_12,@function
+.align	16
+sp_3072_sqr_avx2_12:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_sqr_avx2_12
+.p2align	4
+_sp_3072_sqr_avx2_12:
+#endif /* __APPLE__ */
+        pushq	%rbp
+        pushq	%r12
+        pushq	%r13
+        pushq	%r14
+        pushq	%r15
+        pushq	%rbx
+        subq	$0x60, %rsp
+        cmpq	%rdi, %rsi
+        movq	%rsp, %rbp
+        cmovne	%rdi, %rbp
+        addq	$0x60, %rdi
+        xorq	%r10, %r10
+        # Diagonal 1
+        # Zero into %r9
+        # A[1] x A[0]
+        movq	(%rsi), %rdx
+        mulxq	8(%rsi), %r8, %r9
+        movq	%r8, 8(%rbp)
+        # Zero into %r8
+        # A[2] x A[0]
+        mulxq	16(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 16(%rbp)
+        # Zero into %r9
+        # A[3] x A[0]
+        mulxq	24(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 24(%rbp)
+        # Zero into %r8
+        # A[4] x A[0]
+        mulxq	32(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 32(%rbp)
+        # Zero into %r9
+        # A[5] x A[0]
+        mulxq	40(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 40(%rbp)
+        # No load %r12 - %r8
+        # A[6] x A[0]
+        mulxq	48(%rsi), %rax, %r12
+        adcxq	%rax, %r9
+        adoxq	%r10, %r12
+        movq	%r9, 48(%rbp)
+        # No load %r13 - %r9
+        # A[7] x A[0]
+        mulxq	56(%rsi), %rax, %r13
+        adcxq	%rax, %r12
+        adoxq	%r10, %r13
+        # No store %r12 - %r8
+        # No load %r14 - %r8
+        # A[8] x A[0]
+        mulxq	64(%rsi), %rax, %r14
+        adcxq	%rax, %r13
+        adoxq	%r10, %r14
+        # No store %r13 - %r9
+        # No load %r15 - %r9
+        # A[9] x A[0]
+        mulxq	72(%rsi), %rax, %r15
+        adcxq	%rax, %r14
+        adoxq	%r10, %r15
+        # No store %r14 - %r8
+        # No load %rbx - %r8
+        # A[10] x A[0]
+        mulxq	80(%rsi), %rax, %rbx
+        adcxq	%rax, %r15
+        adoxq	%r10, %rbx
+        # No store %r15 - %r9
+        # Zero into %r9
+        # A[11] x A[0]
+        mulxq	88(%rsi), %rax, %r9
+        adcxq	%rax, %rbx
+        adoxq	%r10, %r9
+        # No store %rbx - %r8
+        #  Carry
+        adcxq	%r10, %r9
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r9, (%rdi)
+        # Diagonal 2
+        movq	24(%rbp), %r9
+        movq	32(%rbp), %r8
+        # A[2] x A[1]
+        movq	8(%rsi), %rdx
+        mulxq	16(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 24(%rbp)
+        movq	40(%rbp), %r9
+        # A[3] x A[1]
+        mulxq	24(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 32(%rbp)
+        movq	48(%rbp), %r8
+        # A[4] x A[1]
+        mulxq	32(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 40(%rbp)
+        # No load %r12 - %r9
+        # A[5] x A[1]
+        mulxq	40(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r12
+        movq	%r8, 48(%rbp)
+        # No load %r13 - %r8
+        # A[6] x A[1]
+        mulxq	48(%rsi), %rax, %rcx
+        adcxq	%rax, %r12
+        adoxq	%rcx, %r13
+        # No store %r12 - %r9
+        # No load %r14 - %r9
+        # A[7] x A[1]
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %r13
+        adoxq	%rcx, %r14
+        # No store %r13 - %r8
+        # No load %r15 - %r8
+        # A[8] x A[1]
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r14
+        adoxq	%rcx, %r15
+        # No store %r14 - %r9
+        # No load %rbx - %r9
+        # A[9] x A[1]
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %r15
+        adoxq	%rcx, %rbx
+        # No store %r15 - %r8
+        movq	(%rdi), %r8
+        # A[10] x A[1]
+        mulxq	80(%rsi), %rax, %rcx
+        adcxq	%rax, %rbx
+        adoxq	%rcx, %r8
+        # No store %rbx - %r9
+        # Zero into %r9
+        # A[11] x A[1]
+        mulxq	88(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, (%rdi)
+        # Zero into %r8
+        # A[11] x A[2]
+        movq	16(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 8(%rdi)
+        #  Carry
+        adcxq	%r11, %r8
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r8, 16(%rdi)
+        # Diagonal 3
+        movq	40(%rbp), %r8
+        movq	48(%rbp), %r9
+        # A[3] x A[2]
+        mulxq	24(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 40(%rbp)
+        # No load %r12 - %r8
+        # A[4] x A[2]
+        mulxq	32(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r12
+        movq	%r9, 48(%rbp)
+        # No load %r13 - %r9
+        # A[5] x A[2]
+        mulxq	40(%rsi), %rax, %rcx
+        adcxq	%rax, %r12
+        adoxq	%rcx, %r13
+        # No store %r12 - %r8
+        # No load %r14 - %r8
+        # A[6] x A[2]
+        mulxq	48(%rsi), %rax, %rcx
+        adcxq	%rax, %r13
+        adoxq	%rcx, %r14
+        # No store %r13 - %r9
+        # No load %r15 - %r9
+        # A[7] x A[2]
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %r14
+        adoxq	%rcx, %r15
+        # No store %r14 - %r8
+        # No load %rbx - %r8
+        # A[8] x A[2]
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r15
+        adoxq	%rcx, %rbx
+        # No store %r15 - %r9
+        movq	(%rdi), %r9
+        # A[9] x A[2]
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %rbx
+        adoxq	%rcx, %r9
+        # No store %rbx - %r8
+        movq	8(%rdi), %r8
+        # A[10] x A[2]
+        mulxq	80(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, (%rdi)
+        movq	16(%rdi), %r9
+        # A[10] x A[3]
+        movq	24(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 8(%rdi)
+        # Zero into %r8
+        # A[10] x A[4]
+        movq	32(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 16(%rdi)
+        # Zero into %r9
+        # A[10] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 24(%rdi)
+        #  Carry
+        adcxq	%r11, %r9
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r9, 32(%rdi)
+        # Diagonal 4
+        # No load %r13 - %r8
+        # A[4] x A[3]
+        movq	24(%rsi), %rdx
+        mulxq	32(%rsi), %rax, %rcx
+        adcxq	%rax, %r12
+        adoxq	%rcx, %r13
+        # No store %r12 - %r9
+        # No load %r14 - %r9
+        # A[5] x A[3]
+        mulxq	40(%rsi), %rax, %rcx
+        adcxq	%rax, %r13
+        adoxq	%rcx, %r14
+        # No store %r13 - %r8
+        # No load %r15 - %r8
+        # A[6] x A[3]
+        mulxq	48(%rsi), %rax, %rcx
+        adcxq	%rax, %r14
+        adoxq	%rcx, %r15
+        # No store %r14 - %r9
+        # No load %rbx - %r9
+        # A[7] x A[3]
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %r15
+        adoxq	%rcx, %rbx
+        # No store %r15 - %r8
+        movq	(%rdi), %r8
+        # A[8] x A[3]
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %rbx
+        adoxq	%rcx, %r8
+        # No store %rbx - %r9
+        movq	8(%rdi), %r9
+        # A[9] x A[3]
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, (%rdi)
+        movq	16(%rdi), %r8
+        # A[9] x A[4]
+        movq	32(%rsi), %rdx
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 8(%rdi)
+        movq	24(%rdi), %r9
+        # A[9] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 16(%rdi)
+        movq	32(%rdi), %r8
+        # A[9] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	72(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 24(%rdi)
+        # Zero into %r9
+        # A[9] x A[7]
+        movq	56(%rsi), %rdx
+        mulxq	72(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 32(%rdi)
+        # Zero into %r8
+        # A[9] x A[8]
+        movq	64(%rsi), %rdx
+        mulxq	72(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 40(%rdi)
+        #  Carry
+        adcxq	%r11, %r8
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r8, 48(%rdi)
+        # Diagonal 5
+        # No load %r15 - %r9
+        # A[5] x A[4]
+        movq	32(%rsi), %rdx
+        mulxq	40(%rsi), %rax, %rcx
+        adcxq	%rax, %r14
+        adoxq	%rcx, %r15
+        # No store %r14 - %r8
+        # No load %rbx - %r8
+        # A[6] x A[4]
+        mulxq	48(%rsi), %rax, %rcx
+        adcxq	%rax, %r15
+        adoxq	%rcx, %rbx
+        # No store %r15 - %r9
+        movq	(%rdi), %r9
+        # A[7] x A[4]
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %rbx
+        adoxq	%rcx, %r9
+        # No store %rbx - %r8
+        movq	8(%rdi), %r8
+        # A[8] x A[4]
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, (%rdi)
+        movq	16(%rdi), %r9
+        # A[8] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 8(%rdi)
+        movq	24(%rdi), %r8
+        # A[8] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 16(%rdi)
+        movq	32(%rdi), %r9
+        # A[8] x A[7]
+        movq	56(%rsi), %rdx
+        mulxq	64(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 24(%rdi)
+        movq	40(%rdi), %r8
+        # A[10] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 32(%rdi)
+        movq	48(%rdi), %r9
+        # A[10] x A[7]
+        movq	56(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 40(%rdi)
+        # Zero into %r8
+        # A[10] x A[8]
+        movq	64(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 48(%rdi)
+        # Zero into %r9
+        # A[10] x A[9]
+        movq	72(%rsi), %rdx
+        mulxq	80(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 56(%rdi)
+        #  Carry
+        adcxq	%r11, %r9
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r9, 64(%rdi)
+        # Diagonal 6
+        movq	(%rdi), %r8
+        # A[6] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	48(%rsi), %rax, %rcx
+        adcxq	%rax, %rbx
+        adoxq	%rcx, %r8
+        # No store %rbx - %r9
+        movq	8(%rdi), %r9
+        # A[7] x A[5]
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, (%rdi)
+        movq	16(%rdi), %r8
+        # A[7] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	56(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 8(%rdi)
+        movq	24(%rdi), %r9
+        # A[11] x A[3]
+        movq	24(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 16(%rdi)
+        movq	32(%rdi), %r8
+        # A[11] x A[4]
+        movq	32(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 24(%rdi)
+        movq	40(%rdi), %r9
+        # A[11] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 32(%rdi)
+        movq	48(%rdi), %r8
+        # A[11] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 40(%rdi)
+        movq	56(%rdi), %r9
+        # A[11] x A[7]
+        movq	56(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r8
+        adoxq	%rcx, %r9
+        movq	%r8, 48(%rdi)
+        movq	64(%rdi), %r8
+        # A[11] x A[8]
+        movq	64(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %rcx
+        adcxq	%rax, %r9
+        adoxq	%rcx, %r8
+        movq	%r9, 56(%rdi)
+        # Zero into %r9
+        # A[11] x A[9]
+        movq	72(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %r9
+        adcxq	%rax, %r8
+        adoxq	%r10, %r9
+        movq	%r8, 64(%rdi)
+        # Zero into %r8
+        # A[11] x A[10]
+        movq	80(%rsi), %rdx
+        mulxq	88(%rsi), %rax, %r8
+        adcxq	%rax, %r9
+        adoxq	%r10, %r8
+        movq	%r9, 72(%rdi)
+        #  Carry
+        adcxq	%r11, %r8
+        movq	%r10, %r11
+        adcxq	%r10, %r11
+        adoxq	%r10, %r11
+        movq	%r8, 80(%rdi)
+        movq	%r11, 88(%rdi)
+        # Double and Add in A[i] x A[i]
+        movq	8(%rbp), %r9
+        # A[0] x A[0]
+        movq	(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        movq	%rax, (%rbp)
+        adoxq	%r9, %r9
+        adcxq	%rcx, %r9
+        movq	%r9, 8(%rbp)
+        movq	16(%rbp), %r8
+        movq	24(%rbp), %r9
+        # A[1] x A[1]
+        movq	8(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 16(%rbp)
+        movq	%r9, 24(%rbp)
+        movq	32(%rbp), %r8
+        movq	40(%rbp), %r9
+        # A[2] x A[2]
+        movq	16(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 32(%rbp)
+        movq	%r9, 40(%rbp)
+        movq	48(%rbp), %r8
+        # A[3] x A[3]
+        movq	24(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r12, %r12
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r12
+        movq	%r8, 48(%rbp)
+        # A[4] x A[4]
+        movq	32(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r13, %r13
+        adoxq	%r14, %r14
+        adcxq	%rax, %r13
+        adcxq	%rcx, %r14
+        # A[5] x A[5]
+        movq	40(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r15, %r15
+        adoxq	%rbx, %rbx
+        adcxq	%rax, %r15
+        adcxq	%rcx, %rbx
+        movq	(%rdi), %r8
+        movq	8(%rdi), %r9
+        # A[6] x A[6]
+        movq	48(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, (%rdi)
+        movq	%r9, 8(%rdi)
+        movq	16(%rdi), %r8
+        movq	24(%rdi), %r9
+        # A[7] x A[7]
+        movq	56(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 16(%rdi)
+        movq	%r9, 24(%rdi)
+        movq	32(%rdi), %r8
+        movq	40(%rdi), %r9
+        # A[8] x A[8]
+        movq	64(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 32(%rdi)
+        movq	%r9, 40(%rdi)
+        movq	48(%rdi), %r8
+        movq	56(%rdi), %r9
+        # A[9] x A[9]
+        movq	72(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 48(%rdi)
+        movq	%r9, 56(%rdi)
+        movq	64(%rdi), %r8
+        movq	72(%rdi), %r9
+        # A[10] x A[10]
+        movq	80(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 64(%rdi)
+        movq	%r9, 72(%rdi)
+        movq	80(%rdi), %r8
+        movq	88(%rdi), %r9
+        # A[11] x A[11]
+        movq	88(%rsi), %rdx
+        mulxq	%rdx, %rax, %rcx
+        adoxq	%r8, %r8
+        adoxq	%r9, %r9
+        adcxq	%rax, %r8
+        adcxq	%rcx, %r9
+        movq	%r8, 80(%rdi)
+        movq	%r9, 88(%rdi)
+        movq	%r12, -40(%rdi)
+        movq	%r13, -32(%rdi)
+        movq	%r14, -24(%rdi)
+        movq	%r15, -16(%rdi)
+        movq	%rbx, -8(%rdi)
+        subq	$0x60, %rdi
+        cmpq	%rdi, %rsi
+        jne	L_end_3072_sqr_avx2_12
+        vmovdqu	(%rbp), %xmm0
+        vmovups	%xmm0, (%rdi)
+        vmovdqu	16(%rbp), %xmm0
+        vmovups	%xmm0, 16(%rdi)
+        vmovdqu	32(%rbp), %xmm0
+        vmovups	%xmm0, 32(%rdi)
+        movq	48(%rbp), %rax
+        movq	%rax, 48(%rdi)
+L_end_3072_sqr_avx2_12:
+        addq	$0x60, %rsp
+        popq	%rbx
+        popq	%r15
+        popq	%r14
+        popq	%r13
+        popq	%r12
+        popq	%rbp
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_sqr_avx2_12,.-sp_3072_sqr_avx2_12
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+/* Add a to a into r. (r = a + a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_dbl_12
+.type	sp_3072_dbl_12,@function
+.align	16
+sp_3072_dbl_12:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_dbl_12
+.p2align	4
+_sp_3072_dbl_12:
+#endif /* __APPLE__ */
+        movq	(%rsi), %rdx
+        xorq	%rax, %rax
+        addq	%rdx, %rdx
+        movq	8(%rsi), %rcx
+        movq	%rdx, (%rdi)
+        adcq	%rcx, %rcx
+        movq	16(%rsi), %rdx
+        movq	%rcx, 8(%rdi)
+        adcq	%rdx, %rdx
+        movq	24(%rsi), %rcx
+        movq	%rdx, 16(%rdi)
+        adcq	%rcx, %rcx
+        movq	32(%rsi), %rdx
+        movq	%rcx, 24(%rdi)
+        adcq	%rdx, %rdx
+        movq	40(%rsi), %rcx
+        movq	%rdx, 32(%rdi)
+        adcq	%rcx, %rcx
+        movq	48(%rsi), %rdx
+        movq	%rcx, 40(%rdi)
+        adcq	%rdx, %rdx
+        movq	56(%rsi), %rcx
+        movq	%rdx, 48(%rdi)
+        adcq	%rcx, %rcx
+        movq	64(%rsi), %rdx
+        movq	%rcx, 56(%rdi)
+        adcq	%rdx, %rdx
+        movq	72(%rsi), %rcx
+        movq	%rdx, 64(%rdi)
+        adcq	%rcx, %rcx
+        movq	80(%rsi), %rdx
+        movq	%rcx, 72(%rdi)
+        adcq	%rdx, %rdx
+        movq	88(%rsi), %rcx
+        movq	%rdx, 80(%rdi)
+        adcq	%rcx, %rcx
+        movq	%rcx, 88(%rdi)
+        adcq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_dbl_12,.-sp_3072_dbl_12
+#endif /* __APPLE__ */
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_sqr_24
+.type	sp_3072_sqr_24,@function
+.align	16
+sp_3072_sqr_24:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_sqr_24
+.p2align	4
+_sp_3072_sqr_24:
+#endif /* __APPLE__ */
+        subq	$0x1f8, %rsp
+        movq	%rdi, 480(%rsp)
+        movq	%rsi, 488(%rsp)
+        leaq	384(%rsp), %r8
+        leaq	96(%rsi), %r9
+        # Add
+        movq	(%rsi), %rdx
+        xorq	%rcx, %rcx
+        addq	(%r9), %rdx
+        movq	8(%rsi), %rax
+        movq	%rdx, (%r8)
+        adcq	8(%r9), %rax
+        movq	16(%rsi), %rdx
+        movq	%rax, 8(%r8)
+        adcq	16(%r9), %rdx
+        movq	24(%rsi), %rax
+        movq	%rdx, 16(%r8)
+        adcq	24(%r9), %rax
+        movq	32(%rsi), %rdx
+        movq	%rax, 24(%r8)
+        adcq	32(%r9), %rdx
+        movq	40(%rsi), %rax
+        movq	%rdx, 32(%r8)
+        adcq	40(%r9), %rax
+        movq	48(%rsi), %rdx
+        movq	%rax, 40(%r8)
+        adcq	48(%r9), %rdx
+        movq	56(%rsi), %rax
+        movq	%rdx, 48(%r8)
+        adcq	56(%r9), %rax
+        movq	64(%rsi), %rdx
+        movq	%rax, 56(%r8)
+        adcq	64(%r9), %rdx
+        movq	72(%rsi), %rax
+        movq	%rdx, 64(%r8)
+        adcq	72(%r9), %rax
+        movq	80(%rsi), %rdx
+        movq	%rax, 72(%r8)
+        adcq	80(%r9), %rdx
+        movq	88(%rsi), %rax
+        movq	%rdx, 80(%r8)
+        adcq	88(%r9), %rax
+        movq	%rax, 88(%r8)
+        adcq	$0x00, %rcx
+        movq	%rcx, 496(%rsp)
+        movq	%r8, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_12@plt
+#else
+        callq	_sp_3072_sqr_12
+#endif /* __APPLE__ */
+        movq	488(%rsp), %rsi
+        leaq	192(%rsp), %rdi
+        addq	$0x60, %rsi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_12@plt
+#else
+        callq	_sp_3072_sqr_12
+#endif /* __APPLE__ */
+        movq	488(%rsp), %rsi
+        movq	480(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_12@plt
+#else
+        callq	_sp_3072_sqr_12
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	488(%rsp), %rsi
+        movq	480(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	496(%rsp), %r10
+        movq	%rdi, %r9
+        leaq	384(%rsp), %r8
+        movq	%r10, %rcx
+        negq	%r10
+        addq	$0xc0, %r9
+        movq	(%r8), %rdx
+        movq	8(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, (%r9)
+        movq	%rax, 8(%r9)
+        movq	16(%r8), %rdx
+        movq	24(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 16(%r9)
+        movq	%rax, 24(%r9)
+        movq	32(%r8), %rdx
+        movq	40(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 32(%r9)
+        movq	%rax, 40(%r9)
+        movq	48(%r8), %rdx
+        movq	56(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 48(%r9)
+        movq	%rax, 56(%r9)
+        movq	64(%r8), %rdx
+        movq	72(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 64(%r9)
+        movq	%rax, 72(%r9)
+        movq	80(%r8), %rdx
+        movq	88(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 80(%r9)
+        movq	%rax, 88(%r9)
+        movq	(%r9), %rdx
+        addq	%rdx, %rdx
+        movq	8(%r9), %rax
+        movq	%rdx, (%r9)
+        adcq	%rax, %rax
+        movq	16(%r9), %rdx
+        movq	%rax, 8(%r9)
+        adcq	%rdx, %rdx
+        movq	24(%r9), %rax
+        movq	%rdx, 16(%r9)
+        adcq	%rax, %rax
+        movq	32(%r9), %rdx
+        movq	%rax, 24(%r9)
+        adcq	%rdx, %rdx
+        movq	40(%r9), %rax
+        movq	%rdx, 32(%r9)
+        adcq	%rax, %rax
+        movq	48(%r9), %rdx
+        movq	%rax, 40(%r9)
+        adcq	%rdx, %rdx
+        movq	56(%r9), %rax
+        movq	%rdx, 48(%r9)
+        adcq	%rax, %rax
+        movq	64(%r9), %rdx
+        movq	%rax, 56(%r9)
+        adcq	%rdx, %rdx
+        movq	72(%r9), %rax
+        movq	%rdx, 64(%r9)
+        adcq	%rax, %rax
+        movq	80(%r9), %rdx
+        movq	%rax, 72(%r9)
+        adcq	%rdx, %rdx
+        movq	88(%r9), %rax
+        movq	%rdx, 80(%r9)
+        adcq	%rax, %rax
+        movq	%rax, 88(%r9)
+        adcq	$0x00, %rcx
+        leaq	192(%rsp), %rsi
+        movq	%rsp, %r8
+        movq	(%r8), %rdx
+        subq	(%rsi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rsi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rsi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rsi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rsi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rsi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rsi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rsi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rsi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rsi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rsi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rsi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rsi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rsi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rsi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rsi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rsi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rsi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rsi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rsi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rsi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rsi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rsi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rsi), %rax
+        movq	%rax, 184(%r8)
+        sbbq	$0x00, %rcx
+        movq	(%r8), %rdx
+        subq	(%rdi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rdi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rdi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rdi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rdi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rdi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rdi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rdi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rdi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rdi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rdi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rdi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rdi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rdi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rdi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rdi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rdi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rdi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rdi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rdi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rdi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rdi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rdi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rdi), %rax
+        movq	%rax, 184(%r8)
+        sbbq	$0x00, %rcx
+        subq	$0x60, %r9
+        # Add in place
+        movq	(%r9), %rdx
+        addq	(%r8), %rdx
+        movq	8(%r9), %rax
+        movq	%rdx, (%r9)
+        adcq	8(%r8), %rax
+        movq	16(%r9), %rdx
+        movq	%rax, 8(%r9)
+        adcq	16(%r8), %rdx
+        movq	24(%r9), %rax
+        movq	%rdx, 16(%r9)
+        adcq	24(%r8), %rax
+        movq	32(%r9), %rdx
+        movq	%rax, 24(%r9)
+        adcq	32(%r8), %rdx
+        movq	40(%r9), %rax
+        movq	%rdx, 32(%r9)
+        adcq	40(%r8), %rax
+        movq	48(%r9), %rdx
+        movq	%rax, 40(%r9)
+        adcq	48(%r8), %rdx
+        movq	56(%r9), %rax
+        movq	%rdx, 48(%r9)
+        adcq	56(%r8), %rax
+        movq	64(%r9), %rdx
+        movq	%rax, 56(%r9)
+        adcq	64(%r8), %rdx
+        movq	72(%r9), %rax
+        movq	%rdx, 64(%r9)
+        adcq	72(%r8), %rax
+        movq	80(%r9), %rdx
+        movq	%rax, 72(%r9)
+        adcq	80(%r8), %rdx
+        movq	88(%r9), %rax
+        movq	%rdx, 80(%r9)
+        adcq	88(%r8), %rax
+        movq	96(%r9), %rdx
+        movq	%rax, 88(%r9)
+        adcq	96(%r8), %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	104(%r8), %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	112(%r8), %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	120(%r8), %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	128(%r8), %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	136(%r8), %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	144(%r8), %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	152(%r8), %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	160(%r8), %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	168(%r8), %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	176(%r8), %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	184(%r8), %rax
+        movq	%rax, 184(%r9)
+        adcq	$0x00, %rcx
+        movq	%rcx, 288(%rdi)
+        # Add in place
+        movq	96(%r9), %rdx
+        addq	(%rsi), %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	8(%rsi), %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	16(%rsi), %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	24(%rsi), %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	32(%rsi), %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	40(%rsi), %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	48(%rsi), %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	56(%rsi), %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	64(%rsi), %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	72(%rsi), %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	80(%rsi), %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	88(%rsi), %rax
+        movq	192(%r9), %rdx
+        movq	%rax, 184(%r9)
+        adcq	96(%rsi), %rdx
+        movq	%rdx, 192(%r9)
+        # Add to zero
+        movq	104(%rsi), %rdx
+        adcq	$0x00, %rdx
+        movq	112(%rsi), %rax
+        movq	%rdx, 200(%r9)
+        adcq	$0x00, %rax
+        movq	120(%rsi), %rdx
+        movq	%rax, 208(%r9)
+        adcq	$0x00, %rdx
+        movq	128(%rsi), %rax
+        movq	%rdx, 216(%r9)
+        adcq	$0x00, %rax
+        movq	136(%rsi), %rdx
+        movq	%rax, 224(%r9)
+        adcq	$0x00, %rdx
+        movq	144(%rsi), %rax
+        movq	%rdx, 232(%r9)
+        adcq	$0x00, %rax
+        movq	152(%rsi), %rdx
+        movq	%rax, 240(%r9)
+        adcq	$0x00, %rdx
+        movq	160(%rsi), %rax
+        movq	%rdx, 248(%r9)
+        adcq	$0x00, %rax
+        movq	168(%rsi), %rdx
+        movq	%rax, 256(%r9)
+        adcq	$0x00, %rdx
+        movq	176(%rsi), %rax
+        movq	%rdx, 264(%r9)
+        adcq	$0x00, %rax
+        movq	184(%rsi), %rdx
+        movq	%rax, 272(%r9)
+        adcq	$0x00, %rdx
+        movq	%rdx, 280(%r9)
+        addq	$0x1f8, %rsp
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_sqr_24,.-sp_3072_sqr_24
+#endif /* __APPLE__ */
+#ifdef HAVE_INTEL_AVX2
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_sqr_avx2_24
+.type	sp_3072_sqr_avx2_24,@function
+.align	16
+sp_3072_sqr_avx2_24:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_sqr_avx2_24
+.p2align	4
+_sp_3072_sqr_avx2_24:
+#endif /* __APPLE__ */
+        subq	$0x1f8, %rsp
+        movq	%rdi, 480(%rsp)
+        movq	%rsi, 488(%rsp)
+        leaq	384(%rsp), %r8
+        leaq	96(%rsi), %r9
+        # Add
+        movq	(%rsi), %rdx
+        xorq	%rcx, %rcx
+        addq	(%r9), %rdx
+        movq	8(%rsi), %rax
+        movq	%rdx, (%r8)
+        adcq	8(%r9), %rax
+        movq	16(%rsi), %rdx
+        movq	%rax, 8(%r8)
+        adcq	16(%r9), %rdx
+        movq	24(%rsi), %rax
+        movq	%rdx, 16(%r8)
+        adcq	24(%r9), %rax
+        movq	32(%rsi), %rdx
+        movq	%rax, 24(%r8)
+        adcq	32(%r9), %rdx
+        movq	40(%rsi), %rax
+        movq	%rdx, 32(%r8)
+        adcq	40(%r9), %rax
+        movq	48(%rsi), %rdx
+        movq	%rax, 40(%r8)
+        adcq	48(%r9), %rdx
+        movq	56(%rsi), %rax
+        movq	%rdx, 48(%r8)
+        adcq	56(%r9), %rax
+        movq	64(%rsi), %rdx
+        movq	%rax, 56(%r8)
+        adcq	64(%r9), %rdx
+        movq	72(%rsi), %rax
+        movq	%rdx, 64(%r8)
+        adcq	72(%r9), %rax
+        movq	80(%rsi), %rdx
+        movq	%rax, 72(%r8)
+        adcq	80(%r9), %rdx
+        movq	88(%rsi), %rax
+        movq	%rdx, 80(%r8)
+        adcq	88(%r9), %rax
+        movq	%rax, 88(%r8)
+        adcq	$0x00, %rcx
+        movq	%rcx, 496(%rsp)
+        movq	%r8, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_avx2_12@plt
+#else
+        callq	_sp_3072_sqr_avx2_12
+#endif /* __APPLE__ */
+        movq	488(%rsp), %rsi
+        leaq	192(%rsp), %rdi
+        addq	$0x60, %rsi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_avx2_12@plt
+#else
+        callq	_sp_3072_sqr_avx2_12
+#endif /* __APPLE__ */
+        movq	488(%rsp), %rsi
+        movq	480(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_avx2_12@plt
+#else
+        callq	_sp_3072_sqr_avx2_12
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	488(%rsp), %rsi
+        movq	480(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	496(%rsp), %r10
+        movq	%rdi, %r9
+        leaq	384(%rsp), %r8
+        movq	%r10, %rcx
+        negq	%r10
+        addq	$0xc0, %r9
+        movq	(%r8), %rdx
+        pextq	%r10, %rdx, %rdx
+        addq	%rdx, %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r9)
+        pextq	%r10, %rdx, %rdx
+        adcq	%rdx, %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r9)
+        pextq	%r10, %rdx, %rdx
+        adcq	%rdx, %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r9)
+        pextq	%r10, %rdx, %rdx
+        adcq	%rdx, %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r9)
+        pextq	%r10, %rdx, %rdx
+        adcq	%rdx, %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r9)
+        pextq	%r10, %rdx, %rdx
+        adcq	%rdx, %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r9)
+        pextq	%r10, %rax, %rax
+        adcq	%rax, %rax
+        movq	%rax, 88(%r9)
+        adcq	$0x00, %rcx
+        leaq	192(%rsp), %rsi
+        movq	%rsp, %r8
+        movq	(%r8), %rdx
+        subq	(%rsi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rsi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rsi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rsi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rsi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rsi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rsi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rsi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rsi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rsi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rsi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rsi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rsi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rsi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rsi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rsi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rsi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rsi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rsi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rsi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rsi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rsi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rsi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rsi), %rax
+        movq	%rax, 184(%r8)
+        sbbq	$0x00, %rcx
+        movq	(%r8), %rdx
+        subq	(%rdi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rdi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rdi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rdi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rdi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rdi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rdi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rdi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rdi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rdi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rdi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rdi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rdi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rdi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rdi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rdi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rdi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rdi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rdi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rdi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rdi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rdi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rdi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rdi), %rax
+        movq	%rax, 184(%r8)
+        sbbq	$0x00, %rcx
+        subq	$0x60, %r9
+        # Add in place
+        movq	(%r9), %rdx
+        addq	(%r8), %rdx
+        movq	8(%r9), %rax
+        movq	%rdx, (%r9)
+        adcq	8(%r8), %rax
+        movq	16(%r9), %rdx
+        movq	%rax, 8(%r9)
+        adcq	16(%r8), %rdx
+        movq	24(%r9), %rax
+        movq	%rdx, 16(%r9)
+        adcq	24(%r8), %rax
+        movq	32(%r9), %rdx
+        movq	%rax, 24(%r9)
+        adcq	32(%r8), %rdx
+        movq	40(%r9), %rax
+        movq	%rdx, 32(%r9)
+        adcq	40(%r8), %rax
+        movq	48(%r9), %rdx
+        movq	%rax, 40(%r9)
+        adcq	48(%r8), %rdx
+        movq	56(%r9), %rax
+        movq	%rdx, 48(%r9)
+        adcq	56(%r8), %rax
+        movq	64(%r9), %rdx
+        movq	%rax, 56(%r9)
+        adcq	64(%r8), %rdx
+        movq	72(%r9), %rax
+        movq	%rdx, 64(%r9)
+        adcq	72(%r8), %rax
+        movq	80(%r9), %rdx
+        movq	%rax, 72(%r9)
+        adcq	80(%r8), %rdx
+        movq	88(%r9), %rax
+        movq	%rdx, 80(%r9)
+        adcq	88(%r8), %rax
+        movq	96(%r9), %rdx
+        movq	%rax, 88(%r9)
+        adcq	96(%r8), %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	104(%r8), %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	112(%r8), %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	120(%r8), %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	128(%r8), %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	136(%r8), %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	144(%r8), %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	152(%r8), %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	160(%r8), %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	168(%r8), %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	176(%r8), %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	184(%r8), %rax
+        movq	%rax, 184(%r9)
+        adcq	$0x00, %rcx
+        movq	%rcx, 288(%rdi)
+        # Add in place
+        movq	96(%r9), %rdx
+        addq	(%rsi), %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	8(%rsi), %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	16(%rsi), %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	24(%rsi), %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	32(%rsi), %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	40(%rsi), %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	48(%rsi), %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	56(%rsi), %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	64(%rsi), %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	72(%rsi), %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	80(%rsi), %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	88(%rsi), %rax
+        movq	192(%r9), %rdx
+        movq	%rax, 184(%r9)
+        adcq	96(%rsi), %rdx
+        movq	%rdx, 192(%r9)
+        # Add to zero
+        movq	104(%rsi), %rdx
+        adcq	$0x00, %rdx
+        movq	112(%rsi), %rax
+        movq	%rdx, 200(%r9)
+        adcq	$0x00, %rax
+        movq	120(%rsi), %rdx
+        movq	%rax, 208(%r9)
+        adcq	$0x00, %rdx
+        movq	128(%rsi), %rax
+        movq	%rdx, 216(%r9)
+        adcq	$0x00, %rax
+        movq	136(%rsi), %rdx
+        movq	%rax, 224(%r9)
+        adcq	$0x00, %rdx
+        movq	144(%rsi), %rax
+        movq	%rdx, 232(%r9)
+        adcq	$0x00, %rax
+        movq	152(%rsi), %rdx
+        movq	%rax, 240(%r9)
+        adcq	$0x00, %rdx
+        movq	160(%rsi), %rax
+        movq	%rdx, 248(%r9)
+        adcq	$0x00, %rax
+        movq	168(%rsi), %rdx
+        movq	%rax, 256(%r9)
+        adcq	$0x00, %rdx
+        movq	176(%rsi), %rax
+        movq	%rdx, 264(%r9)
+        adcq	$0x00, %rax
+        movq	184(%rsi), %rdx
+        movq	%rax, 272(%r9)
+        adcq	$0x00, %rdx
+        movq	%rdx, 280(%r9)
+        addq	$0x1f8, %rsp
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_sqr_avx2_24,.-sp_3072_sqr_avx2_24
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
+/* Add a to a into r. (r = a + a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_dbl_24
+.type	sp_3072_dbl_24,@function
+.align	16
+sp_3072_dbl_24:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_dbl_24
+.p2align	4
+_sp_3072_dbl_24:
+#endif /* __APPLE__ */
+        movq	(%rsi), %rdx
+        xorq	%rax, %rax
+        addq	%rdx, %rdx
+        movq	8(%rsi), %rcx
+        movq	%rdx, (%rdi)
+        adcq	%rcx, %rcx
+        movq	16(%rsi), %rdx
+        movq	%rcx, 8(%rdi)
+        adcq	%rdx, %rdx
+        movq	24(%rsi), %rcx
+        movq	%rdx, 16(%rdi)
+        adcq	%rcx, %rcx
+        movq	32(%rsi), %rdx
+        movq	%rcx, 24(%rdi)
+        adcq	%rdx, %rdx
+        movq	40(%rsi), %rcx
+        movq	%rdx, 32(%rdi)
+        adcq	%rcx, %rcx
+        movq	48(%rsi), %rdx
+        movq	%rcx, 40(%rdi)
+        adcq	%rdx, %rdx
+        movq	56(%rsi), %rcx
+        movq	%rdx, 48(%rdi)
+        adcq	%rcx, %rcx
+        movq	64(%rsi), %rdx
+        movq	%rcx, 56(%rdi)
+        adcq	%rdx, %rdx
+        movq	72(%rsi), %rcx
+        movq	%rdx, 64(%rdi)
+        adcq	%rcx, %rcx
+        movq	80(%rsi), %rdx
+        movq	%rcx, 72(%rdi)
+        adcq	%rdx, %rdx
+        movq	88(%rsi), %rcx
+        movq	%rdx, 80(%rdi)
+        adcq	%rcx, %rcx
+        movq	96(%rsi), %rdx
+        movq	%rcx, 88(%rdi)
+        adcq	%rdx, %rdx
+        movq	104(%rsi), %rcx
+        movq	%rdx, 96(%rdi)
+        adcq	%rcx, %rcx
+        movq	112(%rsi), %rdx
+        movq	%rcx, 104(%rdi)
+        adcq	%rdx, %rdx
+        movq	120(%rsi), %rcx
+        movq	%rdx, 112(%rdi)
+        adcq	%rcx, %rcx
+        movq	128(%rsi), %rdx
+        movq	%rcx, 120(%rdi)
+        adcq	%rdx, %rdx
+        movq	136(%rsi), %rcx
+        movq	%rdx, 128(%rdi)
+        adcq	%rcx, %rcx
+        movq	144(%rsi), %rdx
+        movq	%rcx, 136(%rdi)
+        adcq	%rdx, %rdx
+        movq	152(%rsi), %rcx
+        movq	%rdx, 144(%rdi)
+        adcq	%rcx, %rcx
+        movq	160(%rsi), %rdx
+        movq	%rcx, 152(%rdi)
+        adcq	%rdx, %rdx
+        movq	168(%rsi), %rcx
+        movq	%rdx, 160(%rdi)
+        adcq	%rcx, %rcx
+        movq	176(%rsi), %rdx
+        movq	%rcx, 168(%rdi)
+        adcq	%rdx, %rdx
+        movq	184(%rsi), %rcx
+        movq	%rdx, 176(%rdi)
+        adcq	%rcx, %rcx
+        movq	%rcx, 184(%rdi)
+        adcq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_dbl_24,.-sp_3072_dbl_24
+#endif /* __APPLE__ */
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_sqr_48
+.type	sp_3072_sqr_48,@function
+.align	16
+sp_3072_sqr_48:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_sqr_48
+.p2align	4
+_sp_3072_sqr_48:
+#endif /* __APPLE__ */
+        subq	$0x3d8, %rsp
+        movq	%rdi, 960(%rsp)
+        movq	%rsi, 968(%rsp)
+        leaq	768(%rsp), %r8
+        leaq	192(%rsi), %r9
+        # Add
+        movq	(%rsi), %rdx
+        xorq	%rcx, %rcx
+        addq	(%r9), %rdx
+        movq	8(%rsi), %rax
+        movq	%rdx, (%r8)
+        adcq	8(%r9), %rax
+        movq	16(%rsi), %rdx
+        movq	%rax, 8(%r8)
+        adcq	16(%r9), %rdx
+        movq	24(%rsi), %rax
+        movq	%rdx, 16(%r8)
+        adcq	24(%r9), %rax
+        movq	32(%rsi), %rdx
+        movq	%rax, 24(%r8)
+        adcq	32(%r9), %rdx
+        movq	40(%rsi), %rax
+        movq	%rdx, 32(%r8)
+        adcq	40(%r9), %rax
+        movq	48(%rsi), %rdx
+        movq	%rax, 40(%r8)
+        adcq	48(%r9), %rdx
+        movq	56(%rsi), %rax
+        movq	%rdx, 48(%r8)
+        adcq	56(%r9), %rax
+        movq	64(%rsi), %rdx
+        movq	%rax, 56(%r8)
+        adcq	64(%r9), %rdx
+        movq	72(%rsi), %rax
+        movq	%rdx, 64(%r8)
+        adcq	72(%r9), %rax
+        movq	80(%rsi), %rdx
+        movq	%rax, 72(%r8)
+        adcq	80(%r9), %rdx
+        movq	88(%rsi), %rax
+        movq	%rdx, 80(%r8)
+        adcq	88(%r9), %rax
+        movq	96(%rsi), %rdx
+        movq	%rax, 88(%r8)
+        adcq	96(%r9), %rdx
+        movq	104(%rsi), %rax
+        movq	%rdx, 96(%r8)
+        adcq	104(%r9), %rax
+        movq	112(%rsi), %rdx
+        movq	%rax, 104(%r8)
+        adcq	112(%r9), %rdx
+        movq	120(%rsi), %rax
+        movq	%rdx, 112(%r8)
+        adcq	120(%r9), %rax
+        movq	128(%rsi), %rdx
+        movq	%rax, 120(%r8)
+        adcq	128(%r9), %rdx
+        movq	136(%rsi), %rax
+        movq	%rdx, 128(%r8)
+        adcq	136(%r9), %rax
+        movq	144(%rsi), %rdx
+        movq	%rax, 136(%r8)
+        adcq	144(%r9), %rdx
+        movq	152(%rsi), %rax
+        movq	%rdx, 144(%r8)
+        adcq	152(%r9), %rax
+        movq	160(%rsi), %rdx
+        movq	%rax, 152(%r8)
+        adcq	160(%r9), %rdx
+        movq	168(%rsi), %rax
+        movq	%rdx, 160(%r8)
+        adcq	168(%r9), %rax
+        movq	176(%rsi), %rdx
+        movq	%rax, 168(%r8)
+        adcq	176(%r9), %rdx
+        movq	184(%rsi), %rax
+        movq	%rdx, 176(%r8)
+        adcq	184(%r9), %rax
+        movq	%rax, 184(%r8)
+        adcq	$0x00, %rcx
+        movq	%rcx, 976(%rsp)
+        movq	%r8, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_24@plt
+#else
+        callq	_sp_3072_sqr_24
+#endif /* __APPLE__ */
+        movq	968(%rsp), %rsi
+        leaq	384(%rsp), %rdi
+        addq	$0xc0, %rsi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_24@plt
+#else
+        callq	_sp_3072_sqr_24
+#endif /* __APPLE__ */
+        movq	968(%rsp), %rsi
+        movq	960(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_3072_sqr_24@plt
+#else
+        callq	_sp_3072_sqr_24
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	968(%rsp), %rsi
+        movq	960(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	976(%rsp), %r10
+        movq	%rdi, %r9
+        leaq	768(%rsp), %r8
+        movq	%r10, %rcx
+        negq	%r10
+        addq	$0x180, %r9
+        movq	(%r8), %rdx
+        movq	8(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, (%r9)
+        movq	%rax, 8(%r9)
+        movq	16(%r8), %rdx
+        movq	24(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 16(%r9)
+        movq	%rax, 24(%r9)
+        movq	32(%r8), %rdx
+        movq	40(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 32(%r9)
+        movq	%rax, 40(%r9)
+        movq	48(%r8), %rdx
+        movq	56(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 48(%r9)
+        movq	%rax, 56(%r9)
+        movq	64(%r8), %rdx
+        movq	72(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 64(%r9)
+        movq	%rax, 72(%r9)
+        movq	80(%r8), %rdx
+        movq	88(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 80(%r9)
+        movq	%rax, 88(%r9)
+        movq	96(%r8), %rdx
+        movq	104(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 96(%r9)
+        movq	%rax, 104(%r9)
+        movq	112(%r8), %rdx
+        movq	120(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 112(%r9)
+        movq	%rax, 120(%r9)
+        movq	128(%r8), %rdx
+        movq	136(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 128(%r9)
+        movq	%rax, 136(%r9)
+        movq	144(%r8), %rdx
+        movq	152(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 144(%r9)
+        movq	%rax, 152(%r9)
+        movq	160(%r8), %rdx
+        movq	168(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 160(%r9)
+        movq	%rax, 168(%r9)
+        movq	176(%r8), %rdx
+        movq	184(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 176(%r9)
+        movq	%rax, 184(%r9)
+        movq	(%r9), %rdx
+        addq	%rdx, %rdx
+        movq	8(%r9), %rax
+        movq	%rdx, (%r9)
+        adcq	%rax, %rax
+        movq	16(%r9), %rdx
+        movq	%rax, 8(%r9)
+        adcq	%rdx, %rdx
+        movq	24(%r9), %rax
+        movq	%rdx, 16(%r9)
+        adcq	%rax, %rax
+        movq	32(%r9), %rdx
+        movq	%rax, 24(%r9)
+        adcq	%rdx, %rdx
+        movq	40(%r9), %rax
+        movq	%rdx, 32(%r9)
+        adcq	%rax, %rax
+        movq	48(%r9), %rdx
+        movq	%rax, 40(%r9)
+        adcq	%rdx, %rdx
+        movq	56(%r9), %rax
+        movq	%rdx, 48(%r9)
+        adcq	%rax, %rax
+        movq	64(%r9), %rdx
+        movq	%rax, 56(%r9)
+        adcq	%rdx, %rdx
+        movq	72(%r9), %rax
+        movq	%rdx, 64(%r9)
+        adcq	%rax, %rax
+        movq	80(%r9), %rdx
+        movq	%rax, 72(%r9)
+        adcq	%rdx, %rdx
+        movq	88(%r9), %rax
+        movq	%rdx, 80(%r9)
+        adcq	%rax, %rax
+        movq	96(%r9), %rdx
+        movq	%rax, 88(%r9)
+        adcq	%rdx, %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	%rax, %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	%rdx, %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	%rax, %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	%rdx, %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	%rax, %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	%rdx, %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	%rax, %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	%rdx, %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	%rax, %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	%rdx, %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	%rax, %rax
+        movq	%rax, 184(%r9)
+        adcq	$0x00, %rcx
+        leaq	384(%rsp), %rsi
+        movq	%rsp, %r8
+        movq	(%r8), %rdx
+        subq	(%rsi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rsi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rsi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rsi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rsi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rsi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rsi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rsi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rsi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rsi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rsi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rsi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rsi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rsi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rsi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rsi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rsi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rsi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rsi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rsi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rsi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rsi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rsi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rsi), %rax
+        movq	192(%r8), %rdx
+        movq	%rax, 184(%r8)
+        sbbq	192(%rsi), %rdx
+        movq	200(%r8), %rax
+        movq	%rdx, 192(%r8)
+        sbbq	200(%rsi), %rax
+        movq	208(%r8), %rdx
+        movq	%rax, 200(%r8)
+        sbbq	208(%rsi), %rdx
+        movq	216(%r8), %rax
+        movq	%rdx, 208(%r8)
+        sbbq	216(%rsi), %rax
+        movq	224(%r8), %rdx
+        movq	%rax, 216(%r8)
+        sbbq	224(%rsi), %rdx
+        movq	232(%r8), %rax
+        movq	%rdx, 224(%r8)
+        sbbq	232(%rsi), %rax
+        movq	240(%r8), %rdx
+        movq	%rax, 232(%r8)
+        sbbq	240(%rsi), %rdx
+        movq	248(%r8), %rax
+        movq	%rdx, 240(%r8)
+        sbbq	248(%rsi), %rax
+        movq	256(%r8), %rdx
+        movq	%rax, 248(%r8)
+        sbbq	256(%rsi), %rdx
+        movq	264(%r8), %rax
+        movq	%rdx, 256(%r8)
+        sbbq	264(%rsi), %rax
+        movq	272(%r8), %rdx
+        movq	%rax, 264(%r8)
+        sbbq	272(%rsi), %rdx
+        movq	280(%r8), %rax
+        movq	%rdx, 272(%r8)
+        sbbq	280(%rsi), %rax
+        movq	288(%r8), %rdx
+        movq	%rax, 280(%r8)
+        sbbq	288(%rsi), %rdx
+        movq	296(%r8), %rax
+        movq	%rdx, 288(%r8)
+        sbbq	296(%rsi), %rax
+        movq	304(%r8), %rdx
+        movq	%rax, 296(%r8)
+        sbbq	304(%rsi), %rdx
+        movq	312(%r8), %rax
+        movq	%rdx, 304(%r8)
+        sbbq	312(%rsi), %rax
+        movq	320(%r8), %rdx
+        movq	%rax, 312(%r8)
+        sbbq	320(%rsi), %rdx
+        movq	328(%r8), %rax
+        movq	%rdx, 320(%r8)
+        sbbq	328(%rsi), %rax
+        movq	336(%r8), %rdx
+        movq	%rax, 328(%r8)
+        sbbq	336(%rsi), %rdx
+        movq	344(%r8), %rax
+        movq	%rdx, 336(%r8)
+        sbbq	344(%rsi), %rax
+        movq	352(%r8), %rdx
+        movq	%rax, 344(%r8)
+        sbbq	352(%rsi), %rdx
+        movq	360(%r8), %rax
+        movq	%rdx, 352(%r8)
+        sbbq	360(%rsi), %rax
+        movq	368(%r8), %rdx
+        movq	%rax, 360(%r8)
+        sbbq	368(%rsi), %rdx
+        movq	376(%r8), %rax
+        movq	%rdx, 368(%r8)
+        sbbq	376(%rsi), %rax
+        movq	%rax, 376(%r8)
+        sbbq	$0x00, %rcx
+        movq	(%r8), %rdx
+        subq	(%rdi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rdi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rdi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rdi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rdi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rdi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rdi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rdi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rdi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rdi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rdi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rdi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rdi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rdi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rdi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rdi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rdi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rdi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rdi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rdi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rdi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rdi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rdi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rdi), %rax
+        movq	192(%r8), %rdx
+        movq	%rax, 184(%r8)
+        sbbq	192(%rdi), %rdx
+        movq	200(%r8), %rax
+        movq	%rdx, 192(%r8)
+        sbbq	200(%rdi), %rax
+        movq	208(%r8), %rdx
+        movq	%rax, 200(%r8)
+        sbbq	208(%rdi), %rdx
+        movq	216(%r8), %rax
+        movq	%rdx, 208(%r8)
+        sbbq	216(%rdi), %rax
+        movq	224(%r8), %rdx
+        movq	%rax, 216(%r8)
+        sbbq	224(%rdi), %rdx
+        movq	232(%r8), %rax
+        movq	%rdx, 224(%r8)
+        sbbq	232(%rdi), %rax
+        movq	240(%r8), %rdx
+        movq	%rax, 232(%r8)
+        sbbq	240(%rdi), %rdx
+        movq	248(%r8), %rax
+        movq	%rdx, 240(%r8)
+        sbbq	248(%rdi), %rax
+        movq	256(%r8), %rdx
+        movq	%rax, 248(%r8)
+        sbbq	256(%rdi), %rdx
+        movq	264(%r8), %rax
+        movq	%rdx, 256(%r8)
+        sbbq	264(%rdi), %rax
+        movq	272(%r8), %rdx
+        movq	%rax, 264(%r8)
+        sbbq	272(%rdi), %rdx
+        movq	280(%r8), %rax
+        movq	%rdx, 272(%r8)
+        sbbq	280(%rdi), %rax
+        movq	288(%r8), %rdx
+        movq	%rax, 280(%r8)
+        sbbq	288(%rdi), %rdx
+        movq	296(%r8), %rax
+        movq	%rdx, 288(%r8)
+        sbbq	296(%rdi), %rax
+        movq	304(%r8), %rdx
+        movq	%rax, 296(%r8)
+        sbbq	304(%rdi), %rdx
+        movq	312(%r8), %rax
+        movq	%rdx, 304(%r8)
+        sbbq	312(%rdi), %rax
+        movq	320(%r8), %rdx
+        movq	%rax, 312(%r8)
+        sbbq	320(%rdi), %rdx
+        movq	328(%r8), %rax
+        movq	%rdx, 320(%r8)
+        sbbq	328(%rdi), %rax
+        movq	336(%r8), %rdx
+        movq	%rax, 328(%r8)
+        sbbq	336(%rdi), %rdx
+        movq	344(%r8), %rax
+        movq	%rdx, 336(%r8)
+        sbbq	344(%rdi), %rax
+        movq	352(%r8), %rdx
+        movq	%rax, 344(%r8)
+        sbbq	352(%rdi), %rdx
+        movq	360(%r8), %rax
+        movq	%rdx, 352(%r8)
+        sbbq	360(%rdi), %rax
+        movq	368(%r8), %rdx
+        movq	%rax, 360(%r8)
+        sbbq	368(%rdi), %rdx
+        movq	376(%r8), %rax
+        movq	%rdx, 368(%r8)
+        sbbq	376(%rdi), %rax
+        movq	%rax, 376(%r8)
+        sbbq	$0x00, %rcx
+        subq	$0xc0, %r9
+        # Add in place
+        movq	(%r9), %rdx
+        addq	(%r8), %rdx
+        movq	8(%r9), %rax
+        movq	%rdx, (%r9)
+        adcq	8(%r8), %rax
+        movq	16(%r9), %rdx
+        movq	%rax, 8(%r9)
+        adcq	16(%r8), %rdx
+        movq	24(%r9), %rax
+        movq	%rdx, 16(%r9)
+        adcq	24(%r8), %rax
+        movq	32(%r9), %rdx
+        movq	%rax, 24(%r9)
+        adcq	32(%r8), %rdx
+        movq	40(%r9), %rax
+        movq	%rdx, 32(%r9)
+        adcq	40(%r8), %rax
+        movq	48(%r9), %rdx
+        movq	%rax, 40(%r9)
+        adcq	48(%r8), %rdx
+        movq	56(%r9), %rax
+        movq	%rdx, 48(%r9)
+        adcq	56(%r8), %rax
+        movq	64(%r9), %rdx
+        movq	%rax, 56(%r9)
+        adcq	64(%r8), %rdx
+        movq	72(%r9), %rax
+        movq	%rdx, 64(%r9)
+        adcq	72(%r8), %rax
+        movq	80(%r9), %rdx
+        movq	%rax, 72(%r9)
+        adcq	80(%r8), %rdx
+        movq	88(%r9), %rax
+        movq	%rdx, 80(%r9)
+        adcq	88(%r8), %rax
+        movq	96(%r9), %rdx
+        movq	%rax, 88(%r9)
+        adcq	96(%r8), %rdx
+        movq	104(%r9), %rax
+        movq	%rdx, 96(%r9)
+        adcq	104(%r8), %rax
+        movq	112(%r9), %rdx
+        movq	%rax, 104(%r9)
+        adcq	112(%r8), %rdx
+        movq	120(%r9), %rax
+        movq	%rdx, 112(%r9)
+        adcq	120(%r8), %rax
+        movq	128(%r9), %rdx
+        movq	%rax, 120(%r9)
+        adcq	128(%r8), %rdx
+        movq	136(%r9), %rax
+        movq	%rdx, 128(%r9)
+        adcq	136(%r8), %rax
+        movq	144(%r9), %rdx
+        movq	%rax, 136(%r9)
+        adcq	144(%r8), %rdx
+        movq	152(%r9), %rax
+        movq	%rdx, 144(%r9)
+        adcq	152(%r8), %rax
+        movq	160(%r9), %rdx
+        movq	%rax, 152(%r9)
+        adcq	160(%r8), %rdx
+        movq	168(%r9), %rax
+        movq	%rdx, 160(%r9)
+        adcq	168(%r8), %rax
+        movq	176(%r9), %rdx
+        movq	%rax, 168(%r9)
+        adcq	176(%r8), %rdx
+        movq	184(%r9), %rax
+        movq	%rdx, 176(%r9)
+        adcq	184(%r8), %rax
+        movq	192(%r9), %rdx
+        movq	%rax, 184(%r9)
+        adcq	192(%r8), %rdx
+        movq	200(%r9), %rax
+        movq	%rdx, 192(%r9)
+        adcq	200(%r8), %rax
+        movq	208(%r9), %rdx
+        movq	%rax, 200(%r9)
+        adcq	208(%r8), %rdx
+        movq	216(%r9), %rax
+        movq	%rdx, 208(%r9)
+        adcq	216(%r8), %rax
+        movq	224(%r9), %rdx
+        movq	%rax, 216(%r9)
+        adcq	224(%r8), %rdx
+        movq	232(%r9), %rax
+        movq	%rdx, 224(%r9)
+        adcq	232(%r8), %rax
+        movq	240(%r9), %rdx
+        movq	%rax, 232(%r9)
+        adcq	240(%r8), %rdx
+        movq	248(%r9), %rax
+        movq	%rdx, 240(%r9)
+        adcq	248(%r8), %rax
+        movq	256(%r9), %rdx
+        movq	%rax, 248(%r9)
+        adcq	256(%r8), %rdx
+        movq	264(%r9), %rax
+        movq	%rdx, 256(%r9)
+        adcq	264(%r8), %rax
+        movq	272(%r9), %rdx
+        movq	%rax, 264(%r9)
+        adcq	272(%r8), %rdx
+        movq	280(%r9), %rax
+        movq	%rdx, 272(%r9)
+        adcq	280(%r8), %rax
+        movq	288(%r9), %rdx
+        movq	%rax, 280(%r9)
+        adcq	288(%r8), %rdx
+        movq	296(%r9), %rax
+        movq	%rdx, 288(%r9)
+        adcq	296(%r8), %rax
+        movq	304(%r9), %rdx
+        movq	%rax, 296(%r9)
+        adcq	304(%r8), %rdx
+        movq	312(%r9), %rax
+        movq	%rdx, 304(%r9)
+        adcq	312(%r8), %rax
+        movq	320(%r9), %rdx
+        movq	%rax, 312(%r9)
+        adcq	320(%r8), %rdx
+        movq	328(%r9), %rax
+        movq	%rdx, 320(%r9)
+        adcq	328(%r8), %rax
+        movq	336(%r9), %rdx
+        movq	%rax, 328(%r9)
+        adcq	336(%r8), %rdx
+        movq	344(%r9), %rax
+        movq	%rdx, 336(%r9)
+        adcq	344(%r8), %rax
+        movq	352(%r9), %rdx
+        movq	%rax, 344(%r9)
+        adcq	352(%r8), %rdx
+        movq	360(%r9), %rax
+        movq	%rdx, 352(%r9)
+        adcq	360(%r8), %rax
+        movq	368(%r9), %rdx
+        movq	%rax, 360(%r9)
+        adcq	368(%r8), %rdx
+        movq	376(%r9), %rax
+        movq	%rdx, 368(%r9)
+        adcq	376(%r8), %rax
+        movq	%rax, 376(%r9)
+        adcq	$0x00, %rcx
+        movq	%rcx, 576(%rdi)
+        # Add in place
+        movq	192(%r9), %rdx
+        addq	(%rsi), %rdx
+        movq	200(%r9), %rax
+        movq	%rdx, 192(%r9)
+        adcq	8(%rsi), %rax
+        movq	208(%r9), %rdx
+        movq	%rax, 200(%r9)
+        adcq	16(%rsi), %rdx
+        movq	216(%r9), %rax
+        movq	%rdx, 208(%r9)
+        adcq	24(%rsi), %rax
+        movq	224(%r9), %rdx
+        movq	%rax, 216(%r9)
+        adcq	32(%rsi), %rdx
+        movq	232(%r9), %rax
+        movq	%rdx, 224(%r9)
+        adcq	40(%rsi), %rax
+        movq	240(%r9), %rdx
+        movq	%rax, 232(%r9)
+        adcq	48(%rsi), %rdx
+        movq	248(%r9), %rax
+        movq	%rdx, 240(%r9)
+        adcq	56(%rsi), %rax
+        movq	256(%r9), %rdx
+        movq	%rax, 248(%r9)
+        adcq	64(%rsi), %rdx
+        movq	264(%r9), %rax
+        movq	%rdx, 256(%r9)
+        adcq	72(%rsi), %rax
+        movq	272(%r9), %rdx
+        movq	%rax, 264(%r9)
+        adcq	80(%rsi), %rdx
+        movq	280(%r9), %rax
+        movq	%rdx, 272(%r9)
+        adcq	88(%rsi), %rax
+        movq	288(%r9), %rdx
+        movq	%rax, 280(%r9)
+        adcq	96(%rsi), %rdx
+        movq	296(%r9), %rax
+        movq	%rdx, 288(%r9)
+        adcq	104(%rsi), %rax
+        movq	304(%r9), %rdx
+        movq	%rax, 296(%r9)
+        adcq	112(%rsi), %rdx
+        movq	312(%r9), %rax
+        movq	%rdx, 304(%r9)
+        adcq	120(%rsi), %rax
+        movq	320(%r9), %rdx
+        movq	%rax, 312(%r9)
+        adcq	128(%rsi), %rdx
+        movq	328(%r9), %rax
+        movq	%rdx, 320(%r9)
+        adcq	136(%rsi), %rax
+        movq	336(%r9), %rdx
+        movq	%rax, 328(%r9)
+        adcq	144(%rsi), %rdx
+        movq	344(%r9), %rax
+        movq	%rdx, 336(%r9)
+        adcq	152(%rsi), %rax
+        movq	352(%r9), %rdx
+        movq	%rax, 344(%r9)
+        adcq	160(%rsi), %rdx
+        movq	360(%r9), %rax
+        movq	%rdx, 352(%r9)
+        adcq	168(%rsi), %rax
+        movq	368(%r9), %rdx
+        movq	%rax, 360(%r9)
+        adcq	176(%rsi), %rdx
+        movq	376(%r9), %rax
+        movq	%rdx, 368(%r9)
+        adcq	184(%rsi), %rax
+        movq	384(%r9), %rdx
+        movq	%rax, 376(%r9)
+        adcq	192(%rsi), %rdx
+        movq	%rdx, 384(%r9)
+        # Add to zero
+        movq	200(%rsi), %rdx
+        adcq	$0x00, %rdx
+        movq	208(%rsi), %rax
+        movq	%rdx, 392(%r9)
+        adcq	$0x00, %rax
+        movq	216(%rsi), %rdx
+        movq	%rax, 400(%r9)
+        adcq	$0x00, %rdx
+        movq	224(%rsi), %rax
+        movq	%rdx, 408(%r9)
+        adcq	$0x00, %rax
+        movq	232(%rsi), %rdx
+        movq	%rax, 416(%r9)
+        adcq	$0x00, %rdx
+        movq	240(%rsi), %rax
+        movq	%rdx, 424(%r9)
+        adcq	$0x00, %rax
+        movq	248(%rsi), %rdx
+        movq	%rax, 432(%r9)
+        adcq	$0x00, %rdx
+        movq	256(%rsi), %rax
+        movq	%rdx, 440(%r9)
+        adcq	$0x00, %rax
+        movq	264(%rsi), %rdx
+        movq	%rax, 448(%r9)
+        adcq	$0x00, %rdx
+        movq	272(%rsi), %rax
+        movq	%rdx, 456(%r9)
+        adcq	$0x00, %rax
+        movq	280(%rsi), %rdx
+        movq	%rax, 464(%r9)
+        adcq	$0x00, %rdx
+        movq	288(%rsi), %rax
+        movq	%rdx, 472(%r9)
+        adcq	$0x00, %rax
+        movq	296(%rsi), %rdx
+        movq	%rax, 480(%r9)
+        adcq	$0x00, %rdx
+        movq	304(%rsi), %rax
+        movq	%rdx, 488(%r9)
+        adcq	$0x00, %rax
+        movq	312(%rsi), %rdx
+        movq	%rax, 496(%r9)
+        adcq	$0x00, %rdx
+        movq	320(%rsi), %rax
+        movq	%rdx, 504(%r9)
+        adcq	$0x00, %rax
+        movq	328(%rsi), %rdx
+        movq	%rax, 512(%r9)
+        adcq	$0x00, %rdx
+        movq	336(%rsi), %rax
+        movq	%rdx, 520(%r9)
+        adcq	$0x00, %rax
+        movq	344(%rsi), %rdx
+        movq	%rax, 528(%r9)
+        adcq	$0x00, %rdx
+        movq	352(%rsi), %rax
+        movq	%rdx, 536(%r9)
+        adcq	$0x00, %rax
+        movq	360(%rsi), %rdx
+        movq	%rax, 544(%r9)
+        adcq	$0x00, %rdx
+        movq	368(%rsi), %rax
+        movq	%rdx, 552(%r9)
+        adcq	$0x00, %rax
+        movq	376(%rsi), %rdx
+        movq	%rax, 560(%r9)
+        adcq	$0x00, %rdx
+        movq	%rdx, 568(%r9)
+        addq	$0x3d8, %rsp
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_sqr_48,.-sp_3072_sqr_48
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
@@ -30433,1254 +30433,6 @@ _sp_4096_mul_64:
 #ifndef __APPLE__
 .size	sp_4096_mul_64,.-sp_4096_mul_64
 #endif /* __APPLE__ */
-/* Add a to a into r. (r = a + a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_dbl_32
-.type	sp_2048_dbl_32,@function
-.align	16
-sp_2048_dbl_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_dbl_32
-.p2align	4
-_sp_2048_dbl_32:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rdx
-        xorq	%rax, %rax
-        addq	%rdx, %rdx
-        movq	8(%rsi), %rcx
-        movq	%rdx, (%rdi)
-        adcq	%rcx, %rcx
-        movq	16(%rsi), %rdx
-        movq	%rcx, 8(%rdi)
-        adcq	%rdx, %rdx
-        movq	24(%rsi), %rcx
-        movq	%rdx, 16(%rdi)
-        adcq	%rcx, %rcx
-        movq	32(%rsi), %rdx
-        movq	%rcx, 24(%rdi)
-        adcq	%rdx, %rdx
-        movq	40(%rsi), %rcx
-        movq	%rdx, 32(%rdi)
-        adcq	%rcx, %rcx
-        movq	48(%rsi), %rdx
-        movq	%rcx, 40(%rdi)
-        adcq	%rdx, %rdx
-        movq	56(%rsi), %rcx
-        movq	%rdx, 48(%rdi)
-        adcq	%rcx, %rcx
-        movq	64(%rsi), %rdx
-        movq	%rcx, 56(%rdi)
-        adcq	%rdx, %rdx
-        movq	72(%rsi), %rcx
-        movq	%rdx, 64(%rdi)
-        adcq	%rcx, %rcx
-        movq	80(%rsi), %rdx
-        movq	%rcx, 72(%rdi)
-        adcq	%rdx, %rdx
-        movq	88(%rsi), %rcx
-        movq	%rdx, 80(%rdi)
-        adcq	%rcx, %rcx
-        movq	96(%rsi), %rdx
-        movq	%rcx, 88(%rdi)
-        adcq	%rdx, %rdx
-        movq	104(%rsi), %rcx
-        movq	%rdx, 96(%rdi)
-        adcq	%rcx, %rcx
-        movq	112(%rsi), %rdx
-        movq	%rcx, 104(%rdi)
-        adcq	%rdx, %rdx
-        movq	120(%rsi), %rcx
-        movq	%rdx, 112(%rdi)
-        adcq	%rcx, %rcx
-        movq	128(%rsi), %rdx
-        movq	%rcx, 120(%rdi)
-        adcq	%rdx, %rdx
-        movq	136(%rsi), %rcx
-        movq	%rdx, 128(%rdi)
-        adcq	%rcx, %rcx
-        movq	144(%rsi), %rdx
-        movq	%rcx, 136(%rdi)
-        adcq	%rdx, %rdx
-        movq	152(%rsi), %rcx
-        movq	%rdx, 144(%rdi)
-        adcq	%rcx, %rcx
-        movq	160(%rsi), %rdx
-        movq	%rcx, 152(%rdi)
-        adcq	%rdx, %rdx
-        movq	168(%rsi), %rcx
-        movq	%rdx, 160(%rdi)
-        adcq	%rcx, %rcx
-        movq	176(%rsi), %rdx
-        movq	%rcx, 168(%rdi)
-        adcq	%rdx, %rdx
-        movq	184(%rsi), %rcx
-        movq	%rdx, 176(%rdi)
-        adcq	%rcx, %rcx
-        movq	192(%rsi), %rdx
-        movq	%rcx, 184(%rdi)
-        adcq	%rdx, %rdx
-        movq	200(%rsi), %rcx
-        movq	%rdx, 192(%rdi)
-        adcq	%rcx, %rcx
-        movq	208(%rsi), %rdx
-        movq	%rcx, 200(%rdi)
-        adcq	%rdx, %rdx
-        movq	216(%rsi), %rcx
-        movq	%rdx, 208(%rdi)
-        adcq	%rcx, %rcx
-        movq	224(%rsi), %rdx
-        movq	%rcx, 216(%rdi)
-        adcq	%rdx, %rdx
-        movq	232(%rsi), %rcx
-        movq	%rdx, 224(%rdi)
-        adcq	%rcx, %rcx
-        movq	240(%rsi), %rdx
-        movq	%rcx, 232(%rdi)
-        adcq	%rdx, %rdx
-        movq	248(%rsi), %rcx
-        movq	%rdx, 240(%rdi)
-        adcq	%rcx, %rcx
-        movq	%rcx, 248(%rdi)
-        adcq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_dbl_32,.-sp_2048_dbl_32
-#endif /* __APPLE__ */
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_4096_sqr_64
-.type	sp_4096_sqr_64,@function
-.align	16
-sp_4096_sqr_64:
-#else
-.section	__TEXT,__text
-.globl	_sp_4096_sqr_64
-.p2align	4
-_sp_4096_sqr_64:
-#endif /* __APPLE__ */
-        subq	$0x518, %rsp
-        movq	%rdi, 1280(%rsp)
-        movq	%rsi, 1288(%rsp)
-        leaq	1024(%rsp), %r8
-        leaq	256(%rsi), %r9
-        # Add
-        movq	(%rsi), %rdx
-        xorq	%rcx, %rcx
-        addq	(%r9), %rdx
-        movq	8(%rsi), %rax
-        movq	%rdx, (%r8)
-        adcq	8(%r9), %rax
-        movq	16(%rsi), %rdx
-        movq	%rax, 8(%r8)
-        adcq	16(%r9), %rdx
-        movq	24(%rsi), %rax
-        movq	%rdx, 16(%r8)
-        adcq	24(%r9), %rax
-        movq	32(%rsi), %rdx
-        movq	%rax, 24(%r8)
-        adcq	32(%r9), %rdx
-        movq	40(%rsi), %rax
-        movq	%rdx, 32(%r8)
-        adcq	40(%r9), %rax
-        movq	48(%rsi), %rdx
-        movq	%rax, 40(%r8)
-        adcq	48(%r9), %rdx
-        movq	56(%rsi), %rax
-        movq	%rdx, 48(%r8)
-        adcq	56(%r9), %rax
-        movq	64(%rsi), %rdx
-        movq	%rax, 56(%r8)
-        adcq	64(%r9), %rdx
-        movq	72(%rsi), %rax
-        movq	%rdx, 64(%r8)
-        adcq	72(%r9), %rax
-        movq	80(%rsi), %rdx
-        movq	%rax, 72(%r8)
-        adcq	80(%r9), %rdx
-        movq	88(%rsi), %rax
-        movq	%rdx, 80(%r8)
-        adcq	88(%r9), %rax
-        movq	96(%rsi), %rdx
-        movq	%rax, 88(%r8)
-        adcq	96(%r9), %rdx
-        movq	104(%rsi), %rax
-        movq	%rdx, 96(%r8)
-        adcq	104(%r9), %rax
-        movq	112(%rsi), %rdx
-        movq	%rax, 104(%r8)
-        adcq	112(%r9), %rdx
-        movq	120(%rsi), %rax
-        movq	%rdx, 112(%r8)
-        adcq	120(%r9), %rax
-        movq	128(%rsi), %rdx
-        movq	%rax, 120(%r8)
-        adcq	128(%r9), %rdx
-        movq	136(%rsi), %rax
-        movq	%rdx, 128(%r8)
-        adcq	136(%r9), %rax
-        movq	144(%rsi), %rdx
-        movq	%rax, 136(%r8)
-        adcq	144(%r9), %rdx
-        movq	152(%rsi), %rax
-        movq	%rdx, 144(%r8)
-        adcq	152(%r9), %rax
-        movq	160(%rsi), %rdx
-        movq	%rax, 152(%r8)
-        adcq	160(%r9), %rdx
-        movq	168(%rsi), %rax
-        movq	%rdx, 160(%r8)
-        adcq	168(%r9), %rax
-        movq	176(%rsi), %rdx
-        movq	%rax, 168(%r8)
-        adcq	176(%r9), %rdx
-        movq	184(%rsi), %rax
-        movq	%rdx, 176(%r8)
-        adcq	184(%r9), %rax
-        movq	192(%rsi), %rdx
-        movq	%rax, 184(%r8)
-        adcq	192(%r9), %rdx
-        movq	200(%rsi), %rax
-        movq	%rdx, 192(%r8)
-        adcq	200(%r9), %rax
-        movq	208(%rsi), %rdx
-        movq	%rax, 200(%r8)
-        adcq	208(%r9), %rdx
-        movq	216(%rsi), %rax
-        movq	%rdx, 208(%r8)
-        adcq	216(%r9), %rax
-        movq	224(%rsi), %rdx
-        movq	%rax, 216(%r8)
-        adcq	224(%r9), %rdx
-        movq	232(%rsi), %rax
-        movq	%rdx, 224(%r8)
-        adcq	232(%r9), %rax
-        movq	240(%rsi), %rdx
-        movq	%rax, 232(%r8)
-        adcq	240(%r9), %rdx
-        movq	248(%rsi), %rax
-        movq	%rdx, 240(%r8)
-        adcq	248(%r9), %rax
-        movq	%rax, 248(%r8)
-        adcq	$0x00, %rcx
-        movq	%rcx, 1296(%rsp)
-        movq	%r8, %rsi
-        movq	%rsp, %rdi
-#ifndef __APPLE__
-        callq	sp_2048_sqr_32@plt
-#else
-        callq	_sp_2048_sqr_32
-#endif /* __APPLE__ */
-        movq	1288(%rsp), %rsi
-        leaq	512(%rsp), %rdi
-        addq	$0x100, %rsi
-#ifndef __APPLE__
-        callq	sp_2048_sqr_32@plt
-#else
-        callq	_sp_2048_sqr_32
-#endif /* __APPLE__ */
-        movq	1288(%rsp), %rsi
-        movq	1280(%rsp), %rdi
-#ifndef __APPLE__
-        callq	sp_2048_sqr_32@plt
-#else
-        callq	_sp_2048_sqr_32
-#endif /* __APPLE__ */
-#ifdef _WIN64
-        movq	1288(%rsp), %rsi
-        movq	1280(%rsp), %rdi
-#endif /* _WIN64 */
-        movq	1296(%rsp), %r10
-        leaq	1024(%rsp), %r8
-        movq	%r10, %rcx
-        negq	%r10
-        movq	(%r8), %rdx
-        movq	8(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 512(%rdi)
-        movq	%rax, 520(%rdi)
-        movq	16(%r8), %rdx
-        movq	24(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 528(%rdi)
-        movq	%rax, 536(%rdi)
-        movq	32(%r8), %rdx
-        movq	40(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 544(%rdi)
-        movq	%rax, 552(%rdi)
-        movq	48(%r8), %rdx
-        movq	56(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 560(%rdi)
-        movq	%rax, 568(%rdi)
-        movq	64(%r8), %rdx
-        movq	72(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 576(%rdi)
-        movq	%rax, 584(%rdi)
-        movq	80(%r8), %rdx
-        movq	88(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 592(%rdi)
-        movq	%rax, 600(%rdi)
-        movq	96(%r8), %rdx
-        movq	104(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 608(%rdi)
-        movq	%rax, 616(%rdi)
-        movq	112(%r8), %rdx
-        movq	120(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 624(%rdi)
-        movq	%rax, 632(%rdi)
-        movq	128(%r8), %rdx
-        movq	136(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 640(%rdi)
-        movq	%rax, 648(%rdi)
-        movq	144(%r8), %rdx
-        movq	152(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 656(%rdi)
-        movq	%rax, 664(%rdi)
-        movq	160(%r8), %rdx
-        movq	168(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 672(%rdi)
-        movq	%rax, 680(%rdi)
-        movq	176(%r8), %rdx
-        movq	184(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 688(%rdi)
-        movq	%rax, 696(%rdi)
-        movq	192(%r8), %rdx
-        movq	200(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 704(%rdi)
-        movq	%rax, 712(%rdi)
-        movq	208(%r8), %rdx
-        movq	216(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 720(%rdi)
-        movq	%rax, 728(%rdi)
-        movq	224(%r8), %rdx
-        movq	232(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 736(%rdi)
-        movq	%rax, 744(%rdi)
-        movq	240(%r8), %rdx
-        movq	248(%r8), %rax
-        andq	%r10, %rdx
-        andq	%r10, %rax
-        movq	%rdx, 752(%rdi)
-        movq	%rax, 760(%rdi)
-        movq	512(%rdi), %rdx
-        addq	%rdx, %rdx
-        movq	520(%rdi), %rax
-        movq	%rdx, 512(%rdi)
-        adcq	%rax, %rax
-        movq	528(%rdi), %rdx
-        movq	%rax, 520(%rdi)
-        adcq	%rdx, %rdx
-        movq	536(%rdi), %rax
-        movq	%rdx, 528(%rdi)
-        adcq	%rax, %rax
-        movq	544(%rdi), %rdx
-        movq	%rax, 536(%rdi)
-        adcq	%rdx, %rdx
-        movq	552(%rdi), %rax
-        movq	%rdx, 544(%rdi)
-        adcq	%rax, %rax
-        movq	560(%rdi), %rdx
-        movq	%rax, 552(%rdi)
-        adcq	%rdx, %rdx
-        movq	568(%rdi), %rax
-        movq	%rdx, 560(%rdi)
-        adcq	%rax, %rax
-        movq	576(%rdi), %rdx
-        movq	%rax, 568(%rdi)
-        adcq	%rdx, %rdx
-        movq	584(%rdi), %rax
-        movq	%rdx, 576(%rdi)
-        adcq	%rax, %rax
-        movq	592(%rdi), %rdx
-        movq	%rax, 584(%rdi)
-        adcq	%rdx, %rdx
-        movq	600(%rdi), %rax
-        movq	%rdx, 592(%rdi)
-        adcq	%rax, %rax
-        movq	608(%rdi), %rdx
-        movq	%rax, 600(%rdi)
-        adcq	%rdx, %rdx
-        movq	616(%rdi), %rax
-        movq	%rdx, 608(%rdi)
-        adcq	%rax, %rax
-        movq	624(%rdi), %rdx
-        movq	%rax, 616(%rdi)
-        adcq	%rdx, %rdx
-        movq	632(%rdi), %rax
-        movq	%rdx, 624(%rdi)
-        adcq	%rax, %rax
-        movq	640(%rdi), %rdx
-        movq	%rax, 632(%rdi)
-        adcq	%rdx, %rdx
-        movq	648(%rdi), %rax
-        movq	%rdx, 640(%rdi)
-        adcq	%rax, %rax
-        movq	656(%rdi), %rdx
-        movq	%rax, 648(%rdi)
-        adcq	%rdx, %rdx
-        movq	664(%rdi), %rax
-        movq	%rdx, 656(%rdi)
-        adcq	%rax, %rax
-        movq	672(%rdi), %rdx
-        movq	%rax, 664(%rdi)
-        adcq	%rdx, %rdx
-        movq	680(%rdi), %rax
-        movq	%rdx, 672(%rdi)
-        adcq	%rax, %rax
-        movq	688(%rdi), %rdx
-        movq	%rax, 680(%rdi)
-        adcq	%rdx, %rdx
-        movq	696(%rdi), %rax
-        movq	%rdx, 688(%rdi)
-        adcq	%rax, %rax
-        movq	704(%rdi), %rdx
-        movq	%rax, 696(%rdi)
-        adcq	%rdx, %rdx
-        movq	712(%rdi), %rax
-        movq	%rdx, 704(%rdi)
-        adcq	%rax, %rax
-        movq	720(%rdi), %rdx
-        movq	%rax, 712(%rdi)
-        adcq	%rdx, %rdx
-        movq	728(%rdi), %rax
-        movq	%rdx, 720(%rdi)
-        adcq	%rax, %rax
-        movq	736(%rdi), %rdx
-        movq	%rax, 728(%rdi)
-        adcq	%rdx, %rdx
-        movq	744(%rdi), %rax
-        movq	%rdx, 736(%rdi)
-        adcq	%rax, %rax
-        movq	752(%rdi), %rdx
-        movq	%rax, 744(%rdi)
-        adcq	%rdx, %rdx
-        movq	760(%rdi), %rax
-        movq	%rdx, 752(%rdi)
-        adcq	%rax, %rax
-        movq	%rax, 760(%rdi)
-        adcq	$0x00, %rcx
-        leaq	512(%rsp), %rsi
-        movq	%rsp, %r8
-        movq	(%r8), %rdx
-        subq	(%rsi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rsi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rsi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rsi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rsi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rsi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rsi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rsi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rsi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rsi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rsi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rsi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rsi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rsi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rsi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rsi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rsi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rsi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rsi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rsi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rsi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rsi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rsi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rsi), %rax
-        movq	192(%r8), %rdx
-        movq	%rax, 184(%r8)
-        sbbq	192(%rsi), %rdx
-        movq	200(%r8), %rax
-        movq	%rdx, 192(%r8)
-        sbbq	200(%rsi), %rax
-        movq	208(%r8), %rdx
-        movq	%rax, 200(%r8)
-        sbbq	208(%rsi), %rdx
-        movq	216(%r8), %rax
-        movq	%rdx, 208(%r8)
-        sbbq	216(%rsi), %rax
-        movq	224(%r8), %rdx
-        movq	%rax, 216(%r8)
-        sbbq	224(%rsi), %rdx
-        movq	232(%r8), %rax
-        movq	%rdx, 224(%r8)
-        sbbq	232(%rsi), %rax
-        movq	240(%r8), %rdx
-        movq	%rax, 232(%r8)
-        sbbq	240(%rsi), %rdx
-        movq	248(%r8), %rax
-        movq	%rdx, 240(%r8)
-        sbbq	248(%rsi), %rax
-        movq	256(%r8), %rdx
-        movq	%rax, 248(%r8)
-        sbbq	256(%rsi), %rdx
-        movq	264(%r8), %rax
-        movq	%rdx, 256(%r8)
-        sbbq	264(%rsi), %rax
-        movq	272(%r8), %rdx
-        movq	%rax, 264(%r8)
-        sbbq	272(%rsi), %rdx
-        movq	280(%r8), %rax
-        movq	%rdx, 272(%r8)
-        sbbq	280(%rsi), %rax
-        movq	288(%r8), %rdx
-        movq	%rax, 280(%r8)
-        sbbq	288(%rsi), %rdx
-        movq	296(%r8), %rax
-        movq	%rdx, 288(%r8)
-        sbbq	296(%rsi), %rax
-        movq	304(%r8), %rdx
-        movq	%rax, 296(%r8)
-        sbbq	304(%rsi), %rdx
-        movq	312(%r8), %rax
-        movq	%rdx, 304(%r8)
-        sbbq	312(%rsi), %rax
-        movq	320(%r8), %rdx
-        movq	%rax, 312(%r8)
-        sbbq	320(%rsi), %rdx
-        movq	328(%r8), %rax
-        movq	%rdx, 320(%r8)
-        sbbq	328(%rsi), %rax
-        movq	336(%r8), %rdx
-        movq	%rax, 328(%r8)
-        sbbq	336(%rsi), %rdx
-        movq	344(%r8), %rax
-        movq	%rdx, 336(%r8)
-        sbbq	344(%rsi), %rax
-        movq	352(%r8), %rdx
-        movq	%rax, 344(%r8)
-        sbbq	352(%rsi), %rdx
-        movq	360(%r8), %rax
-        movq	%rdx, 352(%r8)
-        sbbq	360(%rsi), %rax
-        movq	368(%r8), %rdx
-        movq	%rax, 360(%r8)
-        sbbq	368(%rsi), %rdx
-        movq	376(%r8), %rax
-        movq	%rdx, 368(%r8)
-        sbbq	376(%rsi), %rax
-        movq	384(%r8), %rdx
-        movq	%rax, 376(%r8)
-        sbbq	384(%rsi), %rdx
-        movq	392(%r8), %rax
-        movq	%rdx, 384(%r8)
-        sbbq	392(%rsi), %rax
-        movq	400(%r8), %rdx
-        movq	%rax, 392(%r8)
-        sbbq	400(%rsi), %rdx
-        movq	408(%r8), %rax
-        movq	%rdx, 400(%r8)
-        sbbq	408(%rsi), %rax
-        movq	416(%r8), %rdx
-        movq	%rax, 408(%r8)
-        sbbq	416(%rsi), %rdx
-        movq	424(%r8), %rax
-        movq	%rdx, 416(%r8)
-        sbbq	424(%rsi), %rax
-        movq	432(%r8), %rdx
-        movq	%rax, 424(%r8)
-        sbbq	432(%rsi), %rdx
-        movq	440(%r8), %rax
-        movq	%rdx, 432(%r8)
-        sbbq	440(%rsi), %rax
-        movq	448(%r8), %rdx
-        movq	%rax, 440(%r8)
-        sbbq	448(%rsi), %rdx
-        movq	456(%r8), %rax
-        movq	%rdx, 448(%r8)
-        sbbq	456(%rsi), %rax
-        movq	464(%r8), %rdx
-        movq	%rax, 456(%r8)
-        sbbq	464(%rsi), %rdx
-        movq	472(%r8), %rax
-        movq	%rdx, 464(%r8)
-        sbbq	472(%rsi), %rax
-        movq	480(%r8), %rdx
-        movq	%rax, 472(%r8)
-        sbbq	480(%rsi), %rdx
-        movq	488(%r8), %rax
-        movq	%rdx, 480(%r8)
-        sbbq	488(%rsi), %rax
-        movq	496(%r8), %rdx
-        movq	%rax, 488(%r8)
-        sbbq	496(%rsi), %rdx
-        movq	504(%r8), %rax
-        movq	%rdx, 496(%r8)
-        sbbq	504(%rsi), %rax
-        movq	%rax, 504(%r8)
-        sbbq	$0x00, %rcx
-        movq	(%r8), %rdx
-        subq	(%rdi), %rdx
-        movq	8(%r8), %rax
-        movq	%rdx, (%r8)
-        sbbq	8(%rdi), %rax
-        movq	16(%r8), %rdx
-        movq	%rax, 8(%r8)
-        sbbq	16(%rdi), %rdx
-        movq	24(%r8), %rax
-        movq	%rdx, 16(%r8)
-        sbbq	24(%rdi), %rax
-        movq	32(%r8), %rdx
-        movq	%rax, 24(%r8)
-        sbbq	32(%rdi), %rdx
-        movq	40(%r8), %rax
-        movq	%rdx, 32(%r8)
-        sbbq	40(%rdi), %rax
-        movq	48(%r8), %rdx
-        movq	%rax, 40(%r8)
-        sbbq	48(%rdi), %rdx
-        movq	56(%r8), %rax
-        movq	%rdx, 48(%r8)
-        sbbq	56(%rdi), %rax
-        movq	64(%r8), %rdx
-        movq	%rax, 56(%r8)
-        sbbq	64(%rdi), %rdx
-        movq	72(%r8), %rax
-        movq	%rdx, 64(%r8)
-        sbbq	72(%rdi), %rax
-        movq	80(%r8), %rdx
-        movq	%rax, 72(%r8)
-        sbbq	80(%rdi), %rdx
-        movq	88(%r8), %rax
-        movq	%rdx, 80(%r8)
-        sbbq	88(%rdi), %rax
-        movq	96(%r8), %rdx
-        movq	%rax, 88(%r8)
-        sbbq	96(%rdi), %rdx
-        movq	104(%r8), %rax
-        movq	%rdx, 96(%r8)
-        sbbq	104(%rdi), %rax
-        movq	112(%r8), %rdx
-        movq	%rax, 104(%r8)
-        sbbq	112(%rdi), %rdx
-        movq	120(%r8), %rax
-        movq	%rdx, 112(%r8)
-        sbbq	120(%rdi), %rax
-        movq	128(%r8), %rdx
-        movq	%rax, 120(%r8)
-        sbbq	128(%rdi), %rdx
-        movq	136(%r8), %rax
-        movq	%rdx, 128(%r8)
-        sbbq	136(%rdi), %rax
-        movq	144(%r8), %rdx
-        movq	%rax, 136(%r8)
-        sbbq	144(%rdi), %rdx
-        movq	152(%r8), %rax
-        movq	%rdx, 144(%r8)
-        sbbq	152(%rdi), %rax
-        movq	160(%r8), %rdx
-        movq	%rax, 152(%r8)
-        sbbq	160(%rdi), %rdx
-        movq	168(%r8), %rax
-        movq	%rdx, 160(%r8)
-        sbbq	168(%rdi), %rax
-        movq	176(%r8), %rdx
-        movq	%rax, 168(%r8)
-        sbbq	176(%rdi), %rdx
-        movq	184(%r8), %rax
-        movq	%rdx, 176(%r8)
-        sbbq	184(%rdi), %rax
-        movq	192(%r8), %rdx
-        movq	%rax, 184(%r8)
-        sbbq	192(%rdi), %rdx
-        movq	200(%r8), %rax
-        movq	%rdx, 192(%r8)
-        sbbq	200(%rdi), %rax
-        movq	208(%r8), %rdx
-        movq	%rax, 200(%r8)
-        sbbq	208(%rdi), %rdx
-        movq	216(%r8), %rax
-        movq	%rdx, 208(%r8)
-        sbbq	216(%rdi), %rax
-        movq	224(%r8), %rdx
-        movq	%rax, 216(%r8)
-        sbbq	224(%rdi), %rdx
-        movq	232(%r8), %rax
-        movq	%rdx, 224(%r8)
-        sbbq	232(%rdi), %rax
-        movq	240(%r8), %rdx
-        movq	%rax, 232(%r8)
-        sbbq	240(%rdi), %rdx
-        movq	248(%r8), %rax
-        movq	%rdx, 240(%r8)
-        sbbq	248(%rdi), %rax
-        movq	256(%r8), %rdx
-        movq	%rax, 248(%r8)
-        sbbq	256(%rdi), %rdx
-        movq	264(%r8), %rax
-        movq	%rdx, 256(%r8)
-        sbbq	264(%rdi), %rax
-        movq	272(%r8), %rdx
-        movq	%rax, 264(%r8)
-        sbbq	272(%rdi), %rdx
-        movq	280(%r8), %rax
-        movq	%rdx, 272(%r8)
-        sbbq	280(%rdi), %rax
-        movq	288(%r8), %rdx
-        movq	%rax, 280(%r8)
-        sbbq	288(%rdi), %rdx
-        movq	296(%r8), %rax
-        movq	%rdx, 288(%r8)
-        sbbq	296(%rdi), %rax
-        movq	304(%r8), %rdx
-        movq	%rax, 296(%r8)
-        sbbq	304(%rdi), %rdx
-        movq	312(%r8), %rax
-        movq	%rdx, 304(%r8)
-        sbbq	312(%rdi), %rax
-        movq	320(%r8), %rdx
-        movq	%rax, 312(%r8)
-        sbbq	320(%rdi), %rdx
-        movq	328(%r8), %rax
-        movq	%rdx, 320(%r8)
-        sbbq	328(%rdi), %rax
-        movq	336(%r8), %rdx
-        movq	%rax, 328(%r8)
-        sbbq	336(%rdi), %rdx
-        movq	344(%r8), %rax
-        movq	%rdx, 336(%r8)
-        sbbq	344(%rdi), %rax
-        movq	352(%r8), %rdx
-        movq	%rax, 344(%r8)
-        sbbq	352(%rdi), %rdx
-        movq	360(%r8), %rax
-        movq	%rdx, 352(%r8)
-        sbbq	360(%rdi), %rax
-        movq	368(%r8), %rdx
-        movq	%rax, 360(%r8)
-        sbbq	368(%rdi), %rdx
-        movq	376(%r8), %rax
-        movq	%rdx, 368(%r8)
-        sbbq	376(%rdi), %rax
-        movq	384(%r8), %rdx
-        movq	%rax, 376(%r8)
-        sbbq	384(%rdi), %rdx
-        movq	392(%r8), %rax
-        movq	%rdx, 384(%r8)
-        sbbq	392(%rdi), %rax
-        movq	400(%r8), %rdx
-        movq	%rax, 392(%r8)
-        sbbq	400(%rdi), %rdx
-        movq	408(%r8), %rax
-        movq	%rdx, 400(%r8)
-        sbbq	408(%rdi), %rax
-        movq	416(%r8), %rdx
-        movq	%rax, 408(%r8)
-        sbbq	416(%rdi), %rdx
-        movq	424(%r8), %rax
-        movq	%rdx, 416(%r8)
-        sbbq	424(%rdi), %rax
-        movq	432(%r8), %rdx
-        movq	%rax, 424(%r8)
-        sbbq	432(%rdi), %rdx
-        movq	440(%r8), %rax
-        movq	%rdx, 432(%r8)
-        sbbq	440(%rdi), %rax
-        movq	448(%r8), %rdx
-        movq	%rax, 440(%r8)
-        sbbq	448(%rdi), %rdx
-        movq	456(%r8), %rax
-        movq	%rdx, 448(%r8)
-        sbbq	456(%rdi), %rax
-        movq	464(%r8), %rdx
-        movq	%rax, 456(%r8)
-        sbbq	464(%rdi), %rdx
-        movq	472(%r8), %rax
-        movq	%rdx, 464(%r8)
-        sbbq	472(%rdi), %rax
-        movq	480(%r8), %rdx
-        movq	%rax, 472(%r8)
-        sbbq	480(%rdi), %rdx
-        movq	488(%r8), %rax
-        movq	%rdx, 480(%r8)
-        sbbq	488(%rdi), %rax
-        movq	496(%r8), %rdx
-        movq	%rax, 488(%r8)
-        sbbq	496(%rdi), %rdx
-        movq	504(%r8), %rax
-        movq	%rdx, 496(%r8)
-        sbbq	504(%rdi), %rax
-        movq	%rax, 504(%r8)
-        sbbq	$0x00, %rcx
-        # Add in place
-        movq	256(%rdi), %rdx
-        addq	(%r8), %rdx
-        movq	264(%rdi), %rax
-        movq	%rdx, 256(%rdi)
-        adcq	8(%r8), %rax
-        movq	272(%rdi), %rdx
-        movq	%rax, 264(%rdi)
-        adcq	16(%r8), %rdx
-        movq	280(%rdi), %rax
-        movq	%rdx, 272(%rdi)
-        adcq	24(%r8), %rax
-        movq	288(%rdi), %rdx
-        movq	%rax, 280(%rdi)
-        adcq	32(%r8), %rdx
-        movq	296(%rdi), %rax
-        movq	%rdx, 288(%rdi)
-        adcq	40(%r8), %rax
-        movq	304(%rdi), %rdx
-        movq	%rax, 296(%rdi)
-        adcq	48(%r8), %rdx
-        movq	312(%rdi), %rax
-        movq	%rdx, 304(%rdi)
-        adcq	56(%r8), %rax
-        movq	320(%rdi), %rdx
-        movq	%rax, 312(%rdi)
-        adcq	64(%r8), %rdx
-        movq	328(%rdi), %rax
-        movq	%rdx, 320(%rdi)
-        adcq	72(%r8), %rax
-        movq	336(%rdi), %rdx
-        movq	%rax, 328(%rdi)
-        adcq	80(%r8), %rdx
-        movq	344(%rdi), %rax
-        movq	%rdx, 336(%rdi)
-        adcq	88(%r8), %rax
-        movq	352(%rdi), %rdx
-        movq	%rax, 344(%rdi)
-        adcq	96(%r8), %rdx
-        movq	360(%rdi), %rax
-        movq	%rdx, 352(%rdi)
-        adcq	104(%r8), %rax
-        movq	368(%rdi), %rdx
-        movq	%rax, 360(%rdi)
-        adcq	112(%r8), %rdx
-        movq	376(%rdi), %rax
-        movq	%rdx, 368(%rdi)
-        adcq	120(%r8), %rax
-        movq	384(%rdi), %rdx
-        movq	%rax, 376(%rdi)
-        adcq	128(%r8), %rdx
-        movq	392(%rdi), %rax
-        movq	%rdx, 384(%rdi)
-        adcq	136(%r8), %rax
-        movq	400(%rdi), %rdx
-        movq	%rax, 392(%rdi)
-        adcq	144(%r8), %rdx
-        movq	408(%rdi), %rax
-        movq	%rdx, 400(%rdi)
-        adcq	152(%r8), %rax
-        movq	416(%rdi), %rdx
-        movq	%rax, 408(%rdi)
-        adcq	160(%r8), %rdx
-        movq	424(%rdi), %rax
-        movq	%rdx, 416(%rdi)
-        adcq	168(%r8), %rax
-        movq	432(%rdi), %rdx
-        movq	%rax, 424(%rdi)
-        adcq	176(%r8), %rdx
-        movq	440(%rdi), %rax
-        movq	%rdx, 432(%rdi)
-        adcq	184(%r8), %rax
-        movq	448(%rdi), %rdx
-        movq	%rax, 440(%rdi)
-        adcq	192(%r8), %rdx
-        movq	456(%rdi), %rax
-        movq	%rdx, 448(%rdi)
-        adcq	200(%r8), %rax
-        movq	464(%rdi), %rdx
-        movq	%rax, 456(%rdi)
-        adcq	208(%r8), %rdx
-        movq	472(%rdi), %rax
-        movq	%rdx, 464(%rdi)
-        adcq	216(%r8), %rax
-        movq	480(%rdi), %rdx
-        movq	%rax, 472(%rdi)
-        adcq	224(%r8), %rdx
-        movq	488(%rdi), %rax
-        movq	%rdx, 480(%rdi)
-        adcq	232(%r8), %rax
-        movq	496(%rdi), %rdx
-        movq	%rax, 488(%rdi)
-        adcq	240(%r8), %rdx
-        movq	504(%rdi), %rax
-        movq	%rdx, 496(%rdi)
-        adcq	248(%r8), %rax
-        movq	512(%rdi), %rdx
-        movq	%rax, 504(%rdi)
-        adcq	256(%r8), %rdx
-        movq	520(%rdi), %rax
-        movq	%rdx, 512(%rdi)
-        adcq	264(%r8), %rax
-        movq	528(%rdi), %rdx
-        movq	%rax, 520(%rdi)
-        adcq	272(%r8), %rdx
-        movq	536(%rdi), %rax
-        movq	%rdx, 528(%rdi)
-        adcq	280(%r8), %rax
-        movq	544(%rdi), %rdx
-        movq	%rax, 536(%rdi)
-        adcq	288(%r8), %rdx
-        movq	552(%rdi), %rax
-        movq	%rdx, 544(%rdi)
-        adcq	296(%r8), %rax
-        movq	560(%rdi), %rdx
-        movq	%rax, 552(%rdi)
-        adcq	304(%r8), %rdx
-        movq	568(%rdi), %rax
-        movq	%rdx, 560(%rdi)
-        adcq	312(%r8), %rax
-        movq	576(%rdi), %rdx
-        movq	%rax, 568(%rdi)
-        adcq	320(%r8), %rdx
-        movq	584(%rdi), %rax
-        movq	%rdx, 576(%rdi)
-        adcq	328(%r8), %rax
-        movq	592(%rdi), %rdx
-        movq	%rax, 584(%rdi)
-        adcq	336(%r8), %rdx
-        movq	600(%rdi), %rax
-        movq	%rdx, 592(%rdi)
-        adcq	344(%r8), %rax
-        movq	608(%rdi), %rdx
-        movq	%rax, 600(%rdi)
-        adcq	352(%r8), %rdx
-        movq	616(%rdi), %rax
-        movq	%rdx, 608(%rdi)
-        adcq	360(%r8), %rax
-        movq	624(%rdi), %rdx
-        movq	%rax, 616(%rdi)
-        adcq	368(%r8), %rdx
-        movq	632(%rdi), %rax
-        movq	%rdx, 624(%rdi)
-        adcq	376(%r8), %rax
-        movq	640(%rdi), %rdx
-        movq	%rax, 632(%rdi)
-        adcq	384(%r8), %rdx
-        movq	648(%rdi), %rax
-        movq	%rdx, 640(%rdi)
-        adcq	392(%r8), %rax
-        movq	656(%rdi), %rdx
-        movq	%rax, 648(%rdi)
-        adcq	400(%r8), %rdx
-        movq	664(%rdi), %rax
-        movq	%rdx, 656(%rdi)
-        adcq	408(%r8), %rax
-        movq	672(%rdi), %rdx
-        movq	%rax, 664(%rdi)
-        adcq	416(%r8), %rdx
-        movq	680(%rdi), %rax
-        movq	%rdx, 672(%rdi)
-        adcq	424(%r8), %rax
-        movq	688(%rdi), %rdx
-        movq	%rax, 680(%rdi)
-        adcq	432(%r8), %rdx
-        movq	696(%rdi), %rax
-        movq	%rdx, 688(%rdi)
-        adcq	440(%r8), %rax
-        movq	704(%rdi), %rdx
-        movq	%rax, 696(%rdi)
-        adcq	448(%r8), %rdx
-        movq	712(%rdi), %rax
-        movq	%rdx, 704(%rdi)
-        adcq	456(%r8), %rax
-        movq	720(%rdi), %rdx
-        movq	%rax, 712(%rdi)
-        adcq	464(%r8), %rdx
-        movq	728(%rdi), %rax
-        movq	%rdx, 720(%rdi)
-        adcq	472(%r8), %rax
-        movq	736(%rdi), %rdx
-        movq	%rax, 728(%rdi)
-        adcq	480(%r8), %rdx
-        movq	744(%rdi), %rax
-        movq	%rdx, 736(%rdi)
-        adcq	488(%r8), %rax
-        movq	752(%rdi), %rdx
-        movq	%rax, 744(%rdi)
-        adcq	496(%r8), %rdx
-        movq	760(%rdi), %rax
-        movq	%rdx, 752(%rdi)
-        adcq	504(%r8), %rax
-        movq	%rax, 760(%rdi)
-        adcq	$0x00, %rcx
-        movq	%rcx, 768(%rdi)
-        # Add in place
-        movq	512(%rdi), %rdx
-        xorq	%rcx, %rcx
-        addq	(%rsi), %rdx
-        movq	520(%rdi), %rax
-        movq	%rdx, 512(%rdi)
-        adcq	8(%rsi), %rax
-        movq	528(%rdi), %rdx
-        movq	%rax, 520(%rdi)
-        adcq	16(%rsi), %rdx
-        movq	536(%rdi), %rax
-        movq	%rdx, 528(%rdi)
-        adcq	24(%rsi), %rax
-        movq	544(%rdi), %rdx
-        movq	%rax, 536(%rdi)
-        adcq	32(%rsi), %rdx
-        movq	552(%rdi), %rax
-        movq	%rdx, 544(%rdi)
-        adcq	40(%rsi), %rax
-        movq	560(%rdi), %rdx
-        movq	%rax, 552(%rdi)
-        adcq	48(%rsi), %rdx
-        movq	568(%rdi), %rax
-        movq	%rdx, 560(%rdi)
-        adcq	56(%rsi), %rax
-        movq	576(%rdi), %rdx
-        movq	%rax, 568(%rdi)
-        adcq	64(%rsi), %rdx
-        movq	584(%rdi), %rax
-        movq	%rdx, 576(%rdi)
-        adcq	72(%rsi), %rax
-        movq	592(%rdi), %rdx
-        movq	%rax, 584(%rdi)
-        adcq	80(%rsi), %rdx
-        movq	600(%rdi), %rax
-        movq	%rdx, 592(%rdi)
-        adcq	88(%rsi), %rax
-        movq	608(%rdi), %rdx
-        movq	%rax, 600(%rdi)
-        adcq	96(%rsi), %rdx
-        movq	616(%rdi), %rax
-        movq	%rdx, 608(%rdi)
-        adcq	104(%rsi), %rax
-        movq	624(%rdi), %rdx
-        movq	%rax, 616(%rdi)
-        adcq	112(%rsi), %rdx
-        movq	632(%rdi), %rax
-        movq	%rdx, 624(%rdi)
-        adcq	120(%rsi), %rax
-        movq	640(%rdi), %rdx
-        movq	%rax, 632(%rdi)
-        adcq	128(%rsi), %rdx
-        movq	648(%rdi), %rax
-        movq	%rdx, 640(%rdi)
-        adcq	136(%rsi), %rax
-        movq	656(%rdi), %rdx
-        movq	%rax, 648(%rdi)
-        adcq	144(%rsi), %rdx
-        movq	664(%rdi), %rax
-        movq	%rdx, 656(%rdi)
-        adcq	152(%rsi), %rax
-        movq	672(%rdi), %rdx
-        movq	%rax, 664(%rdi)
-        adcq	160(%rsi), %rdx
-        movq	680(%rdi), %rax
-        movq	%rdx, 672(%rdi)
-        adcq	168(%rsi), %rax
-        movq	688(%rdi), %rdx
-        movq	%rax, 680(%rdi)
-        adcq	176(%rsi), %rdx
-        movq	696(%rdi), %rax
-        movq	%rdx, 688(%rdi)
-        adcq	184(%rsi), %rax
-        movq	704(%rdi), %rdx
-        movq	%rax, 696(%rdi)
-        adcq	192(%rsi), %rdx
-        movq	712(%rdi), %rax
-        movq	%rdx, 704(%rdi)
-        adcq	200(%rsi), %rax
-        movq	720(%rdi), %rdx
-        movq	%rax, 712(%rdi)
-        adcq	208(%rsi), %rdx
-        movq	728(%rdi), %rax
-        movq	%rdx, 720(%rdi)
-        adcq	216(%rsi), %rax
-        movq	736(%rdi), %rdx
-        movq	%rax, 728(%rdi)
-        adcq	224(%rsi), %rdx
-        movq	744(%rdi), %rax
-        movq	%rdx, 736(%rdi)
-        adcq	232(%rsi), %rax
-        movq	752(%rdi), %rdx
-        movq	%rax, 744(%rdi)
-        adcq	240(%rsi), %rdx
-        movq	760(%rdi), %rax
-        movq	%rdx, 752(%rdi)
-        adcq	248(%rsi), %rax
-        movq	768(%rdi), %rdx
-        movq	%rax, 760(%rdi)
-        adcq	256(%rsi), %rdx
-        movq	%rdx, 768(%rdi)
-        adcq	$0x00, %rcx
-        # Add to zero
-        movq	264(%rsi), %rdx
-        adcq	$0x00, %rdx
-        movq	272(%rsi), %rax
-        movq	%rdx, 776(%rdi)
-        adcq	$0x00, %rax
-        movq	280(%rsi), %rdx
-        movq	%rax, 784(%rdi)
-        adcq	$0x00, %rdx
-        movq	288(%rsi), %rax
-        movq	%rdx, 792(%rdi)
-        adcq	$0x00, %rax
-        movq	296(%rsi), %rdx
-        movq	%rax, 800(%rdi)
-        adcq	$0x00, %rdx
-        movq	304(%rsi), %rax
-        movq	%rdx, 808(%rdi)
-        adcq	$0x00, %rax
-        movq	312(%rsi), %rdx
-        movq	%rax, 816(%rdi)
-        adcq	$0x00, %rdx
-        movq	320(%rsi), %rax
-        movq	%rdx, 824(%rdi)
-        adcq	$0x00, %rax
-        movq	328(%rsi), %rdx
-        movq	%rax, 832(%rdi)
-        adcq	$0x00, %rdx
-        movq	336(%rsi), %rax
-        movq	%rdx, 840(%rdi)
-        adcq	$0x00, %rax
-        movq	344(%rsi), %rdx
-        movq	%rax, 848(%rdi)
-        adcq	$0x00, %rdx
-        movq	352(%rsi), %rax
-        movq	%rdx, 856(%rdi)
-        adcq	$0x00, %rax
-        movq	360(%rsi), %rdx
-        movq	%rax, 864(%rdi)
-        adcq	$0x00, %rdx
-        movq	368(%rsi), %rax
-        movq	%rdx, 872(%rdi)
-        adcq	$0x00, %rax
-        movq	376(%rsi), %rdx
-        movq	%rax, 880(%rdi)
-        adcq	$0x00, %rdx
-        movq	384(%rsi), %rax
-        movq	%rdx, 888(%rdi)
-        adcq	$0x00, %rax
-        movq	392(%rsi), %rdx
-        movq	%rax, 896(%rdi)
-        adcq	$0x00, %rdx
-        movq	400(%rsi), %rax
-        movq	%rdx, 904(%rdi)
-        adcq	$0x00, %rax
-        movq	408(%rsi), %rdx
-        movq	%rax, 912(%rdi)
-        adcq	$0x00, %rdx
-        movq	416(%rsi), %rax
-        movq	%rdx, 920(%rdi)
-        adcq	$0x00, %rax
-        movq	424(%rsi), %rdx
-        movq	%rax, 928(%rdi)
-        adcq	$0x00, %rdx
-        movq	432(%rsi), %rax
-        movq	%rdx, 936(%rdi)
-        adcq	$0x00, %rax
-        movq	440(%rsi), %rdx
-        movq	%rax, 944(%rdi)
-        adcq	$0x00, %rdx
-        movq	448(%rsi), %rax
-        movq	%rdx, 952(%rdi)
-        adcq	$0x00, %rax
-        movq	456(%rsi), %rdx
-        movq	%rax, 960(%rdi)
-        adcq	$0x00, %rdx
-        movq	464(%rsi), %rax
-        movq	%rdx, 968(%rdi)
-        adcq	$0x00, %rax
-        movq	472(%rsi), %rdx
-        movq	%rax, 976(%rdi)
-        adcq	$0x00, %rdx
-        movq	480(%rsi), %rax
-        movq	%rdx, 984(%rdi)
-        adcq	$0x00, %rax
-        movq	488(%rsi), %rdx
-        movq	%rax, 992(%rdi)
-        adcq	$0x00, %rdx
-        movq	496(%rsi), %rax
-        movq	%rdx, 1000(%rdi)
-        adcq	$0x00, %rax
-        movq	504(%rsi), %rdx
-        movq	%rax, 1008(%rdi)
-        adcq	$0x00, %rdx
-        movq	%rdx, 1016(%rdi)
-        addq	$0x518, %rsp
-        repz retq
-#ifndef __APPLE__
-.size	sp_4096_sqr_64,.-sp_4096_sqr_64
-#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -32937,6 +31689,1254 @@ _sp_4096_mul_avx2_64:
 .size	sp_4096_mul_avx2_64,.-sp_4096_mul_avx2_64
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+/* Add a to a into r. (r = a + a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_dbl_32
+.type	sp_2048_dbl_32,@function
+.align	16
+sp_2048_dbl_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_dbl_32
+.p2align	4
+_sp_2048_dbl_32:
+#endif /* __APPLE__ */
+        movq	(%rsi), %rdx
+        xorq	%rax, %rax
+        addq	%rdx, %rdx
+        movq	8(%rsi), %rcx
+        movq	%rdx, (%rdi)
+        adcq	%rcx, %rcx
+        movq	16(%rsi), %rdx
+        movq	%rcx, 8(%rdi)
+        adcq	%rdx, %rdx
+        movq	24(%rsi), %rcx
+        movq	%rdx, 16(%rdi)
+        adcq	%rcx, %rcx
+        movq	32(%rsi), %rdx
+        movq	%rcx, 24(%rdi)
+        adcq	%rdx, %rdx
+        movq	40(%rsi), %rcx
+        movq	%rdx, 32(%rdi)
+        adcq	%rcx, %rcx
+        movq	48(%rsi), %rdx
+        movq	%rcx, 40(%rdi)
+        adcq	%rdx, %rdx
+        movq	56(%rsi), %rcx
+        movq	%rdx, 48(%rdi)
+        adcq	%rcx, %rcx
+        movq	64(%rsi), %rdx
+        movq	%rcx, 56(%rdi)
+        adcq	%rdx, %rdx
+        movq	72(%rsi), %rcx
+        movq	%rdx, 64(%rdi)
+        adcq	%rcx, %rcx
+        movq	80(%rsi), %rdx
+        movq	%rcx, 72(%rdi)
+        adcq	%rdx, %rdx
+        movq	88(%rsi), %rcx
+        movq	%rdx, 80(%rdi)
+        adcq	%rcx, %rcx
+        movq	96(%rsi), %rdx
+        movq	%rcx, 88(%rdi)
+        adcq	%rdx, %rdx
+        movq	104(%rsi), %rcx
+        movq	%rdx, 96(%rdi)
+        adcq	%rcx, %rcx
+        movq	112(%rsi), %rdx
+        movq	%rcx, 104(%rdi)
+        adcq	%rdx, %rdx
+        movq	120(%rsi), %rcx
+        movq	%rdx, 112(%rdi)
+        adcq	%rcx, %rcx
+        movq	128(%rsi), %rdx
+        movq	%rcx, 120(%rdi)
+        adcq	%rdx, %rdx
+        movq	136(%rsi), %rcx
+        movq	%rdx, 128(%rdi)
+        adcq	%rcx, %rcx
+        movq	144(%rsi), %rdx
+        movq	%rcx, 136(%rdi)
+        adcq	%rdx, %rdx
+        movq	152(%rsi), %rcx
+        movq	%rdx, 144(%rdi)
+        adcq	%rcx, %rcx
+        movq	160(%rsi), %rdx
+        movq	%rcx, 152(%rdi)
+        adcq	%rdx, %rdx
+        movq	168(%rsi), %rcx
+        movq	%rdx, 160(%rdi)
+        adcq	%rcx, %rcx
+        movq	176(%rsi), %rdx
+        movq	%rcx, 168(%rdi)
+        adcq	%rdx, %rdx
+        movq	184(%rsi), %rcx
+        movq	%rdx, 176(%rdi)
+        adcq	%rcx, %rcx
+        movq	192(%rsi), %rdx
+        movq	%rcx, 184(%rdi)
+        adcq	%rdx, %rdx
+        movq	200(%rsi), %rcx
+        movq	%rdx, 192(%rdi)
+        adcq	%rcx, %rcx
+        movq	208(%rsi), %rdx
+        movq	%rcx, 200(%rdi)
+        adcq	%rdx, %rdx
+        movq	216(%rsi), %rcx
+        movq	%rdx, 208(%rdi)
+        adcq	%rcx, %rcx
+        movq	224(%rsi), %rdx
+        movq	%rcx, 216(%rdi)
+        adcq	%rdx, %rdx
+        movq	232(%rsi), %rcx
+        movq	%rdx, 224(%rdi)
+        adcq	%rcx, %rcx
+        movq	240(%rsi), %rdx
+        movq	%rcx, 232(%rdi)
+        adcq	%rdx, %rdx
+        movq	248(%rsi), %rcx
+        movq	%rdx, 240(%rdi)
+        adcq	%rcx, %rcx
+        movq	%rcx, 248(%rdi)
+        adcq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_dbl_32,.-sp_2048_dbl_32
+#endif /* __APPLE__ */
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_4096_sqr_64
+.type	sp_4096_sqr_64,@function
+.align	16
+sp_4096_sqr_64:
+#else
+.section	__TEXT,__text
+.globl	_sp_4096_sqr_64
+.p2align	4
+_sp_4096_sqr_64:
+#endif /* __APPLE__ */
+        subq	$0x518, %rsp
+        movq	%rdi, 1280(%rsp)
+        movq	%rsi, 1288(%rsp)
+        leaq	1024(%rsp), %r8
+        leaq	256(%rsi), %r9
+        # Add
+        movq	(%rsi), %rdx
+        xorq	%rcx, %rcx
+        addq	(%r9), %rdx
+        movq	8(%rsi), %rax
+        movq	%rdx, (%r8)
+        adcq	8(%r9), %rax
+        movq	16(%rsi), %rdx
+        movq	%rax, 8(%r8)
+        adcq	16(%r9), %rdx
+        movq	24(%rsi), %rax
+        movq	%rdx, 16(%r8)
+        adcq	24(%r9), %rax
+        movq	32(%rsi), %rdx
+        movq	%rax, 24(%r8)
+        adcq	32(%r9), %rdx
+        movq	40(%rsi), %rax
+        movq	%rdx, 32(%r8)
+        adcq	40(%r9), %rax
+        movq	48(%rsi), %rdx
+        movq	%rax, 40(%r8)
+        adcq	48(%r9), %rdx
+        movq	56(%rsi), %rax
+        movq	%rdx, 48(%r8)
+        adcq	56(%r9), %rax
+        movq	64(%rsi), %rdx
+        movq	%rax, 56(%r8)
+        adcq	64(%r9), %rdx
+        movq	72(%rsi), %rax
+        movq	%rdx, 64(%r8)
+        adcq	72(%r9), %rax
+        movq	80(%rsi), %rdx
+        movq	%rax, 72(%r8)
+        adcq	80(%r9), %rdx
+        movq	88(%rsi), %rax
+        movq	%rdx, 80(%r8)
+        adcq	88(%r9), %rax
+        movq	96(%rsi), %rdx
+        movq	%rax, 88(%r8)
+        adcq	96(%r9), %rdx
+        movq	104(%rsi), %rax
+        movq	%rdx, 96(%r8)
+        adcq	104(%r9), %rax
+        movq	112(%rsi), %rdx
+        movq	%rax, 104(%r8)
+        adcq	112(%r9), %rdx
+        movq	120(%rsi), %rax
+        movq	%rdx, 112(%r8)
+        adcq	120(%r9), %rax
+        movq	128(%rsi), %rdx
+        movq	%rax, 120(%r8)
+        adcq	128(%r9), %rdx
+        movq	136(%rsi), %rax
+        movq	%rdx, 128(%r8)
+        adcq	136(%r9), %rax
+        movq	144(%rsi), %rdx
+        movq	%rax, 136(%r8)
+        adcq	144(%r9), %rdx
+        movq	152(%rsi), %rax
+        movq	%rdx, 144(%r8)
+        adcq	152(%r9), %rax
+        movq	160(%rsi), %rdx
+        movq	%rax, 152(%r8)
+        adcq	160(%r9), %rdx
+        movq	168(%rsi), %rax
+        movq	%rdx, 160(%r8)
+        adcq	168(%r9), %rax
+        movq	176(%rsi), %rdx
+        movq	%rax, 168(%r8)
+        adcq	176(%r9), %rdx
+        movq	184(%rsi), %rax
+        movq	%rdx, 176(%r8)
+        adcq	184(%r9), %rax
+        movq	192(%rsi), %rdx
+        movq	%rax, 184(%r8)
+        adcq	192(%r9), %rdx
+        movq	200(%rsi), %rax
+        movq	%rdx, 192(%r8)
+        adcq	200(%r9), %rax
+        movq	208(%rsi), %rdx
+        movq	%rax, 200(%r8)
+        adcq	208(%r9), %rdx
+        movq	216(%rsi), %rax
+        movq	%rdx, 208(%r8)
+        adcq	216(%r9), %rax
+        movq	224(%rsi), %rdx
+        movq	%rax, 216(%r8)
+        adcq	224(%r9), %rdx
+        movq	232(%rsi), %rax
+        movq	%rdx, 224(%r8)
+        adcq	232(%r9), %rax
+        movq	240(%rsi), %rdx
+        movq	%rax, 232(%r8)
+        adcq	240(%r9), %rdx
+        movq	248(%rsi), %rax
+        movq	%rdx, 240(%r8)
+        adcq	248(%r9), %rax
+        movq	%rax, 248(%r8)
+        adcq	$0x00, %rcx
+        movq	%rcx, 1296(%rsp)
+        movq	%r8, %rsi
+        movq	%rsp, %rdi
+#ifndef __APPLE__
+        callq	sp_2048_sqr_32@plt
+#else
+        callq	_sp_2048_sqr_32
+#endif /* __APPLE__ */
+        movq	1288(%rsp), %rsi
+        leaq	512(%rsp), %rdi
+        addq	$0x100, %rsi
+#ifndef __APPLE__
+        callq	sp_2048_sqr_32@plt
+#else
+        callq	_sp_2048_sqr_32
+#endif /* __APPLE__ */
+        movq	1288(%rsp), %rsi
+        movq	1280(%rsp), %rdi
+#ifndef __APPLE__
+        callq	sp_2048_sqr_32@plt
+#else
+        callq	_sp_2048_sqr_32
+#endif /* __APPLE__ */
+#ifdef _WIN64
+        movq	1288(%rsp), %rsi
+        movq	1280(%rsp), %rdi
+#endif /* _WIN64 */
+        movq	1296(%rsp), %r10
+        leaq	1024(%rsp), %r8
+        movq	%r10, %rcx
+        negq	%r10
+        movq	(%r8), %rdx
+        movq	8(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 512(%rdi)
+        movq	%rax, 520(%rdi)
+        movq	16(%r8), %rdx
+        movq	24(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 528(%rdi)
+        movq	%rax, 536(%rdi)
+        movq	32(%r8), %rdx
+        movq	40(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 544(%rdi)
+        movq	%rax, 552(%rdi)
+        movq	48(%r8), %rdx
+        movq	56(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 560(%rdi)
+        movq	%rax, 568(%rdi)
+        movq	64(%r8), %rdx
+        movq	72(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 576(%rdi)
+        movq	%rax, 584(%rdi)
+        movq	80(%r8), %rdx
+        movq	88(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 592(%rdi)
+        movq	%rax, 600(%rdi)
+        movq	96(%r8), %rdx
+        movq	104(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 608(%rdi)
+        movq	%rax, 616(%rdi)
+        movq	112(%r8), %rdx
+        movq	120(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 624(%rdi)
+        movq	%rax, 632(%rdi)
+        movq	128(%r8), %rdx
+        movq	136(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 640(%rdi)
+        movq	%rax, 648(%rdi)
+        movq	144(%r8), %rdx
+        movq	152(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 656(%rdi)
+        movq	%rax, 664(%rdi)
+        movq	160(%r8), %rdx
+        movq	168(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 672(%rdi)
+        movq	%rax, 680(%rdi)
+        movq	176(%r8), %rdx
+        movq	184(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 688(%rdi)
+        movq	%rax, 696(%rdi)
+        movq	192(%r8), %rdx
+        movq	200(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 704(%rdi)
+        movq	%rax, 712(%rdi)
+        movq	208(%r8), %rdx
+        movq	216(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 720(%rdi)
+        movq	%rax, 728(%rdi)
+        movq	224(%r8), %rdx
+        movq	232(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 736(%rdi)
+        movq	%rax, 744(%rdi)
+        movq	240(%r8), %rdx
+        movq	248(%r8), %rax
+        andq	%r10, %rdx
+        andq	%r10, %rax
+        movq	%rdx, 752(%rdi)
+        movq	%rax, 760(%rdi)
+        movq	512(%rdi), %rdx
+        addq	%rdx, %rdx
+        movq	520(%rdi), %rax
+        movq	%rdx, 512(%rdi)
+        adcq	%rax, %rax
+        movq	528(%rdi), %rdx
+        movq	%rax, 520(%rdi)
+        adcq	%rdx, %rdx
+        movq	536(%rdi), %rax
+        movq	%rdx, 528(%rdi)
+        adcq	%rax, %rax
+        movq	544(%rdi), %rdx
+        movq	%rax, 536(%rdi)
+        adcq	%rdx, %rdx
+        movq	552(%rdi), %rax
+        movq	%rdx, 544(%rdi)
+        adcq	%rax, %rax
+        movq	560(%rdi), %rdx
+        movq	%rax, 552(%rdi)
+        adcq	%rdx, %rdx
+        movq	568(%rdi), %rax
+        movq	%rdx, 560(%rdi)
+        adcq	%rax, %rax
+        movq	576(%rdi), %rdx
+        movq	%rax, 568(%rdi)
+        adcq	%rdx, %rdx
+        movq	584(%rdi), %rax
+        movq	%rdx, 576(%rdi)
+        adcq	%rax, %rax
+        movq	592(%rdi), %rdx
+        movq	%rax, 584(%rdi)
+        adcq	%rdx, %rdx
+        movq	600(%rdi), %rax
+        movq	%rdx, 592(%rdi)
+        adcq	%rax, %rax
+        movq	608(%rdi), %rdx
+        movq	%rax, 600(%rdi)
+        adcq	%rdx, %rdx
+        movq	616(%rdi), %rax
+        movq	%rdx, 608(%rdi)
+        adcq	%rax, %rax
+        movq	624(%rdi), %rdx
+        movq	%rax, 616(%rdi)
+        adcq	%rdx, %rdx
+        movq	632(%rdi), %rax
+        movq	%rdx, 624(%rdi)
+        adcq	%rax, %rax
+        movq	640(%rdi), %rdx
+        movq	%rax, 632(%rdi)
+        adcq	%rdx, %rdx
+        movq	648(%rdi), %rax
+        movq	%rdx, 640(%rdi)
+        adcq	%rax, %rax
+        movq	656(%rdi), %rdx
+        movq	%rax, 648(%rdi)
+        adcq	%rdx, %rdx
+        movq	664(%rdi), %rax
+        movq	%rdx, 656(%rdi)
+        adcq	%rax, %rax
+        movq	672(%rdi), %rdx
+        movq	%rax, 664(%rdi)
+        adcq	%rdx, %rdx
+        movq	680(%rdi), %rax
+        movq	%rdx, 672(%rdi)
+        adcq	%rax, %rax
+        movq	688(%rdi), %rdx
+        movq	%rax, 680(%rdi)
+        adcq	%rdx, %rdx
+        movq	696(%rdi), %rax
+        movq	%rdx, 688(%rdi)
+        adcq	%rax, %rax
+        movq	704(%rdi), %rdx
+        movq	%rax, 696(%rdi)
+        adcq	%rdx, %rdx
+        movq	712(%rdi), %rax
+        movq	%rdx, 704(%rdi)
+        adcq	%rax, %rax
+        movq	720(%rdi), %rdx
+        movq	%rax, 712(%rdi)
+        adcq	%rdx, %rdx
+        movq	728(%rdi), %rax
+        movq	%rdx, 720(%rdi)
+        adcq	%rax, %rax
+        movq	736(%rdi), %rdx
+        movq	%rax, 728(%rdi)
+        adcq	%rdx, %rdx
+        movq	744(%rdi), %rax
+        movq	%rdx, 736(%rdi)
+        adcq	%rax, %rax
+        movq	752(%rdi), %rdx
+        movq	%rax, 744(%rdi)
+        adcq	%rdx, %rdx
+        movq	760(%rdi), %rax
+        movq	%rdx, 752(%rdi)
+        adcq	%rax, %rax
+        movq	%rax, 760(%rdi)
+        adcq	$0x00, %rcx
+        leaq	512(%rsp), %rsi
+        movq	%rsp, %r8
+        movq	(%r8), %rdx
+        subq	(%rsi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rsi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rsi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rsi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rsi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rsi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rsi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rsi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rsi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rsi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rsi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rsi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rsi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rsi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rsi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rsi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rsi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rsi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rsi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rsi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rsi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rsi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rsi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rsi), %rax
+        movq	192(%r8), %rdx
+        movq	%rax, 184(%r8)
+        sbbq	192(%rsi), %rdx
+        movq	200(%r8), %rax
+        movq	%rdx, 192(%r8)
+        sbbq	200(%rsi), %rax
+        movq	208(%r8), %rdx
+        movq	%rax, 200(%r8)
+        sbbq	208(%rsi), %rdx
+        movq	216(%r8), %rax
+        movq	%rdx, 208(%r8)
+        sbbq	216(%rsi), %rax
+        movq	224(%r8), %rdx
+        movq	%rax, 216(%r8)
+        sbbq	224(%rsi), %rdx
+        movq	232(%r8), %rax
+        movq	%rdx, 224(%r8)
+        sbbq	232(%rsi), %rax
+        movq	240(%r8), %rdx
+        movq	%rax, 232(%r8)
+        sbbq	240(%rsi), %rdx
+        movq	248(%r8), %rax
+        movq	%rdx, 240(%r8)
+        sbbq	248(%rsi), %rax
+        movq	256(%r8), %rdx
+        movq	%rax, 248(%r8)
+        sbbq	256(%rsi), %rdx
+        movq	264(%r8), %rax
+        movq	%rdx, 256(%r8)
+        sbbq	264(%rsi), %rax
+        movq	272(%r8), %rdx
+        movq	%rax, 264(%r8)
+        sbbq	272(%rsi), %rdx
+        movq	280(%r8), %rax
+        movq	%rdx, 272(%r8)
+        sbbq	280(%rsi), %rax
+        movq	288(%r8), %rdx
+        movq	%rax, 280(%r8)
+        sbbq	288(%rsi), %rdx
+        movq	296(%r8), %rax
+        movq	%rdx, 288(%r8)
+        sbbq	296(%rsi), %rax
+        movq	304(%r8), %rdx
+        movq	%rax, 296(%r8)
+        sbbq	304(%rsi), %rdx
+        movq	312(%r8), %rax
+        movq	%rdx, 304(%r8)
+        sbbq	312(%rsi), %rax
+        movq	320(%r8), %rdx
+        movq	%rax, 312(%r8)
+        sbbq	320(%rsi), %rdx
+        movq	328(%r8), %rax
+        movq	%rdx, 320(%r8)
+        sbbq	328(%rsi), %rax
+        movq	336(%r8), %rdx
+        movq	%rax, 328(%r8)
+        sbbq	336(%rsi), %rdx
+        movq	344(%r8), %rax
+        movq	%rdx, 336(%r8)
+        sbbq	344(%rsi), %rax
+        movq	352(%r8), %rdx
+        movq	%rax, 344(%r8)
+        sbbq	352(%rsi), %rdx
+        movq	360(%r8), %rax
+        movq	%rdx, 352(%r8)
+        sbbq	360(%rsi), %rax
+        movq	368(%r8), %rdx
+        movq	%rax, 360(%r8)
+        sbbq	368(%rsi), %rdx
+        movq	376(%r8), %rax
+        movq	%rdx, 368(%r8)
+        sbbq	376(%rsi), %rax
+        movq	384(%r8), %rdx
+        movq	%rax, 376(%r8)
+        sbbq	384(%rsi), %rdx
+        movq	392(%r8), %rax
+        movq	%rdx, 384(%r8)
+        sbbq	392(%rsi), %rax
+        movq	400(%r8), %rdx
+        movq	%rax, 392(%r8)
+        sbbq	400(%rsi), %rdx
+        movq	408(%r8), %rax
+        movq	%rdx, 400(%r8)
+        sbbq	408(%rsi), %rax
+        movq	416(%r8), %rdx
+        movq	%rax, 408(%r8)
+        sbbq	416(%rsi), %rdx
+        movq	424(%r8), %rax
+        movq	%rdx, 416(%r8)
+        sbbq	424(%rsi), %rax
+        movq	432(%r8), %rdx
+        movq	%rax, 424(%r8)
+        sbbq	432(%rsi), %rdx
+        movq	440(%r8), %rax
+        movq	%rdx, 432(%r8)
+        sbbq	440(%rsi), %rax
+        movq	448(%r8), %rdx
+        movq	%rax, 440(%r8)
+        sbbq	448(%rsi), %rdx
+        movq	456(%r8), %rax
+        movq	%rdx, 448(%r8)
+        sbbq	456(%rsi), %rax
+        movq	464(%r8), %rdx
+        movq	%rax, 456(%r8)
+        sbbq	464(%rsi), %rdx
+        movq	472(%r8), %rax
+        movq	%rdx, 464(%r8)
+        sbbq	472(%rsi), %rax
+        movq	480(%r8), %rdx
+        movq	%rax, 472(%r8)
+        sbbq	480(%rsi), %rdx
+        movq	488(%r8), %rax
+        movq	%rdx, 480(%r8)
+        sbbq	488(%rsi), %rax
+        movq	496(%r8), %rdx
+        movq	%rax, 488(%r8)
+        sbbq	496(%rsi), %rdx
+        movq	504(%r8), %rax
+        movq	%rdx, 496(%r8)
+        sbbq	504(%rsi), %rax
+        movq	%rax, 504(%r8)
+        sbbq	$0x00, %rcx
+        movq	(%r8), %rdx
+        subq	(%rdi), %rdx
+        movq	8(%r8), %rax
+        movq	%rdx, (%r8)
+        sbbq	8(%rdi), %rax
+        movq	16(%r8), %rdx
+        movq	%rax, 8(%r8)
+        sbbq	16(%rdi), %rdx
+        movq	24(%r8), %rax
+        movq	%rdx, 16(%r8)
+        sbbq	24(%rdi), %rax
+        movq	32(%r8), %rdx
+        movq	%rax, 24(%r8)
+        sbbq	32(%rdi), %rdx
+        movq	40(%r8), %rax
+        movq	%rdx, 32(%r8)
+        sbbq	40(%rdi), %rax
+        movq	48(%r8), %rdx
+        movq	%rax, 40(%r8)
+        sbbq	48(%rdi), %rdx
+        movq	56(%r8), %rax
+        movq	%rdx, 48(%r8)
+        sbbq	56(%rdi), %rax
+        movq	64(%r8), %rdx
+        movq	%rax, 56(%r8)
+        sbbq	64(%rdi), %rdx
+        movq	72(%r8), %rax
+        movq	%rdx, 64(%r8)
+        sbbq	72(%rdi), %rax
+        movq	80(%r8), %rdx
+        movq	%rax, 72(%r8)
+        sbbq	80(%rdi), %rdx
+        movq	88(%r8), %rax
+        movq	%rdx, 80(%r8)
+        sbbq	88(%rdi), %rax
+        movq	96(%r8), %rdx
+        movq	%rax, 88(%r8)
+        sbbq	96(%rdi), %rdx
+        movq	104(%r8), %rax
+        movq	%rdx, 96(%r8)
+        sbbq	104(%rdi), %rax
+        movq	112(%r8), %rdx
+        movq	%rax, 104(%r8)
+        sbbq	112(%rdi), %rdx
+        movq	120(%r8), %rax
+        movq	%rdx, 112(%r8)
+        sbbq	120(%rdi), %rax
+        movq	128(%r8), %rdx
+        movq	%rax, 120(%r8)
+        sbbq	128(%rdi), %rdx
+        movq	136(%r8), %rax
+        movq	%rdx, 128(%r8)
+        sbbq	136(%rdi), %rax
+        movq	144(%r8), %rdx
+        movq	%rax, 136(%r8)
+        sbbq	144(%rdi), %rdx
+        movq	152(%r8), %rax
+        movq	%rdx, 144(%r8)
+        sbbq	152(%rdi), %rax
+        movq	160(%r8), %rdx
+        movq	%rax, 152(%r8)
+        sbbq	160(%rdi), %rdx
+        movq	168(%r8), %rax
+        movq	%rdx, 160(%r8)
+        sbbq	168(%rdi), %rax
+        movq	176(%r8), %rdx
+        movq	%rax, 168(%r8)
+        sbbq	176(%rdi), %rdx
+        movq	184(%r8), %rax
+        movq	%rdx, 176(%r8)
+        sbbq	184(%rdi), %rax
+        movq	192(%r8), %rdx
+        movq	%rax, 184(%r8)
+        sbbq	192(%rdi), %rdx
+        movq	200(%r8), %rax
+        movq	%rdx, 192(%r8)
+        sbbq	200(%rdi), %rax
+        movq	208(%r8), %rdx
+        movq	%rax, 200(%r8)
+        sbbq	208(%rdi), %rdx
+        movq	216(%r8), %rax
+        movq	%rdx, 208(%r8)
+        sbbq	216(%rdi), %rax
+        movq	224(%r8), %rdx
+        movq	%rax, 216(%r8)
+        sbbq	224(%rdi), %rdx
+        movq	232(%r8), %rax
+        movq	%rdx, 224(%r8)
+        sbbq	232(%rdi), %rax
+        movq	240(%r8), %rdx
+        movq	%rax, 232(%r8)
+        sbbq	240(%rdi), %rdx
+        movq	248(%r8), %rax
+        movq	%rdx, 240(%r8)
+        sbbq	248(%rdi), %rax
+        movq	256(%r8), %rdx
+        movq	%rax, 248(%r8)
+        sbbq	256(%rdi), %rdx
+        movq	264(%r8), %rax
+        movq	%rdx, 256(%r8)
+        sbbq	264(%rdi), %rax
+        movq	272(%r8), %rdx
+        movq	%rax, 264(%r8)
+        sbbq	272(%rdi), %rdx
+        movq	280(%r8), %rax
+        movq	%rdx, 272(%r8)
+        sbbq	280(%rdi), %rax
+        movq	288(%r8), %rdx
+        movq	%rax, 280(%r8)
+        sbbq	288(%rdi), %rdx
+        movq	296(%r8), %rax
+        movq	%rdx, 288(%r8)
+        sbbq	296(%rdi), %rax
+        movq	304(%r8), %rdx
+        movq	%rax, 296(%r8)
+        sbbq	304(%rdi), %rdx
+        movq	312(%r8), %rax
+        movq	%rdx, 304(%r8)
+        sbbq	312(%rdi), %rax
+        movq	320(%r8), %rdx
+        movq	%rax, 312(%r8)
+        sbbq	320(%rdi), %rdx
+        movq	328(%r8), %rax
+        movq	%rdx, 320(%r8)
+        sbbq	328(%rdi), %rax
+        movq	336(%r8), %rdx
+        movq	%rax, 328(%r8)
+        sbbq	336(%rdi), %rdx
+        movq	344(%r8), %rax
+        movq	%rdx, 336(%r8)
+        sbbq	344(%rdi), %rax
+        movq	352(%r8), %rdx
+        movq	%rax, 344(%r8)
+        sbbq	352(%rdi), %rdx
+        movq	360(%r8), %rax
+        movq	%rdx, 352(%r8)
+        sbbq	360(%rdi), %rax
+        movq	368(%r8), %rdx
+        movq	%rax, 360(%r8)
+        sbbq	368(%rdi), %rdx
+        movq	376(%r8), %rax
+        movq	%rdx, 368(%r8)
+        sbbq	376(%rdi), %rax
+        movq	384(%r8), %rdx
+        movq	%rax, 376(%r8)
+        sbbq	384(%rdi), %rdx
+        movq	392(%r8), %rax
+        movq	%rdx, 384(%r8)
+        sbbq	392(%rdi), %rax
+        movq	400(%r8), %rdx
+        movq	%rax, 392(%r8)
+        sbbq	400(%rdi), %rdx
+        movq	408(%r8), %rax
+        movq	%rdx, 400(%r8)
+        sbbq	408(%rdi), %rax
+        movq	416(%r8), %rdx
+        movq	%rax, 408(%r8)
+        sbbq	416(%rdi), %rdx
+        movq	424(%r8), %rax
+        movq	%rdx, 416(%r8)
+        sbbq	424(%rdi), %rax
+        movq	432(%r8), %rdx
+        movq	%rax, 424(%r8)
+        sbbq	432(%rdi), %rdx
+        movq	440(%r8), %rax
+        movq	%rdx, 432(%r8)
+        sbbq	440(%rdi), %rax
+        movq	448(%r8), %rdx
+        movq	%rax, 440(%r8)
+        sbbq	448(%rdi), %rdx
+        movq	456(%r8), %rax
+        movq	%rdx, 448(%r8)
+        sbbq	456(%rdi), %rax
+        movq	464(%r8), %rdx
+        movq	%rax, 456(%r8)
+        sbbq	464(%rdi), %rdx
+        movq	472(%r8), %rax
+        movq	%rdx, 464(%r8)
+        sbbq	472(%rdi), %rax
+        movq	480(%r8), %rdx
+        movq	%rax, 472(%r8)
+        sbbq	480(%rdi), %rdx
+        movq	488(%r8), %rax
+        movq	%rdx, 480(%r8)
+        sbbq	488(%rdi), %rax
+        movq	496(%r8), %rdx
+        movq	%rax, 488(%r8)
+        sbbq	496(%rdi), %rdx
+        movq	504(%r8), %rax
+        movq	%rdx, 496(%r8)
+        sbbq	504(%rdi), %rax
+        movq	%rax, 504(%r8)
+        sbbq	$0x00, %rcx
+        # Add in place
+        movq	256(%rdi), %rdx
+        addq	(%r8), %rdx
+        movq	264(%rdi), %rax
+        movq	%rdx, 256(%rdi)
+        adcq	8(%r8), %rax
+        movq	272(%rdi), %rdx
+        movq	%rax, 264(%rdi)
+        adcq	16(%r8), %rdx
+        movq	280(%rdi), %rax
+        movq	%rdx, 272(%rdi)
+        adcq	24(%r8), %rax
+        movq	288(%rdi), %rdx
+        movq	%rax, 280(%rdi)
+        adcq	32(%r8), %rdx
+        movq	296(%rdi), %rax
+        movq	%rdx, 288(%rdi)
+        adcq	40(%r8), %rax
+        movq	304(%rdi), %rdx
+        movq	%rax, 296(%rdi)
+        adcq	48(%r8), %rdx
+        movq	312(%rdi), %rax
+        movq	%rdx, 304(%rdi)
+        adcq	56(%r8), %rax
+        movq	320(%rdi), %rdx
+        movq	%rax, 312(%rdi)
+        adcq	64(%r8), %rdx
+        movq	328(%rdi), %rax
+        movq	%rdx, 320(%rdi)
+        adcq	72(%r8), %rax
+        movq	336(%rdi), %rdx
+        movq	%rax, 328(%rdi)
+        adcq	80(%r8), %rdx
+        movq	344(%rdi), %rax
+        movq	%rdx, 336(%rdi)
+        adcq	88(%r8), %rax
+        movq	352(%rdi), %rdx
+        movq	%rax, 344(%rdi)
+        adcq	96(%r8), %rdx
+        movq	360(%rdi), %rax
+        movq	%rdx, 352(%rdi)
+        adcq	104(%r8), %rax
+        movq	368(%rdi), %rdx
+        movq	%rax, 360(%rdi)
+        adcq	112(%r8), %rdx
+        movq	376(%rdi), %rax
+        movq	%rdx, 368(%rdi)
+        adcq	120(%r8), %rax
+        movq	384(%rdi), %rdx
+        movq	%rax, 376(%rdi)
+        adcq	128(%r8), %rdx
+        movq	392(%rdi), %rax
+        movq	%rdx, 384(%rdi)
+        adcq	136(%r8), %rax
+        movq	400(%rdi), %rdx
+        movq	%rax, 392(%rdi)
+        adcq	144(%r8), %rdx
+        movq	408(%rdi), %rax
+        movq	%rdx, 400(%rdi)
+        adcq	152(%r8), %rax
+        movq	416(%rdi), %rdx
+        movq	%rax, 408(%rdi)
+        adcq	160(%r8), %rdx
+        movq	424(%rdi), %rax
+        movq	%rdx, 416(%rdi)
+        adcq	168(%r8), %rax
+        movq	432(%rdi), %rdx
+        movq	%rax, 424(%rdi)
+        adcq	176(%r8), %rdx
+        movq	440(%rdi), %rax
+        movq	%rdx, 432(%rdi)
+        adcq	184(%r8), %rax
+        movq	448(%rdi), %rdx
+        movq	%rax, 440(%rdi)
+        adcq	192(%r8), %rdx
+        movq	456(%rdi), %rax
+        movq	%rdx, 448(%rdi)
+        adcq	200(%r8), %rax
+        movq	464(%rdi), %rdx
+        movq	%rax, 456(%rdi)
+        adcq	208(%r8), %rdx
+        movq	472(%rdi), %rax
+        movq	%rdx, 464(%rdi)
+        adcq	216(%r8), %rax
+        movq	480(%rdi), %rdx
+        movq	%rax, 472(%rdi)
+        adcq	224(%r8), %rdx
+        movq	488(%rdi), %rax
+        movq	%rdx, 480(%rdi)
+        adcq	232(%r8), %rax
+        movq	496(%rdi), %rdx
+        movq	%rax, 488(%rdi)
+        adcq	240(%r8), %rdx
+        movq	504(%rdi), %rax
+        movq	%rdx, 496(%rdi)
+        adcq	248(%r8), %rax
+        movq	512(%rdi), %rdx
+        movq	%rax, 504(%rdi)
+        adcq	256(%r8), %rdx
+        movq	520(%rdi), %rax
+        movq	%rdx, 512(%rdi)
+        adcq	264(%r8), %rax
+        movq	528(%rdi), %rdx
+        movq	%rax, 520(%rdi)
+        adcq	272(%r8), %rdx
+        movq	536(%rdi), %rax
+        movq	%rdx, 528(%rdi)
+        adcq	280(%r8), %rax
+        movq	544(%rdi), %rdx
+        movq	%rax, 536(%rdi)
+        adcq	288(%r8), %rdx
+        movq	552(%rdi), %rax
+        movq	%rdx, 544(%rdi)
+        adcq	296(%r8), %rax
+        movq	560(%rdi), %rdx
+        movq	%rax, 552(%rdi)
+        adcq	304(%r8), %rdx
+        movq	568(%rdi), %rax
+        movq	%rdx, 560(%rdi)
+        adcq	312(%r8), %rax
+        movq	576(%rdi), %rdx
+        movq	%rax, 568(%rdi)
+        adcq	320(%r8), %rdx
+        movq	584(%rdi), %rax
+        movq	%rdx, 576(%rdi)
+        adcq	328(%r8), %rax
+        movq	592(%rdi), %rdx
+        movq	%rax, 584(%rdi)
+        adcq	336(%r8), %rdx
+        movq	600(%rdi), %rax
+        movq	%rdx, 592(%rdi)
+        adcq	344(%r8), %rax
+        movq	608(%rdi), %rdx
+        movq	%rax, 600(%rdi)
+        adcq	352(%r8), %rdx
+        movq	616(%rdi), %rax
+        movq	%rdx, 608(%rdi)
+        adcq	360(%r8), %rax
+        movq	624(%rdi), %rdx
+        movq	%rax, 616(%rdi)
+        adcq	368(%r8), %rdx
+        movq	632(%rdi), %rax
+        movq	%rdx, 624(%rdi)
+        adcq	376(%r8), %rax
+        movq	640(%rdi), %rdx
+        movq	%rax, 632(%rdi)
+        adcq	384(%r8), %rdx
+        movq	648(%rdi), %rax
+        movq	%rdx, 640(%rdi)
+        adcq	392(%r8), %rax
+        movq	656(%rdi), %rdx
+        movq	%rax, 648(%rdi)
+        adcq	400(%r8), %rdx
+        movq	664(%rdi), %rax
+        movq	%rdx, 656(%rdi)
+        adcq	408(%r8), %rax
+        movq	672(%rdi), %rdx
+        movq	%rax, 664(%rdi)
+        adcq	416(%r8), %rdx
+        movq	680(%rdi), %rax
+        movq	%rdx, 672(%rdi)
+        adcq	424(%r8), %rax
+        movq	688(%rdi), %rdx
+        movq	%rax, 680(%rdi)
+        adcq	432(%r8), %rdx
+        movq	696(%rdi), %rax
+        movq	%rdx, 688(%rdi)
+        adcq	440(%r8), %rax
+        movq	704(%rdi), %rdx
+        movq	%rax, 696(%rdi)
+        adcq	448(%r8), %rdx
+        movq	712(%rdi), %rax
+        movq	%rdx, 704(%rdi)
+        adcq	456(%r8), %rax
+        movq	720(%rdi), %rdx
+        movq	%rax, 712(%rdi)
+        adcq	464(%r8), %rdx
+        movq	728(%rdi), %rax
+        movq	%rdx, 720(%rdi)
+        adcq	472(%r8), %rax
+        movq	736(%rdi), %rdx
+        movq	%rax, 728(%rdi)
+        adcq	480(%r8), %rdx
+        movq	744(%rdi), %rax
+        movq	%rdx, 736(%rdi)
+        adcq	488(%r8), %rax
+        movq	752(%rdi), %rdx
+        movq	%rax, 744(%rdi)
+        adcq	496(%r8), %rdx
+        movq	760(%rdi), %rax
+        movq	%rdx, 752(%rdi)
+        adcq	504(%r8), %rax
+        movq	%rax, 760(%rdi)
+        adcq	$0x00, %rcx
+        movq	%rcx, 768(%rdi)
+        # Add in place
+        movq	512(%rdi), %rdx
+        xorq	%rcx, %rcx
+        addq	(%rsi), %rdx
+        movq	520(%rdi), %rax
+        movq	%rdx, 512(%rdi)
+        adcq	8(%rsi), %rax
+        movq	528(%rdi), %rdx
+        movq	%rax, 520(%rdi)
+        adcq	16(%rsi), %rdx
+        movq	536(%rdi), %rax
+        movq	%rdx, 528(%rdi)
+        adcq	24(%rsi), %rax
+        movq	544(%rdi), %rdx
+        movq	%rax, 536(%rdi)
+        adcq	32(%rsi), %rdx
+        movq	552(%rdi), %rax
+        movq	%rdx, 544(%rdi)
+        adcq	40(%rsi), %rax
+        movq	560(%rdi), %rdx
+        movq	%rax, 552(%rdi)
+        adcq	48(%rsi), %rdx
+        movq	568(%rdi), %rax
+        movq	%rdx, 560(%rdi)
+        adcq	56(%rsi), %rax
+        movq	576(%rdi), %rdx
+        movq	%rax, 568(%rdi)
+        adcq	64(%rsi), %rdx
+        movq	584(%rdi), %rax
+        movq	%rdx, 576(%rdi)
+        adcq	72(%rsi), %rax
+        movq	592(%rdi), %rdx
+        movq	%rax, 584(%rdi)
+        adcq	80(%rsi), %rdx
+        movq	600(%rdi), %rax
+        movq	%rdx, 592(%rdi)
+        adcq	88(%rsi), %rax
+        movq	608(%rdi), %rdx
+        movq	%rax, 600(%rdi)
+        adcq	96(%rsi), %rdx
+        movq	616(%rdi), %rax
+        movq	%rdx, 608(%rdi)
+        adcq	104(%rsi), %rax
+        movq	624(%rdi), %rdx
+        movq	%rax, 616(%rdi)
+        adcq	112(%rsi), %rdx
+        movq	632(%rdi), %rax
+        movq	%rdx, 624(%rdi)
+        adcq	120(%rsi), %rax
+        movq	640(%rdi), %rdx
+        movq	%rax, 632(%rdi)
+        adcq	128(%rsi), %rdx
+        movq	648(%rdi), %rax
+        movq	%rdx, 640(%rdi)
+        adcq	136(%rsi), %rax
+        movq	656(%rdi), %rdx
+        movq	%rax, 648(%rdi)
+        adcq	144(%rsi), %rdx
+        movq	664(%rdi), %rax
+        movq	%rdx, 656(%rdi)
+        adcq	152(%rsi), %rax
+        movq	672(%rdi), %rdx
+        movq	%rax, 664(%rdi)
+        adcq	160(%rsi), %rdx
+        movq	680(%rdi), %rax
+        movq	%rdx, 672(%rdi)
+        adcq	168(%rsi), %rax
+        movq	688(%rdi), %rdx
+        movq	%rax, 680(%rdi)
+        adcq	176(%rsi), %rdx
+        movq	696(%rdi), %rax
+        movq	%rdx, 688(%rdi)
+        adcq	184(%rsi), %rax
+        movq	704(%rdi), %rdx
+        movq	%rax, 696(%rdi)
+        adcq	192(%rsi), %rdx
+        movq	712(%rdi), %rax
+        movq	%rdx, 704(%rdi)
+        adcq	200(%rsi), %rax
+        movq	720(%rdi), %rdx
+        movq	%rax, 712(%rdi)
+        adcq	208(%rsi), %rdx
+        movq	728(%rdi), %rax
+        movq	%rdx, 720(%rdi)
+        adcq	216(%rsi), %rax
+        movq	736(%rdi), %rdx
+        movq	%rax, 728(%rdi)
+        adcq	224(%rsi), %rdx
+        movq	744(%rdi), %rax
+        movq	%rdx, 736(%rdi)
+        adcq	232(%rsi), %rax
+        movq	752(%rdi), %rdx
+        movq	%rax, 744(%rdi)
+        adcq	240(%rsi), %rdx
+        movq	760(%rdi), %rax
+        movq	%rdx, 752(%rdi)
+        adcq	248(%rsi), %rax
+        movq	768(%rdi), %rdx
+        movq	%rax, 760(%rdi)
+        adcq	256(%rsi), %rdx
+        movq	%rdx, 768(%rdi)
+        adcq	$0x00, %rcx
+        # Add to zero
+        movq	264(%rsi), %rdx
+        adcq	$0x00, %rdx
+        movq	272(%rsi), %rax
+        movq	%rdx, 776(%rdi)
+        adcq	$0x00, %rax
+        movq	280(%rsi), %rdx
+        movq	%rax, 784(%rdi)
+        adcq	$0x00, %rdx
+        movq	288(%rsi), %rax
+        movq	%rdx, 792(%rdi)
+        adcq	$0x00, %rax
+        movq	296(%rsi), %rdx
+        movq	%rax, 800(%rdi)
+        adcq	$0x00, %rdx
+        movq	304(%rsi), %rax
+        movq	%rdx, 808(%rdi)
+        adcq	$0x00, %rax
+        movq	312(%rsi), %rdx
+        movq	%rax, 816(%rdi)
+        adcq	$0x00, %rdx
+        movq	320(%rsi), %rax
+        movq	%rdx, 824(%rdi)
+        adcq	$0x00, %rax
+        movq	328(%rsi), %rdx
+        movq	%rax, 832(%rdi)
+        adcq	$0x00, %rdx
+        movq	336(%rsi), %rax
+        movq	%rdx, 840(%rdi)
+        adcq	$0x00, %rax
+        movq	344(%rsi), %rdx
+        movq	%rax, 848(%rdi)
+        adcq	$0x00, %rdx
+        movq	352(%rsi), %rax
+        movq	%rdx, 856(%rdi)
+        adcq	$0x00, %rax
+        movq	360(%rsi), %rdx
+        movq	%rax, 864(%rdi)
+        adcq	$0x00, %rdx
+        movq	368(%rsi), %rax
+        movq	%rdx, 872(%rdi)
+        adcq	$0x00, %rax
+        movq	376(%rsi), %rdx
+        movq	%rax, 880(%rdi)
+        adcq	$0x00, %rdx
+        movq	384(%rsi), %rax
+        movq	%rdx, 888(%rdi)
+        adcq	$0x00, %rax
+        movq	392(%rsi), %rdx
+        movq	%rax, 896(%rdi)
+        adcq	$0x00, %rdx
+        movq	400(%rsi), %rax
+        movq	%rdx, 904(%rdi)
+        adcq	$0x00, %rax
+        movq	408(%rsi), %rdx
+        movq	%rax, 912(%rdi)
+        adcq	$0x00, %rdx
+        movq	416(%rsi), %rax
+        movq	%rdx, 920(%rdi)
+        adcq	$0x00, %rax
+        movq	424(%rsi), %rdx
+        movq	%rax, 928(%rdi)
+        adcq	$0x00, %rdx
+        movq	432(%rsi), %rax
+        movq	%rdx, 936(%rdi)
+        adcq	$0x00, %rax
+        movq	440(%rsi), %rdx
+        movq	%rax, 944(%rdi)
+        adcq	$0x00, %rdx
+        movq	448(%rsi), %rax
+        movq	%rdx, 952(%rdi)
+        adcq	$0x00, %rax
+        movq	456(%rsi), %rdx
+        movq	%rax, 960(%rdi)
+        adcq	$0x00, %rdx
+        movq	464(%rsi), %rax
+        movq	%rdx, 968(%rdi)
+        adcq	$0x00, %rax
+        movq	472(%rsi), %rdx
+        movq	%rax, 976(%rdi)
+        adcq	$0x00, %rdx
+        movq	480(%rsi), %rax
+        movq	%rdx, 984(%rdi)
+        adcq	$0x00, %rax
+        movq	488(%rsi), %rdx
+        movq	%rax, 992(%rdi)
+        adcq	$0x00, %rdx
+        movq	496(%rsi), %rax
+        movq	%rdx, 1000(%rdi)
+        adcq	$0x00, %rax
+        movq	504(%rsi), %rdx
+        movq	%rax, 1008(%rdi)
+        adcq	$0x00, %rdx
+        movq	%rdx, 1016(%rdi)
+        addq	$0x518, %rsp
+        repz retq
+#ifndef __APPLE__
+.size	sp_4096_sqr_64,.-sp_4096_sqr_64
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
  *
