@@ -2411,6 +2411,14 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
     (void)hint;
     (void)key_max_len;
 
+#ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
+    /* Multiple calls for each cipher suite. First identity byte indicates the
+     * number of identites seen so far for cipher suite. */
+    if (identity[0] != 0) {
+        return 0;
+    }
+#endif
+
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     XSTRNCPY(identity, kIdentityStr, id_max_len);
     XSTRNCAT(identity, ciphersuite + XSTRLEN(ciphersuite) - 6, id_max_len);
