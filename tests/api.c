@@ -35341,8 +35341,11 @@ static void test_wolfSSL_PEM_read_bio(void)
 
     AssertNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
     AssertNotNull(bio = BIO_new_mem_buf((void*)buff, bytes));
+    AssertIntEQ(BIO_set_mem_eof_return(bio, -0xDEAD), 1);
     AssertNotNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
     AssertIntEQ((int)BIO_set_fd(bio, 0, BIO_CLOSE), 1);
+    /* BIO should return the set EOF value */
+    AssertIntEQ(BIO_read(bio, buff, sizeof(buff)), -0xDEAD);
     AssertIntEQ(BIO_set_close(bio, BIO_NOCLOSE), 1);
     AssertIntEQ(BIO_set_close(NULL, BIO_NOCLOSE), 1);
     AssertIntEQ(SSL_SUCCESS, BIO_get_mem_ptr(bio, &buf));
@@ -35542,6 +35545,7 @@ static void test_wolfSSL_BIO(void)
         AssertNotNull(f_bio1 = BIO_new(BIO_s_file()));
         AssertNotNull(f_bio2 = BIO_new(BIO_s_file()));
 
+        /* Failure due to wrong BIO type */
         AssertIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         AssertIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
 

@@ -36,6 +36,13 @@
     #endif
 #else
 
+/*
+ * WOLFSSL_BIO_RESIZE_THRESHOLD:
+ *     The amount of data to return before we attempt to resize the internal
+ *     buffers. After we have returned more than this define amount of bytes of
+ *     data, we will resize the buffers to get rid of excess memory.
+ */
+
 
 /* Helper function to decode a base64 input
  *
@@ -75,6 +82,9 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     return sz;
 }
 
+#ifndef WOLFSSL_BIO_RESIZE_THRESHOLD
+#define WOLFSSL_BIO_RESIZE_THRESHOLD 100
+#endif
 
 /* Handles reading from a memory type BIO and advancing the state.
  *
@@ -97,39 +107,56 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 
     sz = wolfSSL_BIO_pending(bio);
     if (sz > 0) {
-        const unsigned char* pt = NULL;
         int memSz;
+
+        if (bio->mem_buf == NULL) {
+            WOLFSSL_MSG("bio->mem_buf is null");
+            return WOLFSSL_BIO_ERROR;
+        }
 
         if (sz > len) {
             sz = len;
         }
-        memSz = wolfSSL_BIO_get_mem_data(bio, (void*)&pt);
-        if (memSz >= sz && pt != NULL) {
-            byte* tmp;
 
-            XMEMCPY(buf, (void*)pt, sz);
-            if (memSz - sz > 0) {
-                tmp = (byte*)XMALLOC(memSz-sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                if (tmp == NULL) {
-                    WOLFSSL_MSG("Memory error");
-                    return WOLFSSL_BIO_ERROR;
-                }
-                XMEMCPY(tmp, (void*)(pt + sz), memSz - sz);
-
-                /* reset internal bio->mem */
-                XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                bio->ptr    = tmp;
-                bio->num = memSz-sz;
-                if (bio->mem_buf != NULL) {
-                    bio->mem_buf->data = (char*)bio->ptr;
-                    bio->mem_buf->length = bio->num;
-                }
-            }
-            bio->wrSz  -= sz;
+        memSz = bio->mem_buf->length - bio->rdIdx;
+        if (memSz < sz) {
+            WOLFSSL_MSG("Not enough memory for reading");
+            return WOLFSSL_BIO_ERROR;
         }
-        else {
-            WOLFSSL_MSG("Issue with getting bio mem pointer");
-            return 0;
+
+        XMEMCPY(buf, bio->mem_buf->data + bio->rdIdx, sz);
+        bio->rdIdx += sz;
+
+        if (bio->rdIdx >= bio->wrSz) {
+            /* All data read resize down to WOLFSSL_BIO_RESIZE_THRESHOLD */
+            if (bio->mem_buf->max > WOLFSSL_BIO_RESIZE_THRESHOLD &&
+                    wolfSSL_BUF_MEM_resize(bio->mem_buf,
+                        WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
+                WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
+                return WOLFSSL_BIO_ERROR;
+            }
+            bio->wrSz = 0;
+            bio->rdIdx = 0;
+            bio->mem_buf->length = 0;
+            bio->ptr = bio->mem_buf->data;
+        }
+        else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD) {
+            /* Resize the memory so we are not taking up more than necessary.
+             * memmove reverts internally to memcpy if areas don't overlap */
+            XMEMMOVE(bio->mem_buf->data, bio->mem_buf->data + bio->rdIdx,
+                    bio->wrSz - bio->rdIdx);
+            bio->wrSz -= bio->rdIdx;
+            bio->rdIdx = 0;
+            /* Resize down to WOLFSSL_BIO_RESIZE_THRESHOLD for fewer
+             * allocations. */
+            if (wolfSSL_BUF_MEM_resize(bio->mem_buf,
+                    bio->wrSz > WOLFSSL_BIO_RESIZE_THRESHOLD ? bio->wrSz :
+                            WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
+                WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
+                return WOLFSSL_BIO_ERROR;
+            }
+            bio->mem_buf->length = bio->wrSz;
+            bio->ptr = bio->mem_buf->data;
         }
     }
     else {
@@ -483,53 +510,25 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
 static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         int len)
 {
-    int   sz;
-    const unsigned char* buf;
-
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_write");
 
-    if (bio == NULL || data == NULL) {
-        return BAD_FUNC_ARG;
+    if (bio == NULL || bio->mem_buf == NULL || data == NULL) {
+        WOLFSSL_MSG("one of input parameters is null");
+        return WOLFSSL_FAILURE;
     }
 
-    sz = wolfSSL_BIO_pending(bio);
-    if (sz < 0) {
-        WOLFSSL_MSG("Error getting memory data");
-        return sz;
+    if (len == 0)
+        return WOLFSSL_SUCCESS; /* Return early to make logic simpler */
+
+    if (wolfSSL_BUF_MEM_grow_ex(bio->mem_buf, bio->wrSz + len, 0)
+            == 0) {
+        WOLFSSL_MSG("Error growing memory area");
+        return WOLFSSL_FAILURE;
     }
 
-    if (bio->ptr == NULL) {
-        bio->ptr = (byte*)XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
-        if (bio->ptr == NULL) {
-            WOLFSSL_MSG("Error on malloc");
-            return WOLFSSL_FAILURE;
-        }
-        bio->num = len;
-        if (bio->mem_buf != NULL) {
-            bio->mem_buf->data = (char*)bio->ptr;
-            bio->mem_buf->length = bio->num;
-        }
-    }
-
-    /* check if will fit in current buffer size */
-    if (wolfSSL_BIO_get_mem_data(bio, (void*)&buf) < 0) {
-        return WOLFSSL_BIO_ERROR;
-    }
-    if (bio->num < sz + len) {
-        bio->ptr = (byte*)XREALLOC(bio->ptr, sz + len, bio->heap,
-            DYNAMIC_TYPE_OPENSSL);
-        if (bio->ptr == NULL) {
-            WOLFSSL_MSG("Error on realloc");
-            return WOLFSSL_FAILURE;
-        }
-        bio->num = sz + len;
-        if (bio->mem_buf != NULL) {
-            bio->mem_buf->data = (char*)bio->ptr;
-            bio->mem_buf->length = bio->num;
-        }
-    }
-
-    XMEMCPY((byte*)bio->ptr + sz, data, len);
+    XMEMCPY(bio->mem_buf->data + bio->wrSz, data, len);
+    bio->ptr = bio->mem_buf->data;
+    bio->num = bio->mem_buf->max;
     bio->wrSz += len;
 
     return len;
@@ -1090,7 +1089,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 #endif
 
     if (bio->type == WOLFSSL_BIO_MEMORY) {
-        return bio->wrSz;
+        return bio->wrSz - bio->rdIdx;
     }
 
     /* type BIO_BIO then check paired buffer */
@@ -1157,7 +1156,7 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_write_buf_size");
 
-    if (bio == NULL || bio->type != WOLFSSL_BIO_BIO || size < 0) {
+    if (bio == NULL || bio->type != WOLFSSL_BIO_BIO || (int)size < 0) {
         return WOLFSSL_FAILURE;
     }
 
@@ -1167,27 +1166,32 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
         return WOLFSSL_FAILURE;
     }
 
-    bio->wrSz  = (int)size;
-    if (bio->wrSz < 0) {
-        WOLFSSL_MSG("Unexpected negative size value");
-        return WOLFSSL_FAILURE;
-    }
-
     if (bio->ptr != NULL) {
         XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
     }
 
-    bio->ptr = (byte*)XMALLOC(bio->wrSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
+    bio->ptr = (byte*)XMALLOC(size, bio->heap, DYNAMIC_TYPE_OPENSSL);
     if (bio->ptr == NULL) {
         WOLFSSL_MSG("Memory allocation error");
+        bio->wrSz  = 0;
+        bio->num = 0;
+        bio->wrIdx = 0;
+        bio->rdIdx = 0;
+        if (bio->mem_buf != NULL) {
+            bio->mem_buf->data = NULL;
+            bio->mem_buf->length = 0;
+            bio->mem_buf->max = 0;
+        }
         return WOLFSSL_FAILURE;
     }
-    bio->num = bio->wrSz;
+    bio->wrSz  = (int)size;
+    bio->num = (int)size;
     bio->wrIdx = 0;
     bio->rdIdx = 0;
     if (bio->mem_buf != NULL) {
         bio->mem_buf->data = (char*)bio->ptr;
         bio->mem_buf->length = bio->num;
+        bio->mem_buf->max = bio->num;
     }
 
     return WOLFSSL_SUCCESS;
@@ -1428,8 +1432,9 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             bio->ptr = NULL;
             bio->num = 0;
             if (bio->mem_buf != NULL) {
-                bio->mem_buf->data = (char*)bio->ptr;
-                bio->mem_buf->length = bio->num;
+                bio->mem_buf->data = NULL;
+                bio->mem_buf->length = 0;
+                bio->mem_buf->max = 0;
             }
             return 0;
 
@@ -1590,11 +1595,12 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_mem_eof_return");
 
-    if (bio != NULL) {
+    if (bio != NULL && bio->type == WOLFSSL_BIO_MEMORY) {
         bio->eof = v;
+        return WOLFSSL_SUCCESS;
     }
-
-    return WOLFSSL_SUCCESS;
+    else
+        return WOLFSSL_FAILURE;
 }
 
 int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
@@ -1889,10 +1895,10 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
     }
 
     if (p) {
-        *(byte**)p = (byte*)mem_bio->ptr;
+        *(byte**)p = (byte*)mem_bio->ptr + mem_bio->rdIdx;
     }
 
-    return mem_bio->num;
+    return mem_bio->wrSz - mem_bio->rdIdx;
 }
 
 int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
@@ -2476,14 +2482,12 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 bio->eof = WOLFSSL_BIO_ERROR; /* Return value for empty buffer */
             if (method->type == WOLFSSL_BIO_MEMORY ||
                     method->type == WOLFSSL_BIO_BIO) {
-                bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
-                                                       0, DYNAMIC_TYPE_OPENSSL);
+                bio->mem_buf = wolfSSL_BUF_MEM_new();
                 if (bio->mem_buf == NULL) {
                     WOLFSSL_MSG("Memory error");
                     wolfSSL_BIO_free(bio);
                     return NULL;
                 }
-                bio->mem_buf->data = (char*)bio->ptr;
             }
 
             if (method->type == WOLFSSL_BIO_MD) {
@@ -2532,17 +2536,15 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             /* The length of the string including terminating null. */
             len = (int)XSTRLEN((const char*)buf) + 1;
         }
-        bio->num = bio->wrSz = len;
-        bio->ptr = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
-        if (bio->ptr == NULL) {
+
+        if (wolfSSL_BUF_MEM_resize(bio->mem_buf, len) == 0) {
             wolfSSL_BIO_free(bio);
             return NULL;
         }
-        if (bio->mem_buf != NULL) {
-            bio->mem_buf->data = (char*)bio->ptr;
-            bio->mem_buf->length = bio->num;
-        }
 
+        bio->num = bio->mem_buf->max;
+        bio->wrSz = len;
+        bio->ptr = bio->mem_buf->data;
         XMEMCPY(bio->ptr, buf, len);
 
         return bio;
