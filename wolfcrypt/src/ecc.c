@@ -8080,13 +8080,35 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     #if !defined(WOLFSSL_SP_MATH)
         {
             int did_init = 0;
-            mp_int t1, t2;
+        #ifdef WOLFSSL_SMALL_STACK
+            mp_int* t1 = NULL;
+            mp_int* t2 = NULL;
+        #else
+            mp_int t1[1], t2[1];
+        #endif
             DECLARE_CURVE_SPECS(3);
 
             ALLOC_CURVE_SPECS(3, err);
 
+        #ifdef WOLFSSL_SMALL_STACK
             if (err == MP_OKAY) {
-                if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
+                t1 = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                                      DYNAMIC_TYPE_BIGINT);
+                if (t1 == NULL) {
+                    err = MEMORY_E;
+                }
+            }
+            if (err == MP_OKAY) {
+                t2 = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                                      DYNAMIC_TYPE_BIGINT);
+                if (t2 == NULL) {
+                    err = MEMORY_E;
+                }
+            }
+        #endif
+
+            if (err == MP_OKAY) {
+                if (mp_init_multi(t1, t2, NULL, NULL, NULL, NULL) != MP_OKAY)
                     err = MEMORY_E;
                 else
                     did_init = 1;
@@ -8111,41 +8133,50 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
 
             /* compute x^3 */
             if (err == MP_OKAY)
-                err = mp_sqr(point->x, &t1);
+                err = mp_sqr(point->x, t1);
             if (err == MP_OKAY)
-                err = mp_mulmod(&t1, point->x, curve->prime, &t1);
+                err = mp_mulmod(t1, point->x, curve->prime, t1);
 
             /* compute x^3 + a*x */
             if (err == MP_OKAY)
-                err = mp_mulmod(curve->Af, point->x, curve->prime, &t2);
+                err = mp_mulmod(curve->Af, point->x, curve->prime, t2);
             if (err == MP_OKAY)
-                err = mp_add(&t1, &t2, &t1);
+                err = mp_add(t1, t2, t1);
 
             /* compute x^3 + a*x + b */
             if (err == MP_OKAY)
-                err = mp_add(&t1, curve->Bf, &t1);
+                err = mp_add(t1, curve->Bf, t1);
 
             /* compute sqrt(x^3 + a*x + b) */
             if (err == MP_OKAY)
-                err = mp_sqrtmod_prime(&t1, curve->prime, &t2);
+                err = mp_sqrtmod_prime(t1, curve->prime, t2);
 
             /* adjust y */
             if (err == MP_OKAY) {
-                if ((mp_isodd(&t2) == MP_YES &&
+                if ((mp_isodd(t2) == MP_YES &&
                                             pointType == ECC_POINT_COMP_ODD) ||
-                    (mp_isodd(&t2) == MP_NO &&
+                    (mp_isodd(t2) == MP_NO &&
                                             pointType == ECC_POINT_COMP_EVEN)) {
-                    err = mp_mod(&t2, curve->prime, point->y);
+                    err = mp_mod(t2, curve->prime, point->y);
                 }
                 else {
-                    err = mp_submod(curve->prime, &t2, curve->prime, point->y);
+                    err = mp_submod(curve->prime, t2, curve->prime, point->y);
                 }
             }
 
             if (did_init) {
-                mp_clear(&t2);
-                mp_clear(&t1);
+                mp_clear(t2);
+                mp_clear(t1);
             }
+
+        #ifdef WOLFSSL_SMALL_STACK
+            if (t1 != NULL) {
+                XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+            }
+            if (t2 != NULL) {
+                XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
+            }
+        #endif
 
             wc_ecc_curve_free(curve);
             FREE_CURVE_SPECS();
