@@ -6734,7 +6734,7 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
                 wc_curve448_free((curve448_key*)*pKey);
                 break;
         #endif /* HAVE_CURVE448 */
-		#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
             case DYNAMIC_TYPE_FALCON:
                 wc_falcon_free((falcon_key*)*pKey);
                 break;
@@ -6801,7 +6801,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             sz = sizeof(curve448_key);
             break;
     #endif /* HAVE_CURVE448 */
-	#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
         case DYNAMIC_TYPE_FALCON:
             sz = sizeof(falcon_key);
             break;
@@ -6851,7 +6851,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             ret = 0;
             break;
     #endif /* HAVE_CURVE448 */
-	#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
         case DYNAMIC_TYPE_FALCON:
             wc_falcon_init((falcon_key*)*pKey);
             ret = 0;
@@ -7878,7 +7878,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 }
 
 
-DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq)
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 {
     WOLFSSL_ENTER("DtlsMsgFind()");
     while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
@@ -7888,7 +7888,7 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq)
 }
 
 
-void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq, const byte* data,
+void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
     /* See if seq exists in the list. If it isn't in the list, make
@@ -13091,7 +13091,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
-				#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+                #if defined(HAVE_PQC) && defined(HAVE_FALCON)
                     case FALCON_LEVEL1k:
                     case FALCON_LEVEL5k:
                     {

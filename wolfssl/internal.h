@@ -1805,14 +1805,22 @@ enum {
 #endif
 
 
-/* give user option to use 16K static buffers */
-#if defined(LARGE_STATIC_BUFFERS)
-    #define RECORD_SIZE MAX_RECORD_SIZE
+/* determine maximum record size */
+#ifdef RECORD_SIZE
+    /* user supplied value */
+    #if RECORD_SIZE < 128 || RECORD_SIZE > MAX_RECORD_SIZE
+        #error Invalid record size
+    #endif
 #else
-    #ifdef WOLFSSL_DTLS
-        #define RECORD_SIZE MAX_MTU
+    /* give user option to use 16K static buffers */
+    #if defined(LARGE_STATIC_BUFFERS)
+        #define RECORD_SIZE     MAX_RECORD_SIZE
     #else
-        #define RECORD_SIZE 128
+        #ifdef WOLFSSL_DTLS
+            #define RECORD_SIZE MAX_MTU
+        #else
+            #define RECORD_SIZE 128
+        #endif
     #endif
 #endif
 
@@ -1835,7 +1843,13 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#if defined(LARGE_STATIC_BUFFERS)
+#ifdef STATIC_BUFFER_LEN
+    /* user supplied option */
+    #if STATIC_BUFFER_LEN < 5 || STATIC_BUFFER_LEN > (RECORD_HEADER_SZ + \
+                          RECORD_SIZE + COMP_EXTRA + MTU_EXTRA + MAX_MSG_EXTRA))
+        #error Invalid static buffer length
+    #endif
+#elif defined(LARGE_STATIC_BUFFERS)
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
@@ -4047,8 +4061,9 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_ALGOR algor;
     WOLFSSL_X509_PUBKEY key;
 #endif
-#if defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || \
-    defined(SESSION_CERTS)
+#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || \
+    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
     byte            notBeforeData[CTC_DATE_SIZE];
     byte            notAfterData[CTC_DATE_SIZE];
 #endif
@@ -4936,8 +4951,9 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,
                                   word32 fragOffset, word32 fragSz, void* heap);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq);
-    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq,
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
+
+    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);

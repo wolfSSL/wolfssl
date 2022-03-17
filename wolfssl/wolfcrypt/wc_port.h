@@ -882,7 +882,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
     /* Always use gmtime_r if available. */
-    #if defined(HAVE_GMTIME_R)
+    #if defined(HAVE_GMTIME_S)
+        /* reentrant version */
+        #define XGMTIME(c, t)   gmtime_s((c), (t))
+        #define NEED_TMP_TIME
+    #elif defined(HAVE_GMTIME_R)
         #define XGMTIME(c, t)   gmtime_r((c), (t))
         #define NEED_TMP_TIME
     #else
