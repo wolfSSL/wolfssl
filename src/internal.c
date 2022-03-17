@@ -18116,8 +18116,10 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args)
 {
     if (args) {
-        if (ssl && args->iv)
+        /* only free the IV if it was dynamically allocated */
+        if (ssl && args->iv && (args->iv != args->staticIvBuffer)) {
             XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
+        }
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
     }
 }
@@ -18312,9 +18314,16 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
 
             if (args->ivSz > 0) {
-                args->iv = (byte*)XMALLOC(args->ivSz, ssl->heap, DYNAMIC_TYPE_SALT);
-                if (args->iv == NULL)
-                    ERROR_OUT(MEMORY_E, exit_buildmsg);
+                if (args->ivSz > sizeof(args->staticIvBuffer)) {
+                    args->iv = (byte*)XMALLOC(args->ivSz, ssl->heap,
+                                              DYNAMIC_TYPE_SALT);
+                    if (args->iv == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_buildmsg);
+                    }
+                }
+                else {
+                    args->iv = args->staticIvBuffer;
+                }
 
                 ret = wc_RNG_GenerateBlock(ssl->rng, args->iv, args->ivSz);
                 if (ret != 0)

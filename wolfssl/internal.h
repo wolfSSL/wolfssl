@@ -4183,6 +4183,7 @@ typedef struct BuildMsgArgs {
     word16 size;
     word32 ivSz;      /* TLSv1.1  IV */
     byte*  iv;
+    ALIGN16 byte staticIvBuffer[MAX_IV_SZ];
 } BuildMsgArgs;
 #endif
 
