@@ -1120,13 +1120,15 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
-        !(defined(WOLF_CRYPTO_CB) && \
+        !defined(WOLFSSL_KCAPI_AES) && !(defined(WOLF_CRYPTO_CB) && \
             (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
     #endif
-    TEST_PASS("AES-GCM  test passed!\n");
+    if (ret == 0) {
+        TEST_PASS("AES-GCM  test passed!\n");
+    }
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
@@ -21039,7 +21041,8 @@ done:
 #endif
 
 
-#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 static int ecc_test_sign_vectors(WC_RNG* rng)
 {
     int ret;
@@ -24118,7 +24121,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
     #endif
 #endif
 
-#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K) && \
+    !defined(WOLFSSL_KCAPI_ECC)
     ret = ecc_test_sign_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_sign_vectors failed! %d\n", ret);

@@ -1627,9 +1627,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_AES_GCM_FIXED_IV_AAD
 #endif
 #ifdef WOLFSSL_KCAPI_ECC
+    #undef  ECC_USER_CURVES
     #define ECC_USER_CURVES
     #undef  NO_ECC256
+    #undef  HAVE_ECC384
     #define HAVE_ECC384
+    #undef  HAVE_ECC521
     #define HAVE_ECC521
 #endif
 

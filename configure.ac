@@ -2075,19 +2075,21 @@ then
     AS_IF([test "$enable_kcapi_hash" != "no"], [ENABLED_KCAPI_HASH=yes])
     AS_IF([test "$enable_kcapi_hmac" != "no"], [ENABLED_KCAPI_HMAC=yes])
     AS_IF([test "$enable_kcapi_aes" != "no"], [ENABLED_KCAPI_AES=yes])
-# currently the PK alg KCAPI options run into build failures, so disabling here for now.
-#    AS_IF([test "$enable_kcapi_rsa" != "no"], [ENABLED_KCAPI_RSA=yes])
-#    AS_IF([test "$enable_kcapi_dh" != "no"], [ENABLED_KCAPI_DH=yes])
-#    AS_IF([test "$enable_kcapi_ecc" != "no"], [ENABLED_KCAPI_ECC=yes])
+    AS_IF([test "$enable_kcapi_rsa" != "no"], [ENABLED_KCAPI_RSA=yes])
+    AS_IF([test "$enable_kcapi_dh" != "no"], [ENABLED_KCAPI_DH=yes])
+    AS_IF([test "$enable_kcapi_ecc" != "no"], [ENABLED_KCAPI_ECC=yes])
 fi
 
-AS_IF([test "$ENABLED_KCAPI_HASH" != "no" ||
-       test "$ENABLED_KCAPI_HMAC" != "no" ||
-       test "$ENABLED_KCAPI_AES" != "no" ||
-       test "$ENABLED_KCAPI_RSA" != "no" ||
-       test "$ENABLED_KCAPI_DH" != "no" ||
-       test "$ENABLED_KCAPI_ECC" != "no"],
-    [LIBS="$LIBS -lkcapi"])
+if  test "$ENABLED_KCAPI_HASH" != "no" ||
+    test "$ENABLED_KCAPI_HMAC" != "no" ||
+    test "$ENABLED_KCAPI_AES" != "no" ||
+    test "$ENABLED_KCAPI_RSA" != "no" ||
+    test "$ENABLED_KCAPI_DH" != "no" ||
+    test "$ENABLED_KCAPI_ECC" != "no"
+then
+    LIBS="$LIBS -lkcapi"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI"
+fi
 
 if test "$ENABLED_KCAPI_HASH" = "yes"
 then
@@ -3594,22 +3596,25 @@ AS_CASE([$FIPS_VERSION],
             -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
             -DHAVE_ECC_CDH \
             -DWC_RSA_NO_PADDING \
-            -DWOLFSSL_ECDSA_SET_K \
             -DWOLFSSL_VALIDATE_ECC_IMPORT \
             -DECC_USER_CURVES \
-            -DHAVE_ECC192 \
-            -DHAVE_ECC224 \
-            -DHAVE_ECC256 \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
-            -DWOLFSSL_ECDSA_SET_K \
-            -DWC_RNG_SEED_CB \
             -DWOLFSSL_VALIDATE_FFC_IMPORT \
             -DHAVE_FFDHE_Q \
             -DHAVE_FFDHE_3072 \
             -DHAVE_FFDHE_4096 \
             -DHAVE_FFDHE_6144 \
             -DHAVE_FFDHE_8192"
+
+        # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and do not use seed callback
+        AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
+            [AM_CFLAGS="$AM_CFLAGS \
+                -DWC_RNG_SEED_CB \
+                -DWOLFSSL_ECDSA_SET_K \
+                -DHAVE_ECC192 \
+                -DHAVE_ECC224 \
+                -DHAVE_ECC256"])
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
 
