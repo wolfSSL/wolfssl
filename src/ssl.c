@@ -27071,11 +27071,11 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     const char* footer = NULL;
 
     if (type != X509_FILETYPE_PEM)
-        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     fp = XFOPEN(file, "rb");
     if (fp == XBADFILE)
-        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     if(XFSEEK(fp, 0, XSEEK_END) != 0) {
         XFCLOSE(fp);
@@ -27149,7 +27149,7 @@ end:
     if (pem != NULL)
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     XFCLOSE(fp);
-    return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
+    return WS_RETURN_CODE(ret, (int)WOLFSSL_FAILURE);
 #else
     (void)lookup;
     (void)file;
@@ -44310,6 +44310,9 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         XMEMCPY(cert->challengePw, x509->challengePw, CTC_NAME_SIZE);
     #endif
 
+        /* Only makes sense to do this for OPENSSL_EXTRA because without
+         * this define the function will error out below */
+        #ifdef OPENSSL_EXTRA
         if (x509->serialSz == 0 && x509->serialNumber != NULL &&
                 /* Check if the buffer contains more than just the
                  * ASN tag and length */
@@ -44320,6 +44323,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
                 return WOLFSSL_FAILURE;
             }
         }
+        #endif
 
         /* set serial number */
         if (x509->serialSz > 0) {
@@ -58567,7 +58571,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
     int mx;
 
     /* verify provided arguments */
-    if (buf == NULL || len == 0) {
+    if (buf == NULL || len == 0 || (int)len <= 0) {
         return 0; /* BAD_FUNC_ARG; */
     }
 
@@ -58578,7 +58582,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
         return wolfSSL_BUF_MEM_grow_ex(buf, len, 0);
 
     /* expand size, to handle growth */
-    mx = (len + 3) / 3 * 4;
+    mx = ((int)len + 3) / 3 * 4;
 
     /* We want to shrink the internal buffer */
     tmp = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_OPENSSL);

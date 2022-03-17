@@ -118,7 +118,7 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
             sz = len;
         }
 
-        memSz = bio->mem_buf->length - bio->rdIdx;
+        memSz = (int)bio->mem_buf->length - bio->rdIdx;
         if (memSz < sz) {
             WOLFSSL_MSG("Not enough memory for reading");
             return WOLFSSL_BIO_ERROR;
@@ -528,7 +528,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 
     XMEMCPY(bio->mem_buf->data + bio->wrSz, data, len);
     bio->ptr = bio->mem_buf->data;
-    bio->num = bio->mem_buf->max;
+    bio->num = (int)bio->mem_buf->max;
     bio->wrSz += len;
 
     return len;
@@ -2542,7 +2542,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return NULL;
         }
 
-        bio->num = bio->mem_buf->max;
+        bio->num = (int)bio->mem_buf->max;
         bio->wrSz = len;
         bio->ptr = bio->mem_buf->data;
         XMEMCPY(bio->ptr, buf, len);

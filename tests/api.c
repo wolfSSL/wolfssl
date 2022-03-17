@@ -46848,7 +46848,12 @@ static void test_EVP_PKEY_cmp(void)
     AssertIntEQ(EVP_PKEY_cmp(NULL, NULL), 0);
     AssertIntEQ(EVP_PKEY_cmp(a, NULL), 0);
     AssertIntEQ(EVP_PKEY_cmp(NULL, b), 0);
+#ifdef NO_RSA
+    /* Type check will fail since RSA is the default EVP key type */
+    AssertIntEQ(EVP_PKEY_cmp(a, b), -2);
+#else
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#endif
 #else
     AssertIntNE(EVP_PKEY_cmp(NULL, NULL), 0);
     AssertIntNE(EVP_PKEY_cmp(a, NULL), 0);
@@ -51246,7 +51251,8 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
 static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
 {
     callback_functions* callbacks = NULL;
@@ -51289,6 +51295,13 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                                         WOLFSSL_FILETYPE_PEM));
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+    AssertIntEQ(wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile,
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+#elif !defined(NO_DH)
+    SetDHCtx(ctx);  /* will repick suites with DHE, higher priority than PSK */
+#endif
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -51367,7 +51380,9 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(cfd);
-
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
     return 0;
 }
 static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
@@ -51435,9 +51450,13 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(sfd);
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
     return 0;
 }
-#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL &&
+          HAVE_IO_TESTS_DEPENDENCIES && !WOLFSSL_NO_TLS12 */
 
 /* This test is to check wolfSSL_read behaves as same as
  * openSSL when it is called after SSL_shutdown completes.
@@ -51445,7 +51464,8 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
 static int test_wolfSSL_read_detect_TCP_disconnect(void)
 {
     int ret = 0;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
