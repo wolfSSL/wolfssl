@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_KCAPI_ECC)
+#if defined(WOLFSSL_KCAPI_ECC) && defined(HAVE_ECC)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -367,4 +367,4 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
 }
 #endif
 
-#endif /* WOLFSSL_KCAPI_ECC */
+#endif /* WOLFSSL_KCAPI_ECC && HAVE_ECC */

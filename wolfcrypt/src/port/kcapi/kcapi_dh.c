@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_KCAPI_DH)
+#if defined(WOLFSSL_KCAPI_DH) && !defined(NO_DH)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -232,4 +232,4 @@ int KcapiDh_SharedSecret(DhKey* private_key, const byte* pub, word32 pubSz,
     return ret;
 }
 
-#endif /* WOLFSSL_KCAPI_DH */
+#endif /* WOLFSSL_KCAPI_DH && !NO_DH */

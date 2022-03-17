@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_KCAPI_HMAC)
+#if defined(WOLFSSL_KCAPI_HMAC) && !defined(NO_HMAC)
 
 #define FIPS_NO_WRAPPERS
 
@@ -334,5 +334,4 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     return ret;
 }
 
-#endif /* WOLFSSL_KCAPI_HMAC */
-
+#endif /* WOLFSSL_KCAPI_HMAC && !NO_HMAC */

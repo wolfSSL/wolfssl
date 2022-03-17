@@ -234,8 +234,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
     int     ret = 0;
     byte*   data = NULL;
-    word32  dataSz = authInSz + sz + authTagSz;
-    ssize_t rc;
+    word32  dataSz;
+    int     inbuflen, outbuflen;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     /* argument checks */
@@ -255,16 +255,22 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
-        ret = posix_memalign((void*)&data, pageSz, dataSz);
-        if (ret < 0) {
-            ret = MEMORY_E;
+        ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error with first time setup of kcapi");
         }
     }
 
     if (ret == 0) {
-        ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
-        if (ret != 0) {
-            WOLFSSL_MSG("Error with first time setup of kcapi");
+        inbuflen  = (int)kcapi_aead_inbuflen_enc( aes->handle, sz, authInSz,
+            authTagSz);
+        outbuflen = (int)kcapi_aead_outbuflen_enc(aes->handle, sz, authInSz,
+            authTagSz);
+        dataSz = (inbuflen > outbuflen) ? inbuflen : outbuflen;
+
+        ret = posix_memalign((void*)&data, pageSz, dataSz);
+        if (ret < 0) {
+            ret = MEMORY_E;
         }
     }
 
@@ -287,15 +293,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(data, authIn, authInSz);
         XMEMCPY(data + authInSz, in, sz);
 
-        rc = kcapi_aead_encrypt(aes->handle, data, dataSz, iv, data, dataSz,
-                                                        KCAPI_ACCESS_HEURISTIC);
-        if (rc < 0) {
+        ret = (int)kcapi_aead_encrypt(aes->handle, data, inbuflen, iv, data,
+            outbuflen, KCAPI_ACCESS_HEURISTIC);
+        if (ret < 0) {
             WOLFSSL_MSG("GcmEncrypt failed");
-            ret = (int)rc;
         }
-        else if ((word32)rc != dataSz) {
+        else if (ret != outbuflen) {
             WOLFSSL_MSG("GcmEncrypt produced wrong output length");
             ret = BAD_FUNC_ARG;
+        }
+        else {
+            ret = 0; /* success */
         }
     }
 
@@ -327,9 +335,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
     int     ret = 0;
     byte*   data = NULL;
-    word32  dataSz = authInSz + sz + authTagSz;
-    word32  outSz = authInSz + sz;
-    ssize_t rc;
+    word32  dataSz;
+    int     inbuflen, outbuflen;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     /* argument checks */
@@ -350,16 +357,22 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
-        ret = posix_memalign((void*)&data, pageSz, dataSz);
-        if (ret < 0) {
-            ret = MEMORY_E;
+        ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error with first time setup of kcapi");
         }
     }
 
     if (ret == 0) {
-        ret = kcapi_aead_init(&aes->handle, WC_NAME_AESGCM, 0);
-        if (ret != 0) {
-            WOLFSSL_MSG("Error with first time setup of kcapi");
+        inbuflen  = (int)kcapi_aead_inbuflen_dec( aes->handle, sz, authInSz,
+            authTagSz);
+        outbuflen = (int)kcapi_aead_outbuflen_dec(aes->handle, sz, authInSz,
+            authTagSz);
+        dataSz = (inbuflen > outbuflen) ? inbuflen : outbuflen;
+
+        ret = posix_memalign((void*)&data, pageSz, dataSz);
+        if (ret < 0) {
+            ret = MEMORY_E;
         }
     }
 
@@ -380,18 +393,19 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(data + authInSz, in, sz);
         XMEMCPY(data + authInSz + sz, authTag, authTagSz);
 
-        rc = kcapi_aead_decrypt(aes->handle, data, dataSz, iv, data, outSz,
-                                                        KCAPI_ACCESS_HEURISTIC);
-        if (rc < 0) {
+        ret = (int)kcapi_aead_decrypt(aes->handle, data, inbuflen, iv, data,
+            outbuflen, KCAPI_ACCESS_HEURISTIC);
+        if (ret < 0) {
             WOLFSSL_MSG("GcmDecrypt failed");
-            if (rc == -EBADMSG)
+            if (ret == -EBADMSG)
                 ret = AES_GCM_AUTH_E;
-            else
-                ret = (int)rc;
         }
-        else if ((word32)rc != outSz) {
+        else if (ret != outbuflen) {
             WOLFSSL_MSG("GcmDecrypt produced wrong output length");
             ret = BAD_FUNC_ARG;
+        }
+        else {
+            ret = 0; /* success */
         }
     }
 
