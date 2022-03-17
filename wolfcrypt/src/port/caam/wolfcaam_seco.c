@@ -382,6 +382,25 @@ static hsm_key_info_t KeyInfoToHSM(int keyInfoIn)
 }
 
 
+static int KeyFlagsToHSM(int flags)
+{
+    int ret = 0;
+
+    #ifdef HSM_OP_KEY_GENERATION_FLAGS_UPDATE
+    if (flags & CAAM_UPDATE_KEY) {
+        ret = HSM_OP_KEY_GENERATION_FLAGS_UPDATE;
+    }
+    #endif
+
+    #ifdef HSM_OP_KEY_GENERATION_FLAGS_CREATE
+    if (flags & CAAM_GENERATE_KEY) {
+        ret = HSM_OP_KEY_GENERATION_FLAGS_CREATE;
+    }
+    #endif
+    return ret;
+}
+
+
 /* generic generate key with HSM
  * return 0 on success
  */
@@ -394,6 +413,11 @@ int wc_SECO_GenerateKey(int flags, int group, byte* out, int outSz,
     op_generate_key_args_t         key_args;
     hsm_key_type_t keyType;
     hsm_key_info_t keyInfo;
+
+    if (flags == CAAM_UPDATE_KEY && group != 0) {
+        WOLFSSL_MSG("Group must be 0 if updating key");
+        return BAD_FUNC_ARG;
+    }
 
     keyType = KeyTypeToHSM(keyTypeIn);
     keyInfo = KeyInfoToHSM(keyInfoIn);
@@ -415,7 +439,8 @@ int wc_SECO_GenerateKey(int flags, int group, byte* out, int outSz,
         key_args.out_key  = out;
 
         /* default to strict operations with key in NVM */
-        key_args.flags = flags | HSM_OP_KEY_GENERATION_FLAGS_STRICT_OPERATION;
+        key_args.flags = KeyFlagsToHSM(flags) |
+                            HSM_OP_KEY_GENERATION_FLAGS_STRICT_OPERATION;
         key_args.key_group = group;
         key_args.key_info  = keyInfo;
         key_args.key_type  = keyType;

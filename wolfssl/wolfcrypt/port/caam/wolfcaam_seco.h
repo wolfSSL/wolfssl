@@ -93,7 +93,7 @@
 #define CAAM_KEYTYPE_HMAC512    9
 
 /* flags for key management */
-#define CAAM_UPDATE_KEY   0
+#define CAAM_UPDATE_KEY   1
 #define CAAM_GENERATE_KEY 2
 #define CAAM_DELETE_KEY   4
 
