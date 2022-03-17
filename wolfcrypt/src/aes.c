@@ -4773,11 +4773,22 @@ void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
 
 #else /* _MSC_VER */
 
-#define S(w,z) ((char)((unsigned long long)(w) >> (8*(7-(z))) & 0xFF))
-#define M128_INIT(x,y) { S((x),7), S((x),6), S((x),5), S((x),4), \
-                         S((x),3), S((x),2), S((x),1), S((x),0), \
-                         S((y),7), S((y),6), S((y),5), S((y),4), \
-                         S((y),3), S((y),2), S((y),1), S((y),0) }
+/* AESNI with Microsoft */
+#ifdef __clang__
+    /* With Clang the __m128i in emmintrin.h is union using:
+     *     "unsigned __int64 m128i_u64[2];"
+     * Notes: Must add "-maes -msse4.1 -mpclmul" to compiler flags.
+     *        Must mark "aes_asm.asm" as included/compiled C file.
+     */
+    #define M128_INIT(x,y) { (long long)x, (long long)y }
+#else
+    /* Typically this is array of 16 int8's */
+    #define S(w,z) ((char)((unsigned long long)(w) >> (8*(7-(z))) & 0xFF))
+    #define M128_INIT(x,y) { S((x),7), S((x),6), S((x),5), S((x),4), \
+                             S((x),3), S((x),2), S((x),1), S((x),0), \
+                             S((y),7), S((y),6), S((y),5), S((y),4), \
+                             S((y),3), S((y),2), S((y),1), S((y),0) }
+#endif
 
 static const __m128i MOD2_128 =
         M128_INIT(0x1, (long long int)0xc200000000000000UL);
@@ -4862,6 +4873,21 @@ do                                                         \
 }                                                          \
 while (0)
 
+
+#ifdef _M_X64
+    /* 64-bit */
+    #define AES_GCM_INSERT_EPI(tmp1, a, b) \
+        tmp1 = _mm_insert_epi64(tmp1, ((word64)(a))*8, 0); \
+        tmp1 = _mm_insert_epi64(tmp1, ((word64)(b))*8, 1);
+#else
+    /* 32-bit */
+    #define AES_GCM_INSERT_EPI(tmp1, a, b) \
+        tmp1 = _mm_insert_epi32(tmp1, ((int)(a))*8, 0); \
+        tmp1 = _mm_insert_epi32(tmp1, 0,            1); \
+        tmp1 = _mm_insert_epi32(tmp1, ((int)(b))*8, 2); \
+        tmp1 = _mm_insert_epi32(tmp1, 0,            3);
+#endif
+
 #define aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T)         \
 do                                                              \
 {                                                               \
@@ -4906,8 +4932,7 @@ do                                                              \
         Y = _mm_xor_si128(Y, tmp1);                             \
         Y = gfmul_sw(Y, H);                                     \
     }                                                           \
-    tmp1 = _mm_insert_epi64(tmp1, ibytes*8, 0);                 \
-    tmp1 = _mm_insert_epi64(tmp1, 0, 1);                        \
+    AES_GCM_INSERT_EPI(tmp1, ibytes, 0);                        \
     Y = _mm_xor_si128(Y, tmp1);                                 \
     Y = gfmul_sw(Y, H);                                         \
     Y = _mm_shuffle_epi8(Y, BSWAP_MASK); /* Compute E(K, Y0) */ \
@@ -5539,8 +5564,7 @@ static WARN_UNUSED_RESULT int AES_GCM_encrypt(
         X =_mm_xor_si128(X, tmp1);
         X = gfmul_shifted(X, H);
     }
-    tmp1 = _mm_insert_epi64(tmp1, ((word64)nbytes)*8, 0);
-    tmp1 = _mm_insert_epi64(tmp1, ((word64)abytes)*8, 1);
+    AES_GCM_INSERT_EPI(tmp1, nbytes, abytes);
     X = _mm_xor_si128(X, tmp1);
     X = gfmul_shifted(X, H);
     X = _mm_shuffle_epi8(X, BSWAP_MASK);
@@ -5866,8 +5890,8 @@ static WARN_UNUSED_RESULT int AES_GCM_decrypt(
         X = gfmul_shifted(XV, H);
     }
 
-    tmp1 = _mm_insert_epi64(tmp1, ((word64)nbytes)*8, 0);
-    tmp1 = _mm_insert_epi64(tmp1, ((word64)abytes)*8, 1);
+    AES_GCM_INSERT_EPI(tmp1, nbytes, abytes);
+
     /* 128 x 128 Carryless Multiply */
     X = _mm_xor_si128(X, tmp1);
     X = gfmul_shifted(X, H);
