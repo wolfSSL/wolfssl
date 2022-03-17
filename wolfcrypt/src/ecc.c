@@ -8604,10 +8604,6 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
     int        err;
     ecc_point* base = NULL;
     ecc_point* res  = NULL;
-#ifdef WOLFSSL_KCAPI_ECC
-    ecc_key pubKey;
-    word32 len;
-#endif
 #ifdef WOLFSSL_NO_MALLOC
     ecc_point lcl_base;
     ecc_point lcl_res;
@@ -8672,7 +8668,27 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
         if (err == MP_OKAY)
             err = mp_set(base->z, 1);
 
-#ifndef WOLFSSL_KCAPI_ECC
+#ifdef WOLFSSL_KCAPI_ECC
+        if (err == MP_OKAY) {
+            byte   pubkey_raw[MAX_ECC_BYTES * 2];
+            word32 pubkey_sz = (word32)sizeof(pubkey_raw);
+
+            err = KcapiEcc_LoadKey(key, pubkey_raw, &pubkey_sz);
+            if (err == 0) {
+                err = mp_read_unsigned_bin(res->x, pubkey_raw,
+                                           pubkey_sz/2);
+            }
+            if (err == MP_OKAY) {
+                err = mp_read_unsigned_bin(res->y, pubkey_raw + pubkey_sz/2,
+                                           pubkey_sz/2);
+            }
+            if (err == MP_OKAY) {
+                err = mp_set(res->z, 1);
+            }
+        }
+        (void)a;
+        (void)prime;
+#else
 #ifdef ECC_TIMING_RESISTANT
         if (err == MP_OKAY)
             err = wc_ecc_mulmod_ex2(&key->k, base, res, a, prime, curve->order,
@@ -8682,29 +8698,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
             err = wc_ecc_mulmod_ex2(&key->k, base, res, a, prime, curve->order,
                                                             NULL, 1, key->heap);
 #endif
-#else
-        /* Using Shared Secret to perform scalar multiplication
-         * Calculates the x ordinidate only.
-         */
-        if (err == MP_OKAY) {
-            err = wc_ecc_init(&pubKey);
-            if (err == MP_OKAY) {
-                wc_ecc_copy_point(base, &pubKey.pubkey);
-            }
-            if (err == MP_OKAY) {
-                err = KcapiEcc_SetPubKey(&pubKey);
-            }
-            if (err == MP_OKAY) {
-                len = key->dp->size;
-                err = KcapiEcc_SharedSecret(key, &pubKey, pubKey.pubkey_raw,
-                                                                          &len);
-            }
-        }
-#endif /* !WOLFSSL_KCAPI_ECC */
+#endif /* WOLFSSL_KCAPI_ECC */
     }
 
     if (err == MP_OKAY) {
-#ifndef WOLFSSL_KCAPI_ECC
         /* compare result to public key */
         if (mp_cmp(res->x, key->pubkey.x) != MP_EQ ||
             mp_cmp(res->y, key->pubkey.y) != MP_EQ ||
@@ -8712,17 +8709,6 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
             /* didn't match */
             err = ECC_PRIV_KEY_E;
         }
-#else
-        err = mp_read_unsigned_bin(pubKey.pubkey.x, pubKey.pubkey_raw, len);
-        /* compare result to public key - y can be negative! */
-        if (err == MP_OKAY && ((!mp_isone(res->z)) ||
-            mp_cmp(pubKey.pubkey.x, key->pubkey.x) != MP_EQ)) {
-            /* didn't match */
-            err = ECC_PRIV_KEY_E;
-        }
-        (void)a;
-        (void)prime;
-#endif
     }
 
     wc_ecc_curve_free(curve);

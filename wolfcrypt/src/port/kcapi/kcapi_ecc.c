@@ -34,6 +34,9 @@
 #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
+#ifndef ECC_CURVE_NIST_P256
+#define ECC_CURVE_NIST_P256     2
+#endif
 #ifndef ECC_CURVE_NIST_P384
 #define ECC_CURVE_NIST_P384     3
 #endif
@@ -79,69 +82,95 @@ static int KcapiEcc_CurveId(int curve_id, word32* kcapiCurveId)
      return ret;
 }
 
-int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
+int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz)
 {
     int ret = 0;
-    int sz = 0;
-    word32 kcapiCurveId;
+    word32 kcapiCurveId = 0;
 
-    if (curve_id == ECC_CURVE_DEF) {
-        switch (keysize) {
-            case 32:
-                curve_id = ECC_SECP256R1;
-                break;
-            case 48:
-                curve_id = ECC_SECP384R1;
-                break;
-            case 66:
-                curve_id = ECC_SECP521R1;
-                break;
-            default:
-                ret = BAD_FUNC_ARG;
-                break;
-        }
-    }
-    if (ret == 0) {
-        ret = KcapiEcc_CurveId(curve_id, &kcapiCurveId);
+    if (key == NULL || key->dp == NULL) {
+        ret = BAD_FUNC_ARG;
     }
 
-    if (key->handle != NULL) {
-        kcapi_kpp_destroy(key->handle);
-        key->handle = NULL;
-    }
     if (ret == 0) {
+        ret = KcapiEcc_CurveId(key->dp->id, &kcapiCurveId);
+    }
+
+    /* if handle doesn't exist create one */
+    if (ret == 0 && key->handle == NULL) {
         ret = kcapi_kpp_init(&key->handle, WC_NAME_ECDH, 0);
-        if (ret != 0) {
-            WOLFSSL_MSG("KcapiEcc_MakeKey: Failed to initialize");
+        if (ret == 0) {
+            ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
+            if (ret >= 0) {
+                ret = 0;
+            }
         }
     }
-    if (ret == 0) {
-        ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
+
+    /* if a private key value is set, load and use it.
+     * otherwise use existing key->handle */
+    if (ret == 0 && mp_iszero(&key->k) != MP_YES) {
+        byte priv[MAX_ECC_BYTES];
+        word32 keySz = key->dp->size;
+        ret = wc_export_int(&key->k, priv, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+        if (ret == 0) {
+            ret = kcapi_kpp_setkey(key->handle, priv, keySz);
+            if (ret >= 0) {
+                ret = 0;
+            }
+        }
     }
-    if (ret == 0) {
-        ret = kcapi_kpp_setkey(key->handle, NULL, 0);
+
+    /* optionally load public key */
+    if (ret == 0 && pubkey_raw != NULL && pubkey_sz != NULL) {
+        ret = (int)kcapi_kpp_keygen(key->handle, pubkey_raw, *pubkey_sz,
+            KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
+            *pubkey_sz = ret;
             ret = 0;
         }
     }
-    if (ret == 0) {
-        sz = ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
-                               sizeof(key->pubkey_raw), KCAPI_ACCESS_HEURISTIC);
+
+    return ret;    
+}
+
+int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
+{
+    int ret = 0;
+    word32 pubkey_sz = (word32)sizeof(key->pubkey_raw);
+
+    /* free existing handle */
+    if (key != NULL && key->handle != NULL) {
+        kcapi_kpp_destroy(key->handle);
+        key->handle = NULL;
     }
-    if (ret >= 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, sz / 2);
+
+    /* check arguments */
+    if (key == NULL || key->dp == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    ret = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz);
+    if (ret == 0) {
+        ret = mp_read_unsigned_bin(key->pubkey.x,
+            key->pubkey_raw, pubkey_sz / 2);
     }
     if (ret == 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + sz / 2,
-                                   sz / 2);
+        ret = mp_read_unsigned_bin(key->pubkey.y,
+            key->pubkey_raw + pubkey_sz / 2, pubkey_sz / 2);
     }
     if (ret == 0) {
         key->type = ECC_PRIVATEKEY;
     }
-    if ((ret != 0) && (key->handle != NULL)) {
+
+    /* if error release handle now */
+    if (ret != 0 && key->handle != NULL) {
         kcapi_kpp_destroy(key->handle);
         key->handle = NULL;
     }
+
+    /* These are not used. The key->dp is set */
+    (void)keysize;
+    (void)curve_id;
 
     return ret;
 }
@@ -163,11 +192,14 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         ret = kcapi_kpp_init(&private_key->handle, WC_NAME_ECDH, 0);
         if (ret == 0) {
             ret = kcapi_kpp_ecdh_setcurve(private_key->handle, kcapiCurveId);
+            if (ret >= 0) {
+                ret = 0;
+            }
         }
     }
 
     /* if a private key value is set, load and use it */
-    if (mp_iszero(&private_key->k) != MP_YES) {
+    if (ret == 0 && mp_iszero(&private_key->k) != MP_YES) {
         byte priv[MAX_ECC_BYTES];
         word32 keySz = private_key->dp->size;
         ret = wc_export_int(&private_key->k, priv, &keySz, keySz,
@@ -254,6 +286,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     byte* hash_aligned = NULL;
     byte* sig_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+    int handleInit = 0;
 
     if (key->handle == NULL) {
         ret = kcapi_akcipher_init(&key->handle, WC_NAME_ECDSA, 0);
@@ -261,6 +294,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
             WOLFSSL_MSG("KcapiEcc_Sign: Failed to initialize");
         }
         if (ret == 0) {
+            handleInit = 1;
             ret = KcapiEcc_SetPrivKey(key);
         }
     }
@@ -282,8 +316,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
             XMEMCPY(hash_aligned, hash, hashLen);
         }
         ret = (int)kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
-                                       sig_aligned, *sigLen,
-                                       KCAPI_ACCESS_HEURISTIC);
+            sig_aligned, *sigLen, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *sigLen = ret;
             ret = 0;
@@ -296,6 +329,11 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
      * available along with posix_memalign. */
     if (buf_aligned != NULL) {
         free(buf_aligned);
+    }
+
+    if (handleInit) {
+        kcapi_kpp_destroy(key->handle);
+        key->handle = NULL;
     }
 
     return ret;
@@ -330,17 +368,18 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     int ret = 0;
     byte* sigHash_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+    int handleInit = 0;
 
     if (key->handle == NULL) {
         ret = kcapi_akcipher_init(&key->handle, WC_NAME_ECDSA, 0);
         if (ret != 0) {
             WOLFSSL_MSG("KcapiEcc_Verify: Failed to initialize");
         }
+        if (ret == 0) {
+            handleInit = 1;
+            ret = KcapiEcc_SetPubKey(key);
+        }
     }
-    if (ret == 0) {
-        ret = KcapiEcc_SetPubKey(key);
-    }
-
     if (ret == 0) {
         ret = posix_memalign((void*)&sigHash_aligned, pageSz, sigLen + hashLen);
         if (ret < 0) {
@@ -362,6 +401,11 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
      * available along with posix_memalign. */
     if (sigHash_aligned != NULL) {
         free(sigHash_aligned);
+    }
+    
+    if (handleInit) {
+        kcapi_kpp_destroy(key->handle);
+        key->handle = NULL;
     }
     return ret;
 }
