@@ -3888,8 +3888,8 @@ if test "x$ENABLED_HASHDRBG" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
 else
-    # turn on Hash DRBG if FIPS is on
-    if test "x$ENABLED_FIPS" = "xyes"
+    # turn on Hash DRBG if FIPS is on (don't force on for KCAPI)
+    if test "x$ENABLED_FIPS" = "xyes" && test "x$ENABLED_KCAPI" = "xno"
     then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
         ENABLED_HASHDRBG=yes

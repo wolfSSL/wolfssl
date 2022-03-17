@@ -99,6 +99,11 @@
      * #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);
      */
+    #if defined(CUSTOM_RAND_GENERATE_BLOCK) && defined(WOLFSSL_KCAPI)
+        #undef  CUSTOM_RAND_GENERATE_BLOCK
+        #define CUSTOM_RAND_GENERATE_BLOCK wc_hwrng_generate_block
+        WOLFSSL_LOCAL int wc_hwrng_generate_block(byte *output, word32 sz);
+    #endif
 #elif defined(HAVE_HASHDRBG)
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."
