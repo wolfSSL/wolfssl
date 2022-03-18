@@ -2411,7 +2411,7 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
             /* Add some bytes so that we can operate with slight difference
              * in set MTU size on each peer */
             ssl->dtls_expected_rx = max(ssl->dtls_expected_rx,
-                    ssl->dtlsMtuSz + DTLS_MTU_ADDITIONAL_READ_BUFFER);
+                    ssl->dtlsMtuSz + (word32)DTLS_MTU_ADDITIONAL_READ_BUFFER);
 #endif
     }
 #endif
@@ -5070,7 +5070,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ED448 */
-			#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
                 if (cm->minFalconKeySz < 0 ||
                           FALCON_LEVEL1_KEY_SIZE < (word16)cm->minFalconKeySz) {
@@ -5396,7 +5396,7 @@ int wolfSSL_Init(void)
 
     WOLFSSL_ENTER("wolfSSL_Init");
 
-    #if defined(HAVE_FIPS_VERSION) && ((HAVE_FIPS_VERSION > 5) || ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR >= 1)))
+    #if FIPS_VERSION_GE(5,1)
         ret = wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
         if (ret != 0)
             return ret;
@@ -15230,7 +15230,7 @@ int wolfSSL_Cleanup(void)
             ret = WC_CLEANUP_E;
     }
 
-#if defined(HAVE_FIPS_VERSION) && ((HAVE_FIPS_VERSION > 5) || ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR >= 1)))
+#if FIPS_VERSION_GE(5,1)
     if (wolfCrypt_SetPrivateKeyReadEnable_fips(0, WC_KEYTYPE_ALL) < 0) {
         if (ret == WOLFSSL_SUCCESS)
             ret = WC_CLEANUP_E;
@@ -21656,7 +21656,9 @@ const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || KEEP_OUR_CERT || KEEP_PEER_CERT || SESSION_CERTS */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || \
+    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 
 /* used by JSSE (not a standard compatibility function) */
 WOLFSSL_ABI
@@ -21692,6 +21694,19 @@ const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
     return x509->notAfterData;
 }
 
+int wolfSSL_X509_version(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_version");
+
+    if (x509 == NULL)
+        return 0;
+
+    return x509->version;
+}
+#endif
+
+#ifdef OPENSSL_EXTRA
+
 /* get the buffer to be signed (tbs) from the WOLFSSL_X509 certificate
     *
     * outSz : gets set to the size of the buffer
@@ -21724,16 +21739,6 @@ const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509* x509, int* outSz)
     }
     *outSz = len + (idx - tmpIdx);
     return tbs;
-}
-
-int wolfSSL_X509_version(WOLFSSL_X509* x509)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_version");
-
-    if (x509 == NULL)
-        return 0;
-
-    return x509->version;
 }
 
 #ifdef WOLFSSL_SEP
@@ -58531,7 +58536,8 @@ int wolfSSL_RAND_write_file(const char* fname)
 #ifndef FREERTOS_TCP
 
 /* These constant values are protocol values made by egd */
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(NETOS)
+#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(HAVE_FIPS) && \
+    defined(HAVE_HASHDRBG) && !defined(NETOS) && defined(HAVE_SYS_UN_H)
     #define WOLFSSL_EGD_NBLOCK 0x01
     #include <sys/un.h>
 #endif
@@ -58544,8 +58550,7 @@ int wolfSSL_RAND_write_file(const char* fname)
  */
 int wolfSSL_RAND_egd(const char* nm)
 {
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(HAVE_FIPS) && \
-    defined(HAVE_HASHDRBG)
+#ifdef WOLFSSL_EGD_NBLOCK
     struct sockaddr_un rem;
     int fd;
     int ret = WOLFSSL_SUCCESS;
@@ -58683,7 +58688,7 @@ int wolfSSL_RAND_egd(const char* nm)
     (void)nm;
 
     return WOLFSSL_FATAL_ERROR;
-#endif /* USE_WOLFSSL_IO && !USE_WINDOWS_API && !HAVE_FIPS && HAVE_HASHDRBG */
+#endif /* WOLFSSL_EGD_NBLOCK */
 }
 
 #endif /* !FREERTOS_TCP */

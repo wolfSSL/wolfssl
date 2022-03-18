@@ -915,9 +915,6 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_GAME_BUILD
     #define SIZEOF_LONG_LONG 8
-    #if defined(__PPU) || defined(__XENON)
-        #define BIG_ENDIAN_ORDER
-    #endif
 #endif
 
 #ifdef WOLFSSL_LSR

@@ -512,7 +512,7 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     int id  = 3; /* value from RFC 7292 indicating key is used for MAC */
     word32 i;
     byte unicodePasswd[MAX_UNICODE_SZ];
-    byte key[MAX_KEY_SIZE];
+    byte key[PKCS_MAX_KEY_SIZE];
 
     if (pkcs12 == NULL || pkcs12->signData == NULL || data == NULL ||
             out == NULL) {

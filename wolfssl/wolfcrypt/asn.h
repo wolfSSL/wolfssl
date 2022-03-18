@@ -2276,8 +2276,12 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 
 #if !defined(NO_ASN) || !defined(NO_PWDBASED)
 
-#ifndef MAX_KEY_SIZE
-    #define MAX_KEY_SIZE    64  /* MAX PKCS Key length */
+#ifndef PKCS_MAX_KEY_SIZE
+    #define PKCS_MAX_KEY_SIZE    64  /* MAX PKCS Key length */
+#endif
+#if !defined(WOLFSSL_GAME_BUILD) && !defined(MAX_KEY_SIZE)
+    /* for backwards compatibility */
+    #define MAX_KEY_SIZE PKCS_MAX_KEY_SIZE
 #endif
 #ifndef MAX_UNICODE_SZ
     #define MAX_UNICODE_SZ  256
