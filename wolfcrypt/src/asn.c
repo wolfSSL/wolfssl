@@ -21151,7 +21151,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
     /* older version of ecc.c can not handle dp being NULL */
     if (key != NULL && key->dp == NULL) {
-        ret = BAD_FUNC_ARG;
+        pubSz = 1 + 2 * MAX_ECC_BYTES;
+        ret = LENGTH_ONLY_E;
     }
     else {
         PRIVATE_KEY_UNLOCK();
@@ -21322,64 +21323,12 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 infoSz = 0;
-    word32 keySz  = 0;
-    int ret;
-
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (with_AlgCurve) {
-        /* buffer space for algorithm/curve */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += 2 * MAX_ALGO_SZ;
-
-        /* buffer space for public key sequence */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += TRAILING_ZERO;
-    }
-
-#if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
-    /* older version of ecc.c can not handle dp being NULL */
-    if (key->dp == NULL) {
-        keySz = 1 + 2 * MAX_ECC_BYTES;
-        ret = LENGTH_ONLY_E;
-    }
-    else {
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, NULL, &keySz);
-        PRIVATE_KEY_LOCK();
-    }
-#else
-    ret = wc_ecc_export_x963(key, NULL, &keySz);
-#endif
-    if (ret != LENGTH_ONLY_E) {
-        WOLFSSL_MSG("Error in getting ECC public key size");
-        return ret;
-    }
-
-    /* if output null then just return size */
-    if (output == NULL) {
-        return keySz + infoSz;
-    }
-
-    if (inLen < keySz + infoSz) {
-        return BUFFER_E;
-    }
-#endif
-
     return SetEccPublicKey(output, key, inLen, with_AlgCurve);
 }
 
 int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    return wc_EccPublicKeyToDer(key, NULL, 0, with_AlgCurve);
-#else
     return SetEccPublicKey(NULL, key, 0, with_AlgCurve);
-#endif
 }
 
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
