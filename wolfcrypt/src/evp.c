@@ -2203,11 +2203,13 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
         if (from->ecc) {
-            if (!to->ecc && !(to->ecc = wolfSSL_EC_KEY_new())) {
-                WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
-                return WOLFSSL_FAILURE;
+            if (!to->ecc) {
+                if ((to->ecc = wolfSSL_EC_KEY_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownEcc = 1;
             }
-            to->ownEcc = 1;
             to->ecc->group->curve_idx = from->ecc->group->curve_idx;
             to->ecc->group->curve_nid = from->ecc->group->curve_nid;
             to->ecc->group->curve_oid = from->ecc->group->curve_oid;
@@ -2222,9 +2224,12 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
     case EVP_PKEY_DSA:
         if (from->dsa) {
             WOLFSSL_BIGNUM* cpy;
-            if (!to->dsa && !(to->dsa = wolfSSL_DSA_new())) {
-                WOLFSSL_MSG("wolfSSL_DSA_new error");
-                return WOLFSSL_FAILURE;
+            if (!to->dsa) {
+                if ((to->dsa = wolfSSL_DSA_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_DSA_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownDsa = 1;
             }
 
             /* free existing BIGNUMs if needed before copying over new */
@@ -2261,9 +2266,12 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
     case EVP_PKEY_DH:
         if (from->dh) {
             WOLFSSL_BIGNUM* cpy;
-            if (!to->dh && !(to->dh = wolfSSL_DH_new())) {
-                WOLFSSL_MSG("wolfSSL_DH_new error");
-                return WOLFSSL_FAILURE;
+            if (!to->dh) {
+                if ((to->dh = wolfSSL_DH_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_DH_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownDh = 1;
             }
 
             /* free existing BIGNUMs if needed before copying over new */
