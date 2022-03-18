@@ -10459,7 +10459,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     return ret;
 }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
 int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
 {
     int ret = 0;

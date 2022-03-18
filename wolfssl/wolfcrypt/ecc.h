@@ -186,7 +186,7 @@ enum {
     /* Shamir's dual add constants */
     SHAMIR_PRECOMP_SZ = 16,
 
-#ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_PRIVATE_KEY_ID
     ECC_MAX_ID_LEN    = 32,
     ECC_MAX_LABEL_LEN = 32,
 #endif
@@ -481,7 +481,7 @@ struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_PRIVATE_KEY_ID
     byte id[ECC_MAX_ID_LEN];
     int  idLen;
     char label[ECC_MAX_LABEL_LEN];
@@ -631,7 +631,7 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
-#ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
 int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId);

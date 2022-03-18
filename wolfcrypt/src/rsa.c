@@ -345,7 +345,7 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
 
-#ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_PRIVATE_KEY_ID
 int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
                      int devId)
 {
@@ -388,7 +388,7 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
 
     return ret;
 }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 
 #ifdef WOLFSSL_XILINX_CRYPT

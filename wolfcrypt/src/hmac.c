@@ -1021,7 +1021,7 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     return ret;
 }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
 int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
                     int devId)
 {
@@ -1064,7 +1064,7 @@ int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap, int devId)
 
     return ret;
 }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 /* Free Hmac from use with async device */
 void wc_HmacFree(Hmac* hmac)

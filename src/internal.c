@@ -22281,7 +22281,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 
 #if !defined(NO_CERTS)
 
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_CHECK_PRIVATE_KEY)
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
 /* Create a private key for a device.
  *
  * pkey    Key object.
@@ -22349,7 +22349,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
 
     return ret;
 }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID && !NO_CHECK_PRIVATE_KEY */
 
 /* Decode the private key - RSA/ECC/Ed25519/Ed448/Falcon - and creates a key
  * object.
@@ -22382,7 +22382,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
     }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
     if (ssl->buffers.keyDevId != INVALID_DEVID && (ssl->buffers.keyId ||
                                                        ssl->buffers.keyLabel)) {
         if (ssl->buffers.keyType == rsa_sa_algo)
@@ -22448,7 +22448,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
         goto exit_dpk;
     }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 #ifndef NO_RSA
     if (ssl->buffers.keyType == rsa_sa_algo || ssl->buffers.keyType == 0) {
@@ -22465,7 +22465,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         /* Decode the key assuming it is an RSA private key. */
         ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                     (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+    #ifdef WOLF_PRIVATE_KEY_ID
         /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
@@ -22520,7 +22520,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                      (ecc_key*)ssl->hsKey,
                                      ssl->buffers.key->length);
-    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+    #ifdef WOLF_PRIVATE_KEY_ID
         /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
@@ -22573,7 +22573,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                          (ed25519_key*)ssl->hsKey,
                                          ssl->buffers.key->length);
-    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+    #ifdef WOLF_PRIVATE_KEY_ID
         /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
@@ -25449,17 +25449,19 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_RSA
                 case rsa_kea:
                 {
-                    #if defined(HAVE_PK_CALLBACKS)
+                    #ifdef HAVE_PK_CALLBACKS
                     if (ssl->ctx->GenPreMasterCb) {
                         void* ctx = wolfSSL_GetGenPreMasterCtx(ssl);
-                        ret = ssl->ctx->GenPreMasterCb(ssl, ssl->arrays->preMasterSecret, ENCRYPT_LEN, ctx);
+                        ret = ssl->ctx->GenPreMasterCb(ssl,
+                            ssl->arrays->preMasterSecret, ENCRYPT_LEN, ctx);
                         if (ret != 0 && ret != PROTOCOLCB_UNAVAILABLE) {
                             goto exit_scke;
                         }
                     }
-                    if (!ssl->ctx->GenPreMasterCb || ret == PROTOCOLCB_UNAVAILABLE) {
+                    if (!ssl->ctx->GenPreMasterCb || ret == PROTOCOLCB_UNAVAILABLE)
                     #endif
-                    /* build PreMasterSecret with RNG data */
+                    {
+                        /* build PreMasterSecret with RNG data */
                         ret = wc_RNG_GenerateBlock(ssl->rng,
                             &ssl->arrays->preMasterSecret[VERSION_SZ],
                             SECRET_LEN - VERSION_SZ);
@@ -25471,9 +25473,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
                         ssl->arrays->preMasterSz = SECRET_LEN;
-                    #if defined(HAVE_PK_CALLBACKS)
                     }
-                    #endif
                     break;
                 }
             #endif /* !NO_RSA */

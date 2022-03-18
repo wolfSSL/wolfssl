@@ -1585,7 +1585,6 @@ struct DecodedCert {
     char*   subjectUID;
     int     subjectUIDLen;
     char    subjectUIDEnc;
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     char*   subjectStreet;
     int     subjectStreetLen;
     char    subjectStreetEnc;
@@ -1601,7 +1600,6 @@ struct DecodedCert {
     char*   subjectPC;
     int     subjectPCLen;
     char    subjectPCEnc;
-#endif
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
@@ -1766,7 +1764,7 @@ struct TrustedPeerCert {
 
 /* for testing or custom openssl wrappers */
 #if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_PUBLIC_ASN)
     #define WOLFSSL_ASN_API WOLFSSL_API
 #else
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL

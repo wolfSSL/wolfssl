@@ -2614,6 +2614,16 @@ extern void uITRON4_free(void *p) ;
     #error The SRTP extension requires DTLS
 #endif
 
+/* Are we using an external private key store like:
+ *     PKCS11 / HSM / crypto callback / PK callback */
+#if !defined(WOLF_PRIVATE_KEY_ID) && \
+    (defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS) || \
+     defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_KCAPI))
+     /* Enables support for using wolfSSL_CTX_use_PrivateKey_Id and
+      *   wolfSSL_CTX_use_PrivateKey_Label */
+    #define WOLF_PRIVATE_KEY_ID
+#endif
+
 
 
 /* ---------------------------------------------------------------------------

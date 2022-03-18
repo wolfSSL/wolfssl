@@ -1729,7 +1729,7 @@ WOLFSSL_LOCAL int  CompleteServerHello(WOLFSSL *ssl);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz);
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
 WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
                                        void* heap, int devId);

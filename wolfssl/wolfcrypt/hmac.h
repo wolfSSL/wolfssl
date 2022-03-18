@@ -99,7 +99,7 @@ enum {
     WC_SHA3_384 = WC_HASH_TYPE_SHA3_384,
     WC_SHA3_512 = WC_HASH_TYPE_SHA3_512,
 #endif
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
     HMAC_MAX_ID_LEN    = 32,
     HMAC_MAX_LABEL_LEN = 32,
 #endif
@@ -160,7 +160,7 @@ struct Hmac {
     void*   devCtx;
     const byte* keyRaw;
 #endif
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
     byte    id[HMAC_MAX_ID_LEN];
     int     idLen;
     char    label[HMAC_MAX_LABEL_LEN];
@@ -192,7 +192,7 @@ WOLFSSL_API int wc_HmacFinal_Software(Hmac* hmac, byte* out);
 WOLFSSL_API int wc_HmacSizeByType(int type);
 
 WOLFSSL_API int wc_HmacInit(Hmac* hmac, void* heap, int devId);
-#ifdef HAVE_PKCS11
+#ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API int wc_HmacInit_Id(Hmac* hmac, byte* id, int len, void* heap,
                                int devId);
 WOLFSSL_API int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap,

@@ -10567,7 +10567,7 @@ typedef struct CertNameData {
     const char* str;
     /* Length of type string of name component. */
     byte        strLen;
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     /* Offset of data in subject name component. */
     size_t      data;
     /* Offset of length in subject name component. */
@@ -10586,7 +10586,7 @@ static const CertNameData certNameSubject[] = {
     /* Common Name */
     {
         "/CN=", 4,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectCN),
         OFFSETOF(DecodedCert, subjectCNLen),
         OFFSETOF(DecodedCert, subjectCNEnc),
@@ -10598,7 +10598,7 @@ static const CertNameData certNameSubject[] = {
     /* Surname */
     {
         "/SN=", 4,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectSN),
         OFFSETOF(DecodedCert, subjectSNLen),
         OFFSETOF(DecodedCert, subjectSNEnc),
@@ -10610,7 +10610,7 @@ static const CertNameData certNameSubject[] = {
     /* Serial Number */
     {
         "/serialNumber=", 14,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectSND),
         OFFSETOF(DecodedCert, subjectSNDLen),
         OFFSETOF(DecodedCert, subjectSNDEnc),
@@ -10622,7 +10622,7 @@ static const CertNameData certNameSubject[] = {
     /* Country Name */
     {
         "/C=", 3,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectC),
         OFFSETOF(DecodedCert, subjectCLen),
         OFFSETOF(DecodedCert, subjectCEnc),
@@ -10634,7 +10634,7 @@ static const CertNameData certNameSubject[] = {
     /* Locality Name */
     {
         "/L=", 3,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectL),
         OFFSETOF(DecodedCert, subjectLLen),
         OFFSETOF(DecodedCert, subjectLEnc),
@@ -10646,7 +10646,7 @@ static const CertNameData certNameSubject[] = {
     /* State Name */
     {
         "/ST=", 4,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectST),
         OFFSETOF(DecodedCert, subjectSTLen),
         OFFSETOF(DecodedCert, subjectSTEnc),
@@ -10670,7 +10670,7 @@ static const CertNameData certNameSubject[] = {
     /* Organization Name */
     {
         "/O=", 3,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectO),
         OFFSETOF(DecodedCert, subjectOLen),
         OFFSETOF(DecodedCert, subjectOEnc),
@@ -10682,7 +10682,7 @@ static const CertNameData certNameSubject[] = {
     /* Organization Unit Name */
     {
         "/OU=", 4,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectOU),
         OFFSETOF(DecodedCert, subjectOULen),
         OFFSETOF(DecodedCert, subjectOUEnc),
@@ -10694,7 +10694,7 @@ static const CertNameData certNameSubject[] = {
     /* Title */
     {
         NULL, 0,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
         0,
@@ -10706,7 +10706,7 @@ static const CertNameData certNameSubject[] = {
     /* Undefined */
     {
         NULL, 0,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
         0,
@@ -10718,7 +10718,7 @@ static const CertNameData certNameSubject[] = {
     /* Undefined */
     {
         NULL, 0,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
         0,
@@ -10730,16 +10730,10 @@ static const CertNameData certNameSubject[] = {
     /* Business Category */
     {
         "/businessCategory=", 18,
-#ifdef WOLFSSL_CERT_GEN
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectBC),
         OFFSETOF(DecodedCert, subjectBCLen),
         OFFSETOF(DecodedCert, subjectBCEnc),
-#else
-        0,
-        0,
-        0,
-#endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_businessCategory
@@ -10748,7 +10742,7 @@ static const CertNameData certNameSubject[] = {
     /* Undefined */
     {
         NULL, 0,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
         0,
@@ -10760,16 +10754,10 @@ static const CertNameData certNameSubject[] = {
     /* Postal Code */
     {
         "/postalCode=", 12,
-#ifdef WOLFSSL_CERT_GEN
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectPC),
         OFFSETOF(DecodedCert, subjectPCLen),
         OFFSETOF(DecodedCert, subjectPCEnc),
-#else
-        0,
-        0,
-        0,
-#endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_postalCode
@@ -10778,14 +10766,13 @@ static const CertNameData certNameSubject[] = {
     /* User Id */
     {
         "/userid=", 8,
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectUID),
         OFFSETOF(DecodedCert, subjectUIDLen),
         OFFSETOF(DecodedCert, subjectUIDEnc),
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_userId
-
 #endif
     },
 };
@@ -20713,8 +20700,8 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
 
 #endif /* !NO_RSA && WOLFSSL_CERT_GEN */
 
-#if ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA)) || defined(WOLFSSL_KCAPI_RSA)
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_KCAPI_RSA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 
 /* Encode private RSA key in DER format.
  *

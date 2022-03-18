@@ -5404,7 +5404,7 @@ int wc_ecc_init(ecc_key* key)
 #endif
 }
 
-#ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_PRIVATE_KEY_ID
 int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId)
 {
@@ -5447,7 +5447,7 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId)
 
     return ret;
 }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 int wc_ecc_set_flags(ecc_key* key, word32 flags)
 {
@@ -8732,7 +8732,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
     return err;
 }
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN ||
+#endif /* FIPS_VERSION_GE(5,0) || WOLFSSL_VALIDATE_ECC_KEYGEN ||
         * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
 #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
