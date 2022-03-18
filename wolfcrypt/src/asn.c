@@ -19802,7 +19802,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
 #endif
             else {
-            #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+            #ifdef WOLF_PRIVATE_KEY_ID
                 /* allow loading a public key for use with crypto or PK callbacks */
                 type = PUBLICKEY_TYPE;
                 header = BEGIN_PUB_KEY;
@@ -19926,7 +19926,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 *keyFormat = DSAk;
         #endif
         }
-    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+    #ifdef WOLF_PRIVATE_KEY_ID
         else if (type == PUBLICKEY_TYPE) {
         #ifndef NO_RSA
             if (header == BEGIN_RSA_PUB)

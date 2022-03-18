@@ -1735,7 +1735,7 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        void* heap, int devId);
 #endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
-#ifdef HAVE_PK_CALLBACKS
+#ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
 #ifndef NO_ASN
     WOLFSSL_LOCAL int  InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx);

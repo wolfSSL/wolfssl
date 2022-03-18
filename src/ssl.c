@@ -5697,7 +5697,11 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_PRIVATE_KEY_ID
-            if (ret != 0 && devId != INVALID_DEVID) {
+            if (ret != 0 && (devId != INVALID_DEVID
+            #ifdef HAVE_PK_CALLBACKS
+                || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            #endif
+            )) {
                 /* if using crypto or PK callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_RsaPublicKeyDecode(der->buffer, idx, key, der->length);
@@ -5769,7 +5773,11 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_EccPrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_PRIVATE_KEY_ID
-            if (ret != 0 && devId != INVALID_DEVID) {
+            if (ret != 0 && (devId != INVALID_DEVID
+            #ifdef HAVE_PK_CALLBACKS
+                || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            #endif
+            )) {
                 /* if using crypto or PK callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_EccPublicKeyDecode(der->buffer, idx, key, der->length);
@@ -5836,7 +5844,11 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_Ed25519PrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_PRIVATE_KEY_ID
-            if (ret != 0 && devId != INVALID_DEVID) {
+            if (ret != 0 && (devId != INVALID_DEVID
+            #ifdef HAVE_PK_CALLBACKS
+                || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            #endif
+            )) {
                 /* if using crypto or PK callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_Ed25519PublicKeyDecode(der->buffer, idx, key, der->length);
@@ -5905,6 +5917,17 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         if (ret == 0) {
             *idx = 0;
             ret = wc_Ed448PrivateKeyDecode(der->buffer, idx, key, der->length);
+        #ifdef WOLF_PRIVATE_KEY_ID
+            if (ret != 0 && (devId != INVALID_DEVID
+            #ifdef HAVE_PK_CALLBACKS
+                || wolfSSL_CTX_IsPrivatePkSet(ctx)
+            #endif
+            )) {
+                /* if using crypto or PK callbacks, try public key decode */
+                *idx = 0;
+                ret = wc_Ed448PublicKeyDecode(der->buffer, idx, key, der->length);
+            }
+        #endif
             if (ret == 0) {
                 /* check for minimum key size and then free */
                 int minKeySz = ssl ? ssl->options.minEccKeySz :
@@ -14823,7 +14846,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     #ifndef NO_CERTS
         /* in case used set_accept_state after init */
-        /* allow no private key if using PK callbacks and CB is set */
         if (!havePSK && !haveAnon && !haveMcast) {
         #ifdef OPENSSL_EXTRA
             if (ssl->ctx->certSetupCb != NULL) {
@@ -14842,17 +14864,23 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     return WOLFSSL_FATAL_ERROR;
                 }
 
-            #ifdef HAVE_PK_CALLBACKS
-                if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-                    WOLFSSL_MSG("Using PK for server private key");
-                }
-                else
-            #endif
                 if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-                    WOLFSSL_MSG("accept error: server key required");
-                    ssl->error = NO_PRIVATE_KEY;
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
+                    /* allow no private key if using existing key */
+                #ifdef WOLF_PRIVATE_KEY_ID
+                    if (ssl->devId != INVALID_DEVID
+                    #ifdef HAVE_PK_CALLBACKS
+                        || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+                    #endif
+                    ) {
+                        WOLFSSL_MSG("Allowing no server private key (external)");
+                    }
+                    else
+                #endif
+                    {
+                        WOLFSSL_MSG("accept error: server key required");
+                        WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                 }
             }
         }

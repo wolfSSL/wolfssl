@@ -5775,16 +5775,22 @@ int InitSSL_Suites(WOLFSSL* ssl)
             return NO_PRIVATE_KEY;
         }
 
-        /* allow no private key if using PK callbacks and CB is set */
-    #ifdef HAVE_PK_CALLBACKS
-        if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-            WOLFSSL_MSG("Using PK for server private key");
-        }
-        else
-    #endif
         if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-            WOLFSSL_MSG("Server missing private key");
-            return NO_PRIVATE_KEY;
+            /* allow no private key if using existing key */
+        #ifdef WOLF_PRIVATE_KEY_ID
+            if (ssl->devId != INVALID_DEVID
+            #ifdef HAVE_PK_CALLBACKS
+                || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+            #endif
+            ) {
+                WOLFSSL_MSG("Allowing no server private key (external)");
+            }
+            else
+        #endif 
+            {
+                WOLFSSL_MSG("Server missing private key");
+                return NO_PRIVATE_KEY;
+            }
         }
     }
 #endif
@@ -22380,19 +22386,24 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     int      keySz;
     word32   idx;
 
-#ifdef HAVE_PK_CALLBACKS
-    /* allow no private key if using PK callbacks and CB is set */
-    if (wolfSSL_IsPrivatePkSet(ssl)) {
-        *length = GetPrivateKeySigSize(ssl);
-        return 0;
-    }
-    else
-#endif
-
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
-        WOLFSSL_MSG("Private key missing!");
-        ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
+        /* allow no private key if using external */
+    #ifdef WOLF_PRIVATE_KEY_ID
+        if (ssl->devId != INVALID_DEVID
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+        ) {
+            *length = GetPrivateKeySigSize(ssl);
+            return 0;
+        }
+        else
+    #endif
+        {
+            WOLFSSL_MSG("Private key missing!");
+            ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
+        }
     }
 
 #ifdef WOLF_PRIVATE_KEY_ID
@@ -22479,8 +22490,12 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                     (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
-        /* if using crypto or PK callbacks allow using a public key */
-        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+        /* if using external key then allow using a public key */
+        if (ret != 0 && (ssl->devId != INVALID_DEVID
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+        )) {
             WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
             idx = 0;
             ret = wc_RsaPublicKeyDecode(ssl->buffers.key->buffer, &idx,
@@ -22534,8 +22549,12 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                                      (ecc_key*)ssl->hsKey,
                                      ssl->buffers.key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
-        /* if using crypto or PK callbacks allow using a public key */
-        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+        /* if using external key then allow using a public key */
+        if (ret != 0 && (ssl->devId != INVALID_DEVID
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+        )) {
             WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
             idx = 0;
             ret = wc_EccPublicKeyDecode(ssl->buffers.key->buffer, &idx,
@@ -22587,13 +22606,17 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                                          (ed25519_key*)ssl->hsKey,
                                          ssl->buffers.key->length);
     #ifdef WOLF_PRIVATE_KEY_ID
-        /* if using crypto or PK callbacks allow using a public key */
-        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+        /* if using external key then allow using a public key */
+        if (ret != 0 && (ssl->devId != INVALID_DEVID
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+        )) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
             idx = 0;
             ret = wc_Ed25519PublicKeyDecode(ssl->buffers.key->buffer, &idx,
-                                         (ed25519_key*)ssl->hsKey,
-                                         ssl->buffers.key->length);
+                                           (ed25519_key*)ssl->hsKey,
+                                            ssl->buffers.key->length);
         }
     #endif
         if (ret == 0) {
@@ -22640,6 +22663,20 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_Ed448PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                        (ed448_key*)ssl->hsKey,
                                        ssl->buffers.key->length);
+    #ifdef WOLF_PRIVATE_KEY_ID
+        /* if using external key then allow using a public key */
+        if (ret != 0 && (ssl->devId != INVALID_DEVID
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+        )) {
+            WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
+            idx = 0;
+            ret = wc_Ed448PublicKeyDecode(ssl->buffers.key->buffer, &idx,
+                                          (ed448_key*)ssl->hsKey,
+                                          ssl->buffers.key->length);
+        }
+    #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using ED448 private key");
 
@@ -26876,7 +26913,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifndef NO_CERTS
 
-#ifdef HAVE_PK_CALLBACKS
+#ifdef WOLF_PRIVATE_KEY_ID
     int GetPrivateKeySigSize(WOLFSSL* ssl)
     {
         int sigSz = 0;

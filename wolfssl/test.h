@@ -3729,13 +3729,8 @@ typedef struct PkCbInfo {
 #ifdef TEST_PK_PRIVKEY
     union {
     #ifdef HAVE_ECC
+        /* only ECC PK callback with TLS v1.2 needs this */
         ecc_key ecc;
-    #endif
-    #ifdef HAVE_CURVE25519
-        curve25519_key curve;
-    #endif
-    #ifdef HAVE_CURVE448
-        curve448_key curve;
     #endif
     } keyGen;
     int hasKeyGen;
