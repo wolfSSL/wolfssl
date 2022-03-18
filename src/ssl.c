@@ -40281,7 +40281,11 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 WOLFSSL_BN_CTX *ctx)
 {
     mp_digit mp;
-    mp_int modulus;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* modulus = NULL;
+#else
+    mp_int modulus[1];
+#endif
     (void)ctx;
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_get_affine_coordinates_GFp");
@@ -40296,38 +40300,64 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    modulus = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (modulus == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
     if (!wolfSSL_BN_is_one(point->Z)) {
-        if (mp_init(&modulus) != MP_OKAY) {
+        if (mp_init(modulus) != MP_OKAY) {
             WOLFSSL_MSG("mp_init failed");
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return WOLFSSL_FAILURE;
         }
         /* Map the Jacobian point back to affine space */
-        if (mp_read_radix(&modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
+        if (mp_read_radix(modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
             WOLFSSL_MSG("mp_read_radix failed");
-            mp_clear(&modulus);
+            mp_clear(modulus);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return WOLFSSL_FAILURE;
         }
-        if (mp_montgomery_setup(&modulus, &mp) != MP_OKAY) {
+        if (mp_montgomery_setup(modulus, &mp) != MP_OKAY) {
             WOLFSSL_MSG("mp_montgomery_setup failed");
-            mp_clear(&modulus);
+            mp_clear(modulus);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return WOLFSSL_FAILURE;
         }
-        if (ecc_map((ecc_point*)point->internal, &modulus, mp) != MP_OKAY) {
+        if (ecc_map((ecc_point*)point->internal, modulus, mp) != MP_OKAY) {
             WOLFSSL_MSG("ecc_map failed");
-            mp_clear(&modulus);
+            mp_clear(modulus);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return WOLFSSL_FAILURE;
         }
         if (SetECPointExternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointExternal failed");
-            mp_clear(&modulus);
+            mp_clear(modulus);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return WOLFSSL_FAILURE;
         }
 
-        mp_clear(&modulus);
+        mp_clear(modulus);
     }
 
     BN_copy(x, point->X);
     BN_copy(y, point->Y);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
 
     return WOLFSSL_SUCCESS;
 }
