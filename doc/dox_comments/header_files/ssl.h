@@ -704,7 +704,7 @@ WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
 /*!
     \brief Used to export a serialized TLS session. This function is for
     importing a serialized state of the connection.
-    In most cases wolfSSL_get_session should be used instead of
+    In most cases wolfSSL_get1_session should be used instead of
     wolfSSL_tls_export.
     Additional debug info can be displayed with the macro
     WOLFSSL_SESSION_EXPORT_DEBUG defined.
@@ -2256,11 +2256,13 @@ WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
     ssl, is used to establish a SSL/TLS connection. For session resumption,
     before calling wolfSSL_shutdown() with your session object, an application
     should save the session ID from the object with a call to
-    wolfSSL_get_session(), which returns a pointer to the session.
+    wolfSSL_get1_session(), which returns a pointer to the session.
     Later, the application should create a new WOLFSSL object and assign
     the saved session with wolfSSL_set_session().  At this point, the
     application may call wolfSSL_connect() and wolfSSL will try to resume
     the session.  The wolfSSL server code allows session resumption by default.
+    The object returned by wolfSSL_get1_session() needs to be freed after the
+    application is done with it by calling wolfSSL_SESSION_free() on it.
 
     \return SSL_SUCCESS will be returned upon successfully setting the session.
     \return SSL_FAILURE will be returned on failure.  This could be caused
@@ -2275,36 +2277,43 @@ WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
 
     _Example_
     \code
-    int ret = 0;
-    WOLFSSL* ssl = 0;
+    int ret;
+    WOLFSSL* ssl;
     WOLFSSL_SESSION* session;
     ...
-
-    ret = wolfSSL_get_session(ssl, session);
+    session = wolfSSL_get1_session(ssl);
+    if (session == NULL) {
+        // failed to get session object from ssl object
+    }
+    ...
+    ret = wolfSSL_set_session(ssl, session);
     if (ret != SSL_SUCCESS) {
     	// failed to set the SSL session
     }
+    wolfSSL_SESSION_free(session);
     ...
     \endcode
 
-    \sa wolfSSL_get_session
+    \sa wolfSSL_get1_session
 */
 WOLFSSL_API int        wolfSSL_set_session(WOLFSSL*, WOLFSSL_SESSION*);
 
 /*!
     \ingroup IO
 
-    \brief This function returns a pointer to the current session
-    (WOLFSSL_SESSION) used in ssl.  The WOLFSSL_SESSION pointed to
-    contains all the necessary information required to perform a session
-    resumption and reestablish the connection without a new handshake. For
-    session resumption, before calling wolfSSL_shutdown() with your session
-    object, an application should save the session ID from the object with a
-    call to wolfSSL_get_session(), which returns a pointer to the session.
-    Later, the application should create a new WOLFSSL object and assign the
-    saved session with wolfSSL_set_session().  At this point, the application
-    may call wolfSSL_connect() and wolfSSL will try to resume the session.
-    The wolfSSL server code allows session resumption by default.
+    \brief When NO_SESSION_CACHE_REF is defined this function returns a pointer
+    to the current session (WOLFSSL_SESSION) used in ssl. This function returns
+    a non-persistent pointer to the WOLFSSL_SESSION object. The pointer returned
+    will be freed when wolfSSL_free is called. This call should only be used to
+    inspect or modify the current session. For session resumption it is
+    recommended to use wolfSSL_get1_session(). For backwards compatibility when
+    NO_SESSION_CACHE_REF is not defined this function returns a persistent
+    session object pointer that is stored in the local cache. The cache size is
+    finite and there is a risk that the session object will be overwritten by
+    another ssl connection by the time the application calls
+    wolfSSL_set_session() on it. It is recommended to define
+    NO_SESSION_CACHE_REF in your application and to use wolfSSL_get1_session()
+    for session resumption.
 
     \return pointer If successful the call will return a pointer to the the
     current SSL session object.
@@ -2316,8 +2325,8 @@ WOLFSSL_API int        wolfSSL_set_session(WOLFSSL*, WOLFSSL_SESSION*);
 
     _Example_
     \code
-    WOLFSSL* ssl = 0;
-    WOLFSSL_SESSION* session = 0;
+    WOLFSSL* ssl;
+    WOLFSSL_SESSION* session;
     ...
     session = wolfSSL_get_session(ssl);
     if (session == NULL) {
@@ -2326,6 +2335,7 @@ WOLFSSL_API int        wolfSSL_set_session(WOLFSSL*, WOLFSSL_SESSION*);
     ...
     \endcode
 
+    \sa wolfSSL_get1_session
     \sa wolfSSL_set_session
 */
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL*);
@@ -2353,7 +2363,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL*);
     wolfSSL_flush_sessions(ctx, time(0));
     \endcode
 
-    \sa wolfSSL_get_session
+    \sa wolfSSL_get1_session
     \sa wolfSSL_set_session
 */
 WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
@@ -2777,7 +2787,7 @@ WOLFSSL_API int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_flush_sessions
-    \sa wolfSSL_get_session
+    \sa wolfSSL_get1_session
     \sa wolfSSL_set_session
     \sa wolfSSL_get_sessionID
     \sa wolfSSL_CTX_set_timeout
@@ -3802,11 +3812,23 @@ WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
 
     \brief This function returns the WOLFSSL_SESSION from the WOLFSSL structure
     as a reference type. This requires calling wolfSSL_SESSION_free to release
-    the session reference. If the referred to session expires from the cache an
-    error will occur when trying to set the session.
+    the session reference. The WOLFSSL_SESSION pointed to contains all the
+    necessary information required to perform a session resumption and
+    reestablish the connection without a new handshake. For
+    session resumption, before calling wolfSSL_shutdown() with your session
+    object, an application should save the session ID from the object with a
+    call to wolfSSL_get1_session(), which returns a pointer to the session.
+    Later, the application should create a new WOLFSSL object and assign the
+    saved session with wolfSSL_set_session().  At this point, the application
+    may call wolfSSL_connect() and wolfSSL will try to resume the session.
+    The wolfSSL server code allows session resumption by default. The object
+    returned by wolfSSL_get1_session() needs to be freed after the application
+    is done with it by calling wolfSSL_SESSION_free() on it.
 
     \return WOLFSSL_SESSION On success return session pointer.
-    \return NULL on failure returns NULL.
+    \return NULL will be returned if ssl is NULL, the SSL session cache is
+    disabled, wolfSSL doesn’t have the Session ID available, or mutex
+    functions fail.
 
     \param ssl WOLFSSL structure to get session from.
 
@@ -5801,7 +5823,7 @@ WOLFSSL_API int wolfSSL_set_compression(WOLFSSL* ssl);
     ...
     \endcode
 
-    \sa wolfSSL_get_session
+    \sa wolfSSL_get1_session
     \sa wolfSSL_set_session
 */
 WOLFSSL_API int wolfSSL_set_timeout(WOLFSSL*, unsigned int);
@@ -5830,7 +5852,7 @@ WOLFSSL_API int wolfSSL_set_timeout(WOLFSSL*, unsigned int);
     \endcode
 
     \sa wolfSSL_flush_sessions
-    \sa wolfSSL_get_session
+    \sa wolfSSL_get1_session
     \sa wolfSSL_set_session
     \sa wolfSSL_get_sessionID
     \sa wolfSSL_CTX_set_session_cache_mode

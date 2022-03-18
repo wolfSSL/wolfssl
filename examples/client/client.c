@@ -670,7 +670,9 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             wolfSSL_shutdown(ssl);
     #ifndef NO_SESSION_CACHE
             if (i == (times-1) && resumeSession) {
-                benchSession = wolfSSL_get_session(ssl);
+                if (benchSession != NULL)
+                    wolfSSL_SESSION_free(benchSession);
+                benchSession = wolfSSL_get1_session(ssl);
             }
     #endif
             wolfSSL_free(ssl); ssl = NULL;
@@ -688,6 +690,11 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
         WOLFSSL_TIME(times);
     }
+
+#ifndef NO_SESSION_CACHE
+    if (benchSession != NULL)
+        wolfSSL_SESSION_free(benchSession);
+#endif
 
     return EXIT_SUCCESS;
 }

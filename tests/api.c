@@ -5272,12 +5272,14 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
         /* err_sys ("SSL shutdown failed"); */
         goto done;
     }
-    session = wolfSSL_get_session(ssl);
+    session = wolfSSL_get1_session(ssl);
     if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
         /* err_sys ("SSL_clear failed"); */
         goto done;
     }
     wolfSSL_set_session(ssl, session);
+    wolfSSL_SESSION_free(session);
+    session = NULL;
     /* close socket once */
     CloseSocket(sockfd);
     sockfd = 0;
