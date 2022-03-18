@@ -8670,16 +8670,16 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
 #ifdef WOLFSSL_KCAPI_ECC
         if (err == MP_OKAY) {
-            byte   pubkey_raw[MAX_ECC_BYTES * 2];
-            word32 pubkey_sz = (word32)sizeof(pubkey_raw);
+            word32 pubkey_sz = (word32)sizeof(key->pubkey_raw);
 
-            err = KcapiEcc_LoadKey(key, pubkey_raw, &pubkey_sz, 1);
+            err = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 1);
             if (err == 0) {
-                err = mp_read_unsigned_bin(res->x, pubkey_raw,
+                err = mp_read_unsigned_bin(res->x, key->pubkey_raw,
                                            pubkey_sz/2);
             }
             if (err == MP_OKAY) {
-                err = mp_read_unsigned_bin(res->y, pubkey_raw + pubkey_sz/2,
+                err = mp_read_unsigned_bin(res->y,
+                                           key->pubkey_raw + pubkey_sz/2,
                                            pubkey_sz/2);
             }
             if (err == MP_OKAY) {
@@ -9190,14 +9190,14 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     /* For SECP256R1 only save raw public key for hardware */
-    if (curve_id == ECC_SECP256R1 && inLen <= sizeof(key->pubkey_raw)) {
+    if (curve_id == ECC_SECP256R1 && inLen <= (word32)sizeof(key->pubkey_raw)) {
     #ifdef HAVE_COMP_KEY
         if (!compressed)
     #endif
             XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
     }
 #elif defined(WOLFSSL_KCAPI_ECC)
-    XMEMCPY(key->pubkey_raw + KCAPI_PARAM_SZ, (byte*)in, inLen);
+    XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
 #endif
 
     if (err == MP_OKAY) {
@@ -9870,11 +9870,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #elif defined(WOLFSSL_KCAPI_ECC)
     if (err == MP_OKAY) {
         word32 keySz = key->dp->size;
-        err = wc_export_int(key->pubkey.x, key->pubkey_raw + KCAPI_PARAM_SZ,
+        err = wc_export_int(key->pubkey.x, key->pubkey_raw,
             &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
         if (err == MP_OKAY) {
             err = wc_export_int(key->pubkey.y,
-                &key->pubkey_raw[KCAPI_PARAM_SZ + keySz], &keySz, keySz,
+                &key->pubkey_raw[keySz], &keySz, keySz,
                 WC_TYPE_UNSIGNED_BIN);
         }
     }

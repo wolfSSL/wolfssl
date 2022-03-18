@@ -235,7 +235,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     int     ret = 0;
     byte*   data = NULL;
     word32  dataSz;
-    int     inbuflen, outbuflen;
+    int     inbuflen = 0, outbuflen = 0;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     /* argument checks */
@@ -336,7 +336,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     int     ret = 0;
     byte*   data = NULL;
     word32  dataSz;
-    int     inbuflen, outbuflen;
+    int     inbuflen = 0, outbuflen = 0;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     /* argument checks */

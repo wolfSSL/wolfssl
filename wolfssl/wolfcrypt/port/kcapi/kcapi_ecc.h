@@ -36,8 +36,6 @@
     #define WC_ECCKEY_TYPE_DEFINED
 #endif
 
-WOLFSSL_LOCAL int KcapiEcc_SetPubKey(ecc_key* key);
-
 WOLFSSL_LOCAL void KcapiEcc_Free(ecc_key* key);
 WOLFSSL_LOCAL int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id);
 WOLFSSL_LOCAL int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw,
