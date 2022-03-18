@@ -32069,7 +32069,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     fromSecs = XMKTIME(fromTm);
-    if (fromSecs <= 0) {
+    if (fromSecs < 0) {
         WOLFSSL_MSG("XMKTIME for from time failed.");
         return WOLFSSL_FAILURE;
     }
@@ -32088,7 +32088,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     toSecs = XMKTIME(toTm);
-    if (toSecs <= 0) {
+    if (toSecs < 0) {
         WOLFSSL_MSG("XMKTIME for to time failed.");
         return WOLFSSL_FAILURE;
     }

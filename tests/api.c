@@ -30620,14 +30620,22 @@ static void test_wolfSSL_ASN1_TIME_diff(void)
 
     AssertNotNull((fromTime = ASN1_TIME_new()));
     /* Feb 22, 2003, 21:15:15 */
-    AssertIntEQ(ASN1_TIME_set_string(fromTime, "030222211515Z"), 1);
+    AssertIntEQ(ASN1_TIME_set_string(fromTime, "030222211515Z"), WOLFSSL_SUCCESS);
     AssertNotNull((toTime = ASN1_TIME_new()));
     /* Dec 19, 2010, 18:10:11 */
-    AssertIntEQ(ASN1_TIME_set_string(toTime, "101219181011Z"), 1);
-    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), 1);
+    AssertIntEQ(ASN1_TIME_set_string(toTime, "101219181011Z"), WOLFSSL_SUCCESS);
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), WOLFSSL_SUCCESS);
 
     AssertIntEQ(daysDiff, 2856);
     AssertIntEQ(secsDiff, 75296);
+
+    /* Edge case with Unix epoch. */
+    AssertNotNull(ASN1_TIME_set_string(fromTime, "19700101000000Z"));
+    AssertNotNull(ASN1_TIME_set_string(toTime, "19800101000000Z"));
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), WOLFSSL_SUCCESS);
+
+    AssertIntEQ(daysDiff, 3652);
+    AssertIntEQ(secsDiff, 0);
 
     ASN1_TIME_free(fromTime);
     ASN1_TIME_free(toTime);
