@@ -53993,7 +53993,11 @@ int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi)
 WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
                                        WOLFSSL_BIGNUM *bn)
 {
-    mp_int mpi;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* mpi = NULL;
+#else
+    mp_int mpi[1];
+#endif
     word32 idx = 0;
     int ret;
 
@@ -54003,29 +54007,49 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    ret = GetInt(&mpi, ai->data, &idx, ai->dataMax);
+#ifdef WOLFSSL_SMALL_STACK
+    mpi = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (mpi == NULL) {
+        return NULL;
+    }
+#endif
+
+    ret = GetInt(mpi, ai->data, &idx, ai->dataMax);
     if (ret != 0) {
     #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
-        ret = mp_init(&mpi); /* must init mpi */
+        ret = mp_init(mpi); /* must init mpi */
         if (ret != MP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+        #endif
             return NULL;
         }
         /* Serial number in QT starts at index 0 of data */
-        if (mp_read_unsigned_bin(&mpi, (byte*)ai->data, ai->length) != 0) {
-                mp_clear(&mpi);
+        if (mp_read_unsigned_bin(mpi, (byte*)ai->data, ai->length) != 0) {
+                mp_clear(mpi);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+            #endif
                 return NULL;
             }
     #else
         /* expecting ASN1 format for INTEGER */
         WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_to_BN", ret);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
         return NULL;
     #endif
     }
 
     /* mp_clear needs called because mpi is copied and causes memory leak with
      * --disable-fastmath */
-    ret = SetIndividualExternal(&bn, &mpi);
-    mp_clear(&mpi);
+    ret = SetIndividualExternal(&bn, mpi);
+    mp_clear(mpi);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
 
     if (ret != WOLFSSL_SUCCESS) {
         return NULL;
