@@ -40735,7 +40735,11 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
                             WOLFSSL_BN_CTX *ctx)
 {
     ecc_point* p;
-    mp_int prime;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* prime = NULL;
+#else
+    mp_int prime[1];
+#endif
 
     (void)ctx;
 
@@ -40747,21 +40751,41 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
 
     p = (ecc_point*)a->internal;
 
+#ifdef WOLFSSL_SMALL_STACK
+    prime = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (prime == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
     /* read the curve prime and a */
-    if (mp_init_multi(&prime, NULL, NULL, NULL, NULL, NULL) != MP_OKAY) {
+    if (mp_init_multi(prime, NULL, NULL, NULL, NULL, NULL) != MP_OKAY) {
         WOLFSSL_MSG("mp_init_multi error");
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
         return WOLFSSL_FAILURE;
     }
 
-    if (mp_sub(&prime, p->y, p->y) != MP_OKAY) {
+    if (mp_sub(prime, p->y, p->y) != MP_OKAY) {
         WOLFSSL_MSG("mp_sub error");
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
         return WOLFSSL_FAILURE;
     }
 
     if (SetECPointExternal(a) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetECPointExternal error");
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
         return WOLFSSL_FAILURE;
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
 
     return WOLFSSL_SUCCESS;
 }
