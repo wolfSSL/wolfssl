@@ -5572,7 +5572,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             return err;
         }
     #elif defined(WOLFSSL_KCAPI_ECC)
-        err = KcapiEcc_Sign(key, in, inlen, out, outlen);
+        err = KcapiEcc_Sign(key, in, inlen, out, *outlen);
         if (err != MP_OKAY) {
             return err;
         }
@@ -8673,7 +8673,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
             byte   pubkey_raw[MAX_ECC_BYTES * 2];
             word32 pubkey_sz = (word32)sizeof(pubkey_raw);
 
-            err = KcapiEcc_LoadKey(key, pubkey_raw, &pubkey_sz);
+            err = KcapiEcc_LoadKey(key, pubkey_raw, &pubkey_sz, 1);
             if (err == 0) {
                 err = mp_read_unsigned_bin(res->x, pubkey_raw,
                                            pubkey_sz/2);
