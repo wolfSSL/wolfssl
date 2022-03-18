@@ -9265,14 +9265,33 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
 #if !defined(WOLFSSL_SP_MATH)
-        mp_int t1, t2;
+    #ifdef WOLFSSL_SMALL_STACK
+        mp_int* t1 = NULL;
+        mp_int* t2 = NULL;
+    #else
+        mp_int t1[1], t2[1];
+    #endif
         int did_init = 0;
 
         DECLARE_CURVE_SPECS(3);
         ALLOC_CURVE_SPECS(3, err);
 
+        #ifdef WOLFSSL_SMALL_STACK
         if (err == MP_OKAY) {
-            if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
+            t1 = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+            if (t1 == NULL) {
+                err = MEMORY_E;
+            }
+        }
+        if (err == MP_OKAY) {
+            t2 = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+            if (t2 == NULL) {
+                err = MEMORY_E;
+            }
+        }
+        #endif
+        if (err == MP_OKAY) {
+            if (mp_init_multi(t1, t2, NULL, NULL, NULL, NULL) != MP_OKAY)
                 err = MEMORY_E;
             else
                 did_init = 1;
@@ -9297,41 +9316,49 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         /* compute x^3 */
         if (err == MP_OKAY)
-            err = mp_sqr(key->pubkey.x, &t1);
+            err = mp_sqr(key->pubkey.x, t1);
         if (err == MP_OKAY)
-            err = mp_mulmod(&t1, key->pubkey.x, curve->prime, &t1);
+            err = mp_mulmod(t1, key->pubkey.x, curve->prime, t1);
 
         /* compute x^3 + a*x */
         if (err == MP_OKAY)
-            err = mp_mulmod(curve->Af, key->pubkey.x, curve->prime, &t2);
+            err = mp_mulmod(curve->Af, key->pubkey.x, curve->prime, t2);
         if (err == MP_OKAY)
-            err = mp_add(&t1, &t2, &t1);
+            err = mp_add(t1, t2, t1);
 
         /* compute x^3 + a*x + b */
         if (err == MP_OKAY)
-            err = mp_add(&t1, curve->Bf, &t1);
+            err = mp_add(t1, curve->Bf, t1);
 
         /* compute sqrt(x^3 + a*x + b) */
         if (err == MP_OKAY)
-            err = mp_sqrtmod_prime(&t1, curve->prime, &t2);
+            err = mp_sqrtmod_prime(t1, curve->prime, t2);
 
         /* adjust y */
         if (err == MP_OKAY) {
-            if ((mp_isodd(&t2) == MP_YES && pointType == ECC_POINT_COMP_ODD) ||
-                (mp_isodd(&t2) == MP_NO &&  pointType == ECC_POINT_COMP_EVEN)) {
-                err = mp_mod(&t2, curve->prime, &t2);
+            if ((mp_isodd(t2) == MP_YES && pointType == ECC_POINT_COMP_ODD) ||
+                (mp_isodd(t2) == MP_NO &&  pointType == ECC_POINT_COMP_EVEN)) {
+                err = mp_mod(t2, curve->prime, t2);
             }
             else {
-                err = mp_submod(curve->prime, &t2, curve->prime, &t2);
+                err = mp_submod(curve->prime, t2, curve->prime, t2);
             }
             if (err == MP_OKAY)
-                err = mp_copy(&t2, key->pubkey.y);
+                err = mp_copy(t2, key->pubkey.y);
         }
 
         if (did_init) {
-            mp_clear(&t2);
-            mp_clear(&t1);
+            mp_clear(t2);
+            mp_clear(t1);
         }
+    #ifdef WOLFSSL_SMALL_STACK
+        if (t1 != NULL) {
+            XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+        if (t2 != NULL) {
+            XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+    #endif
 
         wc_ecc_curve_free(curve);
         FREE_CURVE_SPECS();
@@ -12954,7 +12981,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
  */
 int mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
-    mp_int   a1, n1;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int*  a1 = NULL;
+    mp_int*  n1 = NULL;
+#else
+    mp_int   a1[1], n1[1];
+#endif
     int      res;
     int      s = 1;
     int      k;
@@ -12972,22 +13004,38 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
         return MP_VAL;
     }
 
-    if ((res = mp_init_multi(&a1, &n1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+    a1 = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a1 == NULL) {
+        return MP_MEM;
+    }
+    n1 = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (n1 == NULL) {
+        XFREE(a1, NULL, DYNAMIC_TYPE_BIGINT);
+        return MP_MEM;
+    }
+#endif
+
+    if ((res = mp_init_multi(a1, n1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(a1, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(n1, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return res;
     }
 
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-    if ((res = mp_mod(a, n, &a1)) != MP_OKAY) {
+    if ((res = mp_mod(a, n, a1)) != MP_OKAY) {
         goto done;
     }
 
-    if ((res = mp_copy(n, &n1)) != MP_OKAY) {
+    if ((res = mp_copy(n, n1)) != MP_OKAY) {
         goto done;
     }
 
-    t[0] = &a1;
-    t[1] = &n1;
+    t[0] = a1;
+    t[1] = n1;
 
     /* Keep reducing until first number is 0. */
     while (!mp_iszero(t[0])) {
@@ -13037,9 +13085,14 @@ done:
 
     RESTORE_VECTOR_REGISTERS();
 
-  /* cleanup */
-  mp_clear(&n1);
-  mp_clear(&a1);
+    /* cleanup */
+    mp_clear(n1);
+    mp_clear(a1);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(a1, NULL, DYNAMIC_TYPE_BIGINT);
+    XFREE(n1, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
 
   return res;
 }
