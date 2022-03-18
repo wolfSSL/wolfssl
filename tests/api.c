@@ -29623,6 +29623,142 @@ static void test_wolfSSL_X509_NAME_hash(void)
 #endif
 }
 
+static void test_wolfSSL_X509_NAME_print_ex(void)
+{
+#if (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+     (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+     defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+     defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))) && \
+    !defined(NO_BIO)
+    int memSz;
+    byte* mem = NULL;
+    BIO* bio = NULL;
+    BIO* membio = NULL;
+    X509* x509 = NULL;
+    X509_NAME* name = NULL;
+
+    const char* expNormal  = "C=US,CN=wolfssl.com";
+    const char* expReverse = "CN=wolfssl.com,C=US";
+
+    const char* expNotEscaped = "C= US,+\"\\ ,CN=#wolfssl.com<>;";
+    const char* expNotEscapedRev = "CN=#wolfssl.com<>;,C= US,+\"\\ ";
+    const char* expRFC5523 =
+        "CN=\\#wolfssl.com\\<\\>\\;,C=\\ US\\,\\+\\\"\\\\\\ ";
+
+    printf(testingFmt, "wolfSSL_X509_NAME_print_ex");
+
+    /* Test with real cert (svrCertFile) first */
+    AssertNotNull(bio = BIO_new(BIO_s_file()));
+    AssertIntGT(BIO_read_filename(bio, svrCertFile), 0);
+    AssertNotNull(PEM_read_bio_X509(bio, &x509, NULL, NULL));
+    AssertNotNull(name = X509_get_subject_name(x509));
+
+    /* Test without flags */
+    AssertNotNull(membio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+    BIO_free(membio);
+
+    /* Test flag: XN_FLAG_RFC2253 */
+    AssertNotNull(membio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
+    BIO_free(membio);
+
+    /* Test flag: XN_FLAG_RFC2253 | XN_FLAG_DN_REV */
+    AssertNotNull(membio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                XN_FLAG_RFC2253 | XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
+    BIO_free(membio);
+
+    X509_free(x509);
+    BIO_free(bio);
+
+    /* Test normal case without escaped characters */
+    {
+        /* Create name: "/C=US/CN=wolfssl.com" */
+        AssertNotNull(name = X509_NAME_new());
+        AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    MBSTRING_UTF8, (byte*)"US", 2, -1, 0),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    MBSTRING_UTF8, (byte*)"wolfssl.com", 11, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expNormal)+1);
+        AssertIntEQ(XSTRNCMP((char*)mem, expNormal, XSTRLEN(expNormal)), 0);
+        BIO_free(membio);
+
+        /* Test flags: XN_FLAG_RFC2253 - should be reversed */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expReverse)+1);
+        BIO_free(membio);
+
+        /* Test flags: XN_FLAG_DN_REV - reversed */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expReverse)+1);
+        AssertIntEQ(XSTRNCMP((char*)mem, expReverse, XSTRLEN(expReverse)), 0);
+        BIO_free(membio);
+
+        X509_NAME_free(name);
+    }
+
+    /* Test RFC2253 characters are escaped with backslashes */
+    {
+        AssertNotNull(name = X509_NAME_new());
+        AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName",
+                    /* space at beginning and end, and: ,+"\ */
+                    MBSTRING_UTF8, (byte*)" US,+\"\\ ", 8, -1, 0),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName",
+                    /* # at beginning, and: <>;*/
+                    MBSTRING_UTF8, (byte*)"#wolfssl.com<>;", 15, -1, 0),
+                    WOLFSSL_SUCCESS);
+
+        /* Test without flags */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expNotEscaped)+1);
+        AssertIntEQ(XSTRNCMP((char*)mem, expNotEscaped,
+                    XSTRLEN(expNotEscaped)), 0);
+        BIO_free(membio);
+
+        /* Test flags: XN_FLAG_RFC5523 - should be reversed and escaped */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expRFC5523)+1);
+        AssertIntEQ(XSTRNCMP((char*)mem, expRFC5523, XSTRLEN(expRFC5523)), 0);
+        BIO_free(membio);
+
+        /* Test flags: XN_FLAG_DN_REV - reversed but not escaped */
+        AssertNotNull(membio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
+                    XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
+        AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        AssertIntEQ(memSz, XSTRLEN(expNotEscapedRev)+1);
+        AssertIntEQ(XSTRNCMP((char*)mem, expNotEscapedRev,
+                    XSTRLEN(expNotEscapedRev)), 0);
+        BIO_free(membio);
+
+        X509_NAME_free(name);
+    }
+
+    printf(resultFmt, passed);
+#endif
+}
+
 #ifndef NO_BIO
 static void test_wolfSSL_X509_INFO_multiple_info(void)
 {
@@ -52579,6 +52715,7 @@ void ApiTest(void)
     test_wolfSSL_lhash();
     test_wolfSSL_X509_NAME();
     test_wolfSSL_X509_NAME_hash();
+    test_wolfSSL_X509_NAME_print_ex();
 #ifndef NO_BIO
     test_wolfSSL_X509_INFO_multiple_info();
     test_wolfSSL_X509_INFO();

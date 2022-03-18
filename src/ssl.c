@@ -49613,7 +49613,6 @@ int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 
 #ifndef NO_BIO
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
 /* Helper function for X509_NAME_print_ex. Sets *buf to string for domain
    name attribute based on NID. Returns size of buf */
 static int get_dn_attr_by_nid(int n, const char** buf)
@@ -49660,87 +49659,160 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         *buf = str;
     return len;
 }
-#endif
+
+/**
+ * Escape input string for RFC2253 requirements. The following characters
+ * are escaped with a backslash (\):
+ *
+ *     1. A space or '#' at the beginning of the string
+ *     2. A space at the end of the string
+ *     3. One of: ",", "+", """, "\", "<", ">", ";"
+ *
+ * in    - input string to escape
+ * inSz  - length of in, not including the null terminator
+ * out   - buffer for output string to be written, will be null terminated
+ * outSz - size of out
+ *
+ * Returns size of output string (not counting NULL terminator) on success,
+ * negative on error.
+ */
+static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
+                                        char* out, word32 outSz)
+{
+    word32 inIdx = 0;
+    word32 outIdx = 0;
+    char c = 0;
+
+    if (in == NULL || out == NULL || inSz == 0 || outSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (inIdx = 0; inIdx < inSz; inIdx++) {
+
+        c = in[inIdx];
+
+        if (((inIdx == 0) && (c == ' ' || c == '#')) ||
+            ((inIdx == (inSz-1)) && (c == ' ')) ||
+            c == ',' || c == '+' || c == '"' || c == '\\' ||
+            c == '<' || c == '>' || c == ';') {
+
+            if (outIdx > (outSz - 1)) {
+                return BUFFER_E;
+            }
+            out[outIdx] = '\\';
+            outIdx++;
+        }
+        if (outIdx > (outSz - 1)) {
+            return BUFFER_E;
+        }
+        out[outIdx] = c;
+        outIdx++;
+    }
+
+    /* null terminate out */
+    if (outIdx > (outSz -1)) {
+        return BUFFER_E;
+    }
+    out[outIdx] = '\0';
+
+    return outIdx;
+}
 
 /*
- * The BIO output of  wolfSSL_X509_NAME_print_ex does NOT include the null terminator
+ * Print human readable version of X509_NAME to provided BIO.
+ *
+ * bio    - output BIO to place name string. Does not include null terminator.
+ * name   - input name to convert to string
+ * indent - number of indent spaces to prepend to name string
+ * flags  - flags to control function behavior. Not all flags are currently
+ *          supported/implemented. Currently supported are:
+ *              XN_FLAG_RFC2253 - only the backslash escape requirements from
+ *                                RFC22523 currently implemented.
+ *              XN_FLAG_DN_REV  - print name reversed. Automatically done by
+ *                                XN_FLAG_RFC2253.
+ *
+ * Returns WOLFSSL_SUCCESS (1) on success, WOLFSSL_FAILURE (0) on failure.
  */
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-    int count = 0, len = 0, totalSz = 0, tmpSz = 0;
-    char tmp[ASN_NAME_MAX+1];
-    char fullName[ASN_NAME_MAX+2];
+    int i, count = 0, len = 0, tmpSz = 0, nameStrSz = 0, escapeSz = 0;
+    char* tmp = NULL;
+    char* nameStr = NULL;
     const char *buf = NULL;
     WOLFSSL_X509_NAME_ENTRY* ne;
     WOLFSSL_ASN1_STRING* str;
-#endif
-    int i;
-    (void)flags;
+    char escaped[ASN_NAME_MAX];
+
     WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
+
+    if ((name == NULL) || (name->sz == 0) || (bio == NULL))
+        return WOLFSSL_FAILURE;
 
     for (i = 0; i < indent; i++) {
         if (wolfSSL_BIO_write(bio, " ", 1) != 1)
             return WOLFSSL_FAILURE;
     }
 
-    if ((name == NULL) || (name->sz == 0))
-        return WOLFSSL_FAILURE;
+    count = wolfSSL_X509_NAME_entry_count(name);
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-    /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
-    if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
-        fullName[0] = '\0';
-        count = wolfSSL_X509_NAME_entry_count(name);
-        for (i = 0; i < count; i++) {
+    for (i = 0; i < count; i++) {
+        /* reverse name order for RFC2253 and DN_REV */
+        if ((flags & XN_FLAG_RFC2253) || (flags & XN_FLAG_DN_REV)) {
             ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
-            if (ne == NULL)
-                return WOLFSSL_FAILURE;
-
-            str = wolfSSL_X509_NAME_ENTRY_get_data(ne);
-            if (str == NULL)
-                return WOLFSSL_FAILURE;
-
-            len = get_dn_attr_by_nid(ne->nid, &buf);
-            if (len == 0 || buf == NULL)
-                return WOLFSSL_FAILURE;
-
-            tmpSz = str->length + len + 2; /* + 2 for '=' and comma */
-            if (tmpSz > ASN_NAME_MAX) {
-                WOLFSSL_MSG("Size greater than ASN_NAME_MAX");
-                return WOLFSSL_FAILURE;
-            }
-
-            if (i < count - 1) {
-                /* tmpSz+1 for last null char */
-                XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
-                XSTRNCAT(fullName, tmp, tmpSz+1);
-            }
-            else {
-                XSNPRINTF(tmp, tmpSz, "%s=%s", buf, str->data);
-                XSTRNCAT(fullName, tmp, tmpSz-1);
-                tmpSz--; /* Don't include null char in tmpSz */
-            }
-            totalSz += tmpSz;
+        } else {
+            ne = wolfSSL_X509_NAME_get_entry(name, i);
         }
-        if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
+        if (ne == NULL)
             return WOLFSSL_FAILURE;
-        return WOLFSSL_SUCCESS;
-    }
-#else
-    if (flags == XN_FLAG_RFC2253) {
-        if ((name->sz < 3) ||
-            (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
-                                                            != name->sz - 2))
+
+        str = wolfSSL_X509_NAME_ENTRY_get_data(ne);
+        if (str == NULL)
             return WOLFSSL_FAILURE;
+
+        if (flags & XN_FLAG_RFC2253) {
+            /* escape string for RFC 2253, ret sz not counting null term */
+            escapeSz = wolfSSL_EscapeString_RFC2253(str->data,
+                            str->length, escaped, sizeof(escaped));
+            if (escapeSz < 0)
+                return WOLFSSL_FAILURE;
+
+            nameStr = escaped;
+            nameStrSz = escapeSz;
+        }
+        else {
+            nameStr = str->data;
+            nameStrSz = str->length;
+        }
+
+        /* len is without null terminator */
+        len = get_dn_attr_by_nid(ne->nid, &buf);
+        if (len == 0 || buf == NULL)
+            return WOLFSSL_FAILURE;
+
+        tmpSz = nameStrSz + len + 3; /* + 3 for '=', comma, and '\0' */
+        tmp = (char*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (i < count - 1) {
+            XSNPRINTF(tmp, tmpSz, "%s=%s,", buf, nameStr);
+            tmpSz = len + nameStrSz + 2; /* 2 for '=', comma */
+        }
+        else {
+            XSNPRINTF(tmp, tmpSz, "%s=%s", buf, nameStr);
+            tmpSz = len + nameStrSz + 2; /* 2 for '=', '\0' */
+        }
+
+        if (wolfSSL_BIO_write(bio, tmp, tmpSz) != tmpSz) {
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
-    else {
-        if ((name->sz < 2) ||
-            (wolfSSL_BIO_write(bio, name->name, name->sz - 1) != name->sz - 1))
-        return WOLFSSL_FAILURE;
-    }
+
     return WOLFSSL_SUCCESS;
 }
 
