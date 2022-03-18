@@ -39050,7 +39050,7 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 
     if (key == NULL || key->internal == NULL ||
         pub == NULL || pub->internal == NULL) {
-        WOLFSSL_MSG("wolfSSL_EC_GROUP_get_order Bad arguments");
+        WOLFSSL_MSG("wolfSSL_EC_KEY_set_public_key Bad arguments");
         return WOLFSSL_FAILURE;
     }
 
@@ -48350,7 +48350,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
 #endif
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_AUX()");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509()");
 
     if (bio == NULL || cert == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
@@ -57235,14 +57235,14 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
 {
     int ret = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
-    if (!ctx || !ctx->x509)
+    if (!ctx)
         return;
 
-    if (!ctx->x509) {
-        ctx->x509 = wolfSSL_X509_new();
-        if (!ctx->x509)
-            return;
-    }
+    /* not checking ctx->x509 for null first since app won't have initalized
+     * this X509V3_CTX before this function call */
+    ctx->x509 = wolfSSL_X509_new();
+    if (!ctx->x509)
+        return;
 
     /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
     if (issuer)
@@ -60643,6 +60643,7 @@ PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in, int len,
     }
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len)
                                                                          != 0) {
+        WOLFSSL_MSG("wc_PKCS7_VerifySignedData failed");
         wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }
@@ -60776,6 +60777,7 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
 
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len)
                                                                          != 0) {
+        WOLFSSL_MSG("wc_PKCS7_VerifySignedData failed");
         wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }

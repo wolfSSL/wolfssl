@@ -2240,9 +2240,6 @@ enum {
                               */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
-    BIO_CLOSE   = 1,
-    BIO_NOCLOSE = 0,
-
     X509_FILETYPE_PEM = 8,
 
     /* Not all of these are actually used in wolfSSL. Some are included to
