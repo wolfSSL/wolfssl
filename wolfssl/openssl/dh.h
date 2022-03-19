@@ -41,15 +41,19 @@ struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
     WOLFSSL_BIGNUM* g;
     WOLFSSL_BIGNUM* q;
-    WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
-    WOLFSSL_BIGNUM* priv_key;     /* openssh deference x   */
+    WOLFSSL_BIGNUM* pub_key;     /* openssh deference g^x */
+    WOLFSSL_BIGNUM* priv_key;    /* openssh deference x   */
     void*          internal;     /* our DH */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
     /*added for lighttpd openssl compatibility, go back and add a getter in
      * lighttpd src code.
      */
-     int length;
+    int length;
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex refMutex;      /* ref count mutex */
+#endif
+    int refCount;                /* reference count */
 };
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,
@@ -58,6 +62,7 @@ WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
 WOLFSSL_API void        wolfSSL_DH_free(WOLFSSL_DH* dh);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh);
+WOLFSSL_API int         wolfSSL_DH_up_ref(WOLFSSL_DH* dh);
 
 WOLFSSL_API int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes);
 WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH* dh);
@@ -72,13 +77,13 @@ WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
 
-
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 typedef WOLFSSL_DH                   DH;
 
-#define DH_new  wolfSSL_DH_new
-#define DH_free wolfSSL_DH_free
+#define DH_new    wolfSSL_DH_new
+#define DH_free   wolfSSL_DH_free
+#define DH_up_ref wolfSSL_DH_up_ref
 
 #define d2i_DHparams    wolfSSL_d2i_DHparams
 #define i2d_DHparams    wolfSSL_i2d_DHparams

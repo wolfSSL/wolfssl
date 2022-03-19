@@ -1416,7 +1416,13 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
 #ifdef HAVE_ECC
-    ctx->curveNID = ECC_CURVE_DEF;
+    if (pkey->ecc && pkey->ecc->group) {
+        /* set curve NID from pkey if available */
+        ctx->curveNID = pkey->ecc->group->curve_nid;
+    }
+    else {
+        ctx->curveNID = ECC_CURVE_DEF;
+    }
 #endif
     if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Couldn't increase key reference count");
@@ -1530,7 +1536,18 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
 #ifndef NO_DH
     case EVP_PKEY_DH:
         /* Use DH */
-        if (!ctx->pkey->dh || !ctx->peerKey->dh || !ctx->peerKey->dh->pub_key) {
+        if (!ctx->pkey->dh || !ctx->peerKey->dh) {
+            return WOLFSSL_FAILURE;
+        }
+        /* set internal peer key if not done */
+        if (!ctx->peerKey->dh->inSet) {
+            if (SetDhInternal(ctx->peerKey->dh) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetDhInternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!ctx->peerKey->dh->pub_key) {
+            WOLFSSL_MSG("SetDhInternal failed, pub_key is NULL");
             return WOLFSSL_FAILURE;
         }
         if ((len = wolfSSL_DH_size(ctx->pkey->dh)) <= 0) {
@@ -2046,15 +2063,16 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     if (pkey == NULL) {
         if (ctx->pkey == NULL ||
                 (ctx->pkey->type != EVP_PKEY_EC &&
-                        ctx->pkey->type != EVP_PKEY_RSA)) {
+                 ctx->pkey->type != EVP_PKEY_RSA &&
+                 ctx->pkey->type != EVP_PKEY_DH)) {
             WOLFSSL_MSG("Key not set or key type not supported");
             return BAD_FUNC_ARG;
         }
-        ownPkey = 1;
         pkey = wolfSSL_EVP_PKEY_new();
-        if (pkey == NULL)
+        if (pkey == NULL) {
             return MEMORY_E;
-
+        }
+        ownPkey = 1;
         pkey->type = ctx->pkey->type;
     }
 
@@ -2083,6 +2101,25 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {
                     pkey->ownEcc = 1;
+                }
+            }
+            break;
+#endif
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+        case EVP_PKEY_DH:
+            pkey->dh = wolfSSL_DH_new();
+            if (pkey->dh) {
+                pkey->ownDh = 1;
+                /* load DH params from CTX */
+                ret = wolfSSL_DH_LoadDer(pkey->dh,
+                        (const unsigned char*)ctx->pkey->pkey.ptr,
+                        ctx->pkey->pkey_sz);
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = wolfSSL_DH_generate_key(pkey->dh);
+                }
+                if (ret == WOLFSSL_SUCCESS) {
+                    /* copy private/public key from external to internal */
+                    ret = SetDhInternal(pkey->dh);
                 }
             }
             break;
@@ -2166,11 +2203,13 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
         if (from->ecc) {
-            if (!to->ecc && !(to->ecc = wolfSSL_EC_KEY_new())) {
-                WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
-                return WOLFSSL_FAILURE;
+            if (!to->ecc) {
+                if ((to->ecc = wolfSSL_EC_KEY_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownEcc = 1;
             }
-            to->ownEcc = 1;
             to->ecc->group->curve_idx = from->ecc->group->curve_idx;
             to->ecc->group->curve_nid = from->ecc->group->curve_nid;
             to->ecc->group->curve_oid = from->ecc->group->curve_oid;
@@ -2185,10 +2224,22 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
     case EVP_PKEY_DSA:
         if (from->dsa) {
             WOLFSSL_BIGNUM* cpy;
-            if (!to->dsa && !(to->dsa = wolfSSL_DSA_new())) {
-                WOLFSSL_MSG("wolfSSL_DSA_new error");
-                return WOLFSSL_FAILURE;
+            if (!to->dsa) {
+                if ((to->dsa = wolfSSL_DSA_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_DSA_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownDsa = 1;
             }
+
+            /* free existing BIGNUMs if needed before copying over new */
+            wolfSSL_BN_free(to->dsa->p);
+            wolfSSL_BN_free(to->dsa->g);
+            wolfSSL_BN_free(to->dsa->q);
+            to->dsa->p = NULL;
+            to->dsa->g = NULL;
+            to->dsa->q = NULL;
+
             if (!(cpy = wolfSSL_BN_dup(from->dsa->p))) {
                 WOLFSSL_MSG("wolfSSL_BN_dup error");
                 return WOLFSSL_FAILURE;
@@ -2211,19 +2262,57 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
         }
         break;
 #endif
-#ifndef NO_RSA
-    case EVP_PKEY_RSA:
-#endif
 #ifndef NO_DH
     case EVP_PKEY_DH:
+        if (from->dh) {
+            WOLFSSL_BIGNUM* cpy;
+            if (!to->dh) {
+                if ((to->dh = wolfSSL_DH_new()) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_DH_new error");
+                    return WOLFSSL_FAILURE;
+                }
+                to->ownDh = 1;
+            }
+
+            /* free existing BIGNUMs if needed before copying over new */
+            wolfSSL_BN_free(to->dh->p);
+            wolfSSL_BN_free(to->dh->g);
+            wolfSSL_BN_free(to->dh->q);
+            to->dh->p = NULL;
+            to->dh->g = NULL;
+            to->dh->q = NULL;
+
+            if (!(cpy = wolfSSL_BN_dup(from->dh->p))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error, DH p");
+                return WOLFSSL_FAILURE;
+            }
+            to->dh->p = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dh->g))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error, DH g");
+                return WOLFSSL_FAILURE;
+            }
+            to->dh->g = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dh->q))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error, DH q");
+                return WOLFSSL_FAILURE;
+            }
+            to->dh->q = cpy;
+        }
+        else {
+            WOLFSSL_MSG("Missing DH struct");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+#endif
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
 #endif
     default:
         WOLFSSL_MSG("Copy parameters not available for this key type");
         return WOLFSSL_FAILURE;
     }
-#if defined(HAVE_ECC) || !defined(NO_DSA)
+
     return WOLFSSL_SUCCESS;
-#endif
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -6941,29 +7030,37 @@ WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey)
 
 WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 {
-    WOLFSSL_EC_KEY* local;
+    WOLFSSL_EC_KEY* local = NULL;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_EC_KEY");
 
     if (key == NULL) {
         return NULL;
     }
-
-    local = wolfSSL_EC_KEY_new();
-    if (local == NULL) {
-        WOLFSSL_MSG("Error creating a new WOLFSSL_EC_KEY structure");
-        return NULL;
-    }
-
     if (key->type == EVP_PKEY_EC) {
-        if (wolfSSL_EC_KEY_LoadDer(local, (const unsigned char*)key->pkey.ptr,
-                    key->pkey_sz) != WOLFSSL_SUCCESS) {
-            /* now try public key */
-            if (wolfSSL_EC_KEY_LoadDer_ex(local,
-                    (const unsigned char*)key->pkey.ptr,
-                 key->pkey_sz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
+        if (key->ecc != NULL) {
+            if (wolfSSL_EC_KEY_up_ref(key->ecc) != WOLFSSL_SUCCESS) {
+                return NULL;
+            }
+            local = key->ecc;
+        }
+        else {
+            local = wolfSSL_EC_KEY_new();
+            if (local == NULL) {
+                WOLFSSL_MSG("Error creating a new WOLFSSL_EC_KEY structure");
+                return NULL;
+            }
 
-                wolfSSL_EC_KEY_free(local);
-                local = NULL;
+            if (wolfSSL_EC_KEY_LoadDer(local,
+                        (const unsigned char*)key->pkey.ptr,
+                        key->pkey_sz) != WOLFSSL_SUCCESS) {
+                /* now try public key */
+                if (wolfSSL_EC_KEY_LoadDer_ex(local,
+                        (const unsigned char*)key->pkey.ptr, key->pkey_sz,
+                        WOLFSSL_EC_KEY_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
+
+                    wolfSSL_EC_KEY_free(local);
+                    local = NULL;
+                }
             }
         }
     }
@@ -6972,11 +7069,7 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
         wolfSSL_EC_KEY_free(local);
         local = NULL;
     }
-#ifdef OPENSSL_ALL
-    if (!local && key->ecc) {
-        local = wolfSSL_EC_KEY_dup(key->ecc);
-    }
-#endif
+
     return local;
 }
 #endif /* HAVE_ECC */
@@ -7002,11 +7095,36 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
+    /* free other types if needed */
+#ifndef NO_RSA
+    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
+        wolfSSL_RSA_free(pkey->rsa);
+    }
+    pkey->ownRsa = 0;
+#endif
+#ifndef NO_DSA
+    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
+        wolfSSL_DSA_free(pkey->dsa);
+    }
+    pkey->ownDsa = 0;
+#endif
+#ifdef HAVE_ECC
+    if (pkey->ecc != NULL && pkey->ownEcc == 1) {
+        wolfSSL_EC_KEY_free(pkey->ecc);
+    }
+    pkey->ownEcc = 0;
+#endif
+
+    if (wolfSSL_DH_up_ref(key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_DH_up_ref failed");
+        return WOLFSSL_FAILURE;
+    }
+
     if (pkey->dh != NULL && pkey->ownDh == 1)
         wolfSSL_DH_free(pkey->dh);
 
     pkey->dh    = key;
-    pkey->ownDh = 0; /* pkey does not own DH */
+    pkey->ownDh = 1; /* pkey does not own DH but needs to call free on it */
     pkey->type  = EVP_PKEY_DH;
     if (key->inSet == 0) {
         if (SetDhInternal(key) != WOLFSSL_SUCCESS) {
@@ -7082,17 +7200,31 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
     }
 
     if (key->type == EVP_PKEY_DH) {
-        local = wolfSSL_DH_new();
-        if (local == NULL) {
-            WOLFSSL_MSG("Error creating a new WOLFSSL_DH structure");
-            return NULL;
+        /* if key->dh already exists copy instead of re-importing from DER */
+        if (key->dh != NULL) {
+            if (wolfSSL_DH_up_ref(key->dh) != WOLFSSL_SUCCESS) {
+                return NULL;
+            }
+            local = key->dh;
         }
-
-        if (wolfSSL_DH_LoadDer(local, (const unsigned char*)key->pkey.ptr,
-                    key->pkey_sz) != SSL_SUCCESS) {
-            wolfSSL_DH_free(local);
-            WOLFSSL_MSG("Error wolfSSL_DH_LoadDer");
-            local = NULL;
+        else {
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION>2)))
+            local = wolfSSL_DH_new();
+            if (local == NULL) {
+                WOLFSSL_MSG("Error creating a new WOLFSSL_DH structure");
+                return NULL;
+            }
+            if (wolfSSL_DH_LoadDer(local, (const unsigned char*)key->pkey.ptr,
+                        key->pkey_sz) != SSL_SUCCESS) {
+                wolfSSL_DH_free(local);
+                WOLFSSL_MSG("Error wolfSSL_DH_LoadDer");
+                local = NULL;
+            }
+#else
+            WOLFSSL_MSG("EVP_PKEY does not hold DH struct");
+            return NULL;
+#endif
         }
     }
     else {
@@ -7225,8 +7357,11 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
 #ifdef HAVE_ECC
-    if((pkey == NULL) || (key ==NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
+
+    if (pkey == NULL || key == NULL) {
+        return WOLFSSL_FAILURE;
+    }
 #ifndef NO_RSA
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
         wolfSSL_RSA_free(pkey->rsa);
@@ -7245,18 +7380,24 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
     }
     pkey->ownDh = 0;
 #endif
+
+    if (wolfSSL_EC_KEY_up_ref(key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_up_ref failed");
+        return WOLFSSL_FAILURE;
+    }
+
     if (pkey->ecc != NULL && pkey->ownEcc == 1) {
         wolfSSL_EC_KEY_free(pkey->ecc);
     }
     pkey->ecc    = key;
-    pkey->ownEcc = 0; /* pkey does not own EC key */
+    pkey->ownEcc = 1; /* doesn't own EC_KEY but needs to call free on it */
     pkey->type   = EVP_PKEY_EC;
     return ECC_populate_EVP_PKEY(pkey, key);
 #else
     (void)pkey;
     (void)key;
     return WOLFSSL_FAILURE;
-#endif
+#endif /* HAVE_ECC */
 }
 
 void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
