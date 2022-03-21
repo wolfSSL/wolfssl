@@ -1250,12 +1250,14 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
 #if !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     mp_int* prime, mp_int* order);
 #endif
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
@@ -5198,7 +5200,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
@@ -8670,9 +8673,11 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
 #ifdef WOLFSSL_KCAPI_ECC
         if (err == MP_OKAY) {
-            word32 pubkey_sz = (word32)sizeof(key->pubkey_raw);
-
-            err = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 1);
+            word32 pubkey_sz = (word32)key->dp->size*2;
+            if (key->handle == NULL) {
+                /* if handle loaded, then pubkey_raw already populated */
+                err = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 1);
+            }
             if (err == 0) {
                 err = mp_read_unsigned_bin(res->x, key->pubkey_raw,
                                            pubkey_sz/2);
@@ -8721,7 +8726,8 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 #endif /* FIPS_VERSION_GE(5,0) || WOLFSSL_VALIDATE_ECC_KEYGEN ||
         * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 
 /* check privkey generator helper, creates prime needed */
 static int ecc_check_privkey_gen_helper(ecc_key* key)
@@ -8738,6 +8744,9 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* Hardware based private key, so this operation is not supported */
+    err = MP_OKAY; /* just report success */
+#elif defined(WOLFSSL_KCAPI_ECC)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #else
@@ -8822,7 +8831,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 
     return err;
 }
-#endif /* FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN */
+#endif /* (FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN) &&!WOLFSSL_KCAPI_ECC */
 
 #ifndef WOLFSSL_SP_MATH
 /* validate order * pubkey = point at infinity, 0 on success */
@@ -9082,7 +9091,11 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         /* private keys must be in the range [1, n-1] */
         if ((err == MP_OKAY) && (key->type == ECC_PRIVATEKEY) &&
             (mp_iszero(&key->k) || mp_isneg(&key->k) ||
-            (mp_cmp(&key->k, curve->order) != MP_LT))) {
+            (mp_cmp(&key->k, curve->order) != MP_LT))
+        #ifdef WOLFSSL_KCAPI_ECC
+            && key->handle == NULL
+        #endif
+        ) {
             err = ECC_PRIV_KEY_E;
         }
 
@@ -9104,7 +9117,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif
 
     FREE_CURVE_SPECS();
-#endif /* WOLFSSL_ATECC508A */
+#endif /* HW Based Crypto */
 #else
     err = WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */

@@ -88,6 +88,7 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
     int ret = 0;
     word32 kcapiCurveId = 0;
     word32 keySz;
+    int handleInit = 0;
 
     if (key == NULL || key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -102,6 +103,7 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
     if (ret == 0 && key->handle == NULL) {
         ret = kcapi_kpp_init(&key->handle, WC_NAME_ECDH, 0);
         if (ret == 0) {
+            handleInit = 1;
             ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
             if (ret >= 0) {
                 ret = 0;
@@ -109,20 +111,26 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
         }
     }
 
-    /* if a private key value is set, load and use it.
-     * otherwise use existing key->handle */
-    if (ret == 0 && mp_iszero(&key->k) != MP_YES) {
-        byte priv[MAX_ECC_BYTES];
-        ret = wc_export_int(&key->k, priv, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
-        if (ret == 0) {
-            ret = kcapi_kpp_setkey(key->handle, priv, keySz);
-            if (ret >= 0) {
-                ret = 0;
+    /* set the key */
+    if (ret == 0) {
+        if (mp_iszero(&key->k) != MP_YES) {
+            /* if a private key value is set, load and use it */
+            byte priv[MAX_ECC_BYTES];
+            ret = wc_export_int(&key->k, priv, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+            if (ret == 0) {
+                ret = kcapi_kpp_setkey(key->handle, priv, keySz);
             }
+        }
+        else {
+            /* generate new ephemeral key */
+            ret = kcapi_kpp_setkey(key->handle, NULL, 0);
+        }
+        if (ret >= 0) {
+            ret = 0;
         }
     }
 
-    /* optionally load public key */
+    /* optionally export public key */
     if (ret == 0 && pubkey_raw != NULL && pubkey_sz != NULL) {
         if (*pubkey_sz < keySz*2) {
             ret = BUFFER_E;
@@ -137,7 +145,7 @@ int KcapiEcc_LoadKey(ecc_key* key, byte* pubkey_raw, word32* pubkey_sz,
         }
     }
 
-    if (release_handle && key != NULL && key->handle != NULL) {
+    if (handleInit && release_handle && key != NULL && key->handle != NULL) {
         kcapi_kpp_destroy(key->handle);
         key->handle = NULL;
     }
@@ -169,6 +177,9 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
     if (ret == 0) {
         ret = mp_read_unsigned_bin(key->pubkey.y,
             key->pubkey_raw + pubkey_sz / 2, pubkey_sz / 2);
+    }
+    if (ret == 0) {
+        ret = mp_set(key->pubkey.z, 1);
     }
     if (ret == 0) {
         key->type = ECC_PRIVATEKEY;
@@ -242,12 +253,6 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
     }
     if (ret == 0) {
-        /* validate the output is large enough */
-        if (*outlen < keySz*2) {
-            ret = BUFFER_E;
-        }
-    }
-    if (ret == 0) {
         out_aligned = ((size_t)out % pageSz == 0) ? out : buf_aligned;
         if ((size_t)pub % pageSz == 0) {
             pub_aligned = (byte*)pub;
@@ -262,9 +267,12 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         if (ret >= 0) {
             *outlen = ret / 2;
             if (out_aligned != out) {
+                /* don't overflow out */
+                if (ret > (int)*outlen)
+                    ret = (int)*outlen;
                 XMEMCPY(out, out_aligned, ret);
             }
-            ret = 0;
+            ret = 0; /* success */
         }
     }
 
