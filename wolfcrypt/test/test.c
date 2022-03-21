@@ -11484,7 +11484,7 @@ WOLFSSL_TEST_SUBROUTINE int random_test(void)
 
         /* Every byte of the entropy scratch is different,
          * entropy is a single byte that shouldn't match. */
-        outputSz = (sizeof(word32) * 2) + 1;
+        outputSz = (sizeof(output) / 2) + 1;
         for (i = 0; i < outputSz; i++)
             output[i] = (byte)i;
         ret = wc_RNG_TestSeed(output, outputSz);

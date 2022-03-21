@@ -1962,6 +1962,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDRAND"
 fi
 
+# AMD RDSEED
+AC_ARG_ENABLE([amdrand],
+    [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
+    [ ENABLED_AMDRDSEED=$enableval ],
+    [ ENABLED_AMDRDSEED=no ]
+    )
+
+if test "$ENABLED_AMDRDSEED" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AMD_RDSEED"
+fi
+
 
 # Linux af_alg
 AC_ARG_ENABLE([afalg],
