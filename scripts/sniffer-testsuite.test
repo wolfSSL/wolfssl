@@ -14,53 +14,99 @@ fi
 
 # ./configure --enable-sniffer [--enable-session-ticket]
 # Resumption tests require "--enable-session-ticket"
+session_ticket=no
+./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'session_ticket '
+if [ $? -eq 0 ]; then
+    session_ticket=yes
+fi
+has_rsa=no
+./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'rsa '
+if [ $? -eq 0 ]; then
+    has_rsa=yes
+fi
+RESULT=0
 
-echo -e "\nStaring snifftest on testsuite.pcap...\n"
-./sslSniffer/sslSnifferTest/snifftest ./scripts/testsuite.pcap ./certs/server-key.pem 127.0.0.1 11111
+if test $session_ticket == yes
+then
+    # TLS v1.2 Static RSA Test
+    echo -e "\nStaring snifftest on testsuite.pcap...\n"
+    ./sslSniffer/sslSnifferTest/snifftest ./scripts/testsuite.pcap ./certs/server-key.pem 127.0.0.1 11111
 
-RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\nsnifftest failed\n" && exit 1
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest failed\n" && exit 1
+fi
 
-# TLS v1.3 sniffer test ECC (and resumption)
-if test $# -ne 0
+# TLS v1.3 sniffer test ECC
+if test $RESULT -eq 0
 then
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-ecc.pcap ./certs/statickeys/ecc-secp256r1.pem 127.0.0.1 11111
 
     RESULT=$?
-    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 ECC\n" && exit 1
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 ECC failed\n" && exit 1
 fi
 
-# TLS v1.3 sniffer test DH (and resumption)
-if test $# -ne 0
+# TLS v1.3 sniffer test DH
+if test $RESULT -eq 0
 then
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-dh.pcap ./certs/statickeys/dh-ffdhe2048.pem 127.0.0.1 11111
 
     RESULT=$?
-    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 DH\n" && exit 1
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 DH failed\n" && exit 1
 fi
 
-# TLS v1.3 sniffer test X25519 (and resumption)
-if test $# -ne 0
+# TLS v1.3 sniffer test X25519
+if test $RESULT -eq 0
 then
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-x25519.pcap ./certs/statickeys/x25519.pem 127.0.0.1 11111
 
     RESULT=$?
-    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 X25519\n" && exit 1
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 X25519 failed\n" && exit 1
+fi
+
+# TLS v1.3 Resumption Tests
+if test $session_ticket == yes
+then
+    # TLS v1.3 sniffer test ECC resumption
+    if test $RESULT -eq 0
+    then
+        ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-ecc-resume.pcap ./certs/statickeys/ecc-secp256r1.pem 127.0.0.1 11111
+
+        RESULT=$?
+        [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 ECC failed\n" && exit 1
+    fi
+
+    # TLS v1.3 sniffer test DH
+    if test $RESULT -eq 0
+    then
+        ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-dh-resume.pcap ./certs/statickeys/dh-ffdhe2048.pem 127.0.0.1 11111
+
+        RESULT=$?
+        [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 DH failed\n" && exit 1
+    fi
+
+    # TLS v1.3 sniffer test X25519
+    if test $RESULT -eq 0
+    then
+        ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-x25519-resume.pcap ./certs/statickeys/x25519.pem 127.0.0.1 11111
+
+        RESULT=$?
+        [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 X25519 failed\n" && exit 1
+    fi
 fi
 
 
 # TLS v1.3 sniffer test hello_retry_request (HRR) with ECDHE
-if test $# -ne 0
+if test $RESULT -eq 0
 then
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-hrr.pcap ./certs/statickeys/ecc-secp256r1.pem 127.0.0.1 11111
 
     RESULT=$?
-    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 HRR\n" && exit 1
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 HRR failed\n" && exit 1
 fi
 
 
 # IPv6
-if test $# -ne 0 && test "x$1" = "x-6";
+if test $RESULT -eq 0 && test "x$1" = "x-6";
 then
     echo -e "\nStaring snifftest on sniffer-ipv6.pcap...\n"
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-ipv6.pcap ./certs/server-key.pem ::1 11111

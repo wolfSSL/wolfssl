@@ -24,7 +24,7 @@
 */
 /*
 DESCRIPTION
-This library defines error codes and contians routines for setting and examining
+This library defines error codes and contains routines for setting and examining
 the error status.
 */
 

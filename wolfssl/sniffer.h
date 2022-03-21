@@ -27,6 +27,11 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
+#ifdef HAVE_WOLF_EVENT
+    #include <wolfssl/wolfcrypt/wolfevent.h>
+#endif
+
+
 #ifdef _WIN32
     #ifdef SSL_SNIFFER_EXPORTS
         #define SSL_SNIFFER_API __declspec(dllexport)
@@ -119,9 +124,13 @@ SSL_SNIFFER_API int ssl_GetSessionStats(unsigned int* active,
                                         unsigned int* reassemblyMemory,
                                         char* error);
 
-WOLFSSL_API void ssl_InitSniffer(void);
+WOLFSSL_API 
+SSL_SNIFFER_API void ssl_InitSniffer(void);
+WOLFSSL_API 
+SSL_SNIFFER_API void ssl_InitSniffer_ex(int devId);
 
-WOLFSSL_API void ssl_FreeSniffer(void);
+WOLFSSL_API 
+SSL_SNIFFER_API void ssl_FreeSniffer(void);
 
 
 /* ssl_SetPrivateKey typeKs */
@@ -268,6 +277,21 @@ SSL_SNIFFER_API int ssl_DecodePacketWithChainSessionInfoStoreData(
         void* vChain, unsigned int chainSz, void* ctx, SSLInfo* sslInfo,
         char* error);
 #endif
+
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacketAsync(void* packet, unsigned int packetSz,
+    int isChain, unsigned char** data, char* error, SSLInfo* sslInfo,
+    void* userCtx);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents,
+    WOLF_EVENT_FLAG flags, int* eventCount);
+
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 
 
 #ifdef __cplusplus

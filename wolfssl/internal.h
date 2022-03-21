@@ -1760,9 +1760,14 @@ WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #endif
+
+WOLFSSL_LOCAL int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
+                             word16 sz, int doAlert);
+
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
-                                word16 sz, const byte* aad, word16 aadSz);
+                                word16 sz, const byte* aad, word16 aadSz,
+                                int doAlert);
 WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
                                            word32* inOutIdx, byte type,
                                            word32 size, word32 totalSz);

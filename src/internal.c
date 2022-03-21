@@ -15876,8 +15876,8 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     return ret;
 }
 
-static WC_INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
-                           word16 sz)
+int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
+                           word16 sz, int doAlert)
 {
     int ret = 0;
 
@@ -15996,12 +15996,13 @@ static WC_INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
     /* handle mac error case */
     if (ret == VERIFY_MAC_ERROR) {
-        if (!ssl->options.dtls)
+        if (!ssl->options.dtls && doAlert) {
             SendAlert(ssl, alert_fatal, bad_record_mac);
-
-        #ifdef WOLFSSL_DTLS_DROP_STATS
+        }
+    #ifdef WOLFSSL_DTLS_DROP_STATS
+        if (ssl->options.dtls)
             ssl->macDropCount++;
-        #endif /* WOLFSSL_DTLS_DROP_STATS */
+    #endif /* WOLFSSL_DTLS_DROP_STATS */
     }
 
     return ret;
@@ -17149,10 +17150,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
                     if (ssl->options.startedETMRead) {
                         word32 digestSz = MacSize(ssl);
-                        ret = Decrypt(ssl,
+                        ret = DecryptTls(ssl,
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
-                                      ssl->curSize - (word16)digestSz);
+                                      ssl->curSize - (word16)digestSz, 1);
                         if (ret == 0) {
                             byte invalid = 0;
                             byte padding = (byte)-1;
@@ -17188,10 +17189,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     else
             #endif
                     {
-                        ret = Decrypt(ssl,
+                        ret = DecryptTls(ssl,
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
-                                      ssl->curSize);
+                                      ssl->curSize, 1);
                     }
         #else
                         ret = DECRYPT_ERROR;
@@ -17204,7 +17205,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
-                                        (byte*)&ssl->curRL, RECORD_HEADER_SZ);
+                                        (byte*)&ssl->curRL, RECORD_HEADER_SZ, 1);
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
@@ -26804,11 +26805,15 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         if (ssl->options.tls1_3) {
             XMEMCPY(ssl->session->sessionID,
                                  ssl->session->ticket + length - ID_LEN, ID_LEN);
+            ssl->session->sessionIDSz = ID_LEN;
         }
         else
 #endif
+        {
             XMEMCPY(ssl->arrays->sessionID,
                                  ssl->session->ticket + length - ID_LEN, ID_LEN);
+            ssl->arrays->sessionIDSz = ID_LEN;
+        }
     }
 
     return 0;
