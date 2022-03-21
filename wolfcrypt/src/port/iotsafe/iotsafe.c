@@ -495,6 +495,17 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
             off += ret/2;
 #ifdef IOTSAFE_NO_GETDATA
             if (XSTRNCMP(&resp[ret-4], "0000", 4) == 0) {
+                /* Strip trailing zeros */
+                for (int idx = 0; idx < off-1; idx+=2) {
+                    if (content[idx] == 0 && content[idx+1] == 0) {
+                        off = idx;
+#ifdef DEBUG_IOTSAFE
+                        WOLFSSL_MSG("Stripped trailing zeros from cert buffer.");
+                        WOLFSSL_BUFFER(content, off);
+#endif
+                        break;
+                    }
+                }
                 break;
             }
 #endif
@@ -503,6 +514,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
             return -1;
         }
     }
+
     return off;
 }
 
