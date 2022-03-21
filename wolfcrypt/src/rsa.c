@@ -59,15 +59,20 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 /*
 Possible RSA enable options:
- * NO_RSA:              Overall control of RSA                      default: on (not defined)
- * WC_RSA_BLINDING:     Uses Blinding w/ Private Ops                default: off
-                        Note: slower by ~20%
- * WOLFSSL_KEY_GEN:     Allows Private Key Generation               default: off
- * RSA_LOW_MEM:         NON CRT Private Operations, less memory     default: off
- * WC_NO_RSA_OAEP:      Disables RSA OAEP padding                   default: on (not defined)
- * WC_RSA_NONBLOCK:     Enables support for RSA non-blocking        default: off
- * WC_RSA_NONBLOCK_TIME:Enables support for time based blocking     default: off
- *                      time calculation.
+ * NO_RSA:                Overall control of RSA                    default: on
+ *                                                                 (not defined)
+ * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: off
+                          Note: slower by ~20%
+ * WOLFSSL_KEY_GEN:       Allows Private Key Generation             default: off
+ * RSA_LOW_MEM:           NON CRT Private Operations, less memory   default: off
+ * WC_NO_RSA_OAEP:        Disables RSA OAEP padding                 default: on
+ *                                                                 (not defined)
+ * WC_RSA_NONBLOCK:       Enables support for RSA non-blocking      default: off
+ * WC_RSA_NONBLOCK_TIME:  Enables support for time based blocking   default: off
+ *                        time calculation.
+ * WC_RSA_NO_FERMAT_CHECK:Don't check for small difference in       default: off
+ *                        p and q (Fermat's factorization is       (not defined)
+ *                        possible when small difference).
 */
 
 /*
@@ -730,6 +735,22 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = MP_EXPTMOD_E;
         }
     }
+
+#ifdef WC_RSA_NO_FERMAT_CHECK
+    /* Fermat's Factorization works when difference between p and q
+     * is less than (conservatively):
+     *     n^(1/4) + 32
+     *  ~= 2^(bit count of n)^(1/4) + 32) = 2^((bit count of n)/4 + 32)
+     */
+    if (ret == 0) {
+        ret = mp_sub(&key->p, &key->q, tmp);
+    }
+    if (ret == 0) {
+        if (mp_count_bits(tmp) <= (mp_count_bits(&key->n) / 4 + 32)) {
+            ret = MP_EXPTMOD_E;
+        }
+    }
+#endif
 
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
@@ -4525,6 +4546,21 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
             if (err == MP_OKAY)
                 err = _CheckProbablePrime(p, q, tmp3, size, &isPrime, rng);
+
+#ifdef WC_RSA_NO_FERMAT_CHECK
+            if (err == MP_OKAY && isPrime) {
+                /* Fermat's Factorization works when difference between p and q
+                 * is less than (conservatively):
+                 *     n^(1/4) + 32
+                 *  ~= 2^(bit count of n)^(1/4) + 32)
+                 *   = 2^((bit count of n)/4 + 32)
+                 */
+                err = mp_sub(p, q, tmp1);
+                if (err == MP_OKAY && mp_count_bits(tmp1) <= (size / 4) + 32) {
+                    isPrime = 0;
+                }
+            }
+#endif
 
 #ifdef HAVE_FIPS
             i++;
