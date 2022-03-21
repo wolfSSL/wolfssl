@@ -894,11 +894,13 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
       c->dp[i]   = (fp_digit)w;
       w        >>= DIGIT_BIT;
   }
-  c->dp[i] = (fp_digit)w;
+  for (i = 0; i < b->used-1; i++) {
+      c->dp[i] = (c->dp[i] >> 1) | (c->dp[i+1] << (DIGIT_BIT - 1));
+  }
+  c->dp[i] = (c->dp[i] >> 1) | ((fp_digit)w << (DIGIT_BIT - 1));
   c->used = i + 1;
   c->sign = FP_ZPOS;
   fp_clamp(c);
-  fp_div_2(c, c);
 
   return FP_OKAY;
 }
