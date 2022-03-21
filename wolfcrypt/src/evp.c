@@ -7061,6 +7061,7 @@ WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey)
 
 WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 {
+    WOLFSSL_EC_KEY* local = NULL;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_EC_KEY");
 
     if (key == NULL || key->type != EVP_PKEY_EC) {
@@ -7074,18 +7075,30 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
             local = key->ecc;
         }
         else {
-            local = wolfSSL_EC_KEY_new();
+            key->ecc = local = wolfSSL_EC_KEY_new();
             if (local == NULL) {
                 WOLFSSL_MSG("Error creating a new WOLFSSL_EC_KEY structure");
                 return NULL;
             }
+            if (wolfSSL_EC_KEY_LoadDer(local,
+                        (const unsigned char*)key->pkey.ptr,
+                        key->pkey_sz) != WOLFSSL_SUCCESS) {
+                /* now try public key */
+                if (wolfSSL_EC_KEY_LoadDer_ex(local,
+                        (const unsigned char*)key->pkey.ptr, key->pkey_sz,
+                        WOLFSSL_EC_KEY_LOAD_PUBLIC) != WOLFSSL_SUCCESS) {
 
-    if (wolfSSL_EC_KEY_up_ref(key->ecc) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("wolfSSL_EC_KEY_up_ref error");
-        return NULL;
+                    wolfSSL_EC_KEY_free(local);
+                    local = NULL;
+                }
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an EC key");
     }
 
-    return key->ecc;
+    return local;
 }
 #endif /* HAVE_ECC */
 
@@ -7111,6 +7124,11 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         return WOLFSSL_FAILURE;
 
     clearEVPPkeyKeys(pkey);
+
+    if (wolfSSL_DH_up_ref(key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to increase dh key ref count");
+        return WOLFSSL_FAILURE;
+    }
 
     pkey->dh    = key;
     pkey->ownDh = 1; /* pkey does not own DH but needs to call free on it */
@@ -7347,6 +7365,8 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
 #ifdef HAVE_ECC
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
+    if (pkey == NULL || key == NULL)
+        return WOLFSSL_FAILURE;
     clearEVPPkeyKeys(pkey);
     if (wolfSSL_EC_KEY_up_ref(key) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_up_ref failed");

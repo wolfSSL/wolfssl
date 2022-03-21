@@ -38981,7 +38981,6 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_free");
 
     if (key != NULL) {
-        int doFree = 0;
         void* heap = key->heap;
 
     #ifndef SINGLE_THREADED
@@ -39008,30 +39007,14 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
             wc_ecc_free((ecc_key*)key->internal);
             XFREE(key->internal, heap, DYNAMIC_TYPE_ECC);
         }
-#endif
-        /* only free if all references to it are done */
-        key->refCount--;
-        if (key->refCount == 0) {
-            doFree = 1;
-        }
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&key->refMutex);
-#endif
+        wolfSSL_BN_free(key->priv_key);
+        wolfSSL_EC_POINT_free(key->pub_key);
+        wolfSSL_EC_GROUP_free(key->group);
+        InitwolfSSL_ECKey(key); /* set back to NULLs for safety */
 
-        if (doFree) {
-            if (key->internal != NULL) {
-                wc_ecc_free((ecc_key*)key->internal);
-                XFREE(key->internal, heap, DYNAMIC_TYPE_ECC);
-            }
-            wolfSSL_BN_free(key->priv_key);
-            wolfSSL_EC_POINT_free(key->pub_key);
-            wolfSSL_EC_GROUP_free(key->group);
-            InitwolfSSL_ECKey(key); /* set back to NULLs for safety */
-
-            XFREE(key, heap, DYNAMIC_TYPE_ECC);
-            (void)heap;
-            /* key = NULL, don't try to access or double free it */
-        }
+        XFREE(key, heap, DYNAMIC_TYPE_ECC);
+        (void)heap;
+        /* key = NULL, don't try to access or double free it */
     }
 }
 
