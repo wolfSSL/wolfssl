@@ -290,7 +290,7 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
     if (ret == 0) {
         priv[0] = ECDSA_KEY_VERSION;
         priv[1] = kcapiCurveId;
-        ret = wc_export_int(&key->k, priv + 2, &keySz, keySz,
+        ret = wc_export_int(&key->k, priv + KCAPI_PARAM_SZ, &keySz, keySz,
                             WC_TYPE_UNSIGNED_BIN);
     }
     if (ret == 0) {
@@ -359,10 +359,10 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         ret = (int)kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
             sig_aligned, keySz*2, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
-            ret = 0;
             if (sig_aligned != sig) {
                 XMEMCPY(sig, sig_aligned, ret);
             }
+            ret = 0; /* mark success */
         }
     }
 
