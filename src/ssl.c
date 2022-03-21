@@ -59507,8 +59507,8 @@ static int GetX509Error(int e)
             return X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
         case ASN_AFTER_DATE_E:
             return X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
-        case ASN_NO_SIGNER_E:
-            return X509_V_ERR_INVALID_CA;
+        case ASN_NO_SIGNER_E: /* get issuer error if no CA found locally */
+            return X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
         case ASN_SELF_SIGNED_E:
             return X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case ASN_PATHLEN_INV_E:

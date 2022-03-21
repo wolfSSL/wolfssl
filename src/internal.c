@@ -20637,6 +20637,10 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
 #endif
+#ifdef OPENSSL_EXTRA
+    case -X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+        return "unable to get local issuer certificate";
+#endif
     case UNSUPPORTED_PROTO_VERSION:
         #ifdef OPENSSL_ALL
         return "WRONG_SSL_VERSION";
