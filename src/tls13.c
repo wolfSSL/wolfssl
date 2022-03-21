@@ -9552,7 +9552,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     WOLFSSL_MSG("Allowing no server private key (external)");
                 }
                 else
-            #endif 
+            #endif
                 {
                     WOLFSSL_MSG("accept error: server key required");
                     WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);

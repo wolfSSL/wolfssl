@@ -4877,7 +4877,7 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
     int ret = 0;
 
     /* Public key required for signing. */
-    if (!key->pubKeySet) {
+    if (key != NULL && !key->pubKeySet) {
         DerBuffer* leaf = ssl->buffers.certificate;
         DecodedCert* cert = (DecodedCert*)XMALLOC(sizeof(*cert),
                                      ssl->heap, DYNAMIC_TYPE_DCERT);
@@ -5211,7 +5211,7 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
     int ret = 0;
 
     /* Public key required for signing. */
-    if (!key->pubKeySet) {
+    if (key != NULL && !key->pubKeySet) {
         DerBuffer* leaf = ssl->buffers.certificate;
         DecodedCert* cert = (DecodedCert*)XMALLOC(sizeof(*cert), ssl->heap,
             DYNAMIC_TYPE_DCERT);
@@ -5786,7 +5786,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
                 WOLFSSL_MSG("Allowing no server private key (external)");
             }
             else
-        #endif 
+        #endif
             {
                 WOLFSSL_MSG("Server missing private key");
                 return NO_PRIVATE_KEY;

@@ -4027,8 +4027,13 @@ static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     ret = wc_ed25519_init(&myKey);
     if (ret == 0) {
         ret = wc_Ed25519PrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
-        if (ret == 0)
+        if (ret == 0) {
+            ret = wc_ed25519_make_public(&myKey, myKey.p, ED25519_PUB_KEY_SIZE);
+        }
+        if (ret == 0) {
+            myKey.pubKeySet = 1;
             ret = wc_ed25519_sign_msg(in, inSz, out, outSz, &myKey);
+        }
         wc_ed25519_free(&myKey);
     }
 
@@ -4191,8 +4196,13 @@ static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     ret = wc_ed448_init(&myKey);
     if (ret == 0) {
         ret = wc_Ed448PrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
-        if (ret == 0)
+        if (ret == 0) {
+            ret = wc_ed448_make_public(&myKey, myKey.p, ED448_PUB_KEY_SIZE);
+        }
+        if (ret == 0) {
+            myKey.pubKeySet = 1;
             ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey, NULL, 0);
+        }
         wc_ed448_free(&myKey);
     }
 

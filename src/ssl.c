@@ -5851,7 +5851,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             )) {
                 /* if using crypto or PK callbacks, try public key decode */
                 *idx = 0;
-                ret = wc_Ed25519PublicKeyDecode(der->buffer, idx, key, der->length);
+                ret = wc_Ed25519PublicKeyDecode(der->buffer, idx, key,
+                                                der->length);
             }
         #endif
             if (ret == 0) {
@@ -5925,7 +5926,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             )) {
                 /* if using crypto or PK callbacks, try public key decode */
                 *idx = 0;
-                ret = wc_Ed448PublicKeyDecode(der->buffer, idx, key, der->length);
+                ret = wc_Ed448PublicKeyDecode(der->buffer, idx, key,
+                                              der->length);
             }
         #endif
             if (ret == 0) {
@@ -6131,7 +6133,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef HAVE_PKCS8
             /* if private key try and remove PKCS8 header */
             if (type == PRIVATEKEY_TYPE) {
-                if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
+                if ((ret = ToTraditional_ex(der->buffer, der->length,
+                                                                 &algId)) > 0) {
                     /* Found PKCS8 header */
                     /* ToTraditional_ex moves buff and returns adjusted length */
                     der->length = ret;
@@ -14872,7 +14875,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
                     #endif
                     ) {
-                        WOLFSSL_MSG("Allowing no server private key (external)");
+                        WOLFSSL_MSG("Allowing no server private key "
+                                    "(external)");
                     }
                     else
                 #endif
