@@ -10497,7 +10497,11 @@ int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex, int crit)
  * other extension types return a pointer to a v3_ext_method struct that contains
  * only the NID.
  */
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
+#else
+WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
+#endif
 {
     int nid;
     WOLFSSL_v3_ext_method method;
@@ -10553,7 +10557,11 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     method.ext_nid = nid;
     ex->ext_method = method;
 
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
     return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
+#else
+    return (WOLFSSL_v3_ext_method*)&ex->ext_method;
+#endif
 }
 
 /* Parses and returns an x509v3 extension internal structure.
