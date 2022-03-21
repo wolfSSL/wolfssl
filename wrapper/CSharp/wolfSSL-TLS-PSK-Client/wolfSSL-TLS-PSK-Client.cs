@@ -32,7 +32,7 @@ using wolfSSL.CSharp;
 
 
 
-public class wolfSSL_TLS_PSK_Server
+public class wolfSSL_TLS_PSK_Client
 {
 
 
@@ -40,7 +40,9 @@ public class wolfSSL_TLS_PSK_Server
     /// Example of a PSK function call back
     /// </summary>
     /// <param name="ssl">pointer to ssl structure</param>
-    /// <param name="identity">identity of client connecting</param>
+    /// <param name="hint">hint if any from connecting</param>
+    /// <param name="identity">identity to send to server</param>
+    /// <param name="id_max">max length of identity</param>
     /// <param name="key">buffer to hold key</param>
     /// <param name="max_key">max key size</param>
     /// <returns>size of key set</returns>
