@@ -331,6 +331,7 @@ struct PKCS7 {
     /* used by DecodeEnvelopedData with multiple encrypted contents */
     byte*  cachedEncryptedContent;
     word32 cachedEncryptedContentSz;
+    word16 contentCRLF:1; /* have content line endings been converted to CRLF */
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 

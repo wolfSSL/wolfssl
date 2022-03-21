@@ -32493,22 +32493,25 @@ MimeParam* wc_MIME_find_param_attr(const char* attribute,
 }
 
 /*****************************************************************************
-* wc_MIME_canonicalize - Canonicalize a line by converting all line endings
-* to CRLF.
+* wc_MIME_single_canonicalize - Canonicalize a line by converting the trailing
+* line ending to CRLF.
+*
+* line - input line to canonicalize
+* len  - length of line in chars on input, length of output array on return
 *
 * RETURNS:
 * returns a pointer to a canonicalized line on success, NULL on error.
 */
-char* wc_MIME_canonicalize(const char* line)
+char* wc_MIME_single_canonicalize(const char* line, word32* len)
 {
     size_t end = 0;
     char* canonLine = NULL;
 
-    if (line == NULL || XSTRLEN(line) == 0) {
+    if (line == NULL || len == NULL || *len == 0) {
         return NULL;
     }
 
-    end = XSTRLEN(line);
+    end = *len;
     while (end >= 1 && ((line[end-1] == '\r') || (line[end-1] == '\n'))) {
         end--;
     }
@@ -32519,10 +32522,11 @@ char* wc_MIME_canonicalize(const char* line)
         return NULL;
     }
 
-    XSTRNCPY(canonLine, line, end);
+    XMEMCPY(canonLine, line, end);
     canonLine[end] = '\r';
     canonLine[end+1] = '\n';
     canonLine[end+2] = '\0';
+    *len = (word32)(end + 3);
 
     return canonLine;
 }

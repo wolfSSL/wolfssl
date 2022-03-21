@@ -2029,11 +2029,9 @@ WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 #ifdef HAVE_SMIME
 WOLFSSL_LOCAL int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** hdrs);
 WOLFSSL_LOCAL int wc_MIME_header_strip(char* in, char** out, size_t start, size_t end);
-WOLFSSL_LOCAL int wc_MIME_create_header(char* name, char* body, MimeHdr** hdr);
-WOLFSSL_LOCAL int wc_MIME_create_parameter(char* attribute, char* value, MimeParam** param);
 WOLFSSL_LOCAL MimeHdr* wc_MIME_find_header_name(const char* name, MimeHdr* hdr);
 WOLFSSL_LOCAL MimeParam* wc_MIME_find_param_attr(const char* attribute, MimeParam* param);
-WOLFSSL_LOCAL char* wc_MIME_canonicalize(const char* line);
+WOLFSSL_LOCAL char* wc_MIME_single_canonicalize(const char* line, word32* len);
 WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 #endif /* HAVE_SMIME */
 

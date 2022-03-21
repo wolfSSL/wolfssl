@@ -47104,6 +47104,181 @@ static void test_wolfssl_PKCS7(void)
 #endif
 }
 
+static void test_wolfSSL_PKCS7_sign(void)
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+    PKCS7* p7 = NULL;
+    PKCS7* p7Ver = NULL;
+    byte* out = NULL;
+    byte* tmpPtr = NULL;
+    int outLen = 0;
+    int flags = 0;
+    byte data[] = "Test data to encode.";
+
+    const char* cert = "./certs/server-cert.pem";
+    const char* key  = "./certs/server-key.pem";
+    const char* ca   = "./certs/ca-cert.pem";
+
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio = NULL;
+    WOLFSSL_BIO* caBio = NULL;
+    WOLFSSL_BIO* inBio = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+
+    printf(testingFmt, "wolfSSL_PKCS7_sign()");
+
+    /* read signer cert/key into BIO */
+    AssertNotNull(certBio = BIO_new_file(cert, "r"));
+    AssertNotNull(keyBio = BIO_new_file(key, "r"));
+    AssertNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    AssertNotNull(signKey = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+
+    /* read CA cert into store (for verify) */
+    AssertNotNull(caBio = BIO_new_file(ca, "r"));
+    AssertNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    AssertNotNull(store = X509_STORE_new());
+    AssertIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+    /* data to be signed into BIO */
+    AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+    AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+    /* PKCS7_sign, bad args: signer NULL */
+    AssertNull(p7 = PKCS7_sign(NULL, signKey, NULL, inBio, 0));
+    /* PKCS7_sign, bad args: signer key NULL */
+    AssertNull(p7 = PKCS7_sign(signCert, NULL, NULL, inBio, 0));
+    /* PKCS7_sign, bad args: in data NULL without PKCS7_STREAM */
+    AssertNull(p7 = PKCS7_sign(signCert, signKey, NULL, NULL, 0));
+    /* PKCS7_sign, bad args: PKCS7_NOCERTS flag not supported */
+    AssertNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, PKCS7_NOCERTS));
+    /* PKCS7_sign, bad args: PKCS7_PARTIAL flag not supported */
+    AssertNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, PKCS7_PARTIAL));
+
+    /* TEST SUCCESS: Not detached, not streaming, not MIME */
+    {
+        flags = PKCS7_BINARY;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+
+        /* verify with d2i_PKCS7 */
+        tmpPtr = out;
+        AssertNotNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, NULL, NULL, flags), 1);
+        PKCS7_free(p7Ver);
+
+        /* verify with wc_PKCS7_VerifySignedData */
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
+        AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        wc_PKCS7_Free(p7Ver);
+
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+        PKCS7_free(p7);
+    }
+
+    /* TEST SUCCESS: Not detached, streaming, not MIME. Also bad arg
+     * tests for PKCS7_final() while we have a PKCS7 pointer to use */
+    {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_BINARY | PKCS7_STREAM;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertIntEQ(PKCS7_final(p7, inBio, flags), 1);
+        AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+
+        /* PKCS7_final, bad args: PKCS7 null */
+        AssertIntEQ(PKCS7_final(NULL, inBio, 0), 0);
+        /* PKCS7_final, bad args: PKCS7 null */
+        AssertIntEQ(PKCS7_final(p7, NULL, 0), 0);
+
+        tmpPtr = out;
+        AssertNotNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, NULL, NULL, flags), 1);
+        PKCS7_free(p7Ver);
+
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+        PKCS7_free(p7);
+    }
+
+    /* TEST SUCCESS: Detached, not streaming, not MIME */
+    {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_BINARY | PKCS7_DETACHED;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+
+        /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        p7Ver->content = data;
+        p7Ver->contentSz = sizeof(data);
+        AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        wc_PKCS7_Free(p7Ver);
+
+        /* verify expected failure (NULL return) from d2i_PKCS7, it does not
+         * yet support detached content */
+        tmpPtr = out;
+        AssertNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        PKCS7_free(p7Ver);
+
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
+        PKCS7_free(p7);
+    }
+
+    /* TEST SUCCESS: Detached, streaming, not MIME */
+    {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_BINARY | PKCS7_DETACHED | PKCS7_STREAM;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertIntEQ(PKCS7_final(p7, inBio, flags), 1);
+        AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+
+        /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        p7Ver->content = data;
+        p7Ver->contentSz = sizeof(data);
+        AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        wc_PKCS7_Free(p7Ver);
+
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        PKCS7_free(p7);
+    }
+
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(inBio);
+    BIO_free(keyBio);
+    BIO_free(certBio);
+    BIO_free(caBio);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_PKCS7_SIGNED_new(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_PKCS7)
@@ -47243,46 +47418,212 @@ static void test_wolfSSL_SMIME_read_PKCS7(void)
     PKCS7* pkcs7 = NULL;
     BIO* bio = NULL;
     BIO* bcont = NULL;
+    BIO* out = NULL;
+    const byte* outBuf = NULL;
+    int outBufLen = 0;
+    static const char contTypeText[] = "Content-Type: text/plain\r\n\r\n";
     XFILE smimeTestFile = XFOPEN("./certs/test/smime-test.p7s", "r");
 
     printf(testingFmt, "wolfSSL_SMIME_read_PKCS7()");
 
+    /* smime-test.p7s */
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
     AssertNotNull(bio);
     AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
+                                     PKCS7_NOVERIFY), SSL_SUCCESS);
     XFCLOSE(smimeTestFile);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);
 
+    /* smime-test-multipart.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-multipart.p7s", "r");
     AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
+                                     PKCS7_NOVERIFY), SSL_SUCCESS);
     XFCLOSE(smimeTestFile);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);
 
+    /* smime-test-multipart-badsig.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-multipart-badsig.p7s", "r");
     AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     AssertNull(pkcs7);
-    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
+                                     PKCS7_NOVERIFY), SSL_FAILURE);
     XFCLOSE(smimeTestFile);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);
 
+    /* smime-test-canon.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-canon.p7s", "r");
     AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
+                                     PKCS7_NOVERIFY), SSL_SUCCESS);
+    if (bcont) BIO_free(bcont);
+    wolfSSL_PKCS7_free(pkcs7);
+
+    /* Test PKCS7_TEXT, PKCS7_verify() should remove Content-Type: text/plain */
+    smimeTestFile = XFOPEN("./certs/test/smime-test-canon.p7s", "r");
+    AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
+    pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
+    AssertNotNull(pkcs7);
+    out = wolfSSL_BIO_new(BIO_s_mem());
+    AssertNotNull(out);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, out,
+                PKCS7_NOVERIFY | PKCS7_TEXT), SSL_SUCCESS);
+    AssertIntGT((outBufLen = BIO_get_mem_data(out, &outBuf)), 0);
+    /* Content-Type should not show up at beginning of output buffer */
+    AssertIntGT(outBufLen, XSTRLEN(contTypeText));
+    AssertIntGT(XMEMCMP(outBuf, contTypeText, XSTRLEN(contTypeText)), 0);
+
+    BIO_free(out);
     BIO_free(bio);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_SMIME_write_PKCS7(void)
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_RSA)
+
+    PKCS7* p7 = NULL;
+    PKCS7* p7Ver = NULL;
+    int flags = 0;
+    byte data[] = "Test data to encode.";
+
+    const char* cert = "./certs/server-cert.pem";
+    const char* key  = "./certs/server-key.pem";
+    const char* ca   = "./certs/ca-cert.pem";
+
+    WOLFSSL_BIO* certBio = NULL;
+    WOLFSSL_BIO* keyBio  = NULL;
+    WOLFSSL_BIO* caBio   = NULL;
+    WOLFSSL_BIO* inBio   = NULL;
+    WOLFSSL_BIO* outBio  = NULL;
+    WOLFSSL_BIO* content = NULL;
+    X509* signCert = NULL;
+    EVP_PKEY* signKey = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+
+    printf(testingFmt, "wolfSSL_SMIME_write_PKCS7()");
+
+    /* read signer cert/key into BIO */
+    AssertNotNull(certBio = BIO_new_file(cert, "r"));
+    AssertNotNull(keyBio = BIO_new_file(key, "r"));
+    AssertNotNull(signCert = PEM_read_bio_X509(certBio, NULL, 0, NULL));
+    AssertNotNull(signKey = PEM_read_bio_PrivateKey(keyBio, NULL, 0, NULL));
+
+    /* read CA cert into store (for verify) */
+    AssertNotNull(caBio = BIO_new_file(ca, "r"));
+    AssertNotNull(caCert = PEM_read_bio_X509(caBio, NULL, 0, NULL));
+    AssertNotNull(store = X509_STORE_new());
+    AssertIntEQ(X509_STORE_add_cert(store, caCert), 1);
+
+
+    /* generate and verify SMIME: not detached */
+    {
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_STREAM;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertNotNull(outBio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(SMIME_write_PKCS7(outBio, p7, inBio, flags), 1);
+
+        /* bad arg: out NULL */
+        AssertIntEQ(SMIME_write_PKCS7(NULL, p7, inBio, flags), 0);
+        /* bad arg: pkcs7 NULL */
+        AssertIntEQ(SMIME_write_PKCS7(outBio, NULL, inBio, flags), 0);
+
+        AssertNotNull(p7Ver = SMIME_read_PKCS7(outBio, &content));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, NULL, NULL, flags), 1);
+
+        BIO_free(content);
+        BIO_free(inBio);
+        BIO_free(outBio);
+        PKCS7_free(p7Ver);
+        PKCS7_free(p7);
+    }
+
+    /* generate and verify SMIME: not detached, add Content-Type */
+    {
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_STREAM | PKCS7_TEXT;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertNotNull(outBio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(SMIME_write_PKCS7(outBio, p7, inBio, flags), 1);
+
+        AssertNotNull(p7Ver = SMIME_read_PKCS7(outBio, &content));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, NULL, NULL, flags), 1);
+
+        BIO_free(content);
+        BIO_free(inBio);
+        BIO_free(outBio);
+        PKCS7_free(p7Ver);
+        PKCS7_free(p7);
+    }
+
+    /* generate and verify SMIME: detached */
+    {
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_DETACHED | PKCS7_STREAM;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertNotNull(outBio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(SMIME_write_PKCS7(outBio, p7, inBio, flags), 1);
+
+        AssertNotNull(p7Ver = SMIME_read_PKCS7(outBio, &content));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, content, NULL, flags), 1);
+
+        BIO_free(content);
+        BIO_free(inBio);
+        BIO_free(outBio);
+        PKCS7_free(p7Ver);
+        PKCS7_free(p7);
+    }
+
+    /* generate and verify SMIME: PKCS7_TEXT to add Content-Type header */
+    {
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
+        flags = PKCS7_STREAM | PKCS7_DETACHED | PKCS7_TEXT;
+        AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
+        AssertNotNull(outBio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(SMIME_write_PKCS7(outBio, p7, inBio, flags), 1);
+
+        AssertNotNull(p7Ver = SMIME_read_PKCS7(outBio, &content));
+        AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, content, NULL, flags), 1);
+
+        BIO_free(content);
+        BIO_free(inBio);
+        BIO_free(outBio);
+        PKCS7_free(p7Ver);
+        PKCS7_free(p7);
+    }
+
+    X509_STORE_free(store);
+    X509_free(caCert);
+    X509_free(signCert);
+    EVP_PKEY_free(signKey);
+    BIO_free(keyBio);
+    BIO_free(certBio);
+    BIO_free(caBio);
 
     printf(resultFmt, passed);
 #endif
@@ -53195,11 +53536,13 @@ void ApiTest(void)
     test_X509_REQ();
     /* OpenSSL PKCS7 API test */
     test_wolfssl_PKCS7();
+    test_wolfSSL_PKCS7_sign();
     test_wolfSSL_PKCS7_SIGNED_new();
 #ifndef NO_BIO
     test_wolfSSL_PEM_write_bio_PKCS7();
 #ifdef HAVE_SMIME
     test_wolfSSL_SMIME_read_PKCS7();
+    test_wolfSSL_SMIME_write_PKCS7();
 #endif
 #endif
 
