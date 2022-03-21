@@ -91,6 +91,11 @@ enum {
     WC_FFDHE_8192 = 260,
 };
 
+/* DH Private Key size up to 8192 bit */
+#ifndef WC_DH_PRIV_MAX_SZ
+#define WC_DH_PRIV_MAX_SZ 52
+#endif
+
 #ifdef HAVE_PUBLIC_FFDHE
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);

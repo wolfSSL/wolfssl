@@ -27,6 +27,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/version.h>
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
     #include <wolfssl/wolfcrypt/memory.h>
@@ -382,6 +384,80 @@ static void TrimNewLine(char* str)
         str[strSz-1] = '\0';
 }
 
+static void show_appinfo(void)
+{
+    printf("snifftest %s\n", LIBWOLFSSL_VERSION_STRING);
+
+    /* list enabled sniffer features */
+    printf("sniffer features: "
+    #ifdef WOLFSSL_SNIFFER_STATS
+        "stats, "
+    #endif
+    #ifdef WOLFSSL_SNIFFER_WATCH
+        "watch, "
+    #endif
+    #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+        "store_data_cb "
+    #endif
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+        "chain_input "
+    #endif
+    #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        "key_callback "
+    #endif
+    #ifdef DEBUG_SNIFFER
+        "debug "
+    #endif
+    #ifdef WOLFSSL_TLS13
+        "tls_v13 "
+    #endif
+    #ifdef HAVE_SESSION_TICKET
+        "session_ticket "
+    #endif
+    #ifdef WOLFSSL_STATIC_EPHEMERAL
+        "static_ephemeral "
+    #endif
+    #ifdef WOLFSSL_ENCRYPTED_KEYS
+        "encrypted_keys "
+    #endif
+    #ifdef HAVE_SNI
+        "sni "
+    #endif
+    #ifdef HAVE_EXTENDED_MASTER
+        "extended_master "
+    #endif
+    #ifdef HAVE_MAX_FRAGMENT
+        "max fragment "
+    #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        "async_crypt "
+    #endif
+    #ifndef NO_RSA
+        "rsa "
+    #endif
+    #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
+        "dh "
+    #endif
+    #ifdef HAVE_ECC
+        "ecc "
+    #endif
+    #ifdef HAVE_CURVE448
+        "x448 "
+    #endif
+    #ifdef HAVE_CURVE22519
+        "x22519 "
+    #endif
+    "\n\n"
+    );
+}
+static void show_usage(void)
+{
+    printf("usage:\n");
+    printf("\t./snifftest\n");
+    printf("\t\tprompts for options\n");
+    printf("\t./snifftest dump pemKey [server] [port] [password]\n");
+}
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -401,10 +477,14 @@ int main(int argc, char** argv)
     struct       bpf_program fp;
     pcap_if_t   *d;
     pcap_addr_t *a;
+    int          isChain = 0;
+    int          j;
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
-    struct iovec chain[CHAIN_INPUT_COUNT];
-    int          chainSz;
+    struct iovec chains[CHAIN_INPUT_COUNT];
+    unsigned int remainder;
 #endif
+
+    show_appinfo();
 
     signal(SIGINT, sig_handler);
 
@@ -601,9 +681,7 @@ int main(int argc, char** argv)
         }
     }
     else {
-        /* usage error */
-        printf( "usage: ./snifftest or ./snifftest dump pemKey"
-                " [server] [port] [password]\n");
+        show_usage();
         exit(EXIT_FAILURE);
     }
 
@@ -618,9 +696,11 @@ int main(int argc, char** argv)
         struct pcap_pkthdr header;
         const unsigned char* packet = pcap_next(pcap, &header);
         SSLInfo sslInfo;
+        void* chain = NULL;
+        int   chainSz = 0;
+
         packetNumber++;
         if (packet) {
-
             byte* data = NULL;
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
@@ -629,45 +709,69 @@ int main(int argc, char** argv)
             }
             else
                 continue;
+
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
-            {
-                unsigned int j = 0;
-                unsigned int remainder = header.caplen;
-
-                chainSz = 0;
-                do {
-                    unsigned int chunkSz;
-
-                    chunkSz = min(remainder, CHAIN_INPUT_CHUNK_SIZE);
-                    chain[chainSz].iov_base = (void*)(packet + j);
-                    chain[chainSz].iov_len = chunkSz;
-                    j += chunkSz;
-                    remainder -= chunkSz;
-                    chainSz++;
-                } while (j < header.caplen);
-            }
+            isChain = 1;
+            j = 0;
+            remainder = header.caplen;
+            chainSz = 0;
+            do {
+                unsigned int chunkSz = min(remainder, CHAIN_INPUT_CHUNK_SIZE);
+                chains[chainSz].iov_base = (void*)(packet + j);
+                chains[chainSz].iov_len = chunkSz;
+                j += chunkSz;
+                remainder -= chunkSz;
+                chainSz++;
+            } while (j < (int)header.caplen);
+            chain = (void*)chains;
+#else
+            chain = (void*)packet;
+            chainSz = header.caplen;
+            (void)isChain;
 #endif
 
-#if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
-    defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+#ifdef WOLFSSL_ASYNC_CRYPT
+            do {
+                WOLF_EVENT* events[1]; /* poll for single event */
+                int eventCount = 0;
+
+                /* For async call the original API again with same data, 
+                 * or call with different sessions for multiple concurrent
+                 * stream processing */
+                ret = ssl_DecodePacketAsync(chain, chainSz, isChain, &data, err,
+                    &sslInfo, NULL);
+
+                if (ret == WC_PENDING_E) {
+                    if (ssl_PollSniffer(events, 1, WOLF_POLL_FLAG_CHECK_HW,
+                        &eventCount) != 0) {
+                        break;
+                    }
+                }
+            } while (ret == WC_PENDING_E);
+#elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
+      defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
             ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
                     &data, &sslInfo, err);
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
             (void)sslInfo;
             ret = ssl_DecodePacketWithChain(chain, chainSz, &data, err);
-#elif defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+#else
+    #if defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
             ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
                     header.caplen, &data, &sslInfo, err);
-#else
+    #else
             ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
                                                   &sslInfo, err);
+    #endif
+            (void)chain;
+            (void)chainSz;
 #endif
+
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
                 hadBadPacket = 1;
             }
             if (ret > 0) {
-                int j;
                 /* Convert non-printable data to periods. */
                 for (j = 0; j < ret; j++) {
                     if (isprint(data[j]) || isspace(data[j])) continue;
