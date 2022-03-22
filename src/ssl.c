@@ -28556,7 +28556,7 @@ static int Asn1TimeToTm(WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
     unsigned char* asn1TimeBuf;
     int asn1TimeBufLen;
     int i = 0;
-    int bytesNeeded = 10;
+    int bytesNeeded = 11;
 
     if (asnTime == NULL) {
         WOLFSSL_MSG("asnTime is NULL");
@@ -28588,6 +28588,10 @@ static int Asn1TimeToTm(WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
             WOLFSSL_MSG("WOLFSSL_ASN1_TIME buffer length is invalid.");
             return WOLFSSL_FAILURE;
         }
+        if (asn1TimeBuf[bytesNeeded-1] != 'Z') {
+            WOLFSSL_MSG("Expecting UTC time.");
+            return WOLFSSL_FAILURE;
+        }
 
         tm->tm_year = (asn1TimeBuf[i] - '0') * 10; i++;
         tm->tm_year += asn1TimeBuf[i] - '0'; i++;
@@ -28600,6 +28604,10 @@ static int Asn1TimeToTm(WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
         bytesNeeded += 4;
         if (bytesNeeded > asn1TimeBufLen) {
             WOLFSSL_MSG("WOLFSSL_ASN1_TIME buffer length is invalid.");
+            return WOLFSSL_FAILURE;
+        }
+        if (asn1TimeBuf[bytesNeeded-1] != 'Z') {
+            WOLFSSL_MSG("Expecting UTC time.");
             return WOLFSSL_FAILURE;
         }
 
@@ -32076,8 +32084,17 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
         return WOLFSSL_FAILURE;
     }
 
+#ifdef HAVE_ERRNO_H
+    errno = 0;
+#endif
     fromSecs = XMKTIME(fromTm);
-    if (fromSecs < 0) {
+    /* Result can be negative due to time zones around UNIX epoch */
+    if (fromSecs == -1
+#ifdef HAVE_ERRNO_H
+            /* Double check with errno that -1 is actually an error */
+            && errno != 0
+#endif
+            ) {
         WOLFSSL_MSG("XMKTIME for from time failed.");
         return WOLFSSL_FAILURE;
     }
@@ -32096,7 +32113,13 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     toSecs = XMKTIME(toTm);
-    if (toSecs < 0) {
+    /* Result can be negative due to time zones around UNIX epoch */
+    if (toSecs == -1
+#ifdef HAVE_ERRNO_H
+            /* Double check with errno that -1 is actually an error */
+            && errno != 0
+#endif
+            ) {
         WOLFSSL_MSG("XMKTIME for to time failed.");
         return WOLFSSL_FAILURE;
     }
