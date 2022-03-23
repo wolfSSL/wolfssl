@@ -2229,8 +2229,8 @@ typedef struct {
     #endif
     } pub;
 #endif
-    int initPriv:1;
-    int initPub:1;
+    byte initPriv:1;
+    byte initPub:1;
 } SnifferKey;
 
 typedef struct SetupKeysArgs {

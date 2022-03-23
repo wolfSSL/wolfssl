@@ -735,7 +735,7 @@ int main(int argc, char** argv)
                 WOLF_EVENT* events[1]; /* poll for single event */
                 int eventCount = 0;
 
-                /* For async call the original API again with same data, 
+                /* For async call the original API again with same data,
                  * or call with different sessions for multiple concurrent
                  * stream processing */
                 ret = ssl_DecodePacketAsync(chain, chainSz, isChain, &data, err,
