@@ -65,6 +65,7 @@ if [ "$1" == "hrr" ]; then
     # TLS v1.3 Hello Retry Request
     ./examples/server/server -v 4 -i -x -g &
     sleep 0.1
+fi
 
 # Run this script from the wolfSSL root
 if [ ! -f wolfssl/ssl.h ]; then

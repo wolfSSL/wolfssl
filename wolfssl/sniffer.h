@@ -124,12 +124,12 @@ SSL_SNIFFER_API int ssl_GetSessionStats(unsigned int* active,
                                         unsigned int* reassemblyMemory,
                                         char* error);
 
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API void ssl_InitSniffer(void);
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API void ssl_InitSniffer_ex(int devId);
 
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API void ssl_FreeSniffer(void);
 
 
