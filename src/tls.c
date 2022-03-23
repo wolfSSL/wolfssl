@@ -3506,10 +3506,13 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     continue;
             }
 
-            /* if using status_request and already sending it, skip this one */
+            /* if using status_request and already sending it, remove it
+             * and prefer to use the v2 version */
             #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-            if (ssl->status_request)
-                return 0;
+            if (ssl->status_request) {
+                ssl->status_request = 0;
+                TLSX_Remove(&ssl->extensions, TLSX_STATUS_REQUEST, ssl->heap);
+            }
             #endif
 
             /* TLS 1.3 servers MUST NOT act upon presence or information in
