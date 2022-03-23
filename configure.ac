@@ -258,8 +258,13 @@ AS_CASE([$ENABLED_WOLFENGINE],
 # FIPS 140
 AC_ARG_ENABLE([fips],
     [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
-    [ENABLED_FIPS=$enableval],
-    [ENABLED_FIPS="no"])
+    [ENABLED_FIPS_REAL=$enableval],
+    [ENABLED_FIPS_REAL="no"])
+
+if test "$ENABLED_FIPS_REAL" != "no"
+then
+    ENABLED_FIPS="$ENABLED_FIPS_REAL"
+fi
 
 # The FIPS options are:
 #   no - FIPS build disabled, FIPS sources forbidden in build tree
