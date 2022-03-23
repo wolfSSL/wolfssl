@@ -38993,9 +38993,9 @@ sp_256_get_point_33_avx2_4 PROC
 L_256_get_point_33_avx2_4_start:
         vpcmpeqd	ymm6, ymm8, ymm7
         vpaddd	ymm8, ymm8, ymm9
-        vmovupd	ymm3, [rdx]
-        vmovupd	ymm4, [rdx+64]
-        vmovupd	ymm5, [rdx+128]
+        vmovupd	ymm3, YMMWORD PTR [rdx]
+        vmovupd	ymm4, YMMWORD PTR [rdx+64]
+        vmovupd	ymm5, YMMWORD PTR [rdx+128]
         add	rdx, 200
         vpand	ymm3, ymm3, ymm6
         vpand	ymm4, ymm4, ymm6
@@ -39670,8 +39670,8 @@ sp_256_get_entry_64_avx2_4 PROC
 L_256_get_entry_64_avx2_4_start:
         vpcmpeqd	ymm4, ymm6, ymm5
         vpaddd	ymm6, ymm6, ymm7
-        vmovupd	ymm2, [rdx]
-        vmovupd	ymm3, [rdx+32]
+        vmovupd	ymm2, YMMWORD PTR [rdx]
+        vmovupd	ymm3, YMMWORD PTR [rdx+32]
         add	rdx, 64
         vpand	ymm2, ymm2, ymm4
         vpand	ymm3, ymm3, ymm4
@@ -39758,8 +39758,8 @@ sp_256_get_entry_65_avx2_4 PROC
 L_256_get_entry_65_avx2_4_start:
         vpcmpeqd	ymm4, ymm6, ymm5
         vpaddd	ymm6, ymm6, ymm7
-        vmovupd	ymm2, [rdx]
-        vmovupd	ymm3, [rdx+32]
+        vmovupd	ymm2, YMMWORD PTR [rdx]
+        vmovupd	ymm3, YMMWORD PTR [rdx+32]
         add	rdx, 64
         vpand	ymm2, ymm2, ymm4
         vpand	ymm3, ymm3, ymm4
@@ -40834,22 +40834,22 @@ sp_256_mod_inv_avx2_4 PROC
         mov	r14, QWORD PTR [rdx+16]
         mov	r15, QWORD PTR [rdx+24]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_order
-        vmovupd	ymm6, [rbx]
-        vmovupd	ymm7, [rbx+32]
+        vmovupd	ymm6, YMMWORD PTR [rbx]
+        vmovupd	ymm7, YMMWORD PTR [rbx+32]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_one
-        vmovupd	ymm8, [rbx]
+        vmovupd	ymm8, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_mask01111
-        vmovupd	ymm9, [rbx]
+        vmovupd	ymm9, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_all_one
-        vmovupd	ymm10, [rbx]
+        vmovupd	ymm10, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_down_one_dword
-        vmovupd	ymm11, [rbx]
+        vmovupd	ymm11, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_neg
-        vmovupd	ymm12, [rbx]
+        vmovupd	ymm12, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_up_one_dword
-        vmovupd	ymm13, [rbx]
+        vmovupd	ymm13, YMMWORD PTR [rbx]
         mov	rbx, ptr_L_sp256_mod_inv_avx2_4_mask26
-        vmovupd	ymm14, [rbx]
+        vmovupd	ymm14, YMMWORD PTR [rbx]
         vpxor	xmm0, xmm0, xmm0
         vpxor	xmm1, xmm1, xmm1
         vmovdqu	ymm2, ymm8
@@ -42716,11 +42716,11 @@ sp_384_get_point_33_avx2_6 PROC
 L_384_get_point_33_avx2_6_start:
         vpcmpeqd	ymm12, ymm14, ymm13
         vpaddd	ymm14, ymm14, ymm15
-        vmovupd	ymm6, [rdx]
+        vmovupd	ymm6, YMMWORD PTR [rdx]
         vmovdqu	xmm7, OWORD PTR [rdx+32]
-        vmovupd	ymm8, [rdx+96]
+        vmovupd	ymm8, YMMWORD PTR [rdx+96]
         vmovdqu	xmm9, OWORD PTR [rdx+128]
-        vmovupd	ymm10, [rdx+192]
+        vmovupd	ymm10, YMMWORD PTR [rdx+192]
         vmovdqu	xmm11, OWORD PTR [rdx+224]
         add	rdx, 296
         vpand	ymm6, ymm6, ymm12
@@ -42738,11 +42738,11 @@ L_384_get_point_33_avx2_6_start:
         dec	rax
         jnz	L_384_get_point_33_avx2_6_start
         vmovupd	YMMWORD PTR [rcx], ymm0
-        vmovdqu	[rcx+32], xmm1
+        vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
-        vmovdqu	[rcx+128], xmm3
+        vmovdqu	OWORD PTR [rcx+128], xmm3
         vmovupd	YMMWORD PTR [rcx+192], ymm4
-        vmovdqu	[rcx+224], xmm5
+        vmovdqu	OWORD PTR [rcx+224], xmm5
         ret
 sp_384_get_point_33_avx2_6 ENDP
 _text ENDS
@@ -43275,9 +43275,9 @@ sp_384_get_entry_64_avx2_6 PROC
 L_384_get_entry_64_avx2_6_start:
         vpcmpeqd	ymm8, ymm10, ymm9
         vpaddd	ymm10, ymm10, ymm11
-        vmovupd	ymm4, [rdx]
+        vmovupd	ymm4, YMMWORD PTR [rdx]
         vmovdqu	xmm5, OWORD PTR [rdx+32]
-        vmovupd	ymm6, [rdx+48]
+        vmovupd	ymm6, YMMWORD PTR [rdx+48]
         vmovdqu	xmm7, OWORD PTR [rdx+80]
         add	rdx, 96
         vpand	ymm4, ymm4, ymm8
@@ -43291,9 +43291,9 @@ L_384_get_entry_64_avx2_6_start:
         dec	rax
         jnz	L_384_get_entry_64_avx2_6_start
         vmovupd	YMMWORD PTR [rcx], ymm0
-        vmovdqu	[rcx+32], xmm1
+        vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
-        vmovdqu	[rcx+128], xmm3
+        vmovdqu	OWORD PTR [rcx+128], xmm3
         ret
 sp_384_get_entry_64_avx2_6 ENDP
 _text ENDS
@@ -43383,9 +43383,9 @@ sp_384_get_entry_65_avx2_6 PROC
 L_384_get_entry_65_avx2_6_start:
         vpcmpeqd	ymm8, ymm10, ymm9
         vpaddd	ymm10, ymm10, ymm11
-        vmovupd	ymm4, [rdx]
+        vmovupd	ymm4, YMMWORD PTR [rdx]
         vmovdqu	xmm5, OWORD PTR [rdx+32]
-        vmovupd	ymm6, [rdx+48]
+        vmovupd	ymm6, YMMWORD PTR [rdx+48]
         vmovdqu	xmm7, OWORD PTR [rdx+80]
         add	rdx, 96
         vpand	ymm4, ymm4, ymm8
@@ -43399,9 +43399,9 @@ L_384_get_entry_65_avx2_6_start:
         dec	rax
         jnz	L_384_get_entry_65_avx2_6_start
         vmovupd	YMMWORD PTR [rcx], ymm0
-        vmovdqu	[rcx+32], xmm1
+        vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
-        vmovdqu	[rcx+128], xmm3
+        vmovdqu	OWORD PTR [rcx+128], xmm3
         ret
 sp_384_get_entry_65_avx2_6 ENDP
 _text ENDS
@@ -47913,12 +47913,12 @@ L_521_get_point_33_avx2_9_start:
         sete	r9b
         neg	r9
         inc	rdi
-        vmovupd	ymm6, [rdx]
-        vmovupd	ymm7, [rdx+32]
-        vmovupd	ymm8, [rdx+144]
-        vmovupd	ymm9, [rdx+176]
-        vmovupd	ymm10, [rdx+288]
-        vmovupd	ymm11, [rdx+320]
+        vmovupd	ymm6, YMMWORD PTR [rdx]
+        vmovupd	ymm7, YMMWORD PTR [rdx+32]
+        vmovupd	ymm8, YMMWORD PTR [rdx+144]
+        vmovupd	ymm9, YMMWORD PTR [rdx+176]
+        vmovupd	ymm10, YMMWORD PTR [rdx+288]
+        vmovupd	ymm11, YMMWORD PTR [rdx+320]
         mov	r13, QWORD PTR [rdx+64]
         mov	r14, QWORD PTR [rdx+208]
         mov	r15, QWORD PTR [rdx+352]
@@ -49485,10 +49485,10 @@ L_521_get_entry_64_avx2_9_start:
         sete	r9b
         neg	r9
         inc	r14
-        vmovupd	ymm4, [rdx]
-        vmovupd	ymm5, [rdx+32]
-        vmovupd	ymm6, [rdx+72]
-        vmovupd	ymm7, [rdx+104]
+        vmovupd	ymm4, YMMWORD PTR [rdx]
+        vmovupd	ymm5, YMMWORD PTR [rdx+32]
+        vmovupd	ymm6, YMMWORD PTR [rdx+72]
+        vmovupd	ymm7, YMMWORD PTR [rdx+104]
         mov	r12, QWORD PTR [rdx+64]
         mov	r13, QWORD PTR [rdx+136]
         add	rdx, 144
@@ -49666,10 +49666,10 @@ L_521_get_entry_65_avx2_9_start:
         sete	r9b
         neg	r9
         inc	r14
-        vmovupd	ymm4, [rdx]
-        vmovupd	ymm5, [rdx+32]
-        vmovupd	ymm6, [rdx+72]
-        vmovupd	ymm7, [rdx+104]
+        vmovupd	ymm4, YMMWORD PTR [rdx]
+        vmovupd	ymm5, YMMWORD PTR [rdx+32]
+        vmovupd	ymm6, YMMWORD PTR [rdx+72]
+        vmovupd	ymm7, YMMWORD PTR [rdx+104]
         mov	r12, QWORD PTR [rdx+64]
         mov	r13, QWORD PTR [rdx+136]
         add	rdx, 144
