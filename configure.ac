@@ -224,6 +224,7 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
+ENABLED_FIPS="no"
 # wolfEngine Options
 # This requires a FIPS source code bundle.
 AC_ARG_ENABLE([engine],
