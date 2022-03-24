@@ -4258,16 +4258,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC)
 
 static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
-                               byte* out, word32* outlen, ecc_curve_spec* curve)
+                               byte* out, word32* outlen)
 {
     int err = MP_OKAY;
-#if !defined(WOLFSSL_SP_MATH)
-    ecc_point* result = NULL;
-    #ifdef WOLFSSL_NO_MALLOC
-    ecc_point  lcl_result;
-    #endif
-    word32 x = 0;
-#endif
     mp_int* k = &private_key->k;
 #ifdef HAVE_ECC_CDH
 #ifdef WOLFSSL_SMALL_STACK
@@ -4333,20 +4326,41 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #if defined(WOLFSSL_SP_MATH)
     {
         err = WC_KEY_SIZE_E;
-        (void)curve;
         goto errout;
     }
 #else
     {
+        ecc_point* result = NULL;
+        #ifdef WOLFSSL_NO_MALLOC
+        ecc_point  lcl_result;
+        #endif
+        word32 x = 0;
         mp_digit mp = 0;
+        DECLARE_CURVE_SPECS(3);
+
+        /* load curve info */
+        ALLOC_CURVE_SPECS(3, err);
+        if (err == MP_OKAY) {
+            err = wc_ecc_curve_load(private_key->dp, &curve,
+                (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
+                 ECC_CURVE_FIELD_ORDER));
+        }
+
+        if (err != MP_OKAY) {
+            FREE_CURVE_SPECS();
+            goto errout;
+        }
 
         /* make new point */
     #ifdef WOLFSSL_NO_MALLOC
         result = &lcl_result;
     #endif
         err = wc_ecc_new_point_ex(&result, private_key->heap);
-        if (err != MP_OKAY)
+        if (err != MP_OKAY) {
+            wc_ecc_curve_free(curve);
+            FREE_CURVE_SPECS();
             goto errout;
+        }
 
 #ifdef ECC_TIMING_RESISTANT
         if (private_key->rng == NULL) {
@@ -4387,6 +4401,9 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         *outlen = x;
 
         wc_ecc_del_point_ex(result, private_key->heap);
+
+        wc_ecc_curve_free(curve);
+        FREE_CURVE_SPECS();
     }
 #endif
 
@@ -4408,10 +4425,23 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
-            ecc_point* point, byte* out, word32 *outlen,
-            ecc_curve_spec* curve)
+            ecc_point* point, byte* out, word32 *outlen)
 {
     int err;
+    DECLARE_CURVE_SPECS(3);
+
+    /* load curve info */
+    ALLOC_CURVE_SPECS(3, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(private_key->dp, &curve,
+            (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
+             ECC_CURVE_FIELD_ORDER));
+    }
+
+    if (err != MP_OKAY) {
+        FREE_CURVE_SPECS();
+        return err;
+    }
 
 #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
     if (private_key->dp
@@ -4453,6 +4483,8 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
                 &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
                 private_key->dp->cofactor);
     #endif
+        wc_ecc_curve_free(curve);
+        FREE_CURVE_SPECS();
         return err;
     }
 #elif defined(WOLFSSL_ASYNC_CRYPT_TEST)
@@ -4462,12 +4494,17 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         testDev->eccSharedSec.public_point = point;
         testDev->eccSharedSec.out = out;
         testDev->eccSharedSec.outLen = outlen;
+        wc_ecc_curve_free(curve);
+        FREE_CURVE_SPECS();
         return WC_PENDING_E;
     }
 #endif
 
     /* use sync in other cases */
     err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen, curve);
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
 
     return err;
 }
@@ -4477,39 +4514,23 @@ int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
                                                     byte* out, word32 *outlen)
 {
     int err = MP_OKAY;
-    DECLARE_CURVE_SPECS(3);
 
     if (private_key == NULL || point == NULL || out == NULL ||
                                                             outlen == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* load curve info */
-    ALLOC_CURVE_SPECS(3, err);
-    if (err == MP_OKAY) {
-        err = wc_ecc_curve_load(private_key->dp, &curve,
-        (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER));
-    }
-
-    if (err != MP_OKAY) {
-        FREE_CURVE_SPECS();
-        return err;
-    }
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
         err = wc_ecc_shared_secret_gen_async(private_key, point,
-            out, outlen, curve);
+            out, outlen);
     }
     else
 #endif
     {
         err = wc_ecc_shared_secret_gen_sync(private_key, point,
-            out, outlen, curve);
+            out, outlen);
     }
-
-    wc_ecc_curve_free(curve);
-    FREE_CURVE_SPECS();
 
     return err;
 }

@@ -5837,12 +5837,12 @@ void bench_eccMakeKey(int doAsync, int curveId)
     bench_stats_start(&count, &start);
     do {
         /* while free pending slots in queue, submit ops */
-        for (times = 0; times < genTimes || pending > 0; ) {
+        for (times = 0; times < agreeTimes || pending > 0; ) {
             bench_async_poll(&pending);
 
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0,
-                            &times, genTimes, &pending)) {
+                            &times, agreeTimes, &pending)) {
 
                     wc_ecc_free(&genKey[i]);
                     ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, deviceID);
