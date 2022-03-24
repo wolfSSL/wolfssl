@@ -20904,7 +20904,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
      * file  output pointer to file where error happened
      * line  output to line number of error
      * data  output data. Is a string if ERR_TXT_STRING flag is used
-     * flags bit flag to adjust data output
+     * flags output format of output
      *
      * Returns the error value or 0 if no errors are in the queue
      */
@@ -20916,24 +20916,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("wolfSSL_ERR_get_error_line_data");
 
-        if (flags != NULL) {
-            if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
-                ret = wc_PullErrorNode(file, data, line);
-                if (ret < 0) {
-                    if (ret == BAD_STATE_E) return 0; /* no errors in queue */
-                    WOLFSSL_MSG("Error with pulling error node!");
-                    WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
-                    ret = 0 - ret; /* return absolute value of error */
+        if (flags != NULL)
+            *flags = ERR_TXT_STRING; /* Clear the flags */
 
-                    /* panic and try to clear out nodes */
-                    wc_ClearErrorNodes();
-                }
-
-                return (unsigned long)ret;
-            }
-        }
-
-        ret = wc_PullErrorNode(file, NULL, line);
+        ret = wc_PullErrorNode(file, data, line);
         if (ret < 0) {
             if (ret == BAD_STATE_E) return 0; /* no errors in queue */
             WOLFSSL_MSG("Error with pulling error node!");
@@ -27117,11 +27103,11 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     const char* footer = NULL;
 
     if (type != X509_FILETYPE_PEM)
-        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     fp = XFOPEN(file, "rb");
     if (fp == XBADFILE)
-        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     if(XFSEEK(fp, 0, XSEEK_END) != 0) {
         XFCLOSE(fp);
@@ -27195,7 +27181,7 @@ end:
     if (pem != NULL)
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     XFCLOSE(fp);
-    return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
+    return WS_RETURN_CODE(ret, (int)WOLFSSL_FAILURE);
 #else
     (void)lookup;
     (void)file;
@@ -35030,7 +35016,10 @@ int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
         dh->priv_key = priv_key;
     }
 
-    return SetDhInternal(dh);
+    if (dh->p == NULL || dh->g == NULL)
+        return WOLFSSL_SUCCESS; /* Allow loading parameters afterwards */
+    else
+        return SetDhInternal(dh);
 }
 
 /* See RFC 5114 section 2.3, "2048-bit MODP Group with 256-bit Prime Order
@@ -39029,6 +39018,7 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&key->refMutex) != 0) {
             WOLFSSL_MSG("Could not lock EC_KEY mutex");
+            return;
         }
     #endif
 
@@ -39994,6 +39984,13 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
     if (!in) {
         WOLFSSL_MSG("wolfSSL_i2o_ECPublicKey Bad arguments");
         return WOLFSSL_FAILURE;
+    }
+
+    if (!in->exSet) {
+        if (SetECKeyExternal((WOLFSSL_EC_KEY*)in) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("SetECKeyExternal failure");
+            return WOLFSSL_FAILURE;
+        }
     }
 
 #ifdef HAVE_COMP_KEY
@@ -44327,6 +44324,21 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         /* copy over challenge password for REQ certs */
         XMEMCPY(cert->challengePw, x509->challengePw, CTC_NAME_SIZE);
     #endif
+
+        /* Only makes sense to do this for OPENSSL_EXTRA because without
+         * this define the function will error out below */
+        #ifdef OPENSSL_EXTRA
+        if (x509->serialSz == 0 && x509->serialNumber != NULL &&
+                /* Check if the buffer contains more than just the
+                 * ASN tag and length */
+                x509->serialNumber->length > 2) {
+            if (wolfSSL_X509_set_serialNumber(x509, x509->serialNumber)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to set serial number");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        #endif
 
         /* set serial number */
         if (x509->serialSz > 0) {
@@ -56634,6 +56646,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
     #ifndef SINGLE_THREADED
         if (wc_LockMutex(&rsa->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock rsa mutex");
+            return;
         }
     #endif
 
@@ -57274,8 +57287,10 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
     if (!x509 || !s || s->length >= EXTERNAL_SERIAL_SIZE)
         return WOLFSSL_FAILURE;
 
-    /* WOLFSSL_ASN1_INTEGER has type | size | data */
-    if (s->length < 3) {
+    /* WOLFSSL_ASN1_INTEGER has type | size | data
+     * Sanity check that the data is actually in ASN format */
+    if (s->length < 3 && s->data[0] != ASN_INTEGER &&
+            s->data[1] != s->length - 2) {
         return WOLFSSL_FAILURE;
     }
     XMEMCPY(x509->serial, s->data + 2, s->length - 2);
@@ -58510,12 +58525,14 @@ WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
     return buf;
 }
 
-
-/* returns length of buffer on success */
-int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
+/* non-compat API returns length of buffer on success */
+int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
+        char zeroFill)
 {
+
     int len_int = (int)len;
     int mx;
+    char* tmp;
 
     /* verify provided arguments */
     if (buf == NULL || len_int < 0) {
@@ -58530,7 +58547,7 @@ int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
 
     /* check to see if fits in max buffer */
     if (buf->max >= len) {
-        if (buf->data != NULL) {
+        if (buf->data != NULL && zeroFill) {
             XMEMSET(&buf->data[buf->length], 0, len - buf->length);
         }
         buf->length = len;
@@ -58541,23 +58558,64 @@ int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
     mx = (len_int + 3) / 3 * 4;
 
     /* use realloc */
-    buf->data = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (buf->data == NULL) {
+    tmp = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (tmp == NULL) {
         return 0; /* ERR_R_MALLOC_FAILURE; */
     }
+    buf->data = tmp;
 
     buf->max = mx;
-    XMEMSET(&buf->data[buf->length], 0, len - buf->length);
+    if (zeroFill)
+        XMEMSET(&buf->data[buf->length], 0, len - buf->length);
     buf->length = len;
 
     return len_int;
+
+}
+
+/* returns length of buffer on success */
+int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
+{
+    return wolfSSL_BUF_MEM_grow_ex(buf, len, 1);
+}
+
+/* non-compat API returns length of buffer on success */
+int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
+{
+    char* tmp;
+    int mx;
+
+    /* verify provided arguments */
+    if (buf == NULL || len == 0 || (int)len <= 0) {
+        return 0; /* BAD_FUNC_ARG; */
+    }
+
+    if (len == buf->length)
+        return (int)len;
+
+    if (len > buf->length)
+        return wolfSSL_BUF_MEM_grow_ex(buf, len, 0);
+
+    /* expand size, to handle growth */
+    mx = ((int)len + 3) / 3 * 4;
+
+    /* We want to shrink the internal buffer */
+    tmp = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (tmp == NULL)
+        return 0;
+
+    buf->data = tmp;
+    buf->length = len;
+    buf->max = mx;
+
+    return (int)len;
 }
 
 void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 {
     if (buf) {
         if (buf->data) {
-            XFREE(buf->data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(buf->data, NULL, DYNAMIC_TYPE_OPENSSL);
             buf->data = NULL;
         }
         buf->max = 0;
