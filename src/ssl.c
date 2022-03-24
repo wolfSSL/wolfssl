@@ -13720,7 +13720,7 @@ static int CheckcipherList(const char* list)
         if (current_length < length) {
             length = current_length;
         }
-        XSTRNCPY(name, current, length);
+        XMEMCPY(name, current, length);
         name[length] = 0;
 
         ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0,
@@ -13792,7 +13792,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
             if (current_length < length) {
                 length = current_length;
             }
-            XSTRNCPY(name, current, length);
+            XMEMCPY(name, current, length);
             name[length] = 0;
 
             /* check for "not" case */

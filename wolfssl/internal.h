@@ -1188,7 +1188,7 @@ enum Misc {
     TIMESTAMP_LEN   = 4,        /* timestamp size in ticket */
 #ifdef WOLFSSL_TLS13
     AGEADD_LEN      = 4,        /* ageAdd size in ticket */
-    NAMEDGREOUP_LEN = 2,        /* namedGroup size in ticket */
+    NAMEDGROUP_LEN  = 2,        /* namedGroup size in ticket */
 #ifdef WOLFSSL_EARLY_DATA
     MAXEARLYDATASZ_LEN = 4,     /* maxEarlyDataSz size in ticket */
 #endif
