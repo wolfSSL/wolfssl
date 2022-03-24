@@ -43649,6 +43649,8 @@ ENDIF
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_sub_in_place_6 PROC
+        push	r12
+        push	r13
         xor	rax, rax
         mov	r8, QWORD PTR [rdx]
         mov	r9, QWORD PTR [rdx+8]
