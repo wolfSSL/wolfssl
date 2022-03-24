@@ -207,12 +207,12 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
 /*!
     \ingroup AES
     \brief This function is a one-block encrypt of the input block, in, into
-    the output block, out. It uses the key and iv (initialization vector)
-    of the provided AES structure, which should be initialized with
-    wc_AesSetKey before calling this function. It is only enabled if the
-    configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__ In nearly all
-    use cases ECB mode is considered to be less secure. Please avoid using ECB
-    API’s directly whenever possible
+    the output block, out. It uses the key of the provided AES structure, which
+    should be initialized with wc_AesSetKey before calling this function.
+    wc_AesSetKey should have been called with the iv set to NULL. This is only
+    enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
+    In nearly all use cases ECB mode is considered to be less secure. Please
+    avoid using ECB API’s directly whenever possible.
 
     \return int integer values corresponding to wolfSSL error or success
     status
@@ -240,13 +240,12 @@ WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 /*!
     \ingroup AES
     \brief This function is a one-block decrypt of the input block, in, into
-    the output block, out. It uses the key and iv (initialization vector) of
-    the provided AES structure, which should be initialized with wc_AesSetKey
-    before calling this function. It is only enabled if the configure option
-    WOLFSSL_AES_DIRECT is enabled, and there is support for direct AES
-    encryption on the system in question. __Warning:__ In nearly all use cases
-    ECB mode is considered to be less secure. Please avoid using ECB API’s
-    directly whenever possible
+    the output block, out. It uses the key of the provided AES structure, which
+    should be initialized with wc_AesSetKey before calling this function.
+    wc_AesSetKey should have been called with the iv set to NULL. This is only
+    enabled if the configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__
+    In nearly all use cases ECB mode is considered to be less secure. Please
+    avoid using ECB API’s directly whenever possible.
 
     \return int integer values corresponding to wolfSSL error or success
     status
