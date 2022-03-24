@@ -156,7 +156,7 @@
     #define NO_FILESYSTEM
 #elif defined(THREADX) && !defined(WOLFSSL_WICED) && \
       !defined(THREADX_NO_DC_PRINTF)
-    #ifndef (NETOS)
+    #ifndef NETOS
         /* since just testing, use THREADX log printf instead (NETOS prototypes
          * this elsewhere) */
         int dc_log_printf(char*, ...);

@@ -475,7 +475,7 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
 }
 
 #ifdef NETOS
-    struct hostent* gethostbyname(vonst char* name);
+    struct hostent* gethostbyname(const char* name);
 #endif
 
 static WC_INLINE void FreeTcpReady(tcp_ready* ready)
