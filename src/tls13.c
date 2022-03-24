@@ -9525,7 +9525,6 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #ifndef NO_CERTS
-    /* allow no private key if using PK callbacks and CB is set */
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     if (!havePSK)
 #endif
@@ -9547,16 +9546,23 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
 
-        #ifdef HAVE_PK_CALLBACKS
-            if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-                WOLFSSL_MSG("Using PK for server private key");
-            }
-            else
-        #endif
             if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-                WOLFSSL_MSG("accept error: server key required");
-                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-                return WOLFSSL_FATAL_ERROR;
+                /* allow no private key if using existing key */
+            #ifdef WOLF_PRIVATE_KEY_ID
+                if (ssl->devId != INVALID_DEVID
+                #ifdef HAVE_PK_CALLBACKS
+                    || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+                #endif
+                ) {
+                    WOLFSSL_MSG("Allowing no server private key (external)");
+                }
+                else
+            #endif
+                {
+                    WOLFSSL_MSG("accept error: server key required");
+                    WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
         }
     }
