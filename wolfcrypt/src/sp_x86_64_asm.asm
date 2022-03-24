@@ -50448,6 +50448,10 @@ L_521_mod_inv_9_div2_mod_no_add:
         mov	QWORD PTR [rcx+56], r11
         shr	rax, 1
         mov	QWORD PTR [rcx+64], rax
+        pop	r12
+        ret
+sp_521_div2_mod_9 ENDP
+_text ENDS
 _text SEGMENT READONLY PARA
 sp_521_num_bits_9 PROC
         xor	rax, rax

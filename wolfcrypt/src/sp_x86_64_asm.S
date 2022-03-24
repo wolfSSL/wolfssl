@@ -52580,6 +52580,10 @@ L_521_mod_inv_9_div2_mod_no_add:
         movq	%r9, 56(%rdi)
         shrq	$0x01, %rax
         movq	%rax, 64(%rdi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_521_div2_mod_9,.-sp_521_div2_mod_9
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
 .globl	sp_521_num_bits_9
