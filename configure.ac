@@ -4241,7 +4241,7 @@ AC_ARG_ENABLE([alpn],
     [ ENABLED_ALPN=$enableval ],
     [ ENABLED_ALPN=no ]
     )
-    
+
 if test "$ENABLED_BIND" = "yes"
 then
     ENABLED_ALPN=yes
