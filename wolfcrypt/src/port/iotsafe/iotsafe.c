@@ -496,7 +496,8 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
 #ifdef IOTSAFE_NO_GETDATA
             if (XSTRNCMP(&resp[ret-4], "0000", 4) == 0) {
                 /* Strip trailing zeros */
-                for (int idx = 0; idx < off-1; idx+=2) {
+                int idx = 0;
+                for (idx = 0; idx < off-1; idx+=2) {
                     if (content[idx] == 0 && content[idx+1] == 0) {
                         off = idx;
 #ifdef DEBUG_IOTSAFE
@@ -881,15 +882,17 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
             byte sig_hdr[3];
             if (hex_to_bytes(resp, sig_hdr, 3) < 0) {
                ret = BAD_FUNC_ARG;
-#ifdef IOTSAFE_SIGN_NO_PADDING
-            } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
+            }
+#ifdef IOTSAFE_SIG_8BIT_LENGTH
+            else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 2 * IOTSAFE_ECC_KSIZE)) {
                 XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
                 XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
                         IOTSAFE_ECC_KSIZE * 2);
                 ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+            }
 #endif
-            } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
+            else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 0) &&
                        (sig_hdr[2] == 2 * IOTSAFE_ECC_KSIZE)) {
                 XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
