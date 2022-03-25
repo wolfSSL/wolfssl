@@ -1064,7 +1064,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* Only CBC and GCM that are in wolfcrypt/src/port/kcapi/kcapi_aes.c */
     #if defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AESCCM) || \
         defined(WOLFSSL_CMAC) || defined(WOLFSSL_AES_OFB) || \
-        defined(WOLFSSL_AES_CFB) || defined(HAVE_AES_ECB)
+        defined(WOLFSSL_AES_CFB) || defined(HAVE_AES_ECB) || \
+        defined(HAVE_AES_CBC)
+
         #define NEED_AES_TABLES
     #endif
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
