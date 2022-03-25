@@ -70,7 +70,7 @@ fi
 # Run this script from the wolfSSL root
 if [ ! -f wolfssl/ssl.h ]; then
     echo "Run from the wolfssl root"
-    exit -1
+    exit 1
 fi
 
 run_sequence() {

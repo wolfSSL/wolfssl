@@ -30632,7 +30632,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte            haveEMS;               /* have extended master secret */
 #ifdef WOLFSSL_TLS13
         byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
-        byte            namedGroup[NAMEDGREOUP_LEN]; /* Named group used */
+        byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
         TicketNonce     ticketNonce;           /* Ticket nonce */
     #ifdef WOLFSSL_EARLY_DATA
         byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
@@ -30652,17 +30652,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             (a->pv.minor == b->pv.minor) &&
             (XMEMCMP(a->suite,b->suite,sizeof a->suite) == 0) &&
             (XMEMCMP(a->msecret,b->msecret,sizeof a->msecret) == 0) &&
-            (a->timestamp == b->timestamp) &&
+            (XMEMCMP(a->timestamp, b->timestamp, sizeof a->timestamp) == 0) &&
             (a->haveEMS == b->haveEMS)
 #ifdef WOLFSSL_TLS13
             &&
-            (a->ageAdd == b->ageAdd) &&
-            (a->namedGroup == b->namedGroup) &&
+            (XMEMCMP(a->ageAdd, b->ageAdd, sizeof a->ageAdd) == 0) &&
+            (XMEMCMP(a->namedGroup, b->namedGroup, sizeof a->namedGroup)
+             == 0) &&
             (a->ticketNonce.len == b->ticketNonce.len) &&
-            (XMEMCMP(a->ticketNonce.data, b->ticketNonce.data,
-                     a->ticketNonce.len) == 0)
+            (XMEMCMP(
+                a->ticketNonce.data,
+                b->ticketNonce.data,
+                a->ticketNonce.len) == 0)
 #ifdef WOLFSSL_EARLY_DATA
-            && (a->maxEarlyDataSz == b->maxEarlyDataSz)
+            && (XMEMCMP(
+                    a->maxEarlyDataSz,
+                    b->maxEarlyDataSz,
+                    sizeof a->maxEarlyDataSz) == 0)
 #endif
 #endif
             )
