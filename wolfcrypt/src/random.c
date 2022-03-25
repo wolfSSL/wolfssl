@@ -2793,14 +2793,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 int wc_hwrng_generate_block(byte *output, word32 sz)
 {
     int fd;
-    int len; 
-    int ret = 0; 
+    int len;
+    int ret = 0;
     fd = open("/dev/hwrng", O_RDONLY);
     if (fd == -1)
         return OPEN_RAN_E;
     while(sz)
-    {    
-        len = (int)read(fd, output, sz); 
+    {
+        len = (int)read(fd, output, sz);
         if (len == -1)
         {
             ret = READ_RAN_E;

@@ -786,7 +786,7 @@ enum SNICbReturn {
  */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     #define WS_RETURN_CODE(item1,item2) \
-      ((item1 < 0) ? item2 : item1)
+      (((item1) < 0) ? (int)(item2) : (int)(item1))
 #else
     #define WS_RETURN_CODE(item1,item2)  (item1)
 #endif
