@@ -8225,12 +8225,26 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int wsz;
     word32 i;
     unsigned long exponent = 0;
-    mp_int a;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* a = NULL;
+#else
+    mp_int a[1];
+#endif
     char line[32] = { 0 };
 
     (void)pctx;
 
-    if( mp_init(&a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    if( mp_init(a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return WOLFSSL_FAILURE;
     }
     if (indent < 0) {
@@ -8255,10 +8269,10 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (mp_set_int(&a, bitlen) != 0) {
+        if (mp_set_int(a, bitlen) != 0) {
             break;
         }
-        if (mp_todecimal(&a, (char*)buff) != 0) {
+        if (mp_todecimal(a, (char*)buff) != 0) {
             break;
         }
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8298,10 +8312,10 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         }
 
         XMEMSET(buff, 0, sizeof(buff));
-        if (mp_set_int(&a, exponent) != 0) {
+        if (mp_set_int(a, exponent) != 0) {
             break;
         }
-        if (mp_todecimal(&a, (char*)buff) != 0) {
+        if (mp_todecimal(a, (char*)buff) != 0) {
             break;
         }
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8314,7 +8328,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             break;
         }
         XMEMSET(buff, 0, sizeof(buff));
-        if (mp_tohex(&a, (char*)buff) != 0) {
+        if (mp_tohex(a, (char*)buff) != 0) {
             break;
         }
         if (wolfSSL_BIO_write(out, buff, (int)XSTRLEN((char*)buff)) <= 0) {
@@ -8328,7 +8342,10 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = WOLFSSL_SUCCESS;
     } while (0);
 
-    mp_free(&a);
+    mp_free(a);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
     return res;
 }
 #endif /* !NO_RSA */
@@ -8557,11 +8574,26 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int     pSz, qSz, gSz, ySz;
     int idx;
     int wsz;
-    mp_int  a;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* a = NULL;
+#else
+    mp_int  a[1];
+#endif
     char line[32] = { 0 };
 
-    if( mp_init(&a) != 0)
+#ifdef WOLFSSL_SMALL_STACK
+    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a == NULL) {
         return WOLFSSL_FAILURE;
+    }
+#endif
+
+    if( mp_init(a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+        return WOLFSSL_FAILURE;
+    }
 
     inOutIdx = 0;
     (void)pctx;
@@ -8667,10 +8699,10 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (mp_set_int(&a, bitlen) != 0) {
+        if (mp_set_int(a, bitlen) != 0) {
             break;
         }
-        if (mp_todecimal(&a, (char*)buff) != 0) {
+        if (mp_todecimal(a, (char*)buff) != 0) {
             break;
         }
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8721,7 +8753,10 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = WOLFSSL_SUCCESS;
     } while (0);
 
-    mp_free(&a);
+    mp_free(a);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
     return res;
 }
 #endif /* !NO_DSA */
@@ -8757,11 +8792,26 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int     wsz;
     word32  outSz;
     byte    outHex[3];
-    mp_int  a;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* a = NULL;
+#else
+    mp_int  a[1];
+#endif
     char line[32] = { 0 };
 
-    if( mp_init(&a) != 0)
+#ifdef WOLFSSL_SMALL_STACK
+    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (a == NULL) {
         return WOLFSSL_FAILURE;
+    }
+#endif
+
+    if( mp_init(a) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+        return WOLFSSL_FAILURE;
+    }
 
     inOutIdx = 0;
     (void)pctx;
@@ -8855,10 +8905,10 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (mp_set_int(&a, bitlen) != 0) {
+        if (mp_set_int(a, bitlen) != 0) {
             break;
         }
-        if (mp_todecimal(&a, (char*)buff) != 0) {
+        if (mp_todecimal(a, (char*)buff) != 0) {
             break;
         }
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8894,10 +8944,10 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (mp_set_int(&a, generator) != 0) {
+        if (mp_set_int(a, generator) != 0) {
             break;
         }
-        if (mp_todecimal(&a, (char*)buff) != 0) {
+        if (mp_todecimal(a, (char*)buff) != 0) {
             break;
         }
         wsz = (int)XSTRLEN((const char*)buff);
@@ -8929,7 +8979,10 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = WOLFSSL_SUCCESS;
     } while (0);
 
-    mp_free(&a);
+    mp_free(a);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
     return res;
 }
 #endif /* WOLFSSL_DH_EXTRA */
