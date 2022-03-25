@@ -22081,7 +22081,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
-#endif /* !ECC_TIMING_RESISTANT || (ECC_TIMING_RESISTANT && 
+#endif /* !ECC_TIMING_RESISTANT || (ECC_TIMING_RESISTANT &&
         * !WC_NO_RNG && !WOLFSSL_KCAPI_ECC) */
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \

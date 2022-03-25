@@ -43,8 +43,10 @@
     #include <wolfssl/ssl.h>
     #include <wolfssl/test.h>
 
-#elif defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    #define WC_ENABLE_BENCH_THREADING
+#elif defined(WOLFSSL_ASYNC_CRYPT)
+    #ifndef WC_NO_ASYNC_THREADING
+        #define WC_ENABLE_BENCH_THREADING
+    #endif
 
 /* benchmark multi-threading - disable for FIPS self test */
 #elif !defined(SINGLE_THREADED) && !defined(WC_NO_BENCH_THREADING) && \

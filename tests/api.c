@@ -51361,7 +51361,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     }
 
     /* bidirectional shutdown */
-    while ((ret = wolfSSL_shutdown(ssl)) != WOLFSSL_SUCCESS) {
+    while (wolfSSL_shutdown(ssl) != WOLFSSL_SUCCESS) {
         continue;
     }
 
@@ -51433,7 +51433,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
         }
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
-    ret = wolfSSL_write(ssl, msg, len);
+    AssertIntGE(wolfSSL_write(ssl, msg, len), 0);
 
     if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
         input[idx] = 0;

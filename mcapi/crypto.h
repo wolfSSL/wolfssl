@@ -27,7 +27,6 @@
 #ifndef MC_CRYPTO_API_H
 #define MC_CRYPTO_API_H
 
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -107,7 +106,12 @@ enum {
 
 /* HMAC */
 typedef struct CRYPT_HMAC_CTX {
-    long long holder[98];   /* big enough to hold internal, but check on init */
+    /* big enough to hold internal, but check on init */
+    #ifdef WOLF_PRIVATE_KEY_ID
+    long long holder[108];
+    #else
+    long long holder[98];
+    #endif
 } CRYPT_HMAC_CTX;
 
 int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX*, int, const unsigned char*, unsigned int);
@@ -167,7 +171,12 @@ enum {
 
 /* AES */
 typedef struct CRYPT_AES_CTX {
-    int holder[90];   /* big enough to hold internal, but check on init */
+    /* big enough to hold internal, but check on init */
+    #ifdef WOLF_PRIVATE_KEY_ID
+    int holder[104];
+    #else
+    int holder[90];
+    #endif
 } CRYPT_AES_CTX;
 
 /* key */
