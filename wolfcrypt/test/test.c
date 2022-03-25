@@ -1120,13 +1120,15 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
-        !(defined(WOLF_CRYPTO_CB) && \
+        !defined(WOLFSSL_KCAPI_AES) && !(defined(WOLF_CRYPTO_CB) && \
             (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
     #endif
-    TEST_PASS("AES-GCM  test passed!\n");
+    if (ret == 0) {
+        TEST_PASS("AES-GCM  test passed!\n");
+    }
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
@@ -21039,7 +21041,8 @@ done:
 #endif
 
 
-#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 static int ecc_test_sign_vectors(WC_RNG* rng)
 {
     int ret;
@@ -21714,7 +21717,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     word32  y;
 #endif
-#ifdef HAVE_ECC_SIGN
+#if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_KCAPI_ECC)
     WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
     int     i;
@@ -21748,7 +21751,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         ERROR_OUT(-9901, done);
 #endif
 
-#ifdef HAVE_ECC_SIGN
+#if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_KCAPI_ECC)
     if (sig == NULL || digest == NULL)
         ERROR_OUT(-9902, done);
 #endif
@@ -21994,7 +21997,9 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif /* HAVE_ECC_KEY_IMPORT */
 #endif /* HAVE_ECC_KEY_EXPORT */
 
-#if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG))
+    /* For KCAPI cannot sign using generated ECDH key */
+#if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_KCAPI_ECC))
 #ifdef HAVE_ECC_SIGN
     /* ECC w/out Shamir has issue with all 0 digest */
     /* WC_BIGINT doesn't have 0 len well on hardware */
@@ -22076,10 +22081,12 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
-#endif /* !ECC_TIMING_RESISTANT || (ECC_TIMING_RESISTANT && !WC_NO_RNG) */
+#endif /* !ECC_TIMING_RESISTANT || (ECC_TIMING_RESISTANT && 
+        * !WC_NO_RNG && !WOLFSSL_KCAPI_ECC) */
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_KCAPI_ECC)
     x = ECC_KEY_EXPORT_BUF_SIZE;
     ret = wc_ecc_export_private_only(userA, exportBuf, &x);
     if (ret != 0)
@@ -24118,7 +24125,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
     #endif
 #endif
 
-#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K) && \
+    !defined(WOLFSSL_KCAPI_ECC)
     ret = ecc_test_sign_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_sign_vectors failed! %d\n", ret);

@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_KCAPI_RSA)
+#if defined(WOLFSSL_KCAPI_RSA) && !defined(NO_RSA)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -356,5 +356,4 @@ int KcapiRsa_Encrypt(RsaKey* key, const byte* in, word32 inLen, byte* out,
     return ret;
 }
 
-#endif /* WOLFSSL_KCAPI_RSA */
-
+#endif /* WOLFSSL_KCAPI_RSA && !NO_RSA */

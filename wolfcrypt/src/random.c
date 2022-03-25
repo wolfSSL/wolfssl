@@ -2786,8 +2786,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 #endif
-
-
 /* End wc_GenerateSeed */
+
+#if defined(CUSTOM_RAND_GENERATE_BLOCK) && defined(WOLFSSL_KCAPI)
+#include <fcntl.h>
+int wc_hwrng_generate_block(byte *output, word32 sz)
+{
+    int fd;
+    int len; 
+    int ret = 0; 
+    fd = open("/dev/hwrng", O_RDONLY);
+    if (fd == -1)
+        return OPEN_RAN_E;
+    while(sz)
+    {    
+        len = (int)read(fd, output, sz); 
+        if (len == -1)
+        {
+            ret = READ_RAN_E;
+            break;
+        }
+        sz -= len;
+        output += len;
+    }
+    close(fd);
+    return ret;
+}
+#endif
+
 #endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */

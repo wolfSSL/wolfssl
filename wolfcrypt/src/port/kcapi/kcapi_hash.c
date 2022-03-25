@@ -642,4 +642,3 @@ int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst)
 #endif /* WOLFSSL_SHA512 */
 
 #endif /* WOLFSSL_KCAPI_HASH */
-

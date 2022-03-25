@@ -1250,12 +1250,14 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
 #if !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     mp_int* prime, mp_int* order);
 #endif
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
@@ -5198,7 +5200,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
@@ -5572,7 +5575,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             return err;
         }
     #elif defined(WOLFSSL_KCAPI_ECC)
-        err = KcapiEcc_Sign(key, in, inlen, out, outlen);
+        err = KcapiEcc_Sign(key, in, inlen, out, *outlen);
         if (err != MP_OKAY) {
             return err;
         }
@@ -8604,10 +8607,6 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
     int        err;
     ecc_point* base = NULL;
     ecc_point* res  = NULL;
-#ifdef WOLFSSL_KCAPI_ECC
-    ecc_key pubKey;
-    word32 len;
-#endif
 #ifdef WOLFSSL_NO_MALLOC
     ecc_point lcl_base;
     ecc_point lcl_res;
@@ -8672,7 +8671,29 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
         if (err == MP_OKAY)
             err = mp_set(base->z, 1);
 
-#ifndef WOLFSSL_KCAPI_ECC
+#ifdef WOLFSSL_KCAPI_ECC
+        if (err == MP_OKAY) {
+            word32 pubkey_sz = (word32)key->dp->size*2;
+            if (key->handle == NULL) {
+                /* if handle loaded, then pubkey_raw already populated */
+                err = KcapiEcc_LoadKey(key, key->pubkey_raw, &pubkey_sz, 1);
+            }
+            if (err == 0) {
+                err = mp_read_unsigned_bin(res->x, key->pubkey_raw,
+                                           pubkey_sz/2);
+            }
+            if (err == MP_OKAY) {
+                err = mp_read_unsigned_bin(res->y,
+                                           key->pubkey_raw + pubkey_sz/2,
+                                           pubkey_sz/2);
+            }
+            if (err == MP_OKAY) {
+                err = mp_set(res->z, 1);
+            }
+        }
+        (void)a;
+        (void)prime;
+#else
 #ifdef ECC_TIMING_RESISTANT
         if (err == MP_OKAY)
             err = wc_ecc_mulmod_ex2(&key->k, base, res, a, prime, curve->order,
@@ -8682,29 +8703,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
             err = wc_ecc_mulmod_ex2(&key->k, base, res, a, prime, curve->order,
                                                             NULL, 1, key->heap);
 #endif
-#else
-        /* Using Shared Secret to perform scalar multiplication
-         * Calculates the x ordinidate only.
-         */
-        if (err == MP_OKAY) {
-            err = wc_ecc_init(&pubKey);
-            if (err == MP_OKAY) {
-                wc_ecc_copy_point(base, &pubKey.pubkey);
-            }
-            if (err == MP_OKAY) {
-                err = KcapiEcc_SetPubKey(&pubKey);
-            }
-            if (err == MP_OKAY) {
-                len = key->dp->size;
-                err = KcapiEcc_SharedSecret(key, &pubKey, pubKey.pubkey_raw,
-                                                                          &len);
-            }
-        }
-#endif /* !WOLFSSL_KCAPI_ECC */
+#endif /* WOLFSSL_KCAPI_ECC */
     }
 
     if (err == MP_OKAY) {
-#ifndef WOLFSSL_KCAPI_ECC
         /* compare result to public key */
         if (mp_cmp(res->x, key->pubkey.x) != MP_EQ ||
             mp_cmp(res->y, key->pubkey.y) != MP_EQ ||
@@ -8712,17 +8714,6 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
             /* didn't match */
             err = ECC_PRIV_KEY_E;
         }
-#else
-        err = mp_read_unsigned_bin(pubKey.pubkey.x, pubKey.pubkey_raw, len);
-        /* compare result to public key - y can be negative! */
-        if (err == MP_OKAY && ((!mp_isone(res->z)) ||
-            mp_cmp(pubKey.pubkey.x, key->pubkey.x) != MP_EQ)) {
-            /* didn't match */
-            err = ECC_PRIV_KEY_E;
-        }
-        (void)a;
-        (void)prime;
-#endif
     }
 
     wc_ecc_curve_free(curve);
@@ -8735,7 +8726,8 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 #endif /* FIPS_VERSION_GE(5,0) || WOLFSSL_VALIDATE_ECC_KEYGEN ||
         * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 
 /* check privkey generator helper, creates prime needed */
 static int ecc_check_privkey_gen_helper(ecc_key* key)
@@ -8752,6 +8744,9 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* Hardware based private key, so this operation is not supported */
+    err = MP_OKAY; /* just report success */
+#elif defined(WOLFSSL_KCAPI_ECC)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #else
@@ -8836,7 +8831,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 
     return err;
 }
-#endif /* FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN */
+#endif /* (FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN) &&!WOLFSSL_KCAPI_ECC */
 
 #ifndef WOLFSSL_SP_MATH
 /* validate order * pubkey = point at infinity, 0 on success */
@@ -9096,7 +9091,11 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         /* private keys must be in the range [1, n-1] */
         if ((err == MP_OKAY) && (key->type == ECC_PRIVATEKEY) &&
             (mp_iszero(&key->k) || mp_isneg(&key->k) ||
-            (mp_cmp(&key->k, curve->order) != MP_LT))) {
+            (mp_cmp(&key->k, curve->order) != MP_LT))
+        #ifdef WOLFSSL_KCAPI_ECC
+            && key->handle == NULL
+        #endif
+        ) {
             err = ECC_PRIV_KEY_E;
         }
 
@@ -9118,7 +9117,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif
 
     FREE_CURVE_SPECS();
-#endif /* WOLFSSL_ATECC508A */
+#endif /* HW Based Crypto */
 #else
     err = WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
@@ -9204,14 +9203,14 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     /* For SECP256R1 only save raw public key for hardware */
-    if (curve_id == ECC_SECP256R1 && inLen <= sizeof(key->pubkey_raw)) {
+    if (curve_id == ECC_SECP256R1 && inLen <= (word32)sizeof(key->pubkey_raw)) {
     #ifdef HAVE_COMP_KEY
         if (!compressed)
     #endif
             XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
     }
 #elif defined(WOLFSSL_KCAPI_ECC)
-    XMEMCPY(key->pubkey_raw + KCAPI_PARAM_SZ, (byte*)in, inLen);
+    XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
 #endif
 
     if (err == MP_OKAY) {
@@ -9884,11 +9883,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #elif defined(WOLFSSL_KCAPI_ECC)
     if (err == MP_OKAY) {
         word32 keySz = key->dp->size;
-        err = wc_export_int(key->pubkey.x, key->pubkey_raw + KCAPI_PARAM_SZ,
+        err = wc_export_int(key->pubkey.x, key->pubkey_raw,
             &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
         if (err == MP_OKAY) {
             err = wc_export_int(key->pubkey.y,
-                &key->pubkey_raw[KCAPI_PARAM_SZ + keySz], &keySz, keySz,
+                &key->pubkey_raw[keySz], &keySz, keySz,
                 WC_TYPE_UNSIGNED_BIN);
         }
     }

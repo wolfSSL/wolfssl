@@ -1840,7 +1840,7 @@ WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
 WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 #endif /* WOLFSSL_CERT_REQ */
-WOLFSSL_LOCAL int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
+WOLFSSL_ASN_API int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
                         int sigAlgoType);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type, int verify,
                                     void* cm);
