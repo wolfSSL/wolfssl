@@ -224,9 +224,13 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
-ENABLED_FIPS="no"
+# FIPS 140
+AC_ARG_ENABLE([fips],
+    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
+    [ENABLED_FIPS=$enableval],
+    [ENABLED_FIPS="no"])
+
 # wolfEngine Options
-# This requires a FIPS source code bundle.
 AC_ARG_ENABLE([engine],
     [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
     [ ENABLED_WOLFENGINE=$enableval ],
@@ -255,17 +259,6 @@ AS_CASE([$ENABLED_WOLFENGINE],
     [
         AC_MSG_ERROR([Invalid value for --enable-engine "$ENABLED_WOLFENGINE" (options: fips-v2, fips-ready, no-fips, no, disabled)])
     ])
-
-# FIPS 140
-AC_ARG_ENABLE([fips],
-    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
-    [ENABLED_FIPS_REAL=$enableval],
-    [ENABLED_FIPS_REAL="no"])
-
-if test "$ENABLED_FIPS_REAL" != "no"
-then
-    ENABLED_FIPS="$ENABLED_FIPS_REAL"
-fi
 
 # The FIPS options are:
 #   no - FIPS build disabled, FIPS sources forbidden in build tree
