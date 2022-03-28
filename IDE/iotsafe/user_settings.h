@@ -110,6 +110,7 @@ static inline long XTIME(long *x) { return jiffies;}
 #define WOLFSSL_SP_SMALL
 #define WOLFSSL_HAVE_SP_DH
 #define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_HAVE_SP_RSA
 #define SP_WORD_SIZE 32
 
 /* ECC */
