@@ -40,7 +40,7 @@
 #elif defined(WOLFSSL_QT) || defined(WOLFSSL_PYTHON)
     /* For Qt and Python 3.8.5 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10101000L
-#elif defined(WOLFSSL_HAPROXY)
+#elif defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_FFMPEG)
      #define OPENSSL_VERSION_NUMBER 0x1010000fL
 #elif defined(OPENSSL_ALL) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_OPENVPN)

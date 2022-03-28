@@ -972,6 +972,7 @@ AC_ARG_ENABLE([mcast],
 # web server (--enable-webserver) HAVE_WEBSERVER
 # net-snmp (--enable-net-snmp)
 # krb (--enable-krb) WOLFSSL_KRB
+# FFmpeg (--enable-ffmpeg) WOLFSSL_FFMPEG
 
 
 # Bind DNS compatibility Build
@@ -1112,6 +1113,13 @@ AC_ARG_ENABLE([krb],
     [AS_HELP_STRING([--enable-krb],[Enable kerberos 5 support (default: disabled)])],
     [ ENABLED_KRB=$enableval ],
     [ ENABLED_KRB=no ]
+    )
+
+# FFmpeg Build
+AC_ARG_ENABLE([ffmpeg],
+    [AS_HELP_STRING([--enable-ffmpeg],[Enable FFmpeg support (default: disabled)])],
+    [ ENABLED_FFMPEG=$enableval ],
+    [ ENABLED_FFMPEG=no ]
     )
 
 
@@ -1263,7 +1271,8 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
    test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
    test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
-   test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes"
+   test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
+   test "$ENABLED_FFMPEG" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -4956,6 +4965,11 @@ then
     then
         ENABLED_PKCS7="yes"
     fi
+fi
+
+if test "$ENABLED_FFMPEG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FFMPEG -DOPENSSL_COMPATIBLE_DEFAULTS"
 fi
 
 if test "$ENABLED_SIGNAL" = "yes"
