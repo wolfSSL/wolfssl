@@ -24,11 +24,11 @@
  */
 
 #ifdef HAVE_CONFIG_H
-        #include <config.h>
+    #include <config.h>
 #endif
 
 #ifndef WOLFSSL_USER_SETTINGS
-        #include <wolfssl/options.h>
+    #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -42,10 +42,10 @@ static const char *wolfsentry_config_path = NULL;
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-        #include <stdio.h>
-        #include <string.h>
-        #include "rl_fs.h"
-        #include "rl_net.h"
+    #include <stdio.h>
+    #include <string.h>
+    #include "rl_fs.h"
+    #include "rl_net.h"
 #endif
 
 #include <wolfssl/test.h>

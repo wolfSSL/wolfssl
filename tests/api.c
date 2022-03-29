@@ -23933,6 +23933,9 @@ static int test_wc_ecc_make_key (void)
     ret = wc_ecc_init(&key);
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, KEY14, &key);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
 
         /* Pass in bad args. */
         if (ret == 0) {
@@ -24016,6 +24019,9 @@ static int test_wc_ecc_check_key (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -24114,6 +24120,9 @@ static int test_wc_ecc_size (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -24198,6 +24207,9 @@ static int test_wc_ecc_signVerify_hash (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -24353,9 +24365,15 @@ static int test_wc_ecc_shared_secret (void)
 #else
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &key);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
     }
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &pubKey);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &pubKey.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
     }
 #endif
 
@@ -24445,6 +24463,9 @@ static int test_wc_ecc_export_x963 (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY20, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
     printf(testingFmt, "wc_ecc_export_x963()");
@@ -24516,6 +24537,9 @@ static int test_wc_ecc_export_x963_ex (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY64, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -24622,6 +24646,9 @@ static int test_wc_ecc_import_x963 (void)
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY24, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             PRIVATE_KEY_UNLOCK();
@@ -24699,6 +24726,9 @@ static int ecc_import_private_key (void)
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY48, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             PRIVATE_KEY_UNLOCK();
@@ -24772,6 +24802,9 @@ static int test_wc_ecc_export_private_only (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY32, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
     printf(testingFmt, "wc_ecc_export_private_only()");
@@ -25070,6 +25103,9 @@ static int test_wc_ecc_sig_size (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -25353,12 +25389,18 @@ static int test_wc_ecc_encryptDecrypt (void)
         ret = wc_ecc_init(&cliKey);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &cliKey);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &cliKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             ret = wc_ecc_init(&srvKey);
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &srvKey);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &srvKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             ret = wc_ecc_init(&tmpKey);
@@ -25528,6 +25570,9 @@ static int test_wc_ecc_pointFns (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -25728,6 +25773,9 @@ static int test_wc_ecc_shared_secret_ssh (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (wc_FreeRng(&rng) && ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
@@ -25740,6 +25788,9 @@ static int test_wc_ecc_shared_secret_ssh (void)
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, key2Sz, &key2);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -25834,6 +25885,9 @@ static int test_wc_ecc_verify_hash_ex (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
     if (ret == 0) {
@@ -25953,6 +26007,9 @@ static int test_wc_ecc_mulmod (void)
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY32, &key1);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key1.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         wc_FreeRng(&rng);
     }
@@ -26031,6 +26088,9 @@ static int test_wc_ecc_is_valid_idx (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, 32, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
     }
 
@@ -26124,6 +26184,9 @@ static int test_wc_ecc_sig_size_calc (void)
         ret = wc_ecc_init(&key);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, 16, &key);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         sz = key.dp->size;
     }
@@ -26210,6 +26273,9 @@ static int test_wc_EccPrivateKeyToDer (void)
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &eccKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         inLen = (word32)sizeof(output);
         /* Bad Cases */
@@ -26666,6 +26732,9 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &eccKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
@@ -26755,6 +26824,9 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &eccKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
@@ -38935,11 +39007,11 @@ static void test_wolfSSL_BIO_connect(void)
 }
 
 
-static void test_wolfSSL_BIO_Qt_usecase(void)
+static void test_wolfSSL_BIO_tls(void)
 {
 #if !defined(NO_BIO) && defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT)
 
-    printf(testingFmt, "test_wolfSSL_BIO_Qt_usecase()");
+    printf(testingFmt, "test_wolfSSL_BIO_tls()");
 
     SSL_CTX* ctx;
     SSL *ssl;
@@ -38958,8 +39030,18 @@ static void test_wolfSSL_BIO_Qt_usecase(void)
      * then writes the read data into read-bio.
      */
     SSL_set_bio(ssl, readBio, writeBio);
-    AssertIntEQ(ret = SSL_connect(ssl), WOLFSSL_FATAL_ERROR);
-    err = SSL_get_error(ssl, ret);
+
+    do {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+    #endif
+        ret = SSL_connect(ssl);
+        err = SSL_get_error(ssl, 0);
+    } while (err == WC_PENDING_E);
+    AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
     /* in this use case, should return WANT READ
      * so that Qt will read the data from plain packet for next state.
      */
@@ -47875,16 +47957,34 @@ static int test_tls13_apis(void)
 #ifdef HAVE_ECC
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
-    AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1),
-                WOLFSSL_SUCCESS);
+    do {
+        ret = wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E)
+            wolfSSL_AsyncPoll(serverSsl, WOLF_POLL_FLAG_CHECK_HW);
+    #endif
+    } while (ret == WC_PENDING_E);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
-    AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
-                WOLFSSL_SUCCESS);
+    do {
+        ret = wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E)
+            wolfSSL_AsyncPoll(clientTls12Ssl, WOLF_POLL_FLAG_CHECK_HW);
+    #endif
+    } while (ret == WC_PENDING_E);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
-    AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
-                WOLFSSL_SUCCESS);
+    do {
+        ret = wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E)
+            wolfSSL_AsyncPoll(clientSsl, WOLF_POLL_FLAG_CHECK_HW);
+    #endif
+    } while (ret == WC_PENDING_E);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
 #elif defined(HAVE_CURVE25519)
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_X25519), BAD_FUNC_ARG);
@@ -53360,7 +53460,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_printf();
     test_wolfSSL_BIO_f_md();
     test_wolfSSL_BIO_up_ref();
-    test_wolfSSL_BIO_Qt_usecase();
+    test_wolfSSL_BIO_tls();
 #endif
     test_wolfSSL_cert_cb();
     test_wolfSSL_SESSION();
