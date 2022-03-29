@@ -4429,7 +4429,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
             ecc_point* point, byte* out, word32 *outlen)
 {
-    int err;
+    int err = 0;
     DECLARE_CURVE_SPECS(3);
 
     /* load curve info */
@@ -4503,7 +4503,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 #endif
 
     /* use sync in other cases */
-    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen, curve);
+    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen);
 
     wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
