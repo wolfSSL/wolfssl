@@ -36610,7 +36610,8 @@ int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
                 ret = BAD_FUNC_ARG;
                 break;
 #endif
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(WC_RSA_PSS)
+#if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,1)))
             case RSA_PKCS1_PSS_PADDING:
             {
                 enum wc_HashType hType = wc_OidGetHash(type);
@@ -36721,7 +36722,8 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
     unsigned char *sigDec = NULL;
     unsigned int   len = 0;
     int verLen;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+    FIPS_VERSION_GE(5,1))) && !defined(HAVE_SELFTEST)
     int hSum = nid2HashSum(type);
     enum wc_HashType hType;
 #endif
@@ -36754,7 +36756,8 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
         DEBUG_SIGN_msg("Encoded Message", m, mLen);
     }
     /* decrypt signature */
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
+    FIPS_VERSION_GE(5,1))) && !defined(HAVE_SELFTEST)
     hType = wc_OidGetHash(hSum);
     if ((verLen = wc_RsaSSL_Verify_ex2(sig, sigLen, (unsigned char *)sigDec,
             sigLen, (RsaKey*)rsa->internal, padding, hType)) <= 0) {
@@ -36766,7 +36769,8 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
         (RsaKey*)rsa->internal);
 #endif
     DEBUG_SIGN_msg("Decrypted Signature", sigDec, ret);
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(WC_RSA_PSS)
+#if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,1)))
     if (padding == RSA_PKCS1_PSS_PADDING) {
         if (wc_RsaPSS_CheckPadding_ex(m, mLen, sigDec, verLen,
                 hType,
