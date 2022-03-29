@@ -376,7 +376,7 @@ then
     fi
     xxx_ranlib_flags=$(${RANLIB} --help 2>&1)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
-    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr"])
+    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr" lt_ar_flags="Dcr"])
     AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
 fi
 
