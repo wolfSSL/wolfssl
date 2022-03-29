@@ -14,6 +14,7 @@ echo    "mklink [[/d] | [/h] | [/j]] <link> <target>"
 echo;
 ::******************************************************************************************************
 ::******************************************************************************************************
+SET COPYERROR=false
 
 :: if there's a setup.sh, we are probably starting in the right place.
 if NOT EXIST "setup.sh" (
@@ -107,32 +108,34 @@ if exist %WOLFSSL_ESPIDFDIR%\user_settings.h (
 )
 
 
-:: do we really want to erase existing user config?
+::******************************************************************************************************
+:: check if there's already an existing %WOLFSSLLIB_TRG_DIR% and confirm removal
+::******************************************************************************************************
 if exist %WOLFSSLLIB_TRG_DIR% (
-  echo;
-  echo WARNING: Existing files found in %WOLFSSLLIB_TRG_DIR%
-  echo;
+    echo;
+    echo WARNING: Existing files found in %WOLFSSLLIB_TRG_DIR%
+    echo;
 
-  :: clear any prior errorlevel
-  call;
-  choice /c YN /m "Delete files and proceed with install in %WOLFSSLLIB_TRG_DIR%  "
-  if errorlevel 2 GOTO :NODELETE
-  GOTO :PURGE
+    :: clear any prior errorlevel
+    call;
+    choice /c YN /m "Delete files and proceed with install in %WOLFSSLLIB_TRG_DIR%  "
+    if errorlevel 2 GOTO :NODELETE
+    GOTO :PURGE
 
 
-echo;
-echo Ready to copy files into %IDF_PATH%
+    echo;
+    echo Ready to copy files into %IDF_PATH%
 
 
 ::******************************************************************************************************
 :NODELETE
 ::******************************************************************************************************
   :: clear any prior errorlevel
-  echo;
-  call;
-  choice /c YN /m "Refresh files %WOLFSSLLIB_TRG_DIR%   (there will be a prompt to keep or overwrite user_settings and config)  "
-  if errorlevel 2 GOTO :NOCOPY
-  GOTO :REFRESH
+    echo;
+    call;
+    choice /c YN /m "Refresh files %WOLFSSLLIB_TRG_DIR%   (there will be a prompt to keep or overwrite user_settings and config)  "
+    if errorlevel 2 GOTO :NOCOPY
+    GOTO :REFRESH
 )
 
 
@@ -142,22 +145,22 @@ echo Ready to copy files into %IDF_PATH%
 :: purge existing directory
 
 if exist %WOLFSSLLIB_TRG_DIR% (
-  echo;
-  echo Removing %WOLFSSLLIB_TRG_DIR%
-  rmdir %WOLFSSLLIB_TRG_DIR% /S /Q
-  if exist %WOLFSSLLIB_TRG_DIR% (
     echo;
-	echo ERROR: Failed to remove %WOLFSSLLIB_TRG_DIR%
-	echo;
-	echo Check permissions, open files, read-only attributes, etc.
-	echo;
-	GOTO :ERR
-  )
-  echo;
+    echo Removing %WOLFSSLLIB_TRG_DIR%
+    rmdir %WOLFSSLLIB_TRG_DIR% /S /Q
+    if exist %WOLFSSLLIB_TRG_DIR% (
+        SET COPYERROR=true
+        echo;
+	    echo WARNING: Failed to remove %WOLFSSLLIB_TRG_DIR%
+	    echo;
+	    echo Check permissions, open files, read-only attributes, etc.
+	    echo;
+    )
+    echo;
 ) else (
-  echo;
-  echo Prior %WOLFSSLLIB_TRG_DIR% not found, installing fresh.
-  echo;
+    echo;
+    echo Prior %WOLFSSLLIB_TRG_DIR% not found, installing fresh.
+    echo;
 )
 
 ::******************************************************************************************************
@@ -176,52 +179,52 @@ rem copying ... files in src/ into $WOLFSSLLIB_TRG_DIR%/src
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\src\
 xcopy %BASEDIR%\src\*.c                                      %WOLFSSLLIB_TRG_DIR%\src\                        /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying src\*.c files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy %BASEDIR%\wolfcrypt\src\*.c                            %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src               /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying src\*.i files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy %BASEDIR%\wolfcrypt\src\*.i                            %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src               /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\
 xcopy %BASEDIR%\wolfcrypt\src\port                           %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\         /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
 xcopy %BASEDIR%\wolfcrypt\test                               %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\             /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 rem Copy dummy test_paths.h to handle the case configure hasn't yet executed
 echo F |xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h         %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h /S /E /Y
 xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h                 %WOLFSSLIB_TRG_DIR%\wolfcrypt\test\test_paths.h  /S /E /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\
 xcopy %BASEDIR%\wolfcrypt\benchmark                          %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\          /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfssl\
 xcopy %BASEDIR%\wolfssl\*.h                                  %WOLFSSLLIB_TRG_DIR%\wolfssl\                    /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to%WOLFSSLLIB_TRG_DIR%\wolfssl\openssl\
 xcopy %BASEDIR%\wolfssl\openssl\*.h                          %WOLFSSLLIB_TRG_DIR%\wolfssl\openssl\            /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\
 xcopy %BASEDIR%\wolfssl\wolfcrypt                            %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\            /S /E /Q /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 
 ::******************************************************************************************************
@@ -231,27 +234,27 @@ if %errorlevel% NEQ 0 GOTO :COPYERR
 echo;
 echo Copying default user_settings.h to %WOLFSSLLIB_TRG_DIR%\include\
 xcopy %WOLFSSL_ESPIDFDIR%\user_settings.h                    %WOLFSSLLIB_TRG_DIR%\include\                     /F
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 :: echo Creating new config file: %WOLFSSLLIB_TRG_DIR%\include\config.h (default, may be overwritten by prior file)
 echo new config                                            > %WOLFSSLLIB_TRG_DIR%\include\config.h
 xcopy  %WOLFSSL_ESPIDFDIR%\dummy_config_h.                   %WOLFSSLLIB_TRG_DIR%\include\config.h             /F /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
+if %errorlevel% NEQ 0 SET COPYERROR=true
 
 
 :: Check if operator wants to keep prior config.h
 if EXIST config_h_%FileStamp%.bak (
-  echo;
-  :: clear any prior errorlevel
-  call;
-  choice /c YN /m "Use your prior config.h  "
-  if errorlevel 2 GOTO :NO_CONFIG_RESTORE
-  xcopy config_h_%FileStamp%.bak   %WOLFSSLLIB_TRG_DIR%\include\config.h /Y
-  if %errorlevel% NEQ 0 GOTO :COPYERR
+    echo;
+    :: clear any prior errorlevel
+    call;
+    choice /c YN /m "Use your prior config.h  "
+    if errorlevel 2 GOTO :NO_CONFIG_RESTORE
+    xcopy config_h_%FileStamp%.bak   %WOLFSSLLIB_TRG_DIR%\include\config.h /Y
+    if %errorlevel% NEQ 0 SET COPYERROR=true
 
 ) else (
-  echo;
-  echo Prior config.h not found. Using default file.
+    echo;
+    echo Prior config.h not found. Using default file.
 )
 ::******************************************************************************************************
 :NO_CONFIG_RESTORE
@@ -259,17 +262,17 @@ if EXIST config_h_%FileStamp%.bak (
 
 :: Check if operator wants to keep prior config.h
 if EXIST user_settings_h_%FileStamp%.bak (
-  echo;
-  :: clear any prior errorlevel
-  call;
-  choice /c YN /m "User your prior user_settings.h  "
-  if errorlevel 2 GOTO :NO_USER_SETTINGS_RESTORE
-  xcopy user_settings_h_%FileStamp%.bak    %WOLFSSLLIB_TRG_DIR%\include\user_settings.h /Y
-  if %errorlevel% NEQ 0 GOTO :COPYERR
+    echo;
+    :: clear any prior errorlevel
+    call;
+    choice /c YN /m "User your prior user_settings.h  "
+    if errorlevel 2 GOTO :NO_USER_SETTINGS_RESTORE
+    xcopy user_settings_h_%FileStamp%.bak    %WOLFSSLLIB_TRG_DIR%\include\user_settings.h /Y
+    if %errorlevel% NEQ 0 SET COPYERROR=true
 
 ) else (
-  echo;
-  echo Prior user_settings.h not found. Using default file.
+    echo;
+    echo Prior user_settings.h not found. Using default file.
 )
 
 ::******************************************************************************************************
@@ -384,4 +387,9 @@ echo See additional examples at  https://github.com/wolfSSL/wolfssl-examples
 echo;
 echo REMINDER: Ensure any wolfSSL #include definitions occur BEFORE include files in your source code.
 echo;
+if "%COPYERROR%" == "true" (
+    echo;
+	echo WARNING: Copy completed with errors! Check for files in use, permissions, symbolic links, etc.
+    echo;
+)
 echo setup_win.bat for ESP-IDF completed.
