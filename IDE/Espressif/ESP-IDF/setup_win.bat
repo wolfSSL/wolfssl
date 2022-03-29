@@ -4,7 +4,7 @@ REM Expect the script at /path/to/wolfssl/IDE/Espressif/ESP-IDF/
 ::******************************************************************************************************
 ::******************************************************************************************************
 echo;
-echo wolfSSL Windows Setup.
+echo wolfSSL Windows Setup. Version 1.0a
 echo;
 echo This utility will copy a static snapshot of wolfSSL files to the ESP32-IDF component directory.
 echo;
@@ -16,13 +16,13 @@ echo;
 ::******************************************************************************************************
 
 :: if there's a setup.sh, we are probably starting in the right place.
-if NOT EXIST "setup.sh" ( 
+if NOT EXIST "setup.sh" (
   echo Please run this script at /path/to/wolfssl/IDE/Espressif/ESP-IDF/
   goto :ERR
 )
 
 :: if there's also a default user_settings.h, we are very likely starting in the right place.
-if NOT EXIST "user_settings.h" ( 
+if NOT EXIST "user_settings.h" (
   echo Please run this script at /path/to/wolfssl/IDE/Espressif/ESP-IDF/
   goto :ERR
 )
@@ -50,7 +50,7 @@ if "%IDF_PATH%" == "" (
   goto :ERR
 )
 
-:: Here we go! 
+:: Here we go!
 :: setup some path variables
 echo;
 
@@ -93,14 +93,14 @@ if NOT "%TIME:~0,1%" == " "  set FileStamp=%DATE:~12,2%%DATE:~7,2%%DATE:~4,2%_%T
 :: Backup existing user settings
 if exist %WOLFSSLLIB_TRG_DIR%\include\config.h (
   echo;
-  echo Saving: %WOLFSSLLIB_TRG_DIR%\include\config.h 
+  echo Saving: %WOLFSSLLIB_TRG_DIR%\include\config.h
   echo     to: %SCRIPTDIR%\config_h_%FileStamp%.bak
   copy         %WOLFSSLLIB_TRG_DIR%\include\config.h      %SCRIPTDIR%\config_h_%FileStamp%.bak
   echo;
 )
 
 if exist %WOLFSSL_ESPIDFDIR%\user_settings.h (
-  echo Saving: %WOLFSSLLIB_TRG_DIR%\include\user_settings.h  
+  echo Saving: %WOLFSSLLIB_TRG_DIR%\include\user_settings.h
   echo     to: %SCRIPTDIR%\user_settings_h_%FileStamp%.bak
   copy         %WOLFSSLLIB_TRG_DIR%\include\user_settings.h      %SCRIPTDIR%\user_settings_h_%FileStamp%.bak
   echo;
@@ -144,7 +144,15 @@ echo Ready to copy files into %IDF_PATH%
 if exist %WOLFSSLLIB_TRG_DIR% (
   echo;
   echo Removing %WOLFSSLLIB_TRG_DIR%
-  rmdir %WOLFSSLLIB_TRG_DIR% /S /Q 
+  rmdir %WOLFSSLLIB_TRG_DIR% /S /Q
+  if exist %WOLFSSLLIB_TRG_DIR% (
+    echo;
+	echo ERROR: Failed to remove %WOLFSSLLIB_TRG_DIR%
+	echo;
+	echo Check permissions, open files, read-only attributes, etc.
+	echo;
+	GOTO :ERR
+  )
   echo;
 ) else (
   echo;
@@ -173,38 +181,47 @@ if %errorlevel% NEQ 0 GOTO :COPYERR
 echo;
 echo Copying src\*.c files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy %BASEDIR%\wolfcrypt\src\*.c                            %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src               /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying src\*.i files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy %BASEDIR%\wolfcrypt\src\*.i                            %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src               /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\
 xcopy %BASEDIR%\wolfcrypt\src\port                           %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\         /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
 xcopy %BASEDIR%\wolfcrypt\test                               %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\             /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
-rem Copy dummy test_paths.h to handle the case configure hasn't yet executed 
+rem Copy dummy test_paths.h to handle the case configure hasn't yet executed
 echo F |xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h         %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h /S /E /Y
 xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h                 %WOLFSSLIB_TRG_DIR%\wolfcrypt\test\test_paths.h  /S /E /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\
 xcopy %BASEDIR%\wolfcrypt\benchmark                          %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\          /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfssl\
 xcopy %BASEDIR%\wolfssl\*.h                                  %WOLFSSLLIB_TRG_DIR%\wolfssl\                    /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to%WOLFSSLLIB_TRG_DIR%\wolfssl\openssl\
 xcopy %BASEDIR%\wolfssl\openssl\*.h                          %WOLFSSLLIB_TRG_DIR%\wolfssl\openssl\            /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\
 xcopy %BASEDIR%\wolfssl\wolfcrypt                            %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\            /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 
 ::******************************************************************************************************
@@ -214,10 +231,12 @@ xcopy %BASEDIR%\wolfssl\wolfcrypt                            %WOLFSSLLIB_TRG_DIR
 echo;
 echo Copying default user_settings.h to %WOLFSSLLIB_TRG_DIR%\include\
 xcopy %WOLFSSL_ESPIDFDIR%\user_settings.h                    %WOLFSSLLIB_TRG_DIR%\include\                     /F
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 :: echo Creating new config file: %WOLFSSLLIB_TRG_DIR%\include\config.h (default, may be overwritten by prior file)
 echo new config                                            > %WOLFSSLLIB_TRG_DIR%\include\config.h
 xcopy  %WOLFSSL_ESPIDFDIR%\dummy_config_h.                   %WOLFSSLLIB_TRG_DIR%\include\config.h             /F /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 
 :: Check if operator wants to keep prior config.h
@@ -228,6 +247,7 @@ if EXIST config_h_%FileStamp%.bak (
   choice /c YN /m "Use your prior config.h  "
   if errorlevel 2 GOTO :NO_CONFIG_RESTORE
   xcopy config_h_%FileStamp%.bak   %WOLFSSLLIB_TRG_DIR%\include\config.h /Y
+  if %errorlevel% NEQ 0 GOTO :COPYERR
 
 ) else (
   echo;
@@ -245,10 +265,11 @@ if EXIST user_settings_h_%FileStamp%.bak (
   choice /c YN /m "User your prior user_settings.h  "
   if errorlevel 2 GOTO :NO_USER_SETTINGS_RESTORE
   xcopy user_settings_h_%FileStamp%.bak    %WOLFSSLLIB_TRG_DIR%\include\user_settings.h /Y
+  if %errorlevel% NEQ 0 GOTO :COPYERR
 
 ) else (
   echo;
-  echo Prior user_settings.h not found. Using default file. 
+  echo Prior user_settings.h not found. Using default file.
 )
 
 ::******************************************************************************************************
@@ -259,54 +280,69 @@ if EXIST user_settings_h_%FileStamp%.bak (
 :: unit test app
 echo;
 echo Copying unit files to %WOLFSSLLIB_TRG_DIR%\test\
-xcopy %WOLFSSL_ESPIDFDIR%\test                               %WOLFSSLLIB_TRG_DIR%\test\                        /S /E /Q /Y 
+xcopy %WOLFSSL_ESPIDFDIR%\test                               %WOLFSSLLIB_TRG_DIR%\test\                        /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying CMakeLists.txt to %WOLFSSLLIB_TRG_DIR%\
-xcopy %WOLFSSL_ESPIDFDIR%\libs\CMakeLists.txt                %WOLFSSLLIB_TRG_DIR%\                             /F 
+xcopy %WOLFSSL_ESPIDFDIR%\libs\CMakeLists.txt                %WOLFSSLLIB_TRG_DIR%\                             /F
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying component.mk to %WOLFSSLLIB_TRG_DIR%\
 xcopy %WOLFSSL_ESPIDFDIR%\libs\component.mk                  %WOLFSSLLIB_TRG_DIR%\                             /F
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 :: Benchmark program
 echo;
 echo Removing %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
-rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\          /S /Q 
+rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\          /S /Q
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 echo;
 echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
 mkdir %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
-xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.h              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h  /F /Y 
-xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c  /F /Y 
-xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\                                 /F /Y 
+xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.h              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h  /F /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
-xcopy %WOLFSSL_ESPIDFDIR%\examples\wolfssl_benchmark         %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\                                      /Q /Y  
+xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c  /F /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
+
+xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\                                 /F /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
+
+xcopy %WOLFSSL_ESPIDFDIR%\examples\wolfssl_benchmark         %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\                                      /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 :: Crypt Test program
 echo;
 echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_test\
-rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_test\               /S /Q 
+rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_test\               /S /Q
 mkdir %WOLFSSLEXP_TRG_DIR%\wolfssl_test\main\
 
-xcopy %BASEDIR%\wolfcrypt\test\test.c                        %WOLFSSLEXP_TRG_DIR%\wolfssl_test\main\           /S /E /Q /Y 
+xcopy %BASEDIR%\wolfcrypt\test\test.c                        %WOLFSSLEXP_TRG_DIR%\wolfssl_test\main\           /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
+
 xcopy %WOLFSSL_ESPIDFDIR%\examples\wolfssl_test              %WOLFSSLEXP_TRG_DIR%\wolfssl_test\                /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 :: TLS Client program
 echo;
-echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_client\ 
-rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_client\            /S /Q 
+echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_client\
+rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_client\            /S /Q
 mkdir %WOLFSSLEXP_TRG_DIR%\wolfssl_client\main\
 
 xcopy %WOLFSSL_ESPIDFDIR%\examples\wolfssl_client            %WOLFSSLEXP_TRG_DIR%\wolfssl_client\              /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 :: TLS Server program
 echo;
-echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_server\ 
-rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_server\            /S /Q 
+echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_server\
+rmdir %WOLFSSLEXP_TRG_DIR%\wolfssl_server\            /S /Q
 mkdir %WOLFSSLEXP_TRG_DIR%\wolfssl_server\main\
 
 xcopy %WOLFSSL_ESPIDFDIR%\examples\wolfssl_server             %WOLFSSLEXP_TRG_DIR%\wolfssl_server\             /S /E /Q /Y
+if %errorlevel% NEQ 0 GOTO :COPYERR
 
 goto :DONE
 
@@ -316,6 +352,8 @@ goto :DONE
 ::******************************************************************************************************
 echo;
 echo Error during copy.
+echo
+echo Please ensure none of the target files are flagged as read-only, open, etc.
 goto :ERR
 
 :: abort at user request
@@ -326,7 +364,7 @@ echo;
 echo Setup did not copy any files.
 goto :ERR
 
-:: ERROR 
+:: ERROR
 ::******************************************************************************************************
 :ERR
 ::******************************************************************************************************
@@ -346,4 +384,4 @@ echo See additional examples at  https://github.com/wolfSSL/wolfssl-examples
 echo;
 echo REMINDER: Ensure any wolfSSL #include definitions occur BEFORE include files in your source code.
 echo;
-echo setup_win.bat for ESP-IDF completed. 
+echo setup_win.bat for ESP-IDF completed.
