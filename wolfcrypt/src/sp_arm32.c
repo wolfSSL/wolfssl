@@ -71090,7 +71090,7 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
     sp_digit* t = NULL;
 #else
     sp_point_1024 point[1];
-    sp_digit t[5 * 2 * 32];
+    sp_digit t[6 * 2 * 32];
 #endif
     int err = MP_OKAY;
 
@@ -71114,7 +71114,7 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 5 * 2 * 32, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 6 * 2 * 32, heap,
             DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
