@@ -1065,7 +1065,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #if defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AESCCM) || \
         defined(WOLFSSL_CMAC) || defined(WOLFSSL_AES_OFB) || \
         defined(WOLFSSL_AES_CFB) || defined(HAVE_AES_ECB) || \
-        defined(HAVE_AES_CBC)
+        (defined(HAVE_AES_CBC) && defined(WOLFSSL_NO_KCAPI_AES_CBC))
 
         #define NEED_AES_TABLES
     #endif
