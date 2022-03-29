@@ -201,9 +201,12 @@ echo Copying files to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
 xcopy %BASEDIR%\wolfcrypt\test                               %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\             /S /E /Q /Y
 if %errorlevel% NEQ 0 SET COPYERROR=true
 
-rem Copy dummy test_paths.h to handle the case configure hasn't yet executed
-echo F |xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h         %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h /S /E /Y
-xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h                 %WOLFSSLIB_TRG_DIR%\wolfcrypt\test\test_paths.h  /S /E /Y
+:: Copy dummy test_paths.h to handle the case configure hasn't yet executed
+echo;
+echo Copying dummy_test_paths.h to %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h
+echo new config                                            > %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h
+if %errorlevel% NEQ 0 SET COPYERROR=true
+xcopy %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h                 %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h  /S /E /Y
 if %errorlevel% NEQ 0 SET COPYERROR=true
 
 echo;
