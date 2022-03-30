@@ -2537,7 +2537,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             len = (int)XSTRLEN((const char*)buf) + 1;
         }
 
-        if (wolfSSL_BUF_MEM_resize(bio->mem_buf, len) == 0) {
+        if (len > 0 && wolfSSL_BUF_MEM_resize(bio->mem_buf, len) == 0) {
             wolfSSL_BIO_free(bio);
             return NULL;
         }

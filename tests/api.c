@@ -39123,6 +39123,9 @@ static void test_wolfSSL_BIO_write(void)
     BIO_set_retry_read(bio);
     BIO_free_all(bio); /* frees bio64s also */
 
+    AssertNotNull(bio = BIO_new_mem_buf(out, 0));
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), sizeof(msg));
+    BIO_free(bio);
     printf(resultFmt, passed);
     #endif
 }
