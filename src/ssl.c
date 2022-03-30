@@ -54566,55 +54566,65 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        buff = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (buff == NULL) {
-            WOLFSSL_MSG("Failed to allocate buffer.");
-            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            ret = WOLFSSL_FAILURE;
+        if (len == 0) {
+            mp_zero((mp_int*)bn->internal);
         }
-    }
-
-    if (ret == WOLFSSL_SUCCESS && initGlobalRNG == 0 &&
-        wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Failed to use global RNG.");
-        ret = WOLFSSL_FAILURE;
-    }
-
-    if (ret == WOLFSSL_SUCCESS && wc_RNG_GenerateBlock(rng, buff, len) != 0) {
-        WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-        ret = WOLFSSL_FAILURE;
-    }
-    if (ret == WOLFSSL_SUCCESS &&
-        mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY) {
-            WOLFSSL_MSG("mp_read_unsigned_bin failed");
-            ret = WOLFSSL_FAILURE;
-    }
-    if (ret == WOLFSSL_SUCCESS) {
-        /* Truncate to requested bit length. */
-        mp_rshb((mp_int*)bn->internal, 8 - (bits % 8));
-
-        if (top == 0) {
-            if (mp_set_bit((mp_int*)bn->internal, bits - 1) != MP_OKAY) {
-                WOLFSSL_MSG("Failed to set top bit");
+        else {
+            buff = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (buff == NULL) {
+                WOLFSSL_MSG("Failed to allocate buffer.");
+                XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 ret = WOLFSSL_FAILURE;
             }
-        }
-        else if (top > 0) {
-            if (mp_set_bit((mp_int*)bn->internal, bits - 1) != MP_OKAY || 
-                mp_set_bit((mp_int*)bn->internal, bits - 2) != MP_OKAY) {
-                WOLFSSL_MSG("Failed to set top 2 bits");
+
+            if (ret == WOLFSSL_SUCCESS && initGlobalRNG == 0 &&
+                wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to use global RNG.");
                 ret = WOLFSSL_FAILURE;
             }
-        }
-    }
-    if (ret == WOLFSSL_SUCCESS && bottom &&
-        mp_set_bit((mp_int*)bn->internal, 0) != MP_OKAY) {
-        WOLFSSL_MSG("Failed to set 0th bit");
-        ret = WOLFSSL_FAILURE;
-    }
 
-    if (buff != NULL) {
-        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ret == WOLFSSL_SUCCESS &&
+                wc_RNG_GenerateBlock(rng, buff, len) != 0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                ret = WOLFSSL_FAILURE;
+            }
+            if (ret == WOLFSSL_SUCCESS &&
+                mp_read_unsigned_bin((mp_int*)bn->internal,buff,len)
+                != MP_OKAY) {
+                    WOLFSSL_MSG("mp_read_unsigned_bin failed");
+                    ret = WOLFSSL_FAILURE;
+            }
+            if (ret == WOLFSSL_SUCCESS) {
+                /* Truncate to requested bit length. */
+                mp_rshb((mp_int*)bn->internal, 8 - (bits % 8));
+
+                if (top == 0) {
+                    if (mp_set_bit((mp_int*)bn->internal, bits - 1)
+                        != MP_OKAY) {
+                        WOLFSSL_MSG("Failed to set top bit");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+                else if (top > 0) {
+                    if (mp_set_bit((mp_int*)bn->internal, bits - 1)
+                        != MP_OKAY || 
+                        mp_set_bit((mp_int*)bn->internal, bits - 2)
+                        != MP_OKAY) {
+                        WOLFSSL_MSG("Failed to set top 2 bits");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+            }
+            if (ret == WOLFSSL_SUCCESS && bottom &&
+                mp_set_bit((mp_int*)bn->internal, 0) != MP_OKAY) {
+                WOLFSSL_MSG("Failed to set 0th bit");
+                ret = WOLFSSL_FAILURE;
+            }
+
+            if (buff != NULL) {
+                XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
     }
 
     WOLFSSL_LEAVE("wolfSSL_BN_rand", ret);
