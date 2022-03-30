@@ -4788,7 +4788,7 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
  *      ecc_curve_spec. Having this argument allows for not having to load the
  *      curve type multiple times when generating a key with wc_ecc_make_key().
  * For async the results are placed directly into pubOut, so this function 
- *      does not need called again
+ *      does not need to be called again
  *
  * returns MP_OKAY on success
  */
@@ -4797,10 +4797,6 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 {
     int err = MP_OKAY;
 #ifdef HAVE_ECC_MAKE_PUB
-#if !defined(WOLFSSL_SP_MATH) && !(defined(WOLFSSL_ASYNC_CRYPT) && \
-        defined(WC_ASYNC_ENABLE_ECC) && defined(HAVE_INTEL_QA))
-    ecc_point* base = NULL;
-#endif
     ecc_point* pub;
     DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 #endif /* HAVE_ECC_MAKE_PUB */
@@ -4903,6 +4899,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #else
     if (err == MP_OKAY) {
         mp_digit mp = 0;
+        ecc_point* base = NULL;
     #ifdef WOLFSSL_NO_MALLOC
         ecc_point  lcl_base;
         base = &lcl_base;

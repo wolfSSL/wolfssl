@@ -39017,7 +39017,7 @@ static void test_wolfSSL_BIO_tls(void)
     SSL *ssl;
     BIO *readBio;
     BIO *writeBio;
-    int ret, err;
+    int ret, err = 0;
 
     AssertNotNull(ctx = SSL_CTX_new(SSLv23_method()));
     AssertNotNull(ssl = SSL_new(ctx));
