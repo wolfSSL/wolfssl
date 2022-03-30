@@ -2615,6 +2615,35 @@ WOLFSSL_API void wolfSSL_set_verify(WOLFSSL*, int, VerifyCallback verify_callbac
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL*, void*);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief This function stores user CTX object information for verify callback.
+
+    \return none No return.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure.
+    \param userCtx a void pointer that is used to set WOLFSSL_CTX structure’s
+    verifyCbCtx member’s value.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new( method );
+    void* userCtx = NULL; // Assign some user defined context
+    ...
+    if(ctx != NULL){
+        wolfSSL_SetCertCbCtx(ctx, userCtx);
+    } else {
+        // Error case, the SSL is not initialized properly.
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_save_cert_cache
+    \sa wolfSSL_CTX_restore_cert_cache
+    \sa wolfSSL_CTX_set_verify
+*/
+WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX*, void*);
+
+/*!
     \ingroup IO
 
     \brief This function returns the number of bytes which are buffered and

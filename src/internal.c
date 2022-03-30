@@ -11293,7 +11293,19 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         store->error_depth = args->certIdx;
         store->discardSessionCerts = 0;
         store->domain = domain;
-        store->userCtx = (ssl != NULL) ? ssl->verifyCbCtx : cm;
+        if (ssl != NULL) {
+            if (ssl->verifyCbCtx != NULL) {
+                /* Use the WOLFSSL user context if set */
+                store->userCtx = ssl->verifyCbCtx;
+            }
+            else {
+                /* Else use the WOLFSSL_CTX user context */
+                store->userCtx = ssl->ctx->verifyCbCtx;
+            }
+        }
+        else {
+            store->userCtx = cm;
+        }
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
     #if defined(HAVE_EX_DATA) && \

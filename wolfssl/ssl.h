@@ -1199,6 +1199,7 @@ WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
 #endif
 
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
+WOLFSSL_API void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx);
 
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_has_pending(const WOLFSSL* ssl);

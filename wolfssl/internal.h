@@ -2905,6 +2905,7 @@ struct WOLFSSL_CTX {
     CallbackSetPeer CBSetPeer;
 #endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
+    void*           verifyCbCtx;        /* cert verify callback user ctx*/
 #ifdef OPENSSL_ALL
     CertVerifyCallback verifyCertCb;
     void*              verifyCertCbArg;
