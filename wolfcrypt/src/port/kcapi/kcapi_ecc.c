@@ -204,8 +204,7 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 {
     int ret = 0;
     word32 kcapiCurveId = 0;
-    byte* pub_aligned = NULL;
-    byte* out_aligned = NULL;
+    byte* buf_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     byte* pub = NULL;
     word32 keySz;
@@ -242,53 +241,28 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
     }
     if (ret == 0) {
-        if ((size_t)pub % pageSz != 0) {
-            ret = posix_memalign((void*)&pub_aligned, pageSz, keySz * 2);
-            if (ret == 0) {
-                XMEMCPY(pub_aligned, pub, keySz * 2);
-            }
-            else {
-                ret = MEMORY_E;
-            }
-        }
-        else {
-            pub_aligned = pub;
+        ret = posix_memalign((void*)&buf_aligned, pageSz, keySz * 2);
+        if (ret != 0) {
+            ret = MEMORY_E;
         }
     }
     if (ret == 0) {
-        if ((size_t)out % pageSz != 0) {
-            ret = posix_memalign((void*)&out_aligned, pageSz, keySz * 2);
-            if (ret != 0) {
-                ret = MEMORY_E;
-            }
-        }
-        else {
-            out_aligned = out;
-        }
-    }
+        XMEMCPY(buf_aligned, pub, keySz * 2);
 
-    if (ret == 0) {
-        ret = (int)kcapi_kpp_ssgen(private_key->handle, pub_aligned,
-            keySz * 2, out_aligned, keySz * 2, KCAPI_ACCESS_HEURISTIC);
+        ret = (int)kcapi_kpp_ssgen(private_key->handle, buf_aligned,
+            keySz * 2, buf_aligned, keySz * 2, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *outlen = ret / 2;
-            if (out_aligned != out) {
-                /* don't overflow out */
-                if (ret > (int)*outlen)
-                    ret = (int)*outlen;
-                XMEMCPY(out, out_aligned, ret);
-            }
+            XMEMCPY(out, buf_aligned, *outlen);
+
             ret = 0; /* success */
         }
     }
 
     /* Using free as this is in an environment that will have it
      * available along with posix_memalign. */
-    if (pub_aligned != NULL && pub != pub_aligned) {
-        free(pub_aligned);
-    }
-    if (out_aligned != NULL && out != out_aligned) {
-        free(out_aligned);
+    if (buf_aligned != NULL) {
+        free(buf_aligned);
     }
 
     return ret;
@@ -328,11 +302,11 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                   word32 sigLen)
 {
     int ret = 0;
-    byte* hash_aligned = NULL;
-    byte* sig_aligned = NULL;
+    byte* buf_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     int handleInit = 0;
     word32 keySz;
+    word32 maxBufSz;
 
     if (key == NULL || key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -357,48 +331,27 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
     if (ret == 0) {
-        if ((size_t)sig % pageSz != 0) {
-            ret = posix_memalign((void*)&sig_aligned, pageSz, keySz * 2);
-            if (ret != 0) {
-                ret = MEMORY_E;
-            }
-        }
-        else {
-            sig_aligned = sig;
+        maxBufSz = (hashLen > keySz * 2) ? hashLen : (keySz * 2);
+        ret = posix_memalign((void*)&buf_aligned, pageSz, maxBufSz);
+        if (ret != 0) {
+            ret = MEMORY_E;
         }
     }
     if (ret == 0) {
-        if ((size_t)hash % pageSz != 0) {
-            ret = posix_memalign((void*)&hash_aligned, pageSz, hashLen);
-            if (ret == 0) {
-                XMEMCPY(hash_aligned, hash, hashLen);
-            }
-            else {
-                ret = MEMORY_E;
-            }
-        }
-        else {
-            hash_aligned = (byte*)hash;
-        }
-    }
-    if (ret == 0) {
-        ret = (int)kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
-            sig_aligned, keySz*2, KCAPI_ACCESS_HEURISTIC);
+        XMEMCPY(buf_aligned, hash, hashLen);
+
+        ret = (int)kcapi_akcipher_sign(key->handle, buf_aligned, hashLen,
+            buf_aligned, keySz * 2, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
-            if (sig_aligned != sig) {
-                XMEMCPY(sig, sig_aligned, ret);
-            }
+            XMEMCPY(sig, buf_aligned, ret);
             ret = 0; /* mark success */
         }
     }
 
     /* Using free as this is in an environment that will have it
      * available along with posix_memalign. */
-    if (sig_aligned != NULL && sig != sig_aligned) {
-        free(sig_aligned);
-    }
-    if (hash_aligned != NULL && hash != hash_aligned) {
-        free(hash_aligned);
+    if (buf_aligned != NULL) {
+        free(buf_aligned);
     }
 
     if (handleInit) {
@@ -444,11 +397,10 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                     word32 sigLen)
 {
     int ret = 0;
-    byte* sigHash_aligned = NULL;
+    byte* buf_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     int handleInit = 0;
     word32 keySz = 0;
-    byte* outbuf = NULL;
 
     if (key == NULL || key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -465,38 +417,30 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
     if (ret == 0) {
-        ret = posix_memalign((void*)&sigHash_aligned, pageSz, sigLen + hashLen);
-        if (ret != 0) {
-            ret = MEMORY_E;
-        }
-    }
-    if (ret == 0) {
         keySz = key->dp->size;
-        ret = posix_memalign((void*)&outbuf, pageSz, keySz * 2);
+
+        ret = posix_memalign((void*)&buf_aligned, pageSz, sigLen + hashLen);
         if (ret != 0) {
             ret = MEMORY_E;
         }
     }
     if (ret == 0) {
-        XMEMCPY(sigHash_aligned, sig, sigLen);
-        XMEMCPY(sigHash_aligned + sigLen, hash, hashLen);
+        XMEMCPY(buf_aligned, sig, sigLen);
+        XMEMCPY(buf_aligned + sigLen, hash, hashLen);
 
-        ret = (int)kcapi_akcipher_verify(key->handle, sigHash_aligned,
-            sigLen + hashLen, outbuf, keySz * 2,
+        ret = (int)kcapi_akcipher_verify(key->handle, buf_aligned,
+            sigLen + hashLen, buf_aligned, keySz * 2,
             KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
+            /* verify output in buf_aligned is not used */
             ret = 0;
         }
-        (void)outbuf; /* not used */
     }
 
     /* Using free as this is in an environment that will have it
      * available along with posix_memalign. */
-    if (sigHash_aligned != NULL) {
-        free(sigHash_aligned);
-    }
-    if (outbuf != NULL) {
-        free(outbuf);
+    if (buf_aligned != NULL) {
+        free(buf_aligned);
     }
 
     if (handleInit) {
