@@ -204,11 +204,10 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 {
     int ret = 0;
     word32 kcapiCurveId = 0;
-    byte* buf_aligned = NULL;
     byte* pub_aligned = NULL;
     byte* out_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
-    byte* pub;
+    byte* pub = NULL;
     word32 keySz;
 
     if (private_key == NULL || private_key->dp == NULL || public_key == NULL) {
@@ -243,25 +242,32 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
     }
     if (ret == 0) {
-        /* setup aligned pointers */
-        if (((size_t)pub % pageSz != 0) ||
-            ((size_t)out % pageSz != 0)) {
-            ret = posix_memalign((void*)&buf_aligned, pageSz, pageSz * 2);
-            if (ret < 0) {
+        if ((size_t)pub % pageSz != 0) {
+            ret = posix_memalign((void*)&pub_aligned, pageSz, keySz * 2);
+            if (ret == 0) {
+                XMEMCPY(pub_aligned, pub, keySz * 2);
+            }
+            else {
                 ret = MEMORY_E;
             }
         }
+        else {
+            pub_aligned = pub;
+        }
     }
     if (ret == 0) {
-        out_aligned = ((size_t)out % pageSz == 0) ? out : buf_aligned;
-        if ((size_t)pub % pageSz == 0) {
-            pub_aligned = (byte*)pub;
+        if ((size_t)out % pageSz != 0) {
+            ret = posix_memalign((void*)&out_aligned, pageSz, keySz * 2);
+            if (ret != 0) {
+                ret = MEMORY_E;
+            }
         }
         else {
-            pub_aligned = buf_aligned + pageSz;
-            XMEMCPY(pub_aligned, pub, keySz * 2);
+            out_aligned = out;
         }
+    }
 
+    if (ret == 0) {
         ret = (int)kcapi_kpp_ssgen(private_key->handle, pub_aligned,
             keySz * 2, out_aligned, keySz * 2, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
@@ -278,8 +284,11 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
     /* Using free as this is in an environment that will have it
      * available along with posix_memalign. */
-    if (buf_aligned != NULL) {
-        free(buf_aligned);
+    if (pub_aligned != NULL && pub != pub_aligned) {
+        free(pub_aligned);
+    }
+    if (out_aligned != NULL && out != out_aligned) {
+        free(out_aligned);
     }
 
     return ret;
@@ -319,7 +328,6 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                   word32 sigLen)
 {
     int ret = 0;
-    byte* buf_aligned = NULL;
     byte* hash_aligned = NULL;
     byte* sig_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
@@ -340,14 +348,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
             ret = KcapiEcc_SetPrivKey(key);
         }
     }
-    if (ret == 0) {
-        if (((size_t)sig % pageSz != 0) || ((size_t)hash % pageSz != 0)) {
-            ret = posix_memalign((void*)&buf_aligned, pageSz, pageSz * 2);
-            if (ret < 0) {
-                ret = MEMORY_E;
-            }
-        }
-    }
+
     if (ret == 0) {
         /* make sure signature output is large enough */
         keySz = key->dp->size;
@@ -356,14 +357,31 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
     if (ret == 0) {
-        sig_aligned = ((size_t)sig % pageSz == 0) ? sig : buf_aligned;
-        if ((size_t)hash % pageSz == 0) {
-            hash_aligned = (byte*)hash;
+        if ((size_t)sig % pageSz != 0) {
+            ret = posix_memalign((void*)&sig_aligned, pageSz, keySz * 2);
+            if (ret != 0) {
+                ret = MEMORY_E;
+            }
         }
         else {
-            hash_aligned = buf_aligned + pageSz;
-            XMEMCPY(hash_aligned, hash, hashLen);
+            sig_aligned = sig;
         }
+    }
+    if (ret == 0) {
+        if ((size_t)hash % pageSz != 0) {
+            ret = posix_memalign((void*)&hash_aligned, pageSz, hashLen);
+            if (ret == 0) {
+                XMEMCPY(hash_aligned, hash, hashLen);
+            }
+            else {
+                ret = MEMORY_E;
+            }
+        }
+        else {
+            hash_aligned = (byte*)hash;
+        }
+    }
+    if (ret == 0) {
         ret = (int)kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
             sig_aligned, keySz*2, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
@@ -376,8 +394,11 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
 
     /* Using free as this is in an environment that will have it
      * available along with posix_memalign. */
-    if (buf_aligned != NULL) {
-        free(buf_aligned);
+    if (sig_aligned != NULL && sig != sig_aligned) {
+        free(sig_aligned);
+    }
+    if (hash_aligned != NULL && hash != hash_aligned) {
+        free(hash_aligned);
     }
 
     if (handleInit) {
@@ -445,14 +466,14 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
     if (ret == 0) {
         ret = posix_memalign((void*)&sigHash_aligned, pageSz, sigLen + hashLen);
-        if (ret < 0) {
+        if (ret != 0) {
             ret = MEMORY_E;
         }
     }
     if (ret == 0) {
         keySz = key->dp->size;
         ret = posix_memalign((void*)&outbuf, pageSz, keySz * 2);
-        if (ret < 0) {
+        if (ret != 0) {
             ret = MEMORY_E;
         }
     }
