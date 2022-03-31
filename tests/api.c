@@ -37088,25 +37088,49 @@ static void test_wolfSSL_RAND_bytes(void)
 
 static void test_wolfSSL_BN_rand(void)
 {
-    #if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
     BIGNUM* bn;
     BIGNUM* range;
 
     printf(testingFmt, "wolfSSL_BN_rand()");
 
+    /* Error conditions. */
+    /* NULL BN. */
+    AssertIntEQ(BN_rand(NULL, 0, 0, 0), SSL_FAILURE);
     AssertNotNull(bn = BN_new());
-    AssertIntNE(BN_rand(bn, 0, 0, 0), SSL_SUCCESS);
-    BN_free(bn);
+    /* Negative bits. */
+    AssertIntEQ(BN_rand(bn, -2, 0, 0), SSL_FAILURE);
+    /* 0 bits and top is not -1. */
+    AssertIntEQ(BN_rand(bn, 0, 1, 0), SSL_FAILURE);
+    /* 0 bits and bottom is not 0. */
+    AssertIntEQ(BN_rand(bn, 0, 0, 1), SSL_FAILURE);
+    /* 1 bit and top is 1. */
+    AssertIntEQ(BN_rand(bn, 1, 1, 0), SSL_FAILURE);
 
-    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 0, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(BN_num_bits(bn), 0);
+
     AssertIntEQ(BN_rand(bn, 8, 0, 0), SSL_SUCCESS);
-    BN_free(bn);
+    AssertIntEQ(BN_num_bits(bn), 8);
+    /* When top is 0, top bit should be 1. */
+    AssertIntEQ(BN_is_bit_set(bn, 7), SSL_SUCCESS);
 
-    AssertNotNull(bn = BN_new());
-    AssertIntEQ(BN_rand(bn, 64, 0, 0), SSL_SUCCESS);
-    BN_free(bn);
+    AssertIntEQ(BN_rand(bn, 8, 1, 0), SSL_SUCCESS);
+    /* When top is 1, top 2 bits should be 1. */
+    AssertIntEQ(BN_is_bit_set(bn, 7), SSL_SUCCESS);
+    AssertIntEQ(BN_is_bit_set(bn, 6), SSL_SUCCESS);
 
-    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 8, 0, 1), SSL_SUCCESS);
+    /* When bottom is 1, bottom bit should be 1. */
+    AssertIntEQ(BN_is_bit_set(bn, 0), SSL_SUCCESS);
+
+    /* Regression test: Older versions of wolfSSL_BN_rand would round the
+     * requested number of bits up to the nearest multiple of 8. E.g. in this
+     * case, requesting a 13-bit random number would actually return a 16-bit
+     * random number. */
+    AssertIntEQ(BN_rand(bn, 13, 0, 0), SSL_SUCCESS);
+    AssertIntEQ(BN_num_bits(bn), 13);
+
     AssertNotNull(range = BN_new());
     AssertIntEQ(BN_rand(range, 64, 0, 0), SSL_SUCCESS);
     AssertIntEQ(BN_rand_range(bn, range), SSL_SUCCESS);
@@ -37114,7 +37138,7 @@ static void test_wolfSSL_BN_rand(void)
     BN_free(range);
 
     printf(resultFmt, passed);
-    #endif
+#endif
 }
 
 static void test_wolfSSL_pseudo_rand(void)

@@ -55147,75 +55147,82 @@ int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n)
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
-    int           ret    = WOLFSSL_FAILURE;
-    int           len;
-    int           initTmpRng = 0;
-    WC_RNG*       rng    = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG*       tmpRNG = NULL;
-    byte*         buff   = NULL;
-#else
-    WC_RNG        tmpRNG[1];
-    byte          buff[1024];
-#endif
+    int ret = WOLFSSL_SUCCESS;
+    int len = (bits + 7) / 8;
+    WC_RNG* rng = &globalRNG;
+    byte* buff = NULL;
 
-    (void)top;
-    (void)bottom;
-    WOLFSSL_MSG("wolfSSL_BN_rand");
+    WOLFSSL_ENTER("wolfSSL_BN_rand");
 
-    if (bits <= 0) {
-        return WOLFSSL_FAILURE;
+    if ((bn == NULL || bn->internal == NULL) || bits < 0 ||
+        (bits == 0 && (bottom != 0 || top != -1)) || (bits == 1 && top > 0)) {
+        WOLFSSL_MSG("Bad argument");
+        ret = WOLFSSL_FAILURE;
     }
 
-    len = bits / 8;
-    if (bits % 8)
-        len++;
-
-    /* has to be a length of at least 1 since we set buf[0] and buf[len-1] */
-    if (len < 1) {
-        return WOLFSSL_FAILURE;
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    tmpRNG = (WC_RNG*) XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (buff == NULL || tmpRNG == NULL) {
-        XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-        return ret;
-    }
-#endif
-
-    if (bn == NULL || bn->internal == NULL)
-        WOLFSSL_MSG("Bad function arguments");
-    else if (wc_InitRng(tmpRNG) == 0) {
-        rng = tmpRNG;
-        initTmpRng = 1;
-    }
-    else if (initGlobalRNG)
-        rng = &globalRNG;
-
-    if (rng) {
-        if (wc_RNG_GenerateBlock(rng, buff, len) != 0)
-            WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+    if (ret == WOLFSSL_SUCCESS) {
+        if (len == 0) {
+            mp_zero((mp_int*)bn->internal);
+        }
         else {
-            buff[0]     |= 0x80 | 0x40;
-            buff[len-1] |= 0x01;
+            buff = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (buff == NULL) {
+                WOLFSSL_MSG("Failed to allocate buffer.");
+                XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                ret = WOLFSSL_FAILURE;
+            }
 
-            if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY)
-                WOLFSSL_MSG("mp read bin failed");
-            else
-                ret = WOLFSSL_SUCCESS;
+            if (ret == WOLFSSL_SUCCESS && initGlobalRNG == 0 &&
+                wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to use global RNG.");
+                ret = WOLFSSL_FAILURE;
+            }
+
+            if (ret == WOLFSSL_SUCCESS &&
+                wc_RNG_GenerateBlock(rng, buff, len) != 0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                ret = WOLFSSL_FAILURE;
+            }
+            if (ret == WOLFSSL_SUCCESS &&
+                mp_read_unsigned_bin((mp_int*)bn->internal,buff,len)
+                != MP_OKAY) {
+                    WOLFSSL_MSG("mp_read_unsigned_bin failed");
+                    ret = WOLFSSL_FAILURE;
+            }
+            if (ret == WOLFSSL_SUCCESS) {
+                /* Truncate to requested bit length. */
+                mp_rshb((mp_int*)bn->internal, 8 - (bits % 8));
+
+                if (top == 0) {
+                    if (mp_set_bit((mp_int*)bn->internal, bits - 1)
+                        != MP_OKAY) {
+                        WOLFSSL_MSG("Failed to set top bit");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+                else if (top > 0) {
+                    if (mp_set_bit((mp_int*)bn->internal, bits - 1)
+                        != MP_OKAY || 
+                        mp_set_bit((mp_int*)bn->internal, bits - 2)
+                        != MP_OKAY) {
+                        WOLFSSL_MSG("Failed to set top 2 bits");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+            }
+            if (ret == WOLFSSL_SUCCESS && bottom &&
+                mp_set_bit((mp_int*)bn->internal, 0) != MP_OKAY) {
+                WOLFSSL_MSG("Failed to set 0th bit");
+                ret = WOLFSSL_FAILURE;
+            }
+
+            if (buff != NULL) {
+                XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
         }
     }
 
-    if (initTmpRng)
-        wc_FreeRng(tmpRNG);
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WOLFSSL_LEAVE("wolfSSL_BN_rand", ret);
 
     return ret;
 }
