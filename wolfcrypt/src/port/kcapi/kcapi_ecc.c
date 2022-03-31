@@ -293,8 +293,18 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
     if (ret == 0) {
         priv[0] = ECDSA_KEY_VERSION;
         priv[1] = kcapiCurveId;
-        ret = wc_export_int(&key->k, priv + KCAPI_PARAM_SZ, &keySz, keySz,
-                            WC_TYPE_UNSIGNED_BIN);
+    #ifdef WOLF_PRIVATE_KEY_ID
+        if (key->idLen > 0) {
+            WOLFSSL_MSG("Using ID based private key");
+            keySz = key->idLen;
+            XMEMCPY(priv + KCAPI_PARAM_SZ, key->id, keySz);
+        }
+        else
+    #endif
+        {
+            ret = wc_export_int(&key->k, priv + KCAPI_PARAM_SZ, &keySz, keySz,
+                                WC_TYPE_UNSIGNED_BIN);
+        }
     }
     if (ret == 0) {
         /* call with NULL to so KCAPI treats incoming data as hash */
