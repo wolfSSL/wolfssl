@@ -5182,11 +5182,6 @@ AC_ARG_ENABLE([enc-then-mac],
     [ ENABLED_ENCRYPT_THEN_MAC=yes ]
     )
 
-if test "x$ENABLED_APACHE_HTTPD" = "xyes"
-then
-    ENABLED_ENCRYPT_THEN_MAC=no
-fi
-
 if test "x$ENABLED_TLSX" = "xyes"
 then
     ENABLED_ENCRYPT_THEN_MAC=yes
