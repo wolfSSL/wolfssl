@@ -26,9 +26,9 @@
 
 
 /* mc api header */
-#include "crypto.h"
-
 #include <wolfssl/wolfcrypt/settings.h>
+
+#include "crypto.h"
 
 /* sanity test against our default implementation, wolfssl headers  */
 #include <wolfssl/wolfcrypt/md5.h>
