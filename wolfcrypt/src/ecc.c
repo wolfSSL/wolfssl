@@ -9160,8 +9160,8 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     defined(WOLFSSL_SE050) || defined(WOLF_CRYPTO_CB_ONLY_ECC)
 
     /* consider key check success on HW crypto
-     * ex: ATECC508/608A, CryptoCell and Silabs 
-     * 
+     * ex: ATECC508/608A, CryptoCell and Silabs
+     *
      * consider key check success on Crypt Cb
      */
     err = MP_OKAY;

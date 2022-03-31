@@ -1585,7 +1585,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #if !defined(NO_ASN) && (defined(HAVE_ECC) || !defined(NO_DSA) || \
 (!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)))) \
      && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
-    
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
 #define SaveDerAndPem(d, dSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, fD, fP, pT, eB)
 #else
@@ -38377,11 +38377,11 @@ typedef struct {
 #ifdef WOLF_CRYPTO_CB_ONLY_RSA
 /* Testing rsa cb when CB_ONLY_RSA is enabled
  * When CB_ONLY_RSA is enabled, software imple. is not available.
- * 
+ *
  * ctx callback ctx
  * returen 0 on success, otherwise return -8000 - -8007
  */
-static int rsa_onlycb_test(myCryptoDevCtx *ctx) 
+static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 {
     int     ret = 0;
 #if !defined(NO_RSA)
@@ -38503,7 +38503,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
     if (ret == 0) {
        /* wc_SignatureGenerate() -> rsa cb ->
         *                    myCryptoDevCb -> wc_RsaFunction(INVALID_DEVID)
-        * wc_SignatureGenerate(INVALID_DEVID) expects to 
+        * wc_SignatureGenerate(INVALID_DEVID) expects to
         *                               return NO_VALID_DEVID(failure)
         */
         ctx->exampleVar = 1;
@@ -38536,7 +38536,7 @@ exit_onlycb:
 #ifdef WOLF_CRYPTO_CB_ONLY_ECC
 /* Testing rsa cb when CB_ONLY_ECC is enabled
  * When CB_ONLY_ECC is enabled, software imple. is not available.
- * 
+ *
  * ctx callback ctx
  * returen 0 on success, otherwise return -8008 - -8018
  */
@@ -38615,7 +38615,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     else
         ret = 0;
-    
+
     /* wc_CryptoCb_EccVerify cb test, no actual testing */
     ctx->exampleVar = 99;
     if (ret == 0) {
@@ -38624,7 +38624,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     if (ret != 0) {
         ERROR_OUT(-8015, exit_onlycb);
     }
-    
+
     ctx->exampleVar = 1;
     if (ret == 0) {
         ret = wc_ecc_verify_hash(in, inLen, out, outLen, &verify, key);
@@ -38634,12 +38634,12 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     else
         ret = 0;
-    
+
     /* wc_CryptoCb_Ecdh cb test, no actual testing */
-    
+
     /* make public key for shared secret */
     wc_ecc_init_ex(pub, HEAP_HINT, devId);
-    
+
     ctx->exampleVar = 99;
     if (ret == 0) {
         ret = wc_ecc_shared_secret(key, pub, out, &outLen);
