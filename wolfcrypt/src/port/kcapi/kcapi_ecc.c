@@ -205,9 +205,11 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
     int ret = 0;
     word32 kcapiCurveId = 0;
     byte* buf_aligned = NULL;
-    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     byte* pub = NULL;
     word32 keySz;
+#ifndef KCAPI_USE_XMALLOC
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+#endif
 
     if (private_key == NULL || private_key->dp == NULL || public_key == NULL) {
         ret = BAD_FUNC_ARG;
@@ -241,10 +243,18 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
     }
     if (ret == 0) {
+    #ifdef KCAPI_USE_XMALLOC
+        buf_aligned = (byte*)XMALLOC(keySz * 2, private_key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf_aligned == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
         ret = posix_memalign((void*)&buf_aligned, pageSz, keySz * 2);
         if (ret != 0) {
             ret = MEMORY_E;
         }
+    #endif
     }
     if (ret == 0) {
         XMEMCPY(buf_aligned, pub, keySz * 2);
@@ -259,10 +269,12 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
         }
     }
 
-    /* Using free as this is in an environment that will have it
-     * available along with posix_memalign. */
     if (buf_aligned != NULL) {
+    #ifdef KCAPI_USE_XMALLOC
+        XFREE(buf_aligned, private_key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
         free(buf_aligned);
+    #endif
     }
 
     return ret;
@@ -303,10 +315,12 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
 {
     int ret = 0;
     byte* buf_aligned = NULL;
-    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     int handleInit = 0;
     word32 keySz;
     word32 maxBufSz;
+#ifndef KCAPI_USE_XMALLOC
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+#endif
 
     if (key == NULL || key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -332,10 +346,18 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
     if (ret == 0) {
         maxBufSz = (hashLen > keySz * 2) ? hashLen : (keySz * 2);
+    #ifdef KCAPI_USE_XMALLOC
+        buf_aligned = (unsigned char*)XMALLOC(maxBufSz, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf_aligned == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
         ret = posix_memalign((void*)&buf_aligned, pageSz, maxBufSz);
         if (ret != 0) {
             ret = MEMORY_E;
         }
+    #endif
     }
     if (ret == 0) {
         XMEMCPY(buf_aligned, hash, hashLen);
@@ -348,10 +370,12 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
 
-    /* Using free as this is in an environment that will have it
-     * available along with posix_memalign. */
     if (buf_aligned != NULL) {
+    #ifdef KCAPI_USE_XMALLOC
+        XFREE(buf_aligned, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
         free(buf_aligned);
+    #endif
     }
 
     if (handleInit) {
@@ -398,9 +422,11 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
 {
     int ret = 0;
     byte* buf_aligned = NULL;
-    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
     int handleInit = 0;
     word32 keySz = 0;
+#ifndef KCAPI_USE_XMALLOC
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+#endif
 
     if (key == NULL || key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -418,11 +444,18 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
     if (ret == 0) {
         keySz = key->dp->size;
-
+    #ifdef KCAPI_USE_XMALLOC
+        buf_aligned = (byte*)XMALLOC(sigLen + hashLen, key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf_aligned == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
         ret = posix_memalign((void*)&buf_aligned, pageSz, sigLen + hashLen);
         if (ret != 0) {
             ret = MEMORY_E;
         }
+    #endif
     }
     if (ret == 0) {
         XMEMCPY(buf_aligned, sig, sigLen);
@@ -437,10 +470,12 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
 
-    /* Using free as this is in an environment that will have it
-     * available along with posix_memalign. */
     if (buf_aligned != NULL) {
+    #ifdef KCAPI_USE_XMALLOC
+        XFREE(buf_aligned, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
         free(buf_aligned);
+    #endif
     }
 
     if (handleInit) {

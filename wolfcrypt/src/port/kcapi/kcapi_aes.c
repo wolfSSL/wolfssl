@@ -236,7 +236,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte*   data = NULL;
     word32  dataSz;
     int     inbuflen = 0, outbuflen = 0;
+#ifndef KCAPI_USE_XMALLOC
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
+#endif
 
     /* argument checks */
     if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
@@ -267,11 +269,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         outbuflen = (int)kcapi_aead_outbuflen_enc(aes->handle, sz, authInSz,
             authTagSz);
         dataSz = (inbuflen > outbuflen) ? inbuflen : outbuflen;
-
+    #ifdef KCAPI_USE_XMALLOC
+        data = (byte *)XMALLOC(dataSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (data == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
         ret = posix_memalign((void*)&data, pageSz, dataSz);
         if (ret < 0) {
             ret = MEMORY_E;
         }
+    #endif
     }
 
     if (ret >= 0) {
@@ -312,10 +320,12 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(authTag, data + authInSz + sz, authTagSz);
     }
 
-    /* Using free as this is in an environment that will have it
-     * available along with posix_memalign. */
     if (data != NULL) {
+    #ifdef KCAPI_USE_XMALLOC
+        XFREE(data, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
         free(data);
+    #endif
     }
     if (aes != NULL && aes->handle != NULL) {
         kcapi_aead_destroy(aes->handle);
@@ -337,7 +347,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte*   data = NULL;
     word32  dataSz;
     int     inbuflen = 0, outbuflen = 0;
+#ifndef KCAPI_USE_XMALLOC
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
+#endif
 
     /* argument checks */
     if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
@@ -369,11 +381,17 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         outbuflen = (int)kcapi_aead_outbuflen_dec(aes->handle, sz, authInSz,
             authTagSz);
         dataSz = (inbuflen > outbuflen) ? inbuflen : outbuflen;
-
+    #ifdef KCAPI_USE_XMALLOC
+        data = (byte*)XMALLOC(dataSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (data == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
         ret = posix_memalign((void*)&data, pageSz, dataSz);
         if (ret < 0) {
             ret = MEMORY_E;
         }
+    #endif
     }
 
     if (ret >= 0) {
@@ -413,10 +431,12 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(out, data + authInSz, sz);
     }
 
-    /* Using free as this is in an environment that will have it
-     * available along with posix_memalign. */
     if (data != NULL) {
+    #ifdef KCAPI_USE_XMALLOC
+        XFREE(data, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
         free(data);
+    #endif
     }
     if (aes != NULL && aes->handle != NULL) {
         kcapi_aead_destroy(aes->handle);
