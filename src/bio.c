@@ -2545,7 +2545,9 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio->num = (int)bio->mem_buf->max;
         bio->wrSz = len;
         bio->ptr = bio->mem_buf->data;
-        XMEMCPY(bio->ptr, buf, len);
+        if (len > 0 && bio->ptr != NULL) {
+            XMEMCPY(bio->ptr, buf, len);
+        }
 
         return bio;
     }
