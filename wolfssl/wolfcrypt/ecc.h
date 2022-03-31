@@ -778,13 +778,13 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 
 #ifdef HAVE_ECC_KEY_EXPORT
 WOLFSSL_API
-int wc_ecc_export_point_der_ex(int curve_idx, ecc_point* point, byte* out,
+int wc_ecc_export_point_der_ex(const int curve_idx, ecc_point* point, byte* out,
                                word32* outLen, int compressed);
 WOLFSSL_API
-int wc_ecc_export_point_der(int curve_idx, ecc_point* point,
+int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
 WOLFSSL_LOCAL
-int wc_ecc_export_point_der_compressed(int curve_idx, ecc_point* point,
+int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
                                        byte* out, word32* outLen);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
@@ -792,10 +792,10 @@ int wc_ecc_export_point_der_compressed(int curve_idx, ecc_point* point,
 #ifdef HAVE_ECC_KEY_IMPORT
 WOLFSSL_API
 int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
-                               int curve_idx, ecc_point* point,
+                               const int curve_idx, ecc_point* point,
                                int shortKeySize);
 WOLFSSL_API
-int wc_ecc_import_point_der(const byte* in, word32 inLen, int curve_idx,
+int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 #endif /* HAVE_ECC_KEY_IMPORT */
 

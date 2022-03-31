@@ -47,17 +47,17 @@ typedef struct WOLFSSL_AES_KEY {
 typedef WOLFSSL_AES_KEY AES_KEY;
 
 WOLFSSL_API int wolfSSL_AES_set_encrypt_key(
-    const unsigned char *key, int bits, AES_KEY *aes);
+    const unsigned char *key, const int bits, AES_KEY *aes);
 WOLFSSL_API int wolfSSL_AES_set_decrypt_key(
-    const unsigned char *key, int bits, AES_KEY *aes);
+    const unsigned char *key, const int bits, AES_KEY *aes);
 WOLFSSL_API void wolfSSL_AES_cbc_encrypt(
     const unsigned char *in, unsigned char* out, size_t len, AES_KEY *key,
-    unsigned char* iv, int enc);
+    unsigned char* iv, const int enc);
 WOLFSSL_API void wolfSSL_AES_ecb_encrypt(
-    const unsigned char *in, unsigned char* out, AES_KEY *key, int enc);
+    const unsigned char *in, unsigned char* out, AES_KEY *key, const int enc);
 WOLFSSL_API void wolfSSL_AES_cfb128_encrypt(
     const unsigned char *in, unsigned char* out, size_t len, AES_KEY *key,
-    unsigned char* iv, int* num, int enc);
+    unsigned char* iv, int* num, const int enc);
 WOLFSSL_API int wolfSSL_AES_wrap_key(
     AES_KEY *key, const unsigned char *iv, unsigned char *out,
     const unsigned char *in, unsigned int inlen);
