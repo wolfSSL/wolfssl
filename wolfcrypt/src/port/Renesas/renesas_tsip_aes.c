@@ -64,19 +64,19 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     word32 blocks = (sz / AES_BLOCK_SIZE);
     uint32_t dataLength;
     byte *iv;
-    
+
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    
+
     /* while doing TLS handshake, TSIP driver keeps true-key and iv *
      * on the device. iv is dummy                                   */
     iv = (uint8_t*)aes->reg;
-    
-    if((ret = tsip_hw_lock()) != 0){
+
+    if ((ret = tsip_hw_lock()) != 0) {
         WOLFSSL_MSG("Failed to lock");
         return ret;
     }
-    
+
     if (aes->ctx.keySize == 16) {
         ret = R_TSIP_Aes128CbcEncryptInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
     }
@@ -87,20 +87,19 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         tsip_hw_unlock();
         return -1;
     }
-    
+
     while (ret == TSIP_SUCCESS && blocks--) {
-        
         if (aes->ctx.keySize == 16)
-            ret = R_TSIP_Aes128CbcEncryptUpdate(&_handle, (uint8_t*)in, 
+            ret = R_TSIP_Aes128CbcEncryptUpdate(&_handle, (uint8_t*)in,
                                     (uint8_t*)out, (uint32_t)AES_BLOCK_SIZE);
         else
-            ret = R_TSIP_Aes256CbcEncryptUpdate(&_handle, (uint8_t*)in, 
+            ret = R_TSIP_Aes256CbcEncryptUpdate(&_handle, (uint8_t*)in,
                                     (uint8_t*)out, (uint32_t)AES_BLOCK_SIZE);
-        
+
         in  += AES_BLOCK_SIZE;
         out += AES_BLOCK_SIZE;
     }
-    
+
     if (ret == TSIP_SUCCESS) {
         if (aes->ctx.keySize == 16) {
             ret = R_TSIP_Aes128CbcEncryptFinal(&_handle, out, &dataLength);
@@ -113,7 +112,7 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         WOLFSSL_MSG("TSIP AES CBC encryption failed");
         ret = -1;
     }
-    
+
     tsip_hw_unlock();
     return ret;
 }
@@ -125,17 +124,17 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     word32 blocks = (sz / AES_BLOCK_SIZE);
     uint32_t dataLength;
     byte *iv;
-    
+
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    
+
     iv = (uint8_t*)aes->reg;
 
-    if((ret = tsip_hw_lock()) != 0){
+    if ((ret = tsip_hw_lock()) != 0) {
         WOLFSSL_MSG("Failed to lock");
         return ret;
     }
-    
+
     if (aes->ctx.keySize == 16) {
         ret = R_TSIP_Aes128CbcDecryptInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
     }
@@ -146,20 +145,20 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         tsip_hw_unlock();
         return -1;
     }
-    
+
     while (ret == TSIP_SUCCESS && blocks--) {
-        
+
         if (aes->ctx.keySize == 16)
-            ret = R_TSIP_Aes128CbcDecryptUpdate(&_handle, (uint8_t*)in, 
+            ret = R_TSIP_Aes128CbcDecryptUpdate(&_handle, (uint8_t*)in,
                                         (uint8_t*)out, (uint32_t)AES_BLOCK_SIZE);
         else
-            ret = R_TSIP_Aes256CbcDecryptUpdate(&_handle, (uint8_t*)in, 
+            ret = R_TSIP_Aes256CbcDecryptUpdate(&_handle, (uint8_t*)in,
                                         (uint8_t*)out, (uint32_t)AES_BLOCK_SIZE);
-        
+
         in  += AES_BLOCK_SIZE;
         out += AES_BLOCK_SIZE;
     }
-    
+
     if (ret == TSIP_SUCCESS) {
         if (aes->ctx.keySize == 16)
             ret = R_TSIP_Aes128CbcDecryptFinal(&_handle, out, &dataLength);
@@ -170,13 +169,13 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         WOLFSSL_MSG("TSIP AES CBC decryption failed");
         ret = -1;
     }
-    
+
     tsip_hw_unlock();
     return ret;
 }
-/* 
+/*
  * Encrypt plain data then output encrypted data and authentication tag data.
- * The session key used for encryption is generated inside this function and 
+ * The session key used for encryption is generated inside this function and
  * the key which has been generated and stored in Aes is not used.
  * parameter
  *  - aes:  Aes structure
@@ -186,12 +185,12 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
  *  - iv:   iv should be consist of implicit-iv of 4 bytes and exp-iv of 8 bytes
  *  - authTag: buffer where the authentication data is output.
  *  - authTagSz: buffer size for authentication data.
- *  - authIn: buffer holding Additionnal Authentication Data(AAD)
+ *  - authIn: buffer holding Additional Authentication Data(AAD)
  *  - authInSz: AAD size
  *  - ctx:   TsipUserCtx
- * return 0 on success, otherwise on error. 
- * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size 
- * 
+ * return 0 on success, otherwise on error.
+ * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size
+ *
  */
 int wc_tsip_AesGcmEncrypt(
     struct Aes*  aes,     byte* out,
@@ -222,7 +221,7 @@ int wc_tsip_AesGcmEncrypt(
     WOLFSSL_ENTER("wc_tsip_AesGcmEncrypt");
 
     if (aes == NULL || ctx == NULL ||
-       (sz != 0       && (in == NULL || out == NULL)) || 
+       (sz != 0       && (in == NULL || out == NULL)) ||
        (ivSz != 0     &&  iv == NULL) ||
        (ivSz < AESGCM_NONCE_SZ && iv != NULL) ||  /* Requires 12 bytes of iv */
        (authInSz != 0 && authIn == NULL) ||
@@ -252,21 +251,21 @@ int wc_tsip_AesGcmEncrypt(
 
     /* buffer for cipher data output must be multiple of AES_BLOCK_SIZE */
     cipherBufSz = ((sz / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
-    
+
     if ((ret = tsip_hw_lock()) == 0) {
 
         /* allocate buffers for plaintext, ciphertext, authTag and aad to make
-         * sure those buffers 32bit aligned as TSIP requests.  
+         * sure those buffers 32bit aligned as TSIP requests.
          */
         plainBuf  = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         cipherBuf = XMALLOC(cipherBufSz, aes->heap, DYNAMIC_TYPE_AES);
-        aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap, 
+        aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
         aadBuf    = XMALLOC(authTagSz, aes->heap, DYNAMIC_TYPE_AES);
 
         if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
                                                       aadBuf == NULL ) {
-            WOLFSSL_MSG("wc_tsip_AesGcmEncrypt: buffer allocation faild");
+            WOLFSSL_MSG("wc_tsip_AesGcmEncrypt: buffer allocation failed");
             ret = -1;
         }
 
@@ -278,8 +277,8 @@ int wc_tsip_AesGcmEncrypt(
         }
 
         if (ret == 0) {
-            /* generate AES-GCM session key. The key stored in 
-             * Aes.ctx.tsip_keyIdx is not used here. 
+            /* generate AES-GCM session key. The key stored in
+             * Aes.ctx.tsip_keyIdx is not used here.
              */
             err = R_TSIP_TlsGenerateSessionKey(
                     userCtx->tsip_cipher,
@@ -300,14 +299,14 @@ int wc_tsip_AesGcmEncrypt(
         }
 
         if (ret == 0) {
-            
-            /* since generated session key is coupled to iv, no need to pass 
+
+            /* since generated session key is coupled to iv, no need to pass
              * iv init func.
              */
             err = initFn(&hdl, &key_client_aes, NULL, 0UL);
 
             if (err == TSIP_SUCCESS) {
-                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf, 
+                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf,
                                     min(authInSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
             }
             if (err == TSIP_SUCCESS) {
@@ -317,14 +316,14 @@ int wc_tsip_AesGcmEncrypt(
                 WOLFSSL_MSG("R_TSIP_AesXXXGcmEncryptUpdate: failed");
                 ret = -1;
             }
-        
+
             /* Once R_TSIP_AesxxxGcmEncryptInit or R_TSIP_AesxxxEncryptUpdate is
             * called, R_TSIP_AesxxxGcmEncryptFinal must be called regardless of
             * the result of the previous call. Otherwise, TSIP can not come out
             * from its error state and all the trailing APIs will fail.
             */
             dataLen = 0;
-            err = finalFn(&hdl, 
+            err = finalFn(&hdl,
                           cipherBuf + (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE,
                           &dataLen,
                           aTagBuf); /* aad of 16 bytes will be output */
@@ -334,7 +333,7 @@ int wc_tsip_AesGcmEncrypt(
                 XMEMCPY(out, cipherBuf, sz);
 
                 /* copy auth tag to caller's buffer */
-                XMEMCPY((void*)authTag, (void*)aTagBuf, 
+                XMEMCPY((void*)authTag, (void*)aTagBuf,
                                 min(authTagSz, TSIP_AES_GCM_AUTH_TAG_SIZE ));
 
             }
@@ -348,14 +347,14 @@ int wc_tsip_AesGcmEncrypt(
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aadBuf,    aes->heap, DYNAMIC_TYPE_AES);
-    
+
         tsip_hw_unlock();
     }
     return ret;
 }
-/* 
+/*
  * Decrypt cipher data into plaindata and output authentication tag data.
- * The session key used for decryption is generated inside this function and 
+ * The session key used for decryption is generated inside this function and
  * the key which has been generated and stored in Aes is not used.
  * parameter
  *  - aes:  Aes structure
@@ -365,11 +364,11 @@ int wc_tsip_AesGcmEncrypt(
  *  - iv:   iv should be consist of implicit-iv of 4 bytes and exp-iv of 8 bytes
  *  - authTag: buffer where the authentication data is stored.
  *  - authTagSz: buffer size for authentication data.
- *  - authIn: buffer where Additionnal Authentication Data(AAD) is stored
+ *  - authIn: buffer where Additional Authentication Data(AAD) is stored
  *  - authInSz: AAD size
- * return 0 on success, otherwise on error. 
- * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size 
- * 
+ * return 0 on success, otherwise on error.
+ * Note: As of TSIPv1.13, only accept 128 and 256 bit of key size
+ *
  */
 int wc_tsip_AesGcmDecrypt(
     Aes*        aes,      byte* out,
@@ -434,11 +433,11 @@ int wc_tsip_AesGcmDecrypt(
     if ((ret = tsip_hw_lock()) == 0) {
 
         /* allocate buffers for plaintext, cipher-text, authTag and AAD.
-         * TSIP requests those buffers 32bit aligned. 
+         * TSIP requests those buffers 32bit aligned.
          */
         cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         plainBuf  = XMALLOC(plainBufSz, aes->heap, DYNAMIC_TYPE_AES);
-        aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap, 
+        aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
         aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
@@ -456,8 +455,8 @@ int wc_tsip_AesGcmDecrypt(
         }
 
         if (ret == 0) {
-            /* generate AES-GCM session key. The key stored in 
-             * Aes.ctx.tsip_keyIdx is not used here. 
+            /* generate AES-GCM session key. The key stored in
+             * Aes.ctx.tsip_keyIdx is not used here.
              */
             err = R_TSIP_TlsGenerateSessionKey(
                     userCtx->tsip_cipher,
@@ -477,14 +476,14 @@ int wc_tsip_AesGcmDecrypt(
         }
 
         if (ret == 0) {
-            /* since key_index has iv and ivSz in it, no need to pass them init 
+            /* since key_index has iv and ivSz in it, no need to pass them init
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.
              */
             err = initFn(&hdl, &key_server_aes, NULL, 0UL);
 
             if (err == TSIP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
-                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)authIn, 
+                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)authIn,
                                                                     authInSz);
             }
             if (err == TSIP_SUCCESS) {
