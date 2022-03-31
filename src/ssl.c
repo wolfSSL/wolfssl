@@ -12572,6 +12572,15 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 }
 
 
+/* store user ctx for verify callback */
+void wolfSSL_CTX_SetCertCbCtx(WOLFSSL_CTX* ctx, void* userCtx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetCertCbCtx");
+    if (ctx)
+        ctx->verifyCbCtx = userCtx;
+}
+
+
 /* store context CA Cache addition callback */
 void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb)
 {
