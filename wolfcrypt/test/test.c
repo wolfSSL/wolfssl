@@ -21356,6 +21356,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
     }
 #if !defined(WOLFSSL_CRYPTOCELL)
     ret = wc_ecc_make_pub(key, pubPoint);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
        ERROR_OUT(-9859, done);
     }
@@ -23412,6 +23415,9 @@ static int ecc_test_allocator(WC_RNG* rng)
 
 #ifndef WC_NO_RNG
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-10151, exit);
     }

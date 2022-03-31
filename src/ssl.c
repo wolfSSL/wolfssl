@@ -39221,6 +39221,8 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 #else
     WC_RNG  tmpRNG[1];
 #endif
+    int ret;
+    ecc_key* ecKey;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_generate_key");
 
@@ -39263,9 +39265,15 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 
     /* NIDToEccEnum returns -1 for invalid NID so if key->group->curve_nid
      * is 0 then pass ECC_CURVE_DEF as arg */
+    ecKey = (ecc_key*)key->internal;
     eccEnum = key->group->curve_nid ?
             NIDToEccEnum(key->group->curve_nid) : ECC_CURVE_DEF;
-    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal, eccEnum) != MP_OKAY) {
+    ret = wc_ecc_make_key_ex(rng, 0, ecKey, eccEnum);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &ecKey->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+
+    if (ret != 0) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key wc_ecc_make_key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
