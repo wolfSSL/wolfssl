@@ -390,8 +390,8 @@ static int DeriveBinderKey(WOLFSSL* ssl, byte* key)
 }
 #endif /* !NO_PSK */
 
-#ifdef HAVE_SESSION_TICKET
-
+#if defined(HAVE_SESSION_TICKET) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 /* The length of the binder key resume label. */
 #define BINDER_KEY_RESUME_LABEL_SZ  10
 /* The binder key resume label. */
@@ -414,7 +414,7 @@ static int DeriveBinderKeyResume(WOLFSSL* ssl, byte* key)
                         binderKeyResumeLabel, BINDER_KEY_RESUME_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
 }
-#endif /* HAVE_SESSION_TICKET */
+#endif /* HAVE_SESSION_TICKET && (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) */
 
 #ifdef WOLFSSL_EARLY_DATA
 
@@ -1635,8 +1635,8 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
     AddTls13HandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
 }
 
-
-#ifndef NO_CERTS
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) \
+    && !defined(NO_CERTS)
 /* Add both record layer and fragment handshake header to message.
  *
  * output      The buffer to write the headers into.
@@ -1657,7 +1657,7 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddTls13HandShakeHeader(output + outputAdj, length, fragOffset, fragSz,
                             type, ssl);
 }
-#endif /* NO_CERTS */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !NO_CERTS */
 
 /* Write the sequence number into the buffer.
  * No DTLS v1.3 support.
@@ -2685,6 +2685,7 @@ int RestartHandshakeHash(WOLFSSL* ssl)
     return HashRaw(ssl, hash, hashSz);
 }
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
 /* The value in the random field of a ServerHello to indicate
  * HelloRetryRequest.
  */
@@ -2694,7 +2695,7 @@ static byte helloRetryRequestRandom[] = {
     0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
     0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C
 };
-
+#endif
 
 #ifndef NO_WOLFSSL_CLIENT
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -5671,6 +5672,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
 #endif /* !NO_RSA && WC_RSA_PSS */
 #endif /* !NO_RSA || HAVE_ECC */
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
 /* Get the next certificate from the list for writing into the TLS v1.3
  * Certificate message.
  *
@@ -6436,6 +6438,7 @@ exit_scv:
     return ret;
 }
 #endif
+#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* handle processing TLS v1.3 certificate (11) */
@@ -7061,6 +7064,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     return 0;
 }
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
 /* Send the TLS v1.3 Finished message.
  *
  * ssl  The SSL/TLS object.
@@ -7213,6 +7217,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
     return ret;
 }
+#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 
 /* handle generation TLS v1.3 key_update (24) */
 /* Send the TLS v1.3 KeyUpdate message.
