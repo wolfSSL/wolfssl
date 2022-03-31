@@ -44142,13 +44142,13 @@ void  wolfSSL_CTX_SetGenSessionKeyCb(WOLFSSL_CTX* ctx, CallbackGenSessionKey cb)
     if (ctx)
         ctx->GenSessionKeyCb = cb;
 }
-/* Set sesssion key generation callback context */
+/* Set session key generation callback context */
 void  wolfSSL_SetGenSessionKeyCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
         ssl->GenSessionKeyCtx = ctx;
 }
-/* Get sesssion key generation callback context */
+/* Get session key generation callback context */
 void* wolfSSL_GetGenSessionKeyCtx(WOLFSSL* ssl)
 {
     if (ssl)

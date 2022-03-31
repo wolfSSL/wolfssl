@@ -42,7 +42,7 @@ static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
 {
     if (hash == NULL)
         return;
-        
+
     if (hash->msg != NULL) {
         XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
         hash->msg = NULL;
@@ -55,16 +55,16 @@ static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
     if (hash == NULL) {
         return BAD_FUNC_ARG;
     }
-    
+
     (void)devId;
     XMEMSET(hash, 0, sizeof(wolfssl_TSIP_Hash));
-    
+
     hash->heap = heap;
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;
     hash->sha_type = sha_type;
-    
+
     return 0;
 }
 
@@ -73,7 +73,7 @@ static int TSIPHashUpdate(wolfssl_TSIP_Hash* hash, const byte* data, word32 sz)
     if (hash == NULL || (sz > 0 && data == NULL)) {
         return BAD_FUNC_ARG;
     }
-    
+
     if (hash->len < hash->used + sz) {
         if (hash->msg == NULL) {
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
@@ -106,7 +106,7 @@ static int TSIPHashUpdate(wolfssl_TSIP_Hash* hash, const byte* data, word32 sz)
     }
     XMEMCPY(hash->msg + hash->used, data , sz);
     hash->used += sz;
-    
+
     return 0;
 }
 
@@ -116,15 +116,15 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
     void* heap;
     tsip_sha_md5_handle_t handle;
     uint32_t sz;
-    
+
     e_tsip_err_t (*Init)(tsip_sha_md5_handle_t*);
     e_tsip_err_t (*Update)(tsip_sha_md5_handle_t*, uint8_t*, uint32_t);
     e_tsip_err_t (*Final )(tsip_sha_md5_handle_t*, uint8_t*, uint32_t*);
-    
+
     if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    
+
     if (hash->sha_type == TSIP_SHA1) {
         Init = R_TSIP_Sha1Init;
         Update = R_TSIP_Sha1Update;
@@ -135,13 +135,13 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         Update = R_TSIP_Sha256Update;
         Final = R_TSIP_Sha256Final;
     }
-    else 
+    else
         return BAD_FUNC_ARG;
-    
+
     heap = hash->heap;
-    
+
     tsip_hw_lock();
-    
+
     if (Init(&handle) == TSIP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == TSIP_SUCCESS) {
@@ -152,7 +152,7 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         }
     }
     tsip_hw_unlock();
-    
+
     TSIPHashFree(hash);
     return TSIPHashInit(hash, heap, 0, hash->sha_type);
 }
@@ -162,15 +162,15 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
     int ret;
     tsip_sha_md5_handle_t handle;
     uint32_t sz;
-    
+
     e_tsip_err_t (*Init)(tsip_sha_md5_handle_t*);
     e_tsip_err_t (*Update)(tsip_sha_md5_handle_t*, uint8_t*, uint32_t);
     e_tsip_err_t (*Final )(tsip_sha_md5_handle_t*, uint8_t*, uint32_t*);
-    
+
     if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    
+
     if (hash->sha_type == TSIP_SHA1) {
         Init = R_TSIP_Sha1Init;
         Update = R_TSIP_Sha1Update;
@@ -181,11 +181,11 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         Update = R_TSIP_Sha256Update;
         Final = R_TSIP_Sha256Final;
     }
-    else 
+    else
         return BAD_FUNC_ARG;
-    
+
     tsip_hw_lock();
-    
+
     if (Init(&handle) == TSIP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
         if (ret == TSIP_SUCCESS) {
@@ -195,9 +195,9 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
             }
         }
     }
-    
+
     tsip_hw_unlock();
-    
+
     return 0;
 }
 
@@ -206,9 +206,9 @@ static int TSIPHashCopy(wolfssl_TSIP_Hash* src, wolfssl_TSIP_Hash* dst)
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
-    
+
     XMEMCPY(dst, src, sizeof(wolfssl_TSIP_Hash));
-    
+
     if (src->len > 0 && src->msg != NULL) {
         dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (dst->msg == NULL) {
@@ -216,7 +216,7 @@ static int TSIPHashCopy(wolfssl_TSIP_Hash* src, wolfssl_TSIP_Hash* dst)
         }
         XMEMCPY(dst->msg, src->msg, src->len);
     }
-    
+
     return 0;
 }
  /*  */
