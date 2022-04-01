@@ -55210,7 +55210,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
                 }
                 else if (top > 0) {
                     if (mp_set_bit((mp_int*)bn->internal, bits - 1)
-                        != MP_OKAY || 
+                        != MP_OKAY ||
                         mp_set_bit((mp_int*)bn->internal, bits - 2)
                         != MP_OKAY) {
                         WOLFSSL_MSG("Failed to set top 2 bits");
