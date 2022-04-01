@@ -9225,6 +9225,40 @@ void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 }
 #endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
 #if defined(WOLFSSL_BASE64_ENCODE)
+
+/* Assume that out has enough space */
+int wolfSSL_EVP_EncodeBlock(unsigned char *out, const unsigned char *in,
+                            int inLen)
+{
+    word32 ret = (word32)-1;
+    WOLFSSL_ENTER("wolfSSL_EVP_EncodeBlock");
+
+    if (out == NULL || in == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (Base64_Encode(in, inLen, out, &ret) == 0)
+        return (int)ret;
+    else
+        return WOLFSSL_FATAL_ERROR;
+}
+
+/* Assume that out has enough space */
+int wolfSSL_EVP_DecodeBlock(unsigned char *out, const unsigned char *in,
+                            int inLen)
+{
+    word32 ret = (word32)-1;
+    WOLFSSL_ENTER("wolfSSL_EVP_DecodeBlock");
+
+    if (out == NULL || in == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (Base64_Decode(in, inLen, out, &ret) == 0)
+        return (int)ret;
+    else
+        return WOLFSSL_FATAL_ERROR;
+
+}
+
 /*  wolfSSL_EVP_EncodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX object
  *  for the subsequent wolfSSL_EVP_EncodeUpdate.
  */
