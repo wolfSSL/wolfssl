@@ -1836,6 +1836,12 @@ WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
 WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_ASN_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
+                                          void* heap, const byte* pubKey,
+                                          word32 pubKeySz, int pubKeyOID);
+#endif
+
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);

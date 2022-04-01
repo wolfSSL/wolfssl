@@ -18400,6 +18400,14 @@ int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
     return CheckCertSignature_ex(cert, certSz, heap, NULL,
             pubKey, pubKeySz, pubKeyOID, 0);
 }
+
+int wc_CheckCertSigPubKey(const byte* cert, word32 certSz, void* heap,
+        const byte* pubKey, word32 pubKeySz, int pubKeyOID)
+{
+        return CheckCertSignaturePubKey(cert, certSz, heap, pubKey, pubKeySz,
+                                        pubKeyOID);
+}
+
 #ifdef WOLFSSL_CERT_REQ
 int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)

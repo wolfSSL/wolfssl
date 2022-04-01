@@ -2037,3 +2037,25 @@ WOLFSSL_API int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 */
 WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
+/*!
+    \ingroup ASN
+
+    \brief This function verifies the signature in the der form of an X.509
+    certificate against a public key. The public key is expected to be the full
+    subject public key info in der form.
+
+    \return 0 Returned on success.
+    \return Other negative values on failure.
+
+    \param cert The der encoding of the X.509 certificate.
+    \param certSz The size in bytes of cert.
+    \param heap A pointer to the heap used for dynamic allocation. Can be NULL.
+    \param pubKey The der encoding of the public key.
+    \param pubKeySz The size in bytes of pubKey.
+    \param pubKeyOID OID identifying the algorithm of the public key.
+    (ie: ECDSAk, DSAk or RSAk)
+
+WOLFSSL_ASN_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
+                                          void* heap, const byte* pubKey,
+                                          word32 pubKeySz, int pubKeyOID);
+*/
