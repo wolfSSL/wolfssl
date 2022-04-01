@@ -3768,6 +3768,8 @@ static void test_wolfSSL_EVP_EncodeUpdate(void)
         0                    /* expected result code 0: fail */
     );
 
+    AssertIntEQ(EVP_EncodeBlock(NULL, NULL, 0), -1);
+
     /* meaningless parameter test */
 
     AssertIntEQ(
@@ -3801,6 +3803,15 @@ static void test_wolfSSL_EVP_EncodeUpdate(void)
             &outl);
 
     AssertIntEQ( outl, sizeof(enc0)-1);
+    AssertIntEQ(
+        XSTRNCMP(
+            (const char*)encOutBuff,
+            (const char*)enc0,sizeof(enc0) ),
+    0);
+
+    XMEMSET( encOutBuff,0, sizeof(encOutBuff));
+    AssertIntEQ(EVP_EncodeBlock(encOutBuff, plain0, sizeof(plain0)-1),
+                sizeof(enc0)-1);
     AssertIntEQ(
         XSTRNCMP(
             (const char*)encOutBuff,
@@ -3986,6 +3997,8 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
     );
     AssertIntEQ( outl, 0);
 
+    AssertIntEQ(EVP_DecodeBlock(NULL, NULL, 0), -1);
+
     /* pass zero length input */
 
     AssertIntEQ(
@@ -4031,6 +4044,11 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
     AssertIntEQ(XSTRNCMP( (const char*)plain2,(const char*)decOutBuff,
                 sizeof(plain2) -1 ),0);
 
+    AssertIntEQ(EVP_DecodeBlock(decOutBuff, enc2, sizeof(enc2)),
+                sizeof(plain2)-1);
+    AssertIntEQ(XSTRNCMP( (const char*)plain2,(const char*)decOutBuff,
+                sizeof(plain2) -1 ),0);
+
     /* decode correct base64 string which does not have '\n' in its last*/
 
         const unsigned char enc3[]   =
@@ -4065,6 +4083,11 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
 
     AssertIntEQ(outl,0 );
 
+    AssertIntEQ(EVP_DecodeBlock(decOutBuff, enc3, sizeof(enc3)-1),
+                sizeof(plain3)-1);
+    AssertIntEQ(XSTRNCMP( (const char*)plain2,(const char*)decOutBuff,
+                sizeof(plain3) -1 ),0);
+
     /* decode string which has a padding char ('=') in the illegal position*/
 
         const unsigned char enc4[]   =
@@ -4083,6 +4106,8 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
         -1                    /* expected result code -1: error */
     );
     AssertIntEQ(outl,0);
+
+    AssertIntEQ(EVP_DecodeBlock(decOutBuff, enc4, sizeof(enc4)-1), -1);
 
     /* small data decode test */
 

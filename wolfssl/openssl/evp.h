@@ -456,6 +456,10 @@ WOLFSSL_API int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
                  unsigned char*out, int *outl, const unsigned char*in, int inl);
 WOLFSSL_API void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
                  unsigned char*out, int *outl);
+WOLFSSL_API int wolfSSL_EVP_EncodeBlock(unsigned char *out,
+                const unsigned char *in, int inLen);
+WOLFSSL_API int wolfSSL_EVP_DecodeBlock(unsigned char *out,
+                const unsigned char *in, int inLen);
 #endif /* WOLFSSL_BASE64_ENCODE */
 
 #if defined(WOLFSSL_BASE64_DECODE)
@@ -1086,6 +1090,8 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_EncodeInit       wolfSSL_EVP_EncodeInit
 #define EVP_EncodeUpdate     wolfSSL_EVP_EncodeUpdate
 #define EVP_EncodeFinal      wolfSSL_EVP_EncodeFinal
+#define EVP_EncodeBlock      wolfSSL_EVP_EncodeBlock
+#define EVP_DecodeBlock      wolfSSL_EVP_DecodeBlock
 #endif /* WOLFSSL_BASE64_ENCODE */
 #if defined(WOLFSSL_BASE64_DECODE)
 #define EVP_DecodeInit       wolfSSL_EVP_DecodeInit
