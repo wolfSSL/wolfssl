@@ -21123,81 +21123,38 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
                            int with_header)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-    byte bitString[1 + MAX_LENGTH_SZ + 1];
-    int  algoSz;
-    int  curveSz;
-    int  bitStringSz;
-    int  idx;
-    word32 pubSz = ECC_BUFSIZE;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* algo = NULL;
-    byte* curve = NULL;
-    byte* pub;
-#else
-    byte algo[MAX_ALGO_SZ];
-    byte curve[MAX_ALGO_SZ];
-    byte pub[ECC_BUFSIZE];
-#endif
-    int ret;
+    int ret, idx = 0, algoSz, curveSz, bitStringSz;
+    word32 pubSz;
+    byte bitString[1 + MAX_LENGTH_SZ + 1]; /* 6 */
+    byte algo[MAX_ALGO_SZ];  /* 20 */
+    byte curve[MAX_ALGO_SZ]; /* 20 */
 
-    (void)outLen;
+    /* public size */
+    pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
+    pubSz = 1 + 2 * pubSz;
 
-#ifdef WOLFSSL_SMALL_STACK
-    pub = (byte*)XMALLOC(ECC_BUFSIZE, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL)
-        return MEMORY_E;
-#endif
-
-#if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
-    /* older version of ecc.c can not handle dp being NULL */
-    if (key != NULL && key->dp == NULL) {
-        pubSz = 1 + 2 * MAX_ECC_BYTES;
-        ret = LENGTH_ONLY_E;
-    }
-    else {
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, pub, &pubSz);
-        PRIVATE_KEY_LOCK();
-    }
-#else
-    ret = wc_ecc_export_x963(key, pub, &pubSz);
-#endif
-    if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
+    /* check for buffer overflow */
+    if (output != NULL && pubSz > (word32)outLen) {
+        return BUFFER_E;
     }
 
     /* headers */
     if (with_header) {
-#ifdef WOLFSSL_SMALL_STACK
-        curve = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (curve == NULL) {
-            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
         curveSz = SetCurve(key, curve);
         if (curveSz <= 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(curve, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(pub,   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
             return curveSz;
         }
 
-#ifdef WOLFSSL_SMALL_STACK
-        algo = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (algo == NULL) {
-            XFREE(curve, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(pub,   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
+        /* calculate size */
         algoSz  = SetAlgoID(ECDSAk, algo, oidKeyType, curveSz);
-
         bitStringSz = SetBitString(pubSz, 0, bitString);
+        idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz, NULL);
+
+        /* check for buffer overflow */
+        if (output != NULL &&
+                curveSz + algoSz + bitStringSz + idx + pubSz > (word32)outLen) {
+            return BUFFER_E;
+        }
 
         idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz, output);
         /* algo */
@@ -21213,21 +21170,17 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
             XMEMCPY(output + idx, bitString, bitStringSz);
         idx += bitStringSz;
     }
-    else
-        idx = 0;
 
     /* pub */
-    if (output)
-        XMEMCPY(output + idx, pub, pubSz);
-    idx += pubSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    if (with_header) {
-        XFREE(algo,  key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(curve, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (output) {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963(key, output + idx, &pubSz);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0) {
+            return ret;
+        }
     }
-    XFREE(pub,   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    idx += pubSz;
 
     return idx;
 #else
