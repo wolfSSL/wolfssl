@@ -84,8 +84,8 @@
             }
         }
         if (ret == 0 && aes->init == 0) {
-            ret = kcapi_cipher_stream_init_enc(aes->handle, (byte*)aes->reg,
-                                               NULL, 0);
+            ret = (int)kcapi_cipher_stream_init_enc(aes->handle, (byte*)aes->reg,
+                                                    NULL, 0);
             if (ret != 0) {
                 WOLFSSL_MSG("Error initializing IV through KCAPI");
             }
@@ -95,7 +95,7 @@
             aes->init = 1;
             iov.iov_base = (byte*)in;
             iov.iov_len = sz;
-            ret = kcapi_cipher_stream_update(aes->handle, &iov, 1);
+            ret = (int)kcapi_cipher_stream_update(aes->handle, &iov, 1);
             if (ret < 0) {
                 WOLFSSL_MSG("CbcEncrypt error updateing through KCAPI");
             }
@@ -103,7 +103,7 @@
         if (ret >= 0) {
             iov.iov_base = out;
             iov.iov_len = sz;
-            ret = kcapi_cipher_stream_op(aes->handle, &iov, 1);
+            ret = (int)kcapi_cipher_stream_op(aes->handle, &iov, 1);
             if (ret < 0) {
                 WOLFSSL_MSG("CbcEncrypt error with op in KCAPI");
             }
@@ -142,8 +142,8 @@
             }
         }
         if (ret == 0 && aes->init == 0) {
-            ret = kcapi_cipher_stream_init_dec(aes->handle, (byte*)aes->reg,
-                                               NULL, 0);
+            ret = (int)kcapi_cipher_stream_init_dec(aes->handle, (byte*)aes->reg,
+                                                    NULL, 0);
             if (ret != 0) {
                 WOLFSSL_MSG("Error initializing IV through KCAPI");
             }
@@ -153,7 +153,7 @@
             aes->init = 1;
             iov.iov_base = (byte*)in;
             iov.iov_len = sz;
-            ret = kcapi_cipher_stream_update(aes->handle, &iov, 1);
+            ret = (int)kcapi_cipher_stream_update(aes->handle, &iov, 1);
             if (ret < 0) {
                 WOLFSSL_MSG("CbcDecrypt error updateing through KCAPI");
             }
@@ -161,7 +161,7 @@
         if (ret >= 0) {
             iov.iov_base = out;
             iov.iov_len = sz;
-            ret = kcapi_cipher_stream_op(aes->handle, &iov, 1);
+            ret = (int)kcapi_cipher_stream_op(aes->handle, &iov, 1);
             if (ret < 0) {
                 WOLFSSL_MSG("CbcDecrypt error with op in KCAPI");
             }
