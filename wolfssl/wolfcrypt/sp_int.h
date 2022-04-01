@@ -95,7 +95,7 @@ extern "C" {
     #error "Size of unsigned int not detected"
 #endif
 
-#if ULONG_MAX == 18446744073709551615UL
+#if ULONG_MAX == 18446744073709551615ULL
     #define SP_ULONG_BITS    64
 
     typedef unsigned long sp_uint64;

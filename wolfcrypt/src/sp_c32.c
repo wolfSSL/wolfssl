@@ -22512,7 +22512,7 @@ static void sp_256_cond_copy_9(sp_digit* r, const sp_digit* a, const sp_digit m)
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int n,
+static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int i,
     sp_digit* t)
 {
     sp_digit* w = t;
@@ -22523,6 +22523,7 @@ static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int n,
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
+    volatile int n = i;
 
     x = p->x;
     y = p->y;
@@ -29827,7 +29828,7 @@ static void sp_384_cond_copy_15(sp_digit* r, const sp_digit* a, const sp_digit m
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_384_proj_point_dbl_n_15(sp_point_384* p, int n,
+static void sp_384_proj_point_dbl_n_15(sp_point_384* p, int i,
     sp_digit* t)
 {
     sp_digit* w = t;
@@ -29838,6 +29839,7 @@ static void sp_384_proj_point_dbl_n_15(sp_point_384* p, int n,
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
+    volatile int n = i;
 
     x = p->x;
     y = p->y;
@@ -37202,7 +37204,7 @@ static void sp_521_cond_copy_21(sp_digit* r, const sp_digit* a, const sp_digit m
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_521_proj_point_dbl_n_21(sp_point_521* p, int n,
+static void sp_521_proj_point_dbl_n_21(sp_point_521* p, int i,
     sp_digit* t)
 {
     sp_digit* w = t;
@@ -37213,6 +37215,7 @@ static void sp_521_proj_point_dbl_n_21(sp_point_521* p, int n,
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
+    volatile int n = i;
 
     x = p->x;
     y = p->y;
@@ -45808,7 +45811,7 @@ static void sp_1024_cond_copy_42(sp_digit* r, const sp_digit* a, const sp_digit 
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_1024_proj_point_dbl_n_42(sp_point_1024* p, int n,
+static void sp_1024_proj_point_dbl_n_42(sp_point_1024* p, int i,
     sp_digit* t)
 {
     sp_digit* w = t;
@@ -45819,6 +45822,7 @@ static void sp_1024_proj_point_dbl_n_42(sp_point_1024* p, int n,
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
+    volatile int n = i;
 
     x = p->x;
     y = p->y;
