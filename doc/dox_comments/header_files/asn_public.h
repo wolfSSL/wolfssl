@@ -2055,7 +2055,7 @@ WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
     \param pubKeyOID OID identifying the algorithm of the public key.
     (ie: ECDSAk, DSAk or RSAk)
 
-WOLFSSL_ASN_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
-                                          void* heap, const byte* pubKey,
-                                          word32 pubKeySz, int pubKeyOID);
+WOLFSSL_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
+                                      void* heap, const byte* pubKey,
+                                      word32 pubKeySz, int pubKeyOID);
 */
