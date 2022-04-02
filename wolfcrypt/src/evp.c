@@ -3457,9 +3457,10 @@ int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
                             word64 N, word64 r, word64 p,
                             word64 maxmem, unsigned char *key, size_t keylen)
 {
-    (void)maxmem;
     int ret;
     int exp = 0;
+
+    (void)maxmem;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PBE_scrypt");
 

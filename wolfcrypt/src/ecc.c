@@ -4787,7 +4787,7 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
  * Note this function is local to the file because of the argument type
  *      ecc_curve_spec. Having this argument allows for not having to load the
  *      curve type multiple times when generating a key with wc_ecc_make_key().
- * For async the results are placed directly into pubOut, so this function 
+ * For async the results are placed directly into pubOut, so this function
  *      does not need to be called again
  *
  * returns MP_OKAY on success
