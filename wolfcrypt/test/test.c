@@ -38387,9 +38387,12 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 #if !defined(NO_RSA)
 
 #ifdef WOLFSSL_SMALL_STACK
-    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, 
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte*  tmp = NULL;
 #else
     RsaKey key[1];
+    byte tmp[FOURK_BUF];
 #endif
     size_t bytes;
     const word32 inLen = (word32)TEST_STRING_SZ;
@@ -38403,6 +38406,10 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
     !defined(NO_FILESYSTEM)
     XFILE   file;
+#endif
+
+#ifdef WOLFSSL_KEY_GEN
+    WC_RNG rng;
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -38426,11 +38433,9 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    byte*  tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         ERROR_OUT(-8000, exit_onlycb);
-#else
-    byte tmp[bytes];
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -38453,7 +38458,6 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
-   WC_RNG rng;
    /* wc_CryptoCb_MakeRsaKey cb test, no actual making key
     * wc_MakeRsaKey() -> rsa cb ->
     *        myCryptoDevCb -> wc_MakeRsaKey(CBONLY_TEST_DEVID)
@@ -38494,8 +38498,8 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
         * wc_RsaFunction(CBONLY_TEST_DEVID) expects to return 0(success)
         */
         ctx->exampleVar = 99;
-        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
-                               inLen, out, &sigSz, key, sizeof(*key), NULL);
+        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, 
+                               in, inLen, out, &sigSz, key, sizeof(*key), NULL);
         if (ret != 0) {
             ERROR_OUT(-8006, exit_onlycb);
         }
@@ -38507,8 +38511,8 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
         *                               return NO_VALID_DEVID(failure)
         */
         ctx->exampleVar = 1;
-        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
-                               inLen, out, &sigSz, key, sizeof(*key), NULL);
+        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, 
+                            in, inLen, out, &sigSz, key, sizeof(*key), NULL);
         if (ret != NO_VALID_DEVID) {
             ERROR_OUT(-8007, exit_onlycb);
         } else
@@ -38546,9 +38550,12 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
 #if defined(HAVE_ECC)
 
 #ifdef WOLFSSL_SMALL_STACK
-    ecc_key* key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte* out = (byte*)XMALLOC(sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ecc_key* key = (ecc_key *)XMALLOC(sizeof *key, 
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub, 
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* out = (byte*)XMALLOC(sizeof(byte), 
+                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key key[1];
     ecc_key pub[1];
