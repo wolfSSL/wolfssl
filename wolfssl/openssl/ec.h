@@ -138,6 +138,8 @@ struct WOLFSSL_EC_BUILTIN_CURVE {
 #define WOLFSSL_EC_KEY_LOAD_PRIVATE 1
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
 
+typedef int point_conversion_form_t;
+
 WOLFSSL_API
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r,size_t nitems);
 
@@ -174,6 +176,8 @@ WOLFSSL_API
 int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form);
+WOLFSSL_API
+point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key);
 WOLFSSL_API
 WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
                                           const WOLFSSL_EC_POINT *p,
@@ -374,6 +378,7 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 #define d2i_ECPrivateKey                wolfSSL_d2i_ECPrivateKey
 #define i2d_ECPrivateKey                wolfSSL_i2d_ECPrivateKey
 #define EC_KEY_set_conv_form            wolfSSL_EC_KEY_set_conv_form
+#define EC_KEY_get_conv_form            wolfSSL_EC_KEY_get_conv_form
 
 #ifndef HAVE_SELFTEST
     #define EC_POINT_point2hex          wolfSSL_EC_POINT_point2hex

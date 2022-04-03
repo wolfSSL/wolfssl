@@ -39052,6 +39052,7 @@ static void InitwolfSSL_ECKey(WOLFSSL_EC_KEY* key)
         key->internal = NULL;
         key->inSet    = 0;
         key->exSet    = 0;
+        key->form     = POINT_CONVERSION_UNCOMPRESSED;
     }
 }
 
@@ -40261,6 +40262,14 @@ void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
     }
 }
 
+point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key)
+{
+    if (key != NULL) {
+        return key->form;
+    }
+
+    return -1;
+}
 
 /* wolfSSL_EC_POINT_point2bn should return "in" if not null */
 WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,

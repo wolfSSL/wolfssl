@@ -45031,6 +45031,34 @@ static void test_wolfSSL_EC_KEY_set_group(void)
 #endif
 }
 
+static void test_wolfSSL_EC_KEY_set_conv_form(void)
+{
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
+    BIO* bio;
+    EC_KEY* key;
+
+    printf(testingFmt, "test_wolfSSL_EC_KEY_set_conv_form");
+
+    /* Error condition: NULL key. */
+    AssertIntLT(EC_KEY_get_conv_form(NULL), 0);
+
+    AssertNotNull(bio = BIO_new_file("./certs/ecc-keyPub.pem", "rb"));
+    AssertNotNull(key = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL));
+    /* Conversion form defaults to uncompressed. */
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_UNCOMPRESSED);
+#ifdef HAVE_COMP_KEY
+    /* Explicitly set to compressed. */
+    EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_COMPRESSED);
+#endif
+
+    BIO_free(bio);
+    EC_KEY_free(key);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_X509V3_EXT_get(void) {
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     FILE* f;
@@ -53653,6 +53681,7 @@ void ApiTest(void)
     test_CRYPTO_THREADID_xxx();
     test_ENGINE_cleanup();
     test_wolfSSL_EC_KEY_set_group();
+    test_wolfSSL_EC_KEY_set_conv_form();
 #if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_sk_CIPHER_description();
