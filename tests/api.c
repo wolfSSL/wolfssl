@@ -34851,19 +34851,20 @@ static void msg_cb(int write_p, int version, int content_type,
 #endif
 static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
-    (void) ctx;
-    (void) ssl;
     #if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
         STACK_OF(X509)* sk;
         X509* x509;
         int i, num;
         BIO* bio;
     #endif
+    (void) ctx;
     printf("\n===== msgcb called ====\n");
     #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 2);
     AssertNotNull(SSL_get0_verified_chain(ssl));
+    #else
+    (void) ssl;
     #endif
 
     #if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
