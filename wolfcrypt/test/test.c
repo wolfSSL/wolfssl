@@ -24955,7 +24955,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
     x = sizeof(out);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &cliKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash(in, inLen, out, &x, &rng, cliKey);
@@ -24968,7 +24968,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &cliKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash(out, x, in, inLen, &verify,
