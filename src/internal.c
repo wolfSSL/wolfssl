@@ -16555,7 +16555,6 @@ const char* AlertTypeToString(int type)
 
 static void LogAlert(int type)
 {
-    (void)type;
 #ifdef DEBUG_WOLFSSL
     const char* typeStr;
     char buff[60];
@@ -16565,6 +16564,8 @@ static void LogAlert(int type)
         XSNPRINTF(buff, sizeof(buff), "Alert type: %s", typeStr);
         WOLFSSL_MSG(buff);
     }
+#else
+    (void)type;
 #endif /* DEBUG_WOLFSSL */
 }
 
