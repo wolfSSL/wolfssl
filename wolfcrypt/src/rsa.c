@@ -2259,6 +2259,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     return ret;
 }
 #else
+#ifndef WOLF_CRYPTO_CB_ONLY_RSA
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -2611,6 +2612,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     return ret;
 #endif /* WOLFSSL_SP_MATH */
 }
+#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
@@ -2896,13 +2898,23 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
+    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         /* fall-through when unavailable */
         ret = 0; /* reset error code and try using software */
+    #else
+        return ret;
+    #endif
     }
+    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+    else {
+        return NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_RSA
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -2994,8 +3006,10 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         key->state = RSA_STATE_NONE;
         wc_RsaCleanup(key);
     }
-
     return ret;
+#else
+    (void)rng;
+#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
 
@@ -4441,12 +4455,23 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         err = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
+    #ifndef WOLF_CRYPTO_CB_ONLY_RSA
         if (err != CRYPTOCB_UNAVAILABLE)
             goto out;
         /* fall-through when unavailable */
+    #else
+        goto out;
+    #endif
     }
+    #ifdef WOLF_CRYPTO_CB_ONLY_RSA
+    else {
+        err = NO_VALID_DEVID;
+        goto out;
+    }
+    #endif
 #endif
 
+#ifndef WOLF_CRYPTO_CB_ONLY_RSA
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
     defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
@@ -4703,7 +4728,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
     err = 0;
-
+#endif /* WOLF_CRYPTO_CB_ONLY_RSA */
   out:
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -4720,6 +4745,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
 
     return err;
+
 #else
     return NOT_COMPILED_IN;
 #endif

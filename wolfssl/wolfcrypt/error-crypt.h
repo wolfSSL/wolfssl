@@ -248,8 +248,9 @@ enum {
     FIPS_PRIVATE_KEY_LOCKED_E = -287, /* Cannot export private key. */
     PROTOCOLCB_UNAVAILABLE  = -288, /* Protocol callback unavailable */
     AES_SIV_AUTH_E = -289, /* AES-SIV authentication failed */
+    NO_VALID_DEVID = -290, /* no valid device ID */
 
-    WC_LAST_E           = -289,  /* Update this to indicate last error */
+    WC_LAST_E           = -290,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

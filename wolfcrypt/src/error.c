@@ -563,6 +563,10 @@ const char* wc_GetErrorString(int error)
 
     case PROTOCOLCB_UNAVAILABLE:
         return "Protocol callback unavailable";
+
+    case NO_VALID_DEVID:
+        return "No valid device ID set";
+
     default:
         return "unknown error number";
 
