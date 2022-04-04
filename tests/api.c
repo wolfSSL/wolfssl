@@ -30505,7 +30505,7 @@ static void test_wc_CheckCertSigPubKey(void)
     /* Bad cert size. */
     ret = wc_CheckCertSigPubKey(cert_der, 0, NULL, keyDer, keyDerSz,
                                 RSAk);
-    AssertIntEQ(ret, ASN_PARSE_E);
+    AssertTrue(ret == ASN_PARSE_E || ret == BUFFER_E);
 
     /* No public key. */
     ret = wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, NULL, keyDerSz,
