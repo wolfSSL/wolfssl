@@ -2235,6 +2235,10 @@ extern void uITRON4_free(void *p) ;
 
 
 #ifdef WOLFSSL_LINUXKM
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+        #undef HAVE_CONFIG_H
+    #endif
     #ifndef NO_DEV_RANDOM
         #define NO_DEV_RANDOM
     #endif
