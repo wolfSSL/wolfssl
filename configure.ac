@@ -438,9 +438,9 @@ AC_ARG_ENABLE([linuxkm-pie],
 if test "$ENABLED_LINUXKM_PIE" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LINUXKM_PIE_SUPPORT"
-elif test "$ENABLED_FIPS" = yes
+elif test "$ENABLED_FIPS" = yes && test "$ENABLED_LINUXKM" = yes
 then
-    AC_MSG_ERROR([FIPS requires linuxkm-pie.])
+    AC_MSG_ERROR([FIPS linuxkm requires linuxkm-pie.])
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
 
