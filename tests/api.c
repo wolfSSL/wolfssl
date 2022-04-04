@@ -30898,10 +30898,17 @@ static void test_wolfSSL_ASN1_TIME_diff(void)
     /* Edge case with Unix epoch. */
     AssertNotNull(ASN1_TIME_set_string(fromTime, "19700101000000Z"));
     AssertNotNull(ASN1_TIME_set_string(toTime, "19800101000000Z"));
-    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), WOLFSSL_SUCCESS);
-
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime),
+                               WOLFSSL_SUCCESS);
     AssertIntEQ(daysDiff, 3652);
     AssertIntEQ(secsDiff, 0);
+
+    /* Edge case with year > 2038 (year 2038 problem). */
+    AssertNotNull(ASN1_TIME_set_string(toTime, "99991231235959Z"));
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime),
+                               WOLFSSL_SUCCESS);
+    AssertIntEQ(daysDiff, 2932896);
+    AssertIntEQ(secsDiff, 86399);
 
     ASN1_TIME_free(fromTime);
     ASN1_TIME_free(toTime);

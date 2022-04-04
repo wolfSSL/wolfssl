@@ -32169,15 +32169,34 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
     return WOLFSSL_SUCCESS;
 }
 
+/*
+ * From curl.
+ * time2epoch: time stamp to seconds since epoch in GMT time zone. Similar to
+ * mktime but for GMT only.
+ */
+static long long time2epoch(int sec, int min, int hour, int mday, int mon,
+                            int year)
+{
+    static const int monthDaysCumulative [12] = {
+        0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+    };
+    int leapDays = year - (mon <= 1);
+    leapDays = ((leapDays / 4) - (leapDays / 100) + (leapDays / 400) -
+               (1969 / 4) + (1969 / 100) - (1969 / 400));
+    return ((((long long) (year - 1970) * 365 + leapDays +
+           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + min) * 60 +
+           sec;
+}
+
 int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     const WOLFSSL_ASN1_TIME *to)
 {
-#if defined(XMKTIME) && defined(XDIFFTIME)
     const int SECS_PER_DAY = 24 * 60 * 60;
-    struct tm fromTm_s, *fromTm = &fromTm_s;
-    struct tm toTm_s, *toTm = &toTm_s;
-    time_t fromSecs;
-    time_t toSecs;
+    struct tm fromTm_s, *fromTmGmt = &fromTm_s;
+    struct tm toTm_s, *toTmGmt = &toTm_s;
+    time_t currTime;
+    long long fromSecs;
+    long long toSecs;
     double diffSecs;
     struct tm *tmpTs;
 #if defined(NEED_TMP_TIME)
@@ -32207,66 +32226,47 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     if (from == NULL) {
-        fromSecs = wc_Time(0);
-        fromTm = XGMTIME(&fromSecs, tmpTs);
-        if (fromTm == NULL) {
+        currTime = wc_Time(0);
+        fromTmGmt = XGMTIME(&currTime, tmpTs);
+        if (fromTmGmt == NULL) {
             WOLFSSL_MSG("XGMTIME for from time failed.");
             return WOLFSSL_FAILURE;
         }
     }
-    else if (wolfSSL_ASN1_TIME_to_tm(from, fromTm) != WOLFSSL_SUCCESS) {
+    else if (wolfSSL_ASN1_TIME_to_tm(from, fromTmGmt) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to convert from time to struct tm.");
         return WOLFSSL_FAILURE;
     }
 
-#ifdef HAVE_ERRNO_H
-    errno = 0;
-#endif
-    fromSecs = XMKTIME(fromTm);
-    /* Result can be negative due to time zones around UNIX epoch */
-    if (fromSecs == -1
-#ifdef HAVE_ERRNO_H
-            /* Double check with errno that -1 is actually an error */
-            && errno != 0
-#endif
-            ) {
-        WOLFSSL_MSG("XMKTIME for from time failed.");
-        return WOLFSSL_FAILURE;
-    }
+    /* We use time2epoch here instead of XMKTIME to avoid the Year 2038 problem
+     * on platforms where time_t is 32 bits. struct tm stores the year as years
+     * since 1900, so we add 1900 to the year. */
+    fromSecs = time2epoch(fromTmGmt->tm_sec, fromTmGmt->tm_min,
+                          fromTmGmt->tm_hour, fromTmGmt->tm_mday,
+                          fromTmGmt->tm_mon, fromTmGmt->tm_year + 1900);
 
     if (to == NULL) {
-        toSecs = wc_Time(0);
-        toTm = XGMTIME(&toSecs, tmpTs);
-        if (toTm == NULL) {
+        currTime = wc_Time(0);
+        toTmGmt = XGMTIME(&currTime, tmpTs);
+        if (toTmGmt == NULL) {
             WOLFSSL_MSG("XGMTIME for to time failed.");
             return WOLFSSL_FAILURE;
         }
     }
-    else if (wolfSSL_ASN1_TIME_to_tm(to, toTm) != WOLFSSL_SUCCESS) {
+    else if (wolfSSL_ASN1_TIME_to_tm(to, toTmGmt) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to convert to time to struct tm.");
         return WOLFSSL_FAILURE;
     }
 
-    toSecs = XMKTIME(toTm);
-    /* Result can be negative due to time zones around UNIX epoch */
-    if (toSecs == -1
-#ifdef HAVE_ERRNO_H
-            /* Double check with errno that -1 is actually an error */
-            && errno != 0
-#endif
-            ) {
-        WOLFSSL_MSG("XMKTIME for to time failed.");
-        return WOLFSSL_FAILURE;
-    }
+    toSecs = time2epoch(toTmGmt->tm_sec, toTmGmt->tm_min, toTmGmt->tm_hour,
+                        toTmGmt->tm_mday, toTmGmt->tm_mon,
+                        toTmGmt->tm_year + 1900);
 
-    diffSecs = XDIFFTIME(toSecs, fromSecs);
+    diffSecs = (double)(toSecs - fromSecs);
     *days = (int) (diffSecs / SECS_PER_DAY);
     *secs = (int) (diffSecs - (((double)*days) * SECS_PER_DAY));
 
     return WOLFSSL_SUCCESS;
-#else
-    return WOLFSSL_FAILURE;
-#endif /* XMKTIME && XDIFFTIME */
 }
 #endif /* !NO_ASN_TIME */
 
