@@ -398,7 +398,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 #ifdef WOLFSSL_KEY_GEN
     MP_API int mp_gcd (mp_int * a, mp_int * b, mp_int * c);
     MP_API int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
-    MP_API int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
+    MP_API int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap);
 #endif
 
 MP_API int mp_cnt_lsb(mp_int *a);

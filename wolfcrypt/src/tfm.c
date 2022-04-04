@@ -5208,7 +5208,7 @@ int mp_cond_swap_ct(mp_int * a, mp_int * b, int c, int m)
 
 static int  fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
+static int  fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
@@ -5221,11 +5221,11 @@ int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
     return fp_lcm(a, b, c);
 }
 
-int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
+int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 {
     int err;
 
-    err = fp_randprime(N, len, rng, heap);
+    err = fp_randprime(a, len, rng, heap);
     switch(err) {
         case FP_VAL:
             return MP_VAL;
@@ -5245,7 +5245,7 @@ int mp_exch (mp_int * a, mp_int * b)
 
 
 
-int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
+int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
     int   err, type;
@@ -5293,7 +5293,7 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
         buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
 
         /* load value */
-        err = fp_read_unsigned_bin(N, buf, len);
+        err = fp_read_unsigned_bin(a, buf, len);
         if (err != 0) {
             XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return err;
@@ -5304,7 +5304,7 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
          * of a 1024-bit candidate being a false positive, when it is our
          * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
          * Using 8 because we've always used 8 */
-        mp_prime_is_prime_ex(N, 8, &isPrime, rng);
+        mp_prime_is_prime_ex(a, 8, &isPrime, rng);
     } while (isPrime == FP_NO);
 
     XMEMSET(buf, 0, len);
