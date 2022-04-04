@@ -30475,7 +30475,7 @@ static void test_wc_CheckCertSigPubKey(void)
 
     ret = load_file(ca_cert, &cert_buf, &cert_sz);
     if (ret == 0) {
-        cert_dersz = cert_sz; /* DER will be smaller than PEM */
+        cert_dersz = (word32)cert_sz; /* DER will be smaller than PEM */
         cert_der = (byte*)malloc(cert_dersz);
         if (cert_der) {
             ret = wc_CertPemToDer(cert_buf, (int)cert_sz,
