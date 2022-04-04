@@ -30460,7 +30460,7 @@ static void test_wc_GetPubKeyDerFromCert(void)
 static void test_wc_CheckCertSigPubKey(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER)
+    !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER) && defined(HAVE_ECC)
     int ret;
     const char* ca_cert = "./certs/ca-cert.pem";
     byte* cert_buf = NULL;
