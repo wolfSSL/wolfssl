@@ -3633,7 +3633,6 @@ AS_CASE([$FIPS_VERSION],
             -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
             -DHAVE_ECC_CDH \
             -DWC_RSA_NO_PADDING \
-            -DWOLFSSL_VALIDATE_ECC_IMPORT \
             -DECC_USER_CURVES \
             -DHAVE_ECC384 \
             -DHAVE_ECC521 \
@@ -3649,6 +3648,8 @@ AS_CASE([$FIPS_VERSION],
             [AM_CFLAGS="$AM_CFLAGS \
                 -DWC_RNG_SEED_CB \
                 -DWOLFSSL_ECDSA_SET_K \
+                -DWOLFSSL_VALIDATE_ECC_IMPORT \
+                -DWOLFSSL_VALIDATE_ECC_KEYGEN \
                 -DHAVE_ECC192 \
                 -DHAVE_ECC224 \
                 -DHAVE_ECC256"])
@@ -3682,8 +3683,7 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_ECC" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ecc" != "no")],
             [ENABLED_ECC="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
              AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_eccshamir" != "no")],
-                 [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
-                 [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT -DWOLFSSL_VALIDATE_ECC_KEYGEN"])
+                 [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
 
         AS_IF([test "$ENABLED_AESCTR" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesctr" != "no")],
             [ENABLED_AESCTR="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])

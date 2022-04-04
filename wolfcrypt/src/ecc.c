@@ -8763,8 +8763,9 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #endif
 }
 
-#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
-    (defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH))
+#if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
+    (defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH))) && \
+    !defined(WOLFSSL_KCAPI_ECC)
 /* validate privkey * generator == pubkey, 0 on success */
 static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 {
@@ -9822,7 +9823,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
 #endif /* WOLFSSL_CRYPTOCELL */
 
-#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+#if defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_KCAPI_ECC)
     if ((pub != NULL) && (ret == MP_OKAY))
         /* public key needed to perform key validation */
         ret = _ecc_validate_public_key(key, 1, 1);
