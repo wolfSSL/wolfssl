@@ -14393,6 +14393,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         m = wolfSSLv23_client_method_ex(heap);
     #elif !defined(NO_WOLFSSL_SERVER)
         m = wolfSSLv23_server_method_ex(heap);
+    #else
+        (void)heap;
     #endif
         if (m != NULL) {
             m->side = WOLFSSL_NEITHER_END;

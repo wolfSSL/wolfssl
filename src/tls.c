@@ -1902,6 +1902,7 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
     return sni;
 }
 
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 /** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 {
@@ -1911,6 +1912,7 @@ static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
     if (sni)
         sni->status = status;
 }
+#endif
 
 /** Gets the status of a SNI object. */
 byte TLSX_SNI_Status(TLSX* extensions, byte type)
@@ -2056,6 +2058,10 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #else
     (void)input;
+#endif
+
+#if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
+    (void)length;
 #endif
 
     return 0;
@@ -5183,6 +5189,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
         }
     }
 #endif /* NO_WOLFSSL_SERVER */
+
+#if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
+    (void)ssl;
+#endif
 
     return ret;
 }
