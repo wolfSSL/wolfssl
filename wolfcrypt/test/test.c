@@ -38387,7 +38387,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 #if !defined(NO_RSA)
 
 #ifdef WOLFSSL_SMALL_STACK
-    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, 
+    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte*  tmp = NULL;
 #else
@@ -38498,7 +38498,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
         * wc_RsaFunction(CBONLY_TEST_DEVID) expects to return 0(success)
         */
         ctx->exampleVar = 99;
-        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, 
+        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
                                in, inLen, out, &sigSz, key, sizeof(*key), NULL);
         if (ret != 0) {
             ERROR_OUT(-8006, exit_onlycb);
@@ -38511,7 +38511,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
         *                               return NO_VALID_DEVID(failure)
         */
         ctx->exampleVar = 1;
-        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, 
+        ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
                             in, inLen, out, &sigSz, key, sizeof(*key), NULL);
         if (ret != NO_VALID_DEVID) {
             ERROR_OUT(-8007, exit_onlycb);
@@ -38550,11 +38550,11 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
 #if defined(HAVE_ECC)
 
 #ifdef WOLFSSL_SMALL_STACK
-    ecc_key* key = (ecc_key *)XMALLOC(sizeof *key, 
+    ecc_key* key = (ecc_key *)XMALLOC(sizeof *key,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub, 
+    ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte* out = (byte*)XMALLOC(sizeof(byte), 
+    byte* out = (byte*)XMALLOC(sizeof(byte),
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key key[1];
