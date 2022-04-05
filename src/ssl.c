@@ -44499,7 +44499,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         cert->isCA    = wolfSSL_X509_get_isCA(x509);
 
     #ifdef WOLFSSL_CERT_EXT
-        if (x509->subjKeyIdSz < CTC_MAX_SKID_SIZE) {
+        if (x509->subjKeyIdSz <= CTC_MAX_SKID_SIZE) {
             if (x509->subjKeyId) {
                 XMEMCPY(cert->skid, x509->subjKeyId, x509->subjKeyIdSz);
             }
