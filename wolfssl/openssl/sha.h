@@ -44,6 +44,9 @@ typedef struct WOLFSSL_SHA_CTX {
 #else
     void* holder[(112 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 #endif
+    #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+    void* keephash_holder[sizeof(void*) + (2 * sizeof(unsigned int))];
+    #endif
     #ifdef WOLF_CRYPTO_CB
     void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) / sizeof(void*)];
     #endif

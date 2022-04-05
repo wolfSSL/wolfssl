@@ -1822,35 +1822,6 @@ int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_HASH_KEEP
-#ifdef NO_SHA256
-static int _wc_Sha_Grow(byte** msg, word32* used, word32* len, const byte* in,
-                        int inSz, void* heap)
-{
-    if (*len < *used + inSz) {
-        if (*msg == NULL) {
-            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-        else {
-            byte* pt = (byte*)XMALLOC(*used + inSz, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (pt == NULL) {
-                return MEMORY_E;
-            }
-            XMEMCPY(pt, *msg, *used);
-            XFREE(*msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            *msg = pt;
-        }
-        if (*msg == NULL) {
-            return MEMORY_E;
-        }
-        *len = *used + inSz;
-    }
-    XMEMCPY(*msg + *used, in, inSz);
-    *used += inSz;
-    return 0;
-}
-#endif /* NO_SHA256 */
-
 /* Some hardware have issues with update, this function stores the data to be
  * hashed into an array. Once ready, the Final operation is called on all of the
  * data to be hashed at once.
@@ -1867,6 +1838,6 @@ int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz)
     return _wc_Sha_Grow(&(sha384->msg), &(sha384->used), &(sha384->len), in,
                         inSz, sha384->heap);
 }
-#endif /* WOLFSSL_SHA224 */
+#endif /* WOLFSSL_SHA384 */
 #endif /* WOLFSSL_HASH_KEEP */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */

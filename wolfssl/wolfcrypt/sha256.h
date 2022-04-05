@@ -241,8 +241,6 @@ WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
 #if defined(WOLFSSL_HASH_KEEP)
 WOLFSSL_API int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
-WOLFSSL_LOCAL int _wc_Sha_Grow(byte** msg, word32* used, word32* len,
-        const byte* in, int inSz, void* heap);
 #endif
 WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);

@@ -1509,6 +1509,12 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLFSSL_HASH_FLAGS
         sha224->flags = 0;
     #endif
+    #ifdef WOLFSSL_HASH_KEEP
+        sha224->msg  = NULL;
+        sha224->len  = 0;
+        sha224->used = 0;
+    #endif
+
 
         return ret;
     }
@@ -1700,34 +1706,6 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #ifdef WOLFSSL_HASH_KEEP
-int _wc_Sha_Grow(byte** msg, word32* used, word32* len, const byte* in,
-                        int inSz, void* heap)
-{
-    if (*len < *used + inSz) {
-        if (*msg == NULL) {
-            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-        else {
-            byte* pt = (byte*)XMALLOC(*used + inSz, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (pt == NULL) {
-                return MEMORY_E;
-            }
-            XMEMCPY(pt, *msg, *used);
-            XFREE(*msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            *msg = pt;
-        }
-        if (*msg == NULL) {
-            return MEMORY_E;
-        }
-        *len = *used + inSz;
-    }
-    XMEMCPY(*msg + *used, in, inSz);
-    *used += inSz;
-    return 0;
-}
-
-
 /* Some hardware have issues with update, this function stores the data to be
  * hashed into an array. Once ready, the Final operation is called on all of the
  * data to be hashed at once.
@@ -1766,6 +1744,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         int ret;
         wc_Sha224 tmpSha224;
 
+        wc_InitSha224(&tmpSha224);
         if (sha224 == NULL || hash == NULL)
             return BAD_FUNC_ARG;
 

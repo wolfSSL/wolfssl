@@ -8462,6 +8462,88 @@ static int aes_cbc_test(void)
 }
 #endif
 
+#ifdef HAVE_AES_ECB
+static int aesecb_test(void)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#else
+    Aes enc[1];
+#endif
+    byte cipher[AES_BLOCK_SIZE * 4];
+#ifdef HAVE_AES_DECRYPT
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#else
+    Aes dec[1];
+#endif
+    byte plain [AES_BLOCK_SIZE * 4];
+#endif /* HAVE_AES_DECRYPT */
+    int  ret = 0;
+
+#if defined(WOLFSSL_AES_256)
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte niPlain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte niCipher[] =
+        {
+            0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+            0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+        };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte niKey[] =
+        {
+            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+
+        XMEMSET(cipher, 0, AES_BLOCK_SIZE);
+        ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
+        if (ret != 0)
+            ERROR_OUT(-5943, out);
+        if (wc_AesEcbEncrypt(enc, cipher, niPlain, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5950, out);
+        if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5944, out);
+
+        XMEMSET(plain, 0, AES_BLOCK_SIZE);
+        ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
+        if (ret != 0)
+            ERROR_OUT(-5945, out);
+        if (wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5951, out);
+        wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE);
+        if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5946, out);
+    }
+
+    wc_AesFree(enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(dec);
+#endif
+
+  out:
+#ifdef WOLFSSL_SMALL_STACK
+    if (enc)
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#ifdef HAVE_AES_DECRYPT
+    if (dec)
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
+#endif
+#endif /* WOLFSSL_AES_256 */
+
+    return ret;
+}
+#endif /* HAVE_AES_ECB */
+
+
 WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 {
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
@@ -9090,6 +9172,12 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
     if (ret != 0)
         goto out;
 #endif
+#endif
+
+#if defined(HAVE_AES_ECB)
+    ret = aesecb_test();
+    if (ret != 0)
+        goto out;
 #endif
 
   out:
@@ -38635,6 +38723,36 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
                 /* reset devId */
                 info->cipher.aescbc.aes->devId = devIdArg;
+            }
+        }
+    #endif /* HAVE_AES_CBC */
+    #ifdef HAVE_AES_ECB
+        if (info->cipher.type == WC_CIPHER_AES_ECB) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesecb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesEcbEncrypt(
+                    info->cipher.aesecb.aes,
+                    info->cipher.aesecb.out,
+                    info->cipher.aesecb.in,
+                    info->cipher.aesecb.sz);
+
+                /* reset devId */
+                info->cipher.aesecb.aes->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesecb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesEcbDecrypt(
+                    info->cipher.aesecb.aes,
+                    info->cipher.aesecb.out,
+                    info->cipher.aesecb.in,
+                    info->cipher.aesecb.sz);
+
+                /* reset devId */
+                info->cipher.aesecb.aes->devId = devIdArg;
             }
         }
     #endif /* HAVE_AES_CBC */

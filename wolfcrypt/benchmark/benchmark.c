@@ -1002,7 +1002,7 @@ static const char* bench_result_words2[][5] = {
 #ifdef WOLFSSL_ASYNC_CRYPT
     static WOLF_EVENT_QUEUE eventQueue;
 
-    #define BENCH_ASYNC_CAAM_DEVID(obj)      (&(obj)->asyncDev)
+    #define BENCH_ASYNC_GET_DEV(obj)      (&(obj)->asyncDev)
     #define BENCH_ASYNC_GET_NAME(useDeviceID) (useDeviceID) ? "HW" : "SW"
     #define BENCH_MAX_PENDING             (WOLF_ASYNC_MAX_PENDING)
 
