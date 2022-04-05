@@ -41648,38 +41648,41 @@ static void test_wolfSSL_MD5_Transform(void)
         "\x8d\x79\xd3\xef\x90\x25\x17\x67\xc7\x79\x13\xa4\xbc\x7b\xa7\xe3";
 #endif
 
-    MD5_CTX md5;
+    union {
+        wc_Md5 native;
+        MD5_CTX compat;
+    } md5;
 
     printf(testingFmt, "wolfSSL_MD5_Transform()");
 
-    XMEMSET(&md5, 0, sizeof(md5));
+    XMEMSET(&md5.compat, 0, sizeof(md5.compat));
     XMEMSET(&local, 0, sizeof(local));
 
     /* sanity check */
     AssertIntEQ(MD5_Transform(NULL, NULL), 0);
     AssertIntEQ(MD5_Transform(NULL, (const byte*)&input1), 0);
-    AssertIntEQ(MD5_Transform(&md5, NULL), 0);
+    AssertIntEQ(MD5_Transform(&md5.compat, NULL), 0);
     AssertIntEQ(wc_Md5Transform(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wc_Md5Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    AssertIntEQ(wc_Md5Transform((wc_Md5*)&md5, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Md5Transform(&md5.native, NULL), BAD_FUNC_ARG);
 
     /* Init MD5 CTX */
-    AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    AssertIntEQ(wolfSSL_MD5_Init(&md5.compat), 1);
     /* Do Transform*/
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
-    AssertIntEQ(MD5_Transform(&md5, (const byte*)&local[0]), 1);
+    AssertIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
 
-    AssertIntEQ(XMEMCMP(&((wc_Md5*)&md5)->digest[0], output1,
+    AssertIntEQ(XMEMCMP(md5.native.digest, output1,
                                                     WC_MD5_DIGEST_SIZE), 0);
 
     /* Init MD5 CTX */
-    AssertIntEQ(MD5_Init(&md5), 1);
+    AssertIntEQ(MD5_Init(&md5.compat), 1);
     sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_MD5_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
-    AssertIntEQ(MD5_Transform(&md5, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Md5*)&md5)->digest[0], output2,
+    AssertIntEQ(MD5_Transform(&md5.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(md5.native.digest, output2,
                                                     WC_MD5_DIGEST_SIZE), 0);
 
     printf(resultFmt, passed);
@@ -41741,66 +41744,72 @@ static void test_wolfSSL_SHA_Transform(void)
         "\xb8\x08\x6e\x7c";
 #endif
 
-    SHA_CTX sha;
-    SHA_CTX sha1;
+    union {
+        wc_Sha native;
+        SHA_CTX compat;
+    } sha;
+    union {
+        wc_Sha native;
+        SHA_CTX compat;
+    } sha1;
 
     printf(testingFmt, "wolfSSL_SHA_Transform()");
 
-    XMEMSET(&sha, 0, sizeof(sha));
+    XMEMSET(&sha.compat, 0, sizeof(sha.compat));
     XMEMSET(&local, 0, sizeof(local));
 
     /* sanity check */
     AssertIntEQ(SHA_Transform(NULL, NULL), 0);
     AssertIntEQ(SHA_Transform(NULL, (const byte*)&input1), 0);
-    AssertIntEQ(SHA_Transform(&sha, NULL), 0);
+    AssertIntEQ(SHA_Transform(&sha.compat, NULL), 0);
     AssertIntEQ(SHA1_Transform(NULL, NULL), 0);
     AssertIntEQ(SHA1_Transform(NULL, (const byte*)&input1), 0);
-    AssertIntEQ(SHA1_Transform(&sha, NULL), 0);
+    AssertIntEQ(SHA1_Transform(&sha.compat, NULL), 0);
     AssertIntEQ(wc_ShaTransform(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wc_ShaTransform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    AssertIntEQ(wc_ShaTransform((wc_Sha*)&sha, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_ShaTransform(&sha.native, NULL), BAD_FUNC_ARG);
 
     /* Init SHA CTX */
-    AssertIntEQ(SHA_Init(&sha), 1);
+    AssertIntEQ(SHA_Init(&sha.compat), 1);
     /* Do Transform*/
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
-    AssertIntEQ(SHA_Transform(&sha, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1,
+    AssertIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha.native.digest, output1,
                                                         WC_SHA_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+    AssertIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
 
     /* Init SHA CTX */
-    AssertIntEQ(SHA_Init(&sha), 1);
+    AssertIntEQ(SHA_Init(&sha.compat), 1);
     sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
-    AssertIntEQ(SHA_Transform(&sha, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output2,
+    AssertIntEQ(SHA_Transform(&sha.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha.native.digest, output2,
                                                         WC_SHA_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+    AssertIntEQ(SHA_Final(local, &sha.compat), 1); /* frees resources */
 
     /* SHA1 */
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     /* Init SHA CTX */
-    AssertIntEQ(SHA1_Init(&sha1), 1);
+    AssertIntEQ(SHA1_Init(&sha1.compat), 1);
     /* Do Transform*/
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
-    AssertIntEQ(SHA1_Transform(&sha1, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha1)->digest[0], output1,
+    AssertIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha1.native.digest, output1,
                                                         WC_SHA_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+    AssertIntEQ(SHA_Final(local, &sha1.compat), 1); /* frees resources */
 
     /* Init SHA CTX */
-    AssertIntEQ(SHA1_Init(&sha1), 1);
+    AssertIntEQ(SHA1_Init(&sha1.compat), 1);
     sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
-    AssertIntEQ(SHA1_Transform(&sha1, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha1)->digest[0], output2,
+    AssertIntEQ(SHA1_Transform(&sha1.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha1.native.digest, output2,
                                                         WC_SHA_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+    AssertIntEQ(SHA_Final(local, &sha1.compat), 1); /* frees resources */
 
     printf(resultFmt, passed);
 #endif
@@ -41832,40 +41841,43 @@ static void test_wolfSSL_SHA256_Transform(void)
         "\x67\xd4\x4e\x1d\x67\x61\x7c\x67\x26\x76\x10\x44\xb8\xff\x10\x78"
         "\x39\x9a\xc8\x40\x8c\x60\x16\x73\x05\xd6\x61\xa6\x35\x8c\xf2\x91";
 #endif
-    SHA256_CTX sha256;
+    union {
+        wc_Sha256 native;
+        SHA256_CTX compat;
+    } sha256;
 
     printf(testingFmt, "wolfSSL_SHA256_Transform()");
 
-    XMEMSET(&sha256, 0, sizeof(sha256));
+    XMEMSET(&sha256.compat, 0, sizeof(sha256.compat));
     XMEMSET(&local, 0, sizeof(local));
 
     /* sanity check */
     AssertIntEQ(SHA256_Transform(NULL, NULL), 0);
     AssertIntEQ(SHA256_Transform(NULL, (const byte*)&input1), 0);
-    AssertIntEQ(SHA256_Transform(&sha256, NULL), 0);
+    AssertIntEQ(SHA256_Transform(&sha256.compat, NULL), 0);
     AssertIntEQ(wc_Sha256Transform(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    AssertIntEQ(wc_Sha256Transform((wc_Sha256*)&sha256, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha256Transform(&sha256.native, NULL), BAD_FUNC_ARG);
 
     /* Init SHA256 CTX */
-    AssertIntEQ(SHA256_Init(&sha256), 1);
+    AssertIntEQ(SHA256_Init(&sha256.compat), 1);
     /* Do Transform*/
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
-    AssertIntEQ(SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1,
+    AssertIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha256.native.digest, output1,
                                                     WC_SHA256_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA256_Final(local, &sha256), 1); /* frees resources */
+    AssertIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
 
     /* Init SHA256 CTX */
-    AssertIntEQ(SHA256_Init(&sha256), 1);
+    AssertIntEQ(SHA256_Init(&sha256.compat), 1);
     sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
-    AssertIntEQ(SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output2,
+    AssertIntEQ(SHA256_Transform(&sha256.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha256.native.digest, output2,
                                                     WC_SHA256_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA256_Final(local, &sha256), 1); /* frees resources */
+    AssertIntEQ(SHA256_Final(local, &sha256.compat), 1); /* frees resources */
 
     printf(resultFmt, passed);
 #endif
@@ -41928,41 +41940,44 @@ static void test_wolfSSL_SHA512_Transform(void)
         "\x83\x4e\xba\x2c\x54\x2e\x8f\x31\x98\x38\x2b\x8f\x9d\xec\x88\xbe"
         "\x4d\x5e\x8b\x53\x9d\x4e\xd2\x14\xf0\x96\x20\xaf\x69\x6c\x68\xde";
 #endif
-    SHA512_CTX sha512;
+    union {
+        wc_Sha512 native;
+        SHA512_CTX compat;
+    } sha512;
 
     printf(testingFmt, "wolfSSL_SHA512_Transform()");
 
-    XMEMSET(&sha512, 0, sizeof(sha512));
+    XMEMSET(&sha512.compat, 0, sizeof(sha512.compat));
     XMEMSET(&local, 0, sizeof(local));
 
     /* sanity check */
     AssertIntEQ(SHA512_Transform(NULL, NULL), 0);
     AssertIntEQ(SHA512_Transform(NULL, (const byte*)&input1), 0);
-    AssertIntEQ(SHA512_Transform(&sha512, NULL), 0);
+    AssertIntEQ(SHA512_Transform(&sha512.compat, NULL), 0);
     AssertIntEQ(wc_Sha512Transform(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
-    AssertIntEQ(wc_Sha512Transform((wc_Sha512*)&sha512, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha512Transform(&sha512.native, NULL), BAD_FUNC_ARG);
 
     /* Init SHA512 CTX */
-    AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);
+    AssertIntEQ(wolfSSL_SHA512_Init(&sha512.compat), 1);
 
     /* Do Transform*/
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
-    AssertIntEQ(SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output1,
+    AssertIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha512.native.digest, output1,
                                                     WC_SHA512_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA512_Final(local, &sha512), 1); /* frees resources */
+    AssertIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
 
     /* Init SHA512 CTX */
-    AssertIntEQ(SHA512_Init(&sha512), 1);
+    AssertIntEQ(SHA512_Init(&sha512.compat), 1);
     sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
-    AssertIntEQ(SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output2,
+    AssertIntEQ(SHA512_Transform(&sha512.compat, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(sha512.native.digest, output2,
                                                     WC_SHA512_DIGEST_SIZE), 0);
-    AssertIntEQ(SHA512_Final(local, &sha512), 1); /* frees resources */
+    AssertIntEQ(SHA512_Final(local, &sha512.compat), 1); /* frees resources */
 
     (void)input1;
     printf(resultFmt, passed);
