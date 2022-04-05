@@ -73,6 +73,10 @@
  *    Check for alerts during the handshake in the event of an error.
  * WOLFSSL_NO_CLIENT_CERT_ERROR
  *    Requires client to set a client certificate
+ * WOLFSSL_PSK_MULTI_ID_PER_CS
+ *    When multiple PSK identities are available for the same cipher suite.
+ *    Sets the first byte of the client identity to the count of identites
+ *    that have been seen so far for the cipher suite.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -2851,6 +2855,9 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         else
     #endif /* OPENSSL_EXTRA */
         if (ssl->options.client_psk_cs_cb != NULL) {
+        #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
+            ssl->arrays->client_identity[0] = 0;
+        #endif
             /* Lookup key again for next identity. */
             ssl->arrays->psk_keySz = ssl->options.client_psk_cs_cb(
                 ssl, ssl->arrays->server_hint,

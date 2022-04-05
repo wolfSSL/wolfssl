@@ -11099,11 +11099,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #ifndef WOLFSSL_PSK_ONE_ID
             if (ssl->options.client_psk_cs_cb != NULL) {
                 int i;
-                ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
                 for (i = 0; i < ssl->suites->suiteSz; i += 2) {
                     byte cipherSuite0 = ssl->suites->suites[i + 0];
                     byte cipherSuite = ssl->suites->suites[i + 1];
                     unsigned int keySz;
+                #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
+                    int cnt = 0;
+                #endif
 
                 #ifdef HAVE_NULL_CIPHER
                     if (cipherSuite0 == ECC_BYTE) {
@@ -11117,21 +11119,34 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     if (cipherSuite0 != TLS13_BYTE)
                         continue;
 
-                    keySz = ssl->options.client_psk_cs_cb(
-                        ssl, ssl->arrays->server_hint,
-                        ssl->arrays->client_identity, MAX_PSK_ID_LEN,
-                        ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
-                        GetCipherNameInternal(cipherSuite0, cipherSuite));
-                    if (keySz > 0) {
-                        ssl->arrays->psk_keySz = keySz;
-                        ret = TLSX_PreSharedKey_Use(ssl,
-                            (byte*)ssl->arrays->client_identity,
-                            (word16)XSTRLEN(ssl->arrays->client_identity), 0,
-                            SuiteMac(ssl->suites->suites + i),
-                            cipherSuite0, cipherSuite, 0, NULL);
-                        if (ret != 0)
-                            return ret;
+                #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
+                    do {
+                        ssl->arrays->client_identity[0] = cnt;
+                #endif
+
+                        ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+                        keySz = ssl->options.client_psk_cs_cb(
+                            ssl, ssl->arrays->server_hint,
+                            ssl->arrays->client_identity, MAX_PSK_ID_LEN,
+                            ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
+                            GetCipherNameInternal(cipherSuite0, cipherSuite));
+                        if (keySz > 0) {
+                            ssl->arrays->psk_keySz = keySz;
+                            ret = TLSX_PreSharedKey_Use(ssl,
+                                (byte*)ssl->arrays->client_identity,
+                                (word16)XSTRLEN(ssl->arrays->client_identity),
+                                0, SuiteMac(ssl->suites->suites + i),
+                                cipherSuite0, cipherSuite, 0, NULL);
+                            if (ret != 0)
+                                return ret;
+                #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
+                            cnt++;
+                #endif
+                        }
+                #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
                     }
+                    while (keySz > 0);
+                #endif
                 }
 
                 usingPSK = 1;
