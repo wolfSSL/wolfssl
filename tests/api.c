@@ -30515,6 +30515,81 @@ static void test_wc_GetPubKeyDerFromCert(void)
 #endif /* !NO_RSA || HAVE_ECC */
 }
 
+static void test_wc_CheckCertSigPubKey(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA) && defined(WOLFSSL_PEM_TO_DER) && defined(HAVE_ECC)
+    int ret;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0;
+    byte* cert_der = NULL;
+    word32 cert_dersz = 0;
+    byte keyDer[TWOK_BUF];  /* large enough for up to RSA 2048 */
+    word32 keyDerSz = (word32)sizeof(keyDer);
+    DecodedCert decoded;
+
+    printf(testingFmt, "wc_CheckCertSigPubKey()");
+
+    ret = load_file(ca_cert, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        cert_dersz = (word32)cert_sz; /* DER will be smaller than PEM */
+        cert_der = (byte*)malloc(cert_dersz);
+        if (cert_der) {
+            ret = wc_CertPemToDer(cert_buf, (int)cert_sz,
+                cert_der, (int)cert_dersz, CERT_TYPE);
+            AssertIntGE(ret, 0);
+        }
+    }
+
+    wc_InitDecodedCert(&decoded, cert_der, cert_dersz, NULL);
+    ret = wc_ParseCert(&decoded, CERT_TYPE, NO_VERIFY, NULL);
+    AssertIntEQ(ret, 0);
+
+    ret = wc_GetPubKeyDerFromCert(&decoded, keyDer, &keyDerSz);
+    AssertIntEQ(ret, 0);
+    AssertIntGT(keyDerSz, 0);
+
+    /* Good test case. */
+    ret = wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, keyDer, keyDerSz,
+                                RSAk);
+    AssertIntEQ(ret, 0);
+
+    /* No certificate. */
+    ret = wc_CheckCertSigPubKey(NULL, cert_dersz, NULL, keyDer, keyDerSz,
+                                ECDSAk);
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    /* Bad cert size. */
+    ret = wc_CheckCertSigPubKey(cert_der, 0, NULL, keyDer, keyDerSz,
+                                RSAk);
+    AssertTrue(ret == ASN_PARSE_E || ret == BUFFER_E);
+
+    /* No public key. */
+    ret = wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, NULL, keyDerSz,
+                                RSAk);
+    AssertIntEQ(ret, ASN_NO_SIGNER_E);
+
+    /* Bad public key size. */
+    ret = wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, keyDer, 0,
+                                RSAk);
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    /* Wrong aglo. */
+    ret = wc_CheckCertSigPubKey(cert_der, cert_dersz, NULL, keyDer, keyDerSz,
+                                ECDSAk);
+    AssertIntEQ(ret, ASN_PARSE_E);
+
+    wc_FreeDecodedCert(&decoded);
+    if (cert_der)
+        free(cert_der);
+    if (cert_buf)
+        free(cert_buf);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_certs(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
@@ -53447,6 +53522,7 @@ void ApiTest(void)
     test_wc_PubKeyPemToDer();
     test_wc_PemPubKeyToDer();
     test_wc_GetPubKeyDerFromCert();
+    test_wc_CheckCertSigPubKey();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), WOLFSSL_SUCCESS);
