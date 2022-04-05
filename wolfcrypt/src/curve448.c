@@ -170,6 +170,17 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
     if (ret == 0) {
         ret = curve448(o, private_key->k, public_key->p);
     }
+#ifdef WOLFSSL_ECDHX_SHARED_NOT_ZERO
+    if (ret == 0) {
+        byte t = 0;
+        for (i = 0; i < CURVE448_PUB_KEY_SIZE; i++) {
+            t |= o[i];
+        }
+        if (t == 0) {
+            ret = ECC_OUT_OF_RANGE_E;
+        }
+    }
+#endif
     if (ret == 0) {
         if (endian == EC448_BIG_ENDIAN) {
             /* put shared secret key in Big Endian format */
@@ -353,7 +364,7 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
     if (ret == 0) {
         if (endian == EC448_LITTLE_ENDIAN) {
             /* Check for value of zero or one */
-            for (i = pubSz - 1; i > 0; i--) {
+            for (i = CURVE448_PUB_KEY_SIZE - 1; i > 0; i--) {
                 if (pub[i] != 0) {
                     break;
                 }
@@ -361,16 +372,55 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian)
             if ((i == 0) && (pub[0] == 0 || pub[0] == 1)) {
                 return ECC_BAD_ARG_E;
             }
+            /* Check for order-1 or higher */
+            for (i = CURVE448_PUB_KEY_SIZE - 1; i > 28; i--) {
+                if (pub[i] != 0xff) {
+                    break;
+                }
+            }
+            if ((i == 28) && (pub[i] == 0xff)) {
+                return ECC_BAD_ARG_E;
+            }
+            if ((i == 28) && (pub[i] == 0xfe)) {
+                for (--i; i > 0; i--) {
+                    if (pub[i] != 0xff) {
+                        break;
+                    }
+                }
+                if ((i == 0) && (pub[i] >= 0xfe)) {
+                    return ECC_BAD_ARG_E;
+                }
+            }
         }
         else {
             /* Check for value of zero or one */
-            for (i = 0; i < pubSz-1; i++) {
+            for (i = 0; i < CURVE448_PUB_KEY_SIZE-1; i++) {
                 if (pub[i] != 0) {
                     break;
                 }
             }
-            if ((i == pubSz - 1) && (pub[i] == 0 || pub[i] == 1)) {
+            if ((i == CURVE448_PUB_KEY_SIZE - 1) &&
+                (pub[i] == 0 || pub[i] == 1)) {
                 ret = ECC_BAD_ARG_E;
+            }
+            /* Check for order-1 or higher */
+            for (i = 0; i < 27; i++) {
+                if (pub[i] != 0xff) {
+                    break;
+                }
+            }
+            if ((i == 27) && (pub[i] == 0xff)) {
+                return ECC_BAD_ARG_E;
+            }
+            if ((i == 27) && (pub[i] == 0xfe)) {
+                for (++i; i < CURVE448_PUB_KEY_SIZE - 1; i--) {
+                    if (pub[i] != 0xff) {
+                        break;
+                    }
+                }
+                if ((i == CURVE448_PUB_KEY_SIZE) && (pub[i] >= 0xfe)) {
+                    return ECC_BAD_ARG_E;
+                }
             }
         }
     }

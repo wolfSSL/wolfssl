@@ -10011,7 +10011,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             err = mp_read_unsigned_bin(key->pubkey.x, (const byte*)qx,
                 key->dp->size);
 
-        if (mp_iszero(key->pubkey.x) || mp_isneg(key->pubkey.x)) {
+        if (mp_isneg(key->pubkey.x)) {
             WOLFSSL_MSG("Invalid Qx");
             err = BAD_FUNC_ARG;
         }
@@ -10025,8 +10025,15 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             err = mp_read_unsigned_bin(key->pubkey.y, (const byte*)qy,
                 key->dp->size);
 
-        if (mp_iszero(key->pubkey.y) || mp_isneg(key->pubkey.y)) {
+        if (mp_isneg(key->pubkey.y)) {
             WOLFSSL_MSG("Invalid Qy");
+            err = BAD_FUNC_ARG;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        if (mp_iszero(key->pubkey.x) && mp_iszero(key->pubkey.y)) {
+            WOLFSSL_MSG("Invalid Qx and Qy");
             err = BAD_FUNC_ARG;
         }
     }

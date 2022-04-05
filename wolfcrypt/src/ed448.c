@@ -547,6 +547,18 @@ static int ed448_verify_msg_update_with_sha(const byte* msgSegment,
     return ed448_hash_update(key, sha, msgSegment, msgSegmentLen);
 }
 
+/* Order of the ed448 curve - little endian. */
+static const byte ed448_order[] = {
+    0xf3, 0x44, 0x58, 0xab, 0x92, 0xc2, 0x78, 0x23,
+    0x55, 0x8f, 0xc5, 0x8d, 0x72, 0xc2, 0x6c, 0x21,
+    0x90, 0x36, 0xd6, 0xae, 0x49, 0xdb, 0x4e, 0xc4,
+    0xe9, 0x23, 0xca, 0x7c, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f,
+    0x00
+};
+
 /* Verify the message using the ed448 public key.
  *
  *  sig         [in]  Signature to verify.
@@ -566,6 +578,7 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ge448_p2 A;
     ge448_p2 R;
     int      ret;
+    int      i;
 
     /* sanity check on arguments */
     if ((sig == NULL) || (res == NULL) || (key == NULL))
@@ -576,6 +589,18 @@ static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
     /* check on basics needed to verify signature */
     if (sigLen != ED448_SIG_SIZE)
+        return BAD_FUNC_ARG;
+    /* Check S is not larger than or equal to order. */
+    for (i = (int)sizeof(ed448_order) - 1; i >= 0; i--) {
+        /* Bigger than order. */
+        if (sig[ED448_SIG_SIZE/2 + i] > ed448_order[i])
+            return BAD_FUNC_ARG;
+        /* Less than order. */
+        if (sig[ED448_SIG_SIZE/2 + i] < ed448_order[i])
+            break;
+    }
+    /* Same value as order. */
+    if (i == -1)
         return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */

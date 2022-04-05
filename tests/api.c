@@ -16259,7 +16259,7 @@ static int test_wc_ChaCha20Poly1305_aead (void)
                     sizeof(plaintext), generatedCiphertext, generatedAuthTag);
     AssertIntEQ(ret,  BAD_FUNC_ARG);
     ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
-                    plaintext, 0, generatedCiphertext, generatedAuthTag);
+                NULL, sizeof(plaintext), generatedCiphertext, generatedAuthTag);
     AssertIntEQ(ret,  BAD_FUNC_ARG);
     ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
                     plaintext, sizeof(plaintext), NULL, generatedAuthTag);
@@ -16298,8 +16298,8 @@ static int test_wc_ChaCha20Poly1305_aead (void)
     ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
                                                 sizeof(cipher), authTag, NULL);
     AssertIntEQ(ret,  BAD_FUNC_ARG);
-    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
-                                                0, authTag, generatedPlaintext);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), NULL,
+                                   sizeof(cipher), authTag, generatedPlaintext);
     AssertIntEQ(ret,  BAD_FUNC_ARG);
     if (ret == BAD_FUNC_ARG) {
         ret = 0;

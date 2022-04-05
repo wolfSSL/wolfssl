@@ -5069,6 +5069,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
+    if (a->sign == FP_NEG)
+        return FP_VAL;
 
     if (fp_isone(a)) {
         *result = FP_NO;
@@ -5107,12 +5109,14 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         byte*  base;
     #endif
         word32 baseSz;
+        word32 bitSz;
         int    err;
 
-        baseSz = fp_count_bits(a);
+        bitSz = fp_count_bits(a);
         /* The base size is the number of bits / 8. One is added if the number
          * of bits isn't an even 8. */
-        baseSz = (baseSz / 8) + ((baseSz % 8) ? 1 : 0);
+        baseSz = (bitSz / 8) + ((bitSz % 8) ? 1 : 0);
+        bitSz %= 8;
 
     #ifndef WOLFSSL_SMALL_STACK
         if (baseSz > sizeof(base))
@@ -5152,6 +5156,9 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             #endif
                return err;
             }
+
+            if (bitSz != 0)
+                base[0] &= (1 << bitSz) - 1;
 
             err = fp_read_unsigned_bin(b, base, baseSz);
             if (err != FP_OKAY) {

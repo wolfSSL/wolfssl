@@ -59,8 +59,8 @@
 static void ge_p2_0(ge_p2 *h);
 #ifndef CURVED25519_ASM
 static void ge_precomp_0(ge_precomp *h);
-#endif
 static void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p);
+#endif
 static WC_INLINE void ge_p3_to_cached(ge_cached *r,const ge_p3 *p);
 static void ge_p1p1_to_p2(ge_p2 *r,const ge_p1p1 *p);
 static WC_INLINE void ge_p1p1_to_p3(ge_p3 *r,const ge_p1p1 *p);
@@ -9725,9 +9725,13 @@ r = 2 * p
 
 static void ge_p3_dbl(ge_p1p1 *r,const ge_p3 *p)
 {
-  ge_p2 q;
-  ge_p3_to_p2(&q,p);
-  ge_p2_dbl(r,&q);
+#ifndef CURVED25519_ASM
+    ge_p2 q;
+    ge_p3_to_p2(&q,p);
+    ge_p2_dbl(r,&q);
+#else
+    fe_ge_dbl(r->X, r->Y, r->Z, r->T, p->X, p->Y, p->Z);
+#endif
 }
 
 
@@ -9772,12 +9776,14 @@ static WC_INLINE void ge_p3_to_cached(ge_cached *r,const ge_p3 *p)
 r = p
 */
 
+#ifndef CURVED25519_ASM
 static void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p)
 {
   fe_copy(r->X,p->X);
   fe_copy(r->Y,p->Y);
   fe_copy(r->Z,p->Z);
 }
+#endif
 
 
 /* ge p3 tobytes */

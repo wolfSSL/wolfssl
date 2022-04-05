@@ -329,12 +329,14 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
  */
 
 /* Mask Generation Function Identifiers */
-#define WC_MGF1NONE   0
-#define WC_MGF1SHA1   26
-#define WC_MGF1SHA224 4
-#define WC_MGF1SHA256 1
-#define WC_MGF1SHA384 2
-#define WC_MGF1SHA512 3
+#define WC_MGF1NONE       0
+#define WC_MGF1SHA1       26
+#define WC_MGF1SHA224     4
+#define WC_MGF1SHA256     1
+#define WC_MGF1SHA384     2
+#define WC_MGF1SHA512     3
+#define WC_MGF1SHA512_224 5
+#define WC_MGF1SHA512_256 6
 
 /* Padding types */
 #define WC_RSA_PKCSV15_PAD 0
