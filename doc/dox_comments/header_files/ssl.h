@@ -5554,8 +5554,9 @@ int  wolfSSL_state(WOLFSSL* ssl);
     \brief This function gets the peer’s certificate.
 
     \return pointer a pointer to the peerCert member of the WOLFSSL_X509
-    structure if it exists.
-    \return 0 returned if the peer certificate issuer size is not defined.
+    structure if it exists and the authentication completed successfully.
+    \return NULL returned if the peer certificate issuer size is not defined or
+    if the authentication did not complete successfully.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 

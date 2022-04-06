@@ -18420,14 +18420,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 #endif /* (KEEP_PEER_CERT & SESSION_CERTS) || (OPENSSL_EXTRA & SESSION_CERTS) */
 
-
 #ifdef KEEP_PEER_CERT
     WOLFSSL_ABI
     WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
     {
         WOLFSSL_X509* ret = NULL;
         WOLFSSL_ENTER("SSL_get_peer_certificate");
-        if (ssl != NULL) {
+        if (ssl != NULL && ssl->options.handShakeState == HANDSHAKE_DONE
+            && ssl->options.peerAuthGood) {
             if (ssl->peerCert.issuer.sz)
                 ret = wolfSSL_X509_dup(&ssl->peerCert);
 #ifdef SESSION_CERTS
