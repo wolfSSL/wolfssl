@@ -38,7 +38,7 @@
     \sa wc_ed448_import_private_only
     \sa wc_ed448_make_key
 */
-WOLFSSL_API
+
 int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
                          word32 pubKeySz);
 
@@ -76,7 +76,7 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
 
     \sa wc_ed448_init
 */
-WOLFSSL_API
+
 int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
 
 /*!
@@ -123,7 +123,7 @@ int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
     \sa wc_ed448ph_sign_msg
     \sa wc_ed448_verify_msg
 */
-WOLFSSL_API
+
 int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outlen, ed448_key* key);
 
@@ -179,7 +179,7 @@ int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
     \sa wc_ed448ph_sign_msg
     \sa wc_ed448ph_verify_hash
 */
-WOLFSSL_API
+
 int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
                          word32 *outLen, ed448_key* key,
                          const byte* context, byte contextLen);
@@ -234,7 +234,7 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
     \sa wc_ed448ph_sign_hash
     \sa wc_ed448ph_verify_msg
 */
-WOLFSSL_API
+
 int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out,
                         word32 *outLen, ed448_key* key, const byte* context,
                         byte contextLen);
@@ -286,7 +286,7 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out,
     \sa wc_ed448ph_verify_msg
     \sa wc_ed448_sign_msg
 */
-WOLFSSL_API
+
 int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           word32 msgLen, int* res, ed448_key* key,
                           const byte* context, byte contextLen);
@@ -341,7 +341,7 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \sa wc_ed448ph_verify_msg
     \sa wc_ed448ph_sign_hash
 */
-WOLFSSL_API
+
 int wc_ed448ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                           word32 hashlen, int* res, ed448_key* key,
                           const byte* context, byte contextLen);
@@ -394,7 +394,7 @@ int wc_ed448ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     \sa wc_ed448ph_verify_hash
     \sa wc_ed448ph_sign_msg
 */
-WOLFSSL_API
+
 int wc_ed448ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           word32 msgLen, int* res, ed448_key* key,
                           const byte* context, byte contextLen);
@@ -419,7 +419,7 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \sa wc_ed448_make_key
     \sa wc_ed448_free
 */
-WOLFSSL_API
+
 int wc_ed448_init(ed448_key* key);
 
 /*!
@@ -439,7 +439,7 @@ int wc_ed448_init(ed448_key* key);
 
     \sa wc_ed448_init
 */
-WOLFSSL_API
+
 void wc_ed448_free(ed448_key* key);
 
 /*!
@@ -474,7 +474,7 @@ void wc_ed448_free(ed448_key* key);
     \sa wc_ed448_import_private_key
     \sa wc_ed448_export_public
 */
-WOLFSSL_API
+
 int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
 
 /*!
@@ -509,7 +509,7 @@ int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
     \sa wc_ed448_import_private_key
     \sa wc_ed448_export_private_only
 */
-WOLFSSL_API
+
 int wc_ed448_import_private_only(const byte* priv, word32 privSz,
                                  ed448_key* key);
 
@@ -551,7 +551,7 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
     \sa wc_ed448_import_private_only
     \sa wc_ed448_export_private
 */
-WOLFSSL_API
+
 int wc_ed448_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed448_key* key);
 
@@ -593,8 +593,8 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
     \sa wc_ed448_import_public
     \sa wc_ed448_export_private_only
 */
-WOLFSSL_API
-int wc_ed448_export_public(ed448_key*, byte* out, word32* outLen);
+
+int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ED448
@@ -632,7 +632,7 @@ int wc_ed448_export_public(ed448_key*, byte* out, word32* outLen);
     \sa wc_ed448_export_public
     \sa wc_ed448_import_private_key
 */
-WOLFSSL_API
+
 int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
 
 /*!
@@ -675,7 +675,7 @@ int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_import_private
     \sa wc_ed448_export_private_only
 */
-WOLFSSL_API
+
 int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
 
 /*!
@@ -722,7 +722,7 @@ int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
     \sa wc_ed448_export_private
     \sa wc_ed448_export_public
 */
-WOLFSSL_API
+
 int wc_ed448_export_key(ed448_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
@@ -756,7 +756,7 @@ int wc_ed448_export_key(ed448_key* key,
 
     \sa wc_ed448_import_private_key
 */
-WOLFSSL_API
+
 int wc_ed448_check_key(ed448_key* key);
 
 
@@ -784,7 +784,7 @@ int wc_ed448_check_key(ed448_key* key);
 
     \sa wc_ed448_make_key
 */
-WOLFSSL_API
+
 int wc_ed448_size(ed448_key* key);
 
 /*!
@@ -813,7 +813,7 @@ int wc_ed448_size(ed448_key* key);
 
     \sa wc_ed448_pub_size
 */
-WOLFSSL_API
+
 int wc_ed448_priv_size(ed448_key* key);
 
 /*!
@@ -840,7 +840,7 @@ int wc_ed448_priv_size(ed448_key* key);
 
     \sa wc_ed448_priv_size
 */
-WOLFSSL_API
+
 int wc_ed448_pub_size(ed448_key* key);
 
 /*!
@@ -868,5 +868,5 @@ int wc_ed448_pub_size(ed448_key* key);
 
     \sa wc_ed448_sign_msg
 */
-WOLFSSL_API
+
 int wc_ed448_sig_size(ed448_key* key);

@@ -20,7 +20,7 @@
 
     \sa wolfSSL_EVP_CIPHER_CTX_init
 */
-WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
 
 /*!
     \ingroup openSSL
@@ -43,7 +43,7 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
 
     \sa wolfSSL_EVP_CIPHER_CTX_init
 */
-WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
 
 /*!
     \ingroup openSSL
@@ -77,7 +77,7 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
     \sa wolfCrypt_Init
     \sa wolfSSL_EVP_MD_CTX_free
 */
-WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
                                      WOLFSSL_ENGINE *impl);
 
@@ -122,7 +122,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
     \sa wolfCrypt_Init
     \sa wolfSSL_EVP_CIPHER_CTX_free
 */
-WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
                                     const unsigned char* key,
@@ -163,7 +163,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     \sa wolfCrypt_Init
     \sa wolfSSL_EVP_CIPHER_CTX_free
 */
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
                                     const unsigned char* key,
@@ -212,7 +212,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     \sa wolfCrypt_Init
     \sa wolfSSL_EVP_CIPHER_CTX_free
 */
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
                                     const unsigned char* key,
@@ -254,7 +254,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     \sa wolfCrypt_Init
     \sa wolfSSL_EVP_CIPHER_CTX_free
 */
-WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl);
 
@@ -286,7 +286,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     \sa wolfSSL_EVP_CIPHER_CTX_new
 */
-WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl);
 
 /*!
@@ -310,7 +310,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     \sa wolfSSL_EVP_CIPHER_flags
 */
-WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                                      int keylen);
 
 /*!
@@ -331,7 +331,7 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* c
 
     \sa wolfSSL_EVP_CIPHER_block_size
 */
-WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 
 /*!
     \ingroup openSSL
@@ -350,7 +350,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *
 
     \sa wolfSSL_EVP_aes_256_ctr
 */
-WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
+int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
 
 /*!
     \ingroup openSSL
@@ -373,7 +373,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
     \sa wolfSSL_EVP_CIPHER_flags
     \sa wolfSSL_EVP_CIPHER_CTX_flags
 */
-WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
+void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 
 /*!
     \ingroup openSSL
@@ -396,7 +396,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, i
     \sa wolfSSL_EVP_CIPHER_flags
     \sa wolfSSL_EVP_CIPHER_CTX_flags
 */
-WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
+void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 
 /*!
     \ingroup openSSL
@@ -418,7 +418,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     \sa wolfSSL_EVP_CIPHER_CTX_new
 */
-WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
+int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
 
 
 /*!
@@ -441,4 +441,4 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, i
     \sa wolfSSL_EVP_CIPHER_CTX_new
     \sa wolfSSL_EVP_CIPHER_flags
 */
-WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);

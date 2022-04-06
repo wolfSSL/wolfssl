@@ -27,7 +27,7 @@
 
     \sa wolfSSL_PEM_read_bio_X509_AUX
 */
-WOLFSSL_API
+
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                                         const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,

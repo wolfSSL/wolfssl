@@ -24,7 +24,7 @@
     \sa wc_Md2Update
     \sa wc_Md2Final
 */
-WOLFSSL_API void wc_InitMd2(Md2*);
+void wc_InitMd2(Md2*);
 
 /*!
     \ingroup MD2
@@ -57,7 +57,7 @@ WOLFSSL_API void wc_InitMd2(Md2*);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
+void wc_Md2Update(Md2* md2, const byte* data, word32 len);
 
 /*!
     \ingroup MD2
@@ -88,7 +88,7 @@ WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-WOLFSSL_API void wc_Md2Final(Md2*, byte*);
+void wc_Md2Final(Md2* md2, byte* hash);
 
 /*!
     \ingroup MD2
@@ -113,4 +113,4 @@ WOLFSSL_API void wc_Md2Final(Md2*, byte*);
     \sa wc_Md2Final
     \sa wc_InitMd2
 */
-WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
+int  wc_Md2Hash(const byte* data, word32 len, byte* hash);

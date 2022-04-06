@@ -29,7 +29,7 @@
     \sa XFREE
     \sa XREALLOC
 */
-WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
+void* wolfSSL_Malloc(size_t size, void* heap, int type);
 
 /*!
     \ingroup Memory
@@ -65,7 +65,7 @@ WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \sa XFREE
     \sa XREALLOC
 */
-WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type);
+void  wolfSSL_Free(void *ptr, void* heap, int type);
 
 /*!
     \ingroup Memory
@@ -101,7 +101,7 @@ WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type);
     \sa XFREE
     \sa XREALLOC
 */
-WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
+void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
 
 /*!
     \ingroup Memory
@@ -148,7 +148,7 @@ WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
 
     \sa none
 */
-WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
+int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
                                       wolfSSL_Free_cb,
                                       wolfSSL_Realloc_cb);
 
@@ -184,7 +184,7 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
     \sa wolfSSL_Malloc
     \sa wolfSSL_Free
 */
-WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
+int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
 
 /*!
     \ingroup Memory
@@ -216,4 +216,4 @@ WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     \sa wolfSSL_Malloc
     \sa wolfSSL_Free
 */
-WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
+int wolfSSL_MemoryPaddingSz(void);

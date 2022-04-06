@@ -49,7 +49,7 @@
     \sa wc_ecc_init
     \sa wc_ecc_shared_secret
 */
-WOLFSSL_API
+
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 
 /*!
@@ -110,7 +110,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     \sa wc_ecc_make_key
     \sa wc_ecc_get_curve_size_from_id
 */
-WOLFSSL_API
+
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 
 /*!
@@ -146,7 +146,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 
     \sa wc_ecc_point_is_at_infinity
 */
-WOLFSSL_API
+
 int wc_ecc_check_key(ecc_key* key);
 
 /*!
@@ -167,7 +167,7 @@ int wc_ecc_check_key(ecc_key* key);
     \sa wc_ecc_key_new
     \sa wc_ecc_init_ex
 */
-WOLFSSL_API
+
 void wc_ecc_key_free(ecc_key* key);
 
 /*!
@@ -242,7 +242,7 @@ void wc_ecc_key_free(ecc_key* key);
     \sa wc_ecc_init
     \sa wc_ecc_make_key
 */
-WOLFSSL_API
+
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 
@@ -288,7 +288,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
     \sa wc_ecc_verify_hash_ex
 */
-WOLFSSL_API
+
 int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
 
@@ -357,7 +357,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 
     \sa wc_ecc_verify_hash
 */
-WOLFSSL_API
+
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                      WC_RNG* rng, ecc_key* key);
 
@@ -428,7 +428,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
     \sa wc_ecc_verify_hash_ex
 */
-WOLFSSL_API
+
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
 
@@ -496,7 +496,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     \sa wc_ecc_sign_hash
     \sa wc_ecc_verify_hash_ex
 */
-WOLFSSL_API
+
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
 
@@ -535,7 +535,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     \sa wc_ecc_verify_hash
 */
-WOLFSSL_API
+
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                           word32 hashlen, int* stat, ecc_key* key);
 
@@ -559,7 +559,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     \sa wc_ecc_make_key
     \sa wc_ecc_free
 */
-WOLFSSL_API
+
 int wc_ecc_init(ecc_key* key);
 
 /*!
@@ -585,7 +585,7 @@ int wc_ecc_init(ecc_key* key);
     \sa wc_ecc_free
     \sa wc_ecc_init
 */
-WOLFSSL_API
+
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 
 /*!
@@ -607,7 +607,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
     \sa wc_ecc_key_free
     \sa wc_ecc_init
 */
-WOLFSSL_API
+
 ecc_key* wc_ecc_key_new(void* heap);
 
 /*!
@@ -628,7 +628,7 @@ ecc_key* wc_ecc_key_new(void* heap);
 
     \sa wc_ecc_init
 */
-WOLFSSL_API
+
 int wc_ecc_free(ecc_key* key);
 
 /*!
@@ -653,7 +653,7 @@ int wc_ecc_free(ecc_key* key);
 
     \sa wc_ecc_free
 */
-WOLFSSL_API
+
 void wc_ecc_fp_free(void);
 
 /*!
@@ -687,7 +687,7 @@ void wc_ecc_fp_free(void);
 
     \sa none
 */
-WOLFSSL_API
+
 int wc_ecc_is_valid_idx(int n);
 
 /*!
@@ -715,7 +715,7 @@ int wc_ecc_is_valid_idx(int n);
     \sa wc_ecc_cmp_point
     \sa wc_ecc_copy_point
 */
-WOLFSSL_API
+
 ecc_point* wc_ecc_new_point(void);
 
 /*!
@@ -743,7 +743,7 @@ ecc_point* wc_ecc_new_point(void);
     \sa wc_ecc_cmp_point
     \sa wc_ecc_copy_point
 */
-WOLFSSL_API
+
 void wc_ecc_del_point(ecc_point* p);
 
 /*!
@@ -776,7 +776,7 @@ void wc_ecc_del_point(ecc_point* p);
     \sa wc_ecc_cmp_point
     \sa wc_ecc_del_point
 */
-WOLFSSL_API
+
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 
 /*!
@@ -819,7 +819,7 @@ int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
     \sa wc_ecc_del_point
     \sa wc_ecc_copy_point
 */
-WOLFSSL_API
+
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 
 /*!
@@ -860,7 +860,7 @@ int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
     \sa wc_ecc_cmp_point
     \sa wc_ecc_copy_point
 */
-WOLFSSL_API
+
 int wc_ecc_point_is_at_infinity(ecc_point *p);
 
 /*!
@@ -894,7 +894,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
 
     \sa none
 */
-WOLFSSL_API
+
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
 
@@ -960,8 +960,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
     \sa wc_ecc_export_x963_ex
     \sa wc_ecc_import_x963
 */
-WOLFSSL_API
-int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+
+int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 
 /*!
     \ingroup ECC
@@ -1031,8 +1031,8 @@ int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
     \sa wc_ecc_export_x963
     \sa wc_ecc_import_x963
 */
-WOLFSSL_API
-int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
+
+int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed);
 
 /*!
     \ingroup ECC
@@ -1094,7 +1094,7 @@ int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
     \sa wc_ecc_export_x963
     \sa wc_ecc_import_private_key
 */
-WOLFSSL_API
+
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 
 /*!
@@ -1163,7 +1163,7 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
     \sa wc_ecc_export_x963
     \sa wc_ecc_import_private_key
 */
-WOLFSSL_API
+
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 
@@ -1229,7 +1229,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     \sa wc_ecc_sign_hash
     \sa wc_ecc_sig_size
 */
-WOLFSSL_API
+
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 
 /*!
@@ -1294,7 +1294,7 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 
     \sa wc_ecc_import_private_key
 */
-WOLFSSL_API
+
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 
@@ -1357,7 +1357,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 
     \sa wc_ecc_import_private_key
 */
-WOLFSSL_API
+
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 /*!
@@ -1389,7 +1389,7 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
     \sa wc_ecc_import_point_der
 */
-WOLFSSL_API
+
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
 
@@ -1421,7 +1421,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
 
     \sa wc_ecc_export_point_der
 */
-WOLFSSL_API
+
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 
@@ -1449,7 +1449,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
     \sa wc_ecc_make_key
 */
-WOLFSSL_API
+
 int wc_ecc_size(ecc_key* key);
 
 /*!
@@ -1475,7 +1475,7 @@ int wc_ecc_size(ecc_key* key);
     \sa wc_ecc_sign_hash
     \sa wc_ecc_sig_size
 */
-WOLFSSL_API
+
 int wc_ecc_sig_size_calc(int sz);
 
 
@@ -1508,7 +1508,7 @@ int wc_ecc_sig_size_calc(int sz);
     \sa wc_ecc_sign_hash
     \sa wc_ecc_sig_size_calc
 */
-WOLFSSL_API
+
 int wc_ecc_sig_size(ecc_key* key);
 
 
@@ -1542,7 +1542,7 @@ int wc_ecc_sig_size(ecc_key* key);
     \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
 */
-WOLFSSL_API
+
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 
 /*!
@@ -1568,7 +1568,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 
     \sa wc_ecc_ctx_new
 */
-WOLFSSL_API
+
 void wc_ecc_ctx_free(ecEncCtx*);
 
 /*!
@@ -1599,8 +1599,8 @@ void wc_ecc_ctx_free(ecEncCtx*);
 
     \sa wc_ecc_ctx_new
 */
-WOLFSSL_API
-int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free */
+
+int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
 
 /*!
     \ingroup ECC
@@ -1630,7 +1630,7 @@ int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free
 
     \sa wc_ecc_ctx_new
 */
-WOLFSSL_API
+
 int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     byte macAlgo);
 
@@ -1665,7 +1665,7 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
     \sa wc_ecc_ctx_new
     \sa wc_ecc_ctx_set_peer_salt
 */
-WOLFSSL_API
+
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
 
 /*!
@@ -1703,8 +1703,8 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
 
     \sa wc_ecc_ctx_get_own_salt
 */
-WOLFSSL_API
-int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
+
+int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
 /*!
     \ingroup ECC
@@ -1734,8 +1734,8 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
 
     \sa wc_ecc_ctx_new
 */
-WOLFSSL_API
-int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
+
+int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
 
 /*!
     \ingroup ECC
@@ -1795,7 +1795,7 @@ int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
     \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
 */
-WOLFSSL_API
+
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
@@ -1859,7 +1859,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \sa wc_ecc_encrypt
     \sa wc_ecc_decrypt
 */
-WOLFSSL_API
+
 int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
 
@@ -1922,7 +1922,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \sa wc_ecc_encrypt
     \sa wc_ecc_encrypt_ex
 */
-WOLFSSL_API
+
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
@@ -1967,4 +1967,4 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 */
-WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
+int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);

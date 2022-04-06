@@ -34,7 +34,7 @@
     \sa wc_HmacUpdate
     \sa wc_HmacFinal
 */
-WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
+int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
 
 /*!
     \ingroup HMAC
@@ -70,7 +70,7 @@ WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
     \sa wc_HmacSetKey
     \sa wc_HmacFinal
 */
-WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
+int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
 
 /*!
     \ingroup HMAC
@@ -101,7 +101,7 @@ WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
     \sa wc_HmacSetKey
     \sa wc_HmacUpdate
 */
-WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
+int wc_HmacFinal(Hmac* hmac, byte* out);
 
 /*!
     \ingroup HMAC
@@ -121,7 +121,7 @@ WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
 
     \sa none
 */
-WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
+int wolfSSL_GetHmacMaxSize(void);
 
 /*!
     \ingroup HMAC
@@ -169,7 +169,7 @@ WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
     \sa wc_HmacSetKey
 */
-WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     const byte* salt, word32 saltSz,
                     const byte* info, word32 infoSz,
                     byte* out, word32 outSz);

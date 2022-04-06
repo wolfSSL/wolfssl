@@ -38,7 +38,7 @@
 
     \sa wc_curve25519_init
 */
-WOLFSSL_API
+
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
 
 /*!
@@ -83,7 +83,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
     \sa wc_curve25519_make_key
     \sa wc_curve25519_shared_secret_ex
 */
-WOLFSSL_API
+
 int wc_curve25519_shared_secret(curve25519_key* private_key,
                                 curve25519_key* public_key,
                                 byte* out, word32* outlen);
@@ -134,7 +134,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
     \sa wc_curve25519_make_key
     \sa wc_curve25519_shared_secret
 */
-WOLFSSL_API
+
 int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian);
@@ -160,7 +160,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 
     \sa wc_curve25519_make_key
 */
-WOLFSSL_API
+
 int wc_curve25519_init(curve25519_key* key);
 
 /*!
@@ -180,7 +180,7 @@ int wc_curve25519_init(curve25519_key* key);
     \sa wc_curve25519_init
     \sa wc_curve25519_make_key
 */
-WOLFSSL_API
+
 void wc_curve25519_free(curve25519_key* key);
 
 /*!
@@ -214,7 +214,7 @@ void wc_curve25519_free(curve25519_key* key);
     \sa wc_curve25519_import_private_ex
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_import_private(const byte* priv, word32 privSz,
                                  curve25519_key* key);
 
@@ -253,7 +253,7 @@ int wc_curve25519_import_private(const byte* priv, word32 privSz,
     \sa wc_curve25519_import_private
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
                                     curve25519_key* key, int endian);
 
@@ -299,7 +299,7 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
     \sa wc_curve25519_import_public
     \sa wc_curve25519_export_private_raw
 */
-WOLFSSL_API
+
 int wc_curve25519_import_private_raw(const byte* priv, word32 privSz,
                             const byte* pub, word32 pubSz, curve25519_key* key);
 
@@ -346,7 +346,7 @@ int wc_curve25519_import_private_raw(const byte* priv, word32 privSz,
     \sa wc_curve25519_export_private_raw
     \sa wc_curve25519_import_private_raw
 */
-WOLFSSL_API
+
 int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
                                         const byte* pub, word32 pubSz,
                                         curve25519_key* key, int endian);
@@ -388,7 +388,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
     \sa wc_curve25519_import_private_raw
     \sa wc_curve25519_export_private_raw_ex
 */
-WOLFSSL_API
+
 int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
                                      word32* outLen);
 
@@ -432,7 +432,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
     \sa wc_curve25519_export_private_raw
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
                                         word32* outLen, int endian);
 
@@ -476,7 +476,7 @@ int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
     \sa wc_curve25519_check_public
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_import_public(const byte* in, word32 inLen,
                                 curve25519_key* key);
 
@@ -522,7 +522,7 @@ int wc_curve25519_import_public(const byte* in, word32 inLen,
     \sa wc_curve25519_check_public
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                    curve25519_key* key, int endian);
 
@@ -558,7 +558,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
     \sa wc_curve25519_import_public_ex
     \sa wc_curve25519_size
 */
-WOLFSSL_API
+
 int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
 
 /*!
@@ -598,7 +598,7 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
     \sa wc_curve25519_export_private_raw
     \sa wc_curve25519_import_public
 */
-WOLFSSL_API
+
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
 
 /*!
@@ -641,7 +641,7 @@ int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
     \sa wc_curve25519_export_private_raw
     \sa wc_curve25519_import_public
 */
-WOLFSSL_API
+
 int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
                                    word32* outLen, int endian);
 
@@ -686,7 +686,7 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
     \sa wc_curve25519_export_key_raw_ex
     \sa wc_curve25519_export_private_raw
 */
-WOLFSSL_API
+
 int wc_curve25519_export_key_raw(curve25519_key* key,
                                  byte* priv, word32 *privSz,
                                  byte* pub, word32 *pubSz);
@@ -736,7 +736,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
     \sa wc_curve25519_export_private_raw_ex
     \sa wc_curve25519_export_public_ex
 */
-WOLFSSL_API
+
 int wc_curve25519_export_key_raw_ex(curve25519_key* key,
                                     byte* priv, word32 *privSz,
                                     byte* pub, word32 *pubSz,
@@ -767,5 +767,5 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
     \sa wc_curve25519_init
     \sa wc_curve25519_make_key
 */
-WOLFSSL_API
+
 int wc_curve25519_size(curve25519_key* key);

@@ -29,7 +29,7 @@
     \sa wc_AesSetKeyDirect
     \sa wc_AesSetIV
 */
-WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
+int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir);
 
 /*!
@@ -59,7 +59,7 @@ WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
     \sa wc_AesSetKeyDirect
     \sa wc_AesSetKey
 */
-WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
+int  wc_AesSetIV(Aes* aes, const byte* iv);
 
 /*!
     \ingroup AES
@@ -107,7 +107,7 @@ WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
     \sa wc_AesSetIV
     \sa wc_AesCbcDecrypt
 */
-WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
+int  wc_AesCbcEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
 /*!
@@ -156,7 +156,7 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
     \sa wc_AesSetKey
     \sa wc_AesCbcEncrypt
 */
-WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
+int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
 /*!
@@ -201,7 +201,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
 
     \sa wc_AesSetKey
 */
-WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
+int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
@@ -235,7 +235,7 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKeyDirect
 */
-WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
@@ -269,7 +269,7 @@ WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     \sa wc_AesEncryptDirect
     \sa wc_AesSetKeyDirect
  */
-WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
@@ -309,7 +309,7 @@ WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKey
 */
-WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 
 /*!
@@ -339,7 +339,7 @@ WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
     \sa wc_AesGcmEncrypt
     \sa wc_AesGcmDecrypt
 */
-WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 
 /*!
     \ingroup AES
@@ -384,7 +384,7 @@ WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmDecrypt
 */
-WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
+int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    byte* authTag, word32 authTagSz,
@@ -433,7 +433,7 @@ WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmEncrypt
 */
-WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
+int  wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
@@ -460,7 +460,7 @@ WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
 
     \sa wc_GmacUpdate
 */
-WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
+int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
 
 /*!
     \ingroup AES
@@ -496,7 +496,7 @@ WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
 
     \sa wc_GmacSetKey
 */
-WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
                                byte* authTag, word32 authTagSz);
 
@@ -523,7 +523,7 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
     \sa wc_AesCcmEncrypt
     \sa wc_AesCcmDecrypt
 */
-WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
+int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
 
 /*!
     \ingroup AES
@@ -568,7 +568,7 @@ WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmDecrypt
 */
-WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
+int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    byte* authTag, word32 authTagSz,
@@ -623,7 +623,7 @@ WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmEncrypt
 */
-WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
+int  wc_AesCcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    const byte* authTag, word32 authTagSz,
@@ -661,7 +661,7 @@ WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     \sa wc_AesXtsDecrypt
     \sa wc_AesXtsFree
 */
-WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
+int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
          word32 len, int dir, void* heap, int devId);
 
 /*!
@@ -700,7 +700,7 @@ WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
-WOLFSSL_API int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
+int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
 
 /*!
@@ -739,7 +739,7 @@ WOLFSSL_API int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
-WOLFSSL_API int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
+int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
 
 /*!
@@ -779,7 +779,7 @@ WOLFSSL_API int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
-WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
+int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
          const byte* in, word32 sz, const byte* i, word32 iSz);
 
 /*!
@@ -818,7 +818,7 @@ WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
     \sa wc_AesXtsSetKey
     \sa wc_AesXtsFree
 */
-WOLFSSL_API int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
+int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
         const byte* in, word32 sz, const byte* i, word32 iSz);
 
 /*!
@@ -845,7 +845,7 @@ WOLFSSL_API int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
     \sa wc_AesXtsDecrypt
     \sa wc_AesXtsSetKey
 */
-WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
+int wc_AesXtsFree(XtsAes* aes);
 
 
 /*!
@@ -872,7 +872,7 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
     \sa wc_AesSetKey
     \sa wc_AesSetIV
 */
-WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
+int  wc_AesInit(Aes* aes, void* heap, int devId);
 
 /*!
     \ingroup AES
@@ -904,7 +904,7 @@ WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
     \sa wc_AesCfbDecrypt
     \sa wc_AesSetKey
 */
-WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 
 /*!
     \ingroup AES
@@ -936,7 +936,7 @@ WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     \sa wc_AesCfbEncrypt
     \sa wc_AesSetKey
 */
-WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 
 /*!
     \ingroup AES
@@ -980,7 +980,7 @@ WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     \sa wc_AesSivDecrypt
 */
 
-WOLFSSL_API
+
 int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out);
@@ -1027,7 +1027,7 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
 
     \sa wc_AesSivEncrypt
 */
-WOLFSSL_API
+
 int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out);

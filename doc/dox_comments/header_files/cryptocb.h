@@ -85,7 +85,7 @@
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_SetDevId
 */
-WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
+int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 
 /*!
     \ingroup CryptoCb
@@ -108,4 +108,4 @@ WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb,
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_SetDevId
 */
-WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
+void wc_CryptoCb_UnRegisterDevice(int devId);

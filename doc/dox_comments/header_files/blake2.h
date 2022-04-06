@@ -19,7 +19,7 @@
 
     \sa wc_Blake2bUpdate
 */
-WOLFSSL_API int wc_InitBlake2b(Blake2b*, word32);
+int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
 
 /*!
     \ingroup BLAKE2
@@ -54,7 +54,7 @@ WOLFSSL_API int wc_InitBlake2b(Blake2b*, word32);
     \sa wc_InitBlake2b
     \sa wc_Blake2bFinal
 */
-WOLFSSL_API int wc_Blake2bUpdate(Blake2b*, const byte*, word32);
+int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
 
 /*!
     \ingroup BLAKE2
@@ -92,4 +92,4 @@ WOLFSSL_API int wc_Blake2bUpdate(Blake2b*, const byte*, word32);
     \sa wc_InitBlake2b
     \sa wc_Blake2bUpdate
 */
-WOLFSSL_API int wc_Blake2bFinal(Blake2b*, byte*, word32);
+int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz);

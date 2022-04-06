@@ -55,7 +55,7 @@
 
     \sa wc_PKCS7_Free
 */
-WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 
 /*!
     \ingroup PKCS7
@@ -76,7 +76,7 @@ WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 
     \sa wc_PKCS7_InitWithCert
 */
-WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
+void wc_PKCS7_Free(PKCS7* pkcs7);
 
 /*!
     \ingroup PKCS7
@@ -119,7 +119,7 @@ WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
 
     \sa wc_PKCS7_InitWithCert
 */
-WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
+int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /*!
@@ -197,7 +197,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData
 */
-WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 
 /*!
@@ -297,7 +297,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData_ex
 */
-WOLFSSL_API int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
     word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
     word32* outputFootSz);
 
@@ -375,7 +375,7 @@ WOLFSSL_API int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData
 */
-WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
+int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
 
 
@@ -475,7 +475,7 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData_ex
 */
-WOLFSSL_API int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
     word32 pkiMsgFootSz);
 
@@ -530,7 +530,7 @@ WOLFSSL_API int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_DecodeEnvelopedData
 */
-WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
+int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 
 /*!
@@ -608,6 +608,6 @@ WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeEnvelopedData
 */
-WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);

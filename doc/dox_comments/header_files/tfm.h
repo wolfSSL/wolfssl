@@ -26,4 +26,4 @@
 
     \sa CheckRunTimeSettings
 */
-WOLFSSL_API word32 CheckRunTimeFastMath(void);
+word32 CheckRunTimeFastMath(void);

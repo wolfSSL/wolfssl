@@ -19,7 +19,7 @@
     \sa wolfIoTSafe_SetCSIM_read_cb
     \sa wolfIoTSafe_SetCSIM_write_cb
 */
-WOLFSSL_API int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx);
+int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx);
 
 
 /*!
@@ -61,7 +61,7 @@ WOLFSSL_API int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx);
     \sa wolfSSL_iotsafe_on_ex
     \sa wolfSSL_CTX_iotsafe_enable
 */
-WOLFSSL_API int wolfSSL_iotsafe_on(WOLFSSL *ssl, byte privkey_id,
+int wolfSSL_iotsafe_on(WOLFSSL *ssl, byte privkey_id,
        byte ecdh_keypair_slot, byte peer_pubkey_slot, byte peer_cert_slot);
 
 
@@ -114,7 +114,7 @@ WOLFSSL_API int wolfSSL_iotsafe_on(WOLFSSL *ssl, byte privkey_id,
     \sa wolfSSL_iotsafe_on
     \sa wolfSSL_CTX_iotsafe_enable
 */
-WOLFSSL_API int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
+int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
        byte *ecdh_keypair_slot, byte *peer_pubkey_slot, byte *peer_cert_slot, word16 id_size);
 
 
@@ -141,7 +141,7 @@ WOLFSSL_API int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
 
     \sa wolfIoTSafe_SetCSIM_write_cb
 */
-WOLFSSL_API void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
+void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
 
 /*!
     \ingroup IoTSafe
@@ -161,7 +161,7 @@ WOLFSSL_API void wolfIoTSafe_SetCSIM_read_cb(wolfSSL_IOTSafe_CSIM_read_cb rf);
 
     \sa wolfIoTSafe_SetCSIM_read_cb
 */
-WOLFSSL_API void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
+void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
 
 
 
@@ -175,7 +175,7 @@ WOLFSSL_API void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
     \return 0 upon success
 
 */
-WOLFSSL_API int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
+int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
 
 
 /*!
@@ -211,7 +211,7 @@ WOLFSSL_API int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
     \endcode
 
 */
-WOLFSSL_API int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned long sz);
+int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned long sz);
 
 
 /*!
@@ -254,7 +254,7 @@ WOLFSSL_API int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned 
     \endcode
 
 */
-WOLFSSL_API int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output, unsigned long sz);
+int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output, unsigned long sz);
 
 /*!
     \ingroup IoTSafe
@@ -271,7 +271,7 @@ WOLFSSL_API int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned cha
     \sa wc_iotsafe_ecc_export_private
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id);
+int wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id);
 
 /*!
     \ingroup IoTSafe
@@ -286,7 +286,7 @@ WOLFSSL_API int wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id);
     \sa wc_iotsafe_ecc_export_private
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_export_public(ecc_key *key, byte key_id);
+int wc_iotsafe_ecc_export_public(ecc_key *key, byte key_id);
 
 
 /*!
@@ -306,7 +306,7 @@ WOLFSSL_API int wc_iotsafe_ecc_export_public(ecc_key *key, byte key_id);
     \sa wc_iotsafe_ecc_export_private
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_import_public_ex(ecc_key *key, byte *key_id, word16 id_size);
+int wc_iotsafe_ecc_import_public_ex(ecc_key *key, byte *key_id, word16 id_size);
 
 /*!
     \ingroup IoTSafe
@@ -322,7 +322,7 @@ WOLFSSL_API int wc_iotsafe_ecc_import_public_ex(ecc_key *key, byte *key_id, word
     \sa wc_iotsafe_ecc_export_public
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_export_private(ecc_key *key, byte key_id);
+int wc_iotsafe_ecc_export_private(ecc_key *key, byte key_id);
 
 /*!
     \ingroup IoTSafe
@@ -342,7 +342,7 @@ WOLFSSL_API int wc_iotsafe_ecc_export_private(ecc_key *key, byte key_id);
     \sa wc_iotsafe_ecc_export_public
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, word16 id_size);
+int wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, word16 id_size);
 
 /*!
     \ingroup IoTSafe
@@ -363,7 +363,7 @@ WOLFSSL_API int wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, wor
     \sa wc_iotsafe_ecc_gen_k
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word32 *outlen, byte key_id);
+int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word32 *outlen, byte key_id);
 
 /*!
     \ingroup IoTSafe
@@ -386,7 +386,7 @@ WOLFSSL_API int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word
     \sa wc_iotsafe_ecc_gen_k
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, word32 *outlen, byte *key_id, word16 id_size);
+int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, word32 *outlen, byte *key_id, word16 id_size);
 
 /*!
     \ingroup IoTSafe
@@ -408,7 +408,7 @@ WOLFSSL_API int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, w
     \sa wc_iotsafe_ecc_gen_k
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte key_id);
+int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte key_id);
 
 /*!
     \ingroup IoTSafe
@@ -433,7 +433,7 @@ WOLFSSL_API int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash,
     \sa wc_iotsafe_ecc_gen_k
 
 */
-WOLFSSL_API int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte *key_id, word16 id_size);
+int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte *key_id, word16 id_size);
 
 /*!
     \ingroup IoTSafe
@@ -446,7 +446,7 @@ WOLFSSL_API int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *ha
     \sa wc_iotsafe_ecc_sign_hash
     \sa wc_iotsafe_ecc_verify_hash
 */
-WOLFSSL_API int wc_iotsafe_ecc_gen_k(byte key_id);
+int wc_iotsafe_ecc_gen_k(byte key_id);
 
 /*!
     \ingroup IoTSafe
@@ -462,4 +462,4 @@ WOLFSSL_API int wc_iotsafe_ecc_gen_k(byte key_id);
     \sa wc_iotsafe_ecc_sign_hash_ex
     \sa wc_iotsafe_ecc_verify_hash_ex
 */
-WOLFSSL_API int wc_iotsafe_ecc_gen_k(byte key_id);
+int wc_iotsafe_ecc_gen_k(byte key_id);

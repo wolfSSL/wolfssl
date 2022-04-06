@@ -43,7 +43,7 @@
     \sa wc_PBKDF2
     \sa wc_PKCS12_PBKDF
 */
-WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
+int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int typeH);
 
@@ -92,7 +92,7 @@ WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
     \sa wc_PBKDF1
     \sa wc_PKCS12_PBKDF
 */
-WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
+int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int typeH);
 
@@ -161,6 +161,6 @@ WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
     \sa wc_PBKDF1
     \sa wc_PBKDF2
 */
-WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
+int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
                             const byte* salt, int sLen, int iterations,
                             int kLen, int typeH, int purpose);

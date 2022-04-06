@@ -39,7 +39,7 @@
     \sa wolfSSL_CTX_SetIORecv
     \sa wolfSSL_SSLSetIORecv
 */
-WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief This function is the send embedded callback.
@@ -77,7 +77,7 @@ WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SSLSetIOSend
 */
-WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief This function is the receive embedded callback.
@@ -115,7 +115,7 @@ WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     \sa wolfSSL_SSLSetIORecv
     \sa wolfSSL_dtls_get_current_timeout
 */
-WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
+int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
 
 /*!
     \brief This function is the send embedded callback.
@@ -156,7 +156,7 @@ WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SSLSetIOSend
 */
-WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
     \brief This function is the DTLS Generate Cookie callback.
@@ -189,7 +189,7 @@ WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     \sa wolfSSL_CTX_SetGenCookie
 */
-WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
+int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
 
 /*!
@@ -212,7 +212,7 @@ WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
     \sa wolfSSL_CertManagerEnableOCSPStapling
     \sa wolfSSL_CertManagerEnableOCSP
 */
-WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
+void EmbedOcspRespFree(void* ctx, byte* resp);
 
 /*!
     \brief This function registers a receive callback for wolfSSL to get input
@@ -247,7 +247,7 @@ WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
 */
-WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
+void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX* ctx, CallbackIORecv CBIORecv);
 
 /*!
     \brief This function registers a context for the SSL session’s receive
@@ -278,7 +278,7 @@ WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOWriteCtx
 */
-WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
+void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
 
 /*!
     \brief This function registers a context for the SSL session’s send
@@ -309,7 +309,7 @@ WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
-WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
+void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
 
 /*!
     \ingroup IO
@@ -339,7 +339,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_CTX_SetIOSend
 */
-WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
+void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
 
 /*!
     \ingroup IO
@@ -368,7 +368,7 @@ WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_CTX_SetIOSend
 */
-WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
+void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
 
 /*!
     \brief This function sets the flags for the receive callback to use for
@@ -410,7 +410,7 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
-WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
+void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
 
 /*!
     \brief This function sets the flags for the send callback to use for the
@@ -445,7 +445,7 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
-WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
+void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 /*!
     \ingroup IO
@@ -478,7 +478,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \sa NetX_Send
     \sa NetX_Receive
 */
-WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
+void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
 
 /*!
@@ -507,7 +507,7 @@ WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
 
     \sa CallbackGenCookie
 */
-WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
+void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb);
 
 /*!
     \ingroup Setup
@@ -536,7 +536,7 @@ WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
     \sa wolfSSL_SetCookieCtx
     \sa wolfSSL_CTX_SetGenCookie
 */
-WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
+void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 
 
 /*!
@@ -571,7 +571,7 @@ WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
             receive_buffer, ISOTP_DEFAULT_BUFFER_SIZE, &can_con_info);
     \endcode
  */
-WOLFSSL_API int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
+int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
         can_recv_fn recv_fn, can_send_fn send_fn, can_delay_fn delay_fn,
         word32 receive_delay, char *receive_buffer, int receive_buffer_size,
         void *arg);
