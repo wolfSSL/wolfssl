@@ -8503,6 +8503,13 @@ static int aesecb_test(void)
             0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
         };
 
+        if (wc_AesInit(enc, HEAP_HINT, devId) != 0)
+            ERROR_OUT(-5900, out);
+    #if defined(HAVE_AES_DECRYPT)
+        if (wc_AesInit(dec, HEAP_HINT, devId) != 0)
+            ERROR_OUT(-5901, out);
+    #endif
+
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
         if (ret != 0)
