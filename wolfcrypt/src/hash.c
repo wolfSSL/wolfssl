@@ -1715,13 +1715,11 @@ int _wc_Sha_Grow(byte** msg, word32* used, word32* len, const byte* in,
             *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
-            byte* pt = (byte*)XMALLOC(*used + inSz, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
+            byte* pt = (byte*)XREALLOC(*msg, *used + inSz, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
             if (pt == NULL) {
                 return MEMORY_E;
             }
-            XMEMCPY(pt, *msg, *used);
-            XFREE(*msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
             *msg = pt;
         }
         if (*msg == NULL) {
