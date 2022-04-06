@@ -981,8 +981,8 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
 /* c = a mod 2**d */
 void fp_mod_2d(fp_int *a, int b, fp_int *c)
 {
-   int x;
-   int bmax;
+   unsigned int x;
+   unsigned int bmax;
 
    /* zero if count less than or equal to zero */
    if (b <= 0) {
@@ -998,16 +998,16 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
       return;
    }
 
-  bmax = (b + DIGIT_BIT - 1) / DIGIT_BIT;
+   bmax = ((unsigned int)b + DIGIT_BIT - 1) / DIGIT_BIT;
   /* zero digits above the last digit of the modulus */
-  for (x = bmax; x < c->used; x++) {
+   for (x = bmax; x < (unsigned int)c->used; x++) {
     c->dp[x] = 0;
   }
 
   if (c->sign == FP_NEG) {
      fp_digit carry = 0;
      /* negate value */
-     for (x = 0; x < c->used; x++) {
+     for (x = 0; x < (unsigned int)c->used; x++) {
          fp_digit next = c->dp[x] > 0;
          c->dp[x] = (fp_digit)0 - c->dp[x] - carry;
          carry |= next;
@@ -1015,7 +1015,7 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
      for (; x < bmax; x++) {
          c->dp[x] = (fp_digit)0 - carry;
      }
-     c->used = bmax;
+     c->used = (int)bmax;
      c->sign = FP_ZPOS;
   }
 
