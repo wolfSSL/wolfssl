@@ -20,7 +20,7 @@
 
     \sa wolfSSL_set_psa_ctx
 */
-WOLFSSL_API int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
+int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
 
 /*!
     \ingroup PSA
@@ -52,7 +52,7 @@ WOLFSSL_API int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
     \sa wolfSSL_psa_set_private_key_id
     \sa wolfSSL_psa_free_psa_ctx
 */
-WOLFSSL_API int wolfSSL_set_psa_ctx(WOLFSSL *ssl, struct psa_ssl_ctx *ctx);
+int wolfSSL_set_psa_ctx(WOLFSSL *ssl, struct psa_ssl_ctx *ctx);
 
 /*!
     \ingroup PSA
@@ -62,7 +62,7 @@ WOLFSSL_API int wolfSSL_set_psa_ctx(WOLFSSL *ssl, struct psa_ssl_ctx *ctx);
 
     \sa wolfSSL_set_psa_ctx
 */
-WOLFSSL_API void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx);
+void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx);
 
 /*!
     \ingroup PSA
@@ -92,5 +92,5 @@ WOLFSSL_API void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx);
     \sa wolfSSL_set_psa_ctx
 */
 
-WOLFSSL_API int wolfSSL_psa_set_private_key_id(struct psa_ssl_ctx *ctx,
+int wolfSSL_psa_set_private_key_id(struct psa_ssl_ctx *ctx,
                                                psa_key_id_t id);

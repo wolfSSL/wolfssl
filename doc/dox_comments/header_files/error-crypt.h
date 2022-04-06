@@ -22,7 +22,7 @@
 
     \sa wc_GetErrorString
 */
-WOLFSSL_API void wc_ErrorString(int err, char* buff);
+void wc_ErrorString(int err, char* buff);
 
 /*!
     \ingroup Error
@@ -46,4 +46,4 @@ WOLFSSL_API void wc_ErrorString(int err, char* buff);
 
     \sa wc_ErrorString
 */
-WOLFSSL_API const char* wc_GetErrorString(int error);
+const char* wc_GetErrorString(int error);

@@ -30,7 +30,7 @@
     \sa wc_Chacha_SetKey
     \sa wc_Chacha_Process
 */
-WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
+int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 
 /*!
     \ingroup ChaCha
@@ -64,7 +64,7 @@ WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
     \sa wc_Chacha_SetKey
     \sa wc_Chacha_Process
 */
-WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
+int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
 
 /*!
@@ -96,4 +96,4 @@ WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
     \sa wc_Chacha_SetIV
     \sa wc_Chacha_Process
 */
-WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
+int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);

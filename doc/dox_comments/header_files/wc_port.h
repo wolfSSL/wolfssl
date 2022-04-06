@@ -18,7 +18,7 @@
 
     \sa wolfCrypt_Cleanup
 */
-WOLFSSL_API int wolfCrypt_Init(void);
+int wolfCrypt_Init(void);
 
 /*!
     \ingroup wolfCrypt
@@ -40,4 +40,4 @@ WOLFSSL_API int wolfCrypt_Init(void);
 
     \sa wolfCrypt_Init
 */
-WOLFSSL_API int wolfCrypt_Cleanup(void);
+int wolfCrypt_Cleanup(void);

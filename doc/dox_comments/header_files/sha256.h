@@ -24,7 +24,7 @@
     \sa wc_Sha256Update
     \sa wc_Sha256Final
 */
-WOLFSSL_API int wc_InitSha256(wc_Sha256*);
+int wc_InitSha256(wc_Sha256*);
 
 /*!
     \ingroup SHA
@@ -57,7 +57,7 @@ WOLFSSL_API int wc_InitSha256(wc_Sha256*);
     \sa wc_Sha256Final
     \sa wc_InitSha256
 */
-WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
+int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
 
 /*!
     \ingroup SHA
@@ -89,7 +89,7 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
     \sa wc_Sha256GetHash
     \sa wc_InitSha256
 */
-WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
+int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 
 /*!
     \ingroup SHA
@@ -121,7 +121,7 @@ WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
     \sa wc_Sha256Update
     \sa wc_Sha256Final
 */
-WOLFSSL_API void wc_Sha256Free(wc_Sha256*);
+void wc_Sha256Free(wc_Sha256*);
 
 /*!
     \ingroup SHA
@@ -150,7 +150,7 @@ WOLFSSL_API void wc_Sha256Free(wc_Sha256*);
     \sa wc_Sha256Final
     \sa wc_InitSha256
 */
-WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
+int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 
 /*!
     \ingroup SHA
@@ -175,7 +175,7 @@ WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
     \sa wc_Sha224Update
     \sa wc_Sha224Final
 */
-WOLFSSL_API int wc_InitSha224(wc_Sha224*);
+int wc_InitSha224(wc_Sha224*);
 
 /*!
     \ingroup SHA
@@ -210,7 +210,7 @@ WOLFSSL_API int wc_InitSha224(wc_Sha224*);
     \sa wc_Sha224Final
     \sa wc_Sha224Hash
 */
-WOLFSSL_API int wc_Sha224Update(wc_Sha224*, const byte*, word32);
+int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len);
 
 /*!
     \ingroup SHA
@@ -243,4 +243,4 @@ WOLFSSL_API int wc_Sha224Update(wc_Sha224*, const byte*, word32);
     \sa wc_Sha224Hash
     \sa wc_Sha224Update
 */
-WOLFSSL_API int wc_Sha224Final(wc_Sha224*, byte*);
+int wc_Sha224Final(wc_Sha224* sha224, byte* hash);

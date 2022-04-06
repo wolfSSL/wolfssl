@@ -24,7 +24,7 @@
 
     \sa wc_FreeNetRandom
 */
-WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
 
 /*!
     \ingroup Random
@@ -47,7 +47,7 @@ WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
 
     \sa wc_InitNetRandom
 */
-WOLFSSL_API int  wc_FreeNetRandom(void);
+int  wc_FreeNetRandom(void);
 
 /*!
     \ingroup Random
@@ -95,7 +95,7 @@ WOLFSSL_API int  wc_FreeNetRandom(void);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API int  wc_InitRng(WC_RNG*);
+int  wc_InitRng(WC_RNG*);
 
 /*!
     \ingroup Random
@@ -135,7 +135,7 @@ WOLFSSL_API int  wc_InitRng(WC_RNG*);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
+int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
 
 /*!
     \ingroup Random
@@ -167,7 +167,7 @@ WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
+WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
 
 /*!
     \ingroup Random
@@ -207,7 +207,7 @@ WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
+int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 
 /*!
     \ingroup Random
@@ -241,7 +241,7 @@ WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
     \sa wc_RNG_GenerateByte,
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API int  wc_FreeRng(WC_RNG*);
+int  wc_FreeRng(WC_RNG*);
 
 /*!
     \ingroup Random
@@ -271,7 +271,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
     \sa wc_FreeRng
     \sa wc_RNG_HealthTest
 */
-WOLFSSL_API WC_RNG* wc_rng_free(WC_RNG* rng);
+WC_RNG* wc_rng_free(WC_RNG* rng);
 
 /*!
     \ingroup Random
@@ -322,7 +322,7 @@ WOLFSSL_API WC_RNG* wc_rng_free(WC_RNG* rng);
     \sa wc_RNG_GenerateByte
     \sa wc_FreeRng
 */
-WOLFSSL_API int wc_RNG_HealthTest(int reseed,
+int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,
                                         byte* output, word32 outputSz);

@@ -33,7 +33,7 @@
     \sa wc_SipHashUpdate
     \sa wc_SipHashFinal
 */
-WOLFSSL_API int wc_InitSipHash(SipHash* siphash, const unsigned char* key,
+int wc_InitSipHash(SipHash* siphash, const unsigned char* key,
     unsigned char outSz);
 
 /*!
@@ -71,7 +71,7 @@ WOLFSSL_API int wc_InitSipHash(SipHash* siphash, const unsigned char* key,
     \sa wc_InitSipHash
     \sa wc_SipHashFinal
 */
-WOLFSSL_API int wc_SipHashUpdate(SipHash* siphash, const unsigned char* in,
+int wc_SipHashUpdate(SipHash* siphash, const unsigned char* in,
     word32 inSz);
 
 /*!
@@ -109,7 +109,7 @@ WOLFSSL_API int wc_SipHashUpdate(SipHash* siphash, const unsigned char* in,
     \sa wc_InitSipHash
     \sa wc_SipHashUpdate
 */
-WOLFSSL_API int wc_SipHashFinal(SipHash* siphash, unsigned char* out,
+int wc_SipHashFinal(SipHash* siphash, unsigned char* out,
     unsigned char outSz);
 
 /*!
@@ -146,6 +146,6 @@ WOLFSSL_API int wc_SipHashFinal(SipHash* siphash, unsigned char* out,
     \sa wc_SipHashUpdate
     \sa wc_SipHashFinal
 */
-WOLFSSL_API int wc_SipHash(const unsigned char* key, const unsigned char* in,
+int wc_SipHash(const unsigned char* key, const unsigned char* in,
     word32 inSz, unsigned char* out, unsigned char outSz);
 

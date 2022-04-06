@@ -29,7 +29,7 @@
     \sa wc_SignatureGenerate
     \sa wc_SignatureVerify
 */
-WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
+int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len);
 
 /*!
@@ -76,7 +76,7 @@ WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     \sa wc_SignatureGetSize
     \sa wc_SignatureGenerate
 */
-WOLFSSL_API int wc_SignatureVerify(
+int wc_SignatureVerify(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     const byte* sig, word32 sig_len,
@@ -139,7 +139,7 @@ WOLFSSL_API int wc_SignatureVerify(
     \sa wc_SignatureGetSize
     \sa wc_SignatureVerify
 */
-WOLFSSL_API int wc_SignatureGenerate(
+int wc_SignatureGenerate(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,

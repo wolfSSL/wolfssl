@@ -24,7 +24,7 @@
     \sa wc_Md4Update
     \sa wc_Md4Final
 */
-WOLFSSL_API void wc_InitMd4(Md4*);
+void wc_InitMd4(Md4*);
 
 /*!
     \ingroup MD4
@@ -57,7 +57,7 @@ WOLFSSL_API void wc_InitMd4(Md4*);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-WOLFSSL_API void wc_Md4Update(Md4*, const byte*, word32);
+void wc_Md4Update(Md4* md4, const byte* data, word32 len);
 
 /*!
     \ingroup MD4
@@ -85,4 +85,4 @@ WOLFSSL_API void wc_Md4Update(Md4*, const byte*, word32);
     \sa wc_Md4Final
     \sa wc_InitMd4
 */
-WOLFSSL_API void wc_Md4Final(Md4*, byte*);
+void wc_Md4Final(Md4* md4, byte* hash);
