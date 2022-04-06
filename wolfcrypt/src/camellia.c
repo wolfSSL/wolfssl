@@ -1535,7 +1535,7 @@ int wc_CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv
 
     if (cam == NULL) return BAD_FUNC_ARG;
 
-    XMEMSET(cam->key, 0, sizeof(KEY_TABLE_TYPE));
+    XMEMSET(cam->key, 0, CAMELLIA_TABLE_BYTE_LEN);
 
     switch (len) {
         case 16:

@@ -7436,8 +7436,12 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
 
     /* get encryption algorithm block size */
     blockSz = wc_PKCS7_GetOIDBlockSize(algID);
-    if (blockSz < 0)
-        return blockSz;
+    if (blockSz <= 0) {
+        if (blockSz < 0)
+            return blockSz;
+        else
+            return ALGO_ID_E;
+    }
 
     /* get pad bytes needed to block boundary */
     padSz = blockSz - ((4 + cekSz) % blockSz);
@@ -7520,9 +7524,12 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
 
     /* get encryption algorithm block size */
     blockSz = wc_PKCS7_GetOIDBlockSize(algID);
-    if (blockSz < 0) {
+    if (blockSz <= 0) {
         XFREE(outTmp, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return blockSz;
+        if (blockSz < 0)
+            return blockSz;
+        else
+            return ALGO_ID_E;
     }
 
     /* input needs to be blockSz multiple and at least 2 * blockSz */
