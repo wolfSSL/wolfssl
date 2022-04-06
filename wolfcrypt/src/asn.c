@@ -22161,7 +22161,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     int cnt = 1 + EKU_OID_HI;
     int i;
     int ret = 0;
-    int sz;
+    int sz = 0;
 
 #ifdef WOLFSSL_EKU_OID
     cnt += CTC_MAX_EKU_NB;
