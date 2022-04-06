@@ -4905,6 +4905,7 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
   mp_int  b, c;
   int     ix, err, res;
   byte*   base = NULL;
+  word32  bitSz = 0;
   word32  baseSz = 0;
 
   /* default to no */
@@ -4912,6 +4913,10 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
 
   /* valid value of t? */
   if (t <= 0 || t > PRIME_SIZE) {
+    return MP_VAL;
+  }
+
+  if (a->sign == MP_NEG) {
     return MP_VAL;
   }
 
@@ -4947,8 +4952,9 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
     return err;
   }
 
-  baseSz = mp_count_bits(a);
-  baseSz = (baseSz / 8) + ((baseSz % 8) ? 1 : 0);
+  bitSz = mp_count_bits(a);
+  baseSz = (bitSz / 8) + ((bitSz % 8) ? 1 : 0);
+  bitSz %= 8;
 
   base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   if (base == NULL) {
@@ -4966,6 +4972,11 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
     /* Set a test candidate. */
     if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
         goto LBL_B;
+    }
+
+    /* Clear bits higher than those in a. */
+    if (bitSz > 0) {
+        base[0] &= (1 << bitSz) - 1;
     }
 
     if ((err = mp_read_unsigned_bin(&b, base, baseSz)) != MP_OKAY) {

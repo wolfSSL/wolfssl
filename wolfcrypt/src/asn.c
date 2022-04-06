@@ -2089,6 +2089,19 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
          * Note: 0 indicates indefinte length encoding *not* 0 bytes of length.
          */
         word32 bytes = b & 0x7F;
+        int minLen;
+
+        /* Calculate minimum length to be encoded with bytes. */
+        if (b == 0x80) {
+            /* Indefinite length encoding - no length bytes. */
+            minLen = 0;
+        }
+        else if (bytes == 1) {
+            minLen = 0x80;
+        }
+        else {
+            minLen = 1 << ((bytes - 1) * 8);
+        }
 
         /* Check the number of bytes required are available. */
         if ((idx + bytes) > maxIdx) {
@@ -2107,6 +2120,10 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         }
         /* Negative value indicates we overflowed the signed int. */
         if (length < 0) {
+            return ASN_PARSE_E;
+        }
+        /* Don't allow lengths that are longer than strictly required. */
+        if (length < minLen) {
             return ASN_PARSE_E;
         }
     }
@@ -3122,6 +3139,42 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 #endif
 }
 
+#if (defined(HAVE_ECC) || !defined(NO_DSA)) && !defined(WOLFSSL_ASN_TEMPLATE)
+static int GetIntPositive(mp_int* mpi, const byte* input, word32* inOutIdx,
+    word32 maxIdx)
+{
+    word32 idx = *inOutIdx;
+    int    ret;
+    int    length;
+
+    ret = GetASNInt(input, &idx, &length, maxIdx);
+    if (ret != 0)
+        return ret;
+
+    if (((input[idx] & 0x80) == 0x80) && (input[idx - 1] != 0x00))
+        return MP_INIT_E;
+
+    if (mp_init(mpi) != MP_OKAY)
+        return MP_INIT_E;
+
+    if (mp_read_unsigned_bin(mpi, input + idx, length) != 0) {
+        mp_clear(mpi);
+        return ASN_GETINT_E;
+    }
+
+#ifdef HAVE_WOLF_BIGINT
+    if (wc_bigint_from_unsigned_bin(&mpi->raw, input + idx, length) != 0) {
+        mp_clear(mpi);
+        return ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
+
+    *inOutIdx = idx + length;
+
+    return 0;
+}
+#endif /* (ECC || !NO_DSA) && !WOLFSSL_ASN_TEMPLATE */
+
 #ifndef WOLFSSL_ASN_TEMPLATE
 #if (!defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)) \
     || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA))
@@ -3737,6 +3790,12 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #endif
 #ifdef WOLFSSL_SHA512
     static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
+    #ifndef WOLFSSL_NOSHA512_224
+    static const byte hashSha512_224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 5};
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
+    static const byte hashSha512_256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 6};
+    #endif
 #endif
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
@@ -4130,6 +4189,18 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             #endif
             #ifdef WOLFSSL_SHA512
+                #ifndef WOLFSSL_NOSHA512_224
+                case SHA512_224h:
+                    oid = hashSha512_224hOid;
+                    *oidSz = sizeof(hashSha512_224hOid);
+                    break;
+                #endif
+                #ifndef WOLFSSL_NOSHA512_256
+                case SHA512_256h:
+                    oid = hashSha512_256hOid;
+                    *oidSz = sizeof(hashSha512_256hOid);
+                    break;
+                #endif
                 case SHA512h:
                     oid = hashSha512hOid;
                     *oidSz = sizeof(hashSha512hOid);
@@ -27127,11 +27198,11 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     }
 #endif
 
-    if (GetInt(r, sig, &idx, sigLen) < 0) {
+    if (GetIntPositive(r, sig, &idx, sigLen) < 0) {
         return ASN_ECC_KEY_E;
     }
 
-    if (GetInt(s, sig, &idx, sigLen) < 0) {
+    if (GetIntPositive(s, sig, &idx, sigLen) < 0) {
         mp_clear(r);
         return ASN_ECC_KEY_E;
     }
@@ -27150,6 +27221,7 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 #else
     ASNGetData dataASN[dsaSigASN_Length];
     word32 idx = 0;
+    int ret;
 
     /* Clear dynamic data and set mp_ints to put r and s into. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
@@ -27157,8 +27229,19 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     GetASN_MP(&dataASN[DSASIGASN_IDX_S], s);
 
     /* Decode the DSA signature. */
-    return GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 1, sig, &idx,
-                        sigLen);
+    ret = GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 1, sig, &idx,
+                       sigLen);
+#ifndef NO_STRICT_ECDSA_LEN
+    /* sanity check that the index has been advanced all the way to the end of
+     * the buffer */
+    if ((ret == 0) && (idx != sigLen)) {
+        mp_clear(r);
+        mp_clear(s);
+        ret = ASN_ECC_KEY_E;
+    }
+
+    return ret;
+#endif
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 #endif

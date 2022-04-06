@@ -986,6 +986,18 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
         case WC_MGF1SHA512:
             ret = RsaMGF1(WC_HASH_TYPE_SHA512, seed, seedSz, out, outSz, heap);
             break;
+        #ifndef WOLFSSL_NOSHA512_224
+        case WC_MGF1SHA512_224:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA512_224, seed, seedSz, out, outSz,
+                heap);
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+        case WC_MGF1SHA512_256:
+            ret = RsaMGF1(WC_HASH_TYPE_SHA512_256, seed, seedSz, out, outSz,
+                heap);
+            break;
+        #endif
     #endif
         default:
             WOLFSSL_MSG("Unknown MGF type: check build options");
@@ -1770,7 +1782,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
 
         *output = (byte *)(pkcsBlock + i);
-        ret = ((int)(byte)~invalid) & (pkcsBlockLen - i);
+        ret = ((int)-1 + (int)(invalid >> 7)) & (pkcsBlockLen - i);
     }
 #endif
 
@@ -2277,8 +2289,13 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif
     int    ret = 0;
-    word32 keyLen = 0;
 #endif
+    word32 keyLen = wc_RsaEncryptSize(key);
+
+    if (inLen > keyLen) {
+        WOLFSSL_MSG("Expected that inLen be no longer RSA key length");
+        return BAD_FUNC_ARG;
+    }
 
     if (mp_iseven(&key->n)) {
         return MP_VAL;
@@ -2578,7 +2595,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
 
     if (ret == 0) {
-        keyLen = wc_RsaEncryptSize(key);
         if (keyLen > *outLen)
             ret = RSA_BUFFER_E;
     }
@@ -2591,7 +2607,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #else
     (void)type;
     (void)key;
-    (void)keyLen;
     XMEMCPY(out, in, inLen);
     *outLen = inLen;
 #endif
@@ -2885,8 +2900,9 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
 }
 #endif /* WOLFSSL_CRYPTOCELL */
 
-int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
-                          word32* outLen, int type, RsaKey* key, WC_RNG* rng)
+static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
+                             word32* outLen, int type, RsaKey* key, WC_RNG* rng,
+                             int checkSmallCt)
 {
     int ret = 0;
 
@@ -2944,7 +2960,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         }
         if (ret == 0) {
             /* check c > 1 */
-            if (mp_cmp_d(c, 1) != MP_GT)
+            if (checkSmallCt && (mp_cmp_d(c, 1) != MP_GT))
                 ret = RSA_OUT_OF_RANGE_E;
         }
         if (ret == 0) {
@@ -2971,6 +2987,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
 #endif /* NO_RSA_BOUNDS_CHECK */
 #endif
+#else
+    (void)checkSmallCt;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
@@ -3012,6 +3030,12 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
+int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+                          word32* outLen, int type, RsaKey* key, WC_RNG* rng)
+{
+    /* Always check for ciphertext of 0 or 1. (Should't for OAEP decrypt.) */
+    return wc_RsaFunction_ex(in, inLen, out, outLen, type, key, rng, 1);
+}
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 /* Internal Wrappers */
@@ -3260,10 +3284,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 
     case RSA_STATE_DECRYPT_EXPTMOD:
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
-        ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen,
-                                                            rsa_type, key, rng);
+        ret = wc_RsaFunction_ex(key->data, inLen, key->data, &key->dataLen,
+                                                   rsa_type, key, rng,
+                                                   pad_type != WC_RSA_OAEP_PAD);
 #else
-        ret = wc_RsaFunction(in, inLen, out, &key->dataLen, rsa_type, key, rng);
+        ret = wc_RsaFunction_ex(in, inLen, out, &key->dataLen, rsa_type, key,
+                                              rng, pad_type != WC_RSA_OAEP_PAD);
 #endif
 
         if (ret >= 0 || ret == WC_PENDING_E) {
@@ -3319,7 +3345,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY)
             ret = ctMaskSelInt(ctMaskLTE(ret, outLen), ret, RSA_BUFFER_E);
+    #ifndef WOLFSSL_RSA_DECRYPT_TO_0_LEN
             ret = ctMaskSelInt(ctMaskNotEq(ret, 0), ret, RSA_BUFFER_E);
+    #endif
 #else
             if (outLen < (word32)ret)
                 ret = RSA_BUFFER_E;

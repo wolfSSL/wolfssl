@@ -5870,8 +5870,8 @@ WOLFSSL_TEST_SUBROUTINE int chacha20_poly1305_aead_test(void)
             sizeof(plaintext1), generatedCiphertext, NULL);
     if (err != BAD_FUNC_ARG)
         return -4904;
-    err = wc_ChaCha20Poly1305_Encrypt(key1, iv1, aad1, sizeof(aad1), plaintext1,
-            0, generatedCiphertext, generatedAuthTag);
+    err = wc_ChaCha20Poly1305_Encrypt(key1, iv1, aad1, sizeof(aad1), NULL,
+            sizeof(plaintext1), generatedCiphertext, generatedAuthTag);
     if (err != BAD_FUNC_ARG)
         return -4905;
     /* Decrypt */
@@ -5895,8 +5895,8 @@ WOLFSSL_TEST_SUBROUTINE int chacha20_poly1305_aead_test(void)
             sizeof(cipher2), authTag2, NULL);
     if (err != BAD_FUNC_ARG)
         return -4910;
-    err = wc_ChaCha20Poly1305_Decrypt(key2, iv2, aad2, sizeof(aad2), cipher2,
-            0, authTag2, generatedPlaintext);
+    err = wc_ChaCha20Poly1305_Decrypt(key2, iv2, aad2, sizeof(aad2), NULL,
+            sizeof(cipher2), authTag2, generatedPlaintext);
     if (err != BAD_FUNC_ARG)
         return -4911;
 
