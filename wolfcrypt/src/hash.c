@@ -1707,7 +1707,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 #endif /* !NO_HASH_WRAPPER */
 
 #ifdef WOLFSSL_HASH_KEEP
-int _wc_Sha_Grow(byte** msg, word32* used, word32* len, const byte* in,
+int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
                         int inSz, void* heap)
 {
     if (*len < *used + inSz) {

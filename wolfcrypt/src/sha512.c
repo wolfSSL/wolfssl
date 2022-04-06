@@ -1829,13 +1829,13 @@ int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
  */
 int wc_Sha512_Grow(wc_Sha512* sha512, const byte* in, int inSz)
 {
-    return _wc_Sha_Grow(&(sha512->msg), &(sha512->used), &(sha512->len), in,
+    return _wc_Hash_Grow(&(sha512->msg), &(sha512->used), &(sha512->len), in,
                         inSz, sha512->heap);
 }
 #ifdef WOLFSSL_SHA384
 int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz)
 {
-    return _wc_Sha_Grow(&(sha384->msg), &(sha384->used), &(sha384->len), in,
+    return _wc_Hash_Grow(&(sha384->msg), &(sha384->used), &(sha384->len), in,
                         inSz, sha384->heap);
 }
 #endif /* WOLFSSL_SHA384 */

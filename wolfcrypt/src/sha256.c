@@ -1713,13 +1713,13 @@ void wc_Sha256Free(wc_Sha256* sha256)
  */
 int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz)
 {
-    return _wc_Sha_Grow(&(sha256->msg), &(sha256->used), &(sha256->len), in,
+    return _wc_Hash_Grow(&(sha256->msg), &(sha256->used), &(sha256->len), in,
                         inSz, sha256->heap);
 }
 #ifdef WOLFSSL_SHA224
 int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 {
-    return _wc_Sha_Grow(&(sha224->msg), &(sha224->used), &(sha224->len), in,
+    return _wc_Hash_Grow(&(sha224->msg), &(sha224->used), &(sha224->len), in,
                         inSz, sha224->heap);
 }
 #endif /* WOLFSSL_SHA224 */

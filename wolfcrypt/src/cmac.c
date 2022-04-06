@@ -28,6 +28,9 @@
 #ifdef WOLFSSL_QNX_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
+#if defined(WOLFSSL_HASH_KEEP)
+#include <wolfssl/wolfcrypt/hash.h>
+#endif
 
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
 
@@ -62,37 +65,9 @@
  * data to be hashed at once.
  * returns 0 on success
  */
-static int _wc_CMAC_Grow(byte** msg, word32* used, word32* len, const byte* in,
-                        int inSz, void* heap)
-{
-    if (*len < *used + inSz) {
-        if (*msg == NULL) {
-            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-        else {
-            byte* pt = (byte*)XMALLOC(*used + inSz, heap,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (pt == NULL) {
-                return MEMORY_E;
-            }
-            XMEMCPY(pt, *msg, *used);
-            XFREE(*msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            *msg = pt;
-        }
-        if (*msg == NULL) {
-            return MEMORY_E;
-        }
-        *len = *used + inSz;
-    }
-    XMEMCPY(*msg + *used, in, inSz);
-    *used += inSz;
-    return 0;
-}
-
-
 int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz)
 {
-    return _wc_CMAC_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, NULL);
+    return _wc_Hash_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, NULL);
 }
 #endif /* WOLFSSL_HASH_KEEP */
 
