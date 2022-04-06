@@ -5169,6 +5169,22 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);
 #endif
 
+#ifndef NO_CERTS
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
+WOLFSSL_LOCAL int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
+    const WOLFSSL_ASN1_STRING* asn_in);
+#endif
+#endif
+
+#if defined(HAVE_EX_DATA) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || \
+    defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index);
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
