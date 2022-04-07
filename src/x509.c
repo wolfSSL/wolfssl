@@ -2377,8 +2377,18 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
             break;
         case NID_subject_alt_name:
         {
-            WOLFSSL_GENERAL_NAMES* gns = wolfSSL_sk_new_null();
+            WOLFSSL_GENERAL_NAMES* gns;
             WOLFSSL_GENERAL_NAME* gn;
+
+            if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
+                goto err_cleanup;
+            }
+            ext->value.type = ASN_DNS_TYPE;
+
+            /* add stack of general names */
+            gns = wolfSSL_sk_new_null();
             if (gns == NULL) {
                 WOLFSSL_MSG("wolfSSL_sk_new_null error");
                 goto err_cleanup;
