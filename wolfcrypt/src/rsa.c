@@ -1561,7 +1561,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     /* advance idx to index of PS and msg separator, account for PS size of 0*/
     idx = hLen + 1 + hLen;
-    while (idx < pkcsBlockLen && pkcsBlock[idx] == 0) {idx++;}
+    while (idx < pkcsBlockLen-1 && pkcsBlock[idx] == 0) {idx++;}
 
     /* create hash of label for comparison with hash sent */
     if ((ret = wc_Hash(hType, optLabel, labelLen, h, hLen)) != 0) {

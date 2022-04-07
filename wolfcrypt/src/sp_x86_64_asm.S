@@ -59279,29 +59279,15 @@ L_256_mod_inv_avx2_4_usubv_sub_shr1:
         jne	L_256_mod_inv_avx2_4_uv_start
         orq	%r9, %rsi
         jne	L_256_mod_inv_avx2_4_uv_start
-        vpsrad	$26, %ymm1, %ymm5
-        vpsrad	$26, %ymm0, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm0, %ymm0
-        vpand	%ymm14, %ymm1, %ymm1
-        vpaddd	%ymm5, %ymm0, %ymm0
-        vpaddd	%ymm4, %ymm1, %ymm1
-        vpsrad	$26, %ymm1, %ymm5
-        vpsrad	$26, %ymm0, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm0, %ymm0
-        vpand	%ymm14, %ymm1, %ymm1
-        vpaddd	%ymm5, %ymm0, %ymm0
-        vpaddd	%ymm4, %ymm1, %ymm1
         vpextrd	$0x00, %xmm0, %eax
         vpextrd	$0x01, %xmm0, %r8d
         vpextrd	$2, %xmm0, %r10d
         vpextrd	$3, %xmm0, %r12d
-        vextracti128	$0x01, %ymm0, %xmm0
         vpextrd	$0x00, %xmm1, %ecx
         vpextrd	$0x01, %xmm1, %r9d
         vpextrd	$2, %xmm1, %r11d
         vpextrd	$3, %xmm1, %r13d
+        vextracti128	$0x01, %ymm0, %xmm0
         vextracti128	$0x01, %ymm1, %xmm1
         vpextrd	$0x00, %xmm0, %r14d
         vpextrd	$0x00, %xmm1, %r15d
@@ -59346,48 +59332,104 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         jne	L_256_mod_inv_avx2_4_uv_start
         orq	%r13, %rsi
         jne	L_256_mod_inv_avx2_4_uv_start
-        vpsrad	$26, %ymm3, %ymm5
-        vpsrad	$26, %ymm2, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm2, %ymm2
-        vpand	%ymm14, %ymm3, %ymm3
-        vpaddd	%ymm5, %ymm2, %ymm2
-        vpaddd	%ymm4, %ymm3, %ymm3
-        vpsrad	$26, %ymm3, %ymm5
-        vpsrad	$26, %ymm2, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm2, %ymm2
-        vpand	%ymm14, %ymm3, %ymm3
-        vpaddd	%ymm5, %ymm2, %ymm2
-        vpaddd	%ymm4, %ymm3, %ymm3
         vpextrd	$0x00, %xmm2, %eax
         vpextrd	$0x01, %xmm2, %r8d
         vpextrd	$2, %xmm2, %r10d
         vpextrd	$3, %xmm2, %r12d
-        vextracti128	$0x01, %ymm2, %xmm2
         vpextrd	$0x00, %xmm3, %ecx
         vpextrd	$0x01, %xmm3, %r9d
         vpextrd	$2, %xmm3, %r11d
         vpextrd	$3, %xmm3, %r13d
+        vextracti128	$0x01, %ymm2, %xmm2
         vextracti128	$0x01, %ymm3, %xmm3
         vpextrd	$0x00, %xmm2, %r14d
         vpextrd	$0x00, %xmm3, %r15d
 L_256_mod_inv_avx2_4_store_done:
-        movslq	%eax, %rax
+        movl	%eax, %esi
+        andl	$0x3ffffff, %eax
+        sarl	$26, %esi
+        addl	%esi, %ecx
+        movl	%ecx, %esi
+        andl	$0x3ffffff, %ecx
+        sarl	$26, %esi
+        addl	%esi, %r8d
+        movl	%r8d, %esi
+        andl	$0x3ffffff, %r8d
+        sarl	$26, %esi
+        addl	%esi, %r9d
+        movl	%r9d, %esi
+        andl	$0x3ffffff, %r9d
+        sarl	$26, %esi
+        addl	%esi, %r10d
+        movl	%r10d, %esi
+        andl	$0x3ffffff, %r10d
+        sarl	$26, %esi
+        addl	%esi, %r11d
+        movl	%r11d, %esi
+        andl	$0x3ffffff, %r11d
+        sarl	$26, %esi
+        addl	%esi, %r12d
+        movl	%r12d, %esi
+        andl	$0x3ffffff, %r12d
+        sarl	$26, %esi
+        addl	%esi, %r13d
+        movl	%r13d, %esi
+        andl	$0x3ffffff, %r13d
+        sarl	$26, %esi
+        addl	%esi, %r14d
+        movl	%r14d, %esi
+        andl	$0x3ffffff, %r14d
+        sarl	$26, %esi
+        addl	%esi, %r15d
+        movslq	%ecx, %rcx
+        movslq	%r9d, %r9
+        movslq	%r11d, %r11
+        movslq	%r13d, %r13
+        movslq	%r15d, %r15
         shlq	$26, %rcx
+        shlq	$26, %r9
+        shlq	$26, %r11
+        shlq	$26, %r13
+        shlq	$26, %r15
+        movslq	%eax, %rax
         addq	%rcx, %rax
         movslq	%r8d, %r8
-        shlq	$26, %r9
-        addq	%r9, %r8
+        adcq	%r9, %r8
         movslq	%r10d, %r10
-        shlq	$26, %r11
-        addq	%r11, %r10
+        adcq	%r11, %r10
         movslq	%r12d, %r12
-        shlq	$26, %r13
-        addq	%r13, %r12
+        adcq	%r13, %r12
         movslq	%r14d, %r14
-        shlq	$26, %r15
+        adcq	%r15, %r14
+        jge	L_256_mod_inv_avx2_4_3_no_add_order
+        movq	$0x9cac2fc632551, %rcx
+        movq	$0xada7179e84f3b, %r9
+        movq	$0xfffffffbce6fa, %r11
+        movq	$0xfffffffff, %r13
+        movq	$0xffffffff0000, %r15
+        addq	%rcx, %rax
+        addq	%r9, %r8
+        addq	%r11, %r10
+        addq	%r13, %r12
         addq	%r15, %r14
+        movq	$0xfffffffffffff, %rsi
+        movq	%rax, %rcx
+        andq	%rsi, %rax
+        sarq	$52, %rcx
+        addq	%rcx, %r8
+        movq	%r8, %r9
+        andq	%rsi, %r8
+        sarq	$52, %r9
+        addq	%r9, %r10
+        movq	%r10, %r11
+        andq	%rsi, %r10
+        sarq	$52, %r11
+        addq	%r11, %r12
+        movq	%r12, %r13
+        andq	%rsi, %r12
+        sarq	$52, %r13
+        addq	%r13, %r14
+L_256_mod_inv_avx2_4_3_no_add_order:
         movq	%r8, %rcx
         movq	%r10, %r9
         movq	%r12, %r11
