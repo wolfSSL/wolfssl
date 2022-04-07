@@ -24345,19 +24345,24 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 }
 
 /*
- * From curl.
- * time2epoch: time stamp to seconds since epoch in GMT time zone. Similar to
- * mktime but for GMT only.
+ * Convert time to Unix time (GMT).
  */
-static long long time2epoch(int sec, int min, int hour, int mday, int mon,
-                            int year)
+static long long TimeToUnixTime(int sec, int min, int hour, int mday, int mon,
+                                int year)
 {
+    /* Number of cumulative days from the previous months, starting from
+     * beginning of January. */
     static const int monthDaysCumulative [12] = {
         0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
     };
-    int leapDays = year - (mon <= 1);
-    leapDays = ((leapDays / 4) - (leapDays / 100) + (leapDays / 400) -
-               (1969 / 4) + (1969 / 100) - (1969 / 400));
+    int leapDays = year;
+
+    if (mon <= 1) {
+        --leapDays;
+    }
+    leapDays = leapDays / 4 - leapDays / 100 + leapDays / 400 - 1969 / 4 +
+               1969 / 100 - 1969 / 400;
+
     return ((((long long) (year - 1970) * 365 + leapDays +
            monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + min) * 60 +
            sec;
@@ -24413,10 +24418,10 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
         return WOLFSSL_FAILURE;
     }
 
-    /* We use time2epoch here instead of XMKTIME to avoid the Year 2038 problem
-     * on platforms where time_t is 32 bits. struct tm stores the year as years
-     * since 1900, so we add 1900 to the year. */
-    fromSecs = time2epoch(fromTmGmt->tm_sec, fromTmGmt->tm_min,
+    /* We use TimeToUnixTime here instead of XMKTIME to avoid the Year 2038
+     * Problem on platforms where time_t is 32 bits. struct tm stores the year
+     * as years since 1900, so we add 1900 to the year. */
+    fromSecs = TimeToUnixTime(fromTmGmt->tm_sec, fromTmGmt->tm_min,
                           fromTmGmt->tm_hour, fromTmGmt->tm_mday,
                           fromTmGmt->tm_mon, fromTmGmt->tm_year + 1900);
 
@@ -24433,7 +24438,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
         return WOLFSSL_FAILURE;
     }
 
-    toSecs = time2epoch(toTmGmt->tm_sec, toTmGmt->tm_min, toTmGmt->tm_hour,
+    toSecs = TimeToUnixTime(toTmGmt->tm_sec, toTmGmt->tm_min, toTmGmt->tm_hour,
                         toTmGmt->tm_mday, toTmGmt->tm_mon,
                         toTmGmt->tm_year + 1900);
 
