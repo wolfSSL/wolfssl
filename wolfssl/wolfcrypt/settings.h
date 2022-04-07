@@ -2552,6 +2552,15 @@ extern void uITRON4_free(void *p) ;
     #define NO_SHA2_CRYPTO_CB
 #endif
 
+/* configure.ac forces HAVE_ONE_TIME_AUTH when --enable-poly1305. There exists
+ * a scenario however where cipher suite
+ * TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 is listed as available but fails
+ * when set with wolfSSL_CTX_set_cipher_list for users using a user_settings.h
+ * to control the build.
+ */
+#if defined(HAVE_POLY1305) && !defined(HAVE_ONE_TIME_AUTH)
+    #define HAVE_ONE_TIME_AUTH
+#endif
 
 /* Check for insecure build combination:
  * secure renegotiation   [enabled]
