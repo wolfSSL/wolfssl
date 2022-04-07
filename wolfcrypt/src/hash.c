@@ -1706,3 +1706,30 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 
 #endif /* !NO_HASH_WRAPPER */
 
+#ifdef WOLFSSL_HASH_KEEP
+int _wc_Hash_Grow(byte** msg, word32* used, word32* len, const byte* in,
+                        int inSz, void* heap)
+{
+    if (*len < *used + inSz) {
+        if (*msg == NULL) {
+            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        else {
+            byte* pt = (byte*)XREALLOC(*msg, *used + inSz, heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (pt == NULL) {
+                return MEMORY_E;
+            }
+            *msg = pt;
+        }
+        if (*msg == NULL) {
+            return MEMORY_E;
+        }
+        *len = *used + inSz;
+    }
+    XMEMCPY(*msg + *used, in, inSz);
+    *used += inSz;
+    return 0;
+}
+#endif /* WOLFSSL_HASH_KEEP */
+

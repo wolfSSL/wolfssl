@@ -65,6 +65,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_SECO_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #ifdef WOLFSSL_IMXRT_DCP
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #endif
@@ -2844,6 +2848,44 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         }
     #endif
 
+    #ifdef WOLFSSL_SECO_CAAM
+        /* if set to use hardware than import the key */
+        if (aes->devId == WOLFSSL_SECO_DEVID) {
+            int keyGroup = 1; /* group one was chosen arbitrarily */
+            unsigned int keyIdOut;
+            byte importiv[GCM_NONCE_MID_SZ];
+            int importivSz = GCM_NONCE_MID_SZ;
+            int keyType = 0;
+            WC_RNG rng;
+
+            if (wc_InitRng(&rng) != 0) {
+                WOLFSSL_MSG("RNG init for IV failed");
+                return WC_HW_E;
+            }
+
+            if (wc_RNG_GenerateBlock(&rng, importiv, importivSz) != 0) {
+                WOLFSSL_MSG("Generate IV failed");
+                wc_FreeRng(&rng);
+                return WC_HW_E;
+            }
+            wc_FreeRng(&rng);
+
+            switch (keylen) {
+                case AES_128_KEY_SIZE: keyType = CAAM_KEYTYPE_AES128; break;
+                case AES_192_KEY_SIZE: keyType = CAAM_KEYTYPE_AES192; break;
+                case AES_256_KEY_SIZE: keyType = CAAM_KEYTYPE_AES256; break;
+            }
+
+            keyIdOut = wc_SECO_WrapKey(0, (byte*)userKey, keylen, importiv,
+                importivSz, keyType, CAAM_KEY_TRANSIENT, keyGroup);
+            if (keyIdOut == 0) {
+                return WC_HW_E;
+            }
+            aes->blackKey = keyIdOut;
+            return 0;
+        }
+    #endif
+
     #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
@@ -4684,6 +4726,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         if (haveAESNI)
             return ret;
     #endif /* WOLFSSL_AESNI */
+    #if defined(WOLFSSL_SECO_CAAM)
+        if (aes->devId == WOLFSSL_SECO_DEVID) {
+            return ret;
+        }
+    #endif /* WOLFSSL_SECO_CAAM */
 
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0)
@@ -10667,6 +10714,14 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
 
+#ifdef WOLF_CRYPTO_CB
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_AesEcbEncrypt(aes, out, in, sz);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)
         return DCPAesEcbEncrypt(aes, out, in, sz);
@@ -10687,6 +10742,14 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
 
+#ifdef WOLF_CRYPTO_CB
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_AesEcbDecrypt(aes, out, in, sz);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)
         return DCPAesEcbDecrypt(aes, out, in, sz);

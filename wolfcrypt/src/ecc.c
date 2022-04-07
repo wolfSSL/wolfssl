@@ -185,7 +185,7 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
-#if defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
@@ -9184,9 +9184,10 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         XMEMSET(b, 0, sizeof(mp_int));
     #endif
 
-    #ifdef WOLFSSL_QNX_CAAM
-    /* NIST P256 keys can be black encrypted ones */
-    if (key->blackKey > 0 && wc_ecc_size(key) == 32) {
+    #ifdef WOLFSSL_CAAM
+    /* keys can be black encrypted ones which can not be checked like plain text
+     * keys */
+    if (key->blackKey > 0) {
         /* encrypted key was used */
         #ifdef WOLFSSL_SMALL_STACK
         XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
@@ -9610,6 +9611,13 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         /* Hardware cannot export private portion */
         return NOT_COMPILED_IN;
     #else
+    #if defined(WOLFSSL_SECO_CAAM)
+        if (key->blackKey > 0 && key->devId == WOLFSSL_SECO_DEVID) {
+            /* Hardware cannot export private portion */
+            WOLFSSL_MSG("Can not export private key from HSM");
+            return NOT_COMPILED_IN;
+        }
+    #endif
     #ifdef WOLFSSL_QNX_CAAM
         if (encType == WC_TYPE_BLACK_KEY) {
             if (key->blackKey > 0) {

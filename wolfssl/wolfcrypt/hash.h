@@ -222,6 +222,11 @@ WOLFSSL_API int wc_Shake256Hash(const byte* data, word32 len, byte* hash, word32
 
 #endif /* !NO_HASH_WRAPPER */
 
+#if defined(WOLFSSL_HASH_KEEP)
+WOLFSSL_LOCAL int _wc_Hash_Grow(byte** msg, word32* used, word32* len,
+        const byte* in, int inSz, void* heap);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

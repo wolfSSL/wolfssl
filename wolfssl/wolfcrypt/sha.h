@@ -156,6 +156,11 @@ struct wc_Sha {
         int    devId;
         void*  devCtx; /* generic crypto callback context */
     #endif
+    #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
+        byte*  msg;
+        word32 used;
+        word32 len;
+    #endif
 #endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)

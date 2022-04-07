@@ -28,11 +28,18 @@
 /* include for porting layer */
 #ifdef WOLFSSL_QNX_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h>
+#elif defined(WOLFSSL_SECO_CAAM)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h>
 #endif
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-    defined(WOLFSSL_QNX_CAAM)
+    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SECO_CAAM)
 
+
+/* unique devId for CAAM use on crypto callbacks */
+#ifndef WOLFSSL_CAAM_DEVID
+    #define WOLFSSL_CAAM_DEVID 7
+#endif
 
 #if defined(__INTEGRITY) || defined(INTEGRITY)
     #include <INTEGRITY.h>
@@ -76,7 +83,7 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define WC_CAAM_BLACK_KEYMOD_SZ 16
 #define WC_CAAM_MAX_ENTROPY 44
 
-#ifndef WOLFSSL_QNX_CAAM
+#if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SECO_CAAM)
     WOLFSSL_API int wc_caamSetResource(IODevice ioDev);
     #ifndef WC_CAAM_READ
         #define WC_CAAM_READ(reg)      wc_caamReadRegister((reg))
@@ -94,6 +101,7 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define CAAM_AESOFB 0x00100400
 #define CAAM_CMAC   0x00100600
 #define CAAM_AESCCM 0x00100800
+#define CAAM_AESGCM 0x00100900
 
 #define CAAM_MD5    0x00400000
 #define CAAM_SHA    0x00410000

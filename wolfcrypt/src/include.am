@@ -77,9 +77,15 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/caam/caam_sha.c \
               wolfcrypt/src/port/caam/caam_doc.pdf \
               wolfcrypt/src/port/caam/wolfcaam_init.c \
+              wolfcrypt/src/port/caam/wolfcaam_seco.c \
               wolfcrypt/src/port/caam/wolfcaam_qnx.c \
+              wolfcrypt/src/port/caam/wolfcaam_x25519.c \
               wolfcrypt/src/port/caam/wolfcaam_ecdsa.c \
               wolfcrypt/src/port/caam/wolfcaam_cmac.c \
+              wolfcrypt/src/port/caam/wolfcaam_hash.c \
+              wolfcrypt/src/port/caam/wolfcaam_rsa.c \
+              wolfcrypt/src/port/caam/wolfcaam_hmac.c \
+              wolfcrypt/src/port/caam/wolfcaam_aes.c \
               wolfcrypt/src/port/silabs/silabs_aes.c \
               wolfcrypt/src/port/silabs/silabs_ecc.c \
               wolfcrypt/src/port/silabs/silabs_hash.c \
@@ -130,6 +136,10 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_pkcs11.c
 endif
 
 if BUILD_DEVCRYPTO
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_ecdsa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_x25519.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_rsa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_hmac.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_hash.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_aes.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/wc_devcrypto.c
@@ -167,8 +177,14 @@ endif
 if BUILD_CAAM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_qnx.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_seco.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_x25519.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_ecdsa.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_cmac.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_aes.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_hash.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_rsa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_hmac.c
 endif
 
 if BUILD_SE050

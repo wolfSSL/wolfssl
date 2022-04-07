@@ -689,6 +689,13 @@ int wc_CheckRsaKey(RsaKey* key)
 #endif
     int ret = 0;
 
+#ifdef WOLFSSL_CAAM
+    /* can not perform these checks on an encrypted key */
+    if (key->blackKey != 0) {
+        return 0;
+    }
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
     rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
     if (rng != NULL)

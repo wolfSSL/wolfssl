@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_QNX_CAAM) && defined(HAVE_ECC)
+#if defined(WOLFSSL_CAAM) && defined(HAVE_ECC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -46,6 +46,199 @@
 #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
 #include <stdio.h>
 #endif
+
+#if defined(WOLFSSL_DEVCRYPTO_ECDSA)
+/* offload calls through devcrypto support */
+
+
+/* create signature using CAAM
+ * returns MP_OKAY on success
+ */
+static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
+    word32* outlen, WC_RNG *rng, ecc_key *key)
+{
+    const ecc_set_type* dp;
+    int ret, keySz;
+    byte r[MAX_ECC_BYTES] = {0};
+    byte s[MAX_ECC_BYTES] = {0};
+
+    byte pk[MAX_ECC_BYTES] = {0};
+
+    (void)rng;
+    if (key->dp != NULL) {
+        dp = key->dp;
+    }
+    else {
+        dp = wc_ecc_get_curve_params(key->idx);
+    }
+
+    if (dp->id != ECC_SECP256R1 && dp->id != ECC_SECP384R1) {
+        WOLFSSL_MSG("Limiting CAAM to P256 and P384 for now");
+        return CRYPTOCB_UNAVAILABLE;
+    }
+    keySz  = wc_ecc_size(key);
+
+    /* private key */
+    if (mp_to_unsigned_bin_len(&key->k, pk, keySz) != MP_OKAY) {
+        return MP_TO_E;
+    }
+
+    ret = wc_DevCryptoEccSign(dp->id, key->blackKey, pk, keySz, in, inlen,
+            r, keySz, s, keySz);
+
+    /* convert signature from raw bytes to signature format */
+    if (ret == 0) {
+        mp_int mpr, mps;
+
+        mp_init(&mpr);
+        mp_init(&mps);
+
+        mp_read_unsigned_bin(&mpr, r, keySz);
+        mp_read_unsigned_bin(&mps, s, keySz);
+
+        ret = StoreECC_DSA_Sig(out, outlen, &mpr, &mps);
+        mp_free(&mpr);
+        mp_free(&mps);
+        if (ret != 0) {
+            WOLFSSL_MSG("Issue converting to signature\n");
+            return -1;
+        }
+    }
+
+    return ret;
+}
+
+
+/* verify with individual r and s signature parts
+ * returns MP_OKAY on success and sets 'res' to 1 if verified
+ */
+static int wc_CAAM_DevEccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
+        word32 hashlen, int* res, ecc_key* key)
+{
+    const ecc_set_type* dp;
+    int ret;
+    int keySz;
+
+    byte rbuf[MAX_ECC_BYTES] = {0};
+    byte sbuf[MAX_ECC_BYTES] = {0};
+
+    byte qx[MAX_ECC_BYTES] = {0};
+    byte qy[MAX_ECC_BYTES] = {0};
+    byte qxy[MAX_ECC_BYTES * 2] = {0};
+    word32 qxLen, qyLen;
+
+    if (key->dp != NULL) {
+        dp = key->dp;
+    }
+    else {
+        dp = wc_ecc_get_curve_params(key->idx);
+    }
+
+    /* Wx,y public key */
+    keySz = wc_ecc_size(key);
+    qxLen = qyLen = MAX_ECC_BYTES;
+    wc_ecc_export_public_raw(key, qx, &qxLen, qy, &qyLen);
+    XMEMCPY(qxy, qx, qxLen);
+    XMEMCPY(qxy+qxLen, qy, qyLen);
+
+    if (mp_to_unsigned_bin_len(r, rbuf, keySz) != MP_OKAY) {
+        return MP_TO_E;
+    }
+    if (mp_to_unsigned_bin_len(s, sbuf, keySz) != MP_OKAY) {
+        return MP_TO_E;
+    }
+    ret = wc_DevCryptoEccVerify(dp->id, qxy, qxLen + qyLen, hash, hashlen,
+            rbuf, keySz, sbuf, keySz);
+
+    *res = 0;
+    if (ret == 0)
+        *res = 1;
+
+    return ret;
+}
+
+
+/* Does ECDH operation using CAAM and returns MP_OKAY on success */
+static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
+        word32* outlen)
+{
+    const ecc_set_type* dp;
+    int ret, keySz;
+
+    byte pk[MAX_ECC_BYTES] = {0};
+    byte qx[MAX_ECC_BYTES] = {0};
+    byte qy[MAX_ECC_BYTES] = {0};
+    byte qxy[MAX_ECC_BYTES * 2] = {0};
+    word32 qxSz, qySz;
+
+    if (private_key->dp != NULL) {
+        dp = private_key->dp;
+    }
+    else {
+        dp = wc_ecc_get_curve_params(private_key->idx);
+    }
+
+    keySz = wc_ecc_size(private_key);
+    if (*outlen < (word32)keySz) {
+        WOLFSSL_MSG("out buffer is to small");
+        return BUFFER_E;
+    }
+
+    /* public key */
+    qxSz = qySz = MAX_ECC_BYTES;
+    wc_ecc_export_public_raw(public_key, qx, &qxSz, qy, &qySz);
+    XMEMCPY(qxy, qx, qxSz);
+    XMEMCPY(qxy+qxSz, qy, qySz);
+
+    /* private key */
+    if (mp_to_unsigned_bin_len(&private_key->k, pk, keySz) != MP_OKAY) {
+        WOLFSSL_MSG("error getting private key buffer");
+        return MP_TO_E;
+    }
+
+    ret = wc_DevCryptoEccEcdh(dp->id, private_key->blackKey, pk, keySz,
+        qxy, qxSz + qySz, out, *outlen);
+    if (ret == 0) {
+        *outlen = keySz;
+    }
+    return ret;
+}
+
+
+#ifdef WOLFSSL_KEY_GEN
+/* [ private black key ] [ x , y ] */
+static int wc_CAAM_DevMakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
+    int curveId)
+{
+    int ret;
+    int blackKey = 1; /* default to using black encrypted keys */
+
+    byte s[MAX_ECC_BYTES]    = {0};
+    byte xy[MAX_ECC_BYTES*2] = {0};
+
+    key->type = ECC_PRIVATEKEY;
+
+    /* if set to default curve then assume SECP256R1 */
+    if (keySize == 32 && curveId == ECC_CURVE_DEF) curveId = ECC_SECP256R1;
+
+    if (curveId != ECC_SECP256R1 &&
+        curveId != ECC_SECP384R1) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    ret = wc_DevCryptoEccKeyGen(curveId, blackKey, s, keySize, xy, keySize*2);
+    if (wc_ecc_import_unsigned(key, xy, xy + keySize, s, curveId) != 0) {
+        WOLFSSL_MSG("issue importing key");
+        return -1;
+    }
+    key->blackKey = blackKey;
+
+    (void)rng;
+    return ret;
+}
+#endif /* WOLFSSL_KEY_GEN */
+
+#endif /* WOLFSSL_DEVCRYPTO_ECDSA */
 
 /* helper function get the ECDSEL value, this is a value that signals the
  * hardware to use preloaded curve parameters
@@ -88,7 +281,7 @@ static word32 GetECDSEL(int curveId, word32 PD_BIT)
  * returns MP_OKAY on success
  */
 int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
-        WC_RNG *rng, ecc_key *key)
+        WC_RNG *rng, ecc_key *key, int devId)
 {
     const ecc_set_type* dp;
     word32 args[4] = {0};
@@ -98,8 +291,13 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
     word32 idx = 0;
-
     byte pk[MAX_ECC_BYTES] = {0};
+
+#if defined(WOLFSSL_DEVCRYPTO_ECDSA)
+    if (devId == WOLFSSL_CAAM_DEVID) {
+        return wc_CAAM_DevEccSign(in, inlen, out, outlen, rng, key);
+    }
+#endif
 
     (void)rng;
     if (key->dp != NULL) {
@@ -109,8 +307,8 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         dp = wc_ecc_get_curve_params(key->idx);
     }
 
-    if (dp->id != ECC_SECP256R1) {
-        WOLFSSL_MSG("Limiting CAAM to P256 for now");
+    if (dp->id != ECC_SECP256R1 && dp->id != ECC_SECP384R1) {
+        WOLFSSL_MSG("Limiting CAAM to P256/P384 for now");
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -164,12 +362,12 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     /* convert signature from raw bytes to signature format */
     {
         mp_int mpr, mps;
-    
+
         mp_init(&mpr);
         mp_init(&mps);
-    
-        mp_read_unsigned_bin(&mpr, r, 32);
-        mp_read_unsigned_bin(&mps, s, 32);
+
+        mp_read_unsigned_bin(&mpr, r, keySz);
+        mp_read_unsigned_bin(&mps, s, keySz);
 
         ret = StoreECC_DSA_Sig(out, outlen, &mpr, &mps);
         mp_free(&mpr);
@@ -180,6 +378,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         }
     }
 
+    (void)devId;
     return MP_OKAY;
 }
 
@@ -214,9 +413,9 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
         dp = wc_ecc_get_curve_params(key->idx);
     }
 
-    /* right now only support P256 @TODO */
-    if (dp->id != ECC_SECP256R1) {
-        WOLFSSL_MSG("Only support P256 verify with CAAM for now");
+    /* right now only support P256/P384 @TODO */
+    if (dp->id != ECC_SECP256R1 && dp->id != ECC_SECP384R1) {
+        WOLFSSL_MSG("Only support P256 and P384 verify with CAAM for now");
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -287,25 +486,34 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
  * returns MP_OKAY on success
  */
 int wc_CAAM_EccVerify(const byte* sig, word32 siglen, const byte* hash,
-        word32 hashlen, int* res, ecc_key* key)
+        word32 hashlen, int* res, ecc_key* key, int devId)
 {
     int ret;
     mp_int r, s;
 
     ret = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
     if (ret == 0) {
-        ret = wc_CAAM_EccVerify_ex(&r, &s, hash, hashlen, res, key);
+    #if defined(WOLFSSL_DEVCRYPTO_ECDSA)
+        if (devId == WOLFSSL_CAAM_DEVID) {
+            ret = wc_CAAM_DevEccVerify_ex(&r, &s, hash, hashlen, res, key);
+        }
+        else
+    #endif
+        {
+            ret = wc_CAAM_EccVerify_ex(&r, &s, hash, hashlen, res, key);
+        }
         mp_free(&r);
         mp_free(&s);
     }
 
+    (void)devId;
     return ret;
 }
 
 
 /* Does ECDH operation using CAAM and returns MP_OKAY on success */
 int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
-        word32* outlen)
+        word32* outlen, int devId)
 {
     const ecc_set_type* dp;
     word32 args[4] = {0};
@@ -319,6 +527,12 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     byte qy[MAX_ECC_BYTES] = {0};
     byte qxy[MAX_ECC_BYTES * 2] = {0};
     word32 qxSz, qySz;
+
+#if defined(WOLFSSL_DEVCRYPTO_ECDSA)
+    if (devId == WOLFSSL_CAAM_DEVID) {
+        return wc_CAAM_DevEcdh(private_key, public_key, out, outlen);
+    }
+#endif
 
     if (private_key->dp != NULL) {
         dp = private_key->dp;
@@ -388,6 +602,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     args[2] = ecdsel;
     args[3] = keySz;
     ret = wc_caamAddAndWait(buf, idx, args, CAAM_ECDSA_ECDH);
+    (void)devId;
     if (ret == 0) {
         *outlen = keySz;
         return MP_OKAY;
@@ -398,8 +613,10 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
 }
 
 
+#ifdef WOLFSSL_KEY_GEN
 /* [ private black key ] [ x , y ] */
-int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
+int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
+    int devId)
 {
     word32 args[4] = {0};
     CAAM_BUFFER buf[2]  = {0};
@@ -410,13 +627,18 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     byte s[MAX_ECC_BYTES] = {0};
     byte xy[MAX_ECC_BYTES*2] = {0};
 
+#if defined(WOLFSSL_DEVCRYPTO_ECDSA)
+    if (devId == WOLFSSL_CAAM_DEVID) {
+        return wc_CAAM_DevMakeEccKey(rng, keySize, key, curveId);
+    }
+#endif
     key->type = ECC_PRIVATEKEY;
 
     /* if set to default curve then assume SECP256R1 */
     if (keySize == 32 && curveId == ECC_CURVE_DEF) curveId = ECC_SECP256R1;
 
-    if (curveId != ECC_SECP256R1) {
-        /* currently only implemented P256 support */
+    if (curveId != ECC_SECP256R1 && curveId != ECC_SECP384R1) {
+        /* currently only implemented P256/P384 support */
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -427,6 +649,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     }
 
     (void)rng;
+    (void)devId;
 
     buf[0].TheAddress = (CAAM_ADDRESS)s;
     buf[0].Length     = keySize;
@@ -437,10 +660,17 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     args[1] = ecdsel;
 
     ret = wc_caamAddAndWait(buf, 2, args, CAAM_ECDSA_KEYPAIR);
-    if (args[0] == 1 && ret == 0) { 
+    if (args[0] == 1 && ret == 0) {
         key->blackKey     = (word32)buf[0].TheAddress;
+    #if defined(WOLFSSL_SECO_CAAM)
+        if (wc_ecc_import_unsigned(key, xy, xy + keySize, NULL, curveId) != 0) {
+            WOLFSSL_MSG("issue importing public key");
+            return -1;
+        }
+    #else
         key->securePubKey = (word32)buf[1].TheAddress;
         key->partNum = args[2];
+    #endif
         return MP_OKAY;
     }
     if (args[0] == 0 && ret == 0) {
@@ -453,6 +683,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     }
     return -1;
 }
+#endif /* WOLFSSL_KEY_GEN */
 
 
 /* if dealing with a black encrypted key then it can not be checked */

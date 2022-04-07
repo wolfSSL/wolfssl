@@ -191,6 +191,9 @@ struct Aes {
     int ctxInitDone;
     int keyId;
 #endif
+#ifdef WOLFSSL_CAAM
+    int blackKey; /* black key / hsm key id */
+#endif
 
 #ifdef GCM_TABLE
     /* key-based fast multiplication table. */

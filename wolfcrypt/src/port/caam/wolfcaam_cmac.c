@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_QNX_CAAM) && defined(WOLFSSL_CMAC)
+#if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CMAC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -52,15 +52,20 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
         return BAD_FUNC_ARG;
     }
 
+    if (out != NULL && outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (key != NULL || ctx != NULL) {
         XMEMSET(&cmac->aes, 0, sizeof(Aes));
-        if (ctx != NULL) {
-            cmac->blackKey = 1;
-            XMEMCPY((byte*)cmac->aes.key, (byte*)ctx, keySz + 16);
-        }
-        else {
-            cmac->blackKey = 0;
-            XMEMCPY((byte*)cmac->aes.key, (byte*)key, keySz);
+        if (cmac->blackKey == 0) {
+            if (ctx != NULL) {
+                cmac->blackKey = 1;
+                XMEMCPY((byte*)cmac->aes.key, (byte*)ctx, keySz + 16);
+            }
+            else {
+                XMEMCPY((byte*)cmac->aes.key, (byte*)key, keySz);
+            }
         }
         cmac->keylen = keySz;
         cmac->initialized = 0;
@@ -78,6 +83,12 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
     idx++;
 
     if (in != NULL) {
+    #ifdef WOLFSSL_HASH_KEEP
+        if (wc_CMAC_Grow(cmac, in, inSz) != 0) {
+            WOLFSSL_MSG("Error growing CMAC buffer");
+            return -1;
+        }
+    #else
         args[0] |= CAAM_ALG_UPDATE;
 
         /* first take care of any left overs */
@@ -123,17 +134,24 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
             pt += buf[idx].Length;
             idx++;
         }
-
+    #endif
     }
 
     if (out != NULL) {
+    #ifdef WOLFSSL_HASH_KEEP
+        if (cmac->msg != NULL) {
+            buf[idx].TheAddress = (CAAM_ADDRESS)cmac->msg;
+            buf[idx].Length = cmac->used;
+            idx++;
+        }
+    #else
         /* handle any leftovers */
         if (cmac->bufferSz > 0) {
             buf[idx].TheAddress = (CAAM_ADDRESS)cmac->buffer;
             buf[idx].Length = cmac->bufferSz;
             idx++;
         }
-
+    #endif
         args[0] |= CAAM_ALG_FINAL;
         blocks++; /* always run on final call */
     }
@@ -161,12 +179,20 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
 
     /* store leftovers */
     if (sz > 0) {
-        word32 add = min(sz, AES_BLOCK_SIZE - cmac->bufferSz);
+        word32 add = (sz < (int)(AES_BLOCK_SIZE - cmac->bufferSz))?
+                                              (word32)sz :
+                                              (AES_BLOCK_SIZE - cmac->bufferSz);
+
+        if (pt == NULL) {
+            return MEMORY_E;
+        }
         XMEMCPY(&cmac->buffer[cmac->bufferSz], pt, add);
         cmac->bufferSz += add;
     }
 
+    (void)scratch;
     return 0;
 }
 
-#endif /* WOLFSSL_QNX_CAAM && WOLFSSL_CMAC */
+#endif /* WOLFSSL_CAAM && WOLFSSL_CMAC */
+

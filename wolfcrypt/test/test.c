@@ -289,7 +289,7 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
-#ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 #ifdef WOLF_CRYPTO_CB
@@ -349,13 +349,18 @@
     #define NO_INTM_HASH_TEST
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_SECO_CAAM)
+    #define HASH_SIZE_LIMIT
+#endif
+
 #if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
   (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
 static void initDefaultName(void);
 #endif
 
 /* for async devices */
-#ifdef WOLFSSL_QNX_CAAM
+#ifdef WOLFSSL_CAAM_DEVID
 static int devId = WOLFSSL_CAAM_DEVID;
 #else
 static int devId = INVALID_DEVID;
@@ -2735,7 +2740,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
-#if defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#ifdef HASH_SIZE_LIMIT
     const char* large_digest =
             "\xa4\x75\x9e\x7a\xa2\x03\x38\x32\x88\x66\xa2\xea\x17\xea\xf8\xc7"
             "\xfe\x4e\xc6\xbb\xe3\xbb\x71\xce\xe7\xdf\x7c\x04\x61\xb3\xc2\x2f";
@@ -2747,7 +2752,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#ifdef HASH_SIZE_LIMIT
     times = 20;
 #else
     times = 100;
@@ -2855,16 +2860,28 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\x30\x9B\x96\xA6\xE9\x43\x78\x30\xA3\x71\x51\x61\xC1\xEB\xE1\xBE"
+        "\xC8\xA5\xF9\x13\x5A\xD6\x6D\x9E\x46\x31\x31\x67\x8D\xE2\xC0\x0B"
+        "\x2A\x1A\x03\xE1\xF3\x48\xA7\x33\xBD\x49\xF8\xFF\xF1\xC2\xC2\x95"
+        "\xCB\xF0\xAF\x87\x61\x85\x58\x63\x6A\xCA\x70\x9C\x8B\x83\x3F\x5D";
+#else
     const char* large_digest =
         "\x5a\x1f\x73\x90\xbd\x8c\xe4\x63\x54\xce\xa0\x9b\xef\x32\x78\x2d"
         "\x2e\xe7\x0d\x5e\x2f\x9d\x15\x1b\xdd\x2d\xde\x65\x0c\x7b\xfa\x83"
         "\x5e\x80\x02\x13\x84\xb8\x3f\xff\x71\x62\xb5\x09\x89\x63\xe1\xdc"
         "\xa5\xdc\xfc\xfa\x9d\x1a\x4d\xc0\xfa\x3a\x14\xf6\x01\x51\x90\xa4";
+#endif
 
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
     times = 100;
+#endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha512Update(&sha, (byte*)large_input,
             (word32)sizeof(large_input));
@@ -2971,15 +2988,26 @@ WOLFSSL_TEST_SUBROUTINE int sha384_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\xB5\xAD\x66\x6F\xD9\x58\x5E\x68\xDD\x5E\x30\xD3\x95\x72\x33\xA4"
+        "\xE9\x4B\x99\x3A\xEF\xF8\xE1\xBF\x1F\x05\x32\xAA\x16\x00\x82\xEC"
+        "\x15\xDA\xF2\x75\xEE\xE9\x06\xAF\x52\x8A\x5C\xEF\x72\x81\x80\xD6";
+#else
     const char* large_digest =
         "\x37\x01\xdb\xff\x1e\x40\x4f\xe1\xe2\xea\x0b\x40\xbb\x3b\x39\x9a"
         "\xcc\xe8\x44\x8e\x7e\xe5\x64\xb5\x6b\x7f\x56\x64\xa7\x2b\x84\xe3"
         "\xc5\xd7\x79\x03\x25\x90\xf7\xa4\x58\xcb\x97\xa8\x8b\xb1\xa4\x81";
+#endif
 
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
     times = 100;
+#endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha384Update(&sha, (byte*)large_input,
             (word32)sizeof(large_input));
@@ -8449,6 +8477,95 @@ static int aes_cbc_test(void)
 }
 #endif
 
+#if defined(HAVE_AES_ECB) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+static int aesecb_test(void)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#else
+    Aes enc[1];
+#endif
+    byte cipher[AES_BLOCK_SIZE * 4];
+#ifdef HAVE_AES_DECRYPT
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#else
+    Aes dec[1];
+#endif
+    byte plain [AES_BLOCK_SIZE * 4];
+#endif /* HAVE_AES_DECRYPT */
+    int  ret = 0;
+
+#if defined(WOLFSSL_AES_256)
+    {
+        WOLFSSL_SMALL_STACK_STATIC const byte niPlain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte niCipher[] =
+        {
+            0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+            0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+        };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte niKey[] =
+        {
+            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+
+        if (wc_AesInit(enc, HEAP_HINT, devId) != 0)
+            ERROR_OUT(-5900, out);
+    #if defined(HAVE_AES_DECRYPT)
+        if (wc_AesInit(dec, HEAP_HINT, devId) != 0)
+            ERROR_OUT(-5901, out);
+    #endif
+
+        XMEMSET(cipher, 0, AES_BLOCK_SIZE);
+        ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
+        if (ret != 0)
+            ERROR_OUT(-5943, out);
+        if (wc_AesEcbEncrypt(enc, cipher, niPlain, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5950, out);
+        if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5944, out);
+
+        XMEMSET(plain, 0, AES_BLOCK_SIZE);
+        ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
+        if (ret != 0)
+            ERROR_OUT(-5945, out);
+        if (wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5951, out);
+        wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE);
+        if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
+            ERROR_OUT(-5946, out);
+    }
+
+    wc_AesFree(enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(dec);
+#endif
+
+  out:
+#ifdef WOLFSSL_SMALL_STACK
+    if (enc)
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#ifdef HAVE_AES_DECRYPT
+    if (dec)
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
+#endif
+#endif /* WOLFSSL_AES_256 */
+
+    return ret;
+}
+#endif /* HAVE_AES_ECB */
+
+
 WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 {
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
@@ -9077,6 +9194,12 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
     if (ret != 0)
         goto out;
 #endif
+#endif
+
+#if defined(HAVE_AES_ECB) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    ret = aesecb_test();
+    if (ret != 0)
+        goto out;
 #endif
 
   out:
@@ -22096,7 +22219,8 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     /* create a new key since above test for loading key is not supported */
 #if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
-    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050)
+    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050) || \
+    defined(WOLFSSL_SECO_CAAM)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0) {
         ERROR_OUT(-9861, done);
@@ -39726,6 +39850,36 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
                 /* reset devId */
                 info->cipher.aescbc.aes->devId = devIdArg;
+            }
+        }
+    #endif /* HAVE_AES_CBC */
+    #if defined(HAVE_AES_ECB) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        if (info->cipher.type == WC_CIPHER_AES_ECB) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesecb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesEcbEncrypt(
+                    info->cipher.aesecb.aes,
+                    info->cipher.aesecb.out,
+                    info->cipher.aesecb.in,
+                    info->cipher.aesecb.sz);
+
+                /* reset devId */
+                info->cipher.aesecb.aes->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesecb.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesEcbDecrypt(
+                    info->cipher.aesecb.aes,
+                    info->cipher.aesecb.out,
+                    info->cipher.aesecb.in,
+                    info->cipher.aesecb.sz);
+
+                /* reset devId */
+                info->cipher.aesecb.aes->devId = devIdArg;
             }
         }
     #endif /* HAVE_AES_CBC */

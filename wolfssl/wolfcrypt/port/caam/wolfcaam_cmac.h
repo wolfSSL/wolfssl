@@ -25,7 +25,7 @@
 #ifndef WOLFCAAM_CMAC_H
 #define WOLFCAAM_CMAC_H
 
-#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_CAAM)
 
 #include <wolfssl/wolfcrypt/cmac.h>
 

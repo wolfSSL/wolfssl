@@ -440,7 +440,7 @@ struct ecc_key {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
 
-#ifdef WOLFSSL_QNX_CAAM
+#ifdef WOLFSSL_CAAM
     word32 blackKey;     /* address of key encrypted and in secure memory */
     word32 securePubKey; /* address of public key in secure memory */
     int    partNum; /* partition number*/

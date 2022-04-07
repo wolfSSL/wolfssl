@@ -94,6 +94,10 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h>
 #endif
 
+#if defined(WOLFSSL_DEVCRYPTO_RSA)
+    #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -213,6 +217,12 @@ struct RsaKey {
 #endif
 #if defined(WOLFSSL_CRYPTOCELL)
     rsa_context_t ctx;
+#endif
+#if defined(WOLFSSL_CAAM)
+    word32 blackKey;
+#endif
+#if defined(WOLFSSL_DEVCRYPTO_RSA)
+    WC_CRYPTODEV ctx;
 #endif
 };
 
