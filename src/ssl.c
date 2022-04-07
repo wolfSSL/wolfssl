@@ -21721,7 +21721,7 @@ static int Asn1TimeToTm(WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
     tm->tm_min = (asn1TimeBuf[i] - '0') * 10; i++;
     tm->tm_min += (asn1TimeBuf[i] - '0'); i++;
     tm->tm_sec = (asn1TimeBuf[i] - '0') * 10; i++;
-    tm->tm_sec += (asn1TimeBuf[i] - '0'); 
+    tm->tm_sec += (asn1TimeBuf[i] - '0');
 
 #ifdef XMKTIME
     /* Call XMKTIME on tm to get the tm_wday and tm_yday fields populated. */

@@ -12056,15 +12056,18 @@ static WARN_UNUSED_RESULT int S2V(
         }
     }
 
-    if ((ret == 0) && (nonceSz > 0)) {
-        ShiftAndXorRb(tmp[0], tmp[1]);
-        ret = wc_AesCmacGenerate(tmp[1], &macSz, nonce, nonceSz, key, keySz);
-        if (ret == 0) {
-            xorbuf(tmp[0], tmp[1], AES_BLOCK_SIZE);
+    if (ret == 0) {
+        if (nonceSz > 0) {
+            ShiftAndXorRb(tmp[0], tmp[1]);
+            ret = wc_AesCmacGenerate(tmp[1], &macSz, nonce, nonceSz, key,
+                                     keySz);
+            if (ret == 0) {
+                xorbuf(tmp[0], tmp[1], AES_BLOCK_SIZE);
+            }
         }
-    }
-    else {
-        XMEMCPY(tmp[0], tmp[1], AES_BLOCK_SIZE);
+        else {
+            XMEMCPY(tmp[0], tmp[1], AES_BLOCK_SIZE);
+        }
     }
 
     if (ret == 0) {
