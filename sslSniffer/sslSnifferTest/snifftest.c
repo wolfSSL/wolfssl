@@ -411,6 +411,9 @@ static void show_appinfo(void)
     #ifdef WOLFSSL_TLS13
         "tls_v13 "
     #endif
+    #ifndef WOLFSSL_NO_TLS12
+        "tls_v12 "
+    #endif
     #ifdef HAVE_SESSION_TICKET
         "session_ticket "
     #endif
@@ -446,6 +449,12 @@ static void show_appinfo(void)
     #endif
     #ifdef HAVE_CURVE22519
         "x22519 "
+    #endif
+    #ifdef WOLFSSL_STATIC_RSA
+        "rsa_static "
+    #endif
+    #ifdef WOLFSSL_STATIC_DH
+        "dh_static "
     #endif
     "\n\n"
     );

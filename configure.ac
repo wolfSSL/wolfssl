@@ -1679,12 +1679,6 @@ AC_ARG_WITH([se050],
     ]
 )
 
-# sniffer doesn't work in maxstrength mode
-if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
-then
-    AC_MSG_ERROR([cannot enable maxstrength in sniffer mode.])
-fi
-
 ENABLED_SNIFFTEST=no
 AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       [
@@ -5245,8 +5239,6 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
 fi
 
-AS_IF([test "x$ENABLED_SNIFFER" = "xyes"],[ENABLED_ENCRYPT_THEN_MAC="no"])
-
 if test "x$ENABLED_ENCRYPT_THEN_MAC" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ENCRYPT_THEN_MAC"
@@ -7099,7 +7091,7 @@ AS_IF([test "x$ENABLED_MCAPI" = "xyes"],
 if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
    test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || \
    test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || \
-   test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
+   test "$ENABLED_OPENSSLALL" = "yes" || \
    test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
    test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
    test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"

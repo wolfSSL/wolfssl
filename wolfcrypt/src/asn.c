@@ -12968,7 +12968,7 @@ static int SetCurve(ecc_key* key, byte* output)
 #ifdef HAVE_OID_ENCODING
     int ret;
 #endif
-    int idx = 0;
+    int idx;
     word32 oidSz = 0;
 
     /* validate key */
@@ -12985,7 +12985,12 @@ static int SetCurve(ecc_key* key, byte* output)
     oidSz = key->dp->oidSz;
 #endif
 
-    idx += SetObjectId(oidSz, output);
+    idx = SetObjectId(oidSz, output);
+
+    /* length only */
+    if (output == NULL) {
+        return idx + oidSz;
+    }
 
 #ifdef HAVE_OID_ENCODING
     ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, output+idx, &oidSz);
@@ -21206,7 +21211,6 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     word32 pubSz;
     byte bitString[1 + MAX_LENGTH_SZ + 1]; /* 6 */
     byte algo[MAX_ALGO_SZ];  /* 20 */
-    byte curve[MAX_ALGO_SZ]; /* 20 */
 
     /* public size */
     pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
@@ -21219,7 +21223,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     /* headers */
     if (with_header) {
-        curveSz = SetCurve(key, curve);
+        curveSz = SetCurve(key, NULL);
         if (curveSz <= 0) {
             return curveSz;
         }
@@ -21242,7 +21246,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
         idx += algoSz;
         /* curve */
         if (output)
-            XMEMCPY(output + idx, curve, curveSz);
+            (void)SetCurve(key, output + idx);
         idx += curveSz;
         /* bit string */
         if (output)
