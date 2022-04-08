@@ -37,8 +37,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-uint32_t     g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
-static int devId = 7890;                 /* dev Id for Crypt Callback */
+uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
+static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
 
@@ -312,6 +312,8 @@ int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
  * ssl     : a pointer to WOLFSSL object
  * ctx     : callback context
  * return  valid device Id on success, otherwise INVALID_DEVIID
+ *         device Id starts from 7890, and increases + 1 its number 
+ *         when the method is successfully called.
  */
 int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
 {
@@ -324,14 +326,28 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
  #endif
 
-    if (wc_CryptoCb_RegisterDevice(devId, Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
+    if (cbInfo == NULL || ssl == NULL) {
+        return INVALID_DEVID;
+    }
+
+    cbInfo->devId = gdevId++;
+
+    if (wc_CryptoCb_RegisterDevice(cbInfo->devId, 
+                            Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
+        /* undo devId number */
+        gdevId--;
         return INVALID_DEVID;
     }
 
     if (ssl)
-        wolfSSL_SetDevId(ssl, devId);
+        wolfSSL_SetDevId(ssl, cbInfo->devId);
 
-    return devId;
+    /* sanity check for overflow */
+    if (gdevId < 0) {
+        gdevId = 7890;
+    }
+    
+    return cbInfo->devId;
 }
 
 /* Renesas Security Library Common Method
@@ -594,16 +610,19 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
 WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
 {
     int ret = -1;
-
-    (void)ctx;
-
-    WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
-
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-    ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, devId);
+    TsipUserCtx*      cbInfo = (TsipUserCtx*)ctx;
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+    User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
+#endif
+    (void)ctx;
+ 
+    WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, cbInfo->devId);
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (Renesas_cmn_usable(ssl, 0)) {
-         ret = wc_sce_generateSessionKey(ssl, ctx, devId);
+         ret = wc_sce_generateSessionKey(ssl, ctx, cbInfo->devId);
     } else
          ret = PROTOCOLCB_UNAVAILABLE;
 #endif
@@ -901,8 +920,8 @@ WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest,
     if (Renesas_cmn_usable(ssl, 1)) {
         if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE) {
             wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
-            ret = wc_sce_Sha256GenerateHmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
-                                                                in, sz, digest);
+            ret = wc_sce_Sha256GenerateHmac(ssl, myInner, 
+                                    WOLFSSL_TLS_HMAC_INNER_SZ, in, sz, digest);
         }
         else
             ret = TSIP_MAC_DIGSZ_E;

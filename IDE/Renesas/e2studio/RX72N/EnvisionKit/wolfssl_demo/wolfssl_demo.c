@@ -377,8 +377,6 @@ static void Tls_client_demo(void)
             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key,
             encrypted_user_key_type);
 
-    guser_PKCbInfo.user_key_id = 0;
-
 #endif /* WOLFSSL_RENESAS_TSIP_TLS && (WOLFSSL_RENESAS_TSIP_VER >=109) */
 
     do {

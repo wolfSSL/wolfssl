@@ -41,20 +41,26 @@
 
 /* Enable wolfcrypt test */
 /* can be enabled with benchmark test */
-/* #define CRYPT_TEST */
+/*#define CRYPT_TEST*/
 
 /* Enable benchmark               */
 /* can be enabled with cyrpt test */
-/* #define BENCHMARK */
+/*#define BENCHMARK*/
 
 /* Enable TLS client     */
 /* cannot enable with CRYPT_TEST or BENCHMARK */
 #define TLS_CLIENT
 
+/* use multi-thread example */
+/*#define TLS_MULTITHREAD_TEST*/
+#if defined(TLS_MULTITHREAD_TEST)
+ #define THREAD_STACK_SIZE (5 * 1024)
+#endif
+
 /* Use RSA certificates */
 #define USE_CERT_BUFFERS_2048
 /* Use ECC certificates */
-/*#define USE_CERT_BUFFERS_256 */
+/*#define USE_CERT_BUFFERS_256*/
 
 #if defined(USE_CERT_BUFFERS_2048) && defined(USE_CERT_BUFFERS_256)
     #error please set either macro USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_256
@@ -68,6 +74,9 @@ typedef struct tagTestInfo
      const char* cipher;
      WOLFSSL_CTX* ctx;
      wolfSSL_Logging_cb log_f;
+#if defined(TLS_MULTITHREAD_TEST)
+     SemaphoreHandle_t xBinarySemaphore;
+#endif
 } TestInfo;
 
 void sce_test();
@@ -76,6 +85,10 @@ void wolfSSL_TLS_client_init();
 void wolfSSL_TLS_client_do(void *pvParam);
 void wolfSSL_TLS_cleanup();
 extern WOLFSSL_CTX *client_ctx;
+
+#ifdef TLS_MULTITHREAD_TEST
+extern xSemaphoreHandle exit_semaph;
+#endif
 
 static void util_Cleanup(xSocket_t xSock, WOLFSSL_CTX *ctx, WOLFSSL *ssl) {
     printf("Cleaning up socket and wolfSSL objects.\n");

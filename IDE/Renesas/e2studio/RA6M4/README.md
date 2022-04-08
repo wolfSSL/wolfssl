@@ -76,7 +76,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Common General Use Mutexes|Enabled|
 |Common General Enable Backward Compatibility|Enabled|
 |Common Memory Allocation Support Dynamic Allocation|Enabled|
-|Common Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000|
+|Common Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000, <br>  e.g. 0x30000 when using multi thread example|
 
 + Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `RTOS` -> `FreeRTOS Heap 4`
 + Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties
@@ -158,6 +158,7 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 $ autogen.sh
 $ ./configure --enable-extended-master=no CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC"
 ```
+
 Run peer wolfSSL server
 
 RSA sign and verify use, launch server with the following option
@@ -165,40 +166,153 @@ RSA sign and verify use, launch server with the following option
 $./examples/server/server -b -d -i
 ```
 
-You will see the following message on J-LinK RTT Viewer
-```
-cipher : AES128-SHA256
-Received: I hear you fa shizzle!
-
-cipher : AES256-SHA256
-Received: I hear you fa shizzle!
-
-cipher : ECDHE-RSA-AES128-SHA256
-Received: I hear you fa shizzle!
-
-cipher : ECDHE-RSA-AES128-GCM-SHA256
-Received: I hear you fa shizzle!
-```
-
 ECDSA sign and verify use, launch server with the following option
 ```
 $./examples/server/server -b -d -c -i ./certs/server-ecc.pem -k ./certs/ecc-key.pem
 ```
 
-You will see the following message on J-LinK RTT Viewer
-```
-cipher : ECDHE-ECDSA-AES128-SHA256
-Received: I hear you fa shizzle!
-
-cipher : ECDHE-ECDSA-AES128-GCM-SHA256
-Received: I hear you fa shizzle!
-```
-
 5.) Run the example Client
+
+You will see the following message on J-LinK RTT Viewer when using RSA sign and verify.
+```
+ Start Client Example, 
+ Connecting to 192.168.11.xx
+
+[wolfSSL_TLS_client_do(00)][00]  Start to connect to the server.
+[wolfSSL_TLS_client_do(00)][00]   Cipher : NULL
+[wolfSSL_TLS_client_do(00)][00]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(01)][01]  Start to connect to the server.
+[wolfSSL_TLS_client_do(01)][01]   Cipher : ECDHE-RSA-AES128-GCM-SHA256
+[wolfSSL_TLS_client_do(01)][01]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(02)][02]  Start to connect to the server.
+[wolfSSL_TLS_client_do(02)][02]   Cipher : ECDHE-RSA-AES256-SHA
+[wolfSSL_TLS_client_do(02)][02]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(03)][03]  Start to connect to the server.
+[wolfSSL_TLS_client_do(03)][03]   Cipher : ECDHE-RSA-AES128-SHA256
+[wolfSSL_TLS_client_do(03)][03]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(04)][04]  Start to connect to the server.
+[wolfSSL_TLS_client_do(04)][04]   Cipher : AES128-SHA256
+[wolfSSL_TLS_client_do(04)][04]  Received: I hear you fa shizzle!
+
+
+ End of Client Example
+```
+
+You will see the following message on J-LinK RTT Viewer when using ECDSA sign and verify.
+```
+ Start Client Example, 
+ Connecting to 192.168.11.xx
+
+[wolfSSL_TLS_client_do(00)][00]  Start to connect to the server.
+[wolfSSL_TLS_client_do(00)][00]   Cipher : NULL
+[wolfSSL_TLS_client_do(00)][00]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(01)][01]  Start to connect to the server.
+[wolfSSL_TLS_client_do(01)][01]   Cipher : ECDHE-ECDSA-AES128-GCM-SHA256
+[wolfSSL_TLS_client_do(01)][01]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(02)][02]  Start to connect to the server.
+[wolfSSL_TLS_client_do(02)][02]   Cipher : ECDHE-ECDSA-AES256-SHA
+[wolfSSL_TLS_client_do(02)][02]  Received: I hear you fa shizzle!
+
+[wolfSSL_TLS_client_do(03)][03]  Start to connect to the server.
+[wolfSSL_TLS_client_do(03)][03]   Cipher : ECDHE-ECDSA-AES128-SHA256
+[wolfSSL_TLS_client_do(03)][03]  Received: I hear you fa shizzle!
+
+
+ End of Client Exampl
+```
 
  **Note**\
    To run "RSA verify" client, enable "#define USE_CERT_BUFFERS_2048" in wolfssl_demo.h\
    To run "ECDSA verify" client, enable "#define USE_CERT_BUFFERS_256" in wolfssl_demo.h
+
+
+### Run Multi Client Session example
+1.) Enable TLS_CLIENT and TLS_MULTITHREAD_TEST definition in wolfssl_demo.h of test_RA6M4 projet
+
+2.) Follow [Run Client](#run-client) instruction 
+
+3.) Prepare peer wolfssl server
+
+RSA sign and verify use, launch server with the following option
+```
+$./examples/server/server -b -d -i -p 11111
+
+Open another terminal and launch another server example
+$./examples/server/server -b -d -i -p 11112
+```
+
+ECDSA sign and verify use, launch server with the following option
+```
+$./examples/server/server -b -d -c -i ./certs/server-ecc.pem -k ./certs/ecc-key.pem -p 11111
+
+Open another terminal and launch another server example
+$./examples/server/server -b -d -c -i ./certs/server-ecc.pem -k ./certs/ecc-key.pem -p 11112
+```
+
+4.) Run Multi Client Session Example
+You will see similar following message on J-LinK RTT Viewer when using ECDSA sign and verify.
+```
+ Start Client Example, 
+ Connecting to 192.168.11.xx
+
+ clt_thd_taskA connecting to 11111 port
+ clt_thd_taskB connecting to 11112 port
+[clt_thd_taskA][00]  Ready to connect.
+[clt_thd_taskA][00]  Start to connect to the server.
+[clt_thd_taskA][00]   Cipher : ECDHE-RSA-AES128-GCM-SHA256
+[clt_thd_taskB][00]  Ready to connect.
+[clt_thd_taskB][00]  Start to connect to the server.
+[clt_thd_taskB][00]   Cipher : ECDHE-RSA-AES128-SHA256
+[clt_thd_taskB][00]  Received: I hear you fa shizzle!
+
+[clt_thd_taskA][00]  Received: I hear you fa shizzle!
+
+ clt_thd_taskA connecting to 11111 port
+ clt_thd_taskB connecting to 11112 port
+[clt_thd_taskA][00]  Ready to connect.
+[clt_thd_taskA][00]  Start to connect to the server.
+[clt_thd_taskA][00]   Cipher : AES128-SHA256
+[clt_thd_taskB][00]  Ready to connect.
+[clt_thd_taskB][00]  Start to connect to the server.
+[clt_thd_taskB][00]   Cipher : AES256-SHA256
+[clt_thd_taskA][00]  Received: I hear you fa shizzle!
+
+[clt_thd_taskB][00]  Received: I hear you fa shizzle!
+
+
+ End of Client Example
+```
+
+You will see similar following message on J-LinK RTT Viewer when using ECDSA sign and verify.
+```
+ Start Client Example, 
+ Connecting to 192.168.11.xx
+
+ clt_thd_taskA connecting to 11111 port
+ clt_thd_taskB connecting to 11112 port
+[clt_thd_taskA][00]  Ready to connect.
+[clt_thd_taskA][00]  Start to connect to the server.
+[clt_thd_taskA][00]   Cipher : ECDHE-ECDSA-AES128-GCM-SHA256
+[clt_thd_taskB][00]  Ready to connect.
+[clt_thd_taskB][00]  Start to connect to the server.
+[clt_thd_taskB][00]   Cipher : ECDHE-ECDSA-AES128-SHA256
+[clt_thd_taskB][00]  Received: I hear you fa shizzle!
+
+[clt_thd_taskA][00]  Received: I hear you fa shizzle!
+
+
+ End of Client Example
+```
+
+**Note**\
+Multi Client session use case is only able to run threads that all use either SCE cipher suite or SW cipher suite.
+The example program runs two threads that use SCE cipher suite.
 
 ## Run Crypt test and Benchmark
 
