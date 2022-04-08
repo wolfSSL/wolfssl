@@ -2552,6 +2552,12 @@ extern void uITRON4_free(void *p) ;
     #define NO_SHA2_CRYPTO_CB
 #endif
 
+/* Enable HAVE_ONE_TIME_AUTH by default for use with TLS cipher suites
+ * when poly1305 is enabled
+ */
+#if defined(HAVE_POLY1305) && !defined(HAVE_ONE_TIME_AUTH)
+    #define HAVE_ONE_TIME_AUTH
+#endif
 
 /* Check for insecure build combination:
  * secure renegotiation   [enabled]
