@@ -1,6 +1,6 @@
 /* renesas_cmn.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,11 +33,11 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaEnc(WOLFSSL* ssl, const unsigned char* in,
        const unsigned char* keyDer, unsigned int keySz, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message, 
                     word32 messageSz, word32 macSz, word32 content, void* ctx);
-WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const uint8_t* sig, 
-        uint32_t sigSz, const uint8_t* hash, uint32_t hashSz, 
-        const uint8_t* key, uint32_t keySz, int* result, void* ctx);
-WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
-        uint8_t** out, const byte* key, uint32_t keySz, void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
+		unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
+        const unsigned char* key, unsigned int keySz, int* result, void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, unsigned char* sig, unsigned int sigSz,
+        unsigned char** out, const unsigned char* key, unsigned int keySz, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
              word32 sz, int padSz, int content, int verify, int epochOrder);
 WOLFSSL_LOCAL int Renesas_cmn_usable(const WOLFSSL *ssl, byte seskey_gennerated);

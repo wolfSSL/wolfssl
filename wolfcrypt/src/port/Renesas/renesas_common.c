@@ -1,6 +1,6 @@
 /* renesas_common.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -380,8 +380,9 @@ static byte sce_tsip_rootCAverified(void)
  * keySz    Length of key in bytes
  * return FSP_SUCCESS(0) on success, otherwise FSP/TSIP error code
  */
-WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
-        byte** out, const byte* key, word32 keySz, void* ctx)
+WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, unsigned char* sig,
+          unsigned int sigSz, unsigned char** out,
+          const unsigned char* key, unsigned int keySz, void* ctx)
 {
     int ret = 0;
 
@@ -404,7 +405,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     ret = wc_SCE_RsaVerify(ssl, sig, sigSz, out,key, keySz, ctx);
 
-    if (ret == 0 && ret != CRYPTOCB_UNAVAILABLE) {
+    if (ret == 0) {
         /* Set Callback for SharedSecret when successful */
         wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, SCE_EccSharedSecret);
         wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
@@ -431,9 +432,9 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
  * result   a pointer to int indicates if the verify is ok
  * return FSP_SUCCESS(0) on success, otherwise FSP/TSIP error code
  */
-WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
-        uint32_t sigSz, const uint8_t* hash, uint32_t hashSz,
-        const uint8_t* key, uint32_t keySz, int* result, void* ctx)
+WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
+          unsigned int sigSz, const unsigned char* hash, unsigned int hashSz,
+        const unsigned char* key, unsigned int keySz, int* result, void* ctx)
 {
     int ret = 0;
 
@@ -455,7 +456,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     ret = wc_SCE_EccVerify(ssl, sig, sigSz, hash, hashSz, key, keySz,
                                                         result, ctx);
-    if (ret == 0 && *result == 1 && ret != CRYPTOCB_UNAVAILABLE) {
+    if (ret == 0 && *result == 1) {
         /* Set callback for SharedSecret when being successful */
         wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, SCE_EccSharedSecret);
         wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
@@ -526,17 +527,17 @@ WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
 
     WOLFSSL_ENTER("Renesas_cmn_TlsFinished");
 
-    /* sanity check */
-    if (ssl == NULL || ctx == NULL || side == NULL || handshake_hash == NULL ||
-        hashes == NULL) {
-        return BAD_FUNC_ARG;
-    }
+
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = wc_tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
                             side, handshake_hash, hashes);
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    ret = wc_sce_generateVerifyData(ssl->arrays->sce_masterSecret,
-                            side, handshake_hash, hashes);
+    if (Renesas_cmn_usable(ssl, 1)) {
+         ret = wc_sce_generateVerifyData(ssl->arrays->sce_masterSecret,
+                   side, handshake_hash, hashes);
+    }
+     else
+         ret = PROTOCOLCB_UNAVAILABLE;
  #endif
 
     return ret;
@@ -598,14 +599,13 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
 
     WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
 
-    /* sanity check */
-    if (ssl == NULL || ctx == NULL)
-        return BAD_FUNC_ARG;
- 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, devId);
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    ret = wc_sce_generateSessionKey(ssl, ctx, devId);
+    if (Renesas_cmn_usable(ssl, 0)) {
+         ret = wc_sce_generateSessionKey(ssl, ctx, devId);
+    } else
+         ret = PROTOCOLCB_UNAVAILABLE;
 #endif
     if (ret == 0) {
         wolfSSL_CTX_SetEncryptKeysCb(ssl->ctx, Renesas_cmn_EncryptKeys);
@@ -737,8 +737,10 @@ WOLFSSL_LOCAL int Renesas_cmn_genMasterSecret(struct WOLFSSL* ssl, void* ctx)
             wolfSSL_SetGenSessionKeyCtx(ssl, NULL);
         }
     }
-    else
+    else {
+        WOLFSSL_MSG("PROTOCOLCB_UNAVAILABLE\n");
         ret = PROTOCOLCB_UNAVAILABLE;
+    }
 
  #endif
     return ret;

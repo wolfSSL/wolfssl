@@ -1,6 +1,6 @@
 /* test_main.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,15 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #include "stdio.h"
 #include "stdint.h"
+#include "wolfssl_demo.h"
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
  #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
- User_SCEPKCbInfo        guser_PKCbInfo;
+
+ User_SCEPKCbInfo guser_PKCbInfo;
 #endif
 
 #include <wolfssl_demo.h>
@@ -39,6 +40,8 @@ extern "C" {
 void abort(void);
 }
 #endif
+
+void R_BSP_WarmStart(bsp_warm_start_event_t event);
 
 /* the function is called just before main() to set up pins */
 /* this needs to be called to setup IO Port */
@@ -106,7 +109,7 @@ typedef struct func_args {
 void wolfcrypt_test(func_args args);
 int  benchmark_test(void *args);
 
-
+/* Entry function of SCE test */
 void sce_test(void)
 {
 
@@ -154,51 +157,65 @@ void sce_test(void)
     #include "r_sce.h"
     
   #if defined(USE_CERT_BUFFERS_256)
-   #if defined(TEST_CIPHER_SPECIFIED)
-    const char* cipherlist[] = {
-       "ECDHE-ECDSA-AES128-SHA256",
-       "ECDHE-ECDSA-AES128-GCM-SHA256"
-    };
-    const int cipherlist_sz = 2;
-   #else
-    const char* cipherlist[] = {
-       NULL
-    };
-    const int cipherlist_sz = 1;
-   #endif /* TEST_CIPHER_SPECIFIED */
-
+                const char* cipherlist[] = {
+                   NULL, /* not specify cipher suite */
+                #if defined(WOLFSSL_TLS13)
+                   NULL, NULL, NULL,
+                #else
+                   "ECDHE-ECDSA-AES128-GCM-SHA256",
+                   "ECDHE-ECDSA-AES256-SHA", /* SW only */
+                   "ECDHE-ECDSA-AES128-SHA256",
+                #endif
+                };
+                const int cipherlist_sz = 4;
+                TestInfo info[cipherlist_sz];
   #else
-   #if defined(TEST_CIPHER_SPECIFIED)
-    const char* cipherlist[] = {
-       "AES128-SHA256",
-       "AES256-SHA256",
-       "ECDHE-RSA-AES128-SHA256",
-       "ECDHE-RSA-AES128-GCM-SHA256"
-    };
-    const int cipherlist_sz = 4;
-   #else
-    const char* cipherlist[] = {
-       NULL
-    };
-    const int cipherlist_sz = 1;
-   #endif /* TEST_CIPHER_SPECIFIED */
+                const char* cipherlist[] = {
+                   NULL, /* not specify cipher suite */
+                #if defined(WOLFSSL_TLS13)
+                   NULL, NULL, NULL, NULL, NULL,
+                #else
+                   "ECDHE-RSA-AES128-GCM-SHA256",
+                   "ECDHE-RSA-AES256-SHA", /* SW only */
+                   "ECDHE-RSA-AES128-SHA256",
+                   "AES128-SHA256",
+                   "AES256-SHA256",
+                #endif
+                };
+                const int cipherlist_sz = 6;
+                TestInfo info[cipherlist_sz];
   #endif
 
     int i = 0;
 
+    printf("\n Start Client Example, ");
+    printf("\n Connecting to %s\n\n", SERVER_IP);
+
     SetScetlsKey();
-    
+
     TCPInit();
 
-    do {
-        if(cipherlist_sz > 0 && cipherlist[i] != NULL )
-            printf("cipher : %s\n", cipherlist[i]);
+    wolfSSL_TLS_client_init();
 
-        wolfSSL_TLS_client_init(cipherlist[i]);
-        wolfSSL_TLS_client();
-        
+    do {
+
+        info[i].port = DEFAULT_PORT;
+        info[i].cipher = cipherlist[i];
+        info[i].ctx = client_ctx;
+        info[i].id = i;
+
+        memset(info[i].name, 0, sizeof(info[i].name));
+        sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
+
+        wolfSSL_TLS_client_do(&info[i]);
+
         i++;
     } while (i < cipherlist_sz);
+
+    printf("\n End of Client Example");
+
+    wolfSSL_TLS_cleanup();
+
 #endif
 }
 

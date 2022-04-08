@@ -1,6 +1,6 @@
 /* wolf_client.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,21 +29,35 @@
 #include "wolfssl/certs_test.h"
 
 uint32_t g_encrypted_root_public_key[140];
-static WOLFSSL_CTX *client_ctx;
+WOLFSSL_CTX *client_ctx = NULL;
 
 extern uint8_t g_ether0_mac_address[6];
-typedef struct user_EccPKCbInfo;
-extern struct user_PKCbInfo guser_PKCbInfo;
 static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 static const byte ucNetMask[4]            = { 255, 255, 255, 0 };
 static const byte ucGatewayAddress[4]     = { 192, 168, 11, 1 };
 static const byte ucDNSServerAddress[4]   = { 192, 168, 11, 1 };
 
-/* Client connects to the server with these details. */
-#define SERVER_IP    "192.168.11.40"
-#define DEFAULT_PORT 11111
-
 #define FR_SOCKET_SUCCESS 0
+
+extern struct User_PKCbInfo guser_PKCbInfo;
+
+int SEGGER_RTT_vprintf(unsigned BufferIndex, const char * sFormat, va_list * pParamList);
+
+static int msg(const char* pname, int l,
+                         const char * sFormat, ...)
+{
+    int r = 0;
+    va_list ParamList;
+
+    va_start(ParamList, sFormat);
+
+    printf("[%s][%02d] ", pname, l);
+    r = SEGGER_RTT_vprintf(0, sFormat, &ParamList);
+
+    va_end(ParamList);
+
+    return r;
+}
 
 void TCPInit( )
 {
@@ -60,7 +74,7 @@ void TCPInit( )
    }
 }
 
-void wolfSSL_TLS_client_init(const char* cipherlist)
+void wolfSSL_TLS_client_init()
 {
 
     #ifndef NO_FILESYSTEM
@@ -80,9 +94,6 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     #endif
 
     wolfSSL_Init();
-    #ifdef DEBUG_WOLFSSL
-        wolfSSL_Debugging_ON();
-    #endif
 
     /* Create and initialize WOLFSSL_CTX */
     if ((client_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
@@ -90,8 +101,8 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         return;
     }
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    /* set callback functions for ECC */
-    wc_sce_set_callbacks(client_ctx);
+          /* set callback functions for ECC */
+          wc_sce_set_callbacks(client_ctx);
     #endif
     
     #if !defined(NO_FILESYSTEM)
@@ -105,85 +116,122 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
        return;
     }
     #endif
-
-    /* use specific cipher */
-    if (cipherlist != NULL && wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != WOLFSSL_SUCCESS) {
-        wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
-        printf("client can't set cipher list 1");
-    }
 }
 
-void wolfSSL_TLS_client( )
+void wolfSSL_TLS_client_do(void *pvParam)
 {
+
     int ret;
+    int i = 0;
+
+    TestInfo* p = (TestInfo*)pvParam;
     /* FreeRTOS+TCP Objects */
     socklen_t xSize = sizeof(struct freertos_sockaddr);
     xSocket_t xClientSocket = NULL;
     struct freertos_sockaddr xRemoteAddress;
     
-    WOLFSSL_CTX *ctx = (WOLFSSL_CTX *)client_ctx;
-    WOLFSSL *ssl;
+    WOLFSSL_CTX *ctx = (WOLFSSL_CTX *)p->ctx;
+    WOLFSSL *ssl = NULL;
+    const char* pcName = p->name;
 
     #define BUFF_SIZE 256
     static const char sendBuff[]= "Hello Server\n" ;
     
     char    rcvBuff[BUFF_SIZE] = {0};
     
+    i = p->id;
     /* Client Socket Setup */
-    xRemoteAddress.sin_port = FreeRTOS_htons(DEFAULT_PORT);
+    xRemoteAddress.sin_port = FreeRTOS_htons(p->port);
     xRemoteAddress.sin_addr = FreeRTOS_inet_addr(SERVER_IP);
 
-    /* Create a FreeRTOS TCP Socket and connect */
-    xClientSocket = FreeRTOS_socket(FREERTOS_AF_INET,
-                                    FREERTOS_SOCK_STREAM,
-                                    FREERTOS_IPPROTO_TCP);
-    configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
-    FreeRTOS_bind(xClientSocket, &xRemoteAddress, sizeof(xSize));
+     /* Create a FreeRTOS TCP Socket and connect */
+     xClientSocket = FreeRTOS_socket(FREERTOS_AF_INET,
+                                             FREERTOS_SOCK_STREAM,
+                                             FREERTOS_IPPROTO_TCP);
 
-    /* Client Socket Connect */
-    ret = FreeRTOS_connect(xClientSocket,
-                           &xRemoteAddress,
-                           sizeof(xRemoteAddress));
-    if (ret != FR_SOCKET_SUCCESS) {
-        printf("Error [%d]: FreeRTOS_connect.\n",ret);
-        util_inf_loop(xClientSocket, ctx, ssl);
-    }
-    
-    if((ssl = wolfSSL_new(ctx)) == NULL) {
-        printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
-    }
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    /* set callback ctx */
-    wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
-    #endif
-    /* Attach wolfSSL to the socket */
-    ret = wolfSSL_set_fd(ssl, (int) xClientSocket);
-    if (ret != WOLFSSL_SUCCESS) {
-        printf("Error [%d]: wolfSSL_set_fd.\n",ret);
-        util_inf_loop(xClientSocket, ctx, ssl);
-    }
+     configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
 
-    if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
-        printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
-        return;
+     FreeRTOS_bind(xClientSocket, NULL, sizeof(xSize));
+
+     /* Client Socket Connect */
+     ret = FreeRTOS_connect(xClientSocket,
+                                 &xRemoteAddress,
+                                 sizeof(xRemoteAddress));
+     if (ret != FR_SOCKET_SUCCESS) {
+          msg(pcName, i, " Error [%d]: FreeRTOS_connect.\n", ret);
+          goto out;
+     }
+
+     msg(pcName, i, " Start to connect to the server.\n");
+
+     if((ssl = wolfSSL_new(ctx)) == NULL) {
+          msg(pcName, i, " ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
+          goto out;
+     }
+     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+        /* set callback ctx */
+        memset(&guser_PKCbInfo, 0, sizeof(User_SCEPKCbInfo));
+        wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
+     #endif
+
+     /* Attach wolfSSL to the socket */
+     ret = wolfSSL_set_fd(ssl, (int) xClientSocket);
+     if (ret != WOLFSSL_SUCCESS) {
+          msg(pcName, i, " Error [%d]: wolfSSL_set_fd.\n",ret);
+     }
+
+     if(p->cipher)
+         msg(pcName, i, "  Cipher : %s\n", p->cipher);
+     /* use specific cipher */
+     if (p->cipher != NULL && wolfSSL_set_cipher_list(ssl, p->cipher) != WOLFSSL_SUCCESS) {
+          msg(pcName, i, " client can't set cipher list 1");
+          goto out;
+     }
+     #ifdef DEBUG_WOLFSSL
+          wolfSSL_Debugging_ON();
+          if (p->log_f != NULL)
+               wolfSSL_SetLoggingCb(p->log_f);
+     #endif
+     if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
+          msg(pcName, i, " ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
+          goto out;
+     }
+     #ifdef DEBUG_WOLFSSL
+          wolfSSL_Debugging_OFF();
+     #endif
+     if (wolfSSL_write(ssl, sendBuff, (int)strlen(sendBuff)) != (int)strlen(sendBuff)) {
+          msg(pcName, i, " ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
+          goto out;
+     }
+
+     if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE)) < 0) {
+          msg(pcName, i, " ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
+          goto out;
+     }
+
+     rcvBuff[ret] = '\0' ;
+     msg(pcName, i, " Received: %s\n\n", rcvBuff);
+
+ out:
+    if (ssl) {
+         wolfSSL_shutdown(ssl);
+         wolfSSL_free(ssl);
+         ssl = NULL;
+         /* need to reset callback */
+         wc_sce_set_callbacks(client_ctx);
     }
+    /* clean up socket */
+      if (xClientSocket) {
+           FreeRTOS_shutdown(xClientSocket, FREERTOS_SHUT_RDWR);
+           FreeRTOS_closesocket(xClientSocket);
+           xClientSocket = NULL;
+      }
+}
 
-    if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != strlen(sendBuff)) {
-        printf("ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
-    }
-
-    if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE)) < 0) {
-        printf("ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
-    }
-
-    rcvBuff[ret] = '\0' ;
-    printf("Received: %s\n\n", rcvBuff);
-
-    /* frees all data before client termination */
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-    wolfSSL_Cleanup();
+void wolfSSL_TLS_cleanup()
+{
+     if (client_ctx) {
+          wolfSSL_CTX_free(client_ctx);
+     }
+     wolfSSL_Cleanup();
 }
