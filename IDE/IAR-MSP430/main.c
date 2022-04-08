@@ -26,7 +26,6 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/curve25519.h>
-#include <wolfssl/wolfcrypt/curve448.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 
 #include <stdio.h>
