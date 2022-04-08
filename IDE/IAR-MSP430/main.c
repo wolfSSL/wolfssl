@@ -33,42 +33,50 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <msp430f5359.h>
+#include <msp430f5659.h>
+
+/* Without __root on some of the functions, IAR's "Discard Unused Publics"
+   will optimze out some of the functions
+ */
+#if defined(__IAR_SYSTEMS_ICC__)
+#define IAR_KEEP __root
+#else
+#define IAR_KEEP
+#endif
 
 #define ECC_256_BIT_FIELD 32 /* 256-bit curve field */
-#define ECC_448_BIT_FIELD 56 /* 448-bit curve field */
 
-#define WOLF_GEN_MEM         (2*1024)
+#define WOLF_GEN_MEM    (2*1024)
+#define CHACHA_TEST_LEN 1024
 
 static byte gWolfMem[WOLF_GEN_MEM];
-static byte generatedCiphertext[1024];
-static byte generatedPlaintext[1024];
+static byte generatedCiphertext[CHACHA_TEST_LEN];
+static byte generatedPlaintext[CHACHA_TEST_LEN];
 
 #define MCLK_FREQ_MHZ 8 /* MCLK = 8MHz */
 
-const byte  key[] = {
+static const byte  key[] = {
     0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
     0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
     0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
     0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f
 };
 
-const byte plaintext[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras lacus odio, pretium vel sagittis ac, facilisis quis diam. Vivamus condimentum velit sed dolor consequat interdum. Etiam eleifend ornare felis, eleifend egestas odio vulputate eu. Sed nec orci nunc. Etiam quis mi augue. Donec ullamcorper suscipit lorem, vel luctus augue cursus fermentum. Etiam a porta arcu, in convallis sem. Integer efficitur elementum diam, vel scelerisque felis posuere placerat. Donec vestibulum sit amet leo sit amet tincidunt. Etiam et vehicula turpis. Phasellus quis finibus sapien. Sed et tristique turpis. Nullam vitae sagittis tortor, et aliquet lorem. Cras a leo scelerisque, convallis lacus ut, fermentum urna. Mauris quis urna diam. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam aliquam vehicula orci id pulvinar. Proin mollis, libero sollicitudin tempor ultrices, massa augue tincidunt turpis, sit amet aliquam neque nibh nec dui. Fusce finibus massa quis rutrum suscipit cras amet";
+static const byte plaintext[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras lacus odio, pretium vel sagittis ac, facilisis quis diam. Vivamus condimentum velit sed dolor consequat interdum. Etiam eleifend ornare felis, eleifend egestas odio vulputate eu. Sed nec orci nunc. Etiam quis mi augue. Donec ullamcorper suscipit lorem, vel luctus augue cursus fermentum. Etiam a porta arcu, in convallis sem. Integer efficitur elementum diam, vel scelerisque felis posuere placerat. Donec vestibulum sit amet leo sit amet tincidunt. Etiam et vehicula turpis. Phasellus quis finibus sapien. Sed et tristique turpis. Nullam vitae sagittis tortor, et aliquet lorem. Cras a leo scelerisque, convallis lacus ut, fermentum urna. Mauris quis urna diam. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam aliquam vehicula orci id pulvinar. Proin mollis, libero sollicitudin tempor ultrices, massa augue tincidunt turpis, sit amet aliquam neque nibh nec dui. Fusce finibus massa quis rutrum suscipit cras amet";
 
-const byte  iv[] = {
+static const byte  iv[] = {
     0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43,
     0x44, 0x45, 0x46, 0x47
 };
 
-const byte  aad[] = { /* additional data */
+static const byte  aad[] = { /* additional data */
     0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3,
     0xc4, 0xc5, 0xc6, 0xc7
 };
 
 volatile unsigned int seconds;
 
-/* Add __root here (and a few other places) otherwise this is optimized out */
-__root unsigned int msp430_time(long *x)
+IAR_KEEP unsigned int msp430_time(long *x)
 {
     return seconds;
 }
@@ -84,9 +92,9 @@ static void print_secret(char* who, byte* s, int sLen)
 }
 
 /* This is a very crude RNG, do not use in production */
-__root unsigned int msp430_rnd(void)
+IAR_KEEP unsigned int msp430_rnd(void)
 {
-    unsigned int result = TA0R % TA2R;
+    unsigned int result = TA0R ^ TA2R;
     printf("Rand generated: %d\r\n", result);
     return result;
 }
@@ -94,8 +102,8 @@ __root unsigned int msp430_rnd(void)
 static void uart_init()
 {
     P8SEL |= BIT3 + BIT2;
-    UCA1CTLW0 = UCSWRST;                      // Put eUSCI in reset
-    UCA1CTLW0 |= UCSSEL__SMCLK;               // CLK = SMCLK
+    UCA1CTLW0 = UCSWRST;                      /* Put eUSCI in reset */
+    UCA1CTLW0 |= UCSSEL__SMCLK;               /* CLK = SMCLK */
     /* Baud Rate calculation
        This was calculated to produce 115200 for a 16MHz clock, so it produces
        57600 at 8MHz
@@ -103,14 +111,18 @@ static void uart_init()
        Fractional portion = 0.6805
        Use Table 24-5 in Family User Guide
     */
-    UCA1BR0 = 8;                               // 16000000/16/9600
+    UCA1BR0 = 8;
     UCA1BR1 = 0x00;
     UCA1MCTL |= UCOS16 | UCBRF_11 | UCBRS_0;
-    UCA1CTLW0 &= ~UCSWRST;                    // Initialize eUSCI
-    UCA1IE |= UCRXIE;                         // Enable USCI_A0 RX interrupt
+    UCA1CTLW0 &= ~UCSWRST;                    /* Initialize eUSCI */
+    UCA1IE |= UCRXIE;                         /* Enable USCI_A0 RX interrupt */
 }
 
-__root size_t __write(int fd, const unsigned char *_ptr, size_t len)
+#if defined(__IAR_SYSTEMS_ICC__)
+IAR_KEEP size_t __write(int fd, const unsigned char *_ptr, size_t len)
+#else
+int write(int fd, const char *_ptr, int len)
+#endif
 {
   size_t i;
 
@@ -125,25 +137,45 @@ __root size_t __write(int fd, const unsigned char *_ptr, size_t len)
 static void SetVcoreUp (unsigned int level)
 {
     /* Change VCORE voltage level */
-    PMMCTL0_H = PMMPW_H;                    // Open PMM registers for write
-    SVSMHCTL = SVSHE                        // Set SVS/SVM high side new level
+    PMMCTL0_H = PMMPW_H;                    /* Open PMM registers for write */
+    SVSMHCTL = SVSHE                        /* Set SVS/SVM high side new level */
            + SVSHRVL0 * level
            + SVMHE
            + SVSMHRRL0 * level;
-    SVSMLCTL = SVSLE                        // Set SVM low side to new level
+    SVSMLCTL = SVSLE                        /* Set SVM low side to new level */
            + SVMLE
            + SVSMLRRL0 * level;
-    while ((PMMIFG & SVSMLDLYIFG) == 0);    // Wait till SVM is settled
-    PMMIFG &= ~(SVMLVLRIFG + SVMLIFG);      // Clear already set flags
-    PMMCTL0_L = PMMCOREV0 * level;          // Set VCore to new level
-    if ((PMMIFG & SVMLIFG))                 // Wait till new level reached
+    while ((PMMIFG & SVSMLDLYIFG) == 0);    /* Wait till SVM is settled */
+    PMMIFG &= ~(SVMLVLRIFG + SVMLIFG);      /* Clear already set flags */
+    PMMCTL0_L = PMMCOREV0 * level;          /* Set VCore to new level */
+    if ((PMMIFG & SVMLIFG))                 /* Wait till new level reached */
     while ((PMMIFG & SVMLVLRIFG) == 0);
-    SVSMLCTL = SVSLE                        // Set SVS/SVM low side to new level
+    SVSMLCTL = SVSLE                        /* Set SVS/SVM low side to new level */
           + SVSLRVL0 * level
           + SVMLE
           + SVSMLRRL0 * level;
-    PMMCTL0_H = 0x00;                       // Lock PMM registers for write access
+    PMMCTL0_H = 0x00;                       /* Lock PMM registers for write access */
 }
+
+/* Stop WDT
+   We need to do this before main() because when there is ~4K of data to
+   initialize the watchdog will fire before initialization completes, sending
+   it into an endless loop of nothing.
+   See: https://www.iar.com/knowledge/support/technical-notes/general/my-msp430-does-not-start-up/
+*/
+#if defined(__IAR_SYSTEMS_ICC__)
+int __low_level_init()
+{
+    WDTCTL = WDTPW | WDTHOLD;
+    return 1;
+}
+#else
+static void __attribute__((naked, used, section(".crt_0042")))
+disable_watchdog (void)
+{
+    WDTCTL = WDTPW | WDTHOLD;
+}
+#endif
 
 int main(void)
 {
@@ -151,8 +183,6 @@ int main(void)
     WOLFSSL_HEAP_HINT* HEAP_HINT = NULL;
     int ret;
     int start;
-
-    WDTCTL = WDTPW + WDTHOLD; /* Stop WDT */
 
     /* NOTE: Change core voltage one level at a time.. */
     SetVcoreUp (0x01);
@@ -189,7 +219,11 @@ int main(void)
     P1DIR = 1;
     P1OUT = 0;
     uart_init();
+#if defined(__IAR_SYSTEMS_ICC__)
     __enable_interrupt();
+#else
+    _enable_interrupts();
+#endif
     printf("START!\r\n");
 #ifdef HAVE_ECC
     WC_RNG rng;
@@ -320,6 +354,5 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
 {
     seconds++;
     P1OUT = seconds ^ 2;
-    printf(".");
-    fflush(stdout);
+    fprintf(stderr, ".");
 }

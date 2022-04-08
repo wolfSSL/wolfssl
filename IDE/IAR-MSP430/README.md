@@ -20,8 +20,69 @@ When setting up the IDE, copy the wolfSSL source code to your project's director
 
 Use the `main.c` provided here and copy the `user_settings.h` file to the `wolfssl/wolfcrypt` subdirectory of wolfSSL.
 
-You will need to set at least 700 bytes of stack, no heap is required. It will need the memory model to set to "medium". You will also need to change the "Library Configuration" to "Full DLIB" so the `printf()` functions work correctly.
+You will need to set at least 700 bytes of stack, no heap is required. You will also need to change the "Library Configuration" to "Full DLIB" so the `printf()` functions work correctly.
 
 Make sure to add the definition `WOLFSSL_USER_SETTINGS` to the preprocessor settings in your project to that `user_settings.h` is loaded in. You will also need to add the wolfSSL root directory to the "Additional include directories".
 
 From here you can set any optimizer settings you need.
+
+## MSP430 GCC Makefile
+
+Also included is a `Makefile` for TI's GCC, when compiling with GCC the code size will be larger and the application will be ~2x slower.
+
+To use this Makefile you will need [TI's MSP430 GCC](https://www.ti.com/tool/MSP430-GCC-OPENSOURCE) installed as well as `mspdebug` with the `libmsp430.so` accessible to it. You will need to edit the `Makefile` to set the `TI_COMPILER_PATH` to where you have installed this.
+
+Once everything is in place you can run `make` to build it and `make install` to flash the MSP430 with it.
+
+**Note**: this will not work with the much older version of MSP430 GCC that comes in Linux distribution repositories.
+
+## Example Output
+
+This is an example output for the demo application when compiled with IAR.
+
+```
+START!
+Rand generated: 2317
+Rand generated: -31901
+Rand generated: 13538
+Rand generated: -24035
+Rand generated: 18849
+Rand generated: -1593
+Rand generated: 29653
+Rand generated: -8148
+Rand generated: -27438
+Rand generated: 618
+Rand generated: -17119
+Rand generated: 4668
+Rand generated: -26289
+Rand generated: 28126
+Rand generated: -15749
+Rand generated: 22041
+Rand generated: 8710
+Rand generated: -22039
+Rand generated: 1781
+Rand generated: -32168
+Rand generated: 6187
+Rand generated: -7650
+Rand generated: 30268
+Rand generated: -13585
+Rand generated: 24388
+Rand generated: 8520
+RNG init
+Alice init
+Bob init
+.............Alice keygen 13 seconds
+..............Bob keygen 14 seconds
+.............Bob secret 13 seconds
+..............Alice secret 14 seconds
+Successfully generated a common secret
+Alices' Secret: 85f3c7f599620c768e6dbb77dc2f8f764254cc1821aeb0a30503632dbc9bdb54
+Bobs' Secret: 85f3c7f599620c768e6dbb77dc2f8f764254cc1821aeb0a30503632dbc9bdb54
+ChaCha20/Poly1305 Encryption Start, 1000 itterations, 1024 bytes
+............................................
+End 44 seconds
+ChaCha20/Poly1305 Decryption Start, 1000 itterations
+............................................
+End 44 seconds
+end
+```
