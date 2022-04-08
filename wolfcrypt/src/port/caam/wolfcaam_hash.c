@@ -241,7 +241,7 @@ int wc_CAAM_ShaHash(wc_Sha* sha, const byte* in, word32 inSz, byte* digest)
     /* in the case of update's just store up all data */
     if (in != NULL) {
     #ifdef WOLFSSL_HASH_KEEP
-        ret = _wc_Sha_Grow(&(sha->msg), &(sha->used), &(sha->len), in,
+        ret = _wc_Hash_Grow(&(sha->msg), &(sha->used), &(sha->len), in,
                         inSz, sha->heap);
     #else
         ret = _ShaUpdate(sha, data, len, SHA_DIGEST_SIZE, CAAM_SHA);
