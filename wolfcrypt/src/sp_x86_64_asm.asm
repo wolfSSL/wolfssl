@@ -57691,29 +57691,15 @@ L_256_mod_inv_avx2_4_usubv_sub_shr1:
         jne	L_256_mod_inv_avx2_4_uv_start
         or	rdx, r11
         jne	L_256_mod_inv_avx2_4_uv_start
-        vpsrad	ymm5, ymm1, 26
-        vpsrad	ymm4, ymm0, 26
-        vpermd	ymm5, ymm13, ymm5
-        vpand	ymm0, ymm0, ymm14
-        vpand	ymm1, ymm1, ymm14
-        vpaddd	ymm0, ymm0, ymm5
-        vpaddd	ymm1, ymm1, ymm4
-        vpsrad	ymm5, ymm1, 26
-        vpsrad	ymm4, ymm0, 26
-        vpermd	ymm5, ymm13, ymm5
-        vpand	ymm0, ymm0, ymm14
-        vpand	ymm1, ymm1, ymm14
-        vpaddd	ymm0, ymm0, ymm5
-        vpaddd	ymm1, ymm1, ymm4
         vpextrd	eax, xmm0, 0
         vpextrd	r10d, xmm0, 1
         vpextrd	r12d, xmm0, 2
         vpextrd	r14d, xmm0, 3
-        vextracti128 	xmm0, ymm0, 1
         vpextrd	r9d, xmm1, 0
         vpextrd	r11d, xmm1, 1
         vpextrd	r13d, xmm1, 2
         vpextrd	r15d, xmm1, 3
+        vextracti128 	xmm0, ymm0, 1
         vextracti128 	xmm1, ymm1, 1
         vpextrd	edi, xmm0, 0
         vpextrd	esi, xmm1, 0
@@ -57758,48 +57744,104 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         jne	L_256_mod_inv_avx2_4_uv_start
         or	rdx, r15
         jne	L_256_mod_inv_avx2_4_uv_start
-        vpsrad	ymm5, ymm3, 26
-        vpsrad	ymm4, ymm2, 26
-        vpermd	ymm5, ymm13, ymm5
-        vpand	ymm2, ymm2, ymm14
-        vpand	ymm3, ymm3, ymm14
-        vpaddd	ymm2, ymm2, ymm5
-        vpaddd	ymm3, ymm3, ymm4
-        vpsrad	ymm5, ymm3, 26
-        vpsrad	ymm4, ymm2, 26
-        vpermd	ymm5, ymm13, ymm5
-        vpand	ymm2, ymm2, ymm14
-        vpand	ymm3, ymm3, ymm14
-        vpaddd	ymm2, ymm2, ymm5
-        vpaddd	ymm3, ymm3, ymm4
         vpextrd	eax, xmm2, 0
         vpextrd	r10d, xmm2, 1
         vpextrd	r12d, xmm2, 2
         vpextrd	r14d, xmm2, 3
-        vextracti128 	xmm2, ymm2, 1
         vpextrd	r9d, xmm3, 0
         vpextrd	r11d, xmm3, 1
         vpextrd	r13d, xmm3, 2
         vpextrd	r15d, xmm3, 3
+        vextracti128 	xmm2, ymm2, 1
         vextracti128 	xmm3, ymm3, 1
         vpextrd	edi, xmm2, 0
         vpextrd	esi, xmm3, 0
 L_256_mod_inv_avx2_4_store_done:
-        movsxd	rax, eax
+        mov	edx, eax
+        and	eax, 67108863
+        sar	edx, 26
+        add	r9d, edx
+        mov	edx, r9d
+        and	r9d, 67108863
+        sar	edx, 26
+        add	r10d, edx
+        mov	edx, r10d
+        and	r10d, 67108863
+        sar	edx, 26
+        add	r11d, edx
+        mov	edx, r11d
+        and	r11d, 67108863
+        sar	edx, 26
+        add	r12d, edx
+        mov	edx, r12d
+        and	r12d, 67108863
+        sar	edx, 26
+        add	r13d, edx
+        mov	edx, r13d
+        and	r13d, 67108863
+        sar	edx, 26
+        add	r14d, edx
+        mov	edx, r14d
+        and	r14d, 67108863
+        sar	edx, 26
+        add	r15d, edx
+        mov	edx, r15d
+        and	r15d, 67108863
+        sar	edx, 26
+        add	edi, edx
+        mov	edx, edi
+        and	edi, 67108863
+        sar	edx, 26
+        add	esi, edx
+        movsxd	r9, r9d
+        movsxd	r11, r11d
+        movsxd	r13, r13d
+        movsxd	r15, r15d
+        movsxd	rsi, esi
         shl	r9, 26
+        shl	r11, 26
+        shl	r13, 26
+        shl	r15, 26
+        shl	rsi, 26
+        movsxd	rax, eax
         add	rax, r9
         movsxd	r10, r10d
-        shl	r11, 26
-        add	r10, r11
+        adc	r10, r11
         movsxd	r12, r12d
-        shl	r13, 26
-        add	r12, r13
+        adc	r12, r13
         movsxd	r14, r14d
-        shl	r15, 26
-        add	r14, r15
+        adc	r14, r15
         movsxd	rdi, edi
-        shl	rsi, 26
+        adc	rdi, rsi
+        jge	L_256_mod_inv_avx2_4_3_no_add_order
+        mov	r9, 2756213597218129
+        mov	r11, 3054930678533947
+        mov	r13, 4503599622973178
+        mov	r15, 68719476735
+        mov	rsi, 281474976645120
+        add	rax, r9
+        add	r10, r11
+        add	r12, r13
+        add	r14, r15
         add	rdi, rsi
+        mov	rdx, 4503599627370495
+        mov	r9, rax
+        and	rax, rdx
+        sar	r9, 52
+        add	r10, r9
+        mov	r11, r10
+        and	r10, rdx
+        sar	r11, 52
+        add	r12, r11
+        mov	r13, r12
+        and	r12, rdx
+        sar	r13, 52
+        add	r14, r13
+        mov	r15, r14
+        and	r14, rdx
+        sar	r15, 52
+        add	rdi, r15
+L_256_mod_inv_avx2_4_3_no_add_order:
         mov	r9, r10
         mov	r11, r12
         mov	r13, r14
