@@ -2099,7 +2099,11 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         else if (bytes == 1) {
             minLen = 0x80;
         }
-        else {
+        /* Only support up to the number of bytes that fit into return var. */
+        else if (bytes > sizeof(length)) {
+            WOLFSSL_MSG("GetLength - overlong data length spec");
+            return ASN_PARSE_E;
+        } else {
             minLen = 1 << ((bytes - 1) * 8);
         }
 
@@ -2109,10 +2113,6 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
             return BUFFER_E;
         }
 
-        /* Only support up to the number of bytes that fit into return var. */
-        if (bytes > sizeof(length)) {
-            return ASN_PARSE_E;
-        }
         /* Big-endian encoding of number. */
         while (bytes--) {
             b = input[idx++];
