@@ -181,40 +181,13 @@ void Close_tcp()
 
 void main(void)
 {
-    (void)timeTick;
-
-#if defined(CRYPT_TEST) || defined(BENCHMARK)
-#if defined(CRYPT_TEST)
+    int i = 0;
     int ret;
-    func_args args = { 0 };
-
-    if ((ret = wolfCrypt_Init()) != 0) {
-         printf("wolfCrypt_Init failed %d\n", ret);
-    }
-
-    printf("Start wolfCrypt Test\n");
-    wolfcrypt_test(args);
-    printf("End wolfCrypt Test\n");
-
-    if ((ret = wolfCrypt_Cleanup()) != 0) {
-        printf("wolfCrypt_Cleanup failed %d\n", ret);
-    }
-#endif
-#if defined(BENCHMARK)
-    #include "r_cmt_rx_if.h"
-
+    int doClientCheck = 0;
     uint32_t channel;
-    R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
 
-    printf("Start wolfCrypt Benchmark\n");
-    benchmark_test(NULL);
-    printf("End wolfCrypt Benchmark\n");
-#endif
-#elif defined(TLS_CLIENT)
-    #include "r_cmt_rx_if.h"
-
-#if defined(WOLFSSL_RENESAS_TSIP_TLS)
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(TLS_CLIENT)
     #ifdef USE_ECC_CERT
     const char* cipherlist[] = {
         "ECDHE-ECDSA-AES128-GCM-SHA256",
@@ -234,13 +207,41 @@ void main(void)
     const int cipherlist_sz = 6;
 
     #endif
-
-#else
-    const char* cipherlist[] = { NULL };
-    const int cipherlist_sz = 0;
-
 #endif
-    int i = 0;
+
+    (void)timeTick;
+    (void)i;
+    (void)ret;
+    (void)channel;
+    (void)doClientCheck;
+
+#if defined(CRYPT_TEST) || defined(BENCHMARK)
+#if defined(CRYPT_TEST)
+    func_args args = { 0 };
+
+    if ((ret = wolfCrypt_Init()) != 0) {
+         printf("wolfCrypt_Init failed %d\n", ret);
+    }
+
+    printf("Start wolfCrypt Test\n");
+    wolfcrypt_test(args);
+    printf("End wolfCrypt Test\n");
+
+    if ((ret = wolfCrypt_Cleanup()) != 0) {
+        printf("wolfCrypt_Cleanup failed %d\n", ret);
+    }
+#endif
+#if defined(BENCHMARK)
+    #include "r_cmt_rx_if.h"
+
+    R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
+
+    printf("Start wolfCrypt Benchmark\n");
+    benchmark_test(NULL);
+    printf("End wolfCrypt Benchmark\n");
+#endif
+#elif defined(TLS_CLIENT)
+    #include "r_cmt_rx_if.h"
 
     Open_tcp();
 
@@ -266,7 +267,7 @@ void main(void)
     SetTsiptlsKey();
 #endif
 
-    wolfSSL_TLS_server_init();
+    wolfSSL_TLS_server_init(doClientCheck);
     wolfSSL_TLS_server();
 
     Close_tcp();

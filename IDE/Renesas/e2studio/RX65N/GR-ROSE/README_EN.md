@@ -29,10 +29,10 @@ This sample program uses the following hardware and software libraries. If a new
 |:--|:--|
 |Board|GR-ROSE|
 |Device|R5F565NEHxFP|
-|IDE| Renesas e2Studio Version:2021-10 |
+|IDE| Renesas e2Studio Version:2022-01 |
 |Emulator| E1, E2 Emulator Lite |
 |Toolchain|CCRX v3.03.00|
-|TSIP| TSIP v1.14|
+|TSIP| TSIP v1.15|
 <br>
 
 The project of this sample program has a configuration file that uses the following FIT components.
@@ -47,10 +47,10 @@ However, the FIT components themselves are not included in the distribution of t
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.14|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.15.l|r_tsip_rx|
 <br>
 
-Note) As of December 2021, TIPS v1.14 does not seem to be able to be added as a FIT component by adding a component in the Smart Configurator Perspective. Add it manually along the method described later. 
+Note) As of April 2022, TIPS v1.15 does not seem to be able to be added as a FIT component by adding a component in the Smart Configurator Perspective. Add it manually along the method described later. 
 <br><br>
 
 ## 3. Importing sample application project into e2Studio
