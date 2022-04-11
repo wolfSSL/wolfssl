@@ -4658,6 +4658,10 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->EccSignCb) {
         void* ctx = wolfSSL_GetEccSignCtx(ssl);
+        if (ctx == NULL) {
+            /* Try to get the WOLFSSL_CTX EccSignCtx*/
+            ctx = wolfSSL_CTX_GetEccSignCtx(ssl->ctx);
+        }
         ret = ssl->ctx->EccSignCb(ssl, in, inSz, out, outSz, keyBuf,
             keySz, ctx);
     }

@@ -35848,6 +35848,18 @@ void* wolfSSL_GetEccKeyGenCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+void  wolfSSL_CTX_SetEccSignCtx(WOLFSSL_CTX* ctx, void *userCtx)
+{
+    if (ctx)
+        ctx->EccSignCtx = userCtx;
+}
+void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx)
+{
+    if (ctx)
+        return ctx->EccSignCtx;
+
+    return NULL;
+}
 
 WOLFSSL_ABI
 void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)

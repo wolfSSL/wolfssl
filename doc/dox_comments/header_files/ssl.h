@@ -8578,7 +8578,8 @@ void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb);
 
     \return none No returns.
 
-    \param none No parameters.
+    \param ssl a pointer to a WOLFSSL object, created using wolfSSL_new().
+    \param ctx a pointer to the user context to be stored
 
     _Example_
     \code
@@ -8598,7 +8599,7 @@ void  wolfSSL_SetEccSignCtx(WOLFSSL* ssl, void *ctx);
     to the context.
     \return NULL will be returned for a blank context.
 
-    \param none No parameters.
+    \param ssl a pointer to a WOLFSSL object, created using wolfSSL_new().
 
     _Example_
     \code
@@ -8609,6 +8610,47 @@ void  wolfSSL_SetEccSignCtx(WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_SetEccSignCtx
 */
 void* wolfSSL_GetEccSignCtx(WOLFSSL* ssl);
+
+/*!
+    \brief Allows caller to set the Public Key Ecc Signing Callback
+    Context to ctx.
+
+    \return none No returns.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created
+    with wolfSSL_CTX_new().
+    \param ctx a pointer to the user context to be stored
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wolfSSL_CTX_SetEccSignCb
+    \sa wolfSSL_CTX_GetEccSignCtx
+*/
+void  wolfSSL_CTX_SetEccSignCtx(WOLFSSL_CTX* ctx, void *userCtx);
+
+/*!
+    \brief Allows caller to retrieve the Public Key Ecc Signing Callback
+    Context previously stored with wolfSSL_SetEccSignCtx().
+
+    \return pointer If successful the call will return a valid pointer
+    to the context.
+    \return NULL will be returned for a blank context.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created
+    with wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wolfSSL_CTX_SetEccSignCb
+    \sa wolfSSL_CTX_SetEccSignCtx
+*/
+void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx);
 
 /*!
     \brief Allows caller to set the Public Key Callback for ECC Verification.
