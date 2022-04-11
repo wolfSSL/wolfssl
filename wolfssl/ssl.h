@@ -3130,6 +3130,8 @@ WOLFSSL_ABI WOLFSSL_API void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx,
                                                                CallbackEccSign cb);
 WOLFSSL_API void  wolfSSL_SetEccSignCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSignCtx(WOLFSSL* ssl);
+WOLFSSL_API void  wolfSSL_CTX_SetEccSignCtx(WOLFSSL_CTX* ctx, void *userCtx);
+WOLFSSL_API void* wolfSSL_CTX_GetEccSignCtx(WOLFSSL_CTX* ctx);
 
 typedef int (*CallbackEccVerify)(WOLFSSL* ssl,
        const unsigned char* sig, unsigned int sigSz,
