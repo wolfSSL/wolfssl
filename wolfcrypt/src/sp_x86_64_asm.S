@@ -4677,7 +4677,6 @@ _sp_2048_mul_32:
         addq	$0x80, %r15
         # Add
         movq	(%r15), %rax
-        xorq	%r9, %r9
         addq	(%r11), %rax
         movq	8(%r15), %rcx
         movq	%rax, (%r15)
@@ -4728,7 +4727,6 @@ _sp_2048_mul_32:
         movq	%rax, 120(%r15)
         adcq	128(%r11), %rcx
         movq	%rcx, 128(%r15)
-        adcq	$0x00, %r9
         # Add to zero
         movq	136(%r11), %rax
         adcq	$0x00, %rax
@@ -5356,7 +5354,6 @@ _sp_2048_mul_avx2_32:
         addq	$0x80, %r15
         # Add
         movq	(%r15), %rax
-        xorq	%r9, %r9
         addq	(%r11), %rax
         movq	8(%r15), %rcx
         movq	%rax, (%r15)
@@ -5407,7 +5404,6 @@ _sp_2048_mul_avx2_32:
         movq	%rax, 120(%r15)
         adcq	128(%r11), %rcx
         movq	%rcx, 128(%r15)
-        adcq	$0x00, %r9
         # Add to zero
         movq	136(%r11), %rax
         adcq	$0x00, %rax
@@ -43508,7 +43504,6 @@ _sp_4096_mul_64:
         addq	$0x100, %r15
         # Add
         movq	(%r15), %rax
-        xorq	%r9, %r9
         addq	(%r11), %rax
         movq	8(%r15), %rcx
         movq	%rax, (%r15)
@@ -43607,7 +43602,6 @@ _sp_4096_mul_64:
         movq	%rcx, 248(%r15)
         adcq	256(%r11), %r8
         movq	%r8, 256(%r15)
-        adcq	$0x00, %r9
         # Add to zero
         movq	264(%r11), %rax
         adcq	$0x00, %rax
@@ -44763,7 +44757,6 @@ _sp_4096_mul_avx2_64:
         addq	$0x100, %r15
         # Add
         movq	(%r15), %rax
-        xorq	%r9, %r9
         addq	(%r11), %rax
         movq	8(%r15), %rcx
         movq	%rax, (%r15)
@@ -44862,7 +44855,6 @@ _sp_4096_mul_avx2_64:
         movq	%rcx, 248(%r15)
         adcq	256(%r11), %r8
         movq	%r8, 256(%r15)
-        adcq	$0x00, %r9
         # Add to zero
         movq	264(%r11), %rax
         adcq	$0x00, %rax

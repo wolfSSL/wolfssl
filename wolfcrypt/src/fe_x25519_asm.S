@@ -1493,10 +1493,10 @@ _fe_mul_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -1644,10 +1644,10 @@ _fe_sq_x64:
         adcq	$0x00, %r10
         # Reduce if top bit set
         movq	%r10, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%r15, %r10
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -1797,10 +1797,10 @@ L_fe_sq_n_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -2013,10 +2013,10 @@ _fe_sq2_x64:
         adcq	$0x00, %r10
         # Reduce if top bit set
         movq	%r10, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r10
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
@@ -2631,10 +2631,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -2784,10 +2784,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -2910,10 +2910,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3036,10 +3036,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3239,10 +3239,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3390,10 +3390,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3549,10 +3549,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3727,10 +3727,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -3880,10 +3880,10 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
-        addq	%rax, %rcx
+        addq	%rdx, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -4276,13 +4276,28 @@ L_curve25519_x64_bits:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbp, %r11
+        addq	%rdx, %rcx
+        adcq	$0x00, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        movq	%rcx, %rax
+        addq	$19, %rax
+        movq	%r9, %rax
+        adcq	$0x00, %rax
+        movq	%r10, %rax
+        adcq	$0x00, %rax
+        movq	%r11, %rax
+        adcq	$0x00, %rax
+        sarq	$63, %rax
+        andq	$19, %rax
         addq	%rax, %rcx
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
+        andq	%rbp, %r11
         # Store
         movq	%rcx, (%rdi)
         movq	%r9, 8(%rdi)
@@ -4721,10 +4736,10 @@ _fe_ge_to_p2_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -4877,10 +4892,10 @@ _fe_ge_to_p2_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5033,10 +5048,10 @@ _fe_ge_to_p2_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5221,10 +5236,10 @@ _fe_ge_to_p3_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5377,10 +5392,10 @@ _fe_ge_to_p3_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5533,10 +5548,10 @@ _fe_ge_to_p3_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5689,10 +5704,10 @@ _fe_ge_to_p3_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5851,10 +5866,10 @@ _fe_ge_dbl_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -5979,10 +5994,10 @@ _fe_ge_dbl_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6118,10 +6133,10 @@ _fe_ge_dbl_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6274,10 +6289,10 @@ _fe_ge_dbl_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6632,10 +6647,10 @@ _fe_ge_madd_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6788,10 +6803,10 @@ _fe_ge_madd_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -6944,10 +6959,10 @@ _fe_ge_madd_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -7330,10 +7345,10 @@ _fe_ge_msub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -7486,10 +7501,10 @@ _fe_ge_msub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -7642,10 +7657,10 @@ _fe_ge_msub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -8028,10 +8043,10 @@ _fe_ge_add_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -8184,10 +8199,10 @@ _fe_ge_add_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -8340,10 +8355,10 @@ _fe_ge_add_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -8496,10 +8511,10 @@ _fe_ge_add_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -8882,10 +8897,10 @@ _fe_ge_sub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9038,10 +9053,10 @@ _fe_ge_sub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9194,10 +9209,10 @@ _fe_ge_sub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9350,10 +9365,10 @@ _fe_ge_sub_x64:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9644,10 +9659,10 @@ _fe_mul_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9771,10 +9786,10 @@ _fe_sq_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -9901,10 +9916,10 @@ L_fe_sq_n_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -10083,10 +10098,10 @@ _fe_sq2_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r11
-        addq	%rax, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -10674,10 +10689,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -10799,10 +10814,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -10900,10 +10915,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r12
-        addq	%rax, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11001,10 +11016,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r12
-        addq	%rax, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11176,10 +11191,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11302,10 +11317,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r12
-        addq	%rax, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11424,10 +11439,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rax
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r12
-        addq	%rax, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11574,10 +11589,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -11699,10 +11714,10 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
@@ -12067,13 +12082,29 @@ L_curve25519_avx2_bits:
         adcq	$0x00, %r12
         # Reduce if top bit set
         movq	%r12, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rbx, %r12
-        addq	%rcx, %r9
+        addq	%rdx, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12
+        movq	$0x7fffffffffffffff, %rbx
+        movq	%r9, %rdx
+        addq	$19, %rdx
+        movq	%r10, %rdx
+        adcq	$0x00, %rdx
+        movq	%r11, %rdx
+        adcq	$0x00, %rdx
+        movq	%r12, %rdx
+        adcq	$0x00, %rdx
+        sarq	$63, %rdx
+        andq	$19, %rdx
+        addq	%rdx, %r9
+        adcq	$0x00, %r10
+        adcq	$0x00, %r11
+        adcq	$0x00, %r12
+        andq	%rbx, %r12
         # Store
         movq	%r9, (%rdi)
         movq	%r10, 8(%rdi)
@@ -12484,10 +12515,10 @@ _fe_ge_to_p2_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -12612,10 +12643,10 @@ _fe_ge_to_p2_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -12739,10 +12770,10 @@ _fe_ge_to_p2_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -12899,10 +12930,10 @@ _fe_ge_to_p3_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13027,10 +13058,10 @@ _fe_ge_to_p3_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13154,10 +13185,10 @@ _fe_ge_to_p3_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13282,10 +13313,10 @@ _fe_ge_to_p3_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13419,10 +13450,10 @@ _fe_ge_dbl_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rbp
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rbp, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13522,10 +13553,10 @@ _fe_ge_dbl_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rbp
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rbp, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13650,10 +13681,10 @@ _fe_ge_dbl_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rbp
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rcx, %r11
-        addq	%rbp, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -13841,10 +13872,10 @@ _fe_ge_dbl_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rbp
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rbp, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14083,10 +14114,10 @@ _fe_ge_madd_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14209,10 +14240,10 @@ _fe_ge_madd_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14337,10 +14368,10 @@ _fe_ge_madd_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14682,10 +14713,10 @@ _fe_ge_msub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14808,10 +14839,10 @@ _fe_ge_msub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -14936,10 +14967,10 @@ _fe_ge_msub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -15280,10 +15311,10 @@ _fe_ge_add_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -15406,10 +15437,10 @@ _fe_ge_add_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -15534,10 +15565,10 @@ _fe_ge_add_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -15661,10 +15692,10 @@ _fe_ge_add_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -16006,10 +16037,10 @@ _fe_ge_sub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -16132,10 +16163,10 @@ _fe_ge_sub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -16260,10 +16291,10 @@ _fe_ge_sub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
@@ -16387,10 +16418,10 @@ _fe_ge_sub_avx2:
         adcq	$0x00, %r11
         # Reduce if top bit set
         movq	%r11, %rdx
-        shrq	$63, %rdx
-        imulq	$19, %rdx, %rcx
+        sarq	$63, %rdx
+        andq	$19, %rdx
         andq	%rax, %r11
-        addq	%rcx, %r8
+        addq	%rdx, %r8
         adcq	$0x00, %r9
         adcq	$0x00, %r10
         adcq	$0x00, %r11
