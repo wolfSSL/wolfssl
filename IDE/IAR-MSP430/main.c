@@ -304,7 +304,7 @@ only_rng:
 
     printf(
         "ChaCha20/Poly1305 Encryption Start, 1000 itterations, %d bytes\r\n",
-        strlen((const char*)plaintext));
+        (int)strlen((const char*)plaintext));
     start = seconds;
     for (int i=0; i <= 1000; i++) {
         ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), plaintext,

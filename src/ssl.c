@@ -8297,8 +8297,8 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
 
         ret = CreateDevPrivateKey(&pkey, buff, size, type,
                                   isKeyLabel, isKeyId, heap, devId);
-        if (ret == 0) {
         #ifdef WOLF_CRYPTO_CB
+        if (ret == 0) {
             #ifndef NO_RSA
             if (der->keyOID == RSAk) {
                 ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey,
@@ -8311,12 +8311,11 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
                                                der->publicKey, der->pubKeySize);
             }
             #endif
-        #else
-            /* devId was set, don't check, for now, just return success */
-            /* TODO: Add callback for private key check? */
-            ret = 0;
-        #endif
         }
+        #else
+            /* devId was set, don't check, for now */
+            /* TODO: Add callback for private key check? */
+        #endif
         if (pkey != NULL) {
         #ifndef NO_RSA
             if (der->keyOID == RSAk) {
@@ -9060,6 +9059,8 @@ static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,
     word16 pkcs8HeaderSz = 0;
     WOLFSSL_EVP_PKEY* local;
     int opt;
+
+    (void)opt;
 
     if (in == NULL || inSz < 0) {
         WOLFSSL_MSG("Bad argument");
@@ -34155,6 +34156,95 @@ int wolfSSL_PEM_write_DSA_PUBKEY(XFILE fp, WOLFSSL_DSA *x)
 #endif /* #ifndef NO_DSA */
 
 #ifndef NO_BIO
+/* Number of bytes to read from a file at a time. */
+#define PEM_READ_FILE_CHUNK_SZ  100
+
+static int pem_read_bio_file(WOLFSSL_BIO* bio, char** pem)
+{
+    int ret   = 0;
+    int idx   = 0;
+    int sz    = PEM_READ_FILE_CHUNK_SZ; /* read from file by chunks */
+    int memSz = 0;
+    char* mem = NULL;
+    char* tmp;
+
+    /* Allocate a chunk to read into. */
+    tmp = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
+    if (tmp == NULL) {
+        WOLFSSL_MSG("Memory error");
+        ret = MEMORY_E;
+    }
+
+    while (ret == 0 && (sz = wolfSSL_BIO_read(bio, tmp, sz)) > 0) {
+        char* newMem;
+
+        /* sanity check for signed overflow */
+        if (memSz + sz < 0) {
+            break;
+        }
+
+        /* Reallocate to make space for read data. */
+        newMem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
+                DYNAMIC_TYPE_OPENSSL);
+        if (newMem == NULL) {
+            WOLFSSL_MSG("Memory error");
+            ret = MEMORY_E;
+            break;
+        }
+        mem = newMem;
+
+        /* Copy in new data. */
+        XMEMCPY(mem + idx, tmp, sz);
+        memSz += sz;
+        idx   += sz;
+        sz = PEM_READ_FILE_CHUNK_SZ; /* read another chunk from file */
+    }
+
+    XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
+    tmp = NULL;
+
+    if (ret == 0) {
+        /* Check data was read. */
+        if (memSz <= 0) {
+            WOLFSSL_MSG("No data to read from bio");
+            ret = BUFFER_E;
+        }
+        else {
+            /* Return size of data read. */
+            ret = memSz;
+        }
+    }
+    /* Dispose of any allocated memory on error. */
+    if (ret < 0) {
+        XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+        mem = NULL;
+    }
+
+    *pem = mem;
+    return ret;
+}
+
+static int pem_read_bio_pending(WOLFSSL_BIO* bio, int pendingSz, char** pem)
+{
+    int ret = 0;
+    char* mem;
+
+    /* Allocate buffer to hold pending data. */
+    mem = (char*)XMALLOC(pendingSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
+    if (mem == NULL) {
+        WOLFSSL_MSG("Memory error");
+        ret = MEMORY_E;
+    }
+    else if ((ret = wolfSSL_BIO_read(bio, mem, pendingSz)) <= 0) {
+        /* Pending data not read. */
+        XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+        mem = NULL;
+        ret = MEMORY_E;
+    }
+
+    *pem = mem;
+    return ret;
+}
 
 static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
                             void* pass, int keyType, int* eccFlag,
@@ -34167,75 +34257,20 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
 #endif /* WOLFSSL_SMALL_STACK */
     wc_pem_password_cb* localCb = NULL;
     char* mem = NULL;
-    int memSz = 0;
     int ret;
 
-    if(cb) {
+    if (cb != NULL) {
         localCb = cb;
-    } else {
-        if(pass) {
-            localCb = wolfSSL_PEM_def_callback;
-        }
+    }
+    else if (pass != NULL) {
+        localCb = wolfSSL_PEM_def_callback;
     }
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
-        memSz = ret;
-        mem = (char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
-        if (mem == NULL) {
-            WOLFSSL_MSG("Memory error");
-            ret = MEMORY_E;
-        }
-        if (ret >= 0) {
-            if ((ret = wolfSSL_BIO_read(bio, mem, memSz)) <= 0) {
-                XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                mem = NULL;
-                ret = MEMORY_E;
-            }
-        }
+        ret = pem_read_bio_pending(bio, ret, &mem);
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
-        int sz  = 100; /* read from file by 100 byte chunks */
-        int idx = 0;
-        char* tmp = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
-        memSz = 0;
-        if (tmp == NULL) {
-            WOLFSSL_MSG("Memory error");
-            ret = MEMORY_E;
-        }
-
-        while (ret >= 0 && (sz = wolfSSL_BIO_read(bio, tmp, sz)) > 0) {
-            char* newMem;
-            if (memSz + sz < 0) {
-                /* sanity check */
-                break;
-            }
-            newMem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
-                    DYNAMIC_TYPE_OPENSSL);
-            if (newMem == NULL) {
-                WOLFSSL_MSG("Memory error");
-                XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                mem = NULL;
-                XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                tmp = NULL;
-                ret = MEMORY_E;
-                break;
-            }
-            mem = newMem;
-            XMEMCPY(mem + idx, tmp, sz);
-            memSz += sz;
-            idx   += sz;
-            sz = 100; /* read another 100 byte chunk from file */
-        }
-        XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
-        tmp = NULL;
-        if (memSz <= 0) {
-            WOLFSSL_MSG("No data to read from bio");
-            if (mem != NULL) {
-                XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                mem = NULL;
-            }
-            ret = BUFFER_E;
-        }
+        ret = pem_read_bio_file(bio, &mem);
     }
     else {
         WOLFSSL_MSG("No data to read from bio");
@@ -34256,25 +34291,24 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
 #endif /* WOLFSSL_SMALL_STACK */
 
     if (ret >= 0) {
+        int memSz = ret;
+
         XMEMSET(info, 0, sizeof(EncryptedInfo));
         info->passwd_cb       = localCb;
         info->passwd_userdata = pass;
 
         /* Do not strip PKCS8 header */
-        ret = PemToDer((const unsigned char*)mem, memSz, keyType, der,
-            NULL, info, eccFlag);
-
+        ret = PemToDer((const unsigned char*)mem, memSz, keyType, der, NULL,
+            info, eccFlag);
         if (ret < 0) {
             WOLFSSL_MSG("Bad PEM To DER");
         }
-        else {
-            /* write left over data back to bio */
-            if ((memSz - (int)info->consumed) > 0 &&
-                    bio->type != WOLFSSL_BIO_FILE) {
-                if (wolfSSL_BIO_write(bio, mem + (int)info->consumed,
-                                       memSz - (int)info->consumed) <= 0) {
-                    WOLFSSL_MSG("Unable to advance bio read pointer");
-                }
+        /* Write left over data back to BIO if not a file BIO */
+        else if ((memSz - (int)info->consumed) > 0 &&
+                 bio->type != WOLFSSL_BIO_FILE) {
+            if (wolfSSL_BIO_write(bio, mem + (int)info->consumed,
+                                  memSz - (int)info->consumed) <= 0) {
+                WOLFSSL_MSG("Unable to advance bio read pointer");
             }
         }
     }
@@ -40983,7 +41017,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
     }
 
     if (Base16_Encode(a->data + idx, len, buf, &bufLen) != 0 ||
-            bufLen <= 0) {
+            bufLen == 0) {
         return 0;
     }
 
