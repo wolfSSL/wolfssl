@@ -35,8 +35,14 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
+
 #if !defined(NO_SHA)
 #include <wolfssl/wolfcrypt/sha.h>
+
+#if defined(WOLFSSL_STATIC_MEMORY)
+    #include <wolfssl/wolfcrypt/memory.h>
+    extern WOLFSSL_HEAP_HINT*  g_tsip_heap_hint;
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
 {
@@ -64,6 +70,12 @@ static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
     hash->used = 0;
     hash->msg  = NULL;
     hash->sha_type = sha_type;
+
+#if defined(WOLFSSL_STATIC_MEMORY)
+    if (heap == NULL && g_tsip_heap_hint != NULL) {
+        hash->heap = g_tsip_heap_hint;
+    }
+#endif
 
     return 0;
 }

@@ -53,6 +53,9 @@ static int          tsip_CryptHwMutexInit_ = 0;
 static const byte*  ca_cert_sig;
 static tsip_key_data g_user_key_info;
 
+#if defined(WOLFSSL_STATIC_MEMORY)
+WOLFSSL_HEAP_HINT*  g_tsip_heap_hint = NULL;
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 /* tsip only keep one encrypted ca public key */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -63,7 +66,17 @@ extern uint32_t     g_CAscm_Idx;
 
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+/* 
+    set heap info. returns 0 on success.
+*/
+#if defined(WOLFSSL_STATIC_MEMORY)
+int  tsip_set_heap(struct WOLFSSL_HEAP_HINT* heap)
+{
+    g_tsip_heap_hint = heap;
 
+    return 0;
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 static int tsip_CryptHwMutexInit(wolfSSL_Mutex* mutex)
 {

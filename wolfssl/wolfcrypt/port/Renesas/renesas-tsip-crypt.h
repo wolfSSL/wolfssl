@@ -197,6 +197,9 @@ WOLFSSL_API void tsip_set_callbacks(struct WOLFSSL_CTX* ctx);
 
 WOLFSSL_API int  tsip_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx);
 
+#if defined(WOLFSSL_STATIC_MEMORY)
+WOLFSSL_API int  tsip_set_heap(struct WOLFSSL_HEAP_HINT* heap);
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 
 #if (WOLFSSL_RENESAS_TSIP_VER >=109)

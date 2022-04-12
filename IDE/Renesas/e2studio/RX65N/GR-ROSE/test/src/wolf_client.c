@@ -29,7 +29,7 @@
 #include "wolfssl_demo.h"
 
 
-#define SIMPLE_TLSSEVER_IP       "192.168.1.14"
+#define SIMPLE_TLSSEVER_IP       "192.168.1.11"
 #define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
@@ -39,7 +39,19 @@ static WOLFSSL_CTX *client_ctx;
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
 uint32_t g_encrypted_root_public_key[140];
 static   TsipUserCtx userContext;
-#endif
+
+#if defined(TLS_CLIENT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && defined(WOLFSSL_STATIC_MEMORY)
+
+    extern WOLFSSL_HEAP_HINT* heapHint;
+
+    #define BUFFSIZE_IO    (16 * 1024)
+    unsigned char heapBufIO[BUFFSIZE_IO];
+
+#endif /* WOLFSSL_STATIC_MEMORY && WOLFSSL_STATIC_MEMORY */
+#endif /* TLS_CLIENT */
+
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
@@ -115,11 +127,38 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         wolfSSL_Debugging_ON();
     #endif
 
-    /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
+#if defined(WOLFSSL_STATIC_MEMORY)
+
+    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_client_method_ex(heapHint),
+                                                    heapHint)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
+
+    if ((wolfSSL_CTX_load_static_memory( &client_ctx, NULL, 
+                                        heapBufIO, sizeof(heapBufIO),
+                                        WOLFMEM_IO_POOL, 10)) != 
+                                                        WOLFSSL_SUCCESS) {
+        
+        printf("ERROR: failed to set static memory for IO\n");
+        return;
+    }
+
+    if (tsip_set_heap(heapHint) != 0) {
+        printf("ERROR: failed to set heap to tsip\n");
+        return;
+    }
+
+#else
+
+    /* Create and initialize WOLFSSL_CTX */
+    if ((client_ctx = wolfSSL_CTX_new(
+                    wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
+        printf("ERROR: failed to create WOLFSSL_CTX\n");
+        return;
+    }
+
+#endif /* WOLFSSL_STATIC_MEMORY */
 
     #ifdef WOLFSSL_RENESAS_TSIP_TLS
     tsip_set_callbacks(client_ctx);
@@ -128,7 +167,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     #if !defined(NO_FILESYSTEM)
     if (wolfSSL_CTX_load_verify_locations(client_ctx, cert, 0) != SSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
-        return NULL;
+        return;
     }
     #else
     if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
