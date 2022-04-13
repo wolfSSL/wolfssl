@@ -10042,7 +10042,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     if (err == MP_OKAY) {
         if (mp_iszero(key->pubkey.x) && mp_iszero(key->pubkey.y)) {
             WOLFSSL_MSG("Invalid Qx and Qy");
-            err = BAD_FUNC_ARG;
+            err = ECC_INF_E;
         }
     }
 
@@ -10163,8 +10163,13 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     }
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-    if (err == MP_OKAY)
+    if (err == MP_OKAY) {
         err = wc_ecc_check_key(key);
+        if (err == IS_POINT_E && (mp_iszero(key->pubkey.x) ||
+                                  mp_iszero(key->pubkey.y))) {
+            err = BAD_FUNC_ARG;
+        }
+    }
 #endif
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
