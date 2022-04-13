@@ -3034,6 +3034,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     return ret;
 #else
     (void)rng;
+    (void)checkSmallCt;
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
