@@ -30165,6 +30165,46 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
 
     return ret;
 }
+
+#ifndef NO_FILESYSTEM
+int wolfSSL_PEM_write_RSAPublicKey(XFILE fp, WOLFSSL_RSA* key)
+{
+    int ret = WOLFSSL_SUCCESS;
+    WOLFSSL_BIO* bio = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_RSAPublicKey");
+
+    if (fp == XBADFILE || key == NULL) {
+        WOLFSSL_MSG("Bad argument.");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        if (bio == NULL) {
+            WOLFSSL_MSG("wolfSSL_BIO_new failed.");
+            ret = WOLFSSL_FAILURE;
+        }
+        else if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_BIO_set_fp failed.");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS && wolfSSL_PEM_write_bio_RSA_PUBKEY(bio, key)
+        != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_PEM_write_bio_RSA_PUBKEY failed.");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (bio != NULL) {
+        wolfSSL_BIO_free(bio);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_RSAPublicKey", ret);
+
+    return ret;
+}
+#endif /* !NO_FILESYSTEM */
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA */
 
 
@@ -33501,22 +33541,51 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
 /* End ECDH */
 
 #if !defined(NO_FILESYSTEM)
+
+#ifndef NO_BIO
+
+#ifdef WOLFSSL_KEY_GEN
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *x)
+int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY* key)
 {
-    (void)fp;
-    (void)x;
-    WOLFSSL_STUB("PEM_write_EC_PUBKEY");
-    WOLFSSL_MSG("wolfSSL_PEM_write_EC_PUBKEY not implemented");
+    int ret = WOLFSSL_SUCCESS;
+    WOLFSSL_BIO* bio = NULL;
 
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_PEM_write_EC_PUBKEY");
+
+    if (fp == XBADFILE || key == NULL) {
+        WOLFSSL_MSG("Bad argument.");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        if (bio == NULL) {
+            WOLFSSL_MSG("wolfSSL_BIO_new failed.");
+            ret = WOLFSSL_FAILURE;
+        }
+        else if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_BIO_set_fp failed.");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS && wolfSSL_PEM_write_bio_EC_PUBKEY(bio, key)
+        != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_PEM_write_bio_EC_PUBKEY failed.");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (bio != NULL) {
+        wolfSSL_BIO_free(bio);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_EC_PUBKEY", ret);
+
+    return ret;
 }
 #endif
-
-#ifndef NO_BIO
 
 /* Uses the same format of input as wolfSSL_PEM_read_bio_PrivateKey but expects
  * the results to be an EC key.
@@ -34776,20 +34845,6 @@ WOLFSSL_RSA *wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA **x,
     WOLFSSL_MSG("wolfSSL_PEM_read_RSAPublicKey not implemented");
 
     return NULL;
-}
-#endif
-/* return code compliant with OpenSSL :
- *   1 if success, 0 if error
- */
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_PEM_write_RSAPublicKey(XFILE fp, WOLFSSL_RSA *x)
-{
-    (void)fp;
-    (void)x;
-    WOLFSSL_STUB("PEM_write_RSAPublicKey");
-    WOLFSSL_MSG("wolfSSL_PEM_write_RSAPublicKey not implemented");
-
-    return WOLFSSL_FAILURE;
 }
 #endif
 
