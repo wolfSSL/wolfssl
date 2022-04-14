@@ -2912,6 +2912,8 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
                              int checkSmallCt)
 {
     int ret = 0;
+    (void)rng;
+    (void)checkSmallCt;
 
     if (key == NULL || in == NULL || inLen == 0 || out == NULL ||
             outLen == NULL || *outLen == 0 || type == RSA_TYPE_UNKNOWN) {
@@ -2940,9 +2942,8 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-#ifndef TEST_UNPAD_CONSTANT_TIME
-#ifndef NO_RSA_BOUNDS_CHECK
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
+    !defined(NO_RSA_BOUNDS_CHECK)
     if (type == RSA_PRIVATE_DECRYPT &&
         key->state == RSA_STATE_DECRYPT_EXPTMOD) {
 
@@ -2992,11 +2993,8 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
             return ret;
         }
     }
-#endif /* NO_RSA_BOUNDS_CHECK */
-#endif
-#else
-    (void)checkSmallCt;
-#endif
+#endif /* !WOLFSSL_RSA_VERIFY_ONLY && !TEST_UNPAD_CONSTANT_TIME && \
+        * !NO_RSA_BOUNDS_CHECK */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
@@ -3032,9 +3030,6 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
         wc_RsaCleanup(key);
     }
     return ret;
-#else
-    (void)rng;
-    (void)checkSmallCt;
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 }
 
