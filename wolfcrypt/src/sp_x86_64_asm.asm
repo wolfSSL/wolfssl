@@ -4585,7 +4585,6 @@ ENDIF
         add	rsi, 128
         ; Add
         mov	rax, QWORD PTR [rsi]
-        xor	r11, r11
         add	rax, QWORD PTR [r13]
         mov	r9, QWORD PTR [rsi+8]
         mov	QWORD PTR [rsi], rax
@@ -4636,7 +4635,6 @@ ENDIF
         mov	QWORD PTR [rsi+120], rax
         adc	r9, QWORD PTR [r13+128]
         mov	QWORD PTR [rsi+128], r9
-        adc	r11, 0
         ; Add to zero
         mov	rax, QWORD PTR [r13+136]
         adc	rax, 0
@@ -5245,7 +5243,6 @@ ENDIF
         add	rsi, 128
         ; Add
         mov	rax, QWORD PTR [rsi]
-        xor	r11, r11
         add	rax, QWORD PTR [r13]
         mov	r9, QWORD PTR [rsi+8]
         mov	QWORD PTR [rsi], rax
@@ -5296,7 +5293,6 @@ ENDIF
         mov	QWORD PTR [rsi+120], rax
         adc	r9, QWORD PTR [r13+128]
         mov	QWORD PTR [rsi+128], r9
-        adc	r11, 0
         ; Add to zero
         mov	rax, QWORD PTR [r13+136]
         adc	rax, 0
@@ -42510,7 +42506,6 @@ ENDIF
         add	rsi, 256
         ; Add
         mov	rax, QWORD PTR [rsi]
-        xor	r11, r11
         add	rax, QWORD PTR [r13]
         mov	r9, QWORD PTR [rsi+8]
         mov	QWORD PTR [rsi], rax
@@ -42609,7 +42604,6 @@ ENDIF
         mov	QWORD PTR [rsi+248], r9
         adc	r10, QWORD PTR [r13+256]
         mov	QWORD PTR [rsi+256], r10
-        adc	r11, 0
         ; Add to zero
         mov	rax, QWORD PTR [r13+264]
         adc	rax, 0
@@ -43746,7 +43740,6 @@ ENDIF
         add	rsi, 256
         ; Add
         mov	rax, QWORD PTR [rsi]
-        xor	r11, r11
         add	rax, QWORD PTR [r13]
         mov	r9, QWORD PTR [rsi+8]
         mov	QWORD PTR [rsi], rax
@@ -43845,7 +43838,6 @@ ENDIF
         mov	QWORD PTR [rsi+248], r9
         adc	r10, QWORD PTR [r13+256]
         mov	QWORD PTR [rsi+256], r10
-        adc	r11, 0
         ; Add to zero
         mov	rax, QWORD PTR [r13+264]
         adc	rax, 0
