@@ -37,9 +37,10 @@
  *      109: TSIPv1.09
  *      113: TSIPv1.13
  *      114: TSIPv1.14
+ *      115: TSIPv1.15
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
-  #define WOLFSSL_RENESAS_TSIP_VER     114
+  #define WOLFSSL_RENESAS_TSIP_VER     115
 
 
 /*-- TLS version definitions  --------------------------------------------------

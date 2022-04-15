@@ -30,10 +30,10 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |:--|:--|
 |評価ボード|GR-ROSE|
 |Device|R5F565NEHxFP|
-|IDE| Renesas e2Studio Version:2021-10 |
+|IDE| Renesas e2Studio Version:2022-01 |
 |エミュレーター| E1, E2エミュレーターLite |
 |Toolchain|CCRX v3.03.00|
-|TSIP| TSIP v1.14|
+|TSIP| TSIP v1.15|
 <br>
 
 本サンプルプログラムのプロジェクトには以下のFITコンポーネントを使用する設定ファイルが用意されています。
@@ -50,9 +50,9 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.14|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.15.l|r_tsip_rx|
 
-（注意）2021年12月現在、TIPSv1.14はFITコンポーネントとしてスマートコンフィギュレータパースペクティブのコンポーネントの追加操作では追加できないようです。後ほど説明する手動での追加方法を使って追加してください。<br>
+（注意）2022年4月現在、TIPSv1.15はFITコンポーネントとしてスマートコンフィギュレータパースペクティブのコンポーネントの追加操作では追加できないようです。後ほど説明する手動での追加方法を使って追加してください。<br>
 
 
 <br><br>

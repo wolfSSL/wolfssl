@@ -29,7 +29,7 @@
 #include "wolfssl_demo.h"
 
 
-#define SIMPLE_TLSSEVER_IP       "192.168.1.14"
+#define SIMPLE_TLSSEVER_IP       "192.168.11.32"
 #define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
@@ -155,7 +155,7 @@ void wolfSSL_TLS_client( )
     ER  ercd;
     int ret;
     WOLFSSL_CTX *ctx = (WOLFSSL_CTX *)client_ctx;
-    WOLFSSL *ssl;
+    WOLFSSL *ssl = NULL;
 
     #define BUFF_SIZE 256
     static const char sendBuff[]= "Hello Server\n" ;
@@ -168,21 +168,21 @@ void wolfSSL_TLS_client( )
 
     if((dst_addr.ipaddr = getIPaddr(SIMPLE_TLSSEVER_IP)) == 0){
         printf("ERROR: IP address\n");
-        return;
+        goto out;
     }
     if((dst_addr.portno = getPort(SIMPLE_TLSSERVER_PORT)) == 0){
         printf("ERROR: IP address\n");
-        return;
+        goto out;
     }
 
     if((ercd = tcp_con_cep(cepid, &my_addr, &dst_addr, TMO_FEVR)) != E_OK) {
         printf("ERROR TCP Connect: %d\n", ercd);
-        return;
+        goto out;
     }
 
     if((ssl = wolfSSL_new(ctx)) == NULL) {
         printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
+        goto out;
     }
 
     #ifdef WOLFSSL_RENESAS_TSIP_TLS
@@ -196,25 +196,33 @@ void wolfSSL_TLS_client( )
 
     if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
-        return;
+        goto out;
     }
 
     if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != strlen(sendBuff)) {
         printf("ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
+        goto out;
     }
 
     if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE)) < 0) {
         printf("ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
-        return;
+        goto out;
     }
 
     rcvBuff[ret] = '\0' ;
     printf("Received: %s\n\n", rcvBuff);
 
+ out:
+
     /* frees all data before client termination */
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+    if(ssl) {
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl);
+    }
+    if(ctx) {
+        wolfSSL_CTX_free(ctx);
+    }
+
     wolfSSL_Cleanup();
 
     tcp_sht_cep(cepid);
