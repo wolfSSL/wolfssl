@@ -1390,6 +1390,9 @@ int mp_cmp_mag (mp_int * a, mp_int * b)
     return MP_LT;
   }
 
+  if (a->used == 0)
+      return MP_EQ;
+
   /* alias for a */
   tmpa = a->dp + (a->used - 1);
 
@@ -3477,23 +3480,25 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       int      iy;
       mp_digit *tmpx, *tmpy;
 
-      /* get offsets into the two bignums */
-      ty = MIN(b->used-1, ix);
-      tx = ix - ty;
+      if ((a->used > 0) && (b->used > 0)) {
+          /* get offsets into the two bignums */
+          ty = MIN(b->used-1, ix);
+          tx = ix - ty;
 
-      /* setup temp aliases */
-      tmpx = a->dp + tx;
-      tmpy = b->dp + ty;
+          /* setup temp aliases */
+          tmpx = a->dp + tx;
+          tmpy = b->dp + ty;
 
-      /* this is the number of times the loop will iterate, essentially
-         while (tx++ < a->used && ty-- >= 0) { ... }
-       */
-      iy = MIN(a->used-tx, ty+1);
+          /* this is the number of times the loop will iterate, essentially
+             while (tx++ < a->used && ty-- >= 0) { ... }
+          */
+          iy = MIN(a->used-tx, ty+1);
 
-      /* execute loop */
-      for (iz = 0; iz < iy; ++iz) {
-         _W += ((mp_word)*tmpx++)*((mp_word)*tmpy--);
+          /* execute loop */
+          for (iz = 0; iz < iy; ++iz) {
+              _W += ((mp_word)*tmpx++)*((mp_word)*tmpy--);
 
+          }
       }
 
       /* store term */
