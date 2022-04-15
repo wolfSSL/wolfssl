@@ -208,7 +208,6 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     struct crypt_op crt;
     byte* tmp;
-    int ret;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
