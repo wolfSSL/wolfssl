@@ -2907,6 +2907,17 @@ L_curve25519_inv_8:
 	adcs	x15, x15, xzr
 	adcs	x16, x16, xzr
 	adc	x17, x17, xzr
+	adds	x4, x14, x3
+	adcs	x4, x15, xzr
+	adcs	x4, x16, xzr
+	adc	x4, x17, xzr
+	and	x4, x3, x4, asr 63
+	adds	x14, x14, x4
+	adcs	x15, x15, xzr
+	mov	x4, #0x7fffffffffffffff
+	adcs	x16, x16, xzr
+	adc	x17, x17, xzr
+	and	x17, x17, x4
 	# Store
 	stp	x14, x15, [x0]
 	stp	x16, x17, [x0, #16]
