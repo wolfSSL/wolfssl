@@ -47787,6 +47787,7 @@ static void test_wolfSSL_SMIME_read_PKCS7(void)
     AssertNotNull(pkcs7);
     AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
                                      PKCS7_NOVERIFY), SSL_SUCCESS);
+    XFCLOSE(smimeTestFile);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);
 
