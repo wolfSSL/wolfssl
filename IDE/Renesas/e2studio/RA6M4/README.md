@@ -162,7 +162,7 @@ Run peer wolfSSL server
 
 RSA sign and verify use, launch server with the following option
 ```
-$./example/server/server -b -d -i
+$./examples/server/server -b -d -i
 ```
 
 You will see the following message on J-LinK RTT Viewer
@@ -182,7 +182,7 @@ Received: I hear you fa shizzle!
 
 ECDSA sign and verify use, launch server with the following option
 ```
-$./examples/server/server -b -d -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem
+$./examples/server/server -b -d -c -i ./certs/server-ecc.pem -k ./certs/ecc-key.pem
 ```
 
 You will see the following message on J-LinK RTT Viewer
