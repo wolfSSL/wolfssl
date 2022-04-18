@@ -13817,6 +13817,9 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
 
     WOLFSSL_ENTER("get_locked_session_stats");
 
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_LockMutex(&session_mutex);
+#endif
     for (i = 0; i < SESSION_ROWS; i++) {
         SessionRow* row = &SessionCache[i];
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
