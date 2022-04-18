@@ -13695,20 +13695,20 @@ void AddSession(WOLFSSL* ssl)
     }
 #endif
 
-    #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-        if (error == 0) {
-            word32 active = 0;
+#if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
+    if (error == 0) {
+        word32 active = 0;
 
-            error = get_locked_session_stats(&active, NULL, NULL);
-            if (error == WOLFSSL_SUCCESS) {
-                error = 0;  /* back to this function ok */
+        error = get_locked_session_stats(&active, NULL, NULL);
+        if (error == WOLFSSL_SUCCESS) {
+            error = 0;  /* back to this function ok */
 
-                if (PeakSessions < active) {
-                    PeakSessions = active;
-                }
+            if (PeakSessions < active) {
+                PeakSessions = active;
             }
         }
-    #endif /* WOLFSSL_SESSION_STATS && WOLFSSL_PEAK_SESSIONS */
+    }
+#endif /* WOLFSSL_SESSION_STATS && WOLFSSL_PEAK_SESSIONS */
 }
 
 

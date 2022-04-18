@@ -736,12 +736,11 @@ int main(int argc, char** argv)
 #else
             chain = (void*)packet;
             chainSz = header.caplen;
-            (void)isChain;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
             do {
-                WOLF_EVENT* events[1]; /* poll for single event */
+                WOLF_EVENT* events[WOLF_ASYNC_MAX_PENDING];
                 int eventCount = 0;
 
                 /* For async call the original API again with same data,
@@ -795,6 +794,7 @@ int main(int argc, char** argv)
             break;      /* we're done reading file */
     }
     FreeAll();
+    (void)isChain;
 
     return hadBadPacket ? EXIT_FAILURE : EXIT_SUCCESS;
 }
