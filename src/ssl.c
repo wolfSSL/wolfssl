@@ -33443,8 +33443,8 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     word32 len;
     ecc_key* key;
     int ret;
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && !defined(HAVE_FIPS)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,0)))
     int setGlobalRNG = 0;
 #endif
     (void)KDF;
@@ -33471,8 +33471,8 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     len = (word32)outlen;
     key = (ecc_key*)ecdh->internal;
 
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && !defined(HAVE_FIPS)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,0)))
     if (key->rng == NULL) {
         if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("No RNG to use");
@@ -33486,8 +33486,8 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     ret = wc_ecc_shared_secret_ssh(key, (ecc_point*)pub_key->internal,
             (byte *)out, &len);
     PRIVATE_KEY_LOCK();
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
-    && !defined(HAVE_FIPS)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,0)))
     if (setGlobalRNG)
         key->rng = NULL;
 #endif
