@@ -62,6 +62,9 @@
         #define WOLFSSL_AESNI
         #define HAVE_INTEL_RDSEED
         #define FORCE_FAILURE_RDSEED
+        #define HAVE_ECC384
+        #define HAVE_ECC521
+        #define HAVE_SUPPORTED_CURVES
     #endif /* FIPS v2 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
         #undef WOLFSSL_AESNI /* Comment out if using PAA */
@@ -98,6 +101,7 @@
         #define HAVE_FFDHE_8192
         #define WOLFSSL_AES_OFB
         #define FP_MAX_BITS 16384
+        #define HAVE_SUPPORTED_CURVES
     #endif /* FIPS v5 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
