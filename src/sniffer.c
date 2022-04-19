@@ -4526,7 +4526,12 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
 #endif
     {
+        XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
         ret = DecryptTls(ssl, output, input, sz, 0);
+        if (ssl->specs.cipher_type == aead) {
+            /* DecryptTls places the output at offset of 8 for explicit IV */
+            output += AESGCM_EXP_IV_SZ;
+        }
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -6194,8 +6199,8 @@ int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
 int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
         char* error)
 {
-    return ssl_DecodePacketInternal(vChain, chainSz, 1, data, NULL, NULL,
-            error, 0);
+    return ssl_DecodePacketInternal((const byte*)vChain, chainSz, 1, data,
+        NULL, NULL, error, 0);
 }
 
 #endif
