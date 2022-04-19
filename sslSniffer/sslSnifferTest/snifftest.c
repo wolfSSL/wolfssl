@@ -149,14 +149,16 @@ static const byte eccHash[] = {
 #endif
 
 
-pcap_t* pcap = NULL;
-pcap_if_t* alldevs = NULL;
-
+static pcap_t* pcap = NULL;
+static pcap_if_t* alldevs = NULL;
+static struct bpf_program pcap_fp;
 
 static void FreeAll(void)
 {
-    if (pcap)
+    if (pcap) {
+        pcap_freecode(&pcap_fp);
         pcap_close(pcap);
+    }
     if (alldevs)
         pcap_freealldevs(alldevs);
 #ifndef _WIN32
@@ -483,7 +485,6 @@ int main(int argc, char** argv)
     char         keyFilesUser[MAX_FILENAME_SZ];
     const char  *server = NULL;
     const char  *sniName = NULL;
-    struct       bpf_program fp;
     pcap_if_t   *d;
     pcap_addr_t *a;
     int          isChain = 0;
@@ -590,10 +591,10 @@ int main(int argc, char** argv)
 
         SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 
-        ret = pcap_compile(pcap, &fp, filter, 0, 0);
+        ret = pcap_compile(pcap, &pcap_fp, filter, 0, 0);
         if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
 
-        ret = pcap_setfilter(pcap, &fp);
+        ret = pcap_setfilter(pcap, &pcap_fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
         /* optionally enter the private key to use */
@@ -676,13 +677,13 @@ int main(int argc, char** argv)
             }
 
             /* Only let through TCP/IP packets */
-            ret = pcap_compile(pcap, &fp, "(ip6 or ip) and tcp", 0, 0);
+            ret = pcap_compile(pcap, &pcap_fp, "(ip6 or ip) and tcp", 0, 0);
             if (ret != 0) {
                 printf("pcap_compile failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
 
-            ret = pcap_setfilter(pcap, &fp);
+            ret = pcap_setfilter(pcap, &pcap_fp);
             if (ret != 0) {
                 printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
