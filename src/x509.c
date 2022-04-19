@@ -4276,7 +4276,7 @@ int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
         ret = wolfSSL_BIO_printf(out, "DNS:");
         ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         if (ret == WOLFSSL_SUCCESS) {
-            ret = wolfSSL_BIO_printf(out, gen->d.dNSName->strData);
+            ret = wolfSSL_BIO_printf(out, "%s", gen->d.dNSName->strData);
             ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
         break;
