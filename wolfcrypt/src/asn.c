@@ -31065,10 +31065,10 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         ret = wc_InitRng(&rng);
     #endif
         if (ret != 0) {
-            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
+            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OCSP Nonce.");
         } else {
             if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
-                WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
+                WOLFSSL_MSG("\tCannot run RNG. Skipping the OCSP Nonce.");
             else
                 req->nonceSz = MAX_OCSP_NONCE_SZ;
 

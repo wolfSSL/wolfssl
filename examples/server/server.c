@@ -2835,7 +2835,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
         }
 #ifndef NO_RSA
-    /* All the OSCP Stapling test certs are RSA. */
+    /* All the OCSP Stapling test certs are RSA. */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         { /* scope start */
