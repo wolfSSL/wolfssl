@@ -251,6 +251,7 @@ struct WOLFSSL_ASN1_STRING {
     char strData[CTC_NAME_SIZE];
     int length;
     int type; /* type of string i.e. CTC_UTF8 */
+    int nid;
     char* data;
     long flags;
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
@@ -333,7 +334,7 @@ struct WOLFSSL_ASN1_OBJECT {
     WOLFSSL_GENERAL_NAME* gn;
 #endif
 
-    struct d { /* derefrenced */
+    struct d { /* dereferenced */
         WOLFSSL_ASN1_STRING* dNSName;
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
