@@ -43114,7 +43114,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
 
     if (rsa == NULL || rsa->internal == NULL || from == NULL) {
         WOLFSSL_MSG("Bad function arguments");
-        return WOLFSSL_FAILURE;
+        return WOLFSSL_FATAL_ERROR;
     }
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
@@ -43134,7 +43134,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
         break;
     default:
         WOLFSSL_MSG("RSA_public_decrypt unsupported padding");
-        return WOLFSSL_FAILURE;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -43143,7 +43143,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
 
         if (SetRsaInternal(rsa) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
-            return WOLFSSL_FAILURE;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -43160,14 +43160,14 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
     }
     else {
         WOLFSSL_MSG("RSA_public_decrypt pad type not supported in FIPS");
-        ret = WOLFSSL_FAILURE;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 #endif
 
     WOLFSSL_LEAVE("RSA_public_decrypt", ret);
 
     if (ret <= 0) {
-        ret = WOLFSSL_FAILURE;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     return ret;
 }
