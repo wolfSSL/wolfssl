@@ -25915,6 +25915,7 @@ static int test_wc_ecc_verify_hash_ex (void)
     WC_RNG          rng;
     mp_int          r;
     mp_int          s;
+    mp_int          z;
     unsigned char   hash[] = "Everyone gets Friday off.EccSig";
     unsigned char   iHash[] = "Everyone gets Friday off.......";
     unsigned char   shortHash[] = TEST_STRING;
@@ -25927,7 +25928,7 @@ static int test_wc_ecc_verify_hash_ex (void)
     int             verify_ok = 0;
 
     /* Initialize r and s. */
-    ret = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL);
+    ret = mp_init_multi(&r, &s, &z, NULL, NULL, NULL);
     if (ret != MP_OKAY) {
         return MP_INIT_E;
     }
@@ -26003,6 +26004,18 @@ static int test_wc_ecc_verify_hash_ex (void)
         }
         if (ver == 0 && wc_ecc_verify_hash_ex(&r, NULL, shortHash, shortHashLen,
                                                 &verify_ok, &key) != ECC_BAD_ARG_E) {
+            ver = WOLFSSL_FATAL_ERROR;
+        }
+        if (wc_ecc_verify_hash_ex(&z, &s, shortHash, shortHashLen, &verify_ok, &key)
+                                                            != MP_ZERO_E) {
+            ver = WOLFSSL_FATAL_ERROR;
+        }
+        if (wc_ecc_verify_hash_ex(&r, &z, shortHash, shortHashLen, &verify_ok, &key)
+                                                            != MP_ZERO_E) {
+            ver = WOLFSSL_FATAL_ERROR;
+        }
+        if (wc_ecc_verify_hash_ex(&z, &z, shortHash, shortHashLen, &verify_ok, &key)
+                                                            != MP_ZERO_E) {
             ver = WOLFSSL_FATAL_ERROR;
         }
         if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, NULL, shortHashLen, &verify_ok,
