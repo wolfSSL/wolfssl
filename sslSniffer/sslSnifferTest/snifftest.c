@@ -483,6 +483,7 @@ int main(int argc, char** argv)
     struct iovec chains[CHAIN_INPUT_COUNT];
     unsigned int remainder;
 #endif
+    (void)isChain; /* potential that 0 init value not used */
 
     show_appinfo();
 
@@ -727,7 +728,6 @@ int main(int argc, char** argv)
 #else
             chain = (void*)packet;
             chainSz = header.caplen;
-            (void)isChain;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
