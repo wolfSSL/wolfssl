@@ -102,7 +102,7 @@
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 #ifdef HAVE_CURVE25519
