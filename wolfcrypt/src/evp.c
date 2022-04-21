@@ -1859,10 +1859,20 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return ret;
 
     switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_SIGN;
             ret = WOLFSSL_SUCCESS;
             break;
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            ctx->op = EVP_PKEY_OP_SIGN;
+            ret = WOLFSSL_SUCCESS;
+            break;
+#endif /* NO_DSA */
+
         case EVP_PKEY_EC:
             WOLFSSL_MSG("not implemented");
             FALL_THROUGH;
@@ -1908,6 +1918,22 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     }
 #endif /* NO_RSA */
 
+#ifndef NO_DSA
+    case EVP_PKEY_DSA: {
+        int bytes;
+        /* TODO: Set required siglen when sig is NULL */
+        int ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
+        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
+        if (bytes == WOLFSSL_FAILURE || (int)*siglen < bytes * 2)
+            return WOLFSSL_FAILURE;
+        *siglen = bytes * 2;
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* NO_DSA */
+
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         FALL_THROUGH;
@@ -1940,6 +1966,13 @@ int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx)
             ctx->op = EVP_PKEY_OP_VERIFY;
             return WOLFSSL_SUCCESS;
 #endif /* NO_RSA */
+
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* NO_DSA */
+
         default:
             return -2;
     }
@@ -1970,6 +2003,16 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
             (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
             ctx->padding);
 #endif /* NO_RSA */
+
+#ifndef NO_DSA
+     case EVP_PKEY_DSA: {
+        int dsacheck = 0;
+        if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
+            &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
+            return WOLFSSL_FAILURE;
+        return WOLFSSL_SUCCESS;
+     }
+#endif /* NO_DSA */
 
     default:
         return -2;
