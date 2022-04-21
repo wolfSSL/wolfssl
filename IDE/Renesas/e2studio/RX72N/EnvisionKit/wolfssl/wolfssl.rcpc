@@ -88,11 +88,13 @@
       </Category>
     </Files>
     <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F572NNHxFB</Device>
-    <BuildOptions Name="CC-RX" Version="v3.03.00">
+    <BuildOptions Name="CC-RX" Version="v3.04.00">
       <BuildMode Active="True" Name="Debug">
         <GeneralOptions/>
         <CompileOptions>
-          <Option>-isa=rxv2</Option>
+          <Option>-isa=rxv3</Option>
+          <Option>-fpu</Option>
+          <Option>-dpfpu</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\demos"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\include"</Option>
@@ -106,6 +108,7 @@
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_tsip_rx"</Option>
           <Option>-include="${ProjDirPath}\..\wolfssl_demo"</Option>
           <Option>-define=WOLFSSL_USER_SETTINGS</Option>
+          <Option>-asmopt=-bank</Option>
           <Option>-nomessage</Option>
           <Option>-debug</Option>
           <Option>-tfu=intrinsic</Option>
@@ -116,7 +119,10 @@
           <Option>-obj_path=${CONFIGDIR}</Option>
         </CompileOptions>
         <AssembleOptions>
-          <Option>-isa=rxv2</Option>
+          <Option>-isa=rxv3</Option>
+          <Option>-fpu</Option>
+          <Option>-dpfpu</Option>
+          <Option>-bank</Option>
           <Option>-debug</Option>
           <Option>-nologo</Option>
           <Option>-output=${CONFIGDIR}</Option>

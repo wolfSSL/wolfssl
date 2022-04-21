@@ -88,7 +88,7 @@
       </Category>
     </Files>
     <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F565NEDxFC</Device>
-    <BuildOptions Name="CC-RX" Version="v3.03.00">
+    <BuildOptions Name="CC-RX" Version="v3.04.00">
       <BuildMode Active="True" Name="Debug">
         <GeneralOptions/>
         <CompileOptions>
@@ -111,7 +111,6 @@
           <Option>-nomessage</Option>
           <Option>-debug</Option>
           <Option>-outcode=utf8</Option>
-          <Option>-optimize=0</Option>
           <Option>-nologo</Option>
           <Option>-lang=c99</Option>
           <Option>-lang=cpp</Option>

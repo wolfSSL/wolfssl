@@ -14,7 +14,7 @@
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
 				<option id="toolchain.id" value="Renesas_RXC"/>
-				<option id="toolchain.version" value="v3.03.00"/>
+				<option id="toolchain.version" value="v3.04.00"/>
 				<option id="toolchain.enable" value="true"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
@@ -27,7 +27,7 @@
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.dsp.option.noDebugInfo.317830941" name="デバッグ情報を出力する (-no_debug_info)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.dsp.option.noDebugInfo" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.renesas.ccrx.base.common.566285610" name="Common" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.base.common">
-								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa.789156168" name="命令セット・アーキテクチャ (-isa)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa" useByScannerDiscovery="false" value="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa.rxv2" valueType="enumerated"/>
+								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa.789156168" name="命令セット・アーキテクチャ (-isa)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa" useByScannerDiscovery="false" value="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.isa.rxv3" valueType="enumerated"/>
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.hasFpu.1416683217" name="Has FPU" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.hasFpu" useByScannerDiscovery="false" value="TRUE" valueType="string"/>
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceName.738625467" name="Device Name" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceName" useByScannerDiscovery="false" value="R5F572NNHxFB" valueType="string"/>
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceCommand.806008705" name="Device Command" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceCommand" useByScannerDiscovery="false" value="R5F572NN" valueType="string"/>
@@ -35,6 +35,8 @@
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.hasDsp.963524125" name="Has DSP" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.hasDsp" useByScannerDiscovery="false" value="false" valueType="string"/>
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceFamily.664031971" name="Device Family" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceFamily" useByScannerDiscovery="false" value="RX72N" valueType="string"/>
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceHistory.1128940076" name="Device history" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.deviceHistory" useByScannerDiscovery="false" value="non_init;R5F572NNHxFB" valueType="string"/>
+								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.doublePrecisionFPU.1794174354" name="倍精度浮動小数点処理命令を使用する (-dpfpu/-nodpfpu)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.doublePrecisionFPU" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.floatIns.1365779106" name="浮動小数点演算命令を使用する (-fpu/-nofpu)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.floatIns" useByScannerDiscovery="false" value="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.floatIns.yes" valueType="enumerated"/>
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.renesas.ccrx.base.compiler.958103973" name="Compiler" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.base.compiler">
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu.1276851320" name="浮動小数点演算命令を使用する (-fpu/-nofpu)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu" useByScannerDiscovery="false" value="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu.yes" valueType="enumerated"/>
