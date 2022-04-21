@@ -1713,7 +1713,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
   }
 
   /* init result */
-  if (c->alloc < max_ab + 1) {
+  if (c->dp == NULL || c->alloc < max_ab + 1) {
     if ((res = mp_grow (c, max_ab + 1)) != MP_OKAY) {
       return res;
     }
@@ -1757,7 +1757,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     if (min_ab != max_ab) {
       for (; i < max_ab; i++) {
         /* T[i] = X[i] + U */
-          *tmpc = x->dp[i] + u; // NOLINT(clang-analyzer-core.NullDereference) /* clang-tidy 13 false positive */
+          *tmpc = x->dp[i] + u;
 
         /* U = carry bit of T[i] */
         u = *tmpc >> ((mp_digit)DIGIT_BIT);
