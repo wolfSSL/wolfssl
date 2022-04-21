@@ -47019,13 +47019,14 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+    WOLFSSL_EVP_PKEY_CTX* ctx_verify = NULL;
     const char* in = "What is easy to do is easy not to do.";
     size_t inlen = XSTRLEN(in);
     byte hash[SHA256_DIGEST_LENGTH] = {0};
     SHA256_CTX c;
     byte*  sig = NULL;
     byte*  sigVerify = NULL;
-    size_t siglen = 0;
+    size_t siglen = 256;
     size_t rsaKeySz = 2048/8;  /* Bytes */
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_sign()");
@@ -47055,12 +47056,20 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     /* Sign data */
     AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, hash, SHA256_DIGEST_LENGTH),
                               WOLFSSL_SUCCESS);
-    /* Verify signature.
-       EVP_PKEY_verify() doesn't exist yet, so use RSA_public_decrypt(). */
-    AssertIntEQ(RSA_public_decrypt((int)siglen, sig, sigVerify,
-                             rsa, RSA_PKCS1_PADDING), SHA256_DIGEST_LENGTH);
-
-    AssertIntEQ(XMEMCMP(hash, sigVerify, SHA256_DIGEST_LENGTH), 0);
+    /* Verify signature */
+    AssertNotNull(ctx_verify = EVP_PKEY_CTX_new(pkey, NULL));
+    AssertIntEQ(EVP_PKEY_verify_init(ctx_verify), WOLFSSL_SUCCESS);
+    AssertIntEQ(
+        EVP_PKEY_CTX_set_rsa_padding(ctx_verify, RSA_PKCS1_PADDING),
+        WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_verify(
+        ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
+        WOLFSSL_SUCCESS);
+    XMEMSET(hash, 0, SHA256_DIGEST_LENGTH);
+    AssertIntEQ(EVP_PKEY_verify(
+        ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
+        WOLFSSL_FAILURE);
+    EVP_PKEY_CTX_free(ctx_verify);
     /* error cases */
 
     AssertIntNE(EVP_PKEY_sign_init(NULL), WOLFSSL_SUCCESS);

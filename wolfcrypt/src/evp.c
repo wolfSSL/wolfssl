@@ -1882,30 +1882,30 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
                         size_t *siglen, const unsigned char *tbs, size_t tbslen)
 {
-    int len = 0;
-
     WOLFSSL_MSG("wolfSSL_EVP_PKEY_sign");
 
-    if (!ctx || ctx->op != EVP_PKEY_OP_SIGN || !ctx->pkey)
+    if (!ctx || ctx->op != EVP_PKEY_OP_SIGN || !ctx->pkey || !siglen)
         return WOLFSSL_FAILURE;
 
     (void)sig;
     (void)siglen;
     (void)tbs;
     (void)tbslen;
-    (void)len;
 
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
-    case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_private_encrypt((int)tbslen, tbs, sig,
-              ctx->pkey->rsa, ctx->padding);
-        if (len < 0)
-            break;
-        else {
-            *siglen = len;
-            return WOLFSSL_SUCCESS;
-        }
+    case EVP_PKEY_RSA: {
+        unsigned int len = (unsigned int)*siglen;
+        /* TODO: Set required siglen when sig is NULL */
+        if (wolfSSL_RSA_sign_generic_padding(WC_HASH_TYPE_NONE, tbs,
+            (unsigned int)tbslen, sig, &len, ctx->pkey->rsa, 1, ctx->padding)
+            != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+        if (len > *siglen)
+            return WOLFSSL_FAILURE;
+        *siglen = (size_t)len;
+        return WOLFSSL_SUCCESS;
+    }
 #endif /* NO_RSA */
 
     case EVP_PKEY_EC:
@@ -1915,6 +1915,65 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         break;
     }
     return WOLFSSL_FAILURE;
+}
+
+/******************************************************************************
+* wolfSSL_EVP_PKEY_verify_init - initializes a public key algorithm context for
+* a verification operation.
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure. In particular
+* a return value of -2 indicates the operation is not supported by the public
+* key algorithm.
+*/
+
+int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_verify_init");
+
+    if (!ctx || !ctx->pkey)
+        return WOLFSSL_FAILURE;
+
+    switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+        case EVP_PKEY_RSA:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* NO_RSA */
+        default:
+            return -2;
+    }
+}
+
+/******************************************************************************
+* wolfSSL_EVP_PKEY_verify - verifies a signature using ctx
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure. In particular
+* a return value of -2 indicates the operation is not supported by the public
+* key algorithm.
+*/
+
+int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
+                            size_t siglen, const unsigned char *tbs,
+                            size_t tbslen)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_verify");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_VERIFY || !ctx->pkey)
+        return WOLFSSL_FAILURE;
+
+    switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    case EVP_PKEY_RSA:
+        return wolfSSL_RSA_verify_ex(WC_HASH_TYPE_NONE, tbs,
+            (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
+            ctx->padding);
+#endif /* NO_RSA */
+
+    default:
+        return -2;
+    }
 }
 
 /* Get the size in bits for WOLFSSL_EVP_PKEY key
