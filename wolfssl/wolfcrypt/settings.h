@@ -2648,6 +2648,12 @@ extern void uITRON4_free(void *p) ;
     #define NO_RC4
 #endif
 
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ) || \
+    defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_ALL)
+    #ifdef NO_CERTS
+        #undef NO_CERTS
+    #endif
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */
