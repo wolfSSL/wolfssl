@@ -1873,9 +1873,13 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
             break;
 #endif /* NO_DSA */
 
+#ifdef HAVE_ECC
         case EVP_PKEY_EC:
-            WOLFSSL_MSG("not implemented");
-            FALL_THROUGH;
+            ctx->op = EVP_PKEY_OP_SIGN;
+            ret = WOLFSSL_SUCCESS;
+            break;
+#endif /* HAVE_ECC */
+
         default:
             ret = -2;
     }
@@ -1934,9 +1938,23 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     }
 #endif /* NO_DSA */
 
-    case EVP_PKEY_EC:
-        WOLFSSL_MSG("not implemented");
-        FALL_THROUGH;
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        int ret;
+        WOLFSSL_ECDSA_SIG *ecdsaSig =
+            wolfSSL_ECDSA_do_sign(tbs, (int)tbslen, ctx->pkey->ecc);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        /* TODO: Set required siglen when sig is NULL */
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        if (ret == 0 || (int)*siglen < ret)
+            return WOLFSSL_FAILURE;
+        *siglen = ret;
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* HAVE_ECC */
+
     default:
         break;
     }
@@ -1972,6 +1990,12 @@ int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx)
             ctx->op = EVP_PKEY_OP_VERIFY;
             return WOLFSSL_SUCCESS;
 #endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+        case EVP_PKEY_EC:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* HAVE_ECC */
 
         default:
             return -2;
@@ -2013,6 +2037,20 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         return WOLFSSL_SUCCESS;
      }
 #endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        int ret;
+        WOLFSSL_ECDSA_SIG *ecdsaSig = wolfSSL_d2i_ECDSA_SIG(
+            NULL, (const unsigned char **)&sig, (long)siglen);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_ECDSA_do_verify(tbs, (int)tbslen, ecdsaSig,
+            ctx->pkey->ecc);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        return ret;
+    }
+#endif /* HAVE_ECC */
 
     default:
         return -2;
