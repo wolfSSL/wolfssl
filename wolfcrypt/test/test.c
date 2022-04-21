@@ -16674,11 +16674,11 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     #ifdef HAVE_FFDHE_4096
     #ifdef HAVE_PUBLIC_FFDHE
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe4096_Get());
-    if (ret != 0)
-        ERROR_OUT(-8128, done);
     #else
     ret = dh_ffdhe_test(&rng, WC_FFDHE_4096);
     #endif
+    if (ret != 0)
+        ERROR_OUT(-8128, done);
     #endif
 #endif /* !WC_NO_RNG */
 #endif /* HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM64_ASM */

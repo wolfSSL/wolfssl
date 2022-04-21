@@ -10741,12 +10741,16 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    /* store cert for potential retrieval */
-    if (AllocDer(&x509->derCert, dCert->maxIdx, CERT_TYPE, x509->heap) == 0) {
-        XMEMCPY(x509->derCert->buffer, dCert->source, dCert->maxIdx);
-    }
-    else {
-        ret = MEMORY_E;
+    /* if der contains original source buffer then store for potential
+     * retrieval */
+    if (dCert->source != NULL && dCert->maxIdx > 0) {
+        if (AllocDer(&x509->derCert, dCert->maxIdx, CERT_TYPE, x509->heap)
+                                                                         == 0) {
+            XMEMCPY(x509->derCert->buffer, dCert->source, dCert->maxIdx);
+        }
+        else {
+            ret = MEMORY_E;
+        }
     }
 
     x509->altNames       = dCert->altNames;

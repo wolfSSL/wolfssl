@@ -7600,7 +7600,6 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error. Ignoring"
                             "this error.");
-                    ret = WOLFSSL_SUCCESS;
                 }
     #endif
                 successCount++;

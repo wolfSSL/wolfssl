@@ -2069,7 +2069,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)resumeScr;
     (void)ourKey;
     (void)ourCert;
-    (void)customVerifyCert;
     (void)verifyCert;
     (void)useClientCert;
     (void)disableCRL;
@@ -3898,7 +3897,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
                         if (ret == WOLFSSL_SUCCESS) {
                             printf("NON-BLOCKING RENEGOTIATION SUCCESSFUL\n");
-                            err = 0;
                         }
                     }
                     if (ret != WOLFSSL_SUCCESS) {
@@ -4342,6 +4340,7 @@ exit:
     (void) ourCert;
     (void) ourKey;
     (void) useVerifyCb;
+    (void) customVerifyCert;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;
