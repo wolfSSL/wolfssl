@@ -1721,7 +1721,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 
   /* ensure pointer points to valid memory after mp_grow */
   if (!c->dp)
-    return res;
+    return MP_VAL;
 
   /* get old used digit count and set new one */
   olduse = c->used;
