@@ -32,10 +32,10 @@ has_ecc=no
 if [ $? -eq 0 ]; then
     has_ecc=yes
 fi
-has_x22519=no
+has_x25519=no
 ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'x22519 '
 if [ $? -eq 0 ]; then
-    has_x22519=yes
+    has_x25519=yes
 fi
 has_dh=no
 ./sslSniffer/sslSnifferTest/snifftest -? 2>&1 | grep -- 'dh '

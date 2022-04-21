@@ -3316,7 +3316,8 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
       defined(OPENSSL_EXTRA))) || \
     (defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_CERT)) || \
-    (!defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN))
+    (!defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)) || \
+    (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA))
 
 /* Set the DER/BER encoding of the ASN.1 BIT STRING header.
  *
