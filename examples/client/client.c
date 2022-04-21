@@ -3899,6 +3899,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         if (ret == WOLFSSL_SUCCESS) {
                             printf("NON-BLOCKING RENEGOTIATION SUCCESSFUL\n");
                             err = 0;
+                            (void) err; /* silence unused assign warning */
                         }
                     }
                     if (ret != WOLFSSL_SUCCESS) {
