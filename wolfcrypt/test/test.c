@@ -16672,6 +16672,8 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         ERROR_OUT(-8128, done);
     #else
     ret = dh_ffdhe_test(&rng, WC_FFDHE_4096);
+    if (ret != 0)
+        ERROR_OUT(-8128, done);
     #endif
     #endif
 #endif /* !WC_NO_RNG */
