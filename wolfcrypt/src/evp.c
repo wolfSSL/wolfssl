@@ -2851,14 +2851,18 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     }
 #endif /* NO_RSA */
 #ifndef NO_DSA
-    case EVP_PKEY_DSA:
-        if (wolfSSL_DSA_do_sign(md, sigret, pkey->dsa) == WOLFSSL_SUCCESS) {
-            *siglen = wolfSSL_BN_num_bytes(pkey->dsa->q);
-            return WOLFSSL_SUCCESS;
-        }
-        else {
+    case EVP_PKEY_DSA: {
+        int bytes;
+        ret = wolfSSL_DSA_do_sign(md, sigret, pkey->dsa);
+        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        bytes = wolfSSL_BN_num_bytes(pkey->dsa->q);
+        if (bytes == WOLFSSL_FAILURE || (int)*siglen < bytes * 2)
             return WOLFSSL_FAILURE;
-        }
+        *siglen = bytes * 2;
+        return WOLFSSL_SUCCESS;
+    }
 #endif
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
