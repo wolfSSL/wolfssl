@@ -1719,6 +1719,10 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     }
   }
 
+  /* ensure pointer points to valid memory after mp_grow */
+  if (!c->dp)
+    return res;
+
   /* get old used digit count and set new one */
   olduse = c->used;
   c->used = max_ab + 1;
@@ -1750,6 +1754,10 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
       /* take away carry bit from T[i] */
       *tmpc++ &= MP_MASK;
     }
+
+    /* ensure pointer still points to valid memory before proceeding */
+    if (!tmpc)
+      return MP_VAL;
 
     /* now copy higher words if any, that is in A+B
      * if A or B has more digits add those in
