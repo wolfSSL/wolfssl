@@ -3332,13 +3332,17 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 
     #ifdef HAVE_ECC
         case EVP_PKEY_EC: {
+            int len;
             WOLFSSL_ECDSA_SIG *ecdsaSig;
             ecdsaSig = wolfSSL_ECDSA_do_sign(digest, hashLen,
                                              ctx->pctx->pkey->ecc);
             if (ecdsaSig == NULL)
                 break;
-            *siglen = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+            len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
             wolfSSL_ECDSA_SIG_free(ecdsaSig);
+            if (len == 0)
+                break;
+            *siglen = len;
             ret = WOLFSSL_SUCCESS;
             break;
         }
