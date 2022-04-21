@@ -11696,7 +11696,7 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int sigRet = 0;
 #endif
 
-    if (ssl == NULL || args == NULL)
+    if (ssl == NULL || args == NULL || args->dCert == NULL)
         return BAD_FUNC_ARG;
 
     /* check to make sure certificate index is valid */
