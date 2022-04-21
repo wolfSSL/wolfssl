@@ -424,7 +424,7 @@ int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
 int CRYPT_AES_KeySet(CRYPT_AES_CTX* aes, const unsigned char* key,
                      unsigned int keyLen, const unsigned char* iv, int dir)
 {
-    typedef char aes_test[sizeof(CRYPT_AES_CTX) >= sizeof(Aes) ? 1 : -1];
+    typedef char aes_test[sizeof(CRYPT_AES_CTX) >= sizeof(Aes) ? 1 : 0];
     (void)sizeof(aes_test);
 
     if (aes == NULL || key == NULL)
