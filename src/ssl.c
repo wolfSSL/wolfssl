@@ -28633,6 +28633,8 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
                            unsigned int mLen, unsigned char* sigRet,
                            unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag)
 {
+    if (sigLen != NULL)
+        *sigLen = RSA_MAX_SIZE / CHAR_BIT; /* No size checking in this API */
     return wolfSSL_RSA_sign_generic_padding(type, m, mLen, sigRet, sigLen,
             rsa, flag, RSA_PKCS1_PADDING);
 }
@@ -28710,6 +28712,10 @@ int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
 
     if (outLen == 0) {
         WOLFSSL_MSG("Bad RSA size");
+    }
+    else if (outLen > *sigLen) {
+        WOLFSSL_MSG("Output buffer too small");
+        return WOLFSSL_FAILURE;
     }
     else if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
@@ -28843,7 +28849,7 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
     int     ret = WOLFSSL_FAILURE;
     unsigned char *sigRet = NULL;
     unsigned char *sigDec = NULL;
-    unsigned int   len = 0;
+    unsigned int   len = sigLen;
     int verLen;
 #if (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && \
     FIPS_VERSION_GE(5,1))) && !defined(HAVE_SELFTEST)

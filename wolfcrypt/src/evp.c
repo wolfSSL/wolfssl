@@ -1909,22 +1909,24 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int ret;
-        unsigned int len = (unsigned int)*siglen;
+        int len;
+        unsigned int usiglen = (unsigned int)*siglen;
         if (!sig) {
             if (!ctx->pkey->rsa)
                 return WOLFSSL_FAILURE;
-            ret = wc_RsaEncryptSize((RsaKey*)ctx->pkey->rsa->internal);
-            if (ret < 0)
+            len = wc_RsaEncryptSize((RsaKey*)ctx->pkey->rsa->internal);
+            if (len < 0)
                 return WOLFSSL_FAILURE;
-            *siglen = (size_t)ret;
+            *siglen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
+        /* wolfSSL_RSA_sign_generic_padding performs a check that the output
+         * sig buffer is large enough */
         if (wolfSSL_RSA_sign_generic_padding(WC_HASH_TYPE_NONE, tbs,
-            (unsigned int)tbslen, sig, &len, ctx->pkey->rsa, 1, ctx->padding)
+            (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1, ctx->padding)
             != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
-        *siglen = (size_t)len;
+        *siglen = (size_t)usiglen;
         return WOLFSSL_SUCCESS;
     }
 #endif /* NO_RSA */
@@ -1933,23 +1935,25 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     case EVP_PKEY_DSA: {
         int bytes;
         int ret;
+        if (!ctx->pkey->dsa)
+            return WOLFSSL_FAILURE;
+        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
+        if (bytes == WOLFSSL_FAILURE)
+            return WOLFSSL_FAILURE;
+        bytes *= 2;
         if (!sig) {
-            if (!ctx->pkey->dsa)
-                return WOLFSSL_FAILURE;
-            bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
-            if (bytes == WOLFSSL_FAILURE)
-                return WOLFSSL_FAILURE;
-            *siglen = bytes * 2;
+            *siglen = bytes;
             return WOLFSSL_SUCCESS;
         }
+        if ((int)*siglen < bytes)
+            return WOLFSSL_FAILURE;
         ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
         /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
         if (ret != WOLFSSL_SUCCESS)
             return ret;
-        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
-        if (bytes == WOLFSSL_FAILURE || (int)*siglen < bytes * 2)
+        if (bytes == WOLFSSL_FAILURE)
             return WOLFSSL_FAILURE;
-        *siglen = bytes * 2;
+        *siglen = bytes;
         return WOLFSSL_SUCCESS;
     }
 #endif /* NO_DSA */
@@ -1982,6 +1986,11 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         ecdsaSig = wolfSSL_ECDSA_do_sign(tbs, (int)tbslen, ctx->pkey->ecc);
         if (ecdsaSig == NULL)
             return WOLFSSL_FAILURE;
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
+        if (ret == 0 || ret > (int)*siglen) {
+            wolfSSL_ECDSA_SIG_free(ecdsaSig);
+            return WOLFSSL_FAILURE;
+        }
         ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
         wolfSSL_ECDSA_SIG_free(ecdsaSig);
         if (ret == 0)
@@ -3350,7 +3359,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
         switch (ctx->pctx->pkey->type) {
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
-            unsigned int sigSz;
+            unsigned int sigSz = (unsigned int)*siglen;
             int nid;
             const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
             if (md == NULL)
