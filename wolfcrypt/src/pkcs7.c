@@ -1762,29 +1762,37 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
             idx = 0;
             ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
                                          pkcs7->privateKeySz);
+            /* If not using old FIPS or CAVP selftest, or not using FAST,
+             * or USER RSA, able to check RSA key. */
+            if (ret == 0) {
+        #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
+            !defined(HAVE_USER_RSA) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+            !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA)
+
+            #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+                /* verify imported private key is a valid key before using it */
+                ret = wc_CheckRsaKey(privKey);
+                if (ret != 0) {
+                    WOLFSSL_MSG("Invalid RSA private key, check "
+                                "pkcs7->privateKey");
+                }
+            #endif
+        #endif
+            }
+        #ifdef WOLF_CRYPTO_CB
+            else if (ret == ASN_PARSE_E && pkcs7->devId != INVALID_DEVID) {
+                /* if using crypto callbacks, try public key decode */
+                idx = 0;
+                ret = wc_RsaPublicKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                            pkcs7->privateKeySz);
+            }
+        #endif
         }
         else if (pkcs7->devId == INVALID_DEVID) {
             ret = BAD_FUNC_ARG;
         }
     }
-
-    /* If not using old FIPS or CAVP selftest, or not using FAST,
-       or USER RSA, able to check RSA key. */
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
-    !defined(HAVE_USER_RSA) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-    !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA)
-
-    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
-    /* verify imported private key is a valid key before using it */
-    if (ret == 0) {
-        ret = wc_CheckRsaKey(privKey);
-        if (ret != 0) {
-            WOLFSSL_MSG("Invalid RSA private key, check pkcs7->privateKey");
-        }
-    }
-    #endif
-#endif
 
     if (ret == 0) {
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1844,17 +1852,25 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
             idx = 0;
             ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
                                          pkcs7->privateKeySz);
+            /* verify imported private key is a valid key before using it */
+            if (ret == 0) {
+                ret = wc_ecc_check_key(privKey);
+                if (ret != 0) {
+                    WOLFSSL_MSG("Invalid ECC private key, check "
+                                "pkcs7->privateKey");
+                }
+            }
+        #ifdef WOLF_CRYPTO_CB
+            else if (ret == ASN_PARSE_E && pkcs7->devId != INVALID_DEVID) {
+                /* if using crypto callbacks, try public key decode */
+                idx = 0;
+                ret = wc_EccPublicKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                            pkcs7->privateKeySz);
+            }
+        #endif
         }
         else if (pkcs7->devId == INVALID_DEVID) {
             ret = BAD_FUNC_ARG;
-        }
-    }
-
-    /* verify imported private key is a valid key before using it */
-    if (ret == 0) {
-        ret = wc_ecc_check_key(privKey);
-        if (ret != 0) {
-            WOLFSSL_MSG("Invalid ECC private key, check pkcs7->privateKey");
         }
     }
 
