@@ -17989,13 +17989,16 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         if (ssl->hsHashes)
             (void)InitHandshakeHashes(ssl);
 
-#ifdef SESSION_CERTS
-        ssl->session->chain.count = 0;
-#endif
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
+
+        wolfSSL_SESSION_free(ssl->session);
+        ssl->session = wolfSSL_NewSession(ssl->heap);
+        if (ssl->session == NULL) {
+            return WOLFSSL_FAILURE;
+        }
 
         return WOLFSSL_SUCCESS;
     }
