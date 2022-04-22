@@ -21462,6 +21462,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
 
     XMEMSET(a, 0, sizeof(WOLFSSL_ASN1_INTEGER));
     a->data    = a->intData;
+    a->isDynamic = 0;
     a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
     a->length  = 0;
     return a;
@@ -24866,9 +24867,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
         WOLFSSL_STACK* next = sk->next;
 
         if (func != NULL) {
-            if (sk->type == STACK_TYPE_CIPHER)
-                func(&sk->data.cipher);
-            else
+            if (sk->type != STACK_TYPE_CIPHER)
                 func(sk->data.generic);
         }
         XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -25982,6 +25981,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
         else {
             XMEMSET(a->intData, 0, sizeof(a->intData));
             a->data = a->intData;
+            a->isDynamic = 0;
         }
 
         /* populate data */
@@ -40941,10 +40941,10 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
     /* Reset asn1 */
     if (asn1->isDynamic && asn1->data) {
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
-        asn1->isDynamic = 0;
     }
     XMEMSET(asn1->intData, 0, WOLFSSL_ASN1_INTEGER_MAX);
     asn1->data = asn1->intData;
+    asn1->isDynamic = 0;
     asn1->length = 0;
     asn1->negative = 0;
     asn1->type = V_ASN1_INTEGER;
