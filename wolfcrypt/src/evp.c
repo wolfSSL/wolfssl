@@ -7320,6 +7320,12 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         else
 #endif /* HAVE_PKCS8 */
         {
+            if (ecc->type == ECC_PRIVATEKEY_ONLY) {
+                if (wc_ecc_make_pub(ecc, NULL) != MP_OKAY) {
+                    return WOLFSSL_FAILURE;
+                }
+            }
+
             /* if not, the pkey will be traditional ecc key */
             if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
                 derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
