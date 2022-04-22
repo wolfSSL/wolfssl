@@ -4905,7 +4905,8 @@ then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
         fi
     fi
-    if test "x$ENABLED_PKCALLBACKS" = "xno"
+    # Do not enable PK Callbacks in FIPS mode with JNI
+    if test "x$ENABLED_PKCALLBACKS" = "xno" && test "$ENABLED_FIPS" = "no"
     then
         ENABLED_PKCALLBACKS="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
