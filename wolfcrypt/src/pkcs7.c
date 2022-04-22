@@ -4590,8 +4590,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     ret = ASN_PARSE_E;
                 }
                 /* if indef, skip EOF */
-                if (isIndef && pkiMsg[idx] == ASN_EOC && pkiMsg[idx+1] == 0) {
-                    idx += 2; /* skip EOF + zero byte */
+                if (isIndef) {
+                    if (idx + 1 >= pkiMsgSz) {
+                        ret = ASN_PARSE_E;
+                    }
+                    else if (pkiMsg[idx] == ASN_EOC && pkiMsg[idx+1] == 0) {
+                        idx += 2; /* skip EOF + zero byte */
+                    }
                 }
             }
 
