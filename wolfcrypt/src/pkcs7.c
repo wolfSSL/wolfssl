@@ -3409,6 +3409,8 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
             if (XMEMCMP(digest, hash, hashSz) == 0) {
                 /* found signer that successfully verified signature */
                 verified = 1;
+                pkcs7->verifyCert   = pkcs7->cert[i];
+                pkcs7->verifyCertSz = pkcs7->certSz[i];
                 break;
             }
         }
@@ -3532,6 +3534,8 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         if (ret == 0 && res == 1) {
             /* found signer that successfully verified signature */
             verified = 1;
+            pkcs7->verifyCert   = pkcs7->cert[i];
+            pkcs7->verifyCertSz = pkcs7->certSz[i];
             break;
         }
     }
