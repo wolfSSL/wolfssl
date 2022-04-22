@@ -1963,9 +1963,6 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         int ret;
         WOLFSSL_ECDSA_SIG *ecdsaSig;
         if (!sig) {
-            /* Calculate manually instead of using wolfSSL_ECDSA_do_sign() and
-             * wolfSSL_i2d_ECDSA_SIG() to not do unnecessary crypto and avoid
-             * variability in size depending on leading bit value. */
             WOLFSSL_EC_KEY *key = ctx->pkey->ecc;
             ecc_key* eckey;
             if (!key)
@@ -1974,13 +1971,12 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             if (key->inSet == 0 && SetECKeyInternal(key) != WOLFSSL_SUCCESS)
                 return WOLFSSL_FAILURE;
             eckey = (ecc_key*)ctx->pkey->ecc->internal;
-            if (!eckey || !eckey->dp || eckey->dp->size <= 0)
+            if (!eckey)
                 return WOLFSSL_FAILURE;
-            /* First LEN is larger since it potentially will need to encode more
-             * than 127 bytes.
-             * SEQ + LEN + 2 * (SEQ + LEN + LEADING BIT + INT) */
-            ret = 2 * (1 + 1 + 1 + eckey->dp->size);
-            *siglen = 1 + ((ret > 127) ? 2 : 1) + ret;
+            ret = wc_ecc_sig_size(eckey);
+            if (ret == 0)
+                return WOLFSSL_FAILURE;
+            *siglen = ret;
             return WOLFSSL_SUCCESS;
         }
         ecdsaSig = wolfSSL_ECDSA_do_sign(tbs, (int)tbslen, ctx->pkey->ecc);
