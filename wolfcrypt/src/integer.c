@@ -4378,6 +4378,10 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
   /* destination alias */
   tmpc    = c->dp;
 
+  if (tmpa == NULL || tmpc == NULL) {
+    return MP_MEM;
+  }
+
   /* if a is positive */
   if (a->sign == MP_ZPOS) {
      /* add digit, after this we're propagating
@@ -4461,6 +4465,10 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) // NOLINT(misc-no-recursion)
   oldused = c->used;
   tmpa    = a->dp;
   tmpc    = c->dp;
+
+  if (tmpa == NULL || tmpc == NULL) {
+    return MP_MEM;
+  }
 
   /* if a <= b simply fix the single digit */
   if ((a->used == 1 && a->dp[0] <= b) || a->used == 0) {
