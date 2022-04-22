@@ -35,6 +35,10 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
+#ifdef HAVE_PTHREAD
+    #include <pthread.h>
+#endif
+
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
@@ -53,12 +57,14 @@
        defined(HAVE_PTHREAD) && !defined(HAVE_RENESAS_SYNC)
 
     #define WC_ENABLE_BENCH_THREADING
-    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    #if defined(_POSIX_THREADS)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD
+        #if !defined(__MINGW32__)
         #define INFINITE (-1)
         #define WAIT_OBJECT_0 0L
+        #endif
     #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
