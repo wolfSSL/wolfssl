@@ -3871,11 +3871,13 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 
 void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
 {
+    (void)dynamicFlag;
+
     if (name != NULL) {
         XMEMSET(name, 0, sizeof(WOLFSSL_X509_NAME));
         name->name        = name->staticName;
         name->heap = heap;
-        name->dynamicName = dynamicFlag;
+        name->dynamicName = 0;
     }
 }
 
