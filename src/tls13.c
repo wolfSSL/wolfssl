@@ -2110,7 +2110,7 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
  * sz      The length of the encrypted data plus authentication tag.
  * aad     The additional authentication data.
  * aadSz   The size of the addition authentication data.
- * doAlert Generate alert on error (not for sniffer use cases)
+ * doAlert Generate alert on error (set to 0 for sniffer use cases)
  * returns 0 on success, otherwise failure.
  */
 int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,

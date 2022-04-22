@@ -16260,17 +16260,23 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
     }
 
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-8058, done);
     }
 
     ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
-    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != ASYNC_OP_E) {
         ERROR_OUT(-8057, done);
     }
 
     ret = wc_DhCheckKeyPair(key, pub, pubSz, priv, privSz);
-    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != ASYNC_OP_E) {
         ERROR_OUT(-8057, done);
     }
 
@@ -23925,7 +23931,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 #endif
 
     /* test use of custom curve - using BRAINPOOLP256R1 for test */
-#ifdef HAVE_ECC_BRAINPOOL
+#if defined(HAVE_ECC_BRAINPOOL) && !defined(HAVE_INTEL_QA)
     #ifndef WOLFSSL_ECC_CURVE_STATIC
         WOLFSSL_SMALL_STACK_STATIC const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
             0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
@@ -23966,7 +23972,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 
     XMEMSET(key, 0, sizeof *key);
 
-#ifdef HAVE_ECC_BRAINPOOL
+#if defined(HAVE_ECC_BRAINPOOL) && !defined(HAVE_INTEL_QA)
     ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF,
         &ecc_dp_brainpool256r1);
     if (ret != 0) {

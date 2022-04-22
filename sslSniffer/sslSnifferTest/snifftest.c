@@ -149,14 +149,16 @@ static const byte eccHash[] = {
 #endif
 
 
-pcap_t* pcap = NULL;
-pcap_if_t* alldevs = NULL;
-
+static pcap_t* pcap = NULL;
+static pcap_if_t* alldevs = NULL;
+static struct bpf_program pcap_fp;
 
 static void FreeAll(void)
 {
-    if (pcap)
+    if (pcap) {
+        pcap_freecode(&pcap_fp);
         pcap_close(pcap);
+    }
     if (alldevs)
         pcap_freealldevs(alldevs);
 #ifndef _WIN32
@@ -411,6 +413,9 @@ static void show_appinfo(void)
     #ifdef WOLFSSL_TLS13
         "tls_v13 "
     #endif
+    #ifndef WOLFSSL_NO_TLS12
+        "tls_v12 "
+    #endif
     #ifdef HAVE_SESSION_TICKET
         "session_ticket "
     #endif
@@ -447,6 +452,12 @@ static void show_appinfo(void)
     #ifdef HAVE_CURVE22519
         "x22519 "
     #endif
+    #ifdef WOLFSSL_STATIC_RSA
+        "rsa_static "
+    #endif
+    #ifdef WOLFSSL_STATIC_DH
+        "dh_static "
+    #endif
     "\n\n"
     );
 }
@@ -474,7 +485,6 @@ int main(int argc, char** argv)
     char         keyFilesUser[MAX_FILENAME_SZ];
     const char  *server = NULL;
     const char  *sniName = NULL;
-    struct       bpf_program fp;
     pcap_if_t   *d;
     pcap_addr_t *a;
     int          isChain = 0;
@@ -581,10 +591,10 @@ int main(int argc, char** argv)
 
         SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 
-        ret = pcap_compile(pcap, &fp, filter, 0, 0);
+        ret = pcap_compile(pcap, &pcap_fp, filter, 0, 0);
         if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
 
-        ret = pcap_setfilter(pcap, &fp);
+        ret = pcap_setfilter(pcap, &pcap_fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
         /* optionally enter the private key to use */
@@ -667,13 +677,13 @@ int main(int argc, char** argv)
             }
 
             /* Only let through TCP/IP packets */
-            ret = pcap_compile(pcap, &fp, "(ip6 or ip) and tcp", 0, 0);
+            ret = pcap_compile(pcap, &pcap_fp, "(ip6 or ip) and tcp", 0, 0);
             if (ret != 0) {
                 printf("pcap_compile failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
 
-            ret = pcap_setfilter(pcap, &fp);
+            ret = pcap_setfilter(pcap, &pcap_fp);
             if (ret != 0) {
                 printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
@@ -727,12 +737,11 @@ int main(int argc, char** argv)
 #else
             chain = (void*)packet;
             chainSz = header.caplen;
-            (void)isChain;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
             do {
-                WOLF_EVENT* events[1]; /* poll for single event */
+                WOLF_EVENT* events[WOLF_ASYNC_MAX_PENDING];
                 int eventCount = 0;
 
                 /* For async call the original API again with same data,
@@ -786,6 +795,7 @@ int main(int argc, char** argv)
             break;      /* we're done reading file */
     }
     FreeAll();
+    (void)isChain;
 
     return hadBadPacket ? EXIT_FAILURE : EXIT_SUCCESS;
 }

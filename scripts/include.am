@@ -87,7 +87,7 @@ noinst_SCRIPTS+= scripts/unit.test.in
 endif
 endif
 
-EXTRA_DIST +=  scripts/testsuite.pcap \
+EXTRA_DIST +=  scripts/sniffer-static-rsa.pcap \
                scripts/sniffer-ipv6.pcap \
                scripts/sniffer-tls13-dh.pcap \
                scripts/sniffer-tls13-dh-resume.pcap \
@@ -95,8 +95,8 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-tls13-ecc-resume.pcap \
                scripts/sniffer-tls13-x25519.pcap \
                scripts/sniffer-tls13-x25519-resume.pcap \
-               scripts/sniffer-tls13-gen.sh \
                scripts/sniffer-tls13-hrr.pcap \
+               scripts/sniffer-gen.sh \
                scripts/ping.test \
                scripts/benchmark.test \
                scripts/memtest.sh \

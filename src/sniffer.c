@@ -102,7 +102,7 @@
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 #ifdef HAVE_CURVE25519
@@ -973,6 +973,7 @@ typedef struct TcpPseudoHdr {
 } TcpPseudoHdr;
 
 
+#ifdef WOLFSSL_ENCRYPTED_KEYS
 /* Password Setting Callback */
 static int SetPassword(char* passwd, int sz, int rw, void* userdata)
 {
@@ -980,7 +981,7 @@ static int SetPassword(char* passwd, int sz, int rw, void* userdata)
     XSTRNCPY(passwd, (const char*)userdata, sz);
     return (int)XSTRLEN((const char*)userdata);
 }
-
+#endif
 
 /* Ethernet Header */
 typedef struct EthernetHdr {
@@ -2140,7 +2141,7 @@ static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
             pCipher = wolfSSL_get_cipher(session->sslServer);
             if (NULL != pCipher) {
                 XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
-                         sizeof(sslInfo->serverCipherSuiteName));
+                         sizeof(sslInfo->serverCipherSuiteName) - 1);
                 sslInfo->serverCipherSuiteName
                          [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
             }
@@ -2148,7 +2149,7 @@ static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
         #ifdef HAVE_SNI
             if (NULL != session->sni) {
                 XSTRNCPY((char*)sslInfo->serverNameIndication,
-                         session->sni, sizeof(sslInfo->serverNameIndication));
+                    session->sni, sizeof(sslInfo->serverNameIndication) - 1);
                 sslInfo->serverNameIndication
                          [sizeof(sslInfo->serverNameIndication) - 1] = '\0';
             }
@@ -4445,27 +4446,32 @@ static int DoHandShake(const byte* input, int* sslBytes,
         case client_key_exchange:
             Trace(GOT_CLIENT_KEY_EX_STR);
 #ifdef HAVE_EXTENDED_MASTER
-            if (session->flags.expectEms && session->hash != NULL) {
-                if (HashCopy(session->sslServer->hsHashes,
-                             session->hash) == 0 &&
-                    HashCopy(session->sslClient->hsHashes,
-                             session->hash) == 0) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (session->sslServer->error != WC_PENDING_E)
+        #endif
+            {
+                if (session->flags.expectEms && session->hash != NULL) {
+                    if (HashCopy(session->sslServer->hsHashes,
+                                session->hash) == 0 &&
+                        HashCopy(session->sslClient->hsHashes,
+                                session->hash) == 0) {
 
-                    session->sslServer->options.haveEMS = 1;
-                    session->sslClient->options.haveEMS = 1;
+                        session->sslServer->options.haveEMS = 1;
+                        session->sslClient->options.haveEMS = 1;
+                    }
+                    else {
+                        SetError(EXTENDED_MASTER_HASH_STR, error,
+                                session, FATAL_ERROR_STATE);
+                        ret = -1;
+                    }
+                    XMEMSET(session->hash, 0, sizeof(HsHashes));
+                    XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
+                    session->hash = NULL;
                 }
                 else {
-                    SetError(EXTENDED_MASTER_HASH_STR, error,
-                             session, FATAL_ERROR_STATE);
-                    ret = -1;
+                    session->sslServer->options.haveEMS = 0;
+                    session->sslClient->options.haveEMS = 0;
                 }
-                XMEMSET(session->hash, 0, sizeof(HsHashes));
-                XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
-                session->hash = NULL;
-            }
-            else {
-                session->sslServer->options.haveEMS = 0;
-                session->sslClient->options.haveEMS = 0;
             }
 #endif
             if (ret == 0) {
@@ -4520,7 +4526,12 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
 #endif
     {
+        XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
         ret = DecryptTls(ssl, output, input, sz, 0);
+        if (ssl->specs.cipher_type == aead) {
+            /* DecryptTls places the output at offset of 8 for explicit IV */
+            output += AESGCM_EXP_IV_SZ;
+        }
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -6188,8 +6199,8 @@ int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
 int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
         char* error)
 {
-    return ssl_DecodePacketInternal(vChain, chainSz, 1, data, NULL, NULL,
-            error, 0);
+    return ssl_DecodePacketInternal((const byte*)vChain, chainSz, 1, data,
+        NULL, NULL, error, 0);
 }
 
 #endif
