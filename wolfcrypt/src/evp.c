@@ -1612,7 +1612,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
         *keylen = (size_t)len;
         break;
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     case EVP_PKEY_EC:
         /* Use ECDH */
         if (!ctx->pkey->ecc || !ctx->peerKey->ecc) {

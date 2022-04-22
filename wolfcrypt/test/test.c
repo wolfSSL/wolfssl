@@ -1238,11 +1238,12 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("OPENSSL (PKEY1) passed!\n");
 
+    #if !defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     if ( (ret = openssl_evpSig_test()) != 0)
         return err_sys("OPENSSL (EVP Sign/Verify) test failed!\n", ret);
     else
         TEST_PASS("OPENSSL (EVP Sign/Verify) passed!\n");
-
+    #endif
 #endif
 
 #if defined(HAVE_ECC)
