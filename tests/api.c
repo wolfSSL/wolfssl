@@ -47027,6 +47027,7 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     byte*  sig = NULL;
     byte*  sigVerify = NULL;
     size_t siglen;
+    size_t siglenOnlyLen;
     size_t keySz = 2048/8;  /* Bytes */
     int encs[3] = {0};
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
@@ -47116,9 +47117,14 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
 #endif
 #endif
 
+        /* Check returning only length */
+        AssertIntEQ(EVP_PKEY_sign(ctx, NULL, &siglenOnlyLen, hash,
+            SHA256_DIGEST_LENGTH), WOLFSSL_SUCCESS);
+        AssertIntGT(siglenOnlyLen, 0);
         /* Sign data */
         AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, hash,
             SHA256_DIGEST_LENGTH), WOLFSSL_SUCCESS);
+        AssertIntGE(siglenOnlyLen, siglen);
 
         /* Verify signature */
         AssertNotNull(ctx_verify = EVP_PKEY_CTX_new(pkey, NULL));
