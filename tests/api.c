@@ -47011,12 +47011,12 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
     printf(resultFmt, passed);
 #endif
 }
-static void test_wolfSSL_EVP_PKEY_sign(void)
+static void test_wolfSSL_EVP_PKEY_sign_verify(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
-    WOLFSSL_RSA* rsa = NULL;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+    WOLFSSL_DSA* dsa = NULL;
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx_verify = NULL;
@@ -47026,67 +47026,142 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     SHA256_CTX c;
     byte*  sig = NULL;
     byte*  sigVerify = NULL;
-    size_t siglen = 256;
-    size_t rsaKeySz = 2048/8;  /* Bytes */
-
-    printf(testingFmt, "wolfSSL_EVP_PKEY_sign()");
-    sig = (byte*)XMALLOC(rsaKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    AssertNotNull(sig);
-    XMEMSET(sig, 0, rsaKeySz);
-    AssertNotNull(sigVerify = (byte*)XMALLOC(rsaKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
-    XMEMSET(sigVerify, 0, rsaKeySz);
-
-    /* Generate hash */
-    SHA256_Init(&c);
-    SHA256_Update(&c, in, inlen);
-    SHA256_Final(hash, &c);
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    /* workaround for small stack cache case */
-    wc_Sha256Free((wc_Sha256*)&c);
+    size_t siglen;
+    size_t keySz = 2048/8;  /* Bytes */
+    int encs[3] = {0};
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+    encs[0] = EVP_PKEY_RSA;
+#endif
+#endif
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+    encs[1] = EVP_PKEY_DSA;
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+    encs[2] = EVP_PKEY_EC;
+#endif
 #endif
 
-    AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
-    AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
-    AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
+    printf(testingFmt, "wolfSSL_EVP_PKEY_sign_verify()");
+    AssertNotNull(sig =
+        (byte*)XMALLOC(keySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    AssertNotNull(sigVerify =
+        (byte*)XMALLOC(keySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+
+    for (int i = 0; i < 3; i++) {
+        if (encs[i] == 0)
+            continue;
+
+        siglen = keySz;
+        XMEMSET(sig, 0, keySz);
+        XMEMSET(sigVerify, 0, keySz);
+
+        /* Generate hash */
+        SHA256_Init(&c);
+        SHA256_Update(&c, in, inlen);
+        SHA256_Final(hash, &c);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+        /* workaround for small stack cache case */
+        wc_Sha256Free((wc_Sha256*)&c);
+#endif
+
+        /* Generate key */
+        AssertNotNull(pkey = EVP_PKEY_new());
+        switch (encs[i]) {
+            case EVP_PKEY_RSA:
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+            {
+                WOLFSSL_RSA* rsa = NULL;
+                AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+                AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+            }
+#endif
+#endif
+                break;
+            case EVP_PKEY_DSA:
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+                AssertNotNull(dsa = DSA_new());
+                AssertIntEQ(DSA_generate_parameters_ex(dsa, 2048,
+                    NULL, 0, NULL, NULL, NULL), 1);
+                AssertIntEQ(DSA_generate_key(dsa), 1);
+                AssertIntEQ(EVP_PKEY_set1_DSA(pkey, dsa), WOLFSSL_SUCCESS);
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+                break;
+            case EVP_PKEY_EC:
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+            {
+                WOLFSSL_EC_KEY* ecKey = NULL;
+                AssertNotNull(ecKey = EC_KEY_new());
+                AssertIntEQ(EC_KEY_generate_key(ecKey), 1);
+                AssertIntEQ(
+                    EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+            }
+#endif
+#endif
+                break;
+        }
+        AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+        AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+        if (encs[i] == EVP_PKEY_RSA)
+            AssertIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
+                        WOLFSSL_SUCCESS);
+#endif
+#endif
+
+        /* Sign data */
+        AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, hash,
+            SHA256_DIGEST_LENGTH), WOLFSSL_SUCCESS);
+
+        /* Verify signature */
+        AssertNotNull(ctx_verify = EVP_PKEY_CTX_new(pkey, NULL));
+        AssertIntEQ(EVP_PKEY_verify_init(ctx_verify), WOLFSSL_SUCCESS);
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+        if (encs[i] == EVP_PKEY_RSA)
+            AssertIntEQ(
+                EVP_PKEY_CTX_set_rsa_padding(ctx_verify, RSA_PKCS1_PADDING),
                 WOLFSSL_SUCCESS);
+#endif
+#endif
+        AssertIntEQ(EVP_PKEY_verify(
+            ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
+            WOLFSSL_SUCCESS);
+        XMEMSET(hash, 0, SHA256_DIGEST_LENGTH);
+        AssertIntEQ(EVP_PKEY_verify(
+            ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
+            WOLFSSL_FAILURE);
+        EVP_PKEY_CTX_free(ctx_verify);
 
-    /* Sign data */
-    AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, hash, SHA256_DIGEST_LENGTH),
-                              WOLFSSL_SUCCESS);
-    /* Verify signature */
-    AssertNotNull(ctx_verify = EVP_PKEY_CTX_new(pkey, NULL));
-    AssertIntEQ(EVP_PKEY_verify_init(ctx_verify), WOLFSSL_SUCCESS);
-    AssertIntEQ(
-        EVP_PKEY_CTX_set_rsa_padding(ctx_verify, RSA_PKCS1_PADDING),
-        WOLFSSL_SUCCESS);
-    AssertIntEQ(EVP_PKEY_verify(
-        ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
-        WOLFSSL_SUCCESS);
-    XMEMSET(hash, 0, SHA256_DIGEST_LENGTH);
-    AssertIntEQ(EVP_PKEY_verify(
-        ctx_verify, sig, siglen, hash, SHA256_DIGEST_LENGTH),
-        WOLFSSL_FAILURE);
-    EVP_PKEY_CTX_free(ctx_verify);
-    /* error cases */
+        /* error cases */
+        siglen = keySz; /* Reset because sig size may vary slightly */
+        AssertIntNE(EVP_PKEY_sign_init(NULL), WOLFSSL_SUCCESS);
+        AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+        AssertIntNE(EVP_PKEY_sign(NULL, sig, &siglen, (byte*)in, inlen),
+                                  WOLFSSL_SUCCESS);
+        AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, (byte*)in, inlen),
+                                  WOLFSSL_SUCCESS);
 
-    AssertIntNE(EVP_PKEY_sign_init(NULL), WOLFSSL_SUCCESS);
-    ctx->pkey->type = EVP_PKEY_RSA;
-    AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
-    AssertIntNE(EVP_PKEY_sign(NULL, sig, &siglen, (byte*)in, inlen),
-                              WOLFSSL_SUCCESS);
-    AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, (byte*)in, inlen),
-                              WOLFSSL_SUCCESS);
+        EVP_PKEY_free(pkey);
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+        DSA_free(dsa);
+        dsa = NULL;
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+        EVP_PKEY_CTX_free(ctx);
+    }
 
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ctx);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigVerify, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     printf(resultFmt, passed);
-#endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 }
 
 static void test_EVP_PKEY_rsa(void)
@@ -53928,7 +54003,7 @@ void ApiTest(void)
     /* OpenSSL EVP_PKEY API tests */
     test_EVP_PKEY_rsa();
     test_wolfSSL_EVP_PKEY_encrypt();
-    test_wolfSSL_EVP_PKEY_sign();
+    test_wolfSSL_EVP_PKEY_sign_verify();
     test_EVP_PKEY_ec();
     test_EVP_PKEY_cmp();
     /* OpenSSL error API tests */
