@@ -511,7 +511,7 @@ void mp_zero (mp_int * a)
   a->used = 0;
 
   tmp = a->dp;
-  for (n = 0; n < a->alloc; n++) {
+  for (n = 0; tmp != NULL && n < a->alloc; n++) {
      *tmp++ = 0;
   }
 }
@@ -2962,7 +2962,7 @@ int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
   int      ix, res, olduse;
 
   /* make sure c is big enough to hold a*b */
-  if (c->alloc < a->used + 1) {
+  if (c->dp == NULL || c->alloc < a->used + 1) {
     if ((res = mp_grow (c, a->used + 1)) != MP_OKAY) {
       return res;
     }

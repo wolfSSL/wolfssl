@@ -31862,6 +31862,7 @@ WOLFSSL_TEST_SUBROUTINE int compress_test(void)
     if ((ret = wc_DeCompress(d, dSz, c, cSz)) != (int)dSz) {
         ERROR_OUT(-12102, exit);
     }
+    dSz = (word32)ret;
 
     if (XMEMCMP(d, sample_text, dSz) != 0) {
         ERROR_OUT(-12103, exit);
