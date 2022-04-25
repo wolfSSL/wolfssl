@@ -3872,12 +3872,12 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
 {
     (void)dynamicFlag;
-    (void)heap;
 
     if (name != NULL) {
         XMEMSET(name, 0, sizeof(WOLFSSL_X509_NAME));
         name->name        = name->staticName;
         name->heap = heap;
+        name->dynamicName = 0;
     }
 }
 
@@ -10743,12 +10743,16 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif
     }
 
-    /* store cert for potential retrieval */
-    if (AllocDer(&x509->derCert, dCert->maxIdx, CERT_TYPE, x509->heap) == 0) {
-        XMEMCPY(x509->derCert->buffer, dCert->source, dCert->maxIdx);
-    }
-    else {
-        ret = MEMORY_E;
+    /* if der contains original source buffer then store for potential
+     * retrieval */
+    if (dCert->source != NULL && dCert->maxIdx > 0) {
+        if (AllocDer(&x509->derCert, dCert->maxIdx, CERT_TYPE, x509->heap)
+                                                                         == 0) {
+            XMEMCPY(x509->derCert->buffer, dCert->source, dCert->maxIdx);
+        }
+        else {
+            ret = MEMORY_E;
+        }
     }
 
     x509->altNames       = dCert->altNames;
@@ -11696,8 +11700,13 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     int sigRet = 0;
 #endif
 
-    if (ssl == NULL || args == NULL)
+    if (ssl == NULL || args == NULL
+    #ifndef WOLFSSL_SMALL_CERT_VERIFY
+        || args->dCert == NULL
+    #endif
+    ) {
         return BAD_FUNC_ARG;
+    }
 
     /* check to make sure certificate index is valid */
     if (args->certIdx > args->count)

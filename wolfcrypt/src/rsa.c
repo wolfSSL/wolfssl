@@ -3278,6 +3278,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             XMEMCPY(key->data, in, inLen);
         }
         else {
+            key->dataIsAlloc = 0;
             key->data = out;
         }
 #endif

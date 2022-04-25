@@ -562,13 +562,12 @@ static int check_compress(void)
         printf("compress dynamic ret failed\n");
         return -1;
     }
+    outSz = ret1;
 
-    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+    if (memcmp(cBuffer, dBuffer, outSz) != 0) {
         printf("compress dynamic cmp failed\n");
         return -1;
     }
-
-    outSz = ret1;
 
     ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
@@ -578,9 +577,11 @@ static int check_compress(void)
     }
 
     memset(dBuffer, 0, sizeof(dBuffer));
+    ret2 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
-    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
-
+    if (ret1 != ret2 || ret2 < 0) {
+        printf("decompress dynamic ret failed\n");
+    }
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress dynamic cmp failed\n");
         return -1;
@@ -597,13 +598,13 @@ static int check_compress(void)
         printf("compress static ret failed\n");
         return -1;
     }
+    outSz = ret1;
 
-    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+    if (memcmp(cBuffer, dBuffer, outSz) != 0) {
         printf("compress static cmp failed\n");
         return -1;
     }
 
-    outSz = ret1;
 
     ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
@@ -613,9 +614,10 @@ static int check_compress(void)
     }
 
     memset(dBuffer, 0, sizeof(dBuffer));
-
-    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
-
+    ret2 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+    if (ret1 != ret2 || ret2 < 0) {
+        printf("decompress static ret failed\n");
+    }
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress static cmp failed\n");
         return -1;

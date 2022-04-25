@@ -511,7 +511,7 @@ void mp_zero (mp_int * a)
   a->used = 0;
 
   tmp = a->dp;
-  for (n = 0; n < a->alloc; n++) {
+  for (n = 0; tmp != NULL && n < a->alloc; n++) {
      *tmp++ = 0;
   }
 }
@@ -1713,7 +1713,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
   }
 
   /* init result */
-  if (c->alloc < max_ab + 1) {
+  if (c->dp == NULL || c->alloc < max_ab + 1) {
     if ((res = mp_grow (c, max_ab + 1)) != MP_OKAY) {
       return res;
     }
@@ -1757,7 +1757,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     if (min_ab != max_ab) {
       for (; i < max_ab; i++) {
         /* T[i] = X[i] + U */
-          *tmpc = x->dp[i] + u; // NOLINT(clang-analyzer-core.NullDereference) /* clang-tidy 13 false positive */
+          *tmpc = x->dp[i] + u;
 
         /* U = carry bit of T[i] */
         u = *tmpc >> ((mp_digit)DIGIT_BIT);
@@ -2962,7 +2962,7 @@ int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
   int      ix, res, olduse;
 
   /* make sure c is big enough to hold a*b */
-  if (c->alloc < a->used + 1) {
+  if (c->dp == NULL || c->alloc < a->used + 1) {
     if ((res = mp_grow (c, a->used + 1)) != MP_OKAY) {
       return res;
     }
@@ -4378,6 +4378,10 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
   /* destination alias */
   tmpc    = c->dp;
 
+  if (tmpa == NULL || tmpc == NULL) {
+    return MP_MEM;
+  }
+
   /* if a is positive */
   if (a->sign == MP_ZPOS) {
      /* add digit, after this we're propagating
@@ -4461,6 +4465,10 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) // NOLINT(misc-no-recursion)
   oldused = c->used;
   tmpa    = a->dp;
   tmpc    = c->dp;
+
+  if (tmpa == NULL || tmpc == NULL) {
+    return MP_MEM;
+  }
 
   /* if a <= b simply fix the single digit */
   if ((a->used == 1 && a->dp[0] <= b) || a->used == 0) {
