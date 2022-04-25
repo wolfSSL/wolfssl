@@ -47,6 +47,124 @@ typedef struct CryptoCb {
 } CryptoCb;
 static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
+
+#ifdef DEBUG_CRYPTOCB
+static const char* GetAlgoTypeStr(int algo)
+{
+    switch (algo) { /* enum wc_AlgoType */
+        case WC_ALGO_TYPE_HASH:   return "Hash";
+        case WC_ALGO_TYPE_CIPHER: return "Cipher";
+        case WC_ALGO_TYPE_PK:     return "PK";
+        case WC_ALGO_TYPE_RNG:    return "RNG";
+        case WC_ALGO_TYPE_SEED:   return "Seed";
+        case WC_ALGO_TYPE_HMAC:   return "HMAC";
+    }
+    return NULL;
+}
+static const char* GetPkTypeStr(int pk)
+{
+    switch (pk) {
+        case WC_PK_TYPE_RSA: return "RSA";
+        case WC_PK_TYPE_DH: return "DH";
+        case WC_PK_TYPE_ECDH: return "ECDH";
+        case WC_PK_TYPE_ECDSA_SIGN: return "ECDSA-Sign";
+        case WC_PK_TYPE_ECDSA_VERIFY: return "ECDSA-Verify";
+        case WC_PK_TYPE_ED25519_SIGN: return "ED25519-Sign";
+        case WC_PK_TYPE_ED25519_VERIFY: return "ED25519-Verify";
+        case WC_PK_TYPE_CURVE25519: return "CURVE25519";
+        case WC_PK_TYPE_RSA_KEYGEN: return "RSA KeyGen";
+        case WC_PK_TYPE_EC_KEYGEN: return "ECC KeyGen";
+    }
+    return NULL;
+}
+static const char* GetCipherTypeStr(int cipher)
+{
+    switch (cipher) {
+        case WC_CIPHER_AES: return "AES ECB";
+        case WC_CIPHER_AES_CBC: return "AES CBC";
+        case WC_CIPHER_AES_GCM: return "AES GCM";
+        case WC_CIPHER_AES_CTR: return "AES CTR";
+        case WC_CIPHER_AES_XTS: return "AES XTS";
+        case WC_CIPHER_AES_CFB: return "AES CFB";
+        case WC_CIPHER_DES3: return "DES3";
+        case WC_CIPHER_DES: return "DES";
+        case WC_CIPHER_CHACHA: return "ChaCha20";
+    }
+    return NULL;
+}
+static const char* GetHashTypeStr(int hash)
+{
+    switch (hash) {
+        case WC_HASH_TYPE_MD2: return "MD2";
+        case WC_HASH_TYPE_MD4: return "MD4";
+        case WC_HASH_TYPE_MD5: return "MD5";
+        case WC_HASH_TYPE_SHA: return "SHA-1";
+        case WC_HASH_TYPE_SHA224: return "SHA-224";
+        case WC_HASH_TYPE_SHA256: return "SHA-256";
+        case WC_HASH_TYPE_SHA384: return "SHA-384";
+        case WC_HASH_TYPE_SHA512: return "SHA-512";
+        case WC_HASH_TYPE_MD5_SHA: return "MD5-SHA1";
+        case WC_HASH_TYPE_SHA3_224: return "SHA3-224";
+        case WC_HASH_TYPE_SHA3_256: return "SHA3-256";
+        case WC_HASH_TYPE_SHA3_384: return "SHA3-384";
+        case WC_HASH_TYPE_SHA3_512: return "SHA3-512";
+        case WC_HASH_TYPE_BLAKE2B: return "Blake2B";
+        case WC_HASH_TYPE_BLAKE2S: return "Blake2S";
+    }
+    return NULL;
+}
+
+#ifndef NO_RSA
+static const char* GetRsaType(int type)
+{
+    switch (type) {
+        case RSA_PUBLIC_ENCRYPT:  return "Public Encrypt";
+        case RSA_PUBLIC_DECRYPT:  return "Public Decrypt";
+        case RSA_PRIVATE_ENCRYPT: return "Private Encrypt";
+        case RSA_PRIVATE_DECRYPT: return "Private Decrypt";
+    }
+    return NULL;
+}
+#endif
+
+WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
+{
+    if (info == NULL)
+        return;
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifndef NO_RSA
+        if (info->pk.type == WC_PK_TYPE_RSA) {
+            printf("Crypto CB: %s %s (%d), %s, Len %d\n",
+                GetAlgoTypeStr(info->algo_type),
+                GetPkTypeStr(info->pk.type), info->pk.type,
+                GetRsaType(info->pk.rsa.type), info->pk.rsa.inLen);
+        }
+        else
+    #endif
+        {
+            printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+                GetPkTypeStr(info->pk.type), info->pk.type);
+        }
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+            GetCipherTypeStr(info->cipher.type), info->cipher.type);
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_HASH) {
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+            GetHashTypeStr(info->hash.type), info->hash.type);
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+            GetHashTypeStr(info->hmac.macType), info->hmac.macType);
+    }
+    else {
+        printf("CryptoCb: %s \n", GetAlgoTypeStr(info->algo_type));
+    }
+}
+#endif /* DEBUG_CRYPTOCB */
+
 static CryptoCb* wc_CryptoCb_FindDevice(int devId)
 {
     int i;
@@ -1130,4 +1248,5 @@ int wc_CryptoCb_DefaultDevID()
 
     return ret;
 }
+
 #endif /* WOLF_CRYPTO_CB */
