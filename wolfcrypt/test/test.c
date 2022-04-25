@@ -15068,6 +15068,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     RsaKey key[1];
+    byte tmp[FOURK_BUF];
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
 #ifdef WOLFSSL_SMALL_STACK
@@ -15168,8 +15169,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         ERROR_OUT(-7900, exit_rsa);
-#else
-    byte tmp[FOURK_BUF];
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
