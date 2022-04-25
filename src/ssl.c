@@ -2709,6 +2709,8 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
 int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 {
+    WOLFSSL_ENTER("wolfSSL_UseOCSPStapling");
+
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
@@ -2720,6 +2722,8 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
                                                                    byte options)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_UseOCSPStapling");
+
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
@@ -17966,6 +17970,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     int wolfSSL_clear(WOLFSSL* ssl)
     {
+        WOLFSSL_ENTER("wolfSSL_clear");
+
         if (ssl == NULL) {
             return WOLFSSL_FAILURE;
         }
