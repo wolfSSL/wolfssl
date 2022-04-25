@@ -4512,6 +4512,233 @@ exit:
     return ret;
 }
 
+/* For ciphers that use AEAD use the encrypt routine to
+ * bypass the auth tag checking */
+static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
+                           word16 sz)
+{
+    int ret = 0;
+
+    (void)plain;
+    (void)input;
+    (void)sz;
+
+    switch (ssl->specs.bulk_cipher_algorithm)
+    {
+    #ifndef NO_RC4
+        case wolfssl_rc4:
+            wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
+            break;
+    #endif
+
+    #ifndef NO_DES3
+        case wolfssl_triple_des:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.des3->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
+            ret = wc_Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.des3->asyncDev);
+            }
+        #endif
+            break;
+    #endif
+
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+        case wolfssl_aes:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+            ret = wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+            }
+        #endif
+            break;
+    #endif
+
+    #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        case wolfssl_aes_gcm:
+        case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
+        {
+            wc_AesAuthEncryptFunc aes_auth_fn;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* initialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
+        #if defined(HAVE_AESGCM) && defined(HAVE_AESCCM)
+            aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
+                            ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
+        #elif defined(HAVE_AESGCM)
+            aes_auth_fn = wc_AesGcmEncrypt;
+        #else
+            aes_auth_fn = wc_AesCcmEncrypt;
+        #endif
+
+            XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
+
+            XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
+
+            if ((ret = aes_auth_fn(ssl->decrypt.aes,
+                        plain,
+                        input + AESGCM_EXP_IV_SZ,
+                          sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                        ssl->decrypt.additional, ssl->specs.aead_mac_size,
+                        NULL, 0)) < 0) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret == WC_PENDING_E) {
+                    ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                }
+            #endif
+            }
+        }
+        break;
+    #endif /* HAVE_AESGCM || HAVE_AESCCM */
+
+    #ifdef HAVE_CAMELLIA
+        case wolfssl_camellia:
+            ret = wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
+            break;
+    #endif
+
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+        !defined(NO_CHAPOL_AEAD)
+        case wolfssl_chacha:
+            ret = ChachaAEADEncrypt(ssl, plain, input, sz);
+            break;
+    #endif
+
+    #ifdef HAVE_NULL_CIPHER
+        case wolfssl_cipher_null:
+            if (input != plain) {
+                XMEMMOVE(plain, input, sz);
+            }
+            break;
+    #endif
+
+        default:
+            WOLFSSL_MSG("wolfSSL Decrypt programming error");
+            ret = DECRYPT_ERROR;
+    }
+
+    return ret;
+}
+
+static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
+                           word16 sz)
+{
+    int ret = 0;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
+    if (ret != WC_NOT_PENDING_E) {
+        /* check for still pending */
+        if (ret == WC_PENDING_E)
+            return ret;
+
+        ssl->error = 0; /* clear async */
+
+        /* let failures through so CIPHER_STATE_END logic is run */
+    }
+    else
+#endif
+    {
+        /* Reset state */
+        ret = 0;
+        ssl->decrypt.state = CIPHER_STATE_BEGIN;
+    }
+
+    switch (ssl->decrypt.state) {
+        case CIPHER_STATE_BEGIN:
+        {
+            if (ssl->decrypt.setup == 0) {
+                WOLFSSL_MSG("Decrypt ciphers not setup");
+                return DECRYPT_ERROR;
+            }
+
+        #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+            /* make sure AES GCM/CCM memory is allocated */
+            /* free for these happens in FreeCiphers */
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+                /* make sure auth iv and auth are allocated */
+                if (ssl->decrypt.additional == NULL)
+                    ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
+                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                if (ssl->decrypt.nonce == NULL)
+                    ssl->decrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
+                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                if (ssl->decrypt.additional == NULL ||
+                         ssl->decrypt.nonce == NULL) {
+                    return MEMORY_E;
+                }
+            }
+        #endif /* HAVE_AESGCM || HAVE_AESCCM */
+
+            /* Advance state and proceed */
+            ssl->decrypt.state = CIPHER_STATE_DO;
+        }
+        FALL_THROUGH;
+        case CIPHER_STATE_DO:
+        {
+            ret = DecryptDo(ssl, plain, input, sz);
+
+            /* Advance state */
+            ssl->decrypt.state = CIPHER_STATE_END;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* If pending, leave and return below */
+            if (ret == WC_PENDING_E) {
+                return ret;
+            }
+        #endif
+        }
+        FALL_THROUGH;
+        case CIPHER_STATE_END:
+        {
+        #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+            /* make sure AES GCM/CCM nonce is cleared */
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm ||
+                ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+                if (ssl->decrypt.nonce)
+                    ForceZero(ssl->decrypt.nonce, AESGCM_NONCE_SZ);
+
+                if (ret < 0)
+                    ret = VERIFY_MAC_ERROR;
+            }
+        #endif /* HAVE_AESGCM || HAVE_AESCCM */
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    /* Reset state */
+    ssl->decrypt.state = CIPHER_STATE_BEGIN;
+
+    return ret;
+}
+
+
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
                 byte* output, int* error, int* advance, RecordLayerHeader* rh)
@@ -4527,11 +4754,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 #endif
     {
         XMEMCPY(&ssl->curRL, rh, RECORD_HEADER_SZ);
-        ret = DecryptTls(ssl, output, input, sz, 0);
-        if (ssl->specs.cipher_type == aead) {
-            /* DecryptTls places the output at offset of 8 for explicit IV */
-            output += AESGCM_EXP_IV_SZ;
-        }
+        ret = DecryptTls(ssl, output, input, sz);
     }
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* for async the symmetric operations are blocking */
@@ -5361,13 +5584,13 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             int ivPos = (int)(curr->end - curr->begin -
                                                      ssl->specs.block_size + 1);
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
-#ifdef BUILD_AES
+#ifndef NO_AES
                 if (ivPos >= 0)
                     wc_AesSetIV(ssl->decrypt.aes, curr->data + ivPos);
 #endif
             }
             else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des) {
-#ifdef BUILD_DES3
+#ifndef NO_DES3
                 if (ivPos >= 0)
                     wc_Des3_SetIV(ssl->decrypt.des3, curr->data + ivPos);
 #endif

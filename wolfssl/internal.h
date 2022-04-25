@@ -1761,8 +1761,8 @@ WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #endif
 
-WOLFSSL_LOCAL int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
-                             word16 sz, int doAlert);
+WOLFSSL_LOCAL int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
+                              word16 sz); /* needed by sniffer */
 
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,

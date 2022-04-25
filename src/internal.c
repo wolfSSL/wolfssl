@@ -15140,7 +15140,7 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
  *
  * Return 0 on success negative values in error case
  */
-static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
+int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
     const byte* additionalSrc = input - RECORD_HEADER_SZ;
@@ -15899,9 +15899,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     return ret;
 }
 
-/* doAlert Generate alert on error (set to 0 for sniffer use cases) */
-int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
-                           word16 sz, int doAlert)
+static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
 {
     int ret = 0;
 
@@ -16020,7 +16018,7 @@ int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
 
     /* handle mac error case */
     if (ret == VERIFY_MAC_ERROR) {
-        if (!ssl->options.dtls && doAlert) {
+        if (!ssl->options.dtls) {
             SendAlert(ssl, alert_fatal, bad_record_mac);
         }
     #ifdef WOLFSSL_DTLS_DROP_STATS
@@ -17178,7 +17176,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         ret = DecryptTls(ssl,
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
-                                      ssl->curSize - (word16)digestSz, 1);
+                                      ssl->curSize - (word16)digestSz);
                         if (ret == 0) {
                             byte invalid = 0;
                             byte padding = (byte)-1;
@@ -17217,7 +17215,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         ret = DecryptTls(ssl,
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
-                                      ssl->curSize, 1);
+                                      ssl->curSize);
                     }
         #else
                         ret = DECRYPT_ERROR;
