@@ -26372,7 +26372,7 @@ static int test_wc_EccPrivateKeyToDer (void)
         if (ret == 0) {
             ret = wc_EccPrivateKeyToDer(&eccKey, output, inLen);
             if (ret > 0) {
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_ALL_CURVES)
                 /* test importing private only into a PKEY struct */
                 EC_KEY*   ec;
                 EVP_PKEY* pkey;
