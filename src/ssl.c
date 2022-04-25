@@ -18718,6 +18718,137 @@ WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx)
 
 #ifdef OPENSSL_EXTRA
 
+#if defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM) && (!defined(NO_RSA) || !defined(NO_DSA) || \
+    defined(HAVE_ECC))
+/* Print the number bn in hex with name field and indentation indent to file fp.
+ * Used by wolfSSL_DSA_print_fp and wolfSSL_RSA_print_fp to print DSA and RSA
+ * keys and parameters.
+ */
+static int PrintBNFieldFp(XFILE fp, int indent, const char* field,
+                          const WOLFSSL_BIGNUM* bn) {
+    static const int HEX_INDENT = 4;
+    static const int MAX_DIGITS_PER_LINE = 30;
+
+    int ret = WOLFSSL_SUCCESS;
+    int i = 0;
+    char* buf = NULL;
+
+    if (fp == XBADFILE || indent < 0 || field == NULL || bn == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        buf = wolfSSL_BN_bn2hex(bn);
+        if (buf == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        XFPRINTF(fp, "%*s", indent, "");
+        XFPRINTF(fp, "%s:\n", field);
+        XFPRINTF(fp, "%*s", indent + HEX_INDENT, "");
+        while (buf[i]) {
+            if (i != 0) {
+                if (i % 2 == 0) {
+                    XFPRINTF(fp, ":");
+                }
+                if (i % MAX_DIGITS_PER_LINE == 0) {
+                    XFPRINTF(fp, "\n");
+                    XFPRINTF(fp, "%*s", indent + HEX_INDENT, "");
+                }
+            }
+            XFPRINTF(fp, "%c", buf[i++]);
+        }
+        XFPRINTF(fp, "\n");
+    }
+
+    if (buf != NULL) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    return ret;
+}
+#endif /* XFPRINTF && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM && (!NO_DSA ||
+          !NO_RSA || HAVE_ECC)*/
+
+#if defined(HAVE_ECC) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+int wolfSSL_EC_KEY_print_fp(XFILE fp, WOLFSSL_EC_KEY* key, int indent)
+{
+    int ret = WOLFSSL_SUCCESS;
+    int bits = 0;
+    int priv = 0;
+    int nid = 0;
+    const char* curve;
+    const char* nistName;
+    WOLFSSL_BIGNUM* pubBn = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_print_fp");
+
+    if (fp == XBADFILE || key == NULL || key->group == NULL || indent < 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        bits = wolfSSL_EC_GROUP_order_bits(key->group);
+        if (bits <= 0) {
+            WOLFSSL_MSG("Failed to get group order bits.");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        XFPRINTF(fp, "%*s", indent, "");
+        if (key->priv_key != NULL && !wolfSSL_BN_is_zero(key->priv_key)) {
+            XFPRINTF(fp, "Private-Key: (%d bit)\n", bits);
+            priv = 1;
+        }
+        else {
+            XFPRINTF(fp, "Public-Key: (%d bit)\n", bits);
+        }
+
+        if (priv) {
+            ret = PrintBNFieldFp(fp, indent, "priv", key->priv_key);
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS && key->pub_key != NULL && key->pub_key->exSet) {
+        pubBn = wolfSSL_EC_POINT_point2bn(key->group, key->pub_key,
+                                          POINT_CONVERSION_UNCOMPRESSED, NULL,
+                                          NULL);
+        if (pubBn == NULL) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_point2bn failed.");
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = PrintBNFieldFp(fp, indent, "pub", pubBn);
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        nid = wolfSSL_EC_GROUP_get_curve_name(key->group);
+        if (nid > 0) {
+            curve = wolfSSL_OBJ_nid2ln(nid);
+            if (curve != NULL) {
+                XFPRINTF(fp, "%*s", indent, "");
+                XFPRINTF(fp, "ASN1 OID: %s\n", curve);
+            }
+            nistName = wolfSSL_EC_curve_nid2nist(nid);
+            if (nistName != NULL) {
+                XFPRINTF(fp, "%*s", indent, "");
+                XFPRINTF(fp, "NIST CURVE: %s\n", nistName);
+            }
+        }
+    }
+
+    if (pubBn != NULL) {
+        wolfSSL_BN_free(pubBn);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EC_KEY_print_fp", ret);
+
+    return ret;
+}
+#endif /* HAVE_ECC && XFPRINTF && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
+
 #if defined(OPENSSL_ALL)
 
 void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
@@ -27370,59 +27501,6 @@ WOLFSSL_DH* wolfSSL_DH_get_2048_256(void)
 
 #endif /* NO_DH */
 #endif /* OPENSSL_EXTRA */
-
-#if defined(OPENSSL_EXTRA) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM) && (!defined(NO_RSA) || !defined(NO_DSA))
-/* Print the number bn in hex with name field and indentation indent to file fp.
- * Used by wolfSSL_DSA_print_fp and wolfSSL_RSA_print_fp to print DSA and RSA
- * keys and parameters.
- */
-static int PrintBNFieldFp(XFILE fp, int indent, const char* field,
-                          const WOLFSSL_BIGNUM* bn) {
-    static const int HEX_INDENT = 4;
-    static const int MAX_DIGITS_PER_LINE = 30;
-
-    int ret = WOLFSSL_SUCCESS;
-    int i = 0;
-    char* buf = NULL;
-
-    if (fp == XBADFILE || indent < 0 || field == NULL || bn == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == WOLFSSL_SUCCESS) {
-        buf = wolfSSL_BN_bn2hex(bn);
-        if (buf == NULL) {
-            ret = WOLFSSL_FAILURE;
-        }
-    }
-    if (ret == WOLFSSL_SUCCESS) {
-        XFPRINTF(fp, "%*s", indent, "");
-        XFPRINTF(fp, "%s:\n", field);
-        XFPRINTF(fp, "%*s", indent + HEX_INDENT, "");
-        while (buf[i]) {
-            if (i != 0) {
-                if (i % 2 == 0) {
-                    XFPRINTF(fp, ":");
-                }
-                if (i % MAX_DIGITS_PER_LINE == 0) {
-                    XFPRINTF(fp, "\n");
-                    XFPRINTF(fp, "%*s", indent + HEX_INDENT, "");
-                }
-            }
-            XFPRINTF(fp, "%c", buf[i++]);
-        }
-        XFPRINTF(fp, "\n");
-    }
-
-    if (buf != NULL) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-
-    return ret;
-}
-#endif /* OPENSSL_EXTRA && XFPRINTF && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM
-        * && (!NO_DSA || !NO_RSA)*/
 
 #ifndef NO_DSA
 #if defined(OPENSSL_EXTRA) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \

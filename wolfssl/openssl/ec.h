@@ -223,6 +223,10 @@ WOLFSSL_API
 int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
                                   const WOLFSSL_EC_POINT *pub);
 WOLFSSL_API int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key);
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+WOLFSSL_API int wolfSSL_EC_KEY_print_fp(XFILE fp, WOLFSSL_EC_KEY* key,
+                                         int indent);
+#endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 WOLFSSL_API int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
                                    int digestSz, unsigned char *sig,
@@ -329,6 +333,7 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 #define EC_KEY_set_asn1_flag            wolfSSL_EC_KEY_set_asn1_flag
 #define EC_KEY_set_public_key           wolfSSL_EC_KEY_set_public_key
 #define EC_KEY_check_key                wolfSSL_EC_KEY_check_key
+#define EC_KEY_print_fp                 wolfSSL_EC_KEY_print_fp
 
 #define ECDSA_size                      wolfSSL_ECDSA_size
 #define ECDSA_sign                      wolfSSL_ECDSA_sign
