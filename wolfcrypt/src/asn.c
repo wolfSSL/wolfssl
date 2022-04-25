@@ -9858,10 +9858,12 @@ void FreeDecodedCert(DecodedCert* cert)
 {
     if (cert == NULL)
         return;
-    if (cert->subjectCNStored == 1)
+    if (cert->subjectCNStored == 1) {
         XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
-    if (cert->pubKeyStored == 1)
+    }
+    if (cert->pubKeyStored == 1) {
         XFREE((void*)cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    }
     if (cert->weOwnAltNames && cert->altNames)
         FreeAltNames(cert->altNames, cert->heap);
 #ifndef IGNORE_NAME_CONSTRAINTS

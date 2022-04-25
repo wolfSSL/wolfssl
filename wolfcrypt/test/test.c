@@ -11990,7 +11990,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     #ifdef WOLFSSL_CERT_GEN
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
         static const char* certPemFile = CERT_WRITE_TEMP_DIR "cert.pem";
-        #ifdef WOLFSSL_CERT_REQ
+        #if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             static const char* certReqDerFile = CERT_WRITE_TEMP_DIR "certreq.der";
             static const char* certReqPemFile = CERT_WRITE_TEMP_DIR "certreq.pem";
         #endif
@@ -15060,11 +15060,11 @@ exit_rsa:
 WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 {
     int    ret;
-    byte*  tmp = NULL;
-    byte*  der = NULL;
     size_t bytes;
     WC_RNG rng;
 #ifdef WOLFSSL_SMALL_STACK
+    byte*  tmp = NULL;
+    byte*  der = NULL;
     RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     RsaKey key[1];
@@ -15164,9 +15164,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     bytes = FOURK_BUF;
 #endif
 
+#if defined(WOLFSSL_SMALL_STACK)
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         ERROR_OUT(-7900, exit_rsa);
+#else
+    byte tmp[FOURK_BUF];
+#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
@@ -15555,7 +15559,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#ifdef WOLFSSL_CERT_REQ
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     {
         Cert        *req;
         int         derSz;
@@ -15696,6 +15700,8 @@ exit_rsa:
     if (cert != NULL)
         XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
+     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     wc_FreeRsaKey(key);
     #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
@@ -15703,8 +15709,6 @@ exit_rsa:
     #endif
 #endif /* WOLFSSL_SMALL_STACK */
 
-    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
     WC_FREE_VAR(in, HEAP_HINT);
