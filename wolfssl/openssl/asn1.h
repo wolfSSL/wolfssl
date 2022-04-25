@@ -69,6 +69,7 @@
 #define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
 #define ASN1_TIME_check                 wolfSSL_ASN1_TIME_check
 #define ASN1_TIME_diff                  wolfSSL_ASN1_TIME_diff
+#define ASN1_TIME_compare               wolfSSL_ASN1_TIME_compare
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
 #define V_ASN1_EOC                      0

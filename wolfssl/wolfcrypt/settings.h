@@ -2027,7 +2027,7 @@ extern void uITRON4_free(void *p) ;
 
 #if !defined(HAVE_PUBLIC_FFDHE) && !defined(NO_DH) && \
     !defined(WOLFSSL_NO_PUBLIC_FFDHE) && \
-    (defined(HAVE_SELFTEST) || FIPS_VERSION_EQ(2,0))
+    (defined(HAVE_SELFTEST) || FIPS_VERSION_GE(2,0))
     #define HAVE_PUBLIC_FFDHE
 #endif
 

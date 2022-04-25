@@ -24582,6 +24582,43 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 
     return WOLFSSL_SUCCESS;
 }
+
+int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
+                              const WOLFSSL_ASN1_TIME *b)
+{
+    int ret;
+    int days;
+    int secs;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_compare");
+
+    if (wolfSSL_ASN1_TIME_diff(&days, &secs, a, b) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to get time difference.");
+        ret = -2;
+    }
+    else {
+        if (days == 0 && secs == 0) {
+            /* a and b are the same time. */
+            ret = 0;
+        }
+        else if (days >= 0 && secs >= 0) {
+            /* a is before b. */
+            ret = -1;
+        }
+        else if (days <= 0 && secs <= 0) {
+            /* a is after b. */
+            ret = 1;
+        }
+        else {
+            WOLFSSL_MSG("Incoherent time difference.");
+            ret = -2;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_ASN1_TIME_compare", ret);
+
+    return ret;
+}
 #endif /* !NO_ASN_TIME */
 
 #ifndef NO_WOLFSSL_STUB
@@ -26412,6 +26449,152 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     external->pub_key = wolfSSL_BN_new();
 
     return external;
+}
+
+WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
+{
+    WOLFSSL_DH* dh;
+    int err = 0;
+#if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
+    const DhParams* params = NULL;
+    WOLFSSL_BIGNUM* pBn = NULL;
+    WOLFSSL_BIGNUM* gBn = NULL;
+    WOLFSSL_BIGNUM* qBn = NULL;
+#elif !defined(HAVE_PUBLIC_FFDHE) && (!defined(HAVE_FIPS) || \
+      FIPS_VERSION_GT(2,0))
+    int name = 0;
+#ifdef HAVE_FFDHE_Q
+    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q;
+#else
+    int elements = ELEMENT_P | ELEMENT_G;
+#endif /* HAVE_FFDHE_Q */
+#endif /* HAVE_PUBLIC_FFDHE || (HAVE_FIPS && HAVE_FIPS_VERSION == 2) */
+
+    WOLFSSL_ENTER("wolfSSL_DH_new_by_nid");
+
+    dh = wolfSSL_DH_new();
+    if (dh == NULL) {
+        WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
+        err = 1;
+    }
+
+/* HAVE_PUBLIC_FFDHE not required to expose wc_Dh_ffdhe* functions in FIPS v2
+ * module */
+#if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
+    if (err == 0) {
+        switch (nid) {
+#ifdef HAVE_FFDHE_2048
+            case NID_ffdhe2048:
+                params = wc_Dh_ffdhe2048_Get();
+                break;
+#endif /* HAVE_FFDHE_2048 */
+#ifdef HAVE_FFDHE_3072
+            case NID_ffdhe3072:
+                params = wc_Dh_ffdhe3072_Get();
+                break;
+#endif /* HAVE_FFDHE_3072 */
+#ifdef HAVE_FFDHE_4096
+            case NID_ffdhe4096:
+                params = wc_Dh_ffdhe4096_Get();
+                break;
+#endif /* HAVE_FFDHE_4096 */
+            default:
+                break;
+        }
+    }
+    if (err == 0 && params == NULL) {
+        WOLFSSL_MSG("Unable to find DH params for nid.");
+        err = 1;
+    }
+    if (err == 0) {
+        pBn = wolfSSL_BN_bin2bn(params->p, params->p_len, NULL);
+        if (pBn == NULL) {
+            WOLFSSL_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+    if (err == 0) {
+        gBn = wolfSSL_BN_bin2bn(params->g, params->g_len, NULL);
+        if (gBn == NULL) {
+            WOLFSSL_MSG("Error converting g hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+#ifdef HAVE_FFDHE_Q
+    if (err == 0) {
+        qBn = wolfSSL_BN_bin2bn(params->q, params->q_len, NULL);
+        if (qBn == NULL) {
+            WOLFSSL_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+#endif
+#if defined(OPENSSL_ALL) || defined(OPENSSL_VERSION_NUMBER) && \
+    OPENSSL_VERSION_NUMBER >= 0x10100000L
+    if (err == 0 && wolfSSL_DH_set0_pqg(dh, pBn, qBn, gBn) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to set DH params.");
+        err = 1;
+    }
+#else
+    dh->p = pBn;
+    dh->q = qBn;
+    dh->g = gBn;
+    if (err == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to set internal DH params.");
+        err = 1;
+    }
+#endif /* OPENSSL_ALL || OPENSSL_VERSION_NUMBER >= 0x10100000L */
+
+    if (err == 1) {
+        wolfSSL_BN_free(pBn);
+        wolfSSL_BN_free(gBn);
+        wolfSSL_BN_free(qBn);
+    }
+/* FIPS v2 and lower doesn't support wc_DhSetNamedKey. */
+#elif !defined(HAVE_PUBLIC_FFDHE) && (!defined(HAVE_FIPS) || \
+      FIPS_VERSION_GT(2,0))
+    if (err == 0) {
+        switch (nid) {
+#ifdef HAVE_FFDHE_2048
+            case NID_ffdhe2048:
+                name = WC_FFDHE_2048;
+                break;
+#endif /* HAVE_FFDHE_2048 */
+#ifdef HAVE_FFDHE_3072
+            case NID_ffdhe3072:
+                name = WC_FFDHE_3072;
+                break;
+#endif /* HAVE_FFDHE_3072 */
+#ifdef HAVE_FFDHE_4096
+            case NID_ffdhe4096:
+                name = WC_FFDHE_4096;
+                break;
+#endif /* HAVE_FFDHE_4096 */
+            default:
+                err = 1;
+                WOLFSSL_MSG("Unable to find DH params for nid.");
+                break;
+        }
+    }
+    if (err == 0 && wc_DhSetNamedKey((DhKey*)dh->internal, name) != 0) {
+        WOLFSSL_MSG("wc_DhSetNamedKey failed.");
+        err = 1;
+    }
+    if (err == 0 && SetDhExternal_ex(dh, elements) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to set external DH params.");
+        err = 1;
+    }
+#else
+    /* Unsupported configuration. */
+    err = 1;
+#endif /* HAVE_PUBLIC_FFDHE || (HAVE_FIPS && HAVE_FIPS_VERSION == 2) */
+
+    if (err == 1 && dh != NULL) {
+        wolfSSL_DH_free(dh);
+        dh = NULL;
+    }
+
+    return dh;
 }
 
 void wolfSSL_DH_free(WOLFSSL_DH* dh)
@@ -35190,9 +35373,9 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
         goto cleanup;
     }
 
-    hashType = wolfSSL_EVP_md2macType(hashAlg);
+    hashType = EvpMd2MacType(hashAlg);
     if (hashType > WC_HASH_TYPE_MAX) {
-        WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
+        WOLFSSL_MSG("EvpMd2MacType error");
         goto cleanup;
     }
 
@@ -35297,9 +35480,9 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         return WOLFSSL_FAILURE;
     }
 
-    hashType = wolfSSL_EVP_md2macType(hashAlg);
+    hashType = EvpMd2MacType(hashAlg);
     if (hashType > WC_HASH_TYPE_MAX) {
-        WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
+        WOLFSSL_MSG("EvpMd2MacType error");
         return WOLFSSL_FAILURE;
     }
 
@@ -37499,6 +37682,58 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         return wc_OBJ_sn2nid(sn);
     }
 #endif
+
+    size_t wolfSSL_OBJ_length(const WOLFSSL_ASN1_OBJECT* o)
+    {
+        size_t ret = 0;
+        int err = 0;
+        word32 idx = 0;
+        int len = 0;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_length");
+
+        if (o == NULL || o->obj == NULL) {
+            WOLFSSL_MSG("Bad argument.");
+            err = 1;
+        }
+
+        if (err == 0 && GetASNObjectId(o->obj, &idx, &len, o->objSz)) {
+            WOLFSSL_MSG("Error parsing ASN.1 header.");
+            err = 1;
+        }
+        if (err == 0) {
+            ret = len;
+        }
+
+        WOLFSSL_LEAVE("wolfSSL_OBJ_length", ret);
+
+        return ret;
+    }
+
+    const unsigned char* wolfSSL_OBJ_get0_data(const WOLFSSL_ASN1_OBJECT* o)
+    {
+        const unsigned char* ret = NULL;
+        int err = 0;
+        word32 idx = 0;
+        int len = 0;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_get0_data");
+
+        if (o == NULL || o->obj == NULL) {
+            WOLFSSL_MSG("Bad argument.");
+            err = 1;
+        }
+
+        if (err == 0 && GetASNObjectId(o->obj, &idx, &len, o->objSz)) {
+            WOLFSSL_MSG("Error parsing ASN.1 header.");
+            err = 1;
+        }
+        if (err == 0) {
+            ret = o->obj + idx;
+        }
+
+        return ret;
+    }
 
 
     /* Gets the NID value that corresponds with the ASN1 object.
@@ -47533,6 +47768,11 @@ int wolfSSL_RAND_poll(void)
                 WOLFSSL_MSG("ARC4");
                 break;
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            case CHACHA20_POLY1305_TYPE:
+                break;
+#endif
+
             case NULL_CIPHER_TYPE :
                 WOLFSSL_MSG("NULL");
                 break;
@@ -47616,6 +47856,11 @@ int wolfSSL_RAND_poll(void)
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
                 break;
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            case CHACHA20_POLY1305_TYPE:
+                break;
+#endif
 
             case NULL_CIPHER_TYPE :
                 WOLFSSL_MSG("NULL");

@@ -2035,7 +2035,7 @@ static int GetASN_BitString_Int16Bit(ASNGetData* dataASN, word16* val)
  *                            On out, end of parsed length.
  * @param [out]     len       Length value decoded.
  * @param [in]      maxIdx    Maximum index of input data.
- * @return  0 on success.
+ * @return  Length on success.
  * @return  ASN_PARSE_E if the encoding is invalid.
  * @return  BUFFER_E when not enough data to complete decode.
  */
@@ -2060,7 +2060,7 @@ int GetLength(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
  * @param [in]      maxIdx    Maximum index of input data.
  * @param [in]      check     Whether to check the buffer has at least the
  *                            decoded length of bytes remaining.
- * @return  0 on success.
+ * @return  Length on success.
  * @return  ASN_PARSE_E if the encoding is invalid.
  * @return  BUFFER_E when not enough data to complete decode.
  */

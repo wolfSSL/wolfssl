@@ -305,6 +305,7 @@
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/modes.h>
     #include <wolfssl/openssl/fips_rand.h>
+    #include <wolfssl/openssl/kdf.h>
 #ifdef OPENSSL_ALL
     #include <wolfssl/openssl/txt_db.h>
     #include <wolfssl/openssl/lhash.h>
@@ -30962,7 +30963,7 @@ static void test_wolfSSL_ASN1_UTCTIME_print(void)
 #endif /* OPENSSL_EXTRA && !NO_ASN_TIME && !NO_BIO */
 }
 
-static void test_wolfSSL_ASN1_TIME_diff(void)
+static void test_wolfSSL_ASN1_TIME_diff_compare(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
     ASN1_TIME* fromTime;
@@ -30980,8 +30981,46 @@ static void test_wolfSSL_ASN1_TIME_diff(void)
     AssertIntEQ(ASN1_TIME_set_string(toTime, "101219181011Z"), WOLFSSL_SUCCESS);
     AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), WOLFSSL_SUCCESS);
 
+    /* Error conditions. */
+    AssertIntEQ(ASN1_TIME_diff(NULL, &secsDiff, fromTime, toTime),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, NULL, fromTime, toTime),
+                WOLFSSL_FAILURE);
+
+    /* If both times are NULL, difference is 0. */
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, NULL, NULL),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(daysDiff, 0);
+    AssertIntEQ(secsDiff, 0);
+
+    /* If one time is NULL, it defaults to the current time. */
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, NULL, toTime),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, NULL),
+                WOLFSSL_SUCCESS);
+
+    /* Normal operation. Both times non-NULL. */
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime),
+                WOLFSSL_SUCCESS);
     AssertIntEQ(daysDiff, 2856);
     AssertIntEQ(secsDiff, 75296);
+    /* Swapping the times should return negative values. */
+    AssertIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, toTime, fromTime),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(daysDiff, -2856);
+    AssertIntEQ(secsDiff, -75296);
+
+    AssertIntEQ(ASN1_TIME_compare(fromTime, toTime), -1);
+    AssertIntEQ(ASN1_TIME_compare(toTime, fromTime), 1);
+    AssertIntEQ(ASN1_TIME_compare(fromTime, fromTime), 0);
+
+    /* Compare regression test: No seconds difference, just difference in days.
+     */
+    ASN1_TIME_set_string(fromTime, "19700101000000Z");
+    ASN1_TIME_set_string(toTime, "19800101000000Z");
+    AssertIntEQ(ASN1_TIME_compare(fromTime, toTime), -1);
+    AssertIntEQ(ASN1_TIME_compare(toTime, fromTime), 1);
+    AssertIntEQ(ASN1_TIME_compare(fromTime, fromTime), 0);
 
     /* Edge case with Unix epoch. */
     AssertNotNull(ASN1_TIME_set_string(fromTime, "19700101000000Z"));
@@ -46179,7 +46218,7 @@ static void test_wolfSSL_OCSP_resp_get0(void)
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(WOLFSSL_OPENSSH)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2, 0)
 #if (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC)
 
     EVP_PKEY_CTX *ctx;
@@ -50150,6 +50189,188 @@ static void test_wolfssl_EVP_aes_gcm(void)
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
 }
 
+static void test_wolfssl_EVP_chacha20_poly1305(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    byte key[CHACHA20_POLY1305_AEAD_KEYSIZE];
+    byte iv [CHACHA20_POLY1305_AEAD_IV_SIZE];
+    byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte aad[] = {0xAA, 0XBB, 0xCC, 0xDD, 0xEE, 0xFF};
+    byte cipherText[sizeof(plainText)];
+    byte decryptedText[sizeof(plainText)];
+    byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    EVP_CIPHER_CTX* ctx;
+    int outSz;
+
+    printf(testingFmt, "test_wolfssl_EVP_chacha20_poly1305");
+
+    /* Encrypt. */
+    AssertNotNull((ctx = EVP_CIPHER_CTX_new()));
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL,
+                NULL), WOLFSSL_SUCCESS);
+    /* Invalid IV length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                CHACHA20_POLY1305_AEAD_IV_SIZE-1, NULL), WOLFSSL_FAILURE);
+    /* Valid IV length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                CHACHA20_POLY1305_AEAD_IV_SIZE, NULL), WOLFSSL_SUCCESS);
+    /* Invalid tag length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE-1, NULL), WOLFSSL_FAILURE);
+    /* Valid tag length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &outSz, aad, sizeof(aad)),
+               WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
+                sizeof(plainText)), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_EncryptFinal_ex(ctx, cipherText, &outSz), WOLFSSL_SUCCESS);
+    /* Invalid tag length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE-1, tag), WOLFSSL_FAILURE);
+    /* Valid tag length. */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, tag), WOLFSSL_SUCCESS);
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Decrypt. */
+    AssertNotNull((ctx = EVP_CIPHER_CTX_new()));
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL,
+                NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,
+                CHACHA20_POLY1305_AEAD_IV_SIZE, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, tag), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &outSz, aad, sizeof(aad)),
+               WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+                sizeof(cipherText)), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
+                WOLFSSL_SUCCESS);
+    EVP_CIPHER_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_EVP_PKEY_hkdf(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_HKDF) && (!defined(HAVE_FIPS) || \
+    FIPS_VERSION_GT(2,0))
+    EVP_PKEY_CTX* ctx;
+    byte salt[]  = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+    byte key[]   = {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+                    0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F};
+    byte info[]  = {0X01, 0x02, 0x03, 0x04, 0x05};
+    byte info2[] = {0X06, 0x07, 0x08, 0x09, 0x0A};
+    byte outKey[34];
+    size_t outKeySz = sizeof(outKey);
+    /* These expected outputs were gathered by running the same test below using
+     * OpenSSL. */
+    const byte extractAndExpand[] = {
+        0x8B, 0xEB, 0x90, 0xA9, 0x04, 0xFF, 0x05, 0x10, 0xE4, 0xB5, 0xB1, 0x10,
+        0x31, 0x34, 0xFF, 0x07, 0x5B, 0xE3, 0xC6, 0x93, 0xD4, 0xF8, 0xC7, 0xEE,
+        0x96, 0xDA, 0x78, 0x7A, 0xE2, 0x9A, 0x2D, 0x05, 0x4B, 0xF6
+    };
+    const byte extractOnly[] = {
+        0xE7, 0x6B, 0x9E, 0x0F, 0xE4, 0x02, 0x1D, 0x62, 0xEA, 0x97, 0x74, 0x5E,
+        0xF4, 0x3C, 0x65, 0x4D, 0xC1, 0x46, 0x98, 0xAA, 0x79, 0x9A, 0xCB, 0x9C,
+        0xCC, 0x3E, 0x7F, 0x2A, 0x2B, 0x41, 0xA1, 0x9E
+    };
+    const byte expandOnly[] = {
+        0xFF, 0x29, 0x29, 0x56, 0x9E, 0xA7, 0x66, 0x02, 0xDB, 0x4F, 0xDB, 0x53,
+        0x7D, 0x21, 0x67, 0x52, 0xC3, 0x0E, 0xF3, 0xFC, 0x71, 0xCE, 0x67, 0x2B,
+        0xEA, 0x3B, 0xE9, 0xFC, 0xDD, 0xC8, 0xCC, 0xB7, 0x42, 0x74
+    };
+    const byte extractAndExpandAddInfo[] = {
+        0x5A, 0x74, 0x79, 0x83, 0xA3, 0xA4, 0x2E, 0xB7, 0xD4, 0x08, 0xC2, 0x6A,
+        0x2F, 0xA5, 0xE3, 0x4E, 0xF1, 0xF4, 0x87, 0x3E, 0xA6, 0xC7, 0x88, 0x45,
+        0xD7, 0xE2, 0x15, 0xBC, 0xB8, 0x10, 0xEF, 0x6C, 0x4D, 0x7A
+    };
+
+    printf(testingFmt, "test_wolfSSL_EVP_PKEY_hkdf");
+
+    AssertNotNull((ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)));
+    AssertIntEQ(EVP_PKEY_derive_init(ctx), WOLFSSL_SUCCESS);
+    /* NULL ctx. */
+    AssertIntEQ(EVP_PKEY_CTX_set_hkdf_md(NULL, EVP_sha256()), WOLFSSL_FAILURE);
+    /* NULL md. */
+    AssertIntEQ(EVP_PKEY_CTX_set_hkdf_md(ctx, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()), WOLFSSL_SUCCESS);
+    /* NULL ctx. */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_salt(NULL, salt, sizeof(salt)),
+                WOLFSSL_FAILURE);
+    /* NULL salt is ok. */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_salt(ctx, NULL, sizeof(salt)),
+                WOLFSSL_SUCCESS);
+    /* Salt length <= 0. */
+    /* Length 0 salt is ok. */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_salt(ctx, salt, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_salt(ctx, salt, -1), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_salt(ctx, salt, sizeof(salt)),
+                WOLFSSL_SUCCESS);
+    /* NULL ctx. */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_key(NULL, key, sizeof(key)),
+                WOLFSSL_FAILURE);
+    /* NULL key. */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_key(ctx, NULL, sizeof(key)),
+                WOLFSSL_FAILURE);
+    /* Key length <= 0 */
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_key(ctx, key, 0), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_key(ctx, key, -1), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_CTX_set1_hkdf_key(ctx, key, sizeof(key)),
+                WOLFSSL_SUCCESS);
+    /* NULL ctx. */
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(NULL, info, sizeof(info)),
+                WOLFSSL_FAILURE);
+    /* NULL info is ok. */
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(ctx, NULL, sizeof(info)),
+                WOLFSSL_SUCCESS);
+    /* Info length <= 0 */
+    /* Length 0 info is ok. */
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(ctx, info, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(ctx, info, -1), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(ctx, info, sizeof(info)),
+                WOLFSSL_SUCCESS);
+    /* NULL ctx. */
+    AssertIntEQ(EVP_PKEY_CTX_hkdf_mode(NULL, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY),
+                WOLFSSL_FAILURE);
+    /* Extract and expand (default). */
+    AssertIntEQ(EVP_PKEY_derive(ctx, outKey, &outKeySz), WOLFSSL_SUCCESS);
+    AssertIntEQ(outKeySz, sizeof(extractAndExpand));
+    AssertIntEQ(XMEMCMP(outKey, extractAndExpand, outKeySz), 0);
+    /* Extract only. */
+    AssertIntEQ(EVP_PKEY_CTX_hkdf_mode(ctx, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_derive(ctx, outKey, &outKeySz), WOLFSSL_SUCCESS);
+    AssertIntEQ(outKeySz, sizeof(extractOnly));
+    AssertIntEQ(XMEMCMP(outKey, extractOnly, outKeySz), 0);
+    outKeySz = sizeof(outKey);
+    /* Expand only. */
+    AssertIntEQ(EVP_PKEY_CTX_hkdf_mode(ctx, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_derive(ctx, outKey, &outKeySz), WOLFSSL_SUCCESS);
+    AssertIntEQ(outKeySz, sizeof(expandOnly));
+    AssertIntEQ(XMEMCMP(outKey, expandOnly, outKeySz), 0);
+    outKeySz = sizeof(outKey);
+    /* Extract and expand with appended additional info. */
+    AssertIntEQ(EVP_PKEY_CTX_add1_hkdf_info(ctx, info2, sizeof(info2)),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_CTX_hkdf_mode(ctx,
+                EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_derive(ctx, outKey, &outKeySz), WOLFSSL_SUCCESS);
+    AssertIntEQ(outKeySz, sizeof(extractAndExpandAddInfo));
+    AssertIntEQ(XMEMCMP(outKey, extractAndExpandAddInfo, outKeySz), 0);
+
+    EVP_PKEY_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && HAVE_HKDF && (!HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
+}
+
 #ifndef NO_BIO
 static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 {
@@ -52597,6 +52818,25 @@ static void test_wolfSSL_DH(void)
     DH_free(dh); /* decrease ref count */
     DH_free(dh); /* free WOLFSSL_DH */
 
+#if (defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && \
+    FIPS_VERSION_EQ(2,0))) || (!defined(HAVE_PUBLIC_FFDHE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)))
+#ifdef HAVE_FFDHE_2048
+    AssertNotNull((dh = DH_new_by_nid(NID_ffdhe2048)));
+    DH_free(dh);
+#endif
+#ifdef HAVE_FFDHE_3072
+    AssertNotNull((dh = DH_new_by_nid(NID_ffdhe3072)));
+    DH_free(dh);
+#endif
+#ifdef HAVE_FFDHE_4096
+    AssertNotNull((dh = DH_new_by_nid(NID_ffdhe4096)));
+    DH_free(dh);
+#endif
+#else
+    AssertNull((dh = DH_new_by_nid(NID_ffdhe2048)));
+#endif /* (HAVE_PUBLIC_FFDHE || (HAVE_FIPS && HAVE_FIPS_VERSION == 2)) ||
+        * (!HAVE_PUBLIC_FFDHE && (!HAVE_FIPS || HAVE_FIPS_VERSION > 2))*/ 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && !NO_DH */
 }
@@ -53707,7 +53947,7 @@ void ApiTest(void)
     test_wolfSSL_X509_check_private_key();
     test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_ASN1_UTCTIME_print();
-    test_wolfSSL_ASN1_TIME_diff();
+    test_wolfSSL_ASN1_TIME_diff_compare();
     test_wolfSSL_ASN1_GENERALIZEDTIME_free();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_read_PrivateKey();
@@ -53914,6 +54154,8 @@ void ApiTest(void)
     test_wolfSSL_CRYPTO_cts128();
     test_wolfssl_EVP_aes_gcm_AAD_2_parts();
     test_wolfssl_EVP_aes_gcm();
+    test_wolfssl_EVP_chacha20_poly1305();
+    test_wolfSSL_EVP_PKEY_hkdf();
     test_wolfSSL_PKEY_up_ref();
     test_wolfSSL_EVP_Cipher_extra();
     test_wolfSSL_d2i_and_i2d_PublicKey();
