@@ -1859,13 +1859,27 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return ret;
 
     switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_SIGN;
             ret = WOLFSSL_SUCCESS;
             break;
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            ctx->op = EVP_PKEY_OP_SIGN;
+            ret = WOLFSSL_SUCCESS;
+            break;
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
         case EVP_PKEY_EC:
-            WOLFSSL_MSG("not implemented");
-            FALL_THROUGH;
+            ctx->op = EVP_PKEY_OP_SIGN;
+            ret = WOLFSSL_SUCCESS;
+            break;
+#endif /* HAVE_ECC */
+
         default:
             ret = -2;
     }
@@ -1882,39 +1896,206 @@ int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
                         size_t *siglen, const unsigned char *tbs, size_t tbslen)
 {
-    int len = 0;
-
     WOLFSSL_MSG("wolfSSL_EVP_PKEY_sign");
 
-    if (!ctx || ctx->op != EVP_PKEY_OP_SIGN || !ctx->pkey)
+    if (!ctx || ctx->op != EVP_PKEY_OP_SIGN || !ctx->pkey || !siglen)
         return WOLFSSL_FAILURE;
 
     (void)sig;
     (void)siglen;
     (void)tbs;
     (void)tbslen;
-    (void)len;
 
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
-    case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_private_encrypt((int)tbslen, tbs, sig,
-              ctx->pkey->rsa, ctx->padding);
-        if (len < 0)
-            break;
-        else {
-            *siglen = len;
+    case EVP_PKEY_RSA: {
+        int len;
+        unsigned int usiglen = (unsigned int)*siglen;
+        if (!sig) {
+            if (!ctx->pkey->rsa)
+                return WOLFSSL_FAILURE;
+            len = wc_RsaEncryptSize((RsaKey*)ctx->pkey->rsa->internal);
+            if (len < 0)
+                return WOLFSSL_FAILURE;
+            *siglen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
+        /* wolfSSL_RSA_sign_generic_padding performs a check that the output
+         * sig buffer is large enough */
+        if (wolfSSL_RSA_sign_generic_padding(WC_HASH_TYPE_NONE, tbs,
+            (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1, ctx->padding)
+            != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+        *siglen = (size_t)usiglen;
+        return WOLFSSL_SUCCESS;
+    }
 #endif /* NO_RSA */
 
-    case EVP_PKEY_EC:
-        WOLFSSL_MSG("not implemented");
-        FALL_THROUGH;
+#ifndef NO_DSA
+    case EVP_PKEY_DSA: {
+        int bytes;
+        int ret;
+        if (!ctx->pkey->dsa)
+            return WOLFSSL_FAILURE;
+        bytes = wolfSSL_BN_num_bytes(ctx->pkey->dsa->q);
+        if (bytes == WOLFSSL_FAILURE)
+            return WOLFSSL_FAILURE;
+        bytes *= 2;
+        if (!sig) {
+            *siglen = bytes;
+            return WOLFSSL_SUCCESS;
+        }
+        if ((int)*siglen < bytes)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_DSA_do_sign(tbs, sig, ctx->pkey->dsa);
+        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        if (bytes == WOLFSSL_FAILURE)
+            return WOLFSSL_FAILURE;
+        *siglen = bytes;
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        int ret;
+        WOLFSSL_ECDSA_SIG *ecdsaSig;
+        if (!sig) {
+            WOLFSSL_EC_KEY *key = ctx->pkey->ecc;
+            ecc_key* eckey;
+            if (!key)
+                return WOLFSSL_FAILURE;
+            /* set internal key if not done */
+            if (key->inSet == 0 && SetECKeyInternal(key) != WOLFSSL_SUCCESS)
+                return WOLFSSL_FAILURE;
+            eckey = (ecc_key*)ctx->pkey->ecc->internal;
+            if (!eckey)
+                return WOLFSSL_FAILURE;
+            ret = wc_ecc_sig_size(eckey);
+            if (ret == 0)
+                return WOLFSSL_FAILURE;
+            *siglen = ret;
+            return WOLFSSL_SUCCESS;
+        }
+        ecdsaSig = wolfSSL_ECDSA_do_sign(tbs, (int)tbslen, ctx->pkey->ecc);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
+        if (ret == 0 || ret > (int)*siglen) {
+            wolfSSL_ECDSA_SIG_free(ecdsaSig);
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        if (ret == 0)
+            return WOLFSSL_FAILURE;
+        *siglen = ret;
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* HAVE_ECC */
+
     default:
         break;
     }
     return WOLFSSL_FAILURE;
+}
+
+/******************************************************************************
+* wolfSSL_EVP_PKEY_verify_init - initializes a public key algorithm context for
+* a verification operation.
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure. In particular
+* a return value of -2 indicates the operation is not supported by the public
+* key algorithm.
+*/
+
+int wolfSSL_EVP_PKEY_verify_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_verify_init");
+
+    if (!ctx || !ctx->pkey)
+        return WOLFSSL_FAILURE;
+
+    switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+        case EVP_PKEY_RSA:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+        case EVP_PKEY_EC:
+            ctx->op = EVP_PKEY_OP_VERIFY;
+            return WOLFSSL_SUCCESS;
+#endif /* HAVE_ECC */
+
+        default:
+            return -2;
+    }
+}
+
+/******************************************************************************
+* wolfSSL_EVP_PKEY_verify - verifies a signature using ctx
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure. In particular
+* a return value of -2 indicates the operation is not supported by the public
+* key algorithm.
+*/
+
+int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
+                            size_t siglen, const unsigned char *tbs,
+                            size_t tbslen)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_verify");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_VERIFY || !ctx->pkey)
+        return WOLFSSL_FAILURE;
+
+    switch (ctx->pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    case EVP_PKEY_RSA:
+        return wolfSSL_RSA_verify_ex(WC_HASH_TYPE_NONE, tbs,
+            (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
+            ctx->padding);
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+     case EVP_PKEY_DSA: {
+        int dsacheck = 0;
+        if (wolfSSL_DSA_do_verify(tbs, (unsigned char *)sig, ctx->pkey->dsa,
+            &dsacheck) != WOLFSSL_SUCCESS || dsacheck != 1)
+            return WOLFSSL_FAILURE;
+        return WOLFSSL_SUCCESS;
+     }
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        int ret;
+        WOLFSSL_ECDSA_SIG *ecdsaSig = wolfSSL_d2i_ECDSA_SIG(
+            NULL, (const unsigned char **)&sig, (long)siglen);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_ECDSA_do_verify(tbs, (int)tbslen, ecdsaSig,
+            ctx->pkey->ecc);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        return ret;
+    }
+#endif /* HAVE_ECC */
+
+    default:
+        return -2;
+    }
 }
 
 /* Get the size in bits for WOLFSSL_EVP_PKEY key
@@ -2711,14 +2892,18 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     }
 #endif /* NO_RSA */
 #ifndef NO_DSA
-    case EVP_PKEY_DSA:
-        if (wolfSSL_DSA_do_sign(md, sigret, pkey->dsa) == WOLFSSL_SUCCESS) {
-            *siglen = wolfSSL_BN_num_bytes(pkey->dsa->q);
-            return WOLFSSL_SUCCESS;
-        }
-        else {
+    case EVP_PKEY_DSA: {
+        int bytes;
+        ret = wolfSSL_DSA_do_sign(md, sigret, pkey->dsa);
+        /* wolfSSL_DSA_do_sign() can return WOLFSSL_FATAL_ERROR */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+        bytes = wolfSSL_BN_num_bytes(pkey->dsa->q);
+        if (bytes == WOLFSSL_FAILURE || (int)*siglen < bytes * 2)
             return WOLFSSL_FAILURE;
-        }
+        *siglen = bytes * 2;
+        return WOLFSSL_SUCCESS;
+    }
 #endif
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
@@ -3170,7 +3355,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
         switch (ctx->pctx->pkey->type) {
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
-            unsigned int sigSz;
+            unsigned int sigSz = (unsigned int)*siglen;
             int nid;
             const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
             if (md == NULL)
@@ -3188,13 +3373,17 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 
     #ifdef HAVE_ECC
         case EVP_PKEY_EC: {
+            int len;
             WOLFSSL_ECDSA_SIG *ecdsaSig;
             ecdsaSig = wolfSSL_ECDSA_do_sign(digest, hashLen,
                                              ctx->pctx->pkey->ecc);
             if (ecdsaSig == NULL)
                 break;
-            *siglen = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+            len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
             wolfSSL_ECDSA_SIG_free(ecdsaSig);
+            if (len == 0)
+                break;
+            *siglen = len;
             ret = WOLFSSL_SUCCESS;
             break;
         }
