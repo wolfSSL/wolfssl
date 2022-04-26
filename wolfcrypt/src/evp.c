@@ -4104,7 +4104,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
     const struct alias {
         const char *name;
         const char *alias;
-    } alias_tbl[] = {
+    } cipher_alias_tbl[] = {
 #ifndef NO_DES3
         {EVP_DES_CBC, "des"},
         {EVP_DES_ECB, "des-ecb"},
@@ -4165,7 +4165,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 
     WOLFSSL_ENTER("EVP_get_cipherbyname");
 
-    for (al = alias_tbl; al->name != NULL; al++) {
+    for (al = cipher_alias_tbl; al->name != NULL; al++) {
         /* Accept any case alternative version of an alias. */
         if (XSTRNCASECMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
             name = al->name;
@@ -4315,7 +4315,7 @@ int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
 static const struct alias {
             const char *name;
             const char *alias;
-} alias_tbl[] =
+} digest_alias_tbl[] =
 {
     {"MD4", "ssl3-md4"},
     {"MD5", "ssl3-md5"},
@@ -4341,7 +4341,7 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         return NULL;
 
     name = nameUpper;
-    for (al = alias_tbl; al->name != NULL; al++)
+    for (al = digest_alias_tbl; al->name != NULL; al++)
         if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
             name = al->name;
             break;
@@ -4801,7 +4801,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         const char* aliasnm = NULL;
         const struct alias  *al;
 
-        for (al = alias_tbl; al->name != NULL; al++)
+        for (al = digest_alias_tbl; al->name != NULL; al++)
             if(XSTRNCMP(n, al->name, XSTRLEN(al->name)+1) == 0) {
                 aliasnm = al->alias;
                 break;
@@ -9541,19 +9541,26 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     const WOLFSSL_EVP_PKEY* pkey, int indent, ASN1_PCTX* pctx)
 {
     int res;
+#if !defined(NO_RSA) || defined(HAVE_ECC) || !defined(NO_DSA) || \
+    defined(WOLFSSL_DH_EXTRA)
     int keybits;    /* bit length of the key */
+#endif
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_print_public");
 
     if (pkey == NULL || out == NULL) {
         return 0;
     }
+#if !defined(NO_RSA) || defined(HAVE_ECC) || !defined(NO_DSA) || \
+    defined(WOLFSSL_DH_EXTRA)
     if (indent < 0) {
         indent = 0;
     }
     if (indent > EVP_PKEY_PRINT_INDENT_MAX) {
         indent = EVP_PKEY_PRINT_INDENT_MAX;
     }
+#endif
+
     switch (pkey->type) {
         case EVP_PKEY_RSA:
 

@@ -2112,7 +2112,22 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->cbioFlag = WOLFSSL_CBIO_NONE;
 #endif
 
-#ifndef WOLFSSL_USER_IO
+#ifdef HAVE_NETX
+    ctx->CBIORecv = NetX_Receive;
+    ctx->CBIOSend = NetX_Send;
+#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    ctx->CBIORecv = Mynewt_Receive;
+    ctx->CBIOSend = Mynewt_Send;
+#elif defined WOLFSSL_LWIP_NATIVE
+    ctx->CBIORecv = LwIPNativeReceive;
+    ctx->CBIOSend = LwIPNativeSend;
+#elif defined(WOLFSSL_GNRC)
+    ctx->CBIORecv = GNRC_ReceiveFrom;
+    ctx->CBIOSend = GNRC_SendTo;
+#elif defined WOLFSSL_ISOTP
+    ctx->CBIORecv = ISOTP_Receive;
+    ctx->CBIOSend = ISOTP_Send;
+#elif !defined(WOLFSSL_USER_IO)
     #ifdef MICRIUM
         ctx->CBIORecv = MicriumReceive;
         ctx->CBIOSend = MicriumSend;
@@ -2149,23 +2164,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         #endif
     #endif /* MICRIUM */
 #endif /* WOLFSSL_USER_IO */
-
-#ifdef HAVE_NETX
-    ctx->CBIORecv = NetX_Receive;
-    ctx->CBIOSend = NetX_Send;
-#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-    ctx->CBIORecv = Mynewt_Receive;
-    ctx->CBIOSend = Mynewt_Send;
-#elif defined WOLFSSL_LWIP_NATIVE
-    ctx->CBIORecv = LwIPNativeReceive;
-    ctx->CBIOSend = LwIPNativeSend;
-#elif defined(WOLFSSL_GNRC)
-    ctx->CBIORecv = GNRC_ReceiveFrom;
-    ctx->CBIOSend = GNRC_SendTo;
-#elif defined WOLFSSL_ISOTP
-    ctx->CBIORecv = ISOTP_Receive;
-    ctx->CBIOSend = ISOTP_Send;
-#endif
 
 #ifdef HAVE_PQC
     if (method->side == WOLFSSL_CLIENT_END)
@@ -6341,24 +6339,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->wfd = -1;
     ssl->devId = ctx->devId; /* device for async HW (from wolfAsync_DevOpen) */
 
-#ifdef HAVE_NETX
-    ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
-    ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
-#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
-    ssl->mnCtx = mynewt_ctx_new();
-    if(!ssl->mnCtx) {
-        return MEMORY_E;
-    }
-    ssl->IOCB_ReadCtx  = ssl->mnCtx;  /* default Mynewt IO ctx, same for read */
-    ssl->IOCB_WriteCtx = ssl->mnCtx;  /* and write */
-#elif defined (WOLFSSL_GNRC)
-    ssl->IOCB_ReadCtx = ssl->gnrcCtx;
-    ssl->IOCB_WriteCtx = ssl->gnrcCtx;
-#else
-    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
-    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
-#endif
-
     /* initialize states */
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
@@ -6402,8 +6382,26 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;  /* correctly set */
-
+#else
+#ifdef HAVE_NETX
+    ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
+    ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
+#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    ssl->mnCtx = mynewt_ctx_new();
+    if(!ssl->mnCtx) {
+        return MEMORY_E;
+    }
+    ssl->IOCB_ReadCtx  = ssl->mnCtx;  /* default Mynewt IO ctx, same for read */
+    ssl->IOCB_WriteCtx = ssl->mnCtx;  /* and write */
+#elif defined (WOLFSSL_GNRC)
+    ssl->IOCB_ReadCtx = ssl->gnrcCtx;
+    ssl->IOCB_WriteCtx = ssl->gnrcCtx;
+#else
+    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #endif
+#endif
+
 
 #ifndef WOLFSSL_AEAD_ONLY
     #ifndef NO_OLD_TLS
@@ -18177,6 +18175,13 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
+    /* catch mistaken sizeOnly parameter */
+    if (!sizeOnly && (output == NULL || input == NULL) ) {
+        return BAD_FUNC_ARG;
+    }
+    if (sizeOnly && (output || input) ) {
+        return BAD_FUNC_ARG;
+    }
 
     (void)epochOrder;
 
@@ -18224,14 +18229,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     switch (ssl->options.buildMsgState) {
         case BUILD_MSG_BEGIN:
         {
-            /* catch mistaken sizeOnly parameter */
-            if (!sizeOnly && (output == NULL || input == NULL) ) {
-                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
-            }
-            if (sizeOnly && (output || input) ) {
-                WOLFSSL_MSG("BuildMessage w/sizeOnly doesn't need input/output");
-                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
-            }
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in

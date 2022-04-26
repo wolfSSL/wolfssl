@@ -4199,6 +4199,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    !defined(WOLFSSL_ATECC608A)
    CRYS_ECDH_TempData_t tempBuff;
 #endif
+
+   (void)err;
+
    if (private_key == NULL || public_key == NULL || out == NULL ||
                                                             outlen == NULL) {
        return BAD_FUNC_ARG;
@@ -4211,13 +4214,11 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #else
-        return err;
     #endif
     }
     #ifdef WOLF_CRYPTO_CB_ONLY_ECC
     else {
-        return NO_VALID_DEVID;
+        err = NO_VALID_DEVID;
     }
     #endif
 #endif
@@ -4263,17 +4264,17 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
         return err;
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
+   err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #elif defined(WOLFSSL_KCAPI_ECC)
    err = KcapiEcc_SharedSecret(private_key, public_key, out, outlen);
 #elif defined(WOLFSSL_SE050)
-    err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
+   err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */
+#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
    return err;
-#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 }
 
 
@@ -5799,13 +5800,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #else
-        return err;
     #endif
     }
     #ifdef WOLF_CRYPTO_CB_ONLY_ECC
     else {
-        return NO_VALID_DEVID;
+        err = NO_VALID_DEVID;
     }
     #endif
 #endif
@@ -5873,15 +5872,15 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
 #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
-
-    return err;
 #else
     (void)rng;
     (void)inlen;
     (void)s;
     (void)r;
+    (void)err;
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
+    return err;
 }
 #endif /* !NO_ASN */
 
@@ -7389,13 +7388,11 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         if (err != CRYPTOCB_UNAVAILABLE)
             return err;
         /* fall-through when unavailable */
-    #else
-        return err;
     #endif
     }
     #ifdef WOLF_CRYPTO_CB_ONLY_ECC
     else {
-        return NO_VALID_DEVID;
+        err = NO_VALID_DEVID;
     }
     #endif
 #endif
@@ -7501,8 +7498,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     /* make sure required variables are reset */
     wc_ecc_reset(key);
-
-    return err;
 #else
     (void)siglen;
     (void)hashlen;
@@ -7512,8 +7507,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     #endif
     (void)s;
     (void)r;
+    (void)err;
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
+    return err;
 }
 #endif /* !NO_ASN */
 

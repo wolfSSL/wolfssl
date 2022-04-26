@@ -7303,7 +7303,7 @@ static void test_wolfSSL_UseSNI_connection(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    server_cb.devId = devId;
+    client_cb.devId = devId;
     server_cb.devId = devId;
 
     /* success case at ctx */
@@ -7339,6 +7339,7 @@ static void test_wolfSSL_UseSNI_connection(void)
     /* sni abort - abort when absent (ctx) */
     client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL; client_cb.on_result = verify_FATAL_ERROR_on_client;
     server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_ABSENT_on_server;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - abort when absent (ssl) */
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;                     client_cb.on_result = verify_FATAL_ERROR_on_client;
@@ -7832,7 +7833,7 @@ static void test_wolfSSL_UseALPN_connection(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    server_cb.devId = devId;
+    client_cb.devId = devId;
     server_cb.devId = devId;
 
     /* success case same list */
@@ -8032,7 +8033,7 @@ static void test_wolfSSL_set_alpn_protos(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    server_cb.devId = devId;
+    client_cb.devId = devId;
     server_cb.devId = devId;
 
     /* use CTX_alpn_protos */
@@ -30379,8 +30380,8 @@ static void test_wc_GetPubKeyDerFromCert(void)
     byte certBuf[6000]; /* for PEM and CSR, client-cert.pem is 5-6kB */
     word32 certBufSz = sizeof(certBuf);
 #endif
-#if (!defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024)) || \
-    defined(WOLFSSL_CERT_REQ)
+#if ((!defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024)) || \
+     defined(WOLFSSL_CERT_REQ)) && !defined(NO_RSA)
     XFILE fp;
 #endif
 #ifndef NO_RSA
