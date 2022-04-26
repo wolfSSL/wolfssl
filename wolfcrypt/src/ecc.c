@@ -7899,7 +7899,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    /* check for async hardware acceleration */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-   if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+   if (err == MP_OKAY && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
    #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
    #ifdef HAVE_CAVIUM_V
       if (NitroxEccIsCurveSupported(key))

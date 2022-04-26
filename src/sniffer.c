@@ -2863,13 +2863,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
     #endif
 
-        if (ret != 0) {
-            goto exit_sk;
-        }
-
         /* make sure a key type was found */
         if (args->key->type == WC_PK_TYPE_NONE) {
-            ERROR_OUT(NOT_COMPILED_IN, exit_sk);
+            ret = NOT_COMPILED_IN;
+        }
+
+        /* check for errors before moving to next state */
+        if (ret < 0) {
+            break;
         }
 
         /* Advance state and proceed */
@@ -2949,6 +2950,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
+        /* check for errors before moving to next state */
+        if (ret < 0) {
+            break;
+        }
+
         /* Advance state and proceed */
         ssl->options.asyncState = TLS_ASYNC_VERIFY;
     } /* case TLS_ASYNC_DO */
@@ -2960,6 +2966,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         if (args->key->type == WC_PK_TYPE_RSA) {
             if (ret != SECRET_LEN) {
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
+                ret = RSA_BUFFER_E;
             }
         }
     #endif /* !NO_RSA */
@@ -2978,6 +2985,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
         }
     #endif /* !NO_DH && WOLFSSL_DH_EXTRA */
+
+        /* check for errors before moving to next state */
+        if (ret < 0) {
+            break;
+        }
 
         /* Advance state and proceed */
         ssl->options.asyncState = TLS_ASYNC_FINALIZE;
@@ -3001,12 +3013,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-            ret = -1; goto exit_sk;
+            ret = -1; break;
         }
 
         if (SetCipherSpecs(session->sslClient) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-            ret = -1; goto exit_sk;
+            ret = -1; break;
         }
 
     #ifdef WOLFSSL_TLS13
@@ -3038,7 +3050,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
-            ret = -1; goto exit_sk;
+            ret = -1; break;
         }
 
     #ifdef SHOW_SECRETS
@@ -3059,17 +3071,17 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         ret = INPUT_CASE_ERROR;
     } /* switch(ssl->options.asyncState) */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
 exit_sk:
 
     /* Handle async pending response */
-#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
         return ret;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    if (ret != 0)
+    if (ret < 0)
         INC_STAT(SnifferStats.sslKeyFails);
 #endif
 
