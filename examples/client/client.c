@@ -232,9 +232,12 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
             }
         }
 #ifdef WOLFSSL_DTLS
-        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
-                                        wolfSSL_dtls_got_timeout(ssl) >= 0) {
-            error = WOLFSSL_ERROR_WANT_READ;
+        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl)) {
+            ret = wolfSSL_dtls_got_timeout(ssl);
+            if (ret != WOLFSSL_SUCCESS)
+                error = wolfSSL_get_error(ssl, ret);
+            else
+                error = WOLFSSL_ERROR_WANT_READ;
         }
 #endif
         else {
@@ -3559,6 +3562,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_free(ssl); ssl = NULL;
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("error in setting fd");
+    }
+
+    if (simulateWantWrite) {
+        wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
     }
 
     /* STARTTLS */
