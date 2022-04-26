@@ -8608,6 +8608,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     key->hkdfSaltSz = 0;
                     key->hkdfKeySz = 0;
                     key->hkdfInfoSz = 0;
+                    break;
                 #endif /* HAVE_HKDF */
 
                 default:
