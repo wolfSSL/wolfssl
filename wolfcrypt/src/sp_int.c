@@ -5237,11 +5237,13 @@ static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
             }
         }
         if (i == a->used) {
-            r->used++;
-            if (i < r->size)
+            if (i < r->size) {
+                r->used++;
                 r->dp[i] = 1;
-            else
+            }
+            else {
                 err = MP_VAL;
+            }
         }
     }
     if (err == MP_OKAY) {
@@ -14907,7 +14909,10 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
         if (err != MP_OKAY) {
             break;
         }
-        (void)_sp_add_d(a, ch, a);
+        err = _sp_add_d(a, ch, a);
+        if (err != MP_OKAY) {
+            break;
+        }
     }
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if ((err == MP_OKAY) && sp_iszero(a)) {
