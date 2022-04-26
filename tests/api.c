@@ -34220,7 +34220,7 @@ static void test_wolfSSL_Tls13_Key_Logging_test(void)
     wait_tcp_ready(&server_args);
 
 
-    /* run as a TLS1.2 client */
+    /* run as a TLS1.3 client */
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     AssertIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
