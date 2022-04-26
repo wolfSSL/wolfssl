@@ -51464,10 +51464,11 @@ static void test_wolfSSL_X509_print(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
 
-#if defined(WOLFSSL_QT)
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3113);
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* Will print IP address subject alt name. */
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3329);
 #else
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3103);
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3307);
 #endif
     BIO_free(bio);
 
