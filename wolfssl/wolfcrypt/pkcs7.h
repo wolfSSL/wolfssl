@@ -241,7 +241,9 @@ struct PKCS7 {
     byte*  der;                   /* DER encoded version of message       */
     word32 derSz;
 #endif
-    byte*  cert[MAX_PKCS7_CERTS];
+    byte*  cert[MAX_PKCS7_CERTS]; /* array of certs parsed from bundle */
+    byte*  verifyCert;            /* cert from array used for verify */
+    word32 verifyCertSz;
 
     /* Encrypted-data Content Type */
     byte*        encryptionKey;         /* block cipher encryption key */

@@ -47692,6 +47692,14 @@ static void test_wolfSSL_PKCS7_sign(void)
         AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
         AssertIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+
+        /* compare the signer found to expected signer */
+        AssertIntNE(p7Ver->verifyCertSz, 0);
+        tmpPtr = NULL;
+        AssertIntEQ(i2d_X509(signCert, &tmpPtr), p7Ver->verifyCertSz);
+        AssertIntEQ(XMEMCMP(tmpPtr, p7Ver->verifyCert, p7Ver->verifyCertSz), 0);
+        free(tmpPtr);
+
         wc_PKCS7_Free(p7Ver);
 
         AssertNotNull(out);
