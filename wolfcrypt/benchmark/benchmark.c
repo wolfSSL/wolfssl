@@ -1379,7 +1379,7 @@ typedef enum bench_stat_type {
         pthread_mutex_unlock(&bench_lock);
     }
 
-#else
+#else /* !WC_ENABLE_BENCH_THREADING */
 
     typedef struct bench_stats {
         const char* algo;
@@ -1403,29 +1403,8 @@ typedef enum bench_stat_type {
         if (gStatsCount >= MAX_BENCH_STATS)
             return bstat;
 
-    #ifdef WC_ENABLE_BENCH_THREADING
-        /* protect bench_stats_head and bench_stats_tail access */
-        pthread_mutex_lock(&bench_lock);
-    #endif
-
         bstat = &gStats[gStatsCount++];
         bstat->algo = algo;
-    #ifdef WC_ENABLE_BENCH_THREADING
-        pthread_mutex_lock(&bench_lock);
-        if (g_threadCount > 1) {
-            int algoLen = (int)(XSTRLEN(algo) + 1);
-            bstat->algo = (const char* )XMALLOC(algoLen, HEAP_HINT,
-                DYNAMIC_TYPE_TMP_BUFFER);
-            if (bstat->algo == NULL) {
-                bstat->algo = "UNKNOWN";
-                type = BENCH_STAT_IGNORE;
-            }
-            else {
-                XSTRNCPY((char* )bstat->algo, algo, algoLen);
-            }
-        }
-        pthread_mutex_unlock(&bench_lock);
-    #endif
         bstat->desc = desc;
         bstat->perfsec = perfsec;
         bstat->perftype = perftype;
@@ -1435,10 +1414,6 @@ typedef enum bench_stat_type {
 
         (void)useDeviceID;
 
-    #ifdef WC_ENABLE_BENCH_THREADING
-        pthread_mutex_unlock(&bench_lock);
-    #endif
-
         return bstat;
     }
 
@@ -1446,35 +1421,6 @@ typedef enum bench_stat_type {
     {
         int i;
         bench_stats_t* bstat;
-
-    #ifdef WC_ENABLE_BENCH_THREADING
-        pthread_mutex_lock(&bench_lock);
-        if (g_threadCount > 1) {
-            int j;
-            bench_stats_t* bstat2;
-
-            /* Merge results and mark duplicates with type ignore. */
-            for (i=0; i<gStatsCount; i++) {
-                bstat = &gStats[i];
-                if (bstat->type == BENCH_STAT_IGNORE)
-                    continue;
-                for (j=i+1; j<gStatsCount; j++) {
-                    bstat2 = &gStats[j];
-                    if (bstat2->type == BENCH_STAT_IGNORE)
-                        continue;
-
-                    if ((XSTRNCMP(bstat->algo, bstat2->algo,
-                                  XSTRLEN(bstat->algo)) == 0) &&
-                        (XSTRNCMP(bstat->desc, bstat2->desc,
-                                  XSTRLEN(bstat->desc)) == 0)) {
-                        bstat2->type = BENCH_STAT_IGNORE;
-                        bstat->perfsec += bstat2->perfsec;
-                    }
-                }
-            }
-        }
-        pthread_mutex_unlock(&bench_lock);
-    #endif
 
         for (i=0; i<gStatsCount; i++) {
             bstat = &gStats[i];
@@ -1486,16 +1432,9 @@ typedef enum bench_stat_type {
                 printf("%-5s %4d %-9s %.3f ops/sec\n",
                     bstat->algo, bstat->strength, bstat->desc, bstat->perfsec);
             }
-        #ifdef WC_ENABLE_BENCH_THREADING
-            pthread_mutex_lock(&bench_lock);
-            if (g_threadCount > 1) {
-                free((void*)bstat->algo);
-            }
-            pthread_mutex_unlock(&bench_lock);
-        #endif
         }
     }
-#endif /* WOLFSSL_ASYNC_CRYPT && !WC_NO_ASYNC_THREADING */
+#endif /* WC_ENABLE_BENCH_THREADING */
 
 static WC_INLINE void bench_stats_init(void)
 {

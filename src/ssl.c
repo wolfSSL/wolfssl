@@ -26454,7 +26454,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
 
 WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
 {
-    WOLFSSL_DH* dh;
+    WOLFSSL_DH* dh = NULL;
     int err = 0;
 #if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
     const DhParams* params = NULL;
@@ -26473,39 +26473,38 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
 
     WOLFSSL_ENTER("wolfSSL_DH_new_by_nid");
 
-    dh = wolfSSL_DH_new();
-    if (dh == NULL) {
-        WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
-        err = 1;
-    }
-
 /* HAVE_PUBLIC_FFDHE not required to expose wc_Dh_ffdhe* functions in FIPS v2
  * module */
 #if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
-    if (err == 0) {
-        switch (nid) {
+    switch (nid) {
 #ifdef HAVE_FFDHE_2048
-            case NID_ffdhe2048:
-                params = wc_Dh_ffdhe2048_Get();
-                break;
+    case NID_ffdhe2048:
+        params = wc_Dh_ffdhe2048_Get();
+        break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
-            case NID_ffdhe3072:
-                params = wc_Dh_ffdhe3072_Get();
-                break;
+    case NID_ffdhe3072:
+        params = wc_Dh_ffdhe3072_Get();
+        break;
 #endif /* HAVE_FFDHE_3072 */
 #ifdef HAVE_FFDHE_4096
-            case NID_ffdhe4096:
-                params = wc_Dh_ffdhe4096_Get();
-                break;
+    case NID_ffdhe4096:
+        params = wc_Dh_ffdhe4096_Get();
+        break;
 #endif /* HAVE_FFDHE_4096 */
-            default:
-                break;
-        }
+    default:
+        break;
     }
-    if (err == 0 && params == NULL) {
+    if (params == NULL) {
         WOLFSSL_MSG("Unable to find DH params for nid.");
         err = 1;
+    }
+    if (err == 0) {
+        dh = wolfSSL_DH_new();
+        if (dh == NULL) {
+            WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
+            err = 1;
+        }
     }
     if (err == 0) {
         pBn = wolfSSL_BN_bin2bn(params->p, params->p_len, NULL);
@@ -26537,12 +26536,14 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
         err = 1;
     }
 #else
-    dh->p = pBn;
-    dh->q = qBn;
-    dh->g = gBn;
-    if (err == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Failed to set internal DH params.");
-        err = 1;
+    if (err == 0) {
+        dh->p = pBn;
+        dh->q = qBn;
+        dh->g = gBn;
+        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to set internal DH params.");
+            err = 1;
+        }
     }
 #endif /* OPENSSL_ALL || OPENSSL_VERSION_NUMBER >= 0x10100000L */
 
@@ -26554,27 +26555,32 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
 /* FIPS v2 and lower doesn't support wc_DhSetNamedKey. */
 #elif !defined(HAVE_PUBLIC_FFDHE) && (!defined(HAVE_FIPS) || \
       FIPS_VERSION_GT(2,0))
-    if (err == 0) {
-        switch (nid) {
+    switch (nid) {
 #ifdef HAVE_FFDHE_2048
-            case NID_ffdhe2048:
-                name = WC_FFDHE_2048;
-                break;
+    case NID_ffdhe2048:
+        name = WC_FFDHE_2048;
+        break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
-            case NID_ffdhe3072:
-                name = WC_FFDHE_3072;
-                break;
+    case NID_ffdhe3072:
+        name = WC_FFDHE_3072;
+        break;
 #endif /* HAVE_FFDHE_3072 */
 #ifdef HAVE_FFDHE_4096
-            case NID_ffdhe4096:
-                name = WC_FFDHE_4096;
-                break;
+    case NID_ffdhe4096:
+        name = WC_FFDHE_4096;
+        break;
 #endif /* HAVE_FFDHE_4096 */
-            default:
-                err = 1;
-                WOLFSSL_MSG("Unable to find DH params for nid.");
-                break;
+    default:
+        err = 1;
+        WOLFSSL_MSG("Unable to find DH params for nid.");
+        break;
+    }
+    if (err == 0) {
+        dh = wolfSSL_DH_new();
+        if (dh == NULL) {
+            WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
+            err = 1;
         }
     }
     if (err == 0 && wc_DhSetNamedKey((DhKey*)dh->internal, name) != 0) {
@@ -26594,6 +26600,8 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
         wolfSSL_DH_free(dh);
         dh = NULL;
     }
+
+    WOLFSSL_LEAVE("wolfSSL_DH_new_by_nid", err);
 
     return dh;
 }
