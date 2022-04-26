@@ -26503,7 +26503,7 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
                 break;
         }
     }
-    if (err == 0 && params == NULL) {
+    if (params == NULL) {
         WOLFSSL_MSG("Unable to find DH params for nid.");
         err = 1;
     }
@@ -26513,6 +26513,10 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
             WOLFSSL_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
             err = 1;
         }
+    }
+    if (params == NULL) {
+        /* work around cppcheck false positive. */
+        err = 1;
     }
     if (err == 0) {
         gBn = wolfSSL_BN_bin2bn(params->g, params->g_len, NULL);
@@ -26537,9 +26541,11 @@ WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
         err = 1;
     }
 #else
-    dh->p = pBn;
-    dh->q = qBn;
-    dh->g = gBn;
+    if (err == 0) {
+        dh->p = pBn;
+        dh->q = qBn;
+        dh->g = gBn;
+    }
     if (err == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to set internal DH params.");
         err = 1;
