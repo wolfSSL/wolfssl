@@ -259,6 +259,14 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } aescbc;
         #endif /* HAVE_AES_CBC */
+        #if defined(WOLFSSL_AES_COUNTER)
+            struct {
+                Aes*        aes;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } aesctr;
+        #endif /* WOLFSSL_AES_COUNTER */
         #if defined(HAVE_AES_ECB)
             struct {
                 Aes*        aes;
@@ -442,6 +450,10 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
 WOLFSSL_LOCAL int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
 #endif /* HAVE_AES_CBC */
+#ifdef WOLFSSL_AES_COUNTER
+WOLFSSL_LOCAL int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz);
+#endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_ECB
 WOLFSSL_LOCAL int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);

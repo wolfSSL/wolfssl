@@ -10587,6 +10587,10 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     XMEMSET(p2, 0, sizeof(p2));
 
+    result = wc_AesInit(enc, HEAP_HINT, devId);
+    if (result != 0)
+        ERROR_OUT(-6499, out);
+
     result = wc_AesCcmSetKey(enc, k, sizeof(k));
     if (result != 0)
         ERROR_OUT(-6500, out);
@@ -25086,7 +25090,7 @@ static int ecc_encrypt_kat(WC_RNG *rng)
         0xd3, 0xb0, 0x7f, 0x7e, 0x7f, 0x86, 0x8a, 0x49,
         0xee, 0xb4, 0xaa, 0x09, 0x2d, 0x1e, 0x1d, 0x02
     };
-#ifdef WOLFSSL_ECIES_OLD
+#if defined(WOLFSSL_ECIES_OLD) || defined(WOLFSSL_QNX_CAAM)
     WOLFSSL_SMALL_STACK_STATIC const byte pubKey[] = {
         0x04,
         /* X */
@@ -25203,8 +25207,13 @@ static int ecc_encrypt_kat(WC_RNG *rng)
 
 
     if (ret == 0) {
+#ifdef WOLFSSL_QNX_CAAM
+        ret = wc_ecc_import_private_key_ex(privKey, sizeof(privKey), pubKey,
+            sizeof(pubKey), userB, ECC_SECP256R1);
+#else
         ret = wc_ecc_import_private_key_ex(privKey, sizeof(privKey), NULL, 0,
                                                           userB, ECC_SECP256R1);
+#endif
         if (ret != 0)
             ret = -10454;
     }
@@ -39882,7 +39891,23 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 info->cipher.aesecb.aes->devId = devIdArg;
             }
         }
-    #endif /* HAVE_AES_CBC */
+    #endif /* HAVE_AES_ECB */
+    #if defined(WOLFSSL_AES_COUNTER) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+        if (info->cipher.type == WC_CIPHER_AES_CTR) {
+            /* set devId to invalid, so software is used */
+            info->cipher.aesctr.aes->devId = INVALID_DEVID;
+
+            ret = wc_AesCtrEncrypt(
+                info->cipher.aesctr.aes,
+                info->cipher.aesctr.out,
+                info->cipher.aesctr.in,
+                info->cipher.aesctr.sz);
+
+            /* reset devId */
+            info->cipher.aesctr.aes->devId = devIdArg;
+        }
+    #endif /* WOLFSSL_AES_COUNTER */
     #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
         if (info->cipher.type == WC_CIPHER_AES_CCM) {
             if (info->cipher.enc) {

@@ -41,6 +41,15 @@
     #define WOLFSSL_CAAM_DEVID 7
 #endif
 
+/* black key stored in secure memory location */
+#define CAAM_BLACK_KEY_SM 1
+
+/* black key encrypted with AES-CCM (has MAC) */
+#define CAAM_BLACK_KEY_CCM 2
+
+/* black key encrypted with AES-ECB (no MAC) */
+#define CAAM_BLACK_KEY_ECB 3
+
 #if defined(__INTEGRITY) || defined(INTEGRITY)
     #include <INTEGRITY.h>
     typedef Buffer CAAM_BUFFER;

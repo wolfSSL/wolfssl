@@ -28200,8 +28200,8 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     privSz = key->dp->size;
 
 #ifdef WOLFSSL_QNX_CAAM
-    /* check if is a black key, and add MAC size if so */
-    if (key->blackKey > 0) {
+    /* check if is a black key, and add MAC size if needed */
+    if (key->blackKey > 0 && key->blackKey != CAAM_BLACK_KEY_ECB) {
         privSz = privSz + WC_CAAM_MAC_SZ;
     }
 #endif

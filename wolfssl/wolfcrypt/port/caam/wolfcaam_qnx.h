@@ -41,7 +41,7 @@
 #define NoActivityReady -1
 #define MemoryOperationNotPerformed -1
 
-#define CAAM_ADDRESS unsigned int
+#define CAAM_ADDRESS uintptr_t
 #ifndef WOLFSSL_CAAM_BUFFER
 #define WOLFSSL_CAAM_BUFFER
     typedef struct CAAM_BUFFER {
@@ -65,6 +65,7 @@
 
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam_ecdsa.h>
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h>
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam_aes.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
 #define ResourceNotAvailable -3
