@@ -31439,7 +31439,8 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
         return WOLFSSL_FAILURE;
     }
     #else
-        return SSL_NOT_IMPLEMENTED;
+        WOLFSSL_MSG("ecc_point_is_at_infinitiy compiled out");
+        return WOLFSSL_FAILURE;
     #endif
     return ret;
 }
@@ -31667,6 +31668,13 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
                             const WOLFSSL_ECDSA_SIG *sig, WOLFSSL_EC_KEY *key)
 {
     int check_sign = 0;
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    byte signature[ECC_MAX_SIG_SIZE];
+    word32 signaturelen = (word32)sizeof(sig);
+    char* r;
+    char* s;
+    int ret = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_do_verify");
 
@@ -31698,9 +31706,34 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         return WOLFSSL_FAILURE;
     }
     #else
-        (void) dlen;
-        (void) check_sign;
-        return SSL_NOT_IMPLEMENTED;
+    /* convert big number to hex */
+    r = wolfSSL_BN_bn2hex(sig->r);
+    s = wolfSSL_BN_bn2hex(sig->s);
+    /* get DER-encoded ECDSA signature */
+    ret = wc_ecc_rs_to_sig((const char*)r, (const char*)s, 
+                                        signature, &signaturelen);
+    /* free r and s */
+    if (r)
+        XFREE(r, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (s)
+        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_verify_hash failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* verify hash. expects to call wc_CryptoCb_EccVerify internally */ 
+    ret = wc_ecc_verify_hash(signature, signaturelen, d, dlen, &check_sign,
+                        (ecc_key*)key->internal);
+    
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_verify_hash failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    else if (check_sign == 0) {
+        WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
+        return WOLFSSL_FAILURE;
+    }
     #endif
 
     return WOLFSSL_SUCCESS;
