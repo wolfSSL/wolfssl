@@ -32594,6 +32594,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
 WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned char **in,
                                          long len)
 {
+    word32 idx = 0;
     WOLFSSL_EC_KEY *eckey = NULL;
     WOLFSSL_ENTER("wolfSSL_d2i_ECPrivateKey");
 
@@ -32607,9 +32608,9 @@ WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned ch
         return NULL;
     }
 
-    if (wc_ecc_import_private_key(*in, (word32)len, NULL, 0,
-            (ecc_key*)eckey->internal) != MP_OKAY) {
-        WOLFSSL_MSG("wc_ecc_import_private_key error");
+    if (wc_EccPrivateKeyDecode(*in, &idx, (ecc_key*)eckey->internal,
+            (word32)len) != 0) {
+        WOLFSSL_MSG("wc_EccPrivateKeyDecode error");
         goto error;
     }
 
@@ -32634,7 +32635,7 @@ error:
 
 int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
 {
-    int len;
+    word32 len;
     byte* buf = NULL;
     WOLFSSL_ENTER("wolfSSL_i2d_ECPrivateKey");
 
@@ -32643,13 +32644,14 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
         return WOLFSSL_FAILURE;
     }
 
-    if (!in->inSet && SetECKeyInternal((WOLFSSL_EC_KEY*)in) != WOLFSSL_SUCCESS) {
+    if (!in->inSet && SetECKeyInternal(
+            (WOLFSSL_EC_KEY*)in) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetECKeyInternal error");
         return WOLFSSL_FAILURE;
     }
 
-    if ((len = wc_ecc_size((ecc_key*)in->internal)) <= 0) {
-        WOLFSSL_MSG("wc_ecc_size error");
+    if ((len = wc_EccKeyDerSize((ecc_key*)in->internal, 0)) <= 0) {
+        WOLFSSL_MSG("wc_EccKeyDerSize error");
         return WOLFSSL_FAILURE;
     }
 
@@ -32659,9 +32661,8 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
             return WOLFSSL_FAILURE;
         }
 
-        if (wc_ecc_export_private_only((ecc_key*)in->internal, buf,
-                (word32*)&len) != MP_OKAY) {
-            WOLFSSL_MSG("wc_ecc_export_private_only error");
+        if (wc_EccPrivateKeyToDer((ecc_key*)in->internal, buf, len) < 0) {
+            WOLFSSL_MSG("wc_EccPrivateKeyToDer error");
             XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
@@ -32675,7 +32676,7 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
         }
     }
 
-    return len;
+    return (int)len;
 }
 
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
