@@ -47117,6 +47117,7 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     encs[2] = EVP_PKEY_EC;
 #endif
 #endif
+    int i;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_sign_verify()");
     AssertNotNull(sig =
@@ -47124,7 +47125,7 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     AssertNotNull(sigVerify =
         (byte*)XMALLOC(keySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
 
-    for (int i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++) {
         if (encs[i] == 0)
             continue;
 
