@@ -17976,6 +17976,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             return WOLFSSL_FAILURE;
         }
 
+        if (!ssl->options.handShakeDone) {
+            /* Only reset the session if we didn't complete a handshake */
+            wolfSSL_SESSION_free(ssl->session);
+            ssl->session = wolfSSL_NewSession(ssl->heap);
+            if (ssl->session == NULL) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
@@ -17999,12 +18008,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         FreeX509(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
-
-        wolfSSL_SESSION_free(ssl->session);
-        ssl->session = wolfSSL_NewSession(ssl->heap);
-        if (ssl->session == NULL) {
-            return WOLFSSL_FAILURE;
-        }
 
         return WOLFSSL_SUCCESS;
     }
