@@ -5230,7 +5230,7 @@ fi
 
 # Encrypt-Then-Mac
 AC_ARG_ENABLE([enc-then-mac],
-    [AS_HELP_STRING([--enable-enc-then-mac],[Enable Encryptr-Then-Mac extension (default: enabled)])],
+    [AS_HELP_STRING([--enable-enc-then-mac],[Enable Encrypt-Then-Mac extension (default: enabled)])],
     [ ENABLED_ENCRYPT_THEN_MAC=$enableval ],
     [ ENABLED_ENCRYPT_THEN_MAC=yes ]
     )

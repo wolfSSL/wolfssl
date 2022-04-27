@@ -362,6 +362,7 @@ static const char* const msgTable[] =
     "Loading chain input",
     "Got encrypted extension",
     "Got Hello Retry Request",
+    "Setting up keys",
 };
 
 
@@ -546,6 +547,7 @@ typedef struct SnifferSession {
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     void*          userCtx;
+    word32         pendSeq; /* when WC_PENDING_E is returned capture sequence */
 #endif
 } SnifferSession;
 
@@ -951,7 +953,7 @@ typedef struct IpInfo {
 /* TCP Info from TCP Header */
 typedef struct TcpInfo {
     int    srcPort;       /* source port */
-    int    dstPort;       /* source port */
+    int    dstPort;       /* destination port */
     int    length;        /* length of this header */
     word32 sequence;      /* sequence number */
     word32 ackNumber;     /* ack number */
@@ -2336,6 +2338,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 #else
     SetupKeysArgs  args[1];
 #endif
+
+    Trace(SNIFFER_KEY_SETUP_STR);
 
     if (session->sslServer->arrays == NULL ||
         session->sslClient->arrays == NULL) {
@@ -4487,7 +4491,6 @@ static int DoHandShake(const byte* input, int* sslBytes,
             }
 #endif
             if (ret == 0) {
-                /* TODO: Add async reentry support here */
                 ret = ProcessClientKeyExchange(input, sslBytes, session, error);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E)
@@ -4717,7 +4720,7 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
             ssl->decrypt.state = CIPHER_STATE_END;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
-            /* If pending, leave and return below */
+            /* If pending, return now */
             if (ret == WC_PENDING_E) {
                 return ret;
             }
@@ -5698,6 +5701,15 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
         *sslBytes = actualLen;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* check if this session is pending */
+    if (session->sslServer->error == WC_PENDING_E &&
+        session->pendSeq != tcpInfo->sequence) {
+        /* this stream is processing, queue packet */
+        return WC_HW_WAIT_E;
+    }
+#endif
+
     TraceSequence(tcpInfo->sequence, *sslBytes);
     if (CheckAck(tcpInfo, session) < 0) {
         if (!RecoveryEnabled) {
@@ -5789,8 +5801,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
             *sslFrame = ssl->buffers.inputBuffer.buffer;
             *end = *sslFrame + *sslBytes;
         }
-
-        if (vChain != NULL) {
+        else {
     #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
             struct iovec* chain = (struct iovec*)vChain;
             word32 i, offset, headerSz, qty, remainder;
@@ -6316,10 +6327,11 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
             NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
             UNLOCK_STAT();
         }
-        else
+        else {
             INC_STAT(SnifferStats.sslDecryptedPackets);
+        }
 #endif
-         return  0;   /* done for now */
+         return 0; /* done for now */
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6334,7 +6346,11 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
-        return  0;   /* done for now */
+        return 0; /* done for now */
+    }
+    else if (ret != 0) {
+        /* return specific error case */
+        return ret;
     }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
@@ -6346,18 +6362,24 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
-        return  0;   /* done for now */
+        return 0; /* done for now */
     }
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    if (sslBytes > 0) {
-        LOCK_STAT();
-        NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
-        NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
-        UNLOCK_STAT();
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (session->sslServer->error != WC_PENDING_E)
+    #endif
+    {
+        if (sslBytes > 0) {
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
+            UNLOCK_STAT();
+        }
+        else {
+            INC_STAT(SnifferStats.sslDecryptedPackets);
+        }
     }
-    else
-        INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6366,6 +6388,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         ret = ProcessMessage(sslFrame, session, sslBytes, data, end, ctx, error);
         session->sslServer->error = ret;
 #ifdef WOLFSSL_ASYNC_CRYPT
+        /* capture the seq pending for this session */
+        session->pendSeq = tcpInfo.sequence;
+
         if (ret == WC_PENDING_E) {
             if (!asyncOkay || CryptoDeviceId == INVALID_DEVID) {
                 /* If devId has not been set then we need to block here by

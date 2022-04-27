@@ -114,4 +114,5 @@ STRINGTABLE
     93, "Loading chain input"
     94, "Got encrypted extension"
     95, "Got Hello Retry Request"
+    96, "Setting up keys"
 }
