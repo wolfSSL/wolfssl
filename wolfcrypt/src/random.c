@@ -2455,7 +2455,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_ESPIDF)
-    #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE) || defined(WOLFSSL_ESP8266)
+
+    /* Espressif */
+    #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
+
+        /* Espressif ESP32 */
+        #include <esp_system.h>
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            word32 rand;
+            while (sz > 0) {
+                word32 len = sizeof(rand);
+                if (sz < len)
+                    len = sz;
+                /* Get one random 32-bit word from hw RNG */
+                rand = esp_random( );
+                XMEMCPY(output, &rand, len);
+                output += len;
+                sz -= len;
+            }
+
+            return 0;
+        }
+
+    #elif defined(WOLFSSL_ESP8266)
+
+        /* Espressif ESP8266 */
         #include <esp_system.h>
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
