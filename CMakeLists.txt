@@ -1176,10 +1176,7 @@ if(NOT WOLFSSL_INLINE)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_INLINE")
 endif()
 
-# TODO: - OCSP
-#       - OCSP stapling
-#       - OCSP stapling v2
-#       - CRL
+# TODO:
 #       - CRL monitor
 #       - User crypto
 #       - Whitewood netRandom client library
@@ -1192,30 +1189,18 @@ endif()
 #       - Secure renegotiation
 #       - Fallback SCSV
 
+add_option(WOLFSSL_OCSP "Enable OCSP (default: disabled)" "no" "yes;no")
+add_option(WOLFSSL_OCSPSTAPLING "Enable OCSP Stapling (default: disabled)" "no" "yes;no")
+add_option(WOLFSSL_OCSPSTAPLING_V2 "Enable OCSP Stapling v2 (default: disabled)" "no" "yes;no")
+add_option(WOLFSSL_CRL
+    "Enable CRL (Use =io for inline CRL HTTP GET) (default: disabled)"
+    "no" "yes;no;io")
+
 set(WOLFSSL_SNI_HELP_STRING "Enable SNI (default: disabled)")
 add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} "no" "yes;no")
 
-if (WOLFSSL_SNI)
-   list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SNI")
-endif()
-
-
 set(WOLFSSL_TLSX_HELP_STRING "Enable all TLS Extensions (default: disabled)")
 add_option(WOLFSSL_TLSX ${WOLFSSL_TLSX_HELP_STRING} "no" "yes;no")
-
-if (WOLFSSL_TLSX)
-  list(APPEND WOLFSSL_DEFINITIONS
-    "-DHAVE_TLS_EXTENSIONS"
-    "-DHAVE_SNI"
-    "-DHAVE_MAX_FRAGMENT"
-    "-DHAVE_TRUNCATED_HMAC"
-    "-DHAVE_ALPN"
-    "-DHAVE_TRUSTED_CA")
-    if (WOLFSSL_ECC OR WOLFSSL_CURVE25519 OR WOLFSSL_CURVE448 OR WOLFSSL_TLS13)
-       list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_SUPPORTED_CURVES")
-    endif()
-endif()
-
 
 # Supported elliptic curves extensions
 add_option("WOLFSSL_SUPPORTED_CURVES"
@@ -1644,6 +1629,44 @@ endif()
 
 if(WOLFSSL_CRYPTOCB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLF_CRYPTO_CB")
+endif()
+
+if(WOLFSSL_OCSPSTAPLING)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CERTIFICATE_STATUS_REQUEST" "-DHAVE_TLS_EXTENSIONS")
+    override_cache(WOLFSSL_OCSP "yes")
+endif()
+
+if(WOLFSSL_OCSPSTAPLING_V2)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CERTIFICATE_STATUS_REQUEST_V2" "-DHAVE_TLS_EXTENSIONS")
+    override_cache(WOLFSSL_OCSP "yes")
+endif()
+
+# must be below OCSP stapling options to allow override
+if (WOLFSSL_OCSP)
+   list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_OCSP")
+endif()
+
+if (WOLFSSL_CRL STREQUAL "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CRL")
+elseif(WOLFSSL_CRL STREQUAL "io")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CRL" "-DHAVE_CRL_IO")
+endif()
+
+if (WOLFSSL_SNI)
+   list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SNI")
+endif()
+
+if (WOLFSSL_TLSX)
+  list(APPEND WOLFSSL_DEFINITIONS
+    "-DHAVE_TLS_EXTENSIONS"
+    "-DHAVE_SNI"
+    "-DHAVE_MAX_FRAGMENT"
+    "-DHAVE_TRUNCATED_HMAC"
+    "-DHAVE_ALPN"
+    "-DHAVE_TRUSTED_CA")
+    if (WOLFSSL_ECC OR WOLFSSL_CURVE25519 OR WOLFSSL_CURVE448 OR WOLFSSL_TLS13)
+       list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_SUPPORTED_CURVES")
+    endif()
 endif()
 
 
