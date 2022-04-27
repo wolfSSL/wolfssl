@@ -11838,11 +11838,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 if (ssl->fragOffset == 0) {
                     if (ssl->options.connectState == CONNECT_BEGIN ||
                         ssl->options.connectState == HELLO_AGAIN ||
-                        ssl->options.connectState == FIRST_REPLY_DONE ||
-                        ssl->options.connectState == FIRST_REPLY_FIRST ||
-                        ssl->options.connectState == FIRST_REPLY_SECOND ||
-                        ssl->options.connectState == FIRST_REPLY_THIRD ||
-                        ssl->options.connectState == FIRST_REPLY_FOURTH) {
+                       (ssl->options.connectState >= FIRST_REPLY_DONE &&
+                        ssl->options.connectState <= FIRST_REPLY_FOURTH)) {
                         ssl->options.connectState++;
                         WOLFSSL_MSG("connect state: "
                                     "Advanced from last buffered fragment send");

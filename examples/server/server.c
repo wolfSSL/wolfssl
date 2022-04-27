@@ -2962,6 +2962,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 wolfSSL_dtls_set_peer(ssl, &client_addr, client_len);
             }
             if (simulateWantWrite) {
+#ifdef USE_WOLFSSL_IO
                 /* connect on a udp to associate peer with this fd to make it
                  * simpler for SimulateWantWriteIOSendCb */
                 if (connect(clientfd, (struct sockaddr*)&client_addr,
@@ -2969,6 +2970,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     err_sys_ex(catastrophic, "error in connecting to peer");
                 }
                 wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+#endif
             }
         }
 #endif

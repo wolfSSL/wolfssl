@@ -4104,6 +4104,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("error in setting fd");
         }
+        if (simulateWantWrite) {
+            wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+        }
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
             printf("ALPN accepted protocols list : %s\n", alpnList);

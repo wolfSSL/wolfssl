@@ -2050,7 +2050,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys_with_errno("tcp bind failed");
 
-    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -2063,7 +2063,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #endif
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
