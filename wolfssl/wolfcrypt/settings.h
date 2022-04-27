@@ -19,6 +19,27 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ *   ************************************************************************
+ *
+ *   ******************************** NOTICE ********************************
+ * 
+ *   ************************************************************************
+ *
+ *   This method of uncommenting a line in settings.h is outdated. 
+ * 
+ *   Please use user_settings.h / WOLFSSL_USER_SETTINGS 
+ * 
+ *         or 
+ * 
+ *   ./configure CFLAGS="-DFLAG" 
+ * 
+ *   For more information see:
+ * 
+ *   https://www.wolfssl.com/how-do-i-manage-the-build-configuration-of-wolfssl/
+ * 
+ */
+
 
 /* Place OS specific preprocessor flags, defines, includes here, will be
    included into every file because types.h includes it */
@@ -194,6 +215,11 @@
 /* Uncomment next line if building for using Apache mynewt */
 /* #define WOLFSSL_APACHE_MYNEWT */
 
+/* For Espressif chips see example user_settings.h
+ * 
+ * https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/user_settings.h 
+ */
+
 /* Uncomment next line if building for using ESP-IDF */
 /* #define WOLFSSL_ESPIDF */
 
@@ -202,9 +228,6 @@
 
 /* Uncomment next line if using Espressif ESP32-WROOM-32SE */
 /* #define WOLFSSL_ESPWROOM32SE */
-
-/* Uncomment next line if using Espressif ESP8266 */
-/* #define WOLFSSL_ESP8266 */
 
 /* Uncomment next line if using ARM CRYPTOCELL*/
 /* #define WOLFSSL_CRYPTOCELL */
