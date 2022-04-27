@@ -1669,8 +1669,8 @@ int caamKeyCover(DESCSTRUCT* desc, int sz, unsigned int args[4])
     i++;
 
     /* add output */
-    desc->desc[desc->idx++] = (CAAM_FIFO_S | CAAM_CLASS1 | desc->state) +
-        desc->buf[i].dataSz;
+    desc->desc[desc->idx++] = (CAAM_FIFO_S | CAAM_CLASS1 | args[0] |
+        desc->state) + desc->buf[i].dataSz;
     vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz +
             BLACK_KEY_MAC_SZ, 0);
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],

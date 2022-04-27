@@ -62,7 +62,7 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
 
     (void)rng;
     if (key->dp != NULL) {
@@ -165,7 +165,7 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     const ecc_set_type* dp;
     int ret, keySz;
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte qx[MAX_ECC_BYTES] = {0};
     byte qy[MAX_ECC_BYTES] = {0};
     byte qxy[MAX_ECC_BYTES * 2] = {0};
@@ -213,7 +213,7 @@ static int wc_CAAM_DevMakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
     int ret;
     int blackKey = 1; /* default to using black encrypted keys */
 
-    byte s[MAX_ECC_BYTES]    = {0};
+    byte s[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte xy[MAX_ECC_BYTES*2] = {0};
 
     key->type = ECC_PRIVATEKEY;
@@ -291,7 +291,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
     word32 idx = 0;
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
 
 #if defined(WOLFSSL_DEVCRYPTO_ECDSA)
     if (devId == WOLFSSL_CAAM_DEVID) {
@@ -532,7 +532,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     word32 ecdsel = 0; /* ecc parameters in hardware */
     word32 idx    = 0;
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte qx[MAX_ECC_BYTES] = {0};
     byte qy[MAX_ECC_BYTES] = {0};
     byte qxy[MAX_ECC_BYTES * 2] = {0};
@@ -657,7 +657,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
 
     int ret;
 
-    byte s[MAX_ECC_BYTES] = {0};
+    byte s[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte xy[MAX_ECC_BYTES*2] = {0};
 
 #if defined(WOLFSSL_DEVCRYPTO_ECDSA)
