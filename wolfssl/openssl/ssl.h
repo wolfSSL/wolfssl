@@ -316,7 +316,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_verify_client_post_handshake wolfSSL_verify_client_post_handshake
 #define SSL_set_post_handshake_auth     wolfSSL_set_post_handshake_auth
 #define SSL_CTX_set_post_handshake_auth wolfSSL_CTX_set_post_handshake_auth
-#define SSL_pending                     wolfSSL_pending
+#define SSL_pending(x)                  wolfSSL_pending((WOLFSSL*)(x))
 #define SSL_has_pending                 wolfSSL_has_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
@@ -462,7 +462,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_issuer_name_hash           wolfSSL_X509_issuer_name_hash
 #define X509_subject_name_hash          wolfSSL_X509_subject_name_hash
-#define X509_get_subject_name           wolfSSL_X509_get_subject_name
+#define X509_get_subject_name(x)        wolfSSL_X509_get_subject_name((WOLFSSL_X509*)(x))
 #define X509_REQ_get_subject_name       wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
 #define X509_get0_pubkey                wolfSSL_X509_get_pubkey
