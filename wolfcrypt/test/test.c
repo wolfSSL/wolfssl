@@ -528,7 +528,7 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void);
 WOLFSSL_TEST_SUBROUTINE int cert_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
-   !defined(NO_FILESYSTEM)
+   !defined(NO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
 WOLFSSL_TEST_SUBROUTINE int  certext_test(void);
 #endif
 #if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
@@ -1280,7 +1280,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_GEN_CERT)
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
@@ -11960,6 +11960,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_CERT_GEN
          static const char* certEccPemFile =   CERT_WRITE_TEMP_DIR "certecc.pem";
+         static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
         static const char* certEccRsaPemFile = CERT_WRITE_TEMP_DIR "certeccrsa.pem";
@@ -11975,19 +11976,12 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
         static const char* eccPkcs8KeyDerFile = CERT_WRITE_TEMP_DIR "ecc-key-pkcs8.der";
     #endif
     #endif /* HAVE_ECC_KEY_EXPORT */
-    #if defined(WOLFSSL_CERT_GEN) || \
-            (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
-        static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
-    #endif
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
-    #if defined(WOLFSSL_CERT_GEN) || \
-        (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
+    #ifdef WOLFSSL_CERT_GEN
         static const char* otherCertDerFile = CERT_WRITE_TEMP_DIR "othercert.der";
         static const char* certDerFile = CERT_WRITE_TEMP_DIR "cert.der";
-    #endif
-    #ifdef WOLFSSL_CERT_GEN
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
         static const char* certPemFile = CERT_WRITE_TEMP_DIR "cert.pem";
         #if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -12282,7 +12276,7 @@ done:
 #endif /* WOLFSSL_TEST_CERT */
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
-   !defined(NO_FILESYSTEM)
+   !defined(NO_FILESYSTEM) && defined(WOLFSSL_CERT_GEN)
 WOLFSSL_TEST_SUBROUTINE int certext_test(void)
 {
     DecodedCert cert;
@@ -12467,7 +12461,8 @@ WOLFSSL_TEST_SUBROUTINE int certext_test(void)
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT &&
+          !NO_FILESYSTEM && WOLFSSL_CERT_GEN */
 
 #if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
