@@ -47102,7 +47102,9 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     size_t siglen;
     size_t siglenOnlyLen;
     size_t keySz = 2048/8;  /* Bytes */
+    int i;
     int encs[3] = {0};
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
     !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
@@ -47117,7 +47119,6 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     encs[2] = EVP_PKEY_EC;
 #endif
 #endif
-    int i;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_sign_verify()");
     AssertNotNull(sig =
