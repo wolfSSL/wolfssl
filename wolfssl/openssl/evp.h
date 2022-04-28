@@ -438,6 +438,10 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #endif
     int     authTagSz;
 #endif
+#ifdef HAVE_AESGCM
+    byte    gcmIvGenEnable:1;
+    byte    gcmIncIv:1;
+#endif
 #endif
 };
 
