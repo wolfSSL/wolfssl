@@ -743,7 +743,7 @@ int wc_CheckRsaKey(RsaKey* key)
         }
     }
 
-#ifdef WC_RSA_NO_FERMAT_CHECK
+#ifndef WC_RSA_NO_FERMAT_CHECK
     /* Fermat's Factorization works when difference between p and q
      * is less than (conservatively):
      *     n^(1/4) + 32
@@ -4606,7 +4606,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             if (err == MP_OKAY)
                 err = _CheckProbablePrime(p, q, tmp3, size, &isPrime, rng);
 
-#ifdef WC_RSA_NO_FERMAT_CHECK
+#ifndef WC_RSA_NO_FERMAT_CHECK
             if (err == MP_OKAY && isPrime) {
                 /* Fermat's Factorization works when difference between p and q
                  * is less than (conservatively):
