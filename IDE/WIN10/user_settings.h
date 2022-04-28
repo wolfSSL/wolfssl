@@ -45,6 +45,10 @@
         #define WC_RSA_PSS
         #define WC_RSA_NO_PADDING
         #define HAVE_ECC
+        #define HAVE_ECC384
+        #define HAVE_ECC521
+        #define HAVE_SUPPORTED_CURVES
+        #define HAVE_TLS_EXTENSIONS
         #define ECC_SHAMIR
         #define HAVE_ECC_CDH
         #define ECC_TIMING_RESISTANT
