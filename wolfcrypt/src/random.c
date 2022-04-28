@@ -2133,7 +2133,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* WOLFSSL_STM32_CUBEMX */
 
 #elif defined(WOLFSSL_TIRTOS)
-
+    #warning "potential for not enough entropy, currently being used for testing"
     #include <xdc/runtime/Timestamp.h>
     #include <stdlib.h>
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
