@@ -13709,6 +13709,7 @@ void AddSession(WOLFSSL* ssl)
         }
     }
 #endif /* WOLFSSL_SESSION_STATS && WOLFSSL_PEAK_SESSIONS */
+    (void)error;
 }
 
 
