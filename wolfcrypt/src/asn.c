@@ -16650,9 +16650,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Basic Constraints. */
         case BASIC_CA_OID:
             VERIFY_AND_SET_OID(cert->extBasicConstSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extBasicConstCrit = critical;
-            #endif
+            cert->extBasicConstCrit = critical;
             if (DecodeBasicCaConstraint(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16661,9 +16659,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* CRL Distribution point. */
         case CRL_DIST_OID:
             VERIFY_AND_SET_OID(cert->extCRLdistSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extCRLdistCrit = critical;
-            #endif
+            cert->extCRLdistCrit = critical;
             if (DecodeCrlDist(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16672,9 +16668,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Authority information access. */
         case AUTH_INFO_OID:
             VERIFY_AND_SET_OID(cert->extAuthInfoSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extAuthInfoCrit = critical;
-            #endif
+            cert->extAuthInfoCrit = critical;
             if (DecodeAuthInfo(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16683,18 +16677,14 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Subject alternative name. */
         case ALT_NAMES_OID:
             VERIFY_AND_SET_OID(cert->extSubjAltNameSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extSubjAltNameCrit = critical;
-            #endif
+            cert->extSubjAltNameCrit = critical;
             ret = DecodeAltNames(input, length, cert);
             break;
 
         /* Authority Key Identifier. */
         case AUTH_KEY_OID:
             VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extAuthKeyIdCrit = critical;
-            #endif
+            cert->extAuthKeyIdCrit = critical;
             #ifndef WOLFSSL_ALLOW_CRIT_SKID
                 /* This check is added due to RFC 5280 section 4.2.1.1
                  * stating that conforming CA's must mark this extension
@@ -16714,9 +16704,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Subject Key Identifier. */
         case SUBJ_KEY_OID:
             VERIFY_AND_SET_OID(cert->extSubjKeyIdSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extSubjKeyIdCrit = critical;
-            #endif
+            cert->extSubjKeyIdCrit = critical;
             #ifndef WOLFSSL_ALLOW_CRIT_SKID
                 /* This check is added due to RFC 5280 section 4.2.1.2
                  * stating that conforming CA's must mark this extension
@@ -16756,9 +16744,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Key usage. */
         case KEY_USAGE_OID:
             VERIFY_AND_SET_OID(cert->extKeyUsageSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extKeyUsageCrit = critical;
-            #endif
+            cert->extKeyUsageCrit = critical;
             if (DecodeKeyUsage(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16767,9 +16753,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         /* Extended key usage. */
         case EXT_KEY_USAGE_OID:
             VERIFY_AND_SET_OID(cert->extExtKeyUsageSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extExtKeyUsageCrit = critical;
-            #endif
+            cert->extExtKeyUsageCrit = critical;
             if (DecodeExtKeyUsage(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16788,9 +16772,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
             }
         #endif
             VERIFY_AND_SET_OID(cert->extNameConstraintSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extNameConstraintCrit = critical;
-            #endif
+            cert->extNameConstraintCrit = critical;
             if (DecodeNameConstraints(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -16822,9 +16804,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
     #endif
         case POLICY_CONST_OID:
             VERIFY_AND_SET_OID(cert->extPolicyConstSet);
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extPolicyConstCrit = critical;
-            #endif
+            cert->extPolicyConstCrit = critical;
             if (DecodePolicyConstraints(&input[idx], length, cert) < 0)
                 return ASN_PARSE_E;
             break;

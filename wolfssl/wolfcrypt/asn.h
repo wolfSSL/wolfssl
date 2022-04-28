@@ -1672,20 +1672,18 @@ struct DecodedCert {
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicySet : 1;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte extCRLdistCrit : 1;
     byte extAuthInfoCrit : 1;
     byte extBasicConstCrit : 1;
     byte extPolicyConstCrit : 1;
     byte extSubjAltNameCrit : 1;
     byte extAuthKeyIdCrit : 1;
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        byte extNameConstraintCrit : 1;
-    #endif
+#ifndef IGNORE_NAME_CONSTRAINTS
+    byte extNameConstraintCrit : 1;
+#endif
     byte extSubjKeyIdCrit : 1;
     byte extKeyUsageCrit : 1;
     byte extExtKeyUsageCrit : 1;
-#endif /* OPENSSL_EXTRA */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif
