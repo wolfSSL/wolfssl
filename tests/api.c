@@ -950,9 +950,11 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
     AssertIntEQ(wolfSSL_trust_peer_cert(ssl, cliCertFile,
                                      WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
+    #ifdef WOLFSSL_LOCAL_X509_STORE
     /* unload cert */
     AssertIntNE(wolfSSL_Unload_trust_peers(NULL), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_Unload_trust_peers(ssl), WOLFSSL_SUCCESS);
+    #endif
 #endif
 
     /* Test of loading certs from buffers */
