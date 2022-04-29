@@ -889,7 +889,7 @@ int mp_lshd (mp_int * a, int b)
 #if defined(FREESCALE_LTC_TFM)
 int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #else
-    int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y) // NOLINT(misc-no-recursion)
+    int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y) /* //NOLINT(misc-no-recursion) */
 #endif
 {
   int dr;
@@ -1996,7 +1996,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
-  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL; // cppcheck-suppress nullPointerRedundantCheck // cppcheck 2.6.3 false positive
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
@@ -4335,7 +4335,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
     (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 
 /* single digit addition */
-int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
+int mp_add_d (mp_int* a, mp_digit b, mp_int* c) /* //NOLINT(misc-no-recursion) */
 {
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
@@ -4433,7 +4433,7 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
 
 
 /* single digit subtraction */
-int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) // NOLINT(misc-no-recursion)
+int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) /* //NOLINT(misc-no-recursion) */
 {
   mp_digit *tmpa, *tmpc, mu;
   int       res, ix, oldused;
