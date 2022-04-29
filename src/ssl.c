@@ -31670,7 +31670,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
     int check_sign = 0;
 #ifdef WOLF_CRYPTO_CB_ONLY_ECC
     byte signature[ECC_MAX_SIG_SIZE];
-    word32 signaturelen = (word32)sizeof(sig);
+    word32 signaturelen = (word32)sizeof(signature);
     char* r;
     char* s;
     int ret = 0;
