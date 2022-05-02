@@ -51,8 +51,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 5,2,0,0
- PRODUCTVERSION 5,2,0,0
+ FILEVERSION 5,3,0,0
+ PRODUCTVERSION 5,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -69,12 +69,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "wolfSSL Inc."
             VALUE "FileDescription", "The wolfSSL FIPS embedded SSL library is a lightweight, portable, C-language-based SSL/TLS library targeted at IoT, embedded, and RTOS environments primarily because of its size, speed, and feature set."
-            VALUE "FileVersion", "5.2.0.0"
+            VALUE "FileVersion", "5.3.0.0"
             VALUE "InternalName", "wolfssl-fips"
             VALUE "LegalCopyright", "Copyright (C) 2022"
             VALUE "OriginalFilename", "wolfssl-fips.dll"
             VALUE "ProductName", "wolfSSL FIPS"
-            VALUE "ProductVersion", "5.2.0.0"
+            VALUE "ProductVersion", "5.3.0.0"
         END
     END
     BLOCK "VarFileInfo"
