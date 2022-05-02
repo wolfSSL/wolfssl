@@ -37749,7 +37749,7 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
             ret = len;
         }
 
-        WOLFSSL_LEAVE("wolfSSL_OBJ_length", ret);
+        WOLFSSL_LEAVE("wolfSSL_OBJ_length", (int)ret);
 
         return ret;
     }
