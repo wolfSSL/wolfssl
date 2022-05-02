@@ -950,9 +950,11 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
     AssertIntEQ(wolfSSL_trust_peer_cert(ssl, cliCertFile,
                                      WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
+    #ifdef WOLFSSL_LOCAL_X509_STORE
     /* unload cert */
     AssertIntNE(wolfSSL_Unload_trust_peers(NULL), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_Unload_trust_peers(ssl), WOLFSSL_SUCCESS);
+    #endif
 #endif
 
     /* Test of loading certs from buffers */
@@ -34252,43 +34254,45 @@ static void test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif
 
     /* check if the keylog file exists */
+    {
+        char buff[300] = {0};
+        int  found[4]   = {0};
+        int  numfnd = 0;
+        int  i;
 
-    char  buff[300] = {0};
-    int  found[4]   = {0};
+        fp = XFOPEN("./MyKeyLog.txt", "r");
 
-    fp = XFOPEN("./MyKeyLog.txt", "r");
+        AssertNotNull(fp);
 
-    AssertNotNull(fp);
-
-    while(XFGETS( buff, (int)sizeof(buff),fp) != NULL ) {
-        if(0 == strncmp(buff,"CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
-                    sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
-            found[0] = 1;
-            continue;
+        while (XFGETS( buff, (int)sizeof(buff),fp) != NULL ) {
+            if (0 == strncmp(buff,"CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
+                        sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
+                found[0] = 1;
+                continue;
+            }
+            else if (0 == strncmp(buff,"SERVER_HANDSHAKE_TRAFFIC_SECRET ",
+                        sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
+                found[1] = 1;
+                continue;
+            }
+            else if (0 == strncmp(buff,"CLIENT_TRAFFIC_SECRET_0 ",
+                        sizeof("CLIENT_TRAFFIC_SECRET_0 ")-1)) {
+                found[2] = 1;
+                continue;
+            }
+            else if (0 == strncmp(buff,"SERVER_TRAFFIC_SECRET_0 ",
+                        sizeof("SERVER_TRAFFIC_SECRET_0 ")-1)) {
+                found[3] = 1;
+                continue;
+            }
         }
-        else if(0 == strncmp(buff,"SERVER_HANDSHAKE_TRAFFIC_SECRET ",
-                    sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
-            found[1] = 1;
-            continue;
+        XFCLOSE(fp);
+        for (i = 0; i < 4; i++) {
+            if( found[i] != 0)
+                numfnd++;
         }
-        else if(0 == strncmp(buff,"CLIENT_TRAFFIC_SECRET_0 ",
-                    sizeof("CLIENT_TRAFFIC_SECRET_0 ")-1)) {
-            found[2] = 1;
-            continue;
-        }
-        else if(0 == strncmp(buff,"SERVER_TRAFFIC_SECRET_0 ",
-                    sizeof("SERVER_TRAFFIC_SECRET_0 ")-1)) {
-            found[3] = 1;
-            continue;
-        }
+        AssertIntEQ(numfnd, 4);
     }
-    XFCLOSE(fp);
-    int numfnd = 0;
-    for( uint i = 0; i < 4; i++) {
-        if( found[i] != 0)
-            numfnd++;
-    }
-    AssertIntEQ( numfnd,4 );
 
     printf(resultFmt, passed);
 

@@ -12737,7 +12737,7 @@ WOLFSSL_ABI
 int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
 {
     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-    word32 prev_timeout;
+    word32 prev_timeout = 0;
     #endif
 
     int ret = WOLFSSL_SUCCESS;
