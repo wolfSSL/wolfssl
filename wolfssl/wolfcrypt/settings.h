@@ -2652,6 +2652,12 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
+/* With titan cache size there is too many sessions to fit with the default
+ * multiplier of 8 */
+#if defined(TITAN_SESSION_CACHE) && !defined(NO_SESSION_CACHE_REF)
+    #define NO_SESSION_CACHE_REF
+#endif
+
 
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling

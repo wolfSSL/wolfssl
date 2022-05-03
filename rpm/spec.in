@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.32
-%{_libdir}/libwolfssl.so.32.0.0
+%{_libdir}/libwolfssl.so.33
+%{_libdir}/libwolfssl.so.33.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -203,6 +203,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/evp.h
 %{_includedir}/wolfssl/openssl/fips_rand.h
 %{_includedir}/wolfssl/openssl/hmac.h
+%{_includedir}/wolfssl/openssl/kdf.h
 %{_includedir}/wolfssl/openssl/lhash.h
 %{_includedir}/wolfssl/openssl/md4.h
 %{_includedir}/wolfssl/openssl/md5.h
@@ -310,6 +311,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon May 2 2022 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add missing kdf.h file
 * Wed Feb 16 2022 John Safranek <john@wolfssl.com>
 - Update for new release.
 * Mon Dec 27 2021 Jacob Barthelmeh <jacob@wolfssl.com>
