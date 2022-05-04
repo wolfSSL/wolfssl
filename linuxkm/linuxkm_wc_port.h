@@ -35,6 +35,34 @@
         #undef HAVE_CONFIG_H
     #endif
 
+    /* suppress inclusion of stdint-gcc.h to avoid conflicts with Linux native
+     * include/linux/types.h:
+     */
+    #define _GCC_STDINT_H
+    #define WC_PTR_TYPE uintptr_t
+
+    /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
+    #define XSNPRINTF snprintf
+
+    /* the rigmarole around kstrtoll() here is to accommodate its
+     * warn-unused-result attribute.
+     *
+     * also needed to suppress inclusion of stdlib.h in
+     * wolfssl/wolfcrypt/types.h.
+     */
+    #define XATOI(s) ({                                 \
+          long long _xatoi_res = 0;                     \
+          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
+          if (_xatoi_ret != 0) {                        \
+            _xatoi_res = 0;                             \
+          }                                             \
+          (int)_xatoi_res;                              \
+        })
+
+    #define WOLFSSL_KTHREADS
+
+    typedef struct mutex wolfSSL_Mutex;
+
     #ifdef BUILDING_WOLFSSL
 
     #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
@@ -68,10 +96,6 @@
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
-
-    /* suppress inclusion of stdint-gcc.h to avoid conflicts with Linux native include/linux/types.h: */
-    #define _GCC_STDINT_H
-    #define WC_PTR_TYPE uintptr_t
 
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
@@ -480,62 +504,6 @@
 
 #endif /* WOLFSSL_LINUXKM_SIMD */
 
-    /* Linux headers define these using C expressions, but we need
-     * them to be evaluable by the preprocessor, for use in sp_int.h.
-     */
-    #if BITS_PER_LONG == 64
-        _Static_assert(sizeof(ULONG_MAX) == 8, "BITS_PER_LONG is 64, but ULONG_MAX is not.");
-
-        #undef UCHAR_MAX
-        #define UCHAR_MAX 255
-        #undef USHRT_MAX
-        #define USHRT_MAX 65535
-        #undef UINT_MAX
-        #define UINT_MAX 4294967295U
-        #undef ULONG_MAX
-        #define ULONG_MAX 18446744073709551615UL
-        #undef ULLONG_MAX
-        #define ULLONG_MAX ULONG_MAX
-        #undef INT_MAX
-        #define INT_MAX 2147483647
-        #undef LONG_MAX
-        #define LONG_MAX 9223372036854775807L
-        #undef LLONG_MAX
-        #define LLONG_MAX LONG_MAX
-
-    #elif BITS_PER_LONG == 32
-
-        _Static_assert(sizeof(ULONG_MAX) == 4, "BITS_PER_LONG is 32, but ULONG_MAX is not.");
-
-        #undef UCHAR_MAX
-        #define UCHAR_MAX 255
-        #undef USHRT_MAX
-        #define USHRT_MAX 65535
-        #undef UINT_MAX
-        #define UINT_MAX 4294967295U
-        #undef ULONG_MAX
-        #define ULONG_MAX 4294967295UL
-        #undef INT_MAX
-        #define INT_MAX 2147483647
-        #undef LONG_MAX
-        #define LONG_MAX 2147483647L
-
-        #undef ULLONG_MAX
-        #undef LLONG_MAX
-        #if BITS_PER_LONG_LONG == 64
-            #define ULLONG_MAX 18446744073709551615UL
-            #define LLONG_MAX 9223372036854775807L
-        #else
-            #undef NO_64BIT
-            #define NO_64BIT
-            #define ULLONG_MAX ULONG_MAX
-            #define LLONG_MAX LONG_MAX
-        #endif
-
-#else
-        #error unexpected BITS_PER_LONG value.
-#endif
-
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
@@ -602,22 +570,64 @@
     #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
     #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
 
-    /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
-    #define XSNPRINTF snprintf
+    #include <linux/limits.h>
 
-    /* the rigmarole around kstrtoll() here is to accommodate its warn-unused-result attribute. */
-    /* also needed to suppress inclusion of stdlib.h in wolfssl/wolfcrypt/types.h */
-    #define XATOI(s) ({                                 \
-          long long _xatoi_res = 0;                     \
-          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
-          if (_xatoi_ret != 0) {                        \
-            _xatoi_res = 0;                             \
-          }                                             \
-          (int)_xatoi_res;                              \
-        })
+    /* Linux headers define these using C expressions, but we need
+     * them to be evaluable by the preprocessor, for use in sp_int.h.
+     */
+    #if BITS_PER_LONG == 64
+        _Static_assert(sizeof(ULONG_MAX) == 8,
+                       "BITS_PER_LONG is 64, but ULONG_MAX is not.");
 
-    #define WOLFSSL_KTHREADS
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 18446744073709551615UL
+        #undef ULLONG_MAX
+        #define ULLONG_MAX ULONG_MAX
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 9223372036854775807L
+        #undef LLONG_MAX
+        #define LLONG_MAX LONG_MAX
 
-    typedef struct mutex wolfSSL_Mutex;
+    #elif BITS_PER_LONG == 32
+
+        _Static_assert(sizeof(ULONG_MAX) == 4,
+                       "BITS_PER_LONG is 32, but ULONG_MAX is not.");
+
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 4294967295UL
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 2147483647L
+
+        #undef ULLONG_MAX
+        #undef LLONG_MAX
+        #if BITS_PER_LONG_LONG == 64
+            #define ULLONG_MAX 18446744073709551615UL
+            #define LLONG_MAX 9223372036854775807L
+        #else
+            #undef NO_64BIT
+            #define NO_64BIT
+            #define ULLONG_MAX ULONG_MAX
+            #define LLONG_MAX LONG_MAX
+        #endif
+
+#else
+        #error unexpected BITS_PER_LONG value.
+#endif
 
 #endif /* LINUXKM_WC_PORT_H */
