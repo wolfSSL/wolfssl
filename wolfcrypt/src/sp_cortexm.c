@@ -3433,10 +3433,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -3588,10 +3585,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -4426,10 +4420,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -4572,10 +4563,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -5025,6 +5013,12 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_READ_E;
     }
     else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
         err = MP_VAL;
     }
 
@@ -5644,7 +5638,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -8951,10 +8945,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -9106,10 +9097,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -10028,10 +10016,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -10174,10 +10159,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -10627,6 +10609,12 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_READ_E;
     }
     else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
         err = MP_VAL;
     }
 
@@ -11442,7 +11430,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -13805,10 +13793,7 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -13951,10 +13936,7 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
-        err = MP_VAL;
-    }
-    else if (bits == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -14405,6 +14387,12 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_READ_E;
     }
     else if (mp_iseven(mm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(pm)) {
+        err = MP_VAL;
+    }
+    else if (mp_iseven(qm)) {
         err = MP_VAL;
     }
 
@@ -15416,7 +15404,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
-    if ((m[0] & 1) == 0) {
+    if (bits == 0) {
         err = MP_VAL;
     }
 
@@ -18740,8 +18728,7 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
     sp_256_mont_reduce_8(r->x, p256_mod, p256_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_256_cmp_8(r->x, p256_mod);
-    sp_256_cond_sub_8(r->x, r->x, p256_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_256_cond_sub_8(r->x, r->x, p256_mod, ~(n >> 31));
     sp_256_norm_8(r->x);
 
     /* y /= z^3 */
@@ -18750,8 +18737,7 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
     sp_256_mont_reduce_8(r->y, p256_mod, p256_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_256_cmp_8(r->y, p256_mod);
-    sp_256_cond_sub_8(r->y, r->y, p256_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_256_cond_sub_8(r->y, r->y, p256_mod, ~(n >> 31));
     sp_256_norm_8(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -19406,7 +19392,8 @@ static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
         /* Check double */
         (void)sp_256_sub_8(ctx->t1, p256_mod, q->y);
         sp_256_norm_8(ctx->t1);
-        if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+        if ((~p->infinity & ~q->infinity &
+            sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
             (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, ctx->t1))) != 0)
         {
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
@@ -19574,7 +19561,8 @@ static void sp_256_proj_point_add_8(sp_point_256* r,
     /* Check double */
     (void)sp_256_sub_8(t1, p256_mod, q->y);
     sp_256_norm_8(t1);
-    if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
         (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, t1))) != 0) {
         sp_256_proj_point_dbl_8(r, p, t);
     }
@@ -19607,7 +19595,8 @@ static void sp_256_proj_point_add_8(sp_point_256* r,
         sp_256_mont_sub_8(t2, t2, t1, p256_mod);
         /* R = S2 - S1 */
         sp_256_mont_sub_8(t4, t4, t3, p256_mod);
-        if (sp_256_iszero_8(t2) & sp_256_iszero_8(t4) & maskt) {
+        if (~p->infinity & ~q->infinity &
+            sp_256_iszero_8(t2) & sp_256_iszero_8(t4) & maskt) {
             sp_256_proj_point_dbl_8(r, p, t);
         }
         else {
@@ -20049,7 +20038,8 @@ static void sp_256_proj_point_add_qz1_8(sp_point_256* r, const sp_point_256* p,
     /* Check double */
     (void)sp_256_sub_8(t1, p256_mod, q->y);
     sp_256_norm_8(t1);
-    if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
         (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, t1))) != 0) {
         sp_256_proj_point_dbl_8(r, p, t);
     }
@@ -26035,8 +26025,7 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
     sp_384_mont_reduce_12(r->x, p384_mod, p384_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_384_cmp_12(r->x, p384_mod);
-    sp_384_cond_sub_12(r->x, r->x, p384_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_384_cond_sub_12(r->x, r->x, p384_mod, ~(n >> 31));
     sp_384_norm_12(r->x);
 
     /* y /= z^3 */
@@ -26045,8 +26034,7 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
     sp_384_mont_reduce_12(r->y, p384_mod, p384_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_384_cmp_12(r->y, p384_mod);
-    sp_384_cond_sub_12(r->y, r->y, p384_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_384_cond_sub_12(r->y, r->y, p384_mod, ~(n >> 31));
     sp_384_norm_12(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -26511,7 +26499,8 @@ static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
         /* Check double */
         (void)sp_384_sub_12(ctx->t1, p384_mod, q->y);
         sp_384_norm_12(ctx->t1);
-        if ((sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
+        if ((~p->infinity & ~q->infinity &
+            sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
             (sp_384_cmp_equal_12(p->y, q->y) | sp_384_cmp_equal_12(p->y, ctx->t1))) != 0)
         {
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
@@ -26679,7 +26668,8 @@ static void sp_384_proj_point_add_12(sp_point_384* r,
     /* Check double */
     (void)sp_384_sub_12(t1, p384_mod, q->y);
     sp_384_norm_12(t1);
-    if ((sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
         (sp_384_cmp_equal_12(p->y, q->y) | sp_384_cmp_equal_12(p->y, t1))) != 0) {
         sp_384_proj_point_dbl_12(r, p, t);
     }
@@ -26712,7 +26702,8 @@ static void sp_384_proj_point_add_12(sp_point_384* r,
         sp_384_mont_sub_12(t2, t2, t1, p384_mod);
         /* R = S2 - S1 */
         sp_384_mont_sub_12(t4, t4, t3, p384_mod);
-        if (sp_384_iszero_12(t2) & sp_384_iszero_12(t4) & maskt) {
+        if (~p->infinity & ~q->infinity &
+            sp_384_iszero_12(t2) & sp_384_iszero_12(t4) & maskt) {
             sp_384_proj_point_dbl_12(r, p, t);
         }
         else {
@@ -27178,7 +27169,8 @@ static void sp_384_proj_point_add_qz1_12(sp_point_384* r, const sp_point_384* p,
     /* Check double */
     (void)sp_384_sub_12(t1, p384_mod, q->y);
     sp_384_norm_12(t1);
-    if ((sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_384_cmp_equal_12(p->x, q->x) & sp_384_cmp_equal_12(p->z, q->z) &
         (sp_384_cmp_equal_12(p->y, q->y) | sp_384_cmp_equal_12(p->y, t1))) != 0) {
         sp_384_proj_point_dbl_12(r, p, t);
     }
@@ -33403,8 +33395,7 @@ static void sp_521_map_17(sp_point_521* r, const sp_point_521* p,
     sp_521_mont_reduce_17(r->x, p521_mod, p521_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_521_cmp_17(r->x, p521_mod);
-    sp_521_cond_sub_17(r->x, r->x, p521_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_521_cond_sub_17(r->x, r->x, p521_mod, ~(n >> 31));
     sp_521_norm_17(r->x);
 
     /* y /= z^3 */
@@ -33413,8 +33404,7 @@ static void sp_521_map_17(sp_point_521* r, const sp_point_521* p,
     sp_521_mont_reduce_17(r->y, p521_mod, p521_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_521_cmp_17(r->y, p521_mod);
-    sp_521_cond_sub_17(r->y, r->y, p521_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_521_cond_sub_17(r->y, r->y, p521_mod, ~(n >> 31));
     sp_521_norm_17(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -34204,7 +34194,8 @@ static int sp_521_proj_point_add_17_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
         /* Check double */
         (void)sp_521_sub_17(ctx->t1, p521_mod, q->y);
         sp_521_norm_17(ctx->t1);
-        if ((sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
+        if ((~p->infinity & ~q->infinity &
+            sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
             (sp_521_cmp_equal_17(p->y, q->y) | sp_521_cmp_equal_17(p->y, ctx->t1))) != 0)
         {
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
@@ -34372,7 +34363,8 @@ static void sp_521_proj_point_add_17(sp_point_521* r,
     /* Check double */
     (void)sp_521_sub_17(t1, p521_mod, q->y);
     sp_521_norm_17(t1);
-    if ((sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
         (sp_521_cmp_equal_17(p->y, q->y) | sp_521_cmp_equal_17(p->y, t1))) != 0) {
         sp_521_proj_point_dbl_17(r, p, t);
     }
@@ -34405,7 +34397,8 @@ static void sp_521_proj_point_add_17(sp_point_521* r,
         sp_521_mont_sub_17(t2, t2, t1, p521_mod);
         /* R = S2 - S1 */
         sp_521_mont_sub_17(t4, t4, t3, p521_mod);
-        if (sp_521_iszero_17(t2) & sp_521_iszero_17(t4) & maskt) {
+        if (~p->infinity & ~q->infinity &
+            sp_521_iszero_17(t2) & sp_521_iszero_17(t4) & maskt) {
             sp_521_proj_point_dbl_17(r, p, t);
         }
         else {
@@ -34905,7 +34898,8 @@ static void sp_521_proj_point_add_qz1_17(sp_point_521* r, const sp_point_521* p,
     /* Check double */
     (void)sp_521_sub_17(t1, p521_mod, q->y);
     sp_521_norm_17(t1);
-    if ((sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_521_cmp_equal_17(p->x, q->x) & sp_521_cmp_equal_17(p->z, q->z) &
         (sp_521_cmp_equal_17(p->y, q->y) | sp_521_cmp_equal_17(p->y, t1))) != 0) {
         sp_521_proj_point_dbl_17(r, p, t);
     }
@@ -42772,8 +42766,7 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
     sp_1024_mont_reduce_32(r->x, p1024_mod, p1024_mp_mod);
     /* Reduce x to less than modulus */
     n = sp_1024_cmp_32(r->x, p1024_mod);
-    sp_1024_cond_sub_32(r->x, r->x, p1024_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_1024_cond_sub_32(r->x, r->x, p1024_mod, ~(n >> 31));
     sp_1024_norm_32(r->x);
 
     /* y /= z^3 */
@@ -42782,8 +42775,7 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
     sp_1024_mont_reduce_32(r->y, p1024_mod, p1024_mp_mod);
     /* Reduce y to less than modulus */
     n = sp_1024_cmp_32(r->y, p1024_mod);
-    sp_1024_cond_sub_32(r->y, r->y, p1024_mod, 0 - ((n >= 0) ?
-                (sp_digit)1 : (sp_digit)0));
+    sp_1024_cond_sub_32(r->y, r->y, p1024_mod, ~(n >> 31));
     sp_1024_norm_32(r->y);
 
     XMEMSET(r->z, 0, sizeof(r->z) / 2);
@@ -44212,7 +44204,8 @@ static int sp_1024_proj_point_add_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
         /* Check double */
         (void)sp_1024_sub_32(ctx->t1, p1024_mod, q->y);
         sp_1024_norm_32(ctx->t1);
-        if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+        if ((~p->infinity & ~q->infinity &
+            sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
             (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, ctx->t1))) != 0)
         {
             XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
@@ -44380,7 +44373,8 @@ static void sp_1024_proj_point_add_32(sp_point_1024* r,
     /* Check double */
     (void)sp_1024_mont_sub_32(t1, p1024_mod, q->y, p1024_mod);
     sp_1024_norm_32(t1);
-    if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
         (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, t1))) != 0) {
         sp_1024_proj_point_dbl_32(r, p, t);
     }
@@ -44413,7 +44407,8 @@ static void sp_1024_proj_point_add_32(sp_point_1024* r,
         sp_1024_mont_sub_32(t2, t2, t1, p1024_mod);
         /* R = S2 - S1 */
         sp_1024_mont_sub_32(t4, t4, t3, p1024_mod);
-        if (sp_1024_iszero_32(t2) & sp_1024_iszero_32(t4) & maskt) {
+        if (~p->infinity & ~q->infinity &
+            sp_1024_iszero_32(t2) & sp_1024_iszero_32(t4) & maskt) {
             sp_1024_proj_point_dbl_32(r, p, t);
         }
         else {
@@ -44743,7 +44738,8 @@ static void sp_1024_proj_point_add_qz1_32(sp_point_1024* r, const sp_point_1024*
     /* Check double */
     (void)sp_1024_mont_sub_32(t1, p1024_mod, q->y, p1024_mod);
     sp_1024_norm_32(t1);
-    if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+    if ((~p->infinity & ~q->infinity &
+        sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
         (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, t1))) != 0) {
         sp_1024_proj_point_dbl_32(r, p, t);
     }
@@ -52905,8 +52901,7 @@ static int sp_1024_ecc_is_point_32(const sp_point_1024* point,
         sp_1024_mont_add_32(t1, t1, point->x, p1024_mod);
 
         n = sp_1024_cmp_32(t1, p1024_mod);
-        sp_1024_cond_sub_32(t1, t1, p1024_mod, 0 - ((n >= 0) ?
-            (sp_digit)1 : (sp_digit)0));
+        sp_1024_cond_sub_32(t1, t1, p1024_mod, ~(n >> 31));
         sp_1024_norm_32(t1);
         if (!sp_1024_iszero_32(t1)) {
             err = MP_VAL;

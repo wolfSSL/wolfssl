@@ -1515,6 +1515,8 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     byte* tmp;
     word32 idx;
+    word32 i;
+    word32 inc;
 
     /* no label is allowed, but catch if no label provided and length > 0 */
     if (optLabel == NULL && labelLen > 0) {
@@ -1561,7 +1563,13 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     /* advance idx to index of PS and msg separator, account for PS size of 0*/
     idx = hLen + 1 + hLen;
-    while (idx < pkcsBlockLen-1 && pkcsBlock[idx] == 0) {idx++;}
+    /* Don't reveal length of message: look at every byte. */
+    inc = 1;
+    for (i = hLen + 1 + hLen; i < pkcsBlockLen - 1; i++) {
+        /* Looking for non-zero byte. */
+        inc &= 1 - (((word32)0 - pkcsBlock[i]) >> 31);
+        idx += inc;
+    }
 
     /* create hash of label for comparison with hash sent */
     if ((ret = wc_Hash(hType, optLabel, labelLen, h, hLen)) != 0) {
