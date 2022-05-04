@@ -4605,11 +4605,22 @@ AC_ARG_ENABLE([pkcs7],
     )
 
 # wolfSSH Options
-AC_ARG_ENABLE([ssh],
-    [AS_HELP_STRING([--enable-ssh],[Enable wolfSSH options (default: disabled)])],
+AC_ARG_ENABLE([wolfssh],
+    [AS_HELP_STRING([--enable-wolfssh],[Enable wolfSSH options (default: disabled)])],
     [ ENABLED_WOLFSSH=$enableval ],
     [ ENABLED_WOLFSSH=no ]
     )
+
+AC_ARG_ENABLE([ssh],
+    [AS_HELP_STRING([--enable-ssh],[Enable wolfSSH options (default: disabled)])],
+    [ ENABLED_SSH=$enableval ],
+    [ ENABLED_SSH=no ]
+    )
+
+if test "x$ENABLED_SSH" = "xyes"
+then
+    ENABLED_WOLFSSH="yes"
+fi
 
 # wolfTPM Options
 AC_ARG_ENABLE([wolftpm],
