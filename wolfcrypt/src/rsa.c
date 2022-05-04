@@ -3992,8 +3992,6 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 #endif
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(WOLFSSL_SP_MATH) || \
-                                                             defined(WC_RSA_PSS)
 int wc_RsaEncryptSize(const RsaKey* key)
 {
     int ret;
@@ -4012,7 +4010,6 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
     return ret;
 }
-#endif
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 /* flatten RsaKey structure into individual elements (e, n) */
