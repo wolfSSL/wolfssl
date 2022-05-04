@@ -4619,7 +4619,7 @@ AC_ARG_ENABLE([ssh],
 
 if test "x$ENABLED_SSH" = "xyes"
 then
-    ENABLED_WOLFSSL="yes"
+    ENABLED_WOLFSSH="yes"
 fi
 
 # wolfTPM Options
