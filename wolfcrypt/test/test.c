@@ -73,10 +73,10 @@
 #define PRINT_HEAP_CHECKPOINT() {                                        \
     const ssize_t _rha = wolfCrypt_heap_peakAllocs_checkpoint() - heap_baselineAllocs; \
     const ssize_t _rhb = wolfCrypt_heap_peakBytes_checkpoint() - heap_baselineBytes; \
-    printf("    relative heap peak usage: %ld alloc%s, %ld bytes\n",    \
-           _rha,                                                        \
+    printf("    relative heap peak usage: %d alloc%s, %d bytes\n",      \
+           (int)_rha,                                                   \
            _rha == 1 ? "" : "s",                                        \
-           _rhb);                                                       \
+           (int)_rhb);                                                  \
     if ((max_relative_heap_allocs > 0) && (_rha > max_relative_heap_allocs)) \
         return err_sys("heap allocs exceed designated max.", -1);       \
     if ((max_relative_heap_bytes > 0) && (_rhb > max_relative_heap_bytes)) \
