@@ -1828,7 +1828,7 @@ int InitCAAM(void)
         }
     }
 
-    WOLFSSL_MSG("Successfully initilazed CAAM driver");
+    WOLFSSL_MSG("Successfully initialized CAAM driver");
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
     fflush(stdout);
     #endif
