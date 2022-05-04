@@ -33,6 +33,9 @@ THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else
 int wolfcrypt_test(void* args);
 #endif
+#ifndef NO_MAIN_DRIVER
+int wolfcrypt_test_main(int argc, char** argv);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

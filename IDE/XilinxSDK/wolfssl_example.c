@@ -22,6 +22,14 @@
 #include "xil_printf.h"
 #include "xrtcpsu.h"
 
+#ifdef FREERTOS
+/* FreeRTOS includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "timers.h"
+#endif
+
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/wolfcrypt/wc_port.h"
 #include "wolfssl/wolfcrypt/error-crypt.h"
@@ -64,7 +72,36 @@ unsigned char my_rng_seed_gen(void)
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
+#ifdef FREERTOS
+
+static void wolfssl_task( void *pvParameters );
+static TaskHandle_t xWolfsslTask;
+
+int main( void )
+{
+    xTaskCreate(wolfssl_task, /* The function that implements the task. */
+                (const char*) "Tx", /* Text name for the task, provided to assist debugging only. */
+                configMINIMAL_STACK_SIZE, /* The stack allocated to the task. */
+                NULL, /* The task parameter is not used, so set to NULL. */
+                tskIDLE_PRIORITY, /* The task runs at the idle priority. */
+                &xWolfsslTask);
+
+    /* Start the task. */
+    vTaskStartScheduler();
+
+    /* If all is well, the scheduler will now be running, and the following line
+     will never be reached.  If the following line does execute, then there was
+     insufficient FreeRTOS heap memory available for the idle and/or timer tasks
+     to be created.  See the memory management section on the FreeRTOS web site
+     for more details. */
+    for (;;)
+        ;
+}
+
+static void wolfssl_task( void *pvParameters )
+#else
 int main()
+#endif
 {
 	uint8_t cmd;
 	func_args args;
@@ -114,6 +151,7 @@ int main()
 	}
 
     wolfCrypt_Cleanup();
-
+#ifndef FREERTOS
     return 0;
+#endif
 }

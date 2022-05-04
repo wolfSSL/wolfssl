@@ -37,7 +37,9 @@
 
 /* Xilinx SDK */
 #define WOLFSSL_XILINX
+#ifndef FREERTOS
 #define SINGLE_THREADED
+#endif
 #define NO_FILESYSTEM
 
 /* Platform - remap printf */
