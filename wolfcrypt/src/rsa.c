@@ -239,7 +239,7 @@ enum {
 
 static void wc_RsaCleanup(RsaKey* key)
 {
-#ifndef WOLFSSL_RSA_VERIFY_INLINE
+#if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_NO_MALLOC)
     if (key && key->data) {
         /* make sure any allocated memory is free'd */
         if (key->dataIsAlloc) {
@@ -273,7 +273,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->type = RSA_TYPE_UNKNOWN;
     key->state = RSA_STATE_NONE;
     key->heap = heap;
-#ifndef WOLFSSL_RSA_VERIFY_INLINE
+#if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_NO_MALLOC)
     key->dataIsAlloc = 0;
     key->data = NULL;
 #endif
@@ -3284,7 +3284,8 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
     #endif /* WOLFSSL_CRYPTOCELL */
 
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
         /* verify the tmp ptr is NULL, otherwise indicates bad state */
         if (key->data != NULL) {
             ret = BAD_STATE_E;
@@ -3312,7 +3313,8 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         FALL_THROUGH;
 
     case RSA_STATE_DECRYPT_EXPTMOD:
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
         ret = wc_RsaFunction_ex(key->data, inLen, key->data, &key->dataLen,
                                                    rsa_type, key, rng,
                                                    pad_type != WC_RSA_OAEP_PAD);
@@ -3331,7 +3333,8 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         FALL_THROUGH;
 
     case RSA_STATE_DECRYPT_UNPAD:
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
         ret = wc_RsaUnPad_ex(key->data, key->dataLen, &pad, pad_value, pad_type,
                              hash, mgf, label, labelSz, saltLen,
                              mp_count_bits(&key->n), key->heap);
@@ -3343,13 +3346,15 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen)
             ret = RSA_BUFFER_E;
         else if (ret >= 0 && pad != NULL) {
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
             signed char c;
 #endif
 
             /* only copy output if not inline */
             if (outPtr == NULL) {
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
                 if (rsa_type == RSA_PRIVATE_DECRYPT) {
                     word32 i = 0;
                     word32 j;

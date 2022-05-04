@@ -205,7 +205,8 @@ struct RsaKey {
     char label[RSA_MAX_LABEL_LEN];
     int  labelLen;
 #endif
-#if defined(WOLFSSL_ASYNC_CRYPT) || !defined(WOLFSSL_RSA_VERIFY_INLINE)
+#if defined(WOLFSSL_ASYNC_CRYPT) || !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+    !defined(WOLFSSL_NO_MALLOC)
     byte   dataIsAlloc;
 #endif
 #ifdef WC_RSA_NONBLOCK
