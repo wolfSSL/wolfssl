@@ -8246,9 +8246,15 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         XMEMCPY(p, scratch, partial);
     }
 
-    /* ConstantCompare returns XOR of bytes. */
+    /* ConstantCompare returns cumulative or of the bytewise XOR. */
     res = ConstantCompare(authTag, Tprime, authTagSz);
-    res = (0 - res) >> 31;
+    /* convert positive retval from ConstantCompare() to all-1s word, in
+     * constant time.
+     */
+    res = 0 - (sword32)(((word32)(0 - res)) >> 31U);
+    /* now use res as a mask for constant time return of ret, unless tag
+     * mismatch, whereupon AES_GCM_AUTH_E is returned.
+     */
     ret = (ret & ~res) | (res & AES_GCM_AUTH_E);
 
     return ret;
