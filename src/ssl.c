@@ -45308,18 +45308,11 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
                                     int offset_day, long offset_sec)
 {
     const time_t sec_per_day = 24*60*60;
-    struct tm* ts = NULL;
-    struct tm* tmpTime;
     time_t t_adj = 0;
     time_t offset_day_sec = 0;
-#if defined(NEED_TMP_TIME)
-    struct tm tmpTimeStorage;
-
-    tmpTime = &tmpTimeStorage;
-#else
-    tmpTime = NULL;
-#endif
-    (void)tmpTime;
+    char utc_str_buf[MAX_TIME_STRING_SZ] = {0};
+    char* utc_str = utc_str_buf;
+    int time_get;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
 
@@ -45333,54 +45326,18 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     /* compute GMT time with offset */
     offset_day_sec = offset_day * sec_per_day;
     t_adj          = t + offset_day_sec + offset_sec;
-    ts             = (struct tm *)XGMTIME(&t_adj, tmpTime);
-    if (ts == NULL){
-        WOLFSSL_MSG("failed to get time data.");
+
+    /* Get UTC Time */
+    time_get = GetUnformattedTimeString(&t_adj, (byte*) utc_str,
+                                        sizeof(utc_str_buf));
+    if (time_get <= 0) {
         wolfSSL_ASN1_TIME_free(s);
         return NULL;
     }
 
-    /* create ASN1 time notation */
-    /* UTC Time */
-    if (ts->tm_year >= 50 && ts->tm_year < 150){
-        char utc_str[ASN_UTC_TIME_SIZE];
-        int utc_year = 0,utc_mon,utc_day,utc_hour,utc_min,utc_sec;
-
-        if (ts->tm_year >= 50 && ts->tm_year < 100){
-            utc_year = ts->tm_year;
-        } else if (ts->tm_year >= 100 && ts->tm_year < 150){
-            utc_year = ts->tm_year - 100;
-        }
-        utc_mon  = ts->tm_mon + 1;
-        utc_day  = ts->tm_mday;
-        utc_hour = ts->tm_hour;
-        utc_min  = ts->tm_min;
-        utc_sec  = ts->tm_sec;
-        XSNPRINTF((char *)utc_str, sizeof(utc_str),
-                  "%02d%02d%02d%02d%02d%02dZ",
-                  utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS) {
-            wolfSSL_ASN1_TIME_free(s);
-            return NULL;
-        }
-    /* GeneralizedTime */
-    } else {
-        char gt_str[ASN_GENERALIZED_TIME_MAX];
-        int gt_year,gt_mon,gt_day,gt_hour,gt_min,gt_sec;
-
-        gt_year = ts->tm_year + 1900;
-        gt_mon  = ts->tm_mon + 1;
-        gt_day  = ts->tm_mday;
-        gt_hour = ts->tm_hour;
-        gt_min  = ts->tm_min;
-        gt_sec  = ts->tm_sec;
-        XSNPRINTF((char *)gt_str, sizeof(gt_str),
-                  "%4d%02d%02d%02d%02d%02dZ",
-                  gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS) {
-            wolfSSL_ASN1_TIME_free(s);
-            return NULL;
-        }
+    if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS) {
+        wolfSSL_ASN1_TIME_free(s);
+        return NULL;
     }
 
     return s;
