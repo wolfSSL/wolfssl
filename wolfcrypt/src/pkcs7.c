@@ -360,7 +360,7 @@ static int wc_PKCS7_SetMaxStream(PKCS7* pkcs7, byte* in, word32 defSz)
     #ifdef ASN_BER_TO_DER
         if (length == 0 && ret == 0) {
             idx = 0;
-            if ((ret = wc_BerToDer(pt, defSz, NULL,
+            if ((ret = wc_BerToDer(pt, maxIdx, NULL,
                             (word32*)&length)) != LENGTH_ONLY_E) {
                 return ret;
             }
