@@ -469,6 +469,105 @@ static void show_usage(void)
     printf("\t./snifftest dump pemKey [server] [port] [password]\n");
 }
 
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+
+typedef struct SnifferPacket {
+    byte* packet;
+    int   length;
+    int   lastRet;
+    int   packetNumber;
+} SnifferPacket;
+
+static SnifferPacket asyncQueue[WOLF_ASYNC_MAX_PENDING];
+
+/* returns index to queue */
+static int SnifferAsyncQueueAdd(int lastRet, void* chain, int chainSz,
+    int isChain, int packetNumber)
+{
+    int ret = MEMORY_E, i, length;
+    byte* packet;
+
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+    if (isChain) {
+        struct iovec* vchain = (struct iovec*)chain;
+        length = 0;
+        for (i = 0; i < chainSz; i++)
+            length += vchain[i].iov_len;
+        packet = (byte*)vchain[0].iov_base;
+    }
+    else
+#endif
+    {
+        packet = (byte*)chain;
+        length = chainSz;
+    }
+
+    /* find first free idx */
+    for (i=0; i<WOLF_ASYNC_MAX_PENDING; i++) {
+        if (asyncQueue[i].packet == NULL) {
+            if (ret == MEMORY_E) {
+                ret = i;
+                break;
+            }
+        }
+    }
+    if (ret != MEMORY_E) {
+        asyncQueue[ret].packet = XMALLOC(length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (asyncQueue[ret].packet == NULL) {
+            return MEMORY_E;
+        }
+        XMEMCPY(asyncQueue[ret].packet, packet, length);
+        asyncQueue[ret].length = length;
+        asyncQueue[ret].lastRet = lastRet;
+        asyncQueue[ret].packetNumber = packetNumber;
+    }
+
+    return ret;
+}
+
+static int SnifferAsyncPollQueue(byte** data, char* err, SSLInfo* sslInfo,
+    int* queueSz)
+{
+    int ret = 0, i;
+    WOLF_EVENT* events[WOLF_ASYNC_MAX_PENDING];
+    int eventCount = 0;
+
+    /* try to process existing items in queue */
+    for (i=0; i<WOLF_ASYNC_MAX_PENDING; i++) {
+        if (asyncQueue[i].packet != NULL) {
+            (*queueSz)++;
+
+            /* do poll for events on hardware */
+            ret = ssl_PollSniffer(events, WOLF_ASYNC_MAX_PENDING,
+                WOLF_POLL_FLAG_CHECK_HW, &eventCount);
+            if (ret == 0) {
+                /* attempt to reprocess pending packet */
+            #ifdef DEBUG_SNIFFER
+                printf("Retrying packet %d\n", asyncQueue[i].packetNumber);
+            #endif
+                ret = ssl_DecodePacketAsync(asyncQueue[i].packet,
+                    asyncQueue[i].length, 0, data, err, sslInfo, NULL);
+                asyncQueue[i].lastRet = ret;
+                if (ret >= 0) {
+                    /* done, so free and break to process below */
+                    XFREE(asyncQueue[i].packet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    asyncQueue[i].packet = NULL;
+                    if (ret > 0) {
+                        /* decrypted some data, so return */
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (ret == WC_PENDING_E) {
+        ret = 0; /* nothing new */
+    }
+    return ret;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -493,6 +592,7 @@ int main(int argc, char** argv)
     struct iovec chains[CHAIN_INPUT_COUNT];
     unsigned int remainder;
 #endif
+    int packetNumber = 0;
 
     show_appinfo();
 
@@ -702,23 +802,44 @@ int main(int argc, char** argv)
         frame = NULL_IF_FRAME_LEN;
 
     while (1) {
-        static int packetNumber = 0;
         struct pcap_pkthdr header;
-        const unsigned char* packet = pcap_next(pcap, &header);
+        const unsigned char* packet = NULL;
         SSLInfo sslInfo;
         void* chain = NULL;
         int   chainSz = 0;
+        byte* data = NULL; /* pointer to decrypted data */
+#ifdef WOLFSSL_ASYNC_CRYPT
+        int queueSz = 0;
+#endif
 
-        packetNumber++;
+#ifndef WOLFSSL_ASYNC_CRYPT
+        ret = 0; /* reset status */
+#else
+        /* poll hardware and attempt to process items in queue. If returns > 0
+         * then data pointer has decrypted something */
+        ret = SnifferAsyncPollQueue(&data, err, &sslInfo, &queueSz);
+        if (queueSz >= WOLF_ASYNC_MAX_PENDING) {
+            /* queue full, poll again */
+            continue;
+        }
+#endif
+        if (data == NULL) {
+            /* grab next pcap packet */
+            packetNumber++;
+            packet = pcap_next(pcap, &header);
+        #ifdef QAT_DEBUG
+            printf("Packet Number: %d\n", packetNumber);
+        #endif
+        }
         if (packet) {
-            byte* data = NULL;
-
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
                 packet        += frame;
                 header.caplen -= frame;
             }
-            else
+            else {
+                /* packet doesn't contain minimum ip/tcp header */
                 continue;
+            }
 
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
             isChain = 1;
@@ -740,23 +861,26 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-            do {
-                WOLF_EVENT* events[WOLF_ASYNC_MAX_PENDING];
-                int eventCount = 0;
+            /* For async call the original API again with same data,
+             * or call with different sessions for multiple concurrent
+             * stream processing */
+            ret = ssl_DecodePacketAsync(chain, chainSz, isChain, &data, err,
+                &sslInfo, NULL);
 
-                /* For async call the original API again with same data,
-                 * or call with different sessions for multiple concurrent
-                 * stream processing */
-                ret = ssl_DecodePacketAsync(chain, chainSz, isChain, &data, err,
-                    &sslInfo, NULL);
-
-                if (ret == WC_PENDING_E) {
-                    if (ssl_PollSniffer(events, 1, WOLF_POLL_FLAG_CHECK_HW,
-                        &eventCount) != 0) {
-                        break;
-                    }
+            /* WC_PENDING_E: Hardware is processing */
+            /* WC_HW_WAIT_E: Hardware is already processing stream */
+            if (ret == WC_PENDING_E || ret == WC_HW_WAIT_E) {
+                /* add to queue, for later processing */
+            #ifdef DEBUG_SNIFFER
+                printf("Steam is pending, queue packet %d\n", packetNumber);
+            #endif
+                ret = SnifferAsyncQueueAdd(ret, chain, chainSz, isChain,
+                    packetNumber);
+                if (ret >= 0) {
+                    ret = 0; /* mark event just added */
                 }
-            } while (ret == WC_PENDING_E);
+            }
+
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
       defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
             ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
@@ -775,24 +899,27 @@ int main(int argc, char** argv)
             (void)chain;
             (void)chainSz;
 #endif
-
-            if (ret < 0) {
-                printf("ssl_Decode ret = %d, %s\n", ret, err);
-                hadBadPacket = 1;
-            }
-            if (ret > 0) {
-                /* Convert non-printable data to periods. */
-                for (j = 0; j < ret; j++) {
-                    if (isprint(data[j]) || isspace(data[j])) continue;
-                    data[j] = '.';
-                }
-                data[ret] = 0;
-                printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
-                ssl_FreeZeroDecodeBuffer(&data, ret, err);
-            }
         }
-        else if (saveFile)
-            break;      /* we're done reading file */
+        
+        /* check if we are done reading file */
+        if (packet == NULL && data == NULL && saveFile) {
+            break;
+        }
+
+        if (ret < 0) {
+            printf("ssl_Decode ret = %d, %s\n", ret, err);
+            hadBadPacket = 1;
+        }
+        if (data != NULL && ret > 0) {
+            /* Convert non-printable data to periods. */
+            for (j = 0; j < ret; j++) {
+                if (isprint(data[j]) || isspace(data[j])) continue;
+                data[j] = '.';
+            }
+            data[ret] = 0;
+            printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
+            ssl_FreeZeroDecodeBuffer(&data, ret, err);
+        }
     }
     FreeAll();
     (void)isChain;
