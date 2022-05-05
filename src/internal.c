@@ -2385,7 +2385,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
         ctx->ca_names = NULL;
     #endif
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
             wolfSSL_sk_X509_pop_free(ctx->x509Chain, NULL);
             ctx->x509Chain = NULL;
@@ -7229,7 +7229,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 
     if (ssl->session != NULL)
-        wolfSSL_FreeSession(ssl->session);
+        wolfSSL_FreeSession(ssl->ctx, ssl->session);
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {
         FreeWriteDup(ssl);
@@ -7299,7 +7299,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#ifdef OPENSSL_EXTRA
     /* Enough to free stack structure since WOLFSSL_CIPHER
      * isn't allocated separately. */
     wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
@@ -7531,11 +7531,11 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 /* heap argument is the heap hint used when creating SSL */
 void FreeSSL(WOLFSSL* ssl, void* heap)
 {
-    if (ssl->ctx) {
-        FreeSSL_Ctx(ssl->ctx); /* will decrement and free underlying CTX if 0 */
-    }
+    WOLFSSL_CTX* ctx = ssl->ctx;
     SSL_ResourceFree(ssl);
     XFREE(ssl, heap, DYNAMIC_TYPE_SSL);
+    if (ctx)
+        FreeSSL_Ctx(ctx); /* will decrement and free underlying CTX if 0 */
     (void)heap;
 }
 
@@ -29335,9 +29335,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
             } else {
-            #ifdef HAVE_EXT_CACHE
-                wolfSSL_SESSION_free(session);
-            #endif
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;

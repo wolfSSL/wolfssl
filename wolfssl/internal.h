@@ -3079,7 +3079,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_EXT_CACHE
     WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, const unsigned char*, int, int*);
     int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
-    void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
+#endif
+#if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+    Rem_Sess_Cb rem_sess_cb;
 #endif
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256)
     Srp*  srp;  /* TLS Secure Remote Password Protocol*/
@@ -3351,6 +3353,10 @@ struct WOLFSSL_SESSION {
 #endif
     byte               altSessionID[ID_LEN];
     byte               haveAltSessionID:1;
+#ifdef HAVE_EX_DATA
+    byte               ownExData:1;
+    Rem_Sess_Cb        rem_sess_cb;
+#endif
     void*              heap;
     /* WARNING The above fields (up to and including the heap) are not copied
      *         in wolfSSL_DupSession. Place new fields after the heap
@@ -3443,9 +3449,9 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
-WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id,
-                      byte idSz, int* sessionIndex, int side, word16 useTicket,
-                      ClientSession** clientCacheEntry);
+WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_CTX* ssl,
+    WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
+    int side, word16 useTicket, ClientSession** clientCacheEntry);
 #ifndef NO_CLIENT_CACHE
 WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
                       byte* serverID, word16 idLen, const byte* sessionID,
@@ -3455,7 +3461,8 @@ WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
-WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_SESSION* session);
+WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
+        WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_DupSession(const WOLFSSL_SESSION* input,
         WOLFSSL_SESSION* output, int avoidSysCalls);
 

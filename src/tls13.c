@@ -2829,13 +2829,13 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
             /* OpenSSL compatible callback that gets cached session. */
             if (ssl->options.session_psk_cb(ssl, handshake_md, &id, &idlen,
                                                             &psksession) == 0) {
-                wolfSSL_SESSION_free(psksession);
+                wolfSSL_FreeSession(ssl->ctx, psksession);
                 WOLFSSL_MSG("psk session callback failed");
                 return PSK_KEY_ERROR;
             }
             if (psksession != NULL) {
                 if (idlen > MAX_PSK_KEY_LEN) {
-                    wolfSSL_SESSION_free(psksession);
+                    wolfSSL_FreeSession(ssl->ctx, psksession);
                     WOLFSSL_MSG("psk key length is too long");
                     return PSK_KEY_ERROR;
                 }
@@ -2845,7 +2845,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
                 suite[0] = psksession->cipherSuite0;
                 suite[1] = psksession->cipherSuite;
                 /* Not needed anymore. */
-                wolfSSL_SESSION_free(psksession);
+                wolfSSL_FreeSession(ssl->ctx, psksession);
                 /* Leave pointer not NULL to indicate success with callback. */
             }
         }
