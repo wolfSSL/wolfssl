@@ -630,8 +630,7 @@ int main(int argc, char** argv)
 
     wolfSSL_Cleanup();
     printf("\nAll tests passed!\n");
-
-    EXIT_TEST(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }
 
 

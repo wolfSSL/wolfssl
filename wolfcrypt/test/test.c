@@ -70,19 +70,19 @@
 #else
     static ssize_t max_relative_heap_bytes = -1;
 #endif
-#define PRINT_HEAP_CHECKPOINT() {                                        \
+#define PRINT_HEAP_CHECKPOINT() {                                           \
     const ssize_t _rha = wolfCrypt_heap_peakAllocs_checkpoint() - heap_baselineAllocs; \
-    const ssize_t _rhb = wolfCrypt_heap_peakBytes_checkpoint() - heap_baselineBytes; \
-    printf("    relative heap peak usage: %d alloc%s, %d bytes\n",      \
-           (int)_rha,                                                   \
-           _rha == 1 ? "" : "s",                                        \
-           (int)_rhb);                                                  \
+    const ssize_t _rhb = wolfCrypt_heap_peakBytes_checkpoint() - heap_baselineBytes;   \
+    printf("    relative heap peak usage: %ld alloc%s, %ld bytes\n",         \
+           (long int)_rha,                                                   \
+           _rha == 1 ? "" : "s",                                             \
+           (long int)_rhb);                                                  \
     if ((max_relative_heap_allocs > 0) && (_rha > max_relative_heap_allocs)) \
-        return err_sys("heap allocs exceed designated max.", -1);       \
-    if ((max_relative_heap_bytes > 0) && (_rhb > max_relative_heap_bytes)) \
-        return err_sys("heap bytes exceed designated max.", -1);        \
-    heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();        \
-    heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();         \
+        return err_sys("heap allocs exceed designated max.", -1);            \
+    if ((max_relative_heap_bytes > 0) && (_rhb > max_relative_heap_bytes))   \
+        return err_sys("heap bytes exceed designated max.", -1);             \
+    heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();            \
+    heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();              \
     }
 #else
 #define PRINT_HEAP_CHECKPOINT()
