@@ -12211,12 +12211,18 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 
     data_len = GetUnformattedTimeString(currTime, uf_time, len);
     /* ensure room to add 2 bytes (ASN type and length) before proceeding */
-    if (len < data_len + 2)
-        return BUFFER_E;
-    if(data_len <= 0)
+    if(data_len <= 0) {
         return ASN_TIME_E;
+    } else if (len < data_len + 2) {
+        return BUFFER_E;
+    }
 
-    /* Increment by 1 for ASN type */
+    /* Increment by 1 for ASN type, it is critical that this increment occur
+     * prior to the check on data_len being ASN_UTC_TIME_SIZE or
+     * ASN_GENERALIZED_TIME_SIZE since GetUnformattedTimeString returns the
+     * length without NULL terminator
+     * (IE 13 instead of 14 for ASN_UTC_TIME_SIZE) This logic WILL NEED updated
+     * if ASN_UTC_TIME_SIZE or ASN_GENERALIZED_TIME_SIZE are ever modified */
     data_len++;
 
     if (data_len == ASN_UTC_TIME_SIZE) {

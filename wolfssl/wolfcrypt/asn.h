@@ -156,8 +156,13 @@ enum ASN_Tags {
     ASN_ASYMKEY_PUBKEY    = 0x01,
 };
 
-#define ASN_UTC_TIME_SIZE 14
-#define ASN_GENERALIZED_TIME_SIZE 16
+/* NOTE: If ASN_UTC_TIME_SIZE or ASN_GENERALIZED_TIME_SIZE are ever modified
+ *       one needs to update the logic in asn.c function GetAsnTimeString()
+ *       which depends on the size 14 and/or 16 to determine which format to
+ *       place in the "buf" (output)
+ */
+#define ASN_UTC_TIME_SIZE 14 /* Read note above before modifying */
+#define ASN_GENERALIZED_TIME_SIZE 16 /* Read note above before modifying */
 #define ASN_GENERALIZED_TIME_MAX 68
 
 #ifdef WOLFSSL_ASN_TEMPLATE
