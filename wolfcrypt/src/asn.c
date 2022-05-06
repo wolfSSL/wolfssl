@@ -12201,7 +12201,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 {
     byte* data_ptr  = buf;
-    byte  uf_time[ASN_GENERALIZED_TIME_SIZE] = {0};
+    byte  uf_time[ASN_GENERALIZED_TIME_SIZE];
     word32 data_len = 0;
 
     WOLFSSL_ENTER("GetAsnTimeString");
@@ -12209,49 +12209,51 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
     if (buf == NULL || len == 0)
         return BAD_FUNC_ARG;
 
-    data_len = GetUnformattedTimeString(currTime, uf_time, len);
-    /* ensure room to add 2 bytes (ASN type and length) before proceeding */
-    if(data_len <= 0) {
+    XMEMSET(uf_time, 0, sizeof(uf_time));
+    /* GetFormattedTime returns length with null terminator */
+    data_len = GetFormattedTime(currTime, uf_time, len);
+    if (data_len <= 0) {
         return ASN_TIME_E;
-    } else if (len < data_len + 2) {
+    }
+    /* ensure room to add 2 bytes (ASN type and length) before proceeding */
+    else if (len < data_len + 2) {
         return BUFFER_E;
     }
 
-    /* Increment by 1 for ASN type, it is critical that this increment occur
-     * prior to the check on data_len being ASN_UTC_TIME_SIZE or
-     * ASN_GENERALIZED_TIME_SIZE since GetUnformattedTimeString returns the
-     * length without NULL terminator
-     * (IE 13 instead of 14 for ASN_UTC_TIME_SIZE) This logic WILL NEED updated
-     * if ASN_UTC_TIME_SIZE or ASN_GENERALIZED_TIME_SIZE are ever modified */
-    data_len++;
-
-    if (data_len == ASN_UTC_TIME_SIZE) {
+    if (data_len == ASN_UTC_TIME_SIZE-1) {
         /* increment data_len for ASN length byte after adding the data_ptr */
-        *data_ptr = (byte) ASN_UTC_TIME; data_ptr++; data_len++;
+        *data_ptr = (byte)ASN_UTC_TIME; data_ptr++; data_len++;
         /* -1 below excludes null terminator */
-        *data_ptr = (byte) ASN_UTC_TIME_SIZE - 1; data_ptr++;
-        XMEMCPY(data_ptr,(byte *)uf_time, ASN_UTC_TIME_SIZE - 1);
-    } else if (data_len == ASN_GENERALIZED_TIME_SIZE) {
+        *data_ptr = (byte)ASN_UTC_TIME_SIZE - 1; data_ptr++; data_len++;
+        XMEMCPY(data_ptr, (byte *)uf_time, ASN_UTC_TIME_SIZE - 1);
+        *data_ptr += ASN_UTC_TIME_SIZE - 1;
+    }
+    else if (data_len == ASN_GENERALIZED_TIME_SIZE-1) {
         /* increment data_len for ASN length byte after adding the data_ptr */
-        *data_ptr = (byte) ASN_GENERALIZED_TIME; data_ptr++; data_len++;
+        *data_ptr = (byte)ASN_GENERALIZED_TIME; data_ptr++; data_len++;
         /* -1 below excludes null terminator */
-        *data_ptr = (byte) ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++;
-        XMEMCPY(data_ptr,(byte *)uf_time, ASN_GENERALIZED_TIME_SIZE - 1);
-    } else {
+        *data_ptr = (byte)ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++; data_len++;
+        XMEMCPY(data_ptr, (byte*)uf_time, ASN_GENERALIZED_TIME_SIZE - 1);
+        *data_ptr += ASN_GENERALIZED_TIME_SIZE - 1;
+    }
+    else {
         WOLFSSL_MSG("Invalid time size returned");
         return ASN_TIME_E;
     }
+    /* append null terminator */
+    *data_ptr = 0;
 
+    /* return length without null terminator */
     return data_len;
 }
 
-/* return just the raw time string */
-int GetUnformattedTimeString(void* currTime, byte* buf, word32 len)
+/* return just the time string as either UTC or Generalized Time*/
+int GetFormattedTime(void* currTime, byte* buf, word32 len)
 {
     struct tm* ts      = NULL;
     struct tm* tmpTime = NULL;
     int year, mon, day, hour, mini, sec;
-    int ret_bytes_len = 0;
+    int ret;
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
@@ -12259,13 +12261,13 @@ int GetUnformattedTimeString(void* currTime, byte* buf, word32 len)
     (void)tmpTime;
 #endif
 
-    WOLFSSL_ENTER("GetTimeString");
+    WOLFSSL_ENTER("GetFormattedTime");
 
     if (buf == NULL || len == 0)
         return BAD_FUNC_ARG;
 
     ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
-    if (ts == NULL){
+    if (ts == NULL) {
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;
     }
@@ -12277,7 +12279,8 @@ int GetUnformattedTimeString(void* currTime, byte* buf, word32 len)
         /* UTC Time */
         if (ts->tm_year >= 50 && ts->tm_year < 100) {
             year = ts->tm_year;
-        } else if (ts->tm_year >= 100 && ts->tm_year < 150) {
+        }
+        else if (ts->tm_year >= 100 && ts->tm_year < 150) {
             year = ts->tm_year - 100;
         }
         else {
@@ -12289,10 +12292,11 @@ int GetUnformattedTimeString(void* currTime, byte* buf, word32 len)
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-        ret_bytes_len = XSNPRINTF((char *)buf, len,
-                                  "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
-                                  hour, mini, sec);
-    } else {
+        ret = XSNPRINTF((char*)buf, len,
+                        "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
+                        hour, mini, sec);
+    }
+    else {
         /* GeneralizedTime */
         year = ts->tm_year + 1900;
         mon  = ts->tm_mon + 1;
@@ -12300,12 +12304,12 @@ int GetUnformattedTimeString(void* currTime, byte* buf, word32 len)
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-        ret_bytes_len = XSNPRINTF((char *)buf, len,
-                                  "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
-                                  hour, mini, sec);
+        ret = XSNPRINTF((char*)buf, len,
+                        "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
+                        hour, mini, sec);
     }
 
-    return ret_bytes_len;
+    return ret;
 }
 
 #endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES &&
