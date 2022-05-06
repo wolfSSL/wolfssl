@@ -680,6 +680,7 @@ static const bench_alg bench_other_opt[] = {
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
+#if defined(HAVE_PQC)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
 typedef struct bench_pq_alg {
@@ -758,6 +759,7 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
 #endif
     { NULL, 0, NULL }
 };
+#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
@@ -7747,6 +7749,7 @@ int main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
+        #if defined(HAVE_PQC)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {
@@ -7755,6 +7758,7 @@ int main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
+        #endif
             /* Other known cryptographic algorithms */
             for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_other_opt[i].str)) {

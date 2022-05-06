@@ -215,8 +215,8 @@
     #endif
 #endif
 
-#ifndef CHAR_BIT
-    /* Needed for DTLS without big math */
+#if !defined(CHAR_BIT) || (defined(OPENSSL_EXTRA) && !defined(INT_MAX))
+    /* Needed for DTLS without big math and INT_MAX */
     #include <limits.h>
 #endif
 
