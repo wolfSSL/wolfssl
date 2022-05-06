@@ -45310,8 +45310,8 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     const time_t sec_per_day = 24*60*60;
     time_t t_adj = 0;
     time_t offset_day_sec = 0;
-    char utc_str_buf[MAX_TIME_STRING_SZ] = {0};
-    char* utc_str = utc_str_buf;
+    char time_str_buf[MAX_TIME_STRING_SZ] = {0};
+    char* time_str = time_str_buf;
     int time_get;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
@@ -45328,14 +45328,14 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     t_adj          = t + offset_day_sec + offset_sec;
 
     /* Get UTC Time */
-    time_get = GetUnformattedTimeString(&t_adj, (byte*) utc_str,
-                                        sizeof(utc_str_buf));
+    time_get = GetUnformattedTimeString(&t_adj, (byte*) time_str,
+                                        sizeof(time_str_buf));
     if (time_get <= 0) {
         wolfSSL_ASN1_TIME_free(s);
         return NULL;
     }
 
-    if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_ASN1_TIME_set_string(s, time_str) != WOLFSSL_SUCCESS) {
         wolfSSL_ASN1_TIME_free(s);
         return NULL;
     }
