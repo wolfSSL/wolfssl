@@ -900,7 +900,7 @@ int main(int argc, char** argv)
             (void)chainSz;
 #endif
         }
-        
+
         /* check if we are done reading file */
         if (packet == NULL && data == NULL && saveFile) {
             break;
