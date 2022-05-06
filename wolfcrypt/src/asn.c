@@ -271,7 +271,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in] cnt   Number of elements required.
      */
     #define DECL_ASNGETDATA(name, cnt)                                         \
-        ASNGetData* name = NULL;
+        ASNGetData* name = NULL
 
     /* Allocates the dynamic BER decoding data.
      *
@@ -327,7 +327,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in] cnt   Number of elements required.
      */
     #define DECL_ASNSETDATA(name, cnt)                                         \
-        ASNSetData* name = NULL;
+        ASNSetData* name = NULL
 
     /* Allocates the dynamic DER encoding data.
      *
@@ -383,7 +383,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in] cnt   Number of elements required.
      */
     #define DECL_ASNGETDATA(name, cnt)                  \
-        ASNGetData name[cnt];
+        ASNGetData name[cnt]
 
     /* No implementation as declartion is static.
      *
@@ -402,7 +402,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define CALLOC_ASNGETDATA(name, cnt, err, heap)     \
-        XMEMSET(name, 0, sizeof(name));
+        XMEMSET(name, 0, sizeof(name))
 
     /* No implementation as declartion is static.
      *
@@ -417,7 +417,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in] cnt   Number of elements required.
      */
     #define DECL_ASNSETDATA(name, cnt)                  \
-        ASNSetData name[cnt];
+        ASNSetData name[cnt]
 
     /* No implementation as declartion is static.
      *
@@ -436,7 +436,7 @@ static word32 SizeASNLength(word32 length)
      * @param [in]      heap  Dynamic memory allocation hint.
      */
     #define CALLOC_ASNSETDATA(name, cnt, err, heap)     \
-        XMEMSET(name, 0, sizeof(name));
+        XMEMSET(name, 0, sizeof(name))
 
     /* No implementation as declartion is static.
      *
@@ -28634,7 +28634,9 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     const byte* priv;
     const byte* pub;
 #else
+    int ret = 0;
     DECL_ASNGETDATA(dataASN, edKeyASN_Length);
+    CALLOC_ASNGETDATA(dataASN, edKeyASN_Length, ret, NULL);
 #endif
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
@@ -28714,10 +28716,6 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
         return ASN_PARSE_E;
     return 0;
 #else
-    int ret = 0;
-
-    CALLOC_ASNGETDATA(dataASN, edKeyASN_Length, ret, NULL);
-
     if (ret == 0) {
         /* Require OID. */
         word32 oidSz;

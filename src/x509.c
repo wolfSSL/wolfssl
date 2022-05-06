@@ -5482,6 +5482,11 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                     }
                 #else
                     {
+                        word32 idx = 0;
+                        int  sz;
+                        byte lbit = 0;
+                        int  rawLen;
+                        unsigned char* rawKey;
                     #ifdef WOLFSSL_SMALL_STACK
                         RsaKey *rsa = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
                                 DYNAMIC_TYPE_RSA);
@@ -5492,11 +5497,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                     #else
                         RsaKey rsa[1];
                     #endif
-                        word32 idx = 0;
-                        int  sz;
-                        byte lbit = 0;
-                        int  rawLen;
-                        unsigned char* rawKey;
 
                         if (wc_InitRsaKey(rsa, NULL) != 0) {
                             WOLFSSL_MSG("wc_InitRsaKey failure");
