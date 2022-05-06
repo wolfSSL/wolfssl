@@ -204,7 +204,8 @@ Release 5.3.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * SP ASM improvements for additional cache attack resistance
 * Add RSA check for small difference between p and q
 * 6-8% performance increase with ECC operations using SP int by improving the Montgomery Reduction
-* Testing and Validation
+
+### Testing and Validation
 * All shell scripts in source tree now tested for correctness using shellcheck and bash -n
 * Added build testing under gcc-12 and -std=c++17 and fixed warnings
 * TLS 1.3 script test improvement to wait for server to write file
