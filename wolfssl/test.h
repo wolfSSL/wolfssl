@@ -515,6 +515,7 @@ typedef struct callback_functions {
     unsigned char isSharedCtx:1;
     unsigned char loadToSSL:1;
     unsigned char ticNoInit:1;
+    unsigned char doUdp:1;
 } callback_functions;
 
 #if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)

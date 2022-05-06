@@ -4518,6 +4518,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int idx;
     int ret, err = 0;
     int sharedCtx = 0;
+    int doUdp = 0;
+    SOCKADDR_IN_T cliAddr;
+    socklen_t     cliLen;
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     size_t msg_len = 0;
 #endif
@@ -4540,6 +4544,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         WOLFSSL_METHOD* method = NULL;
         if (cbf != NULL && cbf->method != NULL) {
             method = cbf->method();
+
         }
         else {
             method = wolfSSLv23_server_method();
@@ -4574,9 +4579,24 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     port = wolfSSLPort;
 #endif
 
+    if (cbf != NULL)
+        doUdp = cbf->doUdp;
+
     /* do it here to detect failure */
-    tcp_accept(&sockfd, &clientfd, opts, port, 0, 0, 0, 0, 1, 0, 0);
-    CloseSocket(sockfd);
+    tcp_accept(
+        &sockfd, &clientfd, opts, port, 0, doUdp, 0, 0, 1, 0, 0);
+
+    if (doUdp) {
+        cliLen = sizeof(cliAddr);
+
+        idx = (int)recvfrom(sockfd, input, sizeof(input), MSG_PEEK,
+                  (struct sockaddr*)&cliAddr, &cliLen);
+
+        AssertIntGT(idx, 0);
+    }
+    else {
+        CloseSocket(sockfd);
+    }
 
     wolfSSL_CTX_set_verify(ctx,
                   WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
@@ -4621,6 +4641,12 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
         goto done;
+    }
+
+    if (doUdp) {
+        err = wolfSSL_dtls_set_peer(ssl, &cliAddr, cliLen);
+        if (err != WOLFSSL_SUCCESS)
+            goto done;
     }
 
 #ifdef WOLFSSL_SESSION_EXPORT
