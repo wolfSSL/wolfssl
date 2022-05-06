@@ -855,12 +855,12 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp = NULL;
+    byte   tmpF = 0;     /* 1 if dynamic memory needs freed */
 #else
     byte tmp[RSA_MAX_SIZE/8];
 #endif
     /* needs to be large enough for seed size plus counter(4) */
     byte  tmpA[WC_MAX_DIGEST_SIZE + 4];
-    byte   tmpF = 0;     /* 1 if dynamic memory needs freed */
     word32 tmpSz = 0;
     int hLen;
     int ret;
@@ -903,8 +903,8 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp  = tmpA;
-#endif
         tmpF = 0; /* no need to free memory at end */
+#endif
     }
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -959,11 +959,12 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         }
         counter++;
     } while (idx < outSz);
-
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* check for if dynamic memory was needed, then free */
     if (tmpF) {
         XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_HashFree(hash, hType);
     XFREE(hash, heap, DYNAMIC_TYPE_DIGEST);
