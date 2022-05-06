@@ -15740,7 +15740,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    DhKey  *key = (DhKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);;
+    DhKey  *key = (DhKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     DhKey  key[1];
 #endif
@@ -19570,19 +19570,21 @@ WOLFSSL_TEST_SUBROUTINE int openssl_pkey1_test(void)
             sizeof_client_cert_der_4096, SSL_FILETYPE_ASN1);
     keyLenBits = 4096;
 #else
-    XFILE f;
+    {
+        XFILE f;
 
-    f = XFOPEN(clientKey, "rb");
+        f = XFOPEN(clientKey, "rb");
 
-    if (!f) {
-        err_sys("can't open ./certs/client-key.der, "
-                "Please run from wolfSSL home dir", -41);
-        ret = -9000;
-        goto openssl_pkey1_test_done;
+        if (!f) {
+            err_sys("can't open ./certs/client-key.der, "
+                    "Please run from wolfSSL home dir", -41);
+            ret = -9000;
+            goto openssl_pkey1_test_done;
+        }
+
+        cliKeySz = (long)XFREAD(tmp, 1, FOURK_BUF, f);
+        XFCLOSE(f);
     }
-
-    cliKeySz = (long)XFREAD(tmp, 1, FOURK_BUF, f);
-    XFCLOSE(f);
 
     /* using existing wolfSSL api to get public and private key */
     x509 = wolfSSL_X509_load_certificate_file(clientCert, SSL_FILETYPE_ASN1);
@@ -23360,7 +23362,7 @@ static int ecc_exp_imp_test(ecc_key* key)
     int        ret;
     int        curve_id;
 #ifdef WOLFSSL_SMALL_STACK
-    ecc_key    *keyImp = (ecc_key *)XMALLOC(sizeof *keyImp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);;
+    ecc_key    *keyImp = (ecc_key *)XMALLOC(sizeof *keyImp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key    keyImp[1];
 #endif
