@@ -2709,6 +2709,8 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
 int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 {
+    WOLFSSL_ENTER("wolfSSL_UseOCSPStapling");
+
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
@@ -2720,6 +2722,8 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
                                                                    byte options)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_UseOCSPStapling");
+
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
@@ -17970,8 +17974,19 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     int wolfSSL_clear(WOLFSSL* ssl)
     {
+        WOLFSSL_ENTER("wolfSSL_clear");
+
         if (ssl == NULL) {
             return WOLFSSL_FAILURE;
+        }
+
+        if (!ssl->options.handShakeDone) {
+            /* Only reset the session if we didn't complete a handshake */
+            wolfSSL_SESSION_free(ssl->session);
+            ssl->session = wolfSSL_NewSession(ssl->heap);
+            if (ssl->session == NULL) {
+                return WOLFSSL_FAILURE;
+            }
         }
 
         ssl->options.isClosed = 0;
@@ -17993,9 +18008,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         if (ssl->hsHashes)
             (void)InitHandshakeHashes(ssl);
 
-#ifdef SESSION_CERTS
-        ssl->session->chain.count = 0;
-#endif
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);

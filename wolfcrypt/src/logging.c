@@ -364,6 +364,31 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 }
 
 #ifndef WOLFSSL_DEBUG_ERRORS_ONLY
+
+#if !defined(_WIN32) && defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
+#include <stdarg.h> /* for var args */
+#ifndef WOLFSSL_MSG_EX_BUF_SZ
+#define WOLFSSL_MSG_EX_BUF_SZ 100
+#endif
+#ifdef __clang__
+/* tell clang argument 1 is format */
+__attribute__((__format__ (__printf__, 1, 0)))
+#endif
+void WOLFSSL_MSG_EX(const char* fmt, ...)
+{
+    if (loggingEnabled) {
+        char msg[WOLFSSL_MSG_EX_BUF_SZ];
+        int written;
+        va_list args;
+        va_start(args, fmt);
+        written = XVSNPRINTF(msg, sizeof(msg), fmt, args);
+        va_end(args);
+        if (written > 0)
+            wolfssl_log(INFO_LOG , msg);
+    }
+}
+#endif
+
 void WOLFSSL_MSG(const char* msg)
 {
     if (loggingEnabled)

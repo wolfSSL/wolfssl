@@ -12121,6 +12121,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     args->exts[args->totalCerts].buffer = input + args->idx;
                     args->idx += extSz;
                     listSz -= extSz + OPAQUE16_LEN;
+                    WOLFSSL_MSG_EX("\tParsing %d bytes of cert extensions",
+                            args->exts[args->totalCerts].length);
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
                         (word16)args->exts[args->totalCerts].length,
                         certificate, NULL);
@@ -12608,12 +12610,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (args->fatal == 0 && ret == 0) {
                     int doLookup = 1;
 
+                    WOLFSSL_MSG("Checking if ocsp needed");
+
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                         if (ssl->status_request) {
                             args->fatal = (TLSX_CSR_InitRequest(ssl->extensions,
                                                 args->dCert, ssl->heap) != 0);
                             doLookup = 0;
+                            WOLFSSL_MSG("\tHave status request");
                         #if defined(WOLFSSL_TLS13)
                             if (ssl->options.tls1_3) {
                                 TLSX* ext = TLSX_Find(ssl->extensions,
@@ -12642,6 +12647,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->fatal = (TLSX_CSR2_InitRequests(ssl->extensions,
                                                  args->dCert, 1, ssl->heap) != 0);
                             doLookup = 0;
+                            WOLFSSL_MSG("\tHave status request v2");
                         }
                 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
                     }
