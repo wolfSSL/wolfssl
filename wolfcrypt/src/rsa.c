@@ -856,10 +856,10 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp = NULL;
 #else
-    byte tmp[RSA_MAX_SIZE/8] = {0};
+    byte tmp[RSA_MAX_SIZE/8];
 #endif
     /* needs to be large enough for seed size plus counter(4) */
-    byte  tmpA[WC_MAX_DIGEST_SIZE + 4]= {0};
+    byte  tmpA[WC_MAX_DIGEST_SIZE + 4];
     byte   tmpF = 0;     /* 1 if dynamic memory needs freed */
     word32 tmpSz = 0;
     int hLen;
@@ -875,6 +875,7 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 
     (void)heap;
 
+    XMEMSET(tmpA, 0, sizeof(tmpA));
     /* check error return of wc_HashGetDigestSize */
     if (hLen < 0) {
         return hLen;
@@ -885,6 +886,8 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         /* find largest amount of memory needed which will be the max of
          * hLen and (seedSz + 4) since tmp is used to store the hash digest */
         tmpSz = ((seedSz + 4) > (word32)hLen)? seedSz + 4: (word32)hLen;
+        if (tmpSz > RSA_MAX_SIZE/8)
+            return BAD_FUNC_ARG;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (tmp == NULL) {
@@ -900,7 +903,7 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp  = tmpA;
-    #endif
+#endif
         tmpF = 0; /* no need to free memory at end */
     }
 
@@ -1048,15 +1051,15 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     int i;
     word32 idx;
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         byte* dbMask = NULL;
         byte* lHash = NULL;
         byte* seed  = NULL;
     #else
+        byte dbMask[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
         /* must be large enough to contain largest hash */
-        byte lHash[WC_MAX_DIGEST_SIZE] = {0};
-        byte seed[WC_MAX_DIGEST_SIZE]= {0};
-        byte dbMask[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ] = {0};
+        byte lHash[WC_MAX_DIGEST_SIZE];
+        byte seed[WC_MAX_DIGEST_SIZE];
     #endif
 
     /* no label is allowed, but catch if no label provided and length > 0 */
@@ -1070,7 +1073,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return hLen;
     }
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         lHash = (byte*)XMALLOC(hLen, heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (lHash == NULL) {
             return MEMORY_E;
@@ -1153,7 +1156,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return ret;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* create maskedDB from dbMask */
     dbMask = (byte*)XMALLOC(pkcsBlockLen - hLen - 1, heap, DYNAMIC_TYPE_RSA);
     if (dbMask == NULL) {
@@ -1526,10 +1529,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     word32 idx;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp  = NULL;
 #else
-    byte tmp[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ] = {0};
+    byte tmp[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
+    XMEMSET(tmp, 0, RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ);
 #endif
     /* no label is allowed, but catch if no label provided and length > 0 */
     if (optLabel == NULL && labelLen > 0) {
@@ -1541,7 +1545,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     tmp = (byte*)XMALLOC(pkcsBlockLen, heap, DYNAMIC_TYPE_RSA_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
