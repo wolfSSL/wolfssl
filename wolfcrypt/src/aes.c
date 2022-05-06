@@ -8246,7 +8246,9 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         XMEMCPY(p, scratch, partial);
     }
 
-    /* ConstantCompare returns cumulative or of the bytewise XOR. */
+    /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
+     * the pairwise bytes in the strings.
+     */
     res = ConstantCompare(authTag, Tprime, authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.
