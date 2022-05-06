@@ -161,6 +161,9 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
+#elif defined(WOLFSSL_GETRANDOM)
+    #include <errno.h>
+    #include <sys/random.h>
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -2683,6 +2686,36 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 output[i] = (byte)rand();
             return 0;
         }
+
+#elif defined(WOLFSSL_GETRANDOM)
+
+    /* getrandom() was added to the Linux kernel in version 3.17.
+     * Added to glibc in version 2.25. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+        int len = 0;
+        (void)os;
+
+        while (sz) {
+            errno = 0;
+            len = (int)getrandom(output, sz, 0);
+            if (len == -1) {
+                if (errno == EINTR) {
+                    /* interrupted, call getrandom again */
+                    continue;
+                }
+                else {
+                    ret = READ_RAN_E;
+                }
+                break;
+            }
+
+            sz     -= len;
+            output += len;
+        }
+        return ret;
+    }
 
 #elif defined(NO_DEV_RANDOM)
 
