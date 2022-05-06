@@ -843,6 +843,51 @@ static WC_INLINE sp_digit sp_2048_div_word_17(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 61) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 61;
+    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 59; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 60);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 61);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 122) - (sp_digit)(d >> 122);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 61);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 122) - (sp_digit)(d >> 122);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 61) + d0;
     sp_digit r = 0;
@@ -862,6 +907,15 @@ static WC_INLINE sp_digit sp_2048_div_word_17(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_2048_word_div_word_17(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -930,7 +984,7 @@ static int sp_2048_div_17(const sp_digit* a, const sp_digit* d,
         }
         t1[17 - 1] += t1[17 - 2] >> 61;
         t1[17 - 2] &= 0x1fffffffffffffffL;
-        r1 = t1[17 - 1] / dv;
+        r1 = sp_2048_word_div_word_17(t1[17 - 1], dv);
 
         sp_2048_mul_d_17(t2, sd, r1);
         sp_2048_sub_17(t1, t1, t2);
@@ -1619,6 +1673,51 @@ static WC_INLINE sp_digit sp_2048_div_word_34(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 61) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 61;
+    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 59; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 60);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 61);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 122) - (sp_digit)(d >> 122);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 61);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 122) - (sp_digit)(d >> 122);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 61) + d0;
     sp_digit r = 0;
@@ -1638,6 +1737,15 @@ static WC_INLINE sp_digit sp_2048_div_word_34(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_2048_word_div_word_34(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -1706,7 +1814,7 @@ static int sp_2048_div_34(const sp_digit* a, const sp_digit* d,
         }
         t1[34 - 1] += t1[34 - 2] >> 61;
         t1[34 - 2] &= 0x1fffffffffffffffL;
-        r1 = t1[34 - 1] / dv;
+        r1 = sp_2048_word_div_word_34(t1[34 - 1], dv);
 
         sp_2048_mul_d_34(t2, sd, r1);
         sp_2048_sub_34(t1, t1, t2);
@@ -4269,6 +4377,51 @@ static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 57) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 57;
+    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 55; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 56);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit r = 0;
@@ -4288,6 +4441,15 @@ static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_2048_word_div_word_18(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -4356,7 +4518,7 @@ static int sp_2048_div_18(const sp_digit* a, const sp_digit* d,
         }
         t1[18 - 1] += t1[18 - 2] >> 57;
         t1[18 - 2] &= 0x1ffffffffffffffL;
-        r1 = t1[18 - 1] / dv;
+        r1 = sp_2048_word_div_word_18(t1[18 - 1], dv);
 
         sp_2048_mul_d_18(t2, sd, r1);
         sp_2048_sub_18(t1, t1, t2);
@@ -5106,6 +5268,51 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 57) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 57;
+    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 55; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 56);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit r = 0;
@@ -5125,6 +5332,15 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_2048_word_div_word_36(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -5193,7 +5409,7 @@ static int sp_2048_div_36(const sp_digit* a, const sp_digit* d,
         }
         t1[36 - 1] += t1[36 - 2] >> 57;
         t1[36 - 2] &= 0x1ffffffffffffffL;
-        r1 = t1[36 - 1] / dv;
+        r1 = sp_2048_word_div_word_36(t1[36 - 1], dv);
 
         sp_2048_mul_d_36(t2, sd, r1);
         sp_2048_sub_36(t1, t1, t2);
@@ -7510,6 +7726,51 @@ static WC_INLINE sp_digit sp_3072_div_word_26(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 60) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 60;
+    sp_digit t0 = (sp_digit)d & 0xfffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 58; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 59);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 60);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 120) - (sp_digit)(d >> 120);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 60);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 120) - (sp_digit)(d >> 120);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 60) + d0;
     sp_digit r = 0;
@@ -7529,6 +7790,15 @@ static WC_INLINE sp_digit sp_3072_div_word_26(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_3072_word_div_word_26(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -7597,7 +7867,7 @@ static int sp_3072_div_26(const sp_digit* a, const sp_digit* d,
         }
         t1[26 - 1] += t1[26 - 2] >> 60;
         t1[26 - 2] &= 0xfffffffffffffffL;
-        r1 = t1[26 - 1] / dv;
+        r1 = sp_3072_word_div_word_26(t1[26 - 1], dv);
 
         sp_3072_mul_d_26(t2, sd, r1);
         sp_3072_sub_26(t1, t1, t2);
@@ -8292,6 +8562,51 @@ static WC_INLINE sp_digit sp_3072_div_word_52(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 60) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 60;
+    sp_digit t0 = (sp_digit)d & 0xfffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 58; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 59);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 60);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 120) - (sp_digit)(d >> 120);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 60);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 120) - (sp_digit)(d >> 120);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 60) + d0;
     sp_digit r = 0;
@@ -8311,6 +8626,15 @@ static WC_INLINE sp_digit sp_3072_div_word_52(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_3072_word_div_word_52(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -8379,7 +8703,7 @@ static int sp_3072_div_52(const sp_digit* a, const sp_digit* d,
         }
         t1[52 - 1] += t1[52 - 2] >> 60;
         t1[52 - 2] &= 0xfffffffffffffffL;
-        r1 = t1[52 - 1] / dv;
+        r1 = sp_3072_word_div_word_52(t1[52 - 1], dv);
 
         sp_3072_mul_d_52(t2, sd, r1);
         sp_3072_sub_52(t1, t1, t2);
@@ -11080,6 +11404,51 @@ static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 57) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 57;
+    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 55; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 56);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit r = 0;
@@ -11099,6 +11468,15 @@ static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_3072_word_div_word_27(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -11167,7 +11545,7 @@ static int sp_3072_div_27(const sp_digit* a, const sp_digit* d,
         }
         t1[27 - 1] += t1[27 - 2] >> 57;
         t1[27 - 2] &= 0x1ffffffffffffffL;
-        r1 = t1[27 - 1] / dv;
+        r1 = sp_3072_word_div_word_27(t1[27 - 1], dv);
 
         sp_3072_mul_d_27(t2, sd, r1);
         sp_3072_sub_27(t1, t1, t2);
@@ -11928,6 +12306,51 @@ static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 57) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 57;
+    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 55; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 56);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit r = 0;
@@ -11947,6 +12370,15 @@ static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_3072_word_div_word_54(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -12015,7 +12447,7 @@ static int sp_3072_div_54(const sp_digit* a, const sp_digit* d,
         }
         t1[54 - 1] += t1[54 - 2] >> 57;
         t1[54 - 2] &= 0x1ffffffffffffffL;
-        r1 = t1[54 - 1] / dv;
+        r1 = sp_3072_word_div_word_54(t1[54 - 1], dv);
 
         sp_3072_mul_d_54(t2, sd, r1);
         sp_3072_sub_54(t1, t1, t2);
@@ -14374,6 +14806,51 @@ static WC_INLINE sp_digit sp_4096_div_word_35(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 59) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 59;
+    sp_digit t0 = (sp_digit)d & 0x7ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 57; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 58);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 59);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 118) - (sp_digit)(d >> 118);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 59);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 118) - (sp_digit)(d >> 118);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 59) + d0;
     sp_digit r = 0;
@@ -14393,6 +14870,15 @@ static WC_INLINE sp_digit sp_4096_div_word_35(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_4096_word_div_word_35(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -14461,7 +14947,7 @@ static int sp_4096_div_35(const sp_digit* a, const sp_digit* d,
         }
         t1[35 - 1] += t1[35 - 2] >> 59;
         t1[35 - 2] &= 0x7ffffffffffffffL;
-        r1 = t1[35 - 1] / dv;
+        r1 = sp_4096_word_div_word_35(t1[35 - 1], dv);
 
         sp_4096_mul_d_35(t2, sd, r1);
         sp_4096_sub_35(t1, t1, t2);
@@ -15151,6 +15637,51 @@ static WC_INLINE sp_digit sp_4096_div_word_70(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 59) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 59;
+    sp_digit t0 = (sp_digit)d & 0x7ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 57; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 58);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 59);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 118) - (sp_digit)(d >> 118);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 59);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 118) - (sp_digit)(d >> 118);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 59) + d0;
     sp_digit r = 0;
@@ -15170,6 +15701,15 @@ static WC_INLINE sp_digit sp_4096_div_word_70(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_4096_word_div_word_70(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -15238,7 +15778,7 @@ static int sp_4096_div_70(const sp_digit* a, const sp_digit* d,
         }
         t1[70 - 1] += t1[70 - 2] >> 59;
         t1[70 - 2] &= 0x7ffffffffffffffL;
-        r1 = t1[70 - 1] / dv;
+        r1 = sp_4096_word_div_word_70(t1[70 - 1], dv);
 
         sp_4096_mul_d_70(t2, sd, r1);
         sp_4096_sub_70(t1, t1, t2);
@@ -17994,6 +18534,51 @@ static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 53) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 53;
+    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 51; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 52);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 53);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 106) - (sp_digit)(d >> 106);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 53);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 106) - (sp_digit)(d >> 106);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 53) + d0;
     sp_digit r = 0;
@@ -18013,6 +18598,15 @@ static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_4096_word_div_word_39(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -18081,7 +18675,7 @@ static int sp_4096_div_39(const sp_digit* a, const sp_digit* d,
         }
         t1[39 - 1] += t1[39 - 2] >> 53;
         t1[39 - 2] &= 0x1fffffffffffffL;
-        r1 = t1[39 - 1] / dv;
+        r1 = sp_4096_word_div_word_39(t1[39 - 1], dv);
 
         sp_4096_mul_d_39(t2, sd, r1);
         sp_4096_sub_39(t1, t1, t2);
@@ -18843,6 +19437,51 @@ static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 53) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 53;
+    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 51; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 52);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 53);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 106) - (sp_digit)(d >> 106);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 53);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 106) - (sp_digit)(d >> 106);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 53) + d0;
     sp_digit r = 0;
@@ -18862,6 +19501,15 @@ static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_4096_word_div_word_78(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -18930,7 +19578,7 @@ static int sp_4096_div_78(const sp_digit* a, const sp_digit* d,
         }
         t1[78 - 1] += t1[78 - 2] >> 53;
         t1[78 - 2] &= 0x1fffffffffffffL;
-        r1 = t1[78 - 1] / dv;
+        r1 = sp_4096_word_div_word_78(t1[78 - 1], dv);
 
         sp_4096_mul_d_78(t2, sd, r1);
         sp_4096_sub_78(t1, t1, t2);
@@ -40077,6 +40725,51 @@ static WC_INLINE sp_digit sp_521_div_word_9(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 58) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 58;
+    sp_digit t0 = (sp_digit)d & 0x3ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 56; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 57);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 58);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 116) - (sp_digit)(d >> 116);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 58);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 116) - (sp_digit)(d >> 116);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 58) + d0;
     sp_digit r = 0;
@@ -42554,6 +43247,51 @@ static WC_INLINE sp_digit sp_1024_div_word_18(sp_digit d1, sp_digit d0,
     );
 
     return (sp_digit)lo;
+#elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
+    sp_int128 d = ((sp_int128)d1 << 57) + d0;
+    sp_digit dv = (div >> 1) + 1;
+    sp_digit t1 = d >> 57;
+    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t2;
+    sp_digit sign;
+    sp_digit r;
+    int i;
+    sp_int128 m;
+
+    r = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+    t1 -= dv & (0 - r);
+    for (i = 55; i >= 1; i--) {
+        t1 += t1 + ((sp_uint64)t0 >> 56);
+        t0 <<= 1;
+        t2 = (sp_digit)(((sp_uint64)(dv - t1)) >> 63);
+        r += r + t2;
+        t1 -= dv & (0 - t2);
+        t1 += t2;
+    }
+    r += r + 1;
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    r += (sp_digit)(m >> 57);
+    m = d - ((sp_int128)r * div);
+    r += (m >> 114) - (sp_digit)(d >> 114);
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+
+    m = d - ((sp_int128)r * div);
+    sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
+    m *= sign;
+    t2 = (sp_digit)(((sp_uint64)(div - m)) >> 63);
+    r += sign * t2;
+   return r;
 #else
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit r = 0;
@@ -42573,6 +43311,15 @@ static WC_INLINE sp_digit sp_1024_div_word_18(sp_digit d1, sp_digit d0,
     r += t;
     d -= (sp_int128)t * div;
     return r;
+#endif
+}
+static WC_INLINE sp_digit sp_1024_word_div_word_18(sp_digit d, sp_digit div)
+{
+#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
+    defined(SP_DIV_WORD_USE_DIV)
+    return d / div;
+#else
+    return (sp_digit)((sp_uint64)(div - d) >> 63);
 #endif
 }
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -42641,7 +43388,7 @@ static int sp_1024_div_18(const sp_digit* a, const sp_digit* d,
         }
         t1[18 - 1] += t1[18 - 2] >> 57;
         t1[18 - 2] &= 0x1ffffffffffffffL;
-        r1 = t1[18 - 1] / dv;
+        r1 = sp_1024_word_div_word_18(t1[18 - 1], dv);
 
         sp_1024_mul_d_18(t2, sd, r1);
         sp_1024_sub_18(t1, t1, t2);
