@@ -114,6 +114,9 @@ extern ${variable.value} ${variable.name};
 #elif defined(STM32F207xx)
     #define WOLFSSL_STM32F2
     #define HAL_CONSOLE_UART huart3
+#elif defined(STM32F217xx)
+    #define WOLFSSL_STM32F2
+    #define HAL_CONSOLE_UART huart2
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
     #define HAL_CONSOLE_UART huart4
@@ -150,7 +153,7 @@ extern ${variable.value} ${variable.name};
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
-    //#define WOLFSSL_GENSEED_FORTEST
+    //#define WOLFSSL_GENSEED_FORTEST /* if no HW RNG is available use test seed */
     //#define STM32_HAL_V2
 #endif
 
@@ -264,8 +267,14 @@ extern ${variable.value} ${variable.name};
 #if defined(WOLF_CONF_BASE64_ENCODE) && WOLF_CONF_BASE64_ENCODE == 1
     #define WOLFSSL_BASE64_ENCODE
 #endif
-#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA == 1
+#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA >= 1
     #define OPENSSL_EXTRA
+    #if !defined(INT_MAX)
+        #include <limits.h>
+    #endif
+#endif
+#if defined(WOLF_CONF_OPENSSL_EXTRA) && WOLF_CONF_OPENSSL_EXTRA >= 2
+    #define OPENSSL_ALL
 #endif
 
 /* TLS Session Cache */
