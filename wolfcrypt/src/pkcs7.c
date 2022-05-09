@@ -4416,7 +4416,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->derSz > 0 && pkcs7->der) {
-        pkiMsg = in = pkcs7->der;
+        pkiMsg = pkcs7->der;
     }
 #endif
 
