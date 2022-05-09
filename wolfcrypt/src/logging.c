@@ -357,6 +357,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         xil_printf("%s\r\n", logMessage);
 #elif defined(WOLFSSL_LINUXKM)
         printk("%s\n", logMessage);
+#elif defined(WOLFSSL_RENESAS_RA6M4)
+        myprintf("%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

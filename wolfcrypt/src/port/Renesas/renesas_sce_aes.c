@@ -1,6 +1,6 @@
 /* renesas_sce_aes.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -134,7 +134,8 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
         /* allocate buffers for plaintext, ciphertext and authTag to make sure
          * those buffers 32bit aligned as SCE requests.
          */
-        delta = sz % AES_BLOCK_SIZE;
+         delta = ((sz % AES_BLOCK_SIZE) == 0) ? 0 :
+                             AES_BLOCK_SIZE - (sz % AES_BLOCK_SIZE);
         plainBuf  = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         cipherBuf = XMALLOC(sz + delta, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(SCE_AES_GCM_AUTH_TAG_SIZE, aes->heap,
@@ -205,7 +206,7 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                 ret = updateFn(&_handle, plainBuf, cipherBuf, sz, NULL, 0UL);
             }
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG("R_SCE_AesXXXGcmEncryptUpdate: failed");
+                WOLFSSL_MSG("R_SCE_AesXXXGcmEncryptUpdate2: failed");
                 ret = -1;
             }
 
@@ -217,18 +218,21 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                 */
                 dataLen = 0;
                 ret = finalFn(&_handle,
-                              cipherBuf + (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE,
+                           cipherBuf + (sz + delta - AES_BLOCK_SIZE),
                               &dataLen,
                               aTagBuf);
 
                 if (ret == FSP_SUCCESS) {
-                    /* copy encrypted data to out */
-                    XMEMCPY(out, cipherBuf, dataLen);
-
-                    /* copy auth tag to caller's buffer */
-                    XMEMCPY((void*)authTag, (void*)aTagBuf,
+                   /* copy encrypted data to out */
+                    if (sz != dataLen) {
+                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
+                        ret = -1;
+                    } else {
+                        XMEMCPY(out, cipherBuf, dataLen);
+                        /* copy auth tag to caller's buffer */
+                        XMEMCPY((void*)authTag, (void*)aTagBuf,
                                     min(authTagSz, SCE_AES_GCM_AUTH_TAG_SIZE ));
-
+                    }
                 }
                 else {
                     WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
@@ -319,7 +323,8 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
        /* allocate buffers for plain-text, cipher-text, authTag and AAD.
          * TSIP requests those buffers 32bit aligned.
          */
-        delta = sz % AES_BLOCK_SIZE;
+         delta = ((sz % AES_BLOCK_SIZE) == 0) ? 0 :
+                                      AES_BLOCK_SIZE - (sz % AES_BLOCK_SIZE);
         cipherBuf = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
         plainBuf  = XMALLOC(sz + delta, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(SCE_AES_GCM_AUTH_TAG_SIZE, aes->heap,
@@ -396,14 +401,20 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
             if (ret == FSP_SUCCESS) {
                 dataLen = 0;
                 ret = finalFn(&_handle,
-                            plainBuf + (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE,
+                                  plainBuf + (sz + delta - AES_BLOCK_SIZE),
                             &dataLen,
                             aTagBuf,
                             min(16, authTagSz));
 
                 if (ret == FSP_SUCCESS) {
                     /* copy plain data to out */
-                    XMEMCPY(out, plainBuf, dataLen);
+                    if (sz != dataLen) {
+                        WOLFSSL_MSG("sz is not equal to dataLen!!!!");
+                        ret = -1;
+                    }
+                    else {
+                        XMEMCPY(out, plainBuf, dataLen);
+                    }
                 }
                 else {
                     WOLFSSL_MSG("R_SCE_AesXXXGcmDecryptFinal: failed");

@@ -1,6 +1,6 @@
 /* myprintf.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,6 +21,8 @@
 #include "SEGGER_RTT.h"
 
 #define SEGGER_INDEX            (0)
+
+int myprintf(const char * sFormat, ...);
 
 int myprintf(const char * sFormat, ...)
 {

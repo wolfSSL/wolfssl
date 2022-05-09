@@ -1,6 +1,6 @@
 /* renesas_sce_util.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -207,24 +207,32 @@ static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig
     XMEMCPY(&peerkey[4], qx, qxLen);
     XMEMCPY(&peerkey[4+qxLen], qy, qyLen);
 
-    /* 0 : RSA 2048bit, 1 : Reserved, 2 : ECDSA P-256 */
-    ret = R_SCE_TLS_ServerKeyExchangeVerify(
-        type,
-        (uint8_t*) ssl->arrays->clientRandom,
-        (uint8_t*) ssl->arrays->serverRandom,
-        (uint8_t*) peerkey,
-        (uint8_t*) sig,
-        (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
-        (uint32_t*)cbInfo->encrypted_ephemeral_ecdh_public_key);
+    if ((ret = wc_sce_hw_lock()) == 0) {
+        /* 0 : RSA 2048bit, 1 : Reserved, 2 : ECDSA P-256 */
+        ret = R_SCE_TLS_ServerKeyExchangeVerify(
+            type,
+            (uint8_t*) ssl->arrays->clientRandom,
+            (uint8_t*) ssl->arrays->serverRandom,
+            (uint8_t*) peerkey,
+            (uint8_t*) sig,
+            (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
+            (uint32_t*)cbInfo->encrypted_ephemeral_ecdh_public_key);
 
-    if (ret != FSP_SUCCESS) {
-        WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
-        cbInfo->pk_key_set = 0;
+        if (ret != FSP_SUCCESS) {
+            WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
+            cbInfo->pk_key_set = 0;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+            cbInfo->pk_key_set = 1;
+        }
     }
     else {
-        ret = WOLFSSL_SUCCESS;
-        cbInfo->pk_key_set = 1;
+        WOLFSSL_MSG("Failed to lock sce hw ");
     }
+
+    /* unlock hw */
+    wc_sce_hw_unlock();
 
     XFREE(peerkey, 0, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -328,12 +336,13 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
 
     return ret;
 }
+
 /* Callback for ECC shared secret */
 WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         uint8_t* pubKeyDer, unsigned int* pubKeySz,
         uint8_t* out, unsigned int* outlen, int side, void* ctx)
 {
-    int       ret;
+    int       ret = WOLFSSL_SUCCESS;
     (void) otherKey;
     (void) side;
 
@@ -351,36 +360,44 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 
     if (cbInfo->pk_key_set == 1) {
-        /* Generate ECC PUblic key pair */
-        ret = R_SCE_TLS_ECC_secp256r1_EphemeralWrappedKeyPairGenerate(
-            &cbInfo->ecc_p256_wrapped_key,
-            (uint8_t*)&cbInfo->ecc_ecdh_public_key/* Qx 32 bytes and Qy 32 bytes*/ );
-        if (ret != FSP_SUCCESS) {
-            WOLFSSL_PKMSG("Failed secp256r1_EphemeralWrappedKeyPairGenerate %d\n", ret);
-            return ret;
-        }
+        if ((ret = wc_sce_hw_lock()) == 0) {
+            /* Generate ECC PUblic key pair */
+            ret = R_SCE_TLS_ECC_secp256r1_EphemeralWrappedKeyPairGenerate(
+                &cbInfo->ecc_p256_wrapped_key,
+                (uint8_t*)&cbInfo->ecc_ecdh_public_key/* Qx 32 bytes and Qy 32 bytes*/ );
+            if (ret != FSP_SUCCESS) {
+                WOLFSSL_PKMSG("Failed secp256r1_EphemeralWrappedKeyPairGenerate %d\n", ret);
+                return ret;
+            }
 
-        /* copy generated ecdh public key inot buffer */
-        pubKeyDer[0] = ECC_POINT_UNCOMP;
-        *pubKeySz = 1 + sizeof(cbInfo->ecc_ecdh_public_key);
-        XMEMCPY(&pubKeyDer[1], &cbInfo->ecc_ecdh_public_key,
-                    sizeof(cbInfo->ecc_ecdh_public_key));
+            /* copy generated ecdh public key inot buffer */
+            pubKeyDer[0] = ECC_POINT_UNCOMP;
+            *pubKeySz = 1 + sizeof(cbInfo->ecc_ecdh_public_key);
+            XMEMCPY(&pubKeyDer[1], &cbInfo->ecc_ecdh_public_key,
+                        sizeof(cbInfo->ecc_ecdh_public_key));
 
-        /* Generate Premaster Secret */
-        ret = R_SCE_TLS_PreMasterSecretGenerateForECC_secp256r1(
-                    (uint32_t*)&cbInfo->encrypted_ephemeral_ecdh_public_key,
-                    &cbInfo->ecc_p256_wrapped_key,
-                    (uint32_t*)out/* pre-master secret 64 bytes */);
-        if (ret != FSP_SUCCESS) {
-            WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
-            return ret;
+            /* Generate Premaster Secret */
+            ret = R_SCE_TLS_PreMasterSecretGenerateForECC_secp256r1(
+                        (uint32_t*)&cbInfo->encrypted_ephemeral_ecdh_public_key,
+                        &cbInfo->ecc_p256_wrapped_key,
+                        (uint32_t*)out/* pre-master secret 64 bytes */);
+            if (ret != FSP_SUCCESS) {
+                WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
+                return ret;
+            }
+            else {
+                /* set master secret generation callback for use */
+                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, Renesas_cmn_genMasterSecret);
+                wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
+            }
         }
         else {
-            /* set master secret generation callback for use */
-            wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, Renesas_cmn_genMasterSecret);
-            wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
-
+            WOLFSSL_MSG("Failed to lock sce hw ");
         }
+
+        /* unlock hw */
+        wc_sce_hw_unlock();
+
         *outlen = 64;
         WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n", ret, *pubKeySz, *outlen);
     }
@@ -389,7 +406,7 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 }
 #endif
 /* Return tls cipher suite enumeration that is supported by SCE library */
-static  uint32_t GetSceCipherSuite(
+static uint32_t GetSceCipherSuite(
                     uint8_t cipherSuiteFirst,
                     uint8_t cipherSuite)
 {
@@ -458,7 +475,7 @@ WOLFSSL_LOCAL int wc_sce_usable(const struct WOLFSSL *ssl,
                                                 uint8_t session_key_generated)
 {
     WOLFSSL_ENTER("sce_usable");
-    byte Scecipher;
+    uint32_t sceCipher;
     byte side;
     const Ciphers *enc;
     const Ciphers *dec;
@@ -494,11 +511,12 @@ WOLFSSL_LOCAL int wc_sce_usable(const struct WOLFSSL *ssl,
         }
     }
     /* retrieve cipher suite if SCE supports */
-    Scecipher = GetSceCipherSuite(ssl->options.cipherSuite0,
+    sceCipher = GetSceCipherSuite(ssl->options.cipherSuite0,
                                      ssl->options.cipherSuite);
     side = ssl->options.side;
 
-    if (Scecipher != WOLFSSL_SCE_ILLEGAL_CIPHERSUITE && side == WOLFSSL_CLIENT_END)
+    if (sceCipher != (uint32_t)WOLFSSL_SCE_ILLEGAL_CIPHERSUITE 
+                                   && side == WOLFSSL_CLIENT_END)
         return 1;
     else
         return 0;
@@ -578,7 +596,7 @@ WOLFSSL_LOCAL int wc_sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,
     }
 
     wolfSSL_SetTlsHmacInner((struct WOLFSSL*)ssl, myInner,
-                                                        messageSz, content, 1);
+                                                        (word32)messageSz, (int)content, 1);
 
     ret = R_SCE_SHA256HMAC_VerifyInit(
                 &_handle,
@@ -768,8 +786,9 @@ WOLFSSL_LOCAL int wc_sce_generateSessionKey(struct WOLFSSL *ssl,
         /* unlock hw */
         wc_sce_hw_unlock();
     }
-    else
+    else {
         WOLFSSL_LEAVE("hw lock failed", ret);
+    }
 
     WOLFSSL_LEAVE("sce_generateSessionKey", ret);
     return ret;
@@ -1052,7 +1071,7 @@ WOLFSSL_LOCAL int wc_sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info
         XMEMCPY(info->sce_clientRandom, ssl->arrays->clientRandom, 32);
         XMEMCPY(info->sce_serverRandom, ssl->arrays->serverRandom, 32);
 
-        info->sce_cipher = GetSceCipherSuite(ssl->options.cipherSuite0,
+        info->sce_cipher = (uint8_t)GetSceCipherSuite(ssl->options.cipherSuite0,
                                ssl->options.cipherSuite);
     }
     WOLFSSL_LEAVE("sce_storeKeyCtx", ret);
@@ -1105,6 +1124,7 @@ WOLFSSL_API void wc_sce_set_callbacks(WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetRsaEncCb(ctx, Renesas_cmn_RsaEnc);
     wolfSSL_CTX_SetVerifyMacCb(ctx, Renesas_cmn_VerifyHmac);
 
+    /* reset callbacks */
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
 }
 /* Set callback contexts needed for sce TLS api handling */
