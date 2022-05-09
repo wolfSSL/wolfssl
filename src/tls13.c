@@ -4437,7 +4437,8 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     length = HRR_BODY_SZ - ID_LEN + ssl->session->sessionIDSz +
              HRR_COOKIE_HDR_SZ + cookie->len;
     length += HRR_VERSIONS_SZ;
-    if (cookieDataSz > hashSz + OPAQUE16_LEN) {
+    /* HashSz (1 byte) + Hash (HashSz bytes) + CipherSuite (2 bytes) */
+    if (cookieDataSz > OPAQUE8_LEN + hashSz + OPAQUE16_LEN) {
         keyShareExt = 1;
         length += HRR_KEY_SHARE_SZ;
     }
