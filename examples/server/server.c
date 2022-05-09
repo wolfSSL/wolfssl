@@ -2933,16 +2933,44 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (doDTLS && dtlsUDP) {
             byte          b[1500];
             int           n;
+            int           isClientHello = 0;
 
-            client_len = sizeof client_addr;
+            while (!isClientHello) {
+                client_len = sizeof client_addr;
 
-            /* For DTLS, peek at the next datagram so we can get the client's
-             * address and set it into the ssl object later to generate the
-             * cookie. */
-            n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
-                              (struct sockaddr*)&client_addr, &client_len);
-            if (n <= 0)
-                err_sys_ex(runWithErrors, "recvfrom failed");
+                /* For DTLS, peek at the next datagram so we can get the
+                 * client's address and set it into the ssl object later to
+                 * generate the cookie. */
+                n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
+                                  (struct sockaddr*)&client_addr, &client_len);
+
+                if (n <= 0)
+                    err_sys_ex(runWithErrors, "recvfrom failed");
+
+                /* when doing resumption, it may happen that we receive the
+                   alert used to shutdown the first connection as the first
+                   packet of the second accept:
+
+                   Client                |    Server
+                                         |    WolfSSL_Shutdown()
+                                         |    <- Alert
+                                         |    recvfrom(peek)
+                   WolfSSL_Shutdown()    |
+                   Alert->               |
+                                         |    wolfSSL_set_dtls_peer()
+
+                   but this will set the wrong src port, making the test fail.
+                   Discard not-handshake message to avoid this.
+                */
+                if (b[0] != 0x16) {
+                    /* discard the packet */
+                    n = (int)recvfrom(clientfd, (char *)b, sizeof(b), 0,
+                        (struct sockaddr *)&client_addr, &client_len);
+                }
+                else {
+                    isClientHello = 1;
+                }
+            }
 
             if (doBlockSeq) {
                 XMEMCPY(&dtlsCtx.peer.sa, &client_addr, client_len);
