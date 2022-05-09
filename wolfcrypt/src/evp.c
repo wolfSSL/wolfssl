@@ -6381,7 +6381,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ctx->authTagSz  = CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE;
             ctx->ivSz       = CHACHA20_POLY1305_AEAD_IV_SIZE;
             if (enc == 0 || enc == 1) {
-                ctx->enc    = enc;
+                ctx->enc    = (byte) enc;
             }
 
             if (key != NULL && iv != NULL && wc_ChaCha20Poly1305_Init(

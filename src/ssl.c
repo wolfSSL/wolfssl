@@ -13504,7 +13504,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
         cacheTicBuff = cacheSession->ticket;
         ticBuffUsed = 1;
         cacheSession->ticket = ticBuff;
-        cacheSession->ticketLenAlloc = ticLen;
+        cacheSession->ticketLenAlloc = (word16) ticLen;
     }
 #endif
 #ifdef SESSION_CERTS
@@ -19834,7 +19834,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
                 WOLFSSL_MSG("Failed to allocate memory for ticket when avoiding"
                         " syscalls");
                 output->ticket = ticBuff;
-                output->ticketLenAlloc = ticLenAlloc;
+                output->ticketLenAlloc = (word16) ticLenAlloc;
                 output->ticketLen = 0;
                 ret = WOLFSSL_FAILURE;
             }
@@ -19858,7 +19858,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         if (ticBuff != NULL && ret == WOLFSSL_SUCCESS) {
             XMEMCPY(ticBuff, input->ticket, input->ticketLen);
             output->ticket = ticBuff;
-            output->ticketLenAlloc = ticLenAlloc;
+            output->ticketLenAlloc = (word16) ticLenAlloc;
         }
     }
     else {
@@ -19876,7 +19876,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
                                 "avoiding system calls");
                     ret = WOLFSSL_FAILURE;
                     output->ticket = ticBuff;
-                    output->ticketLenAlloc = ticLenAlloc;
+                    output->ticketLenAlloc = (word16) ticLenAlloc;
                     output->ticketLen = 0;
                 }
             }
@@ -42293,7 +42293,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);
 
     if ((sz = wolfSSL_BIO_get_mem_data(bio, &pt)) > 0) {
-        wolfSSL_UseALPN(ssl, pt, sz, alpn_opt);
+        wolfSSL_UseALPN(ssl, pt, sz, (byte) alpn_opt);
     }
     wolfSSL_BIO_free(bio);
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)

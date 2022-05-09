@@ -4582,7 +4582,7 @@ static WC_INLINE void RIGHTSHIFTX(byte* x)
 
     for (i = 0; i < AES_BLOCK_SIZE; i++) {
         int carryOut = (x[i] & 0x01) << 7;
-        x[i] = (x[i] >> 1) | carryIn;
+        x[i] = (byte) ((x[i] >> 1) | carryIn);
         carryIn = carryOut;
     }
     x[0] ^= borrow;

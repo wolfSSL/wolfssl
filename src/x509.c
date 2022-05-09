@@ -8182,7 +8182,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             return BUFFER_E;
         }
 
-        out[0] = t->type;
+        out[0] = (byte) t->type;
         sz = SetLength(t->length, out + 1) + 1;  /* gen tag */
         for (i = 0; i < t->length; i++) {
             out[sz + i] = t->data[i];
