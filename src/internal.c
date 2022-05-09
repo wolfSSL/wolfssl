@@ -17360,13 +17360,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    word16 i = (word16)(ssl->buffers.inputBuffer.length -
-                                        ssl->keys.padSz);
+                    /* end of plaintext */
+                    word16 i = (word16)(ssl->buffers.inputBuffer.idx +
+                                 ssl->curSize - ssl->specs.aead_mac_size);
 
-                    /* sanity check on underflow */
-                    if (ssl->keys.padSz >= ssl->buffers.inputBuffer.length) {
-                        WOLFSSL_ERROR(DECRYPT_ERROR);
-                        return DECRYPT_ERROR;
+                    if (i > ssl->buffers.inputBuffer.length) {
+                        WOLFSSL_ERROR(BUFFER_ERROR);
+                        return BUFFER_ERROR;
                     }
 
                     /* Remove padding from end of plain text. */
@@ -17374,9 +17374,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         if (ssl->buffers.inputBuffer.buffer[i] != 0)
                             break;
                     }
+
                     /* Get the real content type from the end of the data. */
                     ssl->curRL.type = ssl->buffers.inputBuffer.buffer[i];
-                    ssl->keys.padSz = ssl->buffers.inputBuffer.length - i;
+                    /* consider both contentType byte and MAC as padding */
+                    ssl->keys.padSz = ssl->buffers.inputBuffer.idx
+                        + ssl->curSize - i;
                 }
 #endif
             }
