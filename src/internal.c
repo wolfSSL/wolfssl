@@ -17410,7 +17410,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             }
             else
        #endif
-            if (ssl->buffers.inputBuffer.length -
+                /* TLS13 plaintext limit is checked earlier before decryption */
+                if (!IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->buffers.inputBuffer.length -
                     ssl->keys.padSz -
                     ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
