@@ -497,7 +497,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 #endif
 
     InitDecodedCRL(dcrl, crl->heap);
-    ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
+    ret = ParseCRL(dcrl, myBuffer, (word32)sz, verify, crl->cm);
     if (ret != 0 && !(ret == ASN_CRL_NO_SIGNER_E && verify == NO_VERIFY)) {
         WOLFSSL_MSG("ParseCRL error");
     }
