@@ -17398,10 +17398,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                if ((ssl->buffers.inputBuffer.length -
+                if ((ssl->curSize -
                         ssl->keys.padSz -
-                        MacSize(ssl) -
-                        ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ)
+                        MacSize(ssl) > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
@@ -17418,9 +17417,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
        #endif
                 /* TLS13 plaintext limit is checked earlier before decryption */
                 if (!IsAtLeastTLSv1_3(ssl->version)
-                    && ssl->buffers.inputBuffer.length -
-                    ssl->keys.padSz -
-                    ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ
+                        && ssl->curSize - ssl->keys.padSz > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
