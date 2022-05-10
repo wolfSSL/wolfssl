@@ -1207,8 +1207,8 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         char host_ipaddr[4] = { 127, 0, 0, 1 };
         int found = 1;
 
-        if ((XSTRNCMP(peer, "localhost", 10) != 0) &&
-            (XSTRNCMP(peer, "127.0.0.1", 10) != 0)) {
+        if ((XSTRCMP(peer, "localhost") != 0) &&
+            (XSTRCMP(peer, "127.0.0.1") != 0)) {
             FILE* fp;
             char host_out[100];
             char cmd[100];
@@ -2245,7 +2245,7 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     (void)key_max_len;
 
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    if (XSTRNCMP(identity, kIdentityStr, XSTRLEN(kIdentityStr)) != 0)
+    if (XSTRCMP(identity, kIdentityStr) != 0)
         return 0;
 
     if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {

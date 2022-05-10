@@ -10508,20 +10508,23 @@ int wc_OBJ_sn2nid(const char *sn)
         {"SHA1", NID_sha1},
         {NULL, -1}};
     int i;
-    #ifdef HAVE_ECC
-    char curveName[16]; /* Same as MAX_CURVE_NAME_SZ but can't include that
-                         * symbol in this file */
+#ifdef HAVE_ECC
+    char curveName[ECC_MAXNAME + 1];
     int eccEnum;
-    #endif
+#endif
     WOLFSSL_ENTER("OBJ_sn2nid");
     for(i=0; sn2nid[i].sn != NULL; i++) {
-        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
+        if (XSTRCMP(sn, sn2nid[i].sn) == 0) {
             return sn2nid[i].nid;
         }
     }
-    #ifdef HAVE_ECC
+#ifdef HAVE_ECC
+
+    if (XSTRLEN(sn) > ECC_MAXNAME)
+        return NID_undef;
+
     /* Nginx uses this OpenSSL string. */
-    if (XSTRNCMP(sn, "prime256v1", 10) == 0)
+    if (XSTRCMP(sn, "prime256v1") == 0)
         sn = "SECP256R1";
     /* OpenSSL allows lowercase curve names */
     for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
@@ -10536,13 +10539,13 @@ int wc_OBJ_sn2nid(const char *sn)
          ecc_sets[i].size != 0;
 #endif
          i++) {
-        if (XSTRNCMP(curveName, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+        if (XSTRCMP(curveName, ecc_sets[i].name) == 0) {
             eccEnum = ecc_sets[i].id;
             /* Convert enum value in ecc_curve_id to OpenSSL NID */
             return EccEnumToNID(eccEnum);
         }
     }
-    #endif
+#endif /* HAVE_ECC */
 
     return NID_undef;
 }
@@ -19520,7 +19523,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
 
     /* determine cipher information */
 #ifndef NO_DES3
-    if (XSTRNCMP(cipherInfo, kEncTypeDes, XSTRLEN(kEncTypeDes)) == 0) {
+    if (XSTRCMP(cipherInfo, kEncTypeDes) == 0) {
         info->cipherType = WC_CIPHER_DES;
         info->keySz = DES_KEY_SIZE;
 /* DES_IV_SIZE is incorrectly 16 in FIPS v2. It should be 8, same as the
@@ -19531,7 +19534,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
         if (info->ivSz == 0) info->ivSz  = DES_IV_SIZE;
 #endif
     }
-    else if (XSTRNCMP(cipherInfo, kEncTypeDes3, XSTRLEN(kEncTypeDes3)) == 0) {
+    else if (XSTRCMP(cipherInfo, kEncTypeDes3) == 0) {
         info->cipherType = WC_CIPHER_DES3;
         info->keySz = DES3_KEY_SIZE;
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
@@ -19543,7 +19546,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     else
 #endif /* !NO_DES3 */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
-    if (XSTRNCMP(cipherInfo, kEncTypeAesCbc128, XSTRLEN(kEncTypeAesCbc128)) == 0) {
+    if (XSTRCMP(cipherInfo, kEncTypeAesCbc128) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_128_KEY_SIZE;
         if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
@@ -19551,7 +19554,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     else
 #endif
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_192)
-    if (XSTRNCMP(cipherInfo, kEncTypeAesCbc192, XSTRLEN(kEncTypeAesCbc192)) == 0) {
+    if (XSTRCMP(cipherInfo, kEncTypeAesCbc192) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_192_KEY_SIZE;
         if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
@@ -19559,7 +19562,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     else
 #endif
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
-    if (XSTRNCMP(cipherInfo, kEncTypeAesCbc256, XSTRLEN(kEncTypeAesCbc256)) == 0) {
+    if (XSTRCMP(cipherInfo, kEncTypeAesCbc256) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_256_KEY_SIZE;
         if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
@@ -26174,26 +26177,24 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
     }
     while (token != NULL)
     {
-        len = (word32)XSTRLEN(token);
-
-        if (!XSTRNCASECMP(token, "digitalSignature", len))
+        if (!XSTRCASECMP(token, "digitalSignature"))
             cert->keyUsage |= KEYUSE_DIGITAL_SIG;
-        else if (!XSTRNCASECMP(token, "nonRepudiation", len) ||
-                 !XSTRNCASECMP(token, "contentCommitment", len))
+        else if (!XSTRCASECMP(token, "nonRepudiation") ||
+                 !XSTRCASECMP(token, "contentCommitment"))
             cert->keyUsage |= KEYUSE_CONTENT_COMMIT;
-        else if (!XSTRNCASECMP(token, "keyEncipherment", len))
+        else if (!XSTRCASECMP(token, "keyEncipherment"))
             cert->keyUsage |= KEYUSE_KEY_ENCIPHER;
-        else if (!XSTRNCASECMP(token, "dataEncipherment", len))
+        else if (!XSTRCASECMP(token, "dataEncipherment"))
             cert->keyUsage |= KEYUSE_DATA_ENCIPHER;
-        else if (!XSTRNCASECMP(token, "keyAgreement", len))
+        else if (!XSTRCASECMP(token, "keyAgreement"))
             cert->keyUsage |= KEYUSE_KEY_AGREE;
-        else if (!XSTRNCASECMP(token, "keyCertSign", len))
+        else if (!XSTRCASECMP(token, "keyCertSign"))
             cert->keyUsage |= KEYUSE_KEY_CERT_SIGN;
-        else if (!XSTRNCASECMP(token, "cRLSign", len))
+        else if (!XSTRCASECMP(token, "cRLSign"))
             cert->keyUsage |= KEYUSE_CRL_SIGN;
-        else if (!XSTRNCASECMP(token, "encipherOnly", len))
+        else if (!XSTRCASECMP(token, "encipherOnly"))
             cert->keyUsage |= KEYUSE_ENCIPHER_ONLY;
-        else if (!XSTRNCASECMP(token, "decipherOnly", len))
+        else if (!XSTRCASECMP(token, "decipherOnly"))
             cert->keyUsage |= KEYUSE_DECIPHER_ONLY;
         else {
             ret = KEYUSAGE_E;
@@ -26234,21 +26235,19 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
 
     while (token != NULL)
     {
-        len = (word32)XSTRLEN(token);
-
-        if (!XSTRNCASECMP(token, "any", len))
+        if (!XSTRCASECMP(token, "any"))
             cert->extKeyUsage |= EXTKEYUSE_ANY;
-        else if (!XSTRNCASECMP(token, "serverAuth", len))
+        else if (!XSTRCASECMP(token, "serverAuth"))
             cert->extKeyUsage |= EXTKEYUSE_SERVER_AUTH;
-        else if (!XSTRNCASECMP(token, "clientAuth", len))
+        else if (!XSTRCASECMP(token, "clientAuth"))
             cert->extKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
-        else if (!XSTRNCASECMP(token, "codeSigning", len))
+        else if (!XSTRCASECMP(token, "codeSigning"))
             cert->extKeyUsage |= EXTKEYUSE_CODESIGN;
-        else if (!XSTRNCASECMP(token, "emailProtection", len))
+        else if (!XSTRCASECMP(token, "emailProtection"))
             cert->extKeyUsage |= EXTKEYUSE_EMAILPROT;
-        else if (!XSTRNCASECMP(token, "timeStamping", len))
+        else if (!XSTRCASECMP(token, "timeStamping"))
             cert->extKeyUsage |= EXTKEYUSE_TIMESTAMP;
-        else if (!XSTRNCASECMP(token, "OCSPSigning", len))
+        else if (!XSTRCASECMP(token, "OCSPSigning"))
             cert->extKeyUsage |= EXTKEYUSE_OCSP_SIGN;
         else {
             ret = EXTKEYUSAGE_E;
@@ -32540,10 +32539,8 @@ int wc_MIME_header_strip(char* in, char** out, size_t start, size_t end)
 */
 MimeHdr* wc_MIME_find_header_name(const char* name, MimeHdr* header)
 {
-    size_t len = XSTRLEN(name);
-
     while (header) {
-        if (!XSTRNCMP(name, header->name, len)) {
+        if (!XSTRCMP(name, header->name)) {
             return header;
         }
         header = header->next;
@@ -32563,10 +32560,8 @@ MimeHdr* wc_MIME_find_header_name(const char* name, MimeHdr* header)
 MimeParam* wc_MIME_find_param_attr(const char* attribute,
                                     MimeParam* param)
 {
-    size_t len = XSTRLEN(attribute);
-
     while (param) {
-        if (!XSTRNCMP(attribute, param->attribute, len)) {
+        if (!XSTRCMP(attribute, param->attribute)) {
             return param;
         }
         param = param->next;

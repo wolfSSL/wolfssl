@@ -367,107 +367,82 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         if (usePqc) {
             int group = 0;
 
-            if (XSTRNCMP(pqcAlg, "KYBER_LEVEL1", XSTRLEN("KYBER_LEVEL1")) == 0) {
+            if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "KYBER_LEVEL3",
-                                XSTRLEN("KYBER_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "KYBER_LEVEL3") == 0) {
                 group = WOLFSSL_KYBER_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "KYBER_LEVEL5",
-                                XSTRLEN("KYBER_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_KYBER_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL1",
-                                XSTRLEN("NTRU_HPS_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL1") == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL3",
-                                XSTRLEN("NTRU_HPS_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL3") == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL5",
-                                XSTRLEN("NTRU_HPS_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "NTRU_HPS_LEVEL5") == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "NTRU_HRSS_LEVEL3",
-                                XSTRLEN("NTRU_HRSS_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "NTRU_HRSS_LEVEL3") == 0) {
                 group = WOLFSSL_NTRU_HRSS_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL1",
-                                XSTRLEN("SABER_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "SABER_LEVEL1") == 0) {
                 group = WOLFSSL_SABER_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL3",
-                                XSTRLEN("SABER_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "SABER_LEVEL3") == 0) {
                 group = WOLFSSL_SABER_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL5",
-                                XSTRLEN("SABER_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "SABER_LEVEL5") == 0) {
                 group = WOLFSSL_SABER_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL1",
-                                XSTRLEN("KYBER_90S_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL3",
-                                XSTRLEN("KYBER_90S_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL3") == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL5",
-                                XSTRLEN("KYBER_90S_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL5") == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "P256_NTRU_HPS_LEVEL1",
-                                XSTRLEN("P256_NTRU_HPS_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P256_NTRU_HPS_LEVEL1") == 0) {
                 group = WOLFSSL_P256_NTRU_HPS_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "P384_NTRU_HPS_LEVEL3",
-                                XSTRLEN("P384_NTRU_HPS_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P384_NTRU_HPS_LEVEL3") == 0) {
                 group = WOLFSSL_P384_NTRU_HPS_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "P521_NTRU_HPS_LEVEL5",
-                                XSTRLEN("P521_NTRU_HPS_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P521_NTRU_HPS_LEVEL5") == 0) {
                 group = WOLFSSL_P521_NTRU_HPS_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "P384_NTRU_HRSS_LEVEL3",
-                                XSTRLEN("P384_NTRU_HRSS_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P384_NTRU_HRSS_LEVEL3") == 0) {
                 group = WOLFSSL_P384_NTRU_HRSS_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "P256_SABER_LEVEL1",
-                                XSTRLEN("P256_SABER_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P256_SABER_LEVEL1") == 0) {
                 group = WOLFSSL_P256_SABER_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "P384_SABER_LEVEL3",
-                                XSTRLEN("P384_SABER_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P384_SABER_LEVEL3") == 0) {
                 group = WOLFSSL_P384_SABER_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "P521_SABER_LEVEL5",
-                                XSTRLEN("P521_SABER_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P521_SABER_LEVEL5") == 0) {
                 group = WOLFSSL_P521_SABER_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "P256_KYBER_LEVEL1",
-                                XSTRLEN("P256_KYBER_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_P256_KYBER_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "P384_KYBER_LEVEL3",
-                                XSTRLEN("P384_KYBER_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL3") == 0) {
                 group = WOLFSSL_P384_KYBER_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "P521_KYBER_LEVEL5",
-                                XSTRLEN("P521_KYBER_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_P521_KYBER_LEVEL5;
             }
-            else if (XSTRNCMP(pqcAlg, "P256_KYBER_90S_LEVEL1",
-                                XSTRLEN("P256_KYBER_90S_LEVEL1")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P256_KYBER_90S_LEVEL1") == 0) {
                 group = WOLFSSL_P256_KYBER_90S_LEVEL1;
             }
-            else if (XSTRNCMP(pqcAlg, "P384_KYBER_90S_LEVEL3",
-                                XSTRLEN("P384_KYBER_90S_LEVEL3")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P384_KYBER_90S_LEVEL3") == 0) {
                 group = WOLFSSL_P384_KYBER_90S_LEVEL3;
             }
-            else if (XSTRNCMP(pqcAlg, "P521_KYBER_90S_LEVEL5",
-                                XSTRLEN("P521_KYBER_90S_LEVEL5")) == 0) {
+            else if (XSTRCMP(pqcAlg, "P521_KYBER_90S_LEVEL5") == 0) {
                 group = WOLFSSL_P521_KYBER_90S_LEVEL5;
             } else {
                 err_sys("invalid post-quantum KEM specified");
@@ -915,7 +890,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRNCMP(tmpBuf, starttlsCmd[0], XSTRLEN(starttlsCmd[0]))) {
+    if (!XSTRCMP(tmpBuf, starttlsCmd[0])) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -931,7 +906,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRNCMP(tmpBuf, starttlsCmd[2], XSTRLEN(starttlsCmd[2]))) {
+    if (!XSTRCMP(tmpBuf, starttlsCmd[2])) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -948,7 +923,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
     tmpBuf[sizeof(tmpBuf)-1] = '\0';
-    if (!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) {
+    if (!XSTRCMP(tmpBuf, starttlsCmd[4])) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received, expected 220");
@@ -2248,23 +2223,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'H' :
-                if (XSTRNCMP(myoptarg, "defCipherList", 13) == 0) {
+                if (XSTRCMP(myoptarg, "defCipherList") == 0) {
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "exitWithRet", 11) == 0) {
+                else if (XSTRCMP(myoptarg, "exitWithRet") == 0) {
                     printf("Skip exit() for testing\n");
                     exitWithRet = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
+                else if (XSTRCMP(myoptarg, "verifyFail") == 0) {
                     printf("Verify should fail\n");
                     myVerifyAction = VERIFY_FORCE_FAIL;
                 }
-                else if (XSTRNCMP(myoptarg, "verifyInfo", 10) == 0) {
+                else if (XSTRCMP(myoptarg, "verifyInfo") == 0) {
                     printf("Verify should not override error\n");
                     myVerifyAction = VERIFY_USE_PREVERFIY;
                 }
-                else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
+                else if (XSTRCMP(myoptarg, "useSupCurve") == 0) {
                     printf("Attempting to test use supported curve\n");
                 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
                     useSupCurve = 1;
@@ -2272,7 +2247,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Supported curves not compiled in!\n");
                 #endif
                 }
-                else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
+                else if (XSTRCMP(myoptarg, "loadSSL") == 0) {
                     printf("Load cert/key into wolfSSL object\n");
                 #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
@@ -2280,7 +2255,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Certs turned off with NO_CERTS!\n");
                 #endif
                 }
-                else if (XSTRNCMP(myoptarg, "disallowETM", 7) == 0) {
+                else if (XSTRCMP(myoptarg, "disallowETM") == 0) {
                     printf("Disallow Encrypt-Then-MAC\n");
                 #ifdef HAVE_ENCRYPT_THEN_MAC
                     disallowETM = 1;
@@ -2359,7 +2334,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #ifdef HAVE_SECURE_RENEGOTIATION
                     scr      = 1;
                     forceScr = 1;
-                    if (XSTRNCMP(myoptarg, "scr-app-data", 12) == 0) {
+                    if (XSTRCMP(myoptarg, "scr-app-data") == 0) {
                         scrAppData = 1;
                     }
                 #endif
@@ -2372,7 +2347,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'S' :
-                if (XSTRNCMP(myoptarg, "check", 5) == 0) {
+                if (XSTRCMP(myoptarg, "check") == 0) {
                 #ifdef HAVE_SNI
                     printf("SNI is: ON\n");
                 #else
@@ -2470,7 +2445,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 doSTARTTLS = 1;
                 starttlsProt = myoptarg;
 
-                if (XSTRNCMP(starttlsProt, "smtp", 4) != 0) {
+                if (XSTRCMP(starttlsProt, "smtp") != 0) {
                     Usage();
                     XEXIT_T(MY_EX_USAGE);
                 }
@@ -2679,7 +2654,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1; /* require RSA for external tests */
         #endif
 
-        if (!XSTRNCMP(domain, "www.globalsign.com", 14)) {
+        if (!XSTRCMP(domain, "www.globalsign.com")) {
         /* www.globalsign.com does not respond to ipv6 ocsp requests */
         #if defined(TEST_IPV6) && defined(HAVE_OCSP)
             done += 1;
@@ -2713,18 +2688,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             || ( defined(HAVE_ECC) && !defined(HAVE_SUPPORTED_CURVES) \
                   && !defined(WOLFSSL_STATIC_RSA) )
             /* google needs ECDHE+Supported Curves or static RSA */
-            if (!XSTRNCMP(domain, "www.google.com", 14))
+            if (!XSTRCASECMP(domain, "www.google.com"))
                 done += 1;
         #endif
 
         #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
             /* wolfssl needs ECDHE or static RSA */
-            if (!XSTRNCMP(domain, "www.wolfssl.com", 15))
+            if (!XSTRCASECMP(domain, "www.wolfssl.com"))
                 done += 1;
         #endif
 
         #if !defined(WOLFSSL_SHA384)
-            if (!XSTRNCMP(domain, "www.wolfssl.com", 15)) {
+            if (!XSTRCASECMP(domain, "www.wolfssl.com")) {
                 /* wolfssl need sha384 for cert chain verify */
                 done += 1;
             }
@@ -2740,7 +2715,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
          * connection. They only currently support AES suites, RC4 and 3DES
          * suites. With AES disabled we only offer PolyChacha suites. */
         #if defined(NO_AES) && !defined(HAVE_AESGCM)
-            if (!XSTRNCMP(domain, "www.wolfssl.com", 15)) {
+            if (!XSTRCASECMP(domain, "www.wolfssl.com")) {
                 done += 1;
             }
         #endif
@@ -3813,7 +3788,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     if (doSTARTTLS && starttlsProt != NULL) {
-        if (XSTRNCMP(starttlsProt, "smtp", 4) == 0) {
+        if (XSTRCMP(starttlsProt, "smtp") == 0) {
             if (SMTP_Shutdown(ssl, wc_shutdown) != WOLFSSL_SUCCESS) {
                 wolfSSL_free(ssl); ssl = NULL;
                 wolfSSL_CTX_free(ctx); ctx = NULL;

@@ -227,8 +227,17 @@
     #ifndef __ARCH_MEMMOVE_NO_REDIRECT
         typeof(memmove) *memmove;
     #endif
+    #ifndef __ARCH_STRCMP_NO_REDIRECT
+        typeof(strcmp) *strcmp;
+    #endif
     #ifndef __ARCH_STRNCMP_NO_REDIRECT
         typeof(strncmp) *strncmp;
+    #endif
+    #ifndef __ARCH_STRCASECMP_NO_REDIRECT
+        typeof(strcasecmp) *strcasecmp;
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+        typeof(strncasecmp) *strncasecmp;
     #endif
     #ifndef __ARCH_STRLEN_NO_REDIRECT
         typeof(strlen) *strlen;
@@ -241,9 +250,6 @@
     #endif
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         typeof(strncat) *strncat;
-    #endif
-    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
-        typeof(strncasecmp) *strncasecmp;
     #endif
         typeof(kstrtoll) *kstrtoll;
 
@@ -355,8 +361,17 @@
     #ifndef __ARCH_MEMMOVE_NO_REDIRECT
         #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
     #endif
+    #ifndef __ARCH_STRCMP_NO_REDIRECT
+        #define strcmp (wolfssl_linuxkm_get_pie_redirect_table()->strcmp)
+    #endif
     #ifndef __ARCH_STRNCMP_NO_REDIRECT
         #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
+    #endif
+    #ifndef __ARCH_STRCASECMP_NO_REDIRECT
+        #define strcasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strcasecmp)
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+        #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
     #endif
     #ifndef __ARCH_STRLEN_NO_REDIRECT
         #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
@@ -369,9 +384,6 @@
     #endif
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
         #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
-    #endif
-    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
-        #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
     #endif
     #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
 

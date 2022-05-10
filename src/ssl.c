@@ -11005,7 +11005,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
         else
             continue;
 
-        if (XSTRNCMP(enabledcs, "None", XSTRLEN(enabledcs)) != 0) {
+        if (XSTRCMP(enabledcs, "None") != 0) {
             len += (word32)XSTRLEN(enabledcs) + 2;
         }
     }
@@ -17619,61 +17619,61 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
 
 #ifndef NO_MD5
-        if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
+        if (XSTRCMP(evp_md, "MD5") == 0) {
             type = WC_MD5;
             mdlen = WC_MD5_DIGEST_SIZE;
         } else
 #endif
 #ifdef WOLFSSL_SHA224
-        if (XSTRNCMP(evp_md, "SHA224", 6) == 0) {
+        if (XSTRCMP(evp_md, "SHA224") == 0) {
             type = WC_SHA224;
             mdlen = WC_SHA224_DIGEST_SIZE;
         } else
 #endif
 #ifndef NO_SHA256
-        if (XSTRNCMP(evp_md, "SHA256", 6) == 0) {
+        if (XSTRCMP(evp_md, "SHA256") == 0) {
             type = WC_SHA256;
             mdlen = WC_SHA256_DIGEST_SIZE;
         } else
 #endif
 #ifdef WOLFSSL_SHA384
-        if (XSTRNCMP(evp_md, "SHA384", 6) == 0) {
+        if (XSTRCMP(evp_md, "SHA384") == 0) {
             type = WC_SHA384;
             mdlen = WC_SHA384_DIGEST_SIZE;
         } else
 #endif
 #ifdef WOLFSSL_SHA512
-        if (XSTRNCMP(evp_md, "SHA512", 6) == 0) {
+        if (XSTRCMP(evp_md, "SHA512") == 0) {
             type = WC_SHA512;
             mdlen = WC_SHA512_DIGEST_SIZE;
         } else
 #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        if (XSTRNCMP(evp_md, "SHA3_224", 8) == 0) {
+        if (XSTRCMP(evp_md, "SHA3_224") == 0) {
             type = WC_SHA3_224;
             mdlen = WC_SHA3_224_DIGEST_SIZE;
         } else
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        if (XSTRNCMP(evp_md, "SHA3_256", 8) == 0) {
+        if (XSTRCMP(evp_md, "SHA3_256") == 0) {
             type = WC_SHA3_256;
             mdlen = WC_SHA3_256_DIGEST_SIZE;
         } else
     #endif
-        if (XSTRNCMP(evp_md, "SHA3_384", 8) == 0) {
+        if (XSTRCMP(evp_md, "SHA3_384") == 0) {
             type = WC_SHA3_384;
             mdlen = WC_SHA3_384_DIGEST_SIZE;
         } else
     #ifndef WOLFSSL_NOSHA3_512
-        if (XSTRNCMP(evp_md, "SHA3_512", 8) == 0) {
+        if (XSTRCMP(evp_md, "SHA3_512") == 0) {
             type = WC_SHA3_512;
             mdlen = WC_SHA3_512_DIGEST_SIZE;
         } else
     #endif
 #endif
 #ifndef NO_SHA
-        if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
+        if (XSTRCMP(evp_md, "SHA") == 0) {
             type = WC_SHA;
             mdlen = WC_SHA_DIGEST_SIZE;
         } else
@@ -20717,7 +20717,7 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
 
     if (authStr != NULL) {
         for(sa = authnid_tbl; sa->alg_name != NULL; sa++) {
-            if (XSTRNCMP(sa->alg_name, authStr, XSTRLEN(sa->alg_name)) == 0) {
+            if (XSTRCMP(sa->alg_name, authStr) == 0) {
                 return sa->nid;
             }
         }
@@ -20764,7 +20764,7 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
 
     if (encStr != NULL) {
         for(c = ciphernid_tbl; c->alg_name != NULL; c++) {
-            if (XSTRNCMP(c->alg_name, encStr, XSTRLEN(c->alg_name)) == 0) {
+            if (XSTRCMP(c->alg_name, encStr) == 0) {
                 return c->nid;
             }
         }
@@ -20810,7 +20810,7 @@ int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher)
 
     if (macStr != NULL) {
         for(mc = macnid_tbl; mc->alg_name != NULL; mc++) {
-            if (XSTRNCMP(mc->alg_name, macStr, XSTRLEN(mc->alg_name)) == 0) {
+            if (XSTRCMP(mc->alg_name, macStr) == 0) {
                 return mc->nid;
             }
         }
@@ -20824,7 +20824,7 @@ int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher)
  */
 int wolfSSL_CIPHER_get_kx_nid(const WOLFSSL_CIPHER* cipher)
 {
-static const struct kxnid {
+    static const struct kxnid {
         const char* name;
         const int  nid;
     } kxnid_table[] = {
@@ -20840,20 +20840,18 @@ static const struct kxnid {
     };
 
     const struct kxnid* k;
-    const char* name;
     const char* keaStr;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    (void)name;
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_kx_nid");
 
-    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+    if (GetCipherSegment(cipher, n) == NULL) {
         WOLFSSL_MSG("no suitable cipher name found");
         return NID_undef;
     }
 
     /* in TLS 1.3 case, NID will be NID_kx_any */
-    if (XSTRNCMP(name, "TLS13", 5) == 0) {
+    if (XSTRCMP(n[0], "TLS13") == 0) {
         return NID_kx_any;
     }
 
@@ -20861,8 +20859,7 @@ static const struct kxnid {
 
     if (keaStr != NULL) {
         for(k = kxnid_table; k->name != NULL; k++) {
-            if (XSTRNCMP(k->name, keaStr, XSTRLEN(k->name)) == 0) {
-                printf("k->name %s k->nid %d\n", k->name, k->nid);
+            if (XSTRCMP(k->name, keaStr) == 0) {
                 return k->nid;
             }
         }
@@ -29641,35 +29638,42 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         WOLFSSL_MSG("init has type");
 
 #ifndef NO_MD5
-        if (XSTRNCMP(type, "MD5", 3) == 0) {
+        if (XSTRCMP(type, "MD5") == 0) {
             WOLFSSL_MSG("md5 hmac");
             ctx->type = WC_MD5;
         }
         else
 #endif
+#ifndef NO_SHA
+        if ((XSTRCMP(type, "SHA") == 0) || (XSTRCMP(type, "SHA1") == 0)) {
+            WOLFSSL_MSG("sha hmac");
+            ctx->type = WC_SHA;
+        }
+        else
+#endif
 #ifdef WOLFSSL_SHA224
-        if (XSTRNCMP(type, "SHA224", 6) == 0) {
+        if (XSTRCMP(type, "SHA224") == 0) {
             WOLFSSL_MSG("sha224 hmac");
             ctx->type = WC_SHA224;
         }
         else
 #endif
 #ifndef NO_SHA256
-        if (XSTRNCMP(type, "SHA256", 6) == 0) {
+        if (XSTRCMP(type, "SHA256") == 0) {
             WOLFSSL_MSG("sha256 hmac");
             ctx->type = WC_SHA256;
         }
         else
 #endif
 #ifdef WOLFSSL_SHA384
-        if (XSTRNCMP(type, "SHA384", 6) == 0) {
+        if (XSTRCMP(type, "SHA384") == 0) {
             WOLFSSL_MSG("sha384 hmac");
             ctx->type = WC_SHA384;
         }
         else
 #endif
 #ifdef WOLFSSL_SHA512
-        if (XSTRNCMP(type, "SHA512", 6) == 0) {
+        if (XSTRCMP(type, "SHA512") == 0) {
             WOLFSSL_MSG("sha512 hmac");
             ctx->type = WC_SHA512;
         }
@@ -29677,40 +29681,31 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
+        if (XSTRCMP(type, "SHA3_224") == 0) {
             WOLFSSL_MSG("sha3_224 hmac");
             ctx->type = WC_SHA3_224;
         }
         else
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
+        if (XSTRCMP(type, "SHA3_256") == 0) {
             WOLFSSL_MSG("sha3_256 hmac");
             ctx->type = WC_SHA3_256;
         }
         else
     #endif
-        if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
+        if (XSTRCMP(type, "SHA3_384") == 0) {
             WOLFSSL_MSG("sha3_384 hmac");
             ctx->type = WC_SHA3_384;
         }
         else
     #ifndef WOLFSSL_NOSHA3_512
-        if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
+        if (XSTRCMP(type, "SHA3_512") == 0) {
             WOLFSSL_MSG("sha3_512 hmac");
             ctx->type = WC_SHA3_512;
         }
         else
     #endif
-#endif
-
-#ifndef NO_SHA
-        /* has to be last since would pick or 256, 384, or 512 too */
-        if (XSTRNCMP(type, "SHA", 3) == 0) {
-            WOLFSSL_MSG("sha hmac");
-            ctx->type = WC_SHA;
-        }
-        else
 #endif
         {
             WOLFSSL_MSG("bad init type");
@@ -37380,7 +37375,7 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         const struct oid_dict* idx;
 
         for (idx = oid_dict; idx->num != NULL; idx++) {
-            if (!XSTRNCMP(oid, idx->num, XSTRLEN(idx->num))) {
+            if (!XSTRCMP(oid, idx->num)) {
                 return idx->desc;
             }
         }
@@ -38016,7 +38011,7 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_txt2obj(const char* s, int no_name)
     {
-        int len, i, ret;
+        int i, ret;
         int nid = NID_undef;
         unsigned int outSz = MAX_OID_SZ;
         unsigned char out[MAX_OID_SZ];
@@ -38052,15 +38047,16 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
             return obj;
         }
 
-        len = (int)XSTRLEN(s);
-
         /* TODO: update short names in wolfssl_object_info and check OID sums
            are correct */
         for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
             /* Short name, long name, and numerical value are interpreted */
-            if (no_name == 0 && ((XSTRNCMP(s, wolfssl_object_info[i].sName, len) == 0) ||
-                                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0)))
+            if (no_name == 0 &&
+                ((XSTRCMP(s, wolfssl_object_info[i].sName) == 0) ||
+                 (XSTRCMP(s, wolfssl_object_info[i].lName) == 0)))
+            {
                     nid = wolfssl_object_info[i].nid;
+            }
         }
 
         if (nid != NID_undef)
@@ -42013,23 +42009,28 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
         XMEMCPY(name, names + start, len);
         name[len] = 0;
 
-        if ((XSTRNCMP(name, "prime256v1", len) == 0) ||
-                                      (XSTRNCMP(name, "secp256r1", len) == 0) ||
-                                      (XSTRNCMP(name, "P-256", len) == 0)) {
+        if ((XSTRCMP(name, "prime256v1") == 0) ||
+            (XSTRCMP(name, "secp256r1") == 0) ||
+            (XSTRCMP(name, "P-256") == 0))
+        {
             curve = WOLFSSL_ECC_SECP256R1;
         }
-        else if ((XSTRNCMP(name, "secp384r1", len) == 0) ||
-                                          (XSTRNCMP(name, "P-384", len) == 0)) {
+        else if ((XSTRCMP(name, "secp384r1") == 0) ||
+                 (XSTRCMP(name, "P-384") == 0))
+        {
             curve = WOLFSSL_ECC_SECP384R1;
         }
-        else if ((XSTRNCMP(name, "secp521r1", len) == 0) ||
-                                          (XSTRNCMP(name, "P-521", len) == 0)) {
+        else if ((XSTRCMP(name, "secp521r1") == 0) ||
+                 (XSTRCMP(name, "P-521") == 0))
+        {
             curve = WOLFSSL_ECC_SECP521R1;
         }
-        else if (XSTRNCMP(name, "X25519", len) == 0) {
+        else if (XSTRCMP(name, "X25519") == 0)
+        {
             curve = WOLFSSL_ECC_X25519;
         }
-        else if (XSTRNCMP(name, "X448", len) == 0) {
+        else if (XSTRCMP(name, "X448") == 0)
+        {
             curve = WOLFSSL_ECC_X448;
         }
         else {

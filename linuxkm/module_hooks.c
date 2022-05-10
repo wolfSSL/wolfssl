@@ -350,8 +350,17 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_MEMMOVE_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memmove = memmove;
 #endif
+#ifndef __ARCH_STRCMP_NO_REDIRECT
+    wolfssl_linuxkm_pie_redirect_table.strcmp = strcmp;
+#endif
 #ifndef __ARCH_STRNCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncmp = strncmp;
+#endif
+#ifndef __ARCH_STRCASECMP_NO_REDIRECT
+    wolfssl_linuxkm_pie_redirect_table.strcasecmp = strcasecmp;
+#endif
+#ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+    wolfssl_linuxkm_pie_redirect_table.strncasecmp = strncasecmp;
 #endif
 #ifndef __ARCH_STRLEN_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strlen = strlen;
@@ -364,9 +373,6 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 #ifndef __ARCH_STRNCAT_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncat = strncat;
-#endif
-#ifndef __ARCH_STRNCASECMP_NO_REDIRECT
-    wolfssl_linuxkm_pie_redirect_table.strncasecmp = strncasecmp;
 #endif
     wolfssl_linuxkm_pie_redirect_table.kstrtoll = kstrtoll;
 
