@@ -14527,9 +14527,8 @@ int sp_mont_setup(sp_int* m, sp_int_digit* rho)
     #endif /* SP_WORD_SIZE >= 32 */
     #endif /* SP_WORD_SIZE >= 16 */
 
-        /* rho = -1/m mod b, subtract x (unsigned) from 0 (MP_ZPOS) and
-         * assign negative result */
-        *rho = (sp_int_digit) (MP_ZPOS - x);
+        /* rho = -1/m mod b, subtract x (unsigned) from 0, assign negative */
+        *rho = (sp_int_digit) ((sp_int_digit)0 - (sp_int_digit)x);
     }
 
     return err;
