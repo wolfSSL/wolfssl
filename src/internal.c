@@ -21344,7 +21344,7 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
 
     if (XSTRCMP(n[0],"ECDHE") == 0 && XSTRCMP(n[1],"PSK") == 0)
         keaStr = "ECDHEPSK";
-    else if (XSTRCMP(n[0],"ECDHE") == 0)
+    else if ((XSTRCMP(n[0],"ECDH") == 0) || (XSTRCMP(n[0],"ECDHE") == 0))
         keaStr = "ECDH";
     else if (XSTRCMP(n[0],"DHE") == 0 && XSTRCMP(n[1],"PSK") == 0)
         keaStr = "DHEPSK";
