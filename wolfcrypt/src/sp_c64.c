@@ -846,8 +846,8 @@ static WC_INLINE sp_digit sp_2048_div_word_17(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 61) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 61;
-    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 61);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -1676,8 +1676,8 @@ static WC_INLINE sp_digit sp_2048_div_word_34(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 61) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 61;
-    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 61);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -2204,7 +2204,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -4380,8 +4380,8 @@ static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 57;
-    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 57);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -5271,8 +5271,8 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 57;
-    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 57);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -5803,7 +5803,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -7729,8 +7729,8 @@ static WC_INLINE sp_digit sp_3072_div_word_26(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 60) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 60;
-    sp_digit t0 = (sp_digit)d & 0xfffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 60);
+    sp_digit t0 = (sp_digit)(d & 0xfffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -8565,8 +8565,8 @@ static WC_INLINE sp_digit sp_3072_div_word_52(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 60) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 60;
-    sp_digit t0 = (sp_digit)d & 0xfffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 60);
+    sp_digit t0 = (sp_digit)(d & 0xfffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -9093,7 +9093,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -11407,8 +11407,8 @@ static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 57;
-    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 57);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -12309,8 +12309,8 @@ static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 57;
-    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 57);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -12841,7 +12841,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -14809,8 +14809,8 @@ static WC_INLINE sp_digit sp_4096_div_word_35(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 59) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 59;
-    sp_digit t0 = (sp_digit)d & 0x7ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 59);
+    sp_digit t0 = (sp_digit)(d & 0x7ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -15640,8 +15640,8 @@ static WC_INLINE sp_digit sp_4096_div_word_70(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 59) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 59;
-    sp_digit t0 = (sp_digit)d & 0x7ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 59);
+    sp_digit t0 = (sp_digit)(d & 0x7ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -16168,7 +16168,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -18537,8 +18537,8 @@ static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 53) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 53;
-    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 53);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -19440,8 +19440,8 @@ static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 53) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 53;
-    sp_digit t0 = (sp_digit)d & 0x1fffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 53);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -19972,7 +19972,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -40728,8 +40728,8 @@ static WC_INLINE sp_digit sp_521_div_word_9(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 58) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 58;
-    sp_digit t0 = (sp_digit)d & 0x3ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 58);
+    sp_digit t0 = (sp_digit)(d & 0x3ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -43250,8 +43250,8 @@ static WC_INLINE sp_digit sp_1024_div_word_18(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int128 d = ((sp_int128)d1 << 57) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 57;
-    sp_digit t0 = (sp_digit)d & 0x1ffffffffffffffL;
+    sp_digit t1 = (sp_digit)(d >> 57);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffffffffffffL);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;

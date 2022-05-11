@@ -1926,8 +1926,8 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -2993,8 +2993,8 @@ static WC_INLINE sp_digit sp_2048_div_word_72(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -3525,7 +3525,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -5618,8 +5618,8 @@ static WC_INLINE sp_digit sp_3072_div_word_53(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -6462,8 +6462,8 @@ static WC_INLINE sp_digit sp_3072_div_word_106(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -6990,7 +6990,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -9651,8 +9651,8 @@ static WC_INLINE sp_digit sp_3072_div_word_56(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 28;
-    sp_digit t0 = (sp_digit)d & 0xfffffff;
+    sp_digit t1 = (sp_digit)(d >> 28);
+    sp_digit t0 = (sp_digit)(d & 0xfffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -10574,8 +10574,8 @@ static WC_INLINE sp_digit sp_3072_div_word_112(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 28) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 28;
-    sp_digit t0 = (sp_digit)d & 0xfffffff;
+    sp_digit t1 = (sp_digit)(d >> 28);
+    sp_digit t0 = (sp_digit)(d & 0xfffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -11107,7 +11107,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -13281,8 +13281,8 @@ static WC_INLINE sp_digit sp_4096_div_word_71(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -14126,8 +14126,8 @@ static WC_INLINE sp_digit sp_4096_div_word_142(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 29) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 29;
-    sp_digit t0 = (sp_digit)d & 0x1fffffff;
+    sp_digit t1 = (sp_digit)(d >> 29);
+    sp_digit t0 = (sp_digit)(d & 0x1fffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -14654,7 +14654,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -17194,8 +17194,8 @@ static WC_INLINE sp_digit sp_4096_div_word_81(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 26;
-    sp_digit t0 = (sp_digit)d & 0x3ffffff;
+    sp_digit t1 = (sp_digit)(d >> 26);
+    sp_digit t0 = (sp_digit)(d & 0x3ffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -18103,8 +18103,8 @@ static WC_INLINE sp_digit sp_4096_div_word_162(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 26) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 26;
-    sp_digit t0 = (sp_digit)d & 0x3ffffff;
+    sp_digit t1 = (sp_digit)(d >> 26);
+    sp_digit t0 = (sp_digit)(d & 0x3ffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -18638,7 +18638,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     sp_digit* r = NULL;
     sp_digit* norm = NULL;
     sp_digit e[1] = {0};
-    sp_digit mp;
+    sp_digit mp = 0;
     int i;
     int err = MP_OKAY;
 
@@ -41067,8 +41067,8 @@ static WC_INLINE sp_digit sp_521_div_word_21(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 25) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 25;
-    sp_digit t0 = (sp_digit)d & 0x1ffffff;
+    sp_digit t1 = (sp_digit)(d >> 25);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
@@ -43730,8 +43730,8 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
 #elif !defined(__aarch64__) &&  !defined(SP_DIV_WORD_USE_DIV)
     sp_int64 d = ((sp_int64)d1 << 25) + d0;
     sp_digit dv = (div >> 1) + 1;
-    sp_digit t1 = d >> 25;
-    sp_digit t0 = (sp_digit)d & 0x1ffffff;
+    sp_digit t1 = (sp_digit)(d >> 25);
+    sp_digit t0 = (sp_digit)(d & 0x1ffffff);
     sp_digit t2;
     sp_digit sign;
     sp_digit r;
