@@ -16035,7 +16035,9 @@ static int dh_generate_test(WC_RNG *rng)
     }
 #else
     (void)rng;
+    #if defined(HAVE_FIPS) || !defined(WOLFSSL_NO_DH186)
     ret = 0;
+    #endif
 #endif
 
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)
