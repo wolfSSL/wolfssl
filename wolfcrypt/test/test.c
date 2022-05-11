@@ -1689,9 +1689,9 @@ WOLFSSL_TEST_SUBROUTINE int error_test(void)
      */
     errStr = wc_GetErrorString(OPEN_RAN_E);
     wc_ErrorString(OPEN_RAN_E, out);
-    if (XSTRNCMP(errStr, unknownStr, XSTRLEN(unknownStr)) != 0)
+    if (XSTRCMP(errStr, unknownStr) != 0)
         return -1100;
-    if (XSTRNCMP(out, unknownStr, XSTRLEN(unknownStr)) != 0)
+    if (XSTRCMP(out, unknownStr) != 0)
         return -1101;
 #else
     int i;
@@ -1710,20 +1710,20 @@ WOLFSSL_TEST_SUBROUTINE int error_test(void)
         wc_ErrorString(i, out);
 
         if (i != missing[j]) {
-            if (XSTRNCMP(errStr, unknownStr, XSTRLEN(unknownStr)) == 0)
+            if (XSTRCMP(errStr, unknownStr) == 0)
                 return -1102;
-            if (XSTRNCMP(out, unknownStr, XSTRLEN(unknownStr)) == 0)
+            if (XSTRCMP(out, unknownStr) == 0)
                 return -1103;
-            if (XSTRNCMP(errStr, out, XSTRLEN(errStr)) != 0)
+            if (XSTRCMP(errStr, out) != 0)
                 return -1104;
             if (XSTRLEN(errStr) >= WOLFSSL_MAX_ERROR_SZ)
                 return -1105;
         }
         else {
             j++;
-            if (XSTRNCMP(errStr, unknownStr, XSTRLEN(unknownStr)) != 0)
+            if (XSTRCMP(errStr, unknownStr) != 0)
                 return -1106;
-            if (XSTRNCMP(out, unknownStr, XSTRLEN(unknownStr)) != 0)
+            if (XSTRCMP(out, unknownStr) != 0)
                 return -1107;
         }
     }
@@ -1731,9 +1731,9 @@ WOLFSSL_TEST_SUBROUTINE int error_test(void)
     /* Check if the next possible value has been given a string. */
     errStr = wc_GetErrorString(i);
     wc_ErrorString(i, out);
-    if (XSTRNCMP(errStr, unknownStr, XSTRLEN(unknownStr)) != 0)
+    if (XSTRCMP(errStr, unknownStr) != 0)
         return -1108;
-    if (XSTRNCMP(out, unknownStr, XSTRLEN(unknownStr)) != 0)
+    if (XSTRCMP(out, unknownStr) != 0)
         return -1109;
 #endif
 

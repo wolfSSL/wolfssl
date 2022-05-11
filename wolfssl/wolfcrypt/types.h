@@ -630,10 +630,42 @@ decouple library dependencies with standard string, memory and so on.
             #define XSTRSEP(s1,d) strsep((s1),(d))
         #endif
 
-        #ifndef XSTRNCASECMP
-        #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
+        #ifndef XSTRCASECMP
+        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000)
+            /* XC32 supports str[n]casecmp in version >= 1.0. */
+            #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
+        #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
                 defined(WOLFSSL_ZEPHYR)
-            /* XC32 does not support strncasecmp, so use case sensitive one */
+            /* XC32 version < 1.0 does not support strcasecmp, so use
+             * case sensitive one.
+             */
+            #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+        #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
+            #define XSTRCASECMP(s1,s2) _stricmp((s1),(s2))
+        #else
+            #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
+                !defined(WOLFSSL_SGX)
+                #include <strings.h>
+            #endif
+            #if defined(WOLFSSL_DEOS)
+                #define XSTRCASECMP(s1,s2) stricmp((s1),(s2))
+            #elif defined(WOLFSSL_CMSIS_RTOSv2)
+                #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+            #else
+                #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
+            #endif
+        #endif
+        #endif /* !XSTRCASECMP */
+
+        #ifndef XSTRNCASECMP
+        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000)
+            /* XC32 supports str[n]casecmp in version >= 1.0. */
+            #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+        #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
+                defined(WOLFSSL_ZEPHYR)
+            /* XC32 version < 1.0 does not support strncasecmp, so use case
+             * sensitive one.
+             */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))

@@ -21341,33 +21341,27 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
 
 const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     const char* keaStr = NULL;
-    const char *n0,*n1,*n2,*n3,*n4;
-    n0 = n[0];
-    n1 = n[1];
-    n2 = n[2];
-    n3 = n[3];
-    n4 = n[4];
 
-    if (XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
+    if (XSTRCMP(n[0],"ECDHE") == 0 && XSTRCMP(n[1],"PSK") == 0)
         keaStr = "ECDHEPSK";
-    else if (XSTRNCMP(n0,"ECDH",4) == 0)
+    else if ((XSTRCMP(n[0],"ECDH") == 0) || (XSTRCMP(n[0],"ECDHE") == 0))
         keaStr = "ECDH";
-    else if (XSTRNCMP(n0,"DHE",3) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
+    else if (XSTRCMP(n[0],"DHE") == 0 && XSTRCMP(n[1],"PSK") == 0)
         keaStr = "DHEPSK";
-    else if (XSTRNCMP(n0,"DHE",3) == 0)
+    else if (XSTRCMP(n[0],"DHE") == 0)
         keaStr = "DH";
-   else if (XSTRNCMP(n0,"RSA",3) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
+    else if (XSTRCMP(n[0],"RSA") == 0 && XSTRCMP(n[1],"PSK") == 0)
         keaStr = "RSAPSK";
-    else if (XSTRNCMP(n0,"SRP",3) == 0)
+    else if (XSTRCMP(n[0],"SRP") == 0)
         keaStr = "SRP";
-    else if (XSTRNCMP(n0,"PSK",3) == 0)
+    else if (XSTRCMP(n[0],"PSK") == 0)
         keaStr = "PSK";
-    else if (XSTRNCMP(n0,"EDH",3) == 0)
+    else if (XSTRCMP(n[0],"EDH") == 0)
         keaStr = "EDH";
-    else if ((XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) ||
-             (XSTRNCMP(n3,"SHA",3) == 0) || (XSTRNCMP(n4,"SHA",3) == 0) ||
-             (XSTRNCMP(n2,"RSA",3) == 0) || (XSTRNCMP(n0,"AES128",6) == 0) ||
-             (XSTRNCMP(n0,"AES256",6) == 0) || (XSTRNCMP(n1,"MD5",3) == 0))
+    else if ((XSTRCMP(n[1],"SHA") == 0) || (XSTRCMP(n[2],"SHA") == 0) ||
+             (XSTRCMP(n[3],"SHA") == 0) || (XSTRCMP(n[4],"SHA") == 0) ||
+             (XSTRCMP(n[2],"RSA") == 0) || (XSTRCMP(n[0],"AES128") == 0) ||
+             (XSTRCMP(n[0],"AES256") == 0) || (XSTRCMP(n[1],"MD5") == 0))
         keaStr = "RSA";
     else
         keaStr = "unknown";
@@ -21375,28 +21369,25 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     return keaStr;
 }
 
+
 const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
 
     const char* authStr = NULL;
-    const char *n0,*n1,*n2;
-    n0 = n[0];
-    n1 = n[1];
-    n2 = n[2];
 
-    if ((XSTRNCMP(n0,"AES128",6) == 0) || (XSTRNCMP(n0,"AES256",6) == 0)  ||
-        ((XSTRNCMP(n0,"TLS13",5) == 0) && ((XSTRNCMP(n1,"AES128",6) == 0) ||
-         (XSTRNCMP(n1,"AES256",6) == 0) || (XSTRNCMP(n1,"CHACHA20",8) == 0))) ||
-        (XSTRNCMP(n0,"RSA",3) == 0) || (XSTRNCMP(n1,"RSA",3) == 0) ||
-        (XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) ||
-        (XSTRNCMP(n1,"MD5",3) == 0))
+    if ((XSTRCMP(n[0],"AES128") == 0) || (XSTRCMP(n[0],"AES256") == 0)  ||
+        ((XSTRCMP(n[0],"TLS13") == 0) && ((XSTRCMP(n[1],"AES128") == 0) ||
+         (XSTRCMP(n[1],"AES256") == 0) || (XSTRCMP(n[1],"CHACHA20") == 0))) ||
+        (XSTRCMP(n[0],"RSA") == 0) || (XSTRCMP(n[1],"RSA") == 0) ||
+        (XSTRCMP(n[1],"SHA") == 0) || (XSTRCMP(n[2],"SHA") == 0) ||
+        (XSTRCMP(n[1],"MD5") == 0))
         authStr = "RSA";
-    else if (XSTRNCMP(n0,"PSK",3) == 0 || XSTRNCMP(n1,"PSK",3) == 0)
+    else if (XSTRCMP(n[0],"PSK") == 0 || XSTRCMP(n[1],"PSK") == 0)
         authStr = "PSK";
-    else if (XSTRNCMP(n0,"SRP",3) == 0 && XSTRNCMP(n1,"AES",3) == 0)
+    else if (XSTRCMP(n[0],"SRP") == 0 && XSTRCMP(n[1],"AES") == 0)
         authStr = "SRP";
-    else if (XSTRNCMP(n1,"ECDSA",5) == 0)
+    else if (XSTRCMP(n[1],"ECDSA") == 0)
         authStr = "ECDSA";
-    else if (XSTRNCMP(n0,"ADH",3) == 0)
+    else if (XSTRCMP(n[0],"ADH") == 0)
         authStr = "None";
     else
         authStr = "unknown";
@@ -21406,75 +21397,69 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
 
 const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     const char* encStr = NULL;
-    const char *n0,*n1,*n2,*n3;
-    n0 = n[0];
-    n1 = n[1];
-    n2 = n[2];
-    n3 = n[3];
 
-    if ((XSTRNCMP(n0,"AES256",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) ||
-        (XSTRNCMP(n1,"AES256",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) ||
-        (XSTRNCMP(n2,"AES256",6) == 0 && XSTRNCMP(n3,"GCM",3) == 0))
+    if ((XSTRCMP(n[0],"AES256") == 0 && XSTRCMP(n[1],"GCM") == 0) ||
+        (XSTRCMP(n[1],"AES256") == 0 && XSTRCMP(n[2],"GCM") == 0) ||
+        (XSTRCMP(n[2],"AES256") == 0 && XSTRCMP(n[3],"GCM") == 0))
         encStr = "AESGCM(256)";
 
-    else if ((XSTRNCMP(n0,"AES128",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) ||
-             (XSTRNCMP(n1,"AES128",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) ||
-             (XSTRNCMP(n2,"AES128",6) == 0 && XSTRNCMP(n3,"GCM",3) == 0))
+    else if ((XSTRCMP(n[0],"AES128") == 0 && XSTRCMP(n[1],"GCM") == 0) ||
+             (XSTRCMP(n[1],"AES128") == 0 && XSTRCMP(n[2],"GCM") == 0) ||
+             (XSTRCMP(n[2],"AES128") == 0 && XSTRCMP(n[3],"GCM") == 0))
         encStr = "AESGCM(128)";
 
-    else if ((XSTRNCMP(n0,"AES128",6) == 0 && XSTRNCMP(n1,"CCM",3) == 0) ||
-             (XSTRNCMP(n1,"AES128",6) == 0 && XSTRNCMP(n2,"CCM",3) == 0) ||
-             (XSTRNCMP(n2,"AES128",6) == 0 && XSTRNCMP(n3,"CCM",3) == 0))
+    else if ((XSTRCMP(n[0],"AES128") == 0 && XSTRCMP(n[1],"CCM") == 0) ||
+             (XSTRCMP(n[1],"AES128") == 0 && XSTRCMP(n[2],"CCM") == 0) ||
+             (XSTRCMP(n[2],"AES128") == 0 && XSTRCMP(n[3],"CCM") == 0))
         encStr = "AESCCM(128)";
 
-    else if ((XSTRNCMP(n0,"AES128",6) == 0) ||
-             (XSTRNCMP(n1,"AES128",6) == 0) ||
-             (XSTRNCMP(n2,"AES128",6) == 0) ||
-             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"128",3) == 0) ||
-             (XSTRNCMP(n2,"AES",3) == 0 && XSTRNCMP(n3,"128",3) == 0))
+    else if ((XSTRCMP(n[0],"AES128") == 0) ||
+             (XSTRCMP(n[1],"AES128") == 0) ||
+             (XSTRCMP(n[2],"AES128") == 0) ||
+             (XSTRCMP(n[1],"AES") == 0 && XSTRCMP(n[2],"128") == 0) ||
+             (XSTRCMP(n[2],"AES") == 0 && XSTRCMP(n[3],"128") == 0))
         encStr = "AES(128)";
 
-    else if ((XSTRNCMP(n0,"AES256",6) == 0) ||
-             (XSTRNCMP(n1,"AES256",6) == 0) ||
-             (XSTRNCMP(n2,"AES256",6) == 0) ||
-             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"256",3) == 0) ||
-             (XSTRNCMP(n2,"AES",3) == 0 && XSTRNCMP(n3,"256",3) == 0))
+    else if ((XSTRCMP(n[0],"AES256") == 0) ||
+             (XSTRCMP(n[1],"AES256") == 0) ||
+             (XSTRCMP(n[2],"AES256") == 0) ||
+             (XSTRCMP(n[1],"AES") == 0 && XSTRCMP(n[2],"256") == 0) ||
+             (XSTRCMP(n[2],"AES") == 0 && XSTRCMP(n[3],"256") == 0))
         encStr = "AES(256)";
 
-    else if ((XSTRNCMP(n0,"CAMELLIA256",11) == 0) ||
-             (XSTRNCMP(n2,"CAMELLIA256",11) == 0))
+    else if ((XSTRCMP(n[0],"CAMELLIA256") == 0) ||
+             (XSTRCMP(n[2],"CAMELLIA256") == 0))
         encStr = "CAMELLIA(256)";
-    else if ((XSTRNCMP(n0,"CAMELLIA128",11) == 0) ||
-             (XSTRNCMP(n2,"CAMELLIA128",11) == 0))
+    else if ((XSTRCMP(n[0],"CAMELLIA128") == 0) ||
+             (XSTRCMP(n[2],"CAMELLIA128") == 0))
         encStr = "CAMELLIA(128)";
-    else if ((XSTRNCMP(n0,"RC4",3) == 0) || (XSTRNCMP(n1,"RC4",3) == 0) ||
-            (XSTRNCMP(n2,"RC4",3) == 0))
+    else if ((XSTRCMP(n[0],"RC4") == 0) || (XSTRCMP(n[1],"RC4") == 0) ||
+            (XSTRCMP(n[2],"RC4") == 0))
         encStr = "RC4";
-    else if (((XSTRNCMP(n0,"DES",3) == 0)  || (XSTRNCMP(n1,"DES",3) == 0) ||
-              (XSTRNCMP(n2,"DES",3) == 0)) &&
-             ((XSTRNCMP(n1,"CBC3",4) == 0) || (XSTRNCMP(n2,"CBC3",4) == 0) ||
-              (XSTRNCMP(n3,"CBC3",4) == 0)))
+    else if (((XSTRCMP(n[0],"DES") == 0)  || (XSTRCMP(n[1],"DES") == 0) ||
+              (XSTRCMP(n[2],"DES") == 0)) &&
+             ((XSTRCMP(n[1],"CBC3") == 0) || (XSTRCMP(n[2],"CBC3") == 0) ||
+              (XSTRCMP(n[3],"CBC3") == 0)))
         encStr = "3DES";
-    else if ((XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
-             (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
+    else if ((XSTRCMP(n[1],"CHACHA20") == 0 && XSTRCMP(n[2],"POLY1305") == 0) ||
+             (XSTRCMP(n[2],"CHACHA20") == 0 && XSTRCMP(n[3],"POLY1305") == 0))
         encStr = "CHACHA20/POLY1305(256)";
-    else if ((XSTRNCMP(n0,"NULL",4) == 0) || (XSTRNCMP(n1,"NULL",4) == 0) ||
-             (XSTRNCMP(n2,"NULL",4) == 0) ||
-             ((XSTRNCMP(n0,"TLS13",5) == 0) && (XSTRNCMP(n3,"",0) == 0)))
+    else if ((XSTRCMP(n[0],"NULL") == 0) || (XSTRCMP(n[1],"NULL") == 0) ||
+             (XSTRCMP(n[2],"NULL") == 0) ||
+             ((XSTRCMP(n[0],"TLS13") == 0) && (XSTRCMP(n[3],"") == 0)))
         encStr = "None";
     else
         encStr = "unknown";
 
     return encStr;
 }
+
 /* Check if a cipher is AEAD
  * @param n return segment cipher name
  * return 1 if the cipher is AEAD, otherwise 0
  */
 int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
 {
-    const char *n1,*n2,*n3;
-
     WOLFSSL_ENTER("IsCipherAEAD");
 
     if (n == NULL) {
@@ -21482,45 +21467,37 @@ int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
         return 0;
     }
 
-    n1 = n[1];
-    n2 = n[2];
-    n3 = n[3];
-
-    if ((XSTRNCMP(n2,"GCM",3) == 0) || (XSTRNCMP(n3,"GCM",3) == 0) ||
-        (XSTRNCMP(n1,"CCM",3) == 0) ||
-        (XSTRNCMP(n2,"CCM",3) == 0) || (XSTRNCMP(n3,"CCM",3) == 0) ||
-        (XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
-        (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
+    if ((XSTRCMP(n[2],"GCM") == 0) || (XSTRCMP(n[3],"GCM") == 0) ||
+        (XSTRCMP(n[1],"CCM") == 0) ||
+        (XSTRCMP(n[2],"CCM") == 0) || (XSTRCMP(n[3],"CCM") == 0) ||
+        (XSTRCMP(n[1],"CHACHA20") == 0 && XSTRCMP(n[2],"POLY1305") == 0) ||
+        (XSTRCMP(n[2],"CHACHA20") == 0 && XSTRCMP(n[3],"POLY1305") == 0))
         return 1;
     return 0;
 }
+
 /* Returns the MAC string of a cipher or "unknown" on failure */
 const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 
     const char* macStr = NULL;
-    const char *n1,*n2,*n3,*n4;
-    n1 = n[1];
-    n2 = n[2];
-    n3 = n[3];
-    n4 = n[4];
 
-    if ((XSTRNCMP(n4,"SHA256",6) == 0) || (XSTRNCMP(n3,"SHA256",6) == 0) ||
-        (XSTRNCMP(n2,"SHA256",6) == 0) || (XSTRNCMP(n1,"SHA256",6) == 0))
+    if ((XSTRCMP(n[4],"SHA256") == 0) || (XSTRCMP(n[3],"SHA256") == 0) ||
+        (XSTRCMP(n[2],"SHA256") == 0) || (XSTRCMP(n[1],"SHA256") == 0))
         macStr = "SHA256";
-    else if ((XSTRNCMP(n4,"SHA384",6) == 0) ||
-             (XSTRNCMP(n3,"SHA384",6) == 0) ||
-             (XSTRNCMP(n2,"SHA384",6) == 0) ||
-             (XSTRNCMP(n1,"SHA384",6) == 0))
+    else if ((XSTRCMP(n[4],"SHA384") == 0) ||
+             (XSTRCMP(n[3],"SHA384") == 0) ||
+             (XSTRCMP(n[2],"SHA384") == 0) ||
+             (XSTRCMP(n[1],"SHA384") == 0))
         macStr = "SHA384";
-    else if ((XSTRNCMP(n4,"SHA",3) == 0) || (XSTRNCMP(n3,"SHA",3) == 0) ||
-             (XSTRNCMP(n2,"SHA",3) == 0) || (XSTRNCMP(n1,"SHA",3) == 0) ||
-             (XSTRNCMP(n1,"MD5",3) == 0))
+    else if ((XSTRCMP(n[4],"SHA") == 0) || (XSTRCMP(n[3],"SHA") == 0) ||
+             (XSTRCMP(n[2],"SHA") == 0) || (XSTRCMP(n[1],"SHA") == 0) ||
+             (XSTRCMP(n[1],"MD5") == 0))
         macStr = "SHA1";
-    else if ((XSTRNCMP(n3,"GCM",3) == 0) ||
-             (XSTRNCMP(n1,"CCM",3) == 0) ||
-             (XSTRNCMP(n2,"CCM",3) == 0) || (XSTRNCMP(n3,"CCM",3) == 0) ||
-             (XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
-             (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
+    else if ((XSTRCMP(n[3],"GCM") == 0) ||
+             (XSTRCMP(n[1],"CCM") == 0) ||
+             (XSTRCMP(n[2],"CCM") == 0) || (XSTRCMP(n[3],"CCM") == 0) ||
+             (XSTRCMP(n[1],"CHACHA20") == 0 && XSTRCMP(n[2],"POLY1305") == 0) ||
+             (XSTRCMP(n[2],"CHACHA20") == 0 && XSTRCMP(n[3],"POLY1305") == 0))
         macStr = "AEAD";
     else
         macStr = "unknown";
@@ -21532,22 +21509,22 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 int SetCipherBits(const char* enc) {
     int ret = WOLFSSL_FAILURE;
 
-    if ((XSTRNCMP(enc,"AESGCM(256)",11) == 0) ||
-        (XSTRNCMP(enc,"AES(256)",8) == 0) ||
-        (XSTRNCMP(enc,"CAMELLIA(256)",13) == 0) ||
-        (XSTRNCMP(enc,"CHACHA20/POLY1305(256)",22) == 0))
+    if ((XSTRCMP(enc,"AESGCM(256)") == 0) ||
+        (XSTRCMP(enc,"AES(256)") == 0) ||
+        (XSTRCMP(enc,"CAMELLIA(256)") == 0) ||
+        (XSTRCMP(enc,"CHACHA20/POLY1305(256)") == 0))
             ret = 256;
     else if
-        ((XSTRNCMP(enc,"3DES",4) == 0))
+        ((XSTRCMP(enc,"3DES") == 0))
             ret = 168;
     else if
-        ((XSTRNCMP(enc,"AESGCM(128)",11) == 0) ||
-         (XSTRNCMP(enc,"AES(128)",8) == 0) ||
-         (XSTRNCMP(enc,"CAMELLIA(128)",13) == 0) ||
-         (XSTRNCMP(enc,"RC4",3) == 0))
+        ((XSTRCMP(enc,"AESGCM(128)") == 0) ||
+         (XSTRCMP(enc,"AES(128)") == 0) ||
+         (XSTRCMP(enc,"CAMELLIA(128)") == 0) ||
+         (XSTRCMP(enc,"RC4") == 0))
             ret = 128;
    else if
-        ((XSTRNCMP(enc,"DES",3) == 0))
+        ((XSTRCMP(enc,"DES") == 0))
             ret = 56;
 
     return ret;
@@ -21644,19 +21621,19 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     int       haveFalconSig = 0;
     int       haveAnon      = 0;
     const int suiteSz       = GetCipherNamesSize();
-    char*     next          = (char*)list;
+    const char* next        = list;
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherList parameter error");
         return 0;
     }
 
-    if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0 ||
-        XSTRNCMP(next, "DEFAULT", 7) == 0 || XSTRNCMP(next, "HIGH", 4) == 0)
+    if (next[0] == 0 || XSTRCMP(next, "ALL") == 0 ||
+        XSTRCMP(next, "DEFAULT") == 0 || XSTRCMP(next, "HIGH") == 0)
         return 1; /* wolfSSL default */
 
     do {
-        char*  current = next;
+        const char* current = next;
         char   name[MAX_SUITE_NAME + 1];
         int    i;
         word32 length;

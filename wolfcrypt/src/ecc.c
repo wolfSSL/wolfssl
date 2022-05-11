@@ -3840,19 +3840,16 @@ int wc_ecc_get_curve_size_from_id(int curve_id)
 int wc_ecc_get_curve_idx_from_name(const char* curveName)
 {
     int curve_idx;
-    word32 len;
 
     if (curveName == NULL)
         return BAD_FUNC_ARG;
-
-    len = (word32)XSTRLEN(curveName);
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
         if (
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             ecc_sets[curve_idx].name &&
         #endif
-                XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
+                XSTRCASECMP(ecc_sets[curve_idx].name, curveName) == 0) {
             break;
         }
     }

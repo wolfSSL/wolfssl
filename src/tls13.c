@@ -9472,10 +9472,10 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
     byte mac = no_mac;
     int i;
 
-    if (XSTRNCMP(hash, "SHA256", 6) == 0) {
+    if (XSTRCMP(hash, "SHA256") == 0) {
         mac = sha256_mac;
     }
-    else if (XSTRNCMP(hash, "SHA384", 6) == 0) {
+    else if (XSTRCMP(hash, "SHA384") == 0) {
         mac = sha384_mac;
     }
     if (mac != no_mac) {

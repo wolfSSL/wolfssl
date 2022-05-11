@@ -168,7 +168,7 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret;
-    const byte* side;
+    const byte* side = NULL;
     word32 hashSz = HSHASH_SZ;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     WC_DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
@@ -182,9 +182,16 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ret == 0) {
         if (XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
             side = tls_client;
-        else
+        else if (XSTRNCMP((const char*)sender, (const char*)server, SIZEOF_SENDER)
+                 == 0)
             side = tls_server;
+        else {
+            ret = BAD_FUNC_ARG;
+            WOLFSSL_MSG("Unexpected sender value");
+        }
+    }
 
+    if (ret == 0) {
 #ifdef WOLFSSL_HAVE_PRF
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         if (ssl->ctx->TlsFinishedCb) {
