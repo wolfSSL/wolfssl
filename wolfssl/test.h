@@ -606,7 +606,7 @@ err_sys(const char* msg)
     if (msg)
 #endif
     {
-        printf("wolfSSL error: %s\n", msg);
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
     }
     XEXIT_T(EXIT_FAILURE);
 }
@@ -630,9 +630,9 @@ err_sys_with_errno(const char* msg)
 #endif
     {
 #if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
-        printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
+        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
 #else
-        printf("wolfSSL error: %s\n", msg);
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
 #endif
     }
     XEXIT_T(EXIT_FAILURE);
