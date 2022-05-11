@@ -625,6 +625,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         #ifndef WOLFSSL_NO_MALLOC
             #ifdef FREERTOS
                 res = pvPortMalloc(size);
+            #elif defined WOLFSSL_EMBOS
+                res = OS_HEAP_malloc(size);
             #else
                 res = malloc(size);
             #endif
@@ -776,6 +778,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #ifndef WOLFSSL_NO_MALLOC
             #ifdef FREERTOS
                 vPortFree(ptr);
+            #elif defined WOLFSSL_EMBOS
+                OS_HEAP_free(ptr);
             #else
                 free(ptr);
             #endif

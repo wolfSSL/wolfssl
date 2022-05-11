@@ -2187,6 +2187,39 @@ int wolfSSL_CryptHwMutexUnLock(void)
         return 0;
     }
 
+#elif defined(WOLFSSL_EMBOS)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        int iReturn;
+
+        *m = ( wolfSSL_Mutex ) OS_MUTEX_Create();
+        if( *m != NULL )
+            iReturn = 0;
+        else
+            iReturn = BAD_MUTEX_E;
+
+        return iReturn;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        OS_MUTEX_Delete( *m );
+        return 0;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        OS_MUTEX_LockTimed( *m, portMAX_DELAY );
+        return 0;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        OS_MUTEX_Unlock( *m );
+        return 0;
+    }
+
 #elif defined(WOLFSSL_USER_MUTEX)
 
     /* Use user own mutex */
