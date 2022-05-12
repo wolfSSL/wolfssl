@@ -16279,7 +16279,10 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
             }
             if (!process) {
                 WOLFSSL_MSG("Ignoring EarlyData!");
-                *inOutIdx = ssl->buffers.inputBuffer.length;
+                *inOutIdx += ssl->curSize;
+                if (*inOutIdx > ssl->buffers.inputBuffer.length)
+                    return BUFFER_E;
+
                 return 0;
             }
         }
@@ -17286,8 +17289,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 if (ssl->keys.peer_sequence_number_lo-- == 0)
                                     ssl->keys.peer_sequence_number_hi--;
                                 ssl->options.processReply = doProcessInit;
-                                ssl->buffers.inputBuffer.idx =
-                                                ssl->buffers.inputBuffer.length;
+                                ssl->buffers.inputBuffer.idx += ssl->curSize;
+                                if (ssl->buffers.inputBuffer.idx >
+                                    ssl->buffers.inputBuffer.length)
+                                    return BUFFER_E;
+
                                 return 0;
                             }
                             WOLFSSL_MSG("Too much EarlyData!");
@@ -17361,13 +17367,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    word16 i = (word16)(ssl->buffers.inputBuffer.length -
-                                        ssl->keys.padSz);
+                    /* end of plaintext */
+                    word16 i = (word16)(ssl->buffers.inputBuffer.idx +
+                                 ssl->curSize - ssl->specs.aead_mac_size);
 
-                    /* sanity check on underflow */
-                    if (ssl->keys.padSz >= ssl->buffers.inputBuffer.length) {
-                        WOLFSSL_ERROR(DECRYPT_ERROR);
-                        return DECRYPT_ERROR;
+                    if (i > ssl->buffers.inputBuffer.length) {
+                        WOLFSSL_ERROR(BUFFER_ERROR);
+                        return BUFFER_ERROR;
                     }
 
                     /* Remove padding from end of plain text. */
@@ -17375,9 +17381,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         if (ssl->buffers.inputBuffer.buffer[i] != 0)
                             break;
                     }
+
                     /* Get the real content type from the end of the data. */
                     ssl->curRL.type = ssl->buffers.inputBuffer.buffer[i];
-                    ssl->keys.padSz = ssl->buffers.inputBuffer.length - i;
+                    /* consider both contentType byte and MAC as padding */
+                    ssl->keys.padSz = ssl->buffers.inputBuffer.idx
+                        + ssl->curSize - i;
                 }
 #endif
             }
@@ -17390,10 +17399,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                if ((ssl->buffers.inputBuffer.length -
+                if ((ssl->curSize -
                         ssl->keys.padSz -
-                        MacSize(ssl) -
-                        ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ)
+                        MacSize(ssl) > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
@@ -17408,9 +17416,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             }
             else
        #endif
-            if (ssl->buffers.inputBuffer.length -
-                    ssl->keys.padSz -
-                    ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ
+                /* TLS13 plaintext limit is checked earlier before decryption */
+                if (!IsAtLeastTLSv1_3(ssl->version)
+                        && ssl->curSize - ssl->keys.padSz > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
