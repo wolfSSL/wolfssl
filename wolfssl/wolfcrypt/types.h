@@ -434,7 +434,7 @@ decouple library dependencies with standard string, memory and so on.
             #ifdef WOLFSSL_MALLOC_CHECK
                 #include <stdio.h>
                 static inline void* malloc_check(size_t sz) {
-                    printf("wolfSSL_malloc failed");
+                    fprintf(stderr, "wolfSSL_malloc failed");
                     return NULL;
                 };
                 #define XMALLOC(s, h, t)     malloc_check((s))

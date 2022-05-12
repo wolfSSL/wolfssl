@@ -1404,7 +1404,7 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
 
     /* create/init polling mechanism */
     if (wnr_poll_create() != WNR_ERROR_NONE) {
-        printf("ERROR: wnr_poll_create() failed\n");
+        fprintf(stderr, "ERROR: wnr_poll_create() failed\n");
         WOLFSSL_MSG("Error initializing netRandom polling mechanism");
         wnr_destroy(wnr_ctx);
         wnr_ctx = NULL;

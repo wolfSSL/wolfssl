@@ -12370,7 +12370,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         skipAddCA = 1;
                     }
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
-                
+
                     /* Do verify callback */
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     if (ssl->options.verifyNone &&

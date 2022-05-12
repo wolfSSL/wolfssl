@@ -224,7 +224,7 @@ void echoclient_test(void* args)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
     if (ret < 0) {
-        printf("Async device open failed\nRunning without async\n");
+        fprintf(stderr, "Async device open failed\nRunning without async\n");
     }
     wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -252,7 +252,7 @@ void echoclient_test(void* args)
         }
     } while (err == WC_PENDING_E);
     if (ret != WOLFSSL_SUCCESS) {
-        printf("SSL_connect error %d, %s\n", err,
+        fprintf(stderr, "SSL_connect error %d, %s\n", err,
             ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
     }
@@ -275,7 +275,7 @@ void echoclient_test(void* args)
             }
         } while (err == WC_PENDING_E);
         if (ret != sendSz) {
-            printf("SSL_write msg error %d, %s\n", err,
+            fprintf(stderr, "SSL_write msg error %d, %s\n", err,
                 ERR_error_string(err, buffer));
             err_sys("SSL_write failed");
         }
@@ -322,7 +322,7 @@ void echoclient_test(void* args)
             }
 #endif
             else {
-                printf("SSL_read msg error %d, %s\n", err,
+                fprintf(stderr, "SSL_read msg error %d, %s\n", err,
                     ERR_error_string(err, buffer));
                 err_sys("SSL_read failed");
             }

@@ -5343,7 +5343,7 @@ static void wc_ecc_dump_oids(void)
 
         /* validate sum */
         if (ecc_sets[x].oidSum != sum) {
-            printf("  Sum %u Not Valid!\n", ecc_sets[x].oidSum);
+            fprintf(stderr, "  Sum %u Not Valid!\n", ecc_sets[x].oidSum);
         }
     }
     mOidDumpDone = 1;
