@@ -330,7 +330,8 @@ static int NonBlockingSSL_Accept(SSL* ssl)
             }
             else {
             #ifdef WOLFSSL_DTLS
-                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+                if (wolfSSL_dtls(ssl))
+                    currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
             #endif
                 select_ret = tcp_select(sockfd, currTimeout);
             }
@@ -354,9 +355,13 @@ static int NonBlockingSSL_Accept(SSL* ssl)
             error = WOLFSSL_ERROR_WANT_READ;
         }
     #ifdef WOLFSSL_DTLS
-        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
-                                        wolfSSL_dtls_got_timeout(ssl) >= 0) {
-            error = WOLFSSL_ERROR_WANT_READ;
+        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl)) {
+            ret = wolfSSL_dtls_got_timeout(ssl);
+            if (ret != WOLFSSL_SUCCESS)
+                error = wolfSSL_get_error(ssl, ret);
+            else
+                error = WOLFSSL_ERROR_WANT_READ;
+            ret = WOLFSSL_FAILURE; /* Reset error so we loop */
         }
     #endif
         else {
@@ -2957,6 +2962,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             else {
                 wolfSSL_dtls_set_peer(ssl, &client_addr, client_len);
+            }
+            if (simulateWantWrite) {
+#ifdef USE_WOLFSSL_IO
+                /* connect on a udp to associate peer with this fd to make it
+                 * simpler for SimulateWantWriteIOSendCb */
+                if (connect(clientfd, (struct sockaddr*)&client_addr,
+                                        client_len) != 0) {
+                    err_sys_ex(catastrophic, "error in connecting to peer");
+                }
+                wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+#endif
             }
         }
 #endif

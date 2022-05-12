@@ -8883,9 +8883,8 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
                 dataSz += DTLS_HANDSHAKE_HEADER_SZ;
                 AddHandShakeHeader(data,
                         inputSz, ssl->fragOffset, fragSz, type, ssl);
-            }
-            if (ssl->options.dtls)
                 ssl->keys.dtls_handshake_number--;
+            }
             if (IsDtlsNotSctpMode(ssl) &&
                 (ret = DtlsMsgPoolSave(ssl, data,
                         fragSz + DTLS_HANDSHAKE_HEADER_SZ, type))
@@ -17481,6 +17480,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif
                     }
                     if (ret != 0
+                            /* DoDtlsHandShakeMsg can return a WANT_WRITE when
+                             * calling DtlsMsgPoolSend. This msg is done
+                             * processing so let's move on. */
+                        && (!ssl->options.dtls
+                            || ret != WANT_WRITE)
 #ifdef WOLFSSL_ASYNC_CRYPT
                     /* In async case, on pending, move onto next message.
                      * Current message should have been DtlsMsgStore'ed and
@@ -26785,6 +26789,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
             if (args->output == NULL) {
                 ERROR_OUT(BUFFER_ERROR, exit_scv);
             }
+        #ifdef WOLFSSL_DTLS
+            /* We have re-entered this funtion after a WANT_WRITE. Make sure
+             * the handshake number stays the same. */
+            if (ssl->options.dtls && ssl->fragOffset != 0)
+                ssl->keys.dtls_handshake_number--;
+        #endif
             AddHeaders(args->output, (word32)args->length + args->extraSz +
                                         VERIFY_HEADER, certificate_verify, ssl);
 
@@ -28873,6 +28883,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_FINALIZE:
             {
+            #ifdef WOLFSSL_DTLS
+                /* We have re-entered this funtion after a WANT_WRITE. Make sure
+                 * the handshake number stays the same. */
+                if (ssl->options.dtls && ssl->fragOffset != 0)
+                    ssl->keys.dtls_handshake_number--;
+            #endif
             #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
                 if (ssl->specs.kea == ecdhe_psk_kea ||

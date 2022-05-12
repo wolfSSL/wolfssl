@@ -11836,9 +11836,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
                 if (ssl->fragOffset == 0) {
-                    ssl->options.connectState++;
-                    WOLFSSL_MSG("connect state: "
-                                "Advanced from last buffered fragment send");
+                    if (ssl->options.connectState == CONNECT_BEGIN ||
+                        ssl->options.connectState == HELLO_AGAIN ||
+                       (ssl->options.connectState >= FIRST_REPLY_DONE &&
+                        ssl->options.connectState <= FIRST_REPLY_FOURTH)) {
+                        ssl->options.connectState++;
+                        WOLFSSL_MSG("connect state: "
+                                    "Advanced from last buffered fragment send");
+                    }
                 }
                 else {
                     WOLFSSL_MSG("connect state: "
@@ -12303,9 +12308,19 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
                 if (ssl->fragOffset == 0) {
-                    ssl->options.acceptState++;
-                    WOLFSSL_MSG("accept state: "
-                                "Advanced from last buffered fragment send");
+                    if (ssl->options.acceptState == ACCEPT_FIRST_REPLY_DONE ||
+                        ssl->options.acceptState == SERVER_HELLO_SENT ||
+                        ssl->options.acceptState == CERT_SENT ||
+                        ssl->options.acceptState == CERT_STATUS_SENT ||
+                        ssl->options.acceptState == KEY_EXCHANGE_SENT ||
+                        ssl->options.acceptState == CERT_REQ_SENT ||
+                        ssl->options.acceptState == ACCEPT_SECOND_REPLY_DONE ||
+                        ssl->options.acceptState == TICKET_SENT ||
+                        ssl->options.acceptState == CHANGE_CIPHER_SENT) {
+                        ssl->options.acceptState++;
+                        WOLFSSL_MSG("accept state: "
+                                    "Advanced from last buffered fragment send");
+                    }
                 }
                 else {
                     WOLFSSL_MSG("accept state: "
