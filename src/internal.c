@@ -12348,15 +12348,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = MAX_CHAIN_ERROR;
                     }
             #endif
-                    /* Do verify callback */
-                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-                    if (ssl->options.verifyNone &&
-                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||
-                               ret == CRL_CERT_DATE_ERR)) {
-                        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
-                        ret = ssl->error = 0;
-                    }
-
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
                         with ASN_NO_SIGNER_E here. The "alternate" certificate
@@ -12380,6 +12371,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         skipAddCA = 1;
                     }
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
+                
+                    /* Do verify callback */
+                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                    if (ssl->options.verifyNone &&
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||
+                               ret == CRL_CERT_DATE_ERR)) {
+                        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
+                        ret = ssl->error = 0;
+                    }
+
+
 
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA &&
