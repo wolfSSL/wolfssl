@@ -2326,7 +2326,7 @@ AC_ARG_ENABLE([ripemd],
     [ ENABLED_RIPEMD=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno"
 then
     ENABLED_RIPEMD="yes"
 fi
@@ -2592,12 +2592,12 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
+if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
 then
     ENABLED_DSA="yes"
 fi
 
-if test "$ENABLED_DSA" = "no" && test "$ENABLED_OPENSSH" = "no"
+if test "$ENABLED_DSA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
 else
@@ -2720,7 +2720,7 @@ AC_ARG_ENABLE([curve25519],
     )
 
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno"
 then
     ENABLED_CURVE25519="yes"
 fi
@@ -2758,7 +2758,8 @@ AC_ARG_ENABLE([ed25519-stream],
     )
 
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_CHRONY" = "yes"
+if (test "$ENABLED_OPENSSH" = "yes" && "x$ENABLED_FIPS" = "xno") || \
+   test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_ED25519="yes"
 fi
@@ -3558,13 +3559,20 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+# Enable 3DES with OpenSSH and FIPS 140-2 but not 140-3
+if (test "$ENABLED_OPENSSH" = "yes" && \
+        (test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" -le 2)) || \
+   test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+   test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || \
+   test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || \
+   test "$ENABLED_WOLFENGINE" = "yes"
 then
     ENABLED_DES3="yes"
 fi
 
 # ARC4
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
+if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
+   test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
 then
     # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
     test "$enable_arc4" = "" && enable_arc4=yes
@@ -5112,7 +5120,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
 fi
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
+if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
+   test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
 then
     test "$enable_arc4" = "" && enable_arc4=yes
 fi
