@@ -3874,6 +3874,7 @@ typedef enum {
     STACK_TYPE_DIST_POINT         = 15,
     STACK_TYPE_X509_CRL           = 16,
     STACK_TYPE_X509_NAME_ENTRY    = 17,
+    STACK_TYPE_X509_REQ_ATTR      = 18,
 } WOLF_STACK_TYPE;
 
 struct WOLFSSL_STACK {
@@ -4055,7 +4056,8 @@ struct WOLFSSL_X509 {
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-    WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
+    /* stack of CSR attributes */
+    WOLF_STACK_OF(WOLFSSL_X509_ATRIBUTE)* reqAttributes;
 #endif
     #if defined(WOLFSSL_CERT_REQ)
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */

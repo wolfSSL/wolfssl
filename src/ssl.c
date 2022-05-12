@@ -18619,6 +18619,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
         case STACK_TYPE_STRING:
         case STACK_TYPE_ACCESS_DESCRIPTION:
         case STACK_TYPE_X509_EXT:
+        case STACK_TYPE_X509_REQ_ATTR:
         case STACK_TYPE_NULL:
         case STACK_TYPE_X509_NAME:
         case STACK_TYPE_X509_NAME_ENTRY:
@@ -18680,6 +18681,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
         case STACK_TYPE_STRING:
         case STACK_TYPE_ACCESS_DESCRIPTION:
         case STACK_TYPE_X509_EXT:
+        case STACK_TYPE_X509_REQ_ATTR:
         case STACK_TYPE_NULL:
         case STACK_TYPE_X509_NAME:
         case STACK_TYPE_X509_NAME_ENTRY:
@@ -18897,6 +18899,7 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
                 case STACK_TYPE_STRING:
                 case STACK_TYPE_ACCESS_DESCRIPTION:
                 case STACK_TYPE_X509_EXT:
+                case STACK_TYPE_X509_REQ_ATTR:
                 case STACK_TYPE_NULL:
                 case STACK_TYPE_X509_NAME:
                 case STACK_TYPE_X509_NAME_ENTRY:
@@ -18923,6 +18926,7 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
                 case STACK_TYPE_STRING:
                 case STACK_TYPE_ACCESS_DESCRIPTION:
                 case STACK_TYPE_X509_EXT:
+                case STACK_TYPE_X509_REQ_ATTR:
                 case STACK_TYPE_NULL:
                 case STACK_TYPE_X509_NAME:
                 case STACK_TYPE_X509_NAME_ENTRY:
@@ -24775,6 +24779,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.access;
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
+        case STACK_TYPE_X509_REQ_ATTR:
+            return (void*)sk->data.generic;
         case STACK_TYPE_NULL:
             return (void*)sk->data.generic;
         case STACK_TYPE_X509_NAME:
@@ -24875,6 +24881,7 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
             case STACK_TYPE_STRING:
             case STACK_TYPE_ACCESS_DESCRIPTION:
             case STACK_TYPE_X509_EXT:
+            case STACK_TYPE_X509_REQ_ATTR:
             case STACK_TYPE_NULL:
             case STACK_TYPE_X509_NAME:
             case STACK_TYPE_X509_NAME_ENTRY:
@@ -25003,6 +25010,12 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             case STACK_TYPE_X509_EXT:
             #ifdef OPENSSL_ALL
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_EXTENSION_free;
+            #endif
+                break;
+            case STACK_TYPE_X509_REQ_ATTR:
+            #if defined(OPENSSL_ALL) && \
+                (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
+                func = (wolfSSL_sk_freefunc)wolfSSL_X509_ATTRIBUTE_free;
             #endif
                 break;
             case STACK_TYPE_CONF_VALUE:
@@ -25765,6 +25778,16 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
             oidCsrAttrType, "challengePassword", "challengePassword"},
     { NID_pkcs9_contentType, PKCS9_CONTENT_TYPE_OID,
         oidCsrAttrType, "contentType", "contentType" },
+    { NID_pkcs9_unstructuredName, UNSTRUCTURED_NAME_OID,
+        oidCsrAttrType, "unstructuredName", "unstructuredName" },
+    { NID_surname, SURNAME_OID,
+        oidCsrAttrType, "surname", "surname" },
+    { NID_givenName, GIVEN_NAME_OID,
+        oidCsrAttrType, "givenName", "givenName" },
+    { NID_initials, INITIALS_OID,
+        oidCsrAttrType, "initials", "initials" },
+    { NID_dnQualifier, DNQUALIFIER_OID,
+        oidCsrAttrType, "dnQualifer", "dnQualifier" },
 #endif
 #endif
 #ifdef OPENSSL_EXTRA /* OPENSSL_EXTRA_X509_SMALL only needs the above */

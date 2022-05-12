@@ -4011,8 +4011,8 @@ void FreeX509(WOLFSSL_X509* x509)
         }
     #endif /* OPENSSL_ALL */
     #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
-        if (x509->challengePwAttr) {
-            wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+        if (x509->reqAttributes) {
+            wolfSSL_sk_free(x509->reqAttributes);
         }
     #endif /* WOLFSSL_CERT_REQ */
     if (x509->altNames) {
@@ -10552,6 +10552,108 @@ static int CopyAdditionalAltNames(DNS_entry** to, DNS_entry* from, int type,
 }
 #endif /* OPENSSL_EXTRA */
 
+#ifdef WOLFSSL_CERT_REQ
+static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
+{
+    int ret = 0;
+
+    if (dCert->cPwd) {
+        if (dCert->cPwdLen < CTC_NAME_SIZE) {
+            XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
+            x509->challengePw[dCert->cPwdLen] = '\0';
+        #ifdef OPENSSL_ALL
+            if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_pkcs9_challengePassword,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->cPwd,
+                                        dCert->cPwdLen) != WOLFSSL_SUCCESS) {
+                ret = REQ_ATTRIBUTE_E;
+            }
+        #endif
+        }
+        else {
+            WOLFSSL_MSG("Challenge password too long");
+            ret = MEMORY_E;
+        }
+    }
+
+    if (dCert->contentType) {
+        if (dCert->contentTypeLen < CTC_NAME_SIZE) {
+            XMEMCPY(x509->contentType, dCert->contentType, dCert->contentTypeLen);
+            x509->contentType[dCert->contentTypeLen] = '\0';
+        }
+    #ifdef OPENSSL_ALL
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_pkcs9_contentType,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->contentType,
+                                        dCert->contentTypeLen) !=
+                WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    #endif
+    }
+
+    #ifdef OPENSSL_ALL
+    if (dCert->sNum) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_serialNumber,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->sNum,
+                                        dCert->sNumLen) != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    if (dCert->unstructuredName) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_pkcs9_unstructuredName,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->unstructuredName,
+                                        dCert->unstructuredNameLen)
+                != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    if (dCert->surname) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_surname,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->surname,
+                                        dCert->surnameLen) != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    if (dCert->givenName) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_givenName,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->givenName,
+                                        dCert->givenNameLen) != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    if (dCert->dnQualifier) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_dnQualifier,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->dnQualifier,
+                                        dCert->dnQualifierLen) != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    if (dCert->initials) {
+        if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
+                                        NID_initials,
+                                        MBSTRING_ASC,
+                                        (const byte*)dCert->initials,
+                                        dCert->initialsLen) != WOLFSSL_SUCCESS) {
+            ret = REQ_ATTRIBUTE_E;
+        }
+    }
+    #endif /* OPENSSL_ALL */
+    return ret;
+}
+#endif /* WOLFSSL_CERT_REQ */
 
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 /* The same DecodedCert cannot be copied to WOLFSSL_X509 twice otherwise the
@@ -10599,41 +10701,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 #ifdef WOLFSSL_CERT_REQ
     x509->isCSR = dCert->isCSR;
+
     /* CSR attributes */
-    if (dCert->cPwd) {
-        if (dCert->cPwdLen < CTC_NAME_SIZE) {
-            XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
-            x509->challengePw[dCert->cPwdLen] = '\0';
-#ifdef OPENSSL_ALL
-            if (x509->challengePwAttr) {
-                wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
-            }
-            x509->challengePwAttr = wolfSSL_X509_ATTRIBUTE_new();
-            if (x509->challengePwAttr) {
-                x509->challengePwAttr->value->value.asn1_string =
-                        wolfSSL_ASN1_STRING_new();
-                if (wolfSSL_ASN1_STRING_set(
-                        x509->challengePwAttr->value->value.asn1_string,
-                        dCert->cPwd, dCert->cPwdLen) != WOLFSSL_SUCCESS) {
-                    ret = MEMORY_E;
-                }
-                x509->challengePwAttr->value->type = V_ASN1_PRINTABLESTRING;
-            }
-            else {
-                ret = MEMORY_E;
-            }
-#endif
-        }
-        else {
-            WOLFSSL_MSG("Challenge password too long");
-            ret = MEMORY_E;
-        }
-    }
-    if (dCert->contentType) {
-        if (dCert->contentTypeLen < CTC_NAME_SIZE) {
-            XMEMCPY(x509->contentType, dCert->contentType, dCert->contentTypeLen);
-            x509->contentType[dCert->contentTypeLen] = '\0';
-        }
+    if (x509->isCSR) {
+        ret = CopyREQAttributes(x509, dCert);
     }
 #endif /* WOLFSSL_CERT_REQ */
 

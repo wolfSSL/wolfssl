@@ -788,6 +788,7 @@ enum
     NID_buildingName = 1494,
 
 
+    NID_dnQualifier = 174,
     NID_commonName = 14,               /* CN Changed to not conflict
                                         * with PBE_SHA1_DES3 */
     NID_surname = 0x04,                /* SN */
@@ -1195,6 +1196,10 @@ enum CsrAttrType {
     SERIAL_NUMBER_OID = 94,
     EXTENSION_REQUEST_OID = 666,
     USER_ID_OID = 865,
+    DNQUALIFIER_OID = 135,
+    INITIALS_OID = 132,
+    SURNAME_OID = 93,
+    GIVEN_NAME_OID = 131,
 };
 #endif
 
@@ -1637,6 +1642,16 @@ struct DecodedCert {
     int     cPwdLen;
     char*   sNum; /* Serial Number */
     int     sNumLen;
+    char*   dnQualifier;
+    int     dnQualifierLen;
+    char*   initials;
+    int     initialsLen;
+    char*   surname;
+    int     surnameLen;
+    char*   givenName;
+    int     givenNameLen;
+    char*   unstructuredName;
+    int     unstructuredNameLen;
 #endif /* WOLFSSL_CERT_REQ */
 
     Signer* ca;
