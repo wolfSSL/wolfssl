@@ -78,6 +78,8 @@ ASN Options:
     Only supports copying full AKID from an existing certificate.
  * WOLFSSL_CUSTOM_OID: Enable custom OID support for subject and request
     extensions
+ * WOLFSSL_HAVE_ISSUER_NAMES: Store pointers to issuer name components and their
+    lengths and encodings.
 */
 
 #ifndef NO_ASN
@@ -9769,14 +9771,22 @@ void InitDecodedCert(DecodedCert* cert,
         cert->maxIdx          = inSz;    /* can't go over this index */
         cert->heap            = heap;
         cert->maxPathLen      = WOLFSSL_MAX_PATH_LEN;
-    #ifdef WOLFSSL_CERT_GEN
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         cert->subjectSNEnc    = CTC_UTF8;
         cert->subjectCEnc     = CTC_PRINTABLE;
         cert->subjectLEnc     = CTC_UTF8;
         cert->subjectSTEnc    = CTC_UTF8;
         cert->subjectOEnc     = CTC_UTF8;
         cert->subjectOUEnc    = CTC_UTF8;
-    #endif /* WOLFSSL_CERT_GEN */
+    #ifdef WOLFSSL_HAVE_ISSUER_NAMES
+        cert->issuerSNEnc    = CTC_UTF8;
+        cert->issuerCEnc     = CTC_PRINTABLE;
+        cert->issuerLEnc     = CTC_UTF8;
+        cert->issuerSTEnc    = CTC_UTF8;
+        cert->issuerOEnc     = CTC_UTF8;
+        cert->issuerOUEnc    = CTC_UTF8;
+    #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+    #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
     #ifndef NO_CERTS
         InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
@@ -11347,6 +11357,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     cert->subjectCNLen = strLen;
                     cert->subjectCNEnc = b;
                 }
+            #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)) && \
+                defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                else if (nameType == ISSUER) {
+                    cert->issuerCN = (char*)&input[srcIdx];
+                    cert->issuerCNLen = strLen;
+                    cert->issuerCNEnc = b;
+                }
+            #endif
 
                 copy = WOLFSSL_COMMON_NAME;
                 copyLen = sizeof(WOLFSSL_COMMON_NAME) - 1;
@@ -11358,13 +11376,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_SUR_NAME) {
                 copy = WOLFSSL_SUR_NAME;
                 copyLen = sizeof(WOLFSSL_SUR_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectSN = (char*)&input[srcIdx];
                         cert->subjectSNLen = strLen;
                         cert->subjectSNEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerSN = (char*)&input[srcIdx];
+                        cert->issuerSNLen = strLen;
+                        cert->issuerSNEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11374,13 +11399,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_COUNTRY_NAME) {
                 copy = WOLFSSL_COUNTRY_NAME;
                 copyLen = sizeof(WOLFSSL_COUNTRY_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectC = (char*)&input[srcIdx];
                         cert->subjectCLen = strLen;
                         cert->subjectCEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerC = (char*)&input[srcIdx];
+                        cert->issuerCLen = strLen;
+                        cert->issuerCEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11390,13 +11422,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_LOCALITY_NAME) {
                 copy = WOLFSSL_LOCALITY_NAME;
                 copyLen = sizeof(WOLFSSL_LOCALITY_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectL = (char*)&input[srcIdx];
                         cert->subjectLLen = strLen;
                         cert->subjectLEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                    #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerL = (char*)&input[srcIdx];
+                        cert->issuerLLen = strLen;
+                        cert->issuerLEnc = b;
+                    }
+                    #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11406,13 +11445,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_STATE_NAME) {
                 copy = WOLFSSL_STATE_NAME;
                 copyLen = sizeof(WOLFSSL_STATE_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectST = (char*)&input[srcIdx];
                         cert->subjectSTLen = strLen;
                         cert->subjectSTEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerST = (char*)&input[srcIdx];
+                        cert->issuerSTLen = strLen;
+                        cert->issuerSTEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT*/
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11422,13 +11468,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_ORG_NAME) {
                 copy = WOLFSSL_ORG_NAME;
                 copyLen = sizeof(WOLFSSL_ORG_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectO = (char*)&input[srcIdx];
                         cert->subjectOLen = strLen;
                         cert->subjectOEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerO = (char*)&input[srcIdx];
+                        cert->issuerOLen = strLen;
+                        cert->issuerOEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11438,13 +11491,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_ORGUNIT_NAME) {
                 copy = WOLFSSL_ORGUNIT_NAME;
                 copyLen = sizeof(WOLFSSL_ORGUNIT_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectOU = (char*)&input[srcIdx];
                         cert->subjectOULen = strLen;
                         cert->subjectOUEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerOU = (char*)&input[srcIdx];
+                        cert->issuerOULen = strLen;
+                        cert->issuerOUEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11454,13 +11514,20 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_SERIAL_NUMBER) {
                 copy = WOLFSSL_SERIAL_NUMBER;
                 copyLen = sizeof(WOLFSSL_SERIAL_NUMBER) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectSND = (char*)&input[srcIdx];
                         cert->subjectSNDLen = strLen;
                         cert->subjectSNDEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerSND = (char*)&input[srcIdx];
+                        cert->issuerSNDLen = strLen;
+                        cert->issuerSNDEnc = b;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11470,13 +11537,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_USER_ID) {
                 copy = WOLFSSL_USER_ID;
                 copyLen = sizeof(WOLFSSL_USER_ID) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectUID = (char*)&input[srcIdx];
                         cert->subjectUIDLen = strLen;
                         cert->subjectUIDEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11487,13 +11554,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_STREET_ADDR) {
                 copy = WOLFSSL_STREET_ADDR_NAME;
                 copyLen = sizeof(WOLFSSL_STREET_ADDR_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectStreet = (char*)&input[srcIdx];
                         cert->subjectStreetLen = strLen;
                         cert->subjectStreetEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11503,13 +11570,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_BUS_CAT) {
                 copy = WOLFSSL_BUS_CAT;
                 copyLen = sizeof(WOLFSSL_BUS_CAT) - 1;
-            #ifdef WOLFSSL_CERT_GEN
+            #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                 if (nameType == SUBJECT) {
                     cert->subjectBC = (char*)&input[srcIdx];
                     cert->subjectBCLen = strLen;
                     cert->subjectBCEnc = b;
                 }
-            #endif /* WOLFSSL_CERT_GEN */
+            #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
             #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
                 nid = NID_businessCategory;
@@ -11518,13 +11585,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_POSTAL_CODE) {
                 copy = WOLFSSL_POSTAL_NAME;
                 copyLen = sizeof(WOLFSSL_POSTAL_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectPC = (char*)&input[srcIdx];
                         cert->subjectPCLen = strLen;
                         cert->subjectPCEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT*/
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11557,13 +11624,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             if (id == ASN_JOI_C) {
                 copy = WOLFSSL_JOI_C;
                 copyLen = sizeof(WOLFSSL_JOI_C) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectJC = (char*)&input[srcIdx];
                         cert->subjectJCLen = strLen;
                         cert->subjectJCEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11575,13 +11642,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             else if (id == ASN_JOI_ST) {
                 copy = WOLFSSL_JOI_ST;
                 copyLen = sizeof(WOLFSSL_JOI_ST) - 1;
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectJS = (char*)&input[srcIdx];
                         cert->subjectJSLen = strLen;
                         cert->subjectJSEnc = b;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
@@ -11638,12 +11705,18 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     copy = WOLFSSL_EMAIL_ADDR;
                 }
 
-                #ifdef WOLFSSL_CERT_GEN
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectEmail = (char*)&input[srcIdx];
                         cert->subjectEmailLen = strLen;
                     }
-                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+                    else if (nameType == ISSUER) {
+                        cert->issuerEmail = (char*)&input[srcIdx];
+                        cert->issuerEmailLen = strLen;
+                    }
+                #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
