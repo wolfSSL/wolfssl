@@ -138,7 +138,7 @@ int wolfCrypt_Init(void)
             time_t seed = time(NULL);
             srand((word32)seed);
             rngMallocFail = rand() % 2000; /* max 2000 */
-            printf("\n--- RNG MALLOC FAIL AT %u ---\n", rngMallocFail);
+            fprintf(stderr, "\n--- RNG MALLOC FAIL AT %u ---\n", rngMallocFail);
             wolfSSL_SetMemFailCount(rngMallocFail);
         }
     #endif

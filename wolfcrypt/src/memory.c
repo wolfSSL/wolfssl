@@ -152,7 +152,7 @@ void* wolfSSL_Malloc(size_t size)
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    printf("Alloc: %p -> %u at %s:%u\n", res, (word32)size, func, line);
+    fprintf(stderr, "Alloc: %p -> %u at %s:%u\n", res, (word32)size, func, line);
 #else
     (void)func;
     (void)line;
@@ -166,7 +166,7 @@ void* wolfSSL_Malloc(size_t size)
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (res && --gMemFailCount == 0) {
-        printf("\n---FORCED MEM FAIL TEST---\n");
+        fprintf(stderr, "\n---FORCED MEM FAIL TEST---\n");
         if (free_function) {
         #ifdef WOLFSSL_DEBUG_MEMORY
             free_function(res, func, line);
@@ -193,7 +193,7 @@ void wolfSSL_Free(void *ptr)
 {
 #ifdef WOLFSSL_DEBUG_MEMORY
 #if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    printf("Free: %p at %s:%u\n", ptr, func, line);
+    fprintf(stderr, "Free: %p at %s:%u\n", ptr, func, line);
 #else
     (void)func;
     (void)line;
@@ -406,7 +406,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     }
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    printf("Allocated %d bytes for static memory @ %p\n", ava, pt);
+    fprintf(stderr, "Allocated %d bytes for static memory @ %p\n", ava, pt);
 #endif
 
     /* divide into chunks of memory and add them to available list */
@@ -630,12 +630,12 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             #endif
 
             #ifdef WOLFSSL_DEBUG_MEMORY
-                printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+                fprintf(stderr, "Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
             #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
             #ifdef WOLFSSL_DEBUG_MEMORY
-            printf("ERROR: at %s:%d\n", func, line);
+            fprintf(stderr, "ERROR: at %s:%d\n", func, line);
             #endif
         #endif /* WOLFSSL_NO_MALLOC */
         #endif /* WOLFSSL_HEAP_TEST */
@@ -682,7 +682,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                         }
                     #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
                         else {
-                            printf("Size: %ld, Empty: %d\n", size,
+                            fprintf(stderr, "Size: %ld, Empty: %d\n", size,
                                                               mem->sizeList[i]);
                         }
                     #endif
@@ -697,7 +697,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             res = pt->buffer;
 
         #ifdef WOLFSSL_DEBUG_MEMORY
-            printf("Alloc: %p -> %u at %s:%d\n", pt->buffer, pt->sz, func, line);
+            fprintf(stderr, "Alloc: %p -> %u at %s:%d\n", pt->buffer, pt->sz, func, line);
         #endif
 
             /* keep track of connection statistics if flag is set */
@@ -719,7 +719,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         else {
             WOLFSSL_MSG("ERROR ran out of static memory");
             #ifdef WOLFSSL_DEBUG_MEMORY
-            printf("Looking for %lu bytes at %s:%d\n", size, func, line);
+            fprintf(stderr, "Looking for %lu bytes at %s:%d\n", size, func, line);
             #endif
         }
 
@@ -756,7 +756,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
         #ifdef WOLFSSL_DEBUG_MEMORY
-            printf("Free: %p at %s:%d\n", pt, func, line);
+            fprintf(stderr, "Free: %p at %s:%d\n", pt, func, line);
         #endif
             return free(ptr);
         }
@@ -821,7 +821,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             mem->frAlc += 1;
 
         #ifdef WOLFSSL_DEBUG_MEMORY
-            printf("Free: %p -> %u at %s:%d\n", pt->buffer, pt->sz, func, line);
+            fprintf(stderr, "Free: %p -> %u at %s:%d\n", pt->buffer, pt->sz, func, line);
         #endif
 
             /* keep track of connection statistics if flag is set */

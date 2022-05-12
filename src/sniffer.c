@@ -646,19 +646,19 @@ void ssl_InitSniffer(void)
     #ifdef HAVE_INTEL_QA_SYNC
     devId = wc_CryptoCb_InitIntelQa();
     if (devId == INVALID_DEVID) {
-        printf("Couldn't init the Intel QA\n");
+        fprintf(stderr, "Couldn't init the Intel QA\n");
     }
     #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
     devId = wc_CryptoCb_InitOcteon();
     if (devId == INVALID_DEVID) {
-        printf("Couldn't init the Octeon\n");
+        fprintf(stderr, "Couldn't init the Octeon\n");
     }
     #endif
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (wolfAsync_DevOpen(&devId) < 0) {
-        printf("Async device open failed\nRunning without async\n");
+        fprintf(stderr, "Async device open failed\nRunning without async\n");
         devId = INVALID_DEVID;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -6710,7 +6710,7 @@ int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
     if (ret != 0) {
     #ifdef DEBUG_SNIFFER
         /* print warnings */
-        printf("key watch set ephemeral failed %d\n", ret);
+        fprintf(stderr, "key watch set ephemeral failed %d\n", ret);
     #endif
     }
 #endif
@@ -6815,7 +6815,7 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
         }
         else {
         #ifdef DEBUG_SNIFFER
-            printf("Sniffer Server %p: Poll error: %d\n", srv, ret);
+            fprintf(stderr, "Sniffer Server %p: Poll error: %d\n", srv, ret);
         #endif
             break;
         }

@@ -758,7 +758,7 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
         ret = select(nfds, &rfds, &wfds, NULL, &timeout);
         if (ret == 0) {
         #ifdef DEBUG_HTTP
-            printf("Timeout: %d\n", ret);
+            fprintf(stderr, "Timeout: %d\n", ret);
         #endif
             return HTTP_TIMEOUT;
         }
@@ -2445,11 +2445,11 @@ int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
         unsigned int bytes_left = sz - total_written;
         max_sendlen = tcp_socket_max_sendlen(&ctx->conn.tcp);
         if (bytes_left > max_sendlen) {
-            printf("Send limited by buffer\r\n");
+            fprintf(stderr, "uIPSend: Send limited by buffer\r\n");
             bytes_left = max_sendlen;
         }
         if (bytes_left == 0) {
-            printf("Buffer full!\r\n");
+            fprintf(stderr, "uIPSend: Buffer full!\r\n");
             break;
         }
         ret = tcp_socket_send(&ctx->conn.tcp, (unsigned char *)buf + total_written, bytes_left);

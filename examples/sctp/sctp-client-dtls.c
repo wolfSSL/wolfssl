@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
     for (i = 0; i < sizeof(bigBuf); i++) {
         if (bigBuf[i] != (unsigned char)(i & 0xFF)) {
-            printf("big message check fail\n");
+            fprintf(stderr, "big message check fail\n");
             break;
         }
     }
