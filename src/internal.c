@@ -4012,7 +4012,7 @@ void FreeX509(WOLFSSL_X509* x509)
     #endif /* OPENSSL_ALL */
     #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
         if (x509->reqAttributes) {
-            wolfSSL_sk_free(x509->reqAttributes);
+            wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
         }
     #endif /* WOLFSSL_CERT_REQ */
     if (x509->altNames) {

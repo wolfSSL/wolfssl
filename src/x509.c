@@ -12342,6 +12342,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     else {
         if (req->reqAttributes == NULL) {
             req->reqAttributes = wolfSSL_sk_new_node(req->heap);
+            req->reqAttributes->type = STACK_TYPE_X509_REQ_ATTR;
         }
         ret = wolfSSL_sk_push(req->reqAttributes, attr);
     }
