@@ -7312,6 +7312,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
     ssl->ca_names = NULL;
 #endif
+    freeShsArgs(&ssl->fragArgs, ssl->heap);
 }
 
 /* Free any handshake resources no longer needed */
@@ -8793,22 +8794,26 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 #if !defined(NO_WOLFSSL_SERVER) || \
     (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
      !defined(WOLFSSL_NO_CLIENT_AUTH))
-/**
- * Send the handshake message. This function handles fragmenting the message
- * so that it will fit into the desired MTU or the max fragment size.
- * @param ssl     Connection object
- * @param input   Input starting at the record layer header. This function
- *                assumes that the appropriate record and handshake headers
- *                are present. These headers must assume no fragmentation.
- *                That is handled here.
- * @param inputSz Length of message excluding headers (this is the total
- *                length of all fragments)
- * @param type    Type of message being sent
- * @return        0 on success and negative otherwise
- */
-static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
-        enum HandShakeType type, const char* packetName)
+
+void freeShsArgs(ShsArgs* fragArgs, void* heap)
 {
+    (void)heap;
+    if (fragArgs != NULL && fragArgs->shsArgsSet) {
+#ifndef WOLFSSL_ASYNC_CRYPT
+        /* we own the input buffer and need to free it */
+        XFREE(fragArgs->input, heap, DYNAMIC_TYPE_IN_BUFFER);
+#endif
+        XMEMSET(fragArgs, 0, sizeof(ShsArgs));
+    }
+}
+
+static int AdvanceSendHandshakeMsg(WOLFSSL* ssl)
+{
+    byte* input;
+    word32 inputSz;
+    enum HandShakeType type;
+    const char* packetName;
+
     int maxFrag;
     int ret = 0;
     int headerSz;
@@ -8816,6 +8821,16 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     WOLFSSL_ENTER("SendHandshakeMsg");
     (void)type;
     (void)packetName;
+
+    if (!ssl->fragArgs.shsArgsSet) {
+        WOLFSSL_MSG("ssl->fragArgs.shsArgsSet is not set");
+        return BAD_FUNC_ARG;
+    }
+
+    input = ssl->fragArgs.input;
+    inputSz = ssl->fragArgs.inputSz;
+    type = (enum HandShakeType)ssl->fragArgs.hsType;
+    packetName = ssl->fragArgs.packetName;
 
     if (ssl == NULL || input == NULL)
         return BAD_FUNC_ARG;
@@ -8945,6 +8960,44 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
         ssl->keys.dtls_handshake_number++;
 #endif
     ssl->fragOffset = 0;
+    freeShsArgs(&ssl->fragArgs, ssl->heap);
+    return ret;
+}
+
+/**
+ * Send the handshake message. This function handles fragmenting the message
+ * so that it will fit into the desired MTU or the max fragment size.
+ * @param ssl     Connection object
+ * @param input   Input starting at the record layer header. This function
+ *                assumes that the appropriate record and handshake headers
+ *                are present. These headers must assume no fragmentation.
+ *                That is handled here.
+ *                Without WOLFSSL_ASYNC_CRYPT defined this function takes
+ *                ownership of this buffer. This cuts down on unnecessary
+ *                mallocs and copies.
+ * @param inputSz Length of message excluding headers (this is the total
+ *                length of all fragments)
+ * @param type    Type of message being sent
+ * @param packetName Name of the packet to use for info callbacks. Must be
+ *                static.
+ * @return        0 on success and negative otherwise
+ */
+static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
+        enum HandShakeType type, const char* packetName)
+{
+    /* Populate the fragArgs and clear it when we have async support. Without
+     * async support we are now responsible for free'ing input */
+    int ret;
+    ssl->fragArgs.input = input;
+    ssl->fragArgs.inputSz = inputSz;
+    ssl->fragArgs.hsType = (byte)type;
+    ssl->fragArgs.packetName = packetName;
+    ssl->fragArgs.shsArgsSet = 1;
+    ret = AdvanceSendHandshakeMsg(ssl);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Clear it since we don't own the buffers */
+    XMEMSET(&ssl->fragArgs, 0, sizeof(ssl->fragArgs));
+#endif
     return ret;
 }
 #endif /* !NO_WOLFSSL_SERVER || (!NO_WOLFSSL_CLIENT && !NO_CERTS &&
@@ -26483,6 +26536,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
             goto exit_scv;
     }
     else
+#else
+    if (ssl->fragArgs.shsArgsSet) {
+        /* We already prepared a cert verify. Just need to finish sending */
+        return AdvanceSendHandshakeMsg(ssl);
+    }
+    else
 #endif
     {
         /* Reset state */
@@ -26819,8 +26878,13 @@ int SendCertificateVerify(WOLFSSL* ssl)
             ret = SendHandshakeMsg(ssl, args->output,
                 (word32)args->length + args->extraSz + VERIFY_HEADER,
                 certificate_verify, "CertificateVerify");
+#ifndef WOLFSSL_ASYNC_CRYPT
+            args->input = NULL; /* SendHandshakeMsg now owns the buffer */
+#endif
             if (ret != 0)
                 goto exit_scv;
+            /* Any changes here need to also be added to the
+             * AdvanceSendHandshakeMsg call at the beginning of this function */
 
             break;
         }
@@ -27441,6 +27505,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Check for error */
             if (ret < 0)
                 goto exit_sske;
+        }
+        else
+    #else
+        if (ssl->fragArgs.shsArgsSet) {
+            /* We already prepared a kex. Just need to finish sending */
+            ret = AdvanceSendHandshakeMsg(ssl);
+            if (ret == 0)
+                ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+            return ret;
         }
         else
     #endif
@@ -28909,11 +28982,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
-                ret = SendHandshakeMsg(ssl, args->output, args->length,
-                        server_key_exchange, "ServerKeyExchange");
-                if (ret != 0)
-                    goto exit_sske;
-
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_END;
             } /* case TLS_ASYNC_FINALIZE */
@@ -28921,7 +28989,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_END:
             {
+                ret = SendHandshakeMsg(ssl, args->output, args->length,
+                        server_key_exchange, "ServerKeyExchange");
+            #ifndef WOLFSSL_ASYNC_CRYPT
+                args->input = NULL; /* SendHandshakeMsg now owns the buffer */
+            #endif
+                if (ret != 0)
+                    goto exit_sske;
                 ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+                /* Any changes here need to also be added to the
+                 * AdvanceSendHandshakeMsg call at the beginning of this
+                 * function */
                 break;
             }
             default:

@@ -4243,6 +4243,20 @@ typedef enum EarlyDataState {
 } EarlyDataState;
 #endif
 
+#if !defined(WOLFSSL_ASYNC_CRYPT) && (!defined(NO_WOLFSSL_SERVER) || \
+    (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+     !defined(WOLFSSL_NO_CLIENT_AUTH)))
+typedef struct ShsArgs {
+    byte* input;
+    const char* packetName;
+    word32 inputSz;
+    byte hsType;
+    byte shsArgsSet:1;
+} ShsArgs;
+
+WOLFSSL_LOCAL void freeShsArgs(ShsArgs* fragArgs, void* heap);
+#endif
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -4286,6 +4300,11 @@ struct WOLFSSL {
     struct WOLFSSL_ASYNC async;
 #elif defined(WOLFSSL_NONBLOCK_OCSP)
     void*           nonblockarg;        /* dynamic arg for handling non-block resume */
+#endif
+#if !defined(WOLFSSL_ASYNC_CRYPT) && (!defined(NO_WOLFSSL_SERVER) || \
+    (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+     !defined(WOLFSSL_NO_CLIENT_AUTH)))
+    ShsArgs  fragArgs;
 #endif
     void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
@@ -4758,6 +4777,8 @@ enum HandShakeType {
                                       conflicts with handshake finished */
     message_hash         = 254,    /* synthetic message type for TLS v1.3 */
     no_shake             = 255     /* used to initialize the DtlsMsg record */
+    /* Make sure to change type of hsType in ShsArgs when adding >255 values
+     * to this enum. */
 };
 
 enum ProvisionSide {

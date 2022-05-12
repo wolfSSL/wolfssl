@@ -301,6 +301,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 {
     int ret = 0;
 
+    WOLFSSL_ENTER("wc_PRF_TLS");
+
     if (useAtLeastSha256) {
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
         WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
@@ -338,6 +340,20 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
+    if (ret == 0) {
+        WOLFSSL_MSG("  digest");
+        WOLFSSL_BUFFER(digest, digLen);
+        WOLFSSL_MSG("  secret");
+        WOLFSSL_BUFFER(secret, secLen);
+        WOLFSSL_MSG("  label");
+        WOLFSSL_BUFFER(label, labLen);
+        WOLFSSL_MSG("  seed");
+        WOLFSSL_BUFFER(seed, seedLen);
+    }
+#endif
+
+    WOLFSSL_LEAVE("wc_PRF_TLS", ret);
 
     return ret;
 }
