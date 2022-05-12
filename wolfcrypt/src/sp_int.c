@@ -14527,8 +14527,8 @@ int sp_mont_setup(sp_int* m, sp_int_digit* rho)
     #endif /* SP_WORD_SIZE >= 32 */
     #endif /* SP_WORD_SIZE >= 16 */
 
-        /* rho = -1/m mod b */
-        *rho = -x;
+        /* rho = -1/m mod b, subtract x (unsigned) from 0, assign negative */
+        *rho = (sp_int_digit) ((sp_int_digit)0 - (sp_int_digit)x);
     }
 
     return err;
@@ -14757,7 +14757,7 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
             for (i = 0; (j >= 0) && (i < a->used); i++) {
                 int b;
                 for (b = 0; b < SP_WORD_SIZE; b += 8) {
-                    out[j--] = a->dp[i] >> b;
+                    out[j--] = (byte) (a->dp[i] >> b);
                     if (j < 0) {
                         break;
                     }
@@ -15039,11 +15039,11 @@ int sp_tohex(sp_int* a, char* str)
     #endif /* WC_DISABLE_RADIX_ZERO_PAD */
             /* Most-significant word. */
             for (; j >= 0; j -= 4) {
-                *(str++) = ByteToHex(a->dp[i] >> j);
+                *(str++) = ByteToHex((byte) (a->dp[i] >> j));
             }
             for (--i; i >= 0; i--) {
                 for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
-                    *(str++) = ByteToHex(a->dp[i] >> j);
+                    *(str++) = (byte) ByteToHex((byte) (a->dp[i] >> j));
                 }
             }
             *str = '\0';
@@ -15103,14 +15103,14 @@ int sp_todecimal(sp_int* a, char* str)
             i = 0;
             while (!sp_iszero(t)) {
                 sp_div_d(t, 10, t, &d);
-                str[i++] = '0' + d;
+                str[i++] = (char) ('0' + d);
             }
             str[i] = '\0';
 
             for (j = 0; j <= (i - 1) / 2; j++) {
                 int c = (unsigned char)str[j];
                 str[j] = str[i - 1 - j];
-                str[i - 1 - j] = c;
+                str[i - 1 - j] = (char) c;
             }
         }
 

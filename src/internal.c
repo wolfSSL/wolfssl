@@ -30767,7 +30767,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef NO_ASN_TIME
             c32toa(LowResTimer(), (byte*)&it.timestamp);
 #endif
-            it.haveEMS = ssl->options.haveEMS;
+            it.haveEMS = (byte) ssl->options.haveEMS;
         }
         else {
 #ifdef WOLFSSL_TLS13

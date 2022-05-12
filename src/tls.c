@@ -6706,7 +6706,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     int ret = 0;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     word32 keySize = 0;
-    word16 curveId = ECC_CURVE_INVALID;
+    word16 curveId = (word16) ECC_CURVE_INVALID;
     ecc_key* eccKey = (ecc_key*)kse->key;
 
     /* TODO: [TLS13] The key sizes should come from wolfcrypt. */

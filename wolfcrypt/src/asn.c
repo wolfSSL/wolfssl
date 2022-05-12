@@ -22575,7 +22575,7 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
         idx = i - curName->len - len - 1;
         i = idx;
 #endif
-        output[idx] = ASN_CONTEXT_SPECIFIC | curName->type;
+        output[idx] = (byte) (ASN_CONTEXT_SPECIFIC | curName->type);
         if (curName->type == ASN_DIR_TYPE) {
             output[idx] |= ASN_CONSTRUCTED;
         }

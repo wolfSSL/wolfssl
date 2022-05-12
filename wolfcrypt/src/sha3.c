@@ -621,7 +621,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             t[i] = data[i];
         data += i;
         len -= i;
-        sha3->i += i;
+        sha3->i += (byte) i;
 
         if (sha3->i == p * 8) {
             for (i = 0; i < p; i++)
@@ -639,7 +639,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     }
     for (i = 0; i < len; i++)
         sha3->t[i] = data[i];
-    sha3->i += i;
+    sha3->i += (byte) i;
 
     return 0;
 }
