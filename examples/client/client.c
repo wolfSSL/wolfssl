@@ -201,7 +201,8 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
             else
             {
             #ifdef WOLFSSL_DTLS
-                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+                if (wolfSSL_dtls(ssl))
+                    currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
             #endif
                 select_ret = tcp_select(sockfd, currTimeout);
             }
@@ -238,6 +239,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
                 error = wolfSSL_get_error(ssl, ret);
             else
                 error = WOLFSSL_ERROR_WANT_READ;
+            ret = WOLFSSL_FAILURE; /* Reset error so we loop */
         }
 #endif
         else {
@@ -3565,7 +3567,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     if (simulateWantWrite) {
-        wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+        if (dtlsUDP) {
+            wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+            udp_connect(&sockfd, host, port);
+        }
     }
 
     /* STARTTLS */
@@ -4105,7 +4110,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("error in setting fd");
         }
         if (simulateWantWrite) {
-            wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+            if (dtlsUDP) {
+                wolfSSL_SetIOWriteCtx(ssl, (void*)&sockfd);
+                udp_connect(&sockfd, host, port);
+            }
         }
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {

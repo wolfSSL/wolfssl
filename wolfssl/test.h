@@ -1847,16 +1847,20 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
     }
     tcp_socket(sockfd, udp, sctp);
 
-    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys_with_errno("tcp connect failed");
+    if (!udp) {
+        if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
+            err_sys_with_errno("tcp connect failed");
+    }
 }
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 
-static WC_INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)
+static WC_INLINE void udp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 {
-    if (connect(*sockfd, (const struct sockaddr*)addr, addrSz) != 0)
+    SOCKADDR_IN_T addr;
+    build_addr(&addr, ip, port, 1, 0);
+    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys_with_errno("tcp connect failed");
 }
 
