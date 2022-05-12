@@ -876,12 +876,13 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][18] = {
+static const char* bench_Usage_msg1[][19] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
         "-no_aad     No additional authentication data passed.\n",
+        "-both_aad   Both AAD options, with and w/o AAD.\n",
         "-dgst_full  Full digest operation performed.\n",
         "-rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.\n",
         "<keySz> -rsa-sz\n            Measure RSA <key size> performance.\n",
@@ -903,6 +904,7 @@ static const char* bench_Usage_msg1[][18] = {
         "-csv        csv 形式で端末に出力します。\n",
         "-base10     バイトを10のべき乗で表示します。(例 1 kB = 1000 Bytes)\n",
         "-no_aad     追加の認証データを使用しません.\n",
+        "-both_aad   TBD.\n",
         "-dgst_full  フルの digest 暗号操作を実施します。\n",
         "-rsa_sign   暗号/復号化の代わりに RSA の署名/検証を測定します。\n",
         "<keySz> -rsa-sz\n            RSA <key size> の性能を測定します。\n",
@@ -1259,6 +1261,31 @@ static const char* bench_result_words2[][5] = {
     #define AES_AUTH_TAG_SZ 16
     #define BENCH_CIPHER_ADD AES_AUTH_TAG_SZ
     static word32 aesAuthAddSz = AES_AUTH_ADD_SZ;
+    #if !defined(AES_AAD_OPTIONS_DEFAULT)
+        #if !defined(NO_MAIN_DRIVER)
+            #define AES_AAD_OPTIONS_DEFAULT 0x1U
+        #else
+            #define AES_AAD_OPTIONS_DEFAULT 0x3U
+        #endif
+    #endif
+    #define AES_AAD_STRING(s)           (aesAuthAddSz == 0 ? s "-no_AAD" : s)
+    static word32 aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
+    static void bench_aes_aad_options_wrap(void (*fn)(int), int i)
+    {
+        word32 aesAuthAddSz_orig = aesAuthAddSz;
+        word32 options = aes_aad_options;
+        while(options) {
+            if (options & 0x01U) {
+                aesAuthAddSz = AES_AUTH_ADD_SZ;
+                options &= ~0x01U;
+            } else if (options & 0x02U) {
+                aesAuthAddSz = 0;
+                options &= ~0x02U;
+            }
+            fn(i);
+            aesAuthAddSz = aesAuthAddSz_orig;
+        }
+    }
 #endif
 #ifndef BENCH_CIPHER_ADD
     #define BENCH_CIPHER_ADD 0
@@ -1357,7 +1384,8 @@ static void benchmark_static_init(void)
         bench_size = (1024*1024UL);
     #endif
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-        aesAuthAddSz = AES_AUTH_ADD_SZ;
+        aesAuthAddSz    = AES_AUTH_ADD_SZ;
+        aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
     #endif
         base2 = 1;
         digest_stream = 1;
@@ -1617,7 +1645,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
         (void)XSNPRINTF(msg, sizeof(msg), "%s,%.3f,", desc, persec);
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     } else {
-        (void)XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
+        (void)XSNPRINTF(msg, sizeof(msg), "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
                  desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType, word[0],
                  total, word[1], persec, blockType);
         SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
@@ -1878,13 +1906,13 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AESGCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_GCM)) {
     #ifndef NO_SW_BENCH
-        bench_aesgcm(0);
+        bench_aes_aad_options_wrap(bench_aesgcm, 0);
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
          defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) && \
         !defined(NO_HW_BENCH)
-        bench_aesgcm(1);
+        bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
 
         bench_gmac();
@@ -1919,7 +1947,7 @@ static void* benchmarks_do(void* args)
 #endif
 #ifdef HAVE_AESCCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_CCM))
-        bench_aesccm();
+        bench_aes_aad_options_wrap(bench_aesccm, 0);
 #endif
 #ifdef WOLFSSL_AES_SIV
     if (bench_all || (bench_cipher_algs & BENCH_AES_SIV))
@@ -3059,20 +3087,22 @@ exit:
 
 void bench_aesgcm(int useDeviceID)
 {
+#define AES_GCM_STRING(n, dir)		AES_AAD_STRING("AES-" #n "-GCM-" #dir)
 #if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) \
         && !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(useDeviceID, bench_key, 16, bench_iv, 12,
-                          "AES-128-GCM-enc", "AES-128-GCM-dec");
+                          AES_GCM_STRING(128, enc), AES_GCM_STRING(128, dec));
 #endif
 #if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES) \
         && !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(useDeviceID, bench_key, 24, bench_iv, 12,
-                          "AES-192-GCM-enc", "AES-192-GCM-dec");
+                          AES_GCM_STRING(192, enc), AES_GCM_STRING(192, dec));
 #endif
 #ifdef WOLFSSL_AES_256
     bench_aesgcm_internal(useDeviceID, bench_key, 32, bench_iv, 12,
-                          "AES-256-GCM-enc", "AES-256-GCM-dec");
+                          AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
 #endif
+#undef AES_GCM_STRING
 }
 
 /* GMAC */
@@ -3429,7 +3459,7 @@ void bench_aesctr(void)
 
 
 #ifdef HAVE_AESCCM
-void bench_aesccm(void)
+void bench_aesccm(int dummy)
 {
     Aes    enc;
     double start;
@@ -3444,6 +3474,8 @@ void bench_aesccm(void)
         goto exit;
     }
 #endif
+
+    (void) dummy;
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -3467,7 +3499,7 @@ void bench_aesccm(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM-Enc", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-enc"), 0, count, bench_size, start, ret);
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
         goto exit;
@@ -3482,7 +3514,7 @@ void bench_aesccm(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM-Dec", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-dec"), 0, count, bench_size, start, ret);
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
         goto exit;
@@ -8272,7 +8304,9 @@ int main(int argc, char** argv)
             base2 = 0;
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         else if (string_matches(argv[1], "-no_aad"))
-            aesAuthAddSz = 0;
+            aes_aad_options = 0x2U;
+        else if (string_matches(argv[1], "-both_aad"))
+            aes_aad_options = 0x3U;
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
