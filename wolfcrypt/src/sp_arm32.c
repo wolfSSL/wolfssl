@@ -20943,7 +20943,7 @@ SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
     u += sp_4096_add_128(r + 64, r + 64, z1);
     XMEMSET(a1 + 1, 0, sizeof(sp_digit) * (64 - 1));
     a1[0] = u;
-    (void)sp_4096_add_64(r + 192, r + 192, a1);
+    (void)sp_2048_add_64(r + 192, r + 192, a1);
 }
 
 /* Square a and put result in r. (r = a * a)
