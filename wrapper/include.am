@@ -2,6 +2,6 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-include wrapper/python/wolfcrypt/include.am
-include wrapper/python/wolfssl/include.am
 include wrapper/CSharp/include.am
+
+EXTRA_DIST+= wrapper/python/README.md
