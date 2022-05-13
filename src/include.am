@@ -18,6 +18,7 @@ MAINTAINERCLEANFILES+= $(FIPS_FILES)
 
 EXTRA_DIST += src/bio.c
 EXTRA_DIST += src/conf.c
+EXTRA_DIST += src/pk.c
 EXTRA_DIST += src/x509.c
 EXTRA_DIST += src/x509_str.c
 
