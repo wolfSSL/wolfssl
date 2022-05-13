@@ -19713,15 +19713,18 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         ret->ticket = ret->_staticTicket;
     #endif
 #ifdef HAVE_STUNNEL
-        /* stunnel has this funny mechanism of storing the "is_authenticated"
-         * session info in the session ex data. This is basically their
-         * default so let's just hard code it. */
-        if (wolfSSL_SESSION_set_ex_data(ret, 0, (void *)(-1))
-                != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error setting up ex data for stunnel");
-            XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
-            return NULL;
-        }
+        { /* scope for var declaration */
+            int hardSet = -1;
+            /* stunnel has a funny mechanism of storing the "is_authenticated"
+             * session info in the session ex data. This is basically their
+             * default so let's just hard code it. */
+            if (wolfSSL_SESSION_set_ex_data(ret, 0, (void *)(&hardSet))
+                    != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Error setting up ex data for stunnel");
+                XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+                return NULL;
+            }
+        } /* end scope */
 #endif
     }
     return ret;
