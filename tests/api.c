@@ -39996,7 +39996,7 @@ static int serverSessRemIdx = 3;
 
 static void SessRemCtxCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
 {
-    int* mallocedData = SSL_SESSION_get_ex_data(sess, serverSessRemIdx);
+    int* mallocedData = (int*)SSL_SESSION_get_ex_data(sess, serverSessRemIdx);
     (void)ctx;
     AssertNotNull(mallocedData);
     if (!*mallocedData)
