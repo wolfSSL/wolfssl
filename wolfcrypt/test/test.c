@@ -16033,8 +16033,41 @@ static int dh_generate_test(WC_RNG *rng)
     }
 #else
     (void)rng;
+    #if defined(HAVE_FIPS) || !defined(WOLFSSL_NO_DH186)
     ret = 0;
+    #endif
 #endif
+
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)
+    {
+        byte   priv[260];
+        byte   pub[260];
+        word32 privSz = sizeof(priv);
+        word32 pubSz = sizeof(pub);
+
+        /* test odd ball param generation with DH */
+        wc_FreeDhKey(smallKey);
+        ret = wc_InitDhKey_ex(smallKey, HEAP_HINT, devId);
+        if (ret != 0)
+            ERROR_OUT(-8019, exit_gen_test);
+
+        ret = wc_DhGenerateParams(rng, 2056, smallKey);
+        if (ret != 0) {
+            ERROR_OUT(-8020, exit_gen_test);
+        }
+
+        privSz = sizeof(priv);
+        pubSz = sizeof(pub);
+
+        ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0) {
+            ERROR_OUT(-8021, exit_gen_test);
+        }
+    }
+#endif /* !HAVE_FIPS and WOLFSSL_NO_DH186 */
 
 exit_gen_test:
     if (smallKey_inited)

@@ -2845,7 +2845,16 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
                 groupSz = 32;
                 break;
             default:
+        #if !defined(HAVE_FIPS) && defined(WOLFSSL_NO_DH186)
+                /* in non fips mode attempt to match strength of group size with
+                 * mod size */
+                if (modSz < 2048)
+                    groupSz = 20;
+                else
+                    groupSz = 32;
+        #else
                 ret = BAD_FUNC_ARG;
+        #endif
                 break;
         }
     }
