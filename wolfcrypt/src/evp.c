@@ -1434,7 +1434,7 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 
 /* Creates a new WOLFSSL_EVP_PKEY_CTX structure.
  *
- * pkey  key structure to use with new WOLFSSL_EVP_PEKY_CTX
+ * pkey  key structure to use with new WOLFSSL_EVP_PKEY_CTX
  * e     engine to use. It should be NULL at this time.
  *
  * return the new structure on success and NULL if failed.
