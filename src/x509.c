@@ -12444,6 +12444,7 @@ int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
                 break;
             }
         }
+        idx++;
     } while (sk != NULL);
 
     /* no matches found */
