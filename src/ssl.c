@@ -5378,7 +5378,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
     #endif
 
-    WC_RNG* wolfssl_get_global_rng()
+    WC_RNG* wolfssl_get_global_rng(void)
     {
         WC_RNG* ret = NULL;
 

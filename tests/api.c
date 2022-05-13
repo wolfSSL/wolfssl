@@ -10373,7 +10373,7 @@ static int test_wc_Sha256GetHash (void)
     if (flag == 0) {
         flag = wc_Sha256GetHash(&sha256, hash1);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
     if (flag == 0) {
         flag = wc_Sha256GetHash(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -10420,7 +10420,7 @@ static int test_wc_Sha256Copy (void)
     if (flag == 0) {
         flag = wc_Sha256Copy(&sha256, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha256Copy(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -10929,7 +10929,7 @@ static int test_Sha512_Family_GetHash(int type )
         flag = ghashFp(&sha512, hash1);
     }
 
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (!flag) {
         if (ghashFp(NULL, NULL) != BAD_FUNC_ARG )
             flag = WOLFSSL_FATAL_ERROR;
@@ -10969,7 +10969,7 @@ static int test_wc_Sha512GetHash (void)
     if (flag == 0) {
         flag = wc_Sha512GetHash(&sha512, hash1);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha512GetHash(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -11017,7 +11017,7 @@ static int test_wc_Sha512Copy (void)
     if (flag == 0) {
         flag = wc_Sha512Copy(&sha512, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha512Copy(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -11289,7 +11289,7 @@ static int test_wc_Sha512_224Copy (void)
     if (flag == 0) {
         flag = wc_Sha512_224Copy(&sha512, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
     if (flag == 0) {
         if (wc_Sha512_224Copy(NULL, NULL) != BAD_FUNC_ARG)
             flag = WOLFSSL_FATAL_ERROR;
@@ -11556,7 +11556,7 @@ static int test_wc_Sha512_256Copy (void)
     if (flag == 0) {
         flag = wc_Sha512_256Copy(&sha512, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         if (wc_Sha512_256Copy(NULL, NULL) != BAD_FUNC_ARG)
             flag = WOLFSSL_FATAL_ERROR;
@@ -11937,7 +11937,7 @@ static int test_wc_Sha384GetHash (void)
     if (flag == 0) {
         flag = wc_Sha384GetHash(&sha384, hash1);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha384GetHash(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -11984,7 +11984,7 @@ static int test_wc_Sha384Copy (void)
     if (flag == 0) {
         flag = wc_Sha384Copy(&sha384, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha384Copy(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -12325,7 +12325,7 @@ static int test_wc_Sha224GetHash (void)
     if (flag == 0) {
         flag = wc_Sha224GetHash(&sha224, hash1);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha224GetHash(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
@@ -12374,7 +12374,7 @@ static int test_wc_Sha224Copy (void)
     if (flag == 0) {
         flag = wc_Sha224Copy(&sha224, &temp);
     }
-    /*test bad arguements*/
+    /*test bad arguments*/
      if (flag == 0) {
         flag = wc_Sha224Copy(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
