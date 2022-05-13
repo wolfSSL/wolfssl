@@ -1710,12 +1710,23 @@ int main(int argc, char *argv[])
 
     ctp = dispatch_context_alloc(dpp);
     while (1) {
-        ctp = dispatch_block(ctp);
-        if (ctp == NULL) {
-            CleanupCAAM();
-            exit (1);
+        dispatch_context_t *current_ctp;
+
+        current_ctp = dispatch_block(ctp);
+        if (current_ctp == NULL) {
+            /* test if was just an interrupt, if so retry */
+            if (errno == EINTR)
+                continue;
+
+            /* other errors are EFAULT, EINVAL, ENOMEM
+             * close down in these cases */
+            perror("Error from dispatch_block ");
+            break;
         }
-        dispatch_handler(ctp);
+        else {
+            ctp = current_ctp;
+            dispatch_handler(ctp);
+        }
     }
 
     pthread_mutex_destroy(&sm_mutex);

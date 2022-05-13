@@ -242,12 +242,12 @@ Error caamFreePart(unsigned int part)
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
     printf("freeing partition %d\n", part);
     #endif
-    CAAM_WRITE(CAAM_SM_CMD, (part << 8U) | 0x3U);
+    CAAM_WRITE(caam.ring.BaseAddr + CAAM_SM_CMD, (part << 8U) | 0x3U);
 
-    status = CAAM_READ(CAAM_SM_STATUS);
+    status = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_STATUS);
     while (((status & 0x00004000U) > 0U) && ((status & 0x00003000U) == 0U)) {
         CAAM_CPU_CHILL();
-        status = CAAM_READ(CAAM_SM_STATUS);
+        status = CAAM_READ(caam.ring.BaseAddr + CAAM_SM_STATUS);
     }
 
     if (((status & 0x00003000U) > 0U) || ((status & 0x0000C000U) > 0U)) {
@@ -489,18 +489,23 @@ int caamInitRng(struct CAAM_DEVICE* dev)
 
         /* Set up use of the TRNG for seeding wolfSSL HASH-DRBG */
         /* check out the status and see if already setup */
-        CAAM_WRITE(CAAM_RTMCTL, CAAM_PRGM);
-        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_RTMCTL_RESET);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTMCTL, CAAM_PRGM);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTMCTL,
+                CAAM_READ(caam.baseAddr + CAAM_RTMCTL) | CAAM_RTMCTL_RESET);
 
         /* Set up reading from TRNG */
-        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_TRNG);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTMCTL,
+                CAAM_READ(caam.baseAddr + CAAM_RTMCTL) | CAAM_TRNG);
 
         /* Set up delay for TRNG
          * Shift left with RTSDCTL because 0-15 is for sample number
          * Also setting the max and min frequencies */
-        CAAM_WRITE(CAAM_RTSDCTL, (entropy_delay << 16) | CAAM_ENT_SAMPLE);
-        CAAM_WRITE(CAAM_RTFRQMIN, entropy_delay >> CAAM_ENT_MINSHIFT);
-        CAAM_WRITE(CAAM_RTFRQMAX, entropy_delay << CAAM_ENT_MAXSHIFT);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTSDCTL,
+                (entropy_delay << 16) | CAAM_ENT_SAMPLE);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTFRQMIN,
+                entropy_delay >> CAAM_ENT_MINSHIFT);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTFRQMAX,
+                entropy_delay << CAAM_ENT_MAXSHIFT);
 
     #ifdef WOLFSSL_CAAM_PRINT
         printf("Attempt with entropy delay set to %d\n", entropy_delay);
@@ -510,14 +515,14 @@ int caamInitRng(struct CAAM_DEVICE* dev)
     #endif
 
         /* Set back to run mode and clear RTMCL error bit */
-        reg = CAAM_READ(CAAM_RTMCTL) & (~CAAM_PRGM);
-        CAAM_WRITE(CAAM_RTMCTL, reg);
-        reg = CAAM_READ(CAAM_RTMCTL);
+        reg = CAAM_READ(caam.baseAddr + CAAM_RTMCTL) & (~CAAM_PRGM);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTMCTL, reg);
+        reg = CAAM_READ(caam.baseAddr + CAAM_RTMCTL);
         reg |= CAAM_CTLERR;
-        CAAM_WRITE(CAAM_RTMCTL, reg);
+        CAAM_WRITE(caam.baseAddr + CAAM_RTMCTL, reg);
 
         /* check out the status and see if already setup */
-        reg = CAAM_READ(CAAM_RDSTA);
+        reg = CAAM_READ(caam.baseAddr + CAAM_RDSTA);
         if (((reg >> 16) & 0xF) > 0) {
             WOLFSSL_MSG("RNG is in error state, resetting");
             caamReset();
@@ -1571,21 +1576,22 @@ static int caamTRNG(unsigned char *out, int outSz)
     int ofst = sizeof(unsigned int);
 
     /* Check ENT_VAL bit to make sure entropy is ready */
-    if ((CAAM_READ(CAAM_RTMCTL) & CAAM_ENTVAL) != CAAM_ENTVAL) {
+    if ((CAAM_READ(caam.baseAddr + CAAM_RTMCTL) & CAAM_ENTVAL) != CAAM_ENTVAL) {
         return CAAM_WAITING;
     }
 
     /* check state of TRNG */
-    if ((CAAM_READ(CAAM_RTSTATUS) & 0x0000FFFF) > 0) {
+    if ((CAAM_READ(caam.baseAddr + CAAM_RTSTATUS) & 0x0000FFFF) > 0) {
+        WOLFSSL_MSG("RNG in a bad state");
         return Failure;
     }
 
     /* read entropy from RTENT registers */
-    reg   = CAAM_RTENT0;
+    reg   = caam.baseAddr + CAAM_RTENT0;
     sz    = outSz;
     local = out;
 
-    while (sz > 3 && reg <= CAAM_RTENT_MAX) {
+    while (sz > 3 && reg <= caam.baseAddr + CAAM_RTENT_MAX) {
         unsigned int data = CAAM_READ(reg);
         *((unsigned int*)local) = data;
         reg    += ofst;
@@ -1605,7 +1611,7 @@ static int caamTRNG(unsigned char *out, int outSz)
 
     /* read the max RTENT to trigger new entropy generation */
     if (reg != CAAM_RTENT_MAX) {
-        CAAM_READ(CAAM_RTENT_MAX);
+        CAAM_READ(caam.baseAddr + CAAM_RTENT_MAX);
     }
 
     return Success;
@@ -1838,11 +1844,11 @@ int InitCAAM(void)
 
 int CleanupCAAM()
 {
+    caamFreeAllPart();
     CAAM_UNSET_JOBRING_ADDR(caam.ring.BaseAddr, caam.ring.JobIn,
         caam.ring.VirtualIn);
     CAAM_FREE_MUTEX(&caam.ring.jr_lock);
     CAAM_UNSET_BASEADDR(caam.baseAddr);
-    caamFreeAllPart();
     return 0;
 }
 
