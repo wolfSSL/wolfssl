@@ -2624,6 +2624,9 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     if (totalSz > *outputSz) {
         if (*outputSz == 0) {
+            if (pkcs7->publicKeyOID == ECDSAk) {
+                totalSz += ECC_MAX_PAD_SZ; /* signatures size can vary */
+            }
             *outputSz = totalSz;
             idx = totalSz;
             goto out;
