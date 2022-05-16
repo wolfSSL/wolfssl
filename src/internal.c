@@ -17708,8 +17708,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         return ret;
 
                     /* catch warnings that are handled as errors */
-                    if (type == close_notify)
+                    if (type == close_notify) {
+                        ssl->buffers.inputBuffer.idx =
+                            ssl->buffers.inputBuffer.length;
+                        ssl->options.processReply = doProcessInit;
                         return ssl->error = ZERO_RETURN;
+                    }
 
                     if (type == decrypt_error)
                         return FATAL_ERROR;
