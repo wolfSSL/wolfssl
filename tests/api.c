@@ -39980,6 +39980,170 @@ static void test_wolfSSL_SESSION(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_EX_DATA)
+static int clientSessRemCountMalloc = 0;
+static int serverSessRemCountMalloc = 0;
+static int clientSessRemCountFree = 0;
+static int serverSessRemCountFree = 0;
+static WOLFSSL_CTX* serverSessCtx = NULL;
+static WOLFSSL_SESSION* serverSess = NULL;
+#ifndef NO_SESSION_CACHE_REF
+static WOLFSSL_CTX* clientSessCtx = NULL;
+static WOLFSSL_SESSION* clientSess = NULL;
+#endif
+static int serverSessRemIdx = 3;
+
+static void SessRemCtxCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
+{
+    int* mallocedData = (int*)SSL_SESSION_get_ex_data(sess, serverSessRemIdx);
+    (void)ctx;
+    AssertNotNull(mallocedData);
+    if (!*mallocedData)
+        clientSessRemCountFree++;
+    else
+        serverSessRemCountFree++;
+    XFREE(mallocedData, NULL, DYNAMIC_TYPE_SESSION);
+    SSL_SESSION_set_ex_data(sess, serverSessRemIdx, NULL);
+}
+
+static void SessRemCtxSetupCb(WOLFSSL_CTX* ctx)
+{
+    SSL_CTX_sess_set_remove_cb(ctx, SessRemCtxCb);
+#if defined(WOLFSSL_TLS13) && !defined(HAVE_SESSION_TICKET) && \
+        !defined(NO_SESSION_CACHE_REF)
+    /* Allow downgrade, set min version, and disable TLS 1.3.
+     * Do this because without NO_SESSION_CACHE_REF we will want to return a
+     * reference to the session cache. But with WOLFSSL_TLS13 and without
+     * HAVE_SESSION_TICKET we won't have a session ID to be able to place the
+     * session in the cache. In this case we need to downgrade to previous
+     * versions to just use the legacy session ID field. */
+    AssertIntEQ(SSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), SSL_SUCCESS);
+    AssertIntEQ(SSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION), SSL_SUCCESS);
+#endif
+}
+
+static void SessRemSslSetupCb(WOLFSSL* ssl)
+{
+    int* mallocedData = (int*)XMALLOC(sizeof(int), NULL, DYNAMIC_TYPE_SESSION);
+    AssertNotNull(mallocedData);
+    *mallocedData = SSL_is_server(ssl);
+    if (!*mallocedData) {
+        clientSessRemCountMalloc++;
+#ifndef NO_SESSION_CACHE_REF
+        AssertNotNull(clientSess = SSL_get1_session(ssl));
+        AssertIntEQ(SSL_CTX_up_ref(clientSessCtx = SSL_get_SSL_CTX(ssl)),
+                SSL_SUCCESS);
+#endif
+    }
+    else {
+        serverSessRemCountMalloc++;
+        AssertNotNull(serverSess = SSL_get1_session(ssl));
+        AssertIntEQ(SSL_CTX_up_ref(serverSessCtx = SSL_get_SSL_CTX(ssl)),
+                SSL_SUCCESS);
+    }
+    AssertIntEQ(SSL_SESSION_set_ex_data(SSL_get_session(ssl), serverSessRemIdx,
+            mallocedData), SSL_SUCCESS);
+}
+#endif
+
+static void test_wolfSSL_CTX_sess_set_remove_cb(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_EX_DATA)
+    /* Check that the remove callback gets called for external data in a
+     * session object */
+    callback_functions func_cb;
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    printf(testingFmt, "wolfSSL_CTX_sess_set_remove_cb()");
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&func_cb, 0, sizeof(callback_functions));
+
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    client_args.callbacks = &func_cb;
+    server_args.callbacks = &func_cb;
+    func_cb.ctx_ready = SessRemCtxSetupCb;
+    func_cb.on_result = SessRemSslSetupCb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* Both should have been allocated */
+    AssertIntEQ(clientSessRemCountMalloc, 1);
+    AssertIntEQ(serverSessRemCountMalloc, 1);
+#ifdef NO_SESSION_CACHE_REF
+    /* Client session should not be added to cache so this should be free'd when
+     * the SSL object was being free'd */
+    AssertIntEQ(clientSessRemCountFree, 1);
+#else
+    /* Client session is in cache due to requiring a persistent reference */
+    AssertIntEQ(clientSessRemCountFree, 0);
+    /* Force a cache lookup */
+    AssertNotNull(SSL_SESSION_get_ex_data(clientSess, serverSessRemIdx));
+    /* Force a cache update */
+    AssertNotNull(SSL_SESSION_set_ex_data(clientSess, serverSessRemIdx - 1, 0));
+    /* This should set the timeout to 0 and call the remove callback from within
+     * the session cache. */
+    AssertIntEQ(SSL_CTX_remove_session(clientSessCtx, clientSess), 0);
+    AssertNull(SSL_SESSION_get_ex_data(clientSess, serverSessRemIdx));
+    AssertIntEQ(clientSessRemCountFree, 1);
+#endif
+    /* Server session is in the cache so ex_data isn't free'd with the SSL
+     * object */
+    AssertIntEQ(serverSessRemCountFree, 0);
+    /* Force a cache lookup */
+    AssertNotNull(SSL_SESSION_get_ex_data(serverSess, serverSessRemIdx));
+    /* Force a cache update */
+    AssertNotNull(SSL_SESSION_set_ex_data(serverSess, serverSessRemIdx - 1, 0));
+    /* This should set the timeout to 0 and call the remove callback from within
+     * the session cache. */
+    AssertIntEQ(SSL_CTX_remove_session(serverSessCtx, serverSess), 0);
+    AssertNull(SSL_SESSION_get_ex_data(serverSess, serverSessRemIdx));
+    AssertIntEQ(serverSessRemCountFree, 1);
+
+    /* Need to free the references that we kept */
+    SSL_CTX_free(serverSessCtx);
+    SSL_SESSION_free(serverSess);
+#ifndef NO_SESSION_CACHE_REF
+    SSL_CTX_free(clientSessCtx);
+    SSL_SESSION_free(clientSess);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_ticket_keys(void)
 {
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
@@ -54115,6 +54279,7 @@ void ApiTest(void)
 #endif
     test_wolfSSL_cert_cb();
     test_wolfSSL_SESSION();
+    test_wolfSSL_CTX_sess_set_remove_cb();
     test_wolfSSL_ticket_keys();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
