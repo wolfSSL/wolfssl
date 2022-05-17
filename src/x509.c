@@ -4645,7 +4645,7 @@ WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
-    if (cert && cert->subject.sz > 0)
+    if (cert)
         return &cert->subject;
     return NULL;
 }
@@ -4721,7 +4721,7 @@ WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("X509_get_issuer_name");
-    if (cert && cert->issuer.sz > 0)
+    if (cert)
         return &cert->issuer;
     return NULL;
 }

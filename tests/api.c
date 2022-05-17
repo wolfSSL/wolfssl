@@ -1480,20 +1480,16 @@ static int test_wolfSSL_CertManagerSetVerify(void)
  * multiple locations with complex define guards. */
 void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
 {
-    BIO* out = BIO_new(BIO_s_file());
+    BIO* out = BIO_new_file(fileName, "wb");
     if (out != NULL) {
-        FILE* f = fopen(fileName, "wb");
-        BIO_set_fp(out, f, BIO_CLOSE);
         PEM_write_bio_X509(out, x509);
         BIO_free(out);
     }
 }
 void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName)
 {
-    BIO* out = BIO_new(BIO_s_file());
+    BIO* out = BIO_new_file(fileName, "wb");
     if (out != NULL) {
-        FILE* f = fopen(fileName, "wb");
-        BIO_set_fp(out, f, BIO_CLOSE);
         BIO_write(out, der, derSz);
         BIO_free(out);
     }
@@ -33308,12 +33304,10 @@ static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
     caName = X509_get_subject_name(x509Ca);
     AssertNotNull(caName);
     issuerName = X509_get_subject_name(issuer);
+    AssertNotNull(issuerName);
     #ifdef WOLFSSL_SIGNER_DER_CERT
-        AssertNotNull(issuerName);
         cmp = X509_NAME_cmp(caName, issuerName);
         AssertIntEQ(cmp, 0);
-    #else
-        AssertNull(issuerName);
     #endif
 
     X509_free(issuer);
@@ -47636,6 +47630,7 @@ static void test_X509_REQ(void)
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_BIO)
     X509_NAME* name;
+    X509_NAME* subject;
 #if !defined(NO_RSA) || defined(HAVE_ECC)
     X509_REQ* req;
     EVP_PKEY* priv;
@@ -47700,8 +47695,37 @@ static void test_X509_REQ(void)
     EVP_MD_CTX_free(mctx);
     X509_REQ_free(NULL);
     X509_REQ_free(req);
+
+    /* Test getting the subject from a newly created X509_REQ */
+    AssertNotNull(req = X509_REQ_new());
+    AssertNotNull(subject = X509_REQ_get_subject_name(req));
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_commonName,
+            MBSTRING_UTF8, (unsigned char*)"www.wolfssl.com", -1, -1, 0), 1);
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_countryName,
+            MBSTRING_UTF8, (unsigned char*)"US", -1, -1, 0), 1);
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_localityName,
+            MBSTRING_UTF8, (unsigned char*)"Bozeman", -1, -1, 0), 1);
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_stateOrProvinceName,
+            MBSTRING_UTF8, (unsigned char*)"Montana", -1, -1, 0), 1);
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_organizationName,
+            MBSTRING_UTF8, (unsigned char*)"wolfSSL", -1, -1, 0), 1);
+    AssertIntEQ(X509_NAME_add_entry_by_NID(subject, NID_organizationalUnitName,
+            MBSTRING_UTF8, (unsigned char*)"Testing", -1, -1, 0), 1);
+    AssertIntEQ(X509_REQ_set_pubkey(req, pub), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_REQ_sign(req, priv, EVP_sha256()), WOLFSSL_SUCCESS);
+    len = i2d_X509_REQ(req, &der);
+    DEBUG_WRITE_DER(der, len, "req2.der");
+#ifdef USE_CERT_BUFFERS_1024
+    AssertIntEQ(len, 435);
+#else
+    AssertIntEQ(len, 696);
+#endif
+    XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    der = NULL;
+
     EVP_PKEY_free(pub);
     EVP_PKEY_free(priv);
+    X509_REQ_free(req);
 #endif
 #ifdef HAVE_ECC
     AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &ecPriv,
