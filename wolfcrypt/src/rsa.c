@@ -886,14 +886,15 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         /* find largest amount of memory needed which will be the max of
          * hLen and (seedSz + 4) since tmp is used to store the hash digest */
         tmpSz = ((seedSz + 4) > (word32)hLen)? seedSz + 4: (word32)hLen;
-        if (tmpSz > RSA_MAX_SIZE/8)
-            return BAD_FUNC_ARG;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_RSA_BUFFER);
         if (tmp == NULL) {
             return MEMORY_E;
         }
         tmpF = 1; /* make sure to free memory when done */
+#else
+        if (tmpSz > RSA_MAX_SIZE/8)
+            return BAD_FUNC_ARG;
 #endif
     }
     else {
