@@ -2707,7 +2707,13 @@ extern void uITRON4_free(void *p) ;
     #define NO_RC4
 #endif
 
-#if !defined(WOLFSSL_NO_ASYNC_IO) || defined(WOLFSSL_ASYNC_CRYPT)
+#if !defined(WOLFSSL_NO_ASYNC_IO) || defined(WOLFSSL_ASYNC_CRYPT) || \
+     defined(WOLFSSL_NONBLOCK_OCSP)
+    /* Enable asynchronous support in TLS functions to support one or more of
+     * the following:
+     * - re-entry after a network blocking return
+     * - re-entry after OCSP blocking return
+     * - asynchronous cryptography */
     #undef WOLFSSL_ASYNC_IO
     #define WOLFSSL_ASYNC_IO
 #endif
