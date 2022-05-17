@@ -2332,8 +2332,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     BuildMsg13Args  lcl_args;
 #ifdef WOLFSSL_ASYNC_CRYPT
     args = (BuildMsg13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #endif
 
     WOLFSSL_ENTER("BuildTls13Message");
@@ -3056,8 +3055,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     int ret;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Sch13Args* args = (Sch13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     Sch13Args  args[1];
 #endif
@@ -3318,8 +3316,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     byte suite[2];
 #ifdef WOLFSSL_ASYNC_CRYPT
     Dsh13Args* args = (Dsh13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     Dsh13Args  args[1];
 #endif
@@ -4615,8 +4612,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int ret;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Dch13Args* args = (Dch13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     Dch13Args  args[1];
 #endif
@@ -6062,8 +6058,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     buffer* sig = &ssl->buffers.sig;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Scv13Args* args = (Scv13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     Scv13Args  args[1];
 #endif
@@ -6538,8 +6533,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
     buffer*     sig = &ssl->buffers.sig;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Dcv13Args* args = (Dcv13Args*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     Dcv13Args  args[1];
 #endif

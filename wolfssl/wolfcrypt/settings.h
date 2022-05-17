@@ -2707,6 +2707,10 @@ extern void uITRON4_free(void *p) ;
     #define NO_RC4
 #endif
 
+#if !defined(WOLFSSL_NO_ASYNC_IO) || defined(WOLFSSL_ASYNC_CRYPT)
+    #undef WOLFSSL_ASYNC_IO
+    #define WOLFSSL_ASYNC_IO
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */

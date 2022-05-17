@@ -2333,8 +2333,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     SetupKeysArgs* args = (SetupKeysArgs*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async.args, *args);
 #else
     SetupKeysArgs  args[1];
 #endif

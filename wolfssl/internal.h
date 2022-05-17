@@ -1605,6 +1605,9 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y)                              \
+    typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
+    (void)sizeof(_args_test)
 
 /* states */
 enum states {
@@ -4204,17 +4207,19 @@ typedef struct BuildMsgArgs {
 } BuildMsgArgs;
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef WOLFSSL_ASYNC_IO
     #define MAX_ASYNC_ARGS 18
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
 
     struct WOLFSSL_ASYNC {
+#ifdef WOLFSSL_ASYNC_CRYPT
         WC_ASYNC_DEV* dev;
-        FreeArgsCb    freeArgs; /* function pointer to cleanup args */
-        word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
 #ifndef WOLFSSL_NO_TLS12
         BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
 #endif
+#endif
+        FreeArgsCb    freeArgs; /* function pointer to cleanup args */
+        word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
     };
 #endif
 
@@ -4292,7 +4297,9 @@ struct WOLFSSL {
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
     void*           hsDoneCtx;         /*  user handshake cb context  */
 #endif
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef WOLFSSL_ASYNC_IO
+    /* Message building context should be stored here for functions that expect
+     * to encounter encryption blocking or fragment the message. */
     struct WOLFSSL_ASYNC async;
 #elif defined(WOLFSSL_NONBLOCK_OCSP)
     void*           nonblockarg;        /* dynamic arg for handling non-block resume */
