@@ -6697,6 +6697,7 @@ void FreeArrays(WOLFSSL* ssl, int keep)
             ssl->session->sessionIDSz = ssl->arrays->sessionIDSz;
         }
         if (ssl->arrays->preMasterSecret) {
+            ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
             XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
             ssl->arrays->preMasterSecret = NULL;
         }
