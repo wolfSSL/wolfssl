@@ -7827,6 +7827,6 @@ int main(int argc, char** argv)
 
 #else
     #ifndef NO_MAIN_DRIVER
-        int main() { return 0; }
+        int main(void) { return 0; }
     #endif
 #endif /* !NO_CRYPT_BENCHMARK */
