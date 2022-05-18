@@ -4514,6 +4514,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int idx;
     int ret, err = 0;
     int sharedCtx = 0;
+    int doUdp = 0;
+    SOCKADDR_IN_T cliAddr;
+    socklen_t     cliLen;
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     size_t msg_len = 0;
 #endif
@@ -4536,6 +4540,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         WOLFSSL_METHOD* method = NULL;
         if (cbf != NULL && cbf->method != NULL) {
             method = cbf->method();
+
         }
         else {
             method = wolfSSLv23_server_method();
@@ -4570,9 +4575,24 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     port = wolfSSLPort;
 #endif
 
+    if (cbf != NULL)
+        doUdp = cbf->doUdp;
+
     /* do it here to detect failure */
-    tcp_accept(&sockfd, &clientfd, opts, port, 0, 0, 0, 0, 1, 0, 0);
-    CloseSocket(sockfd);
+    tcp_accept(
+        &sockfd, &clientfd, opts, port, 0, doUdp, 0, 0, 1, 0, 0);
+
+    if (doUdp) {
+        cliLen = sizeof(cliAddr);
+
+        idx = (int)recvfrom(sockfd, input, sizeof(input), MSG_PEEK,
+                  (struct sockaddr*)&cliAddr, &cliLen);
+
+        AssertIntGT(idx, 0);
+    }
+    else {
+        CloseSocket(sockfd);
+    }
 
     wolfSSL_CTX_set_verify(ctx,
                   WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
@@ -4617,6 +4637,12 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
         goto done;
+    }
+
+    if (doUdp) {
+        err = wolfSSL_dtls_set_peer(ssl, &cliAddr, cliLen);
+        if (err != WOLFSSL_SUCCESS)
+            goto done;
     }
 
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -6571,7 +6597,13 @@ static void test_wolfSSL_dtls_export(void)
         int  msgSz = (int)XSTRLEN(msg);
         byte *session, *window;
         unsigned int sessionSz, windowSz;
+
+#ifndef TEST_IPV6
         struct sockaddr_in peerAddr;
+#else
+        struct sockaddr_in6 peerAddr;
+#endif /* TEST_IPV6 */
+
         int i;
 
 
@@ -6607,6 +6639,7 @@ static void test_wolfSSL_dtls_export(void)
     XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&server_cbf, 0, sizeof(callback_functions));
     server_cbf.method = wolfDTLSv1_2_server_method;
+    server_cbf.doUdp = 1;
     server_args.callbacks = &server_cbf;
     server_args.argc = 3; /* set loop_count to 3 */
 
@@ -6623,15 +6656,25 @@ static void test_wolfSSL_dtls_export(void)
           wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
     AssertIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
-    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 1, 0, NULL);
     AssertNotNull(ssl = wolfSSL_new(ctx));
     AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
 
     /* store server information connected too */
     XMEMSET(&peerAddr, 0, sizeof(peerAddr));
+#ifndef TEST_IPV6
     peerAddr.sin_family = AF_INET;
+    AssertIntEQ(XINET_PTON(AF_INET, wolfSSLIP, &peerAddr.sin_addr),1);
     peerAddr.sin_port = XHTONS(server_args.signal->port);
-    wolfSSL_dtls_set_peer(ssl, &peerAddr, sizeof(peerAddr));
+#else
+    peerAddr.sin6_family = AF_INET6;
+    AssertIntEQ(
+        XINET_PTON(AF_INET6, wolfSSLIP, &peerAddr.sin6_addr),1);
+    peerAddr.sin6_port = XHTONS(server_args.signal->port);
+#endif
+
+    AssertIntEQ(wolfSSL_dtls_set_peer(ssl, &peerAddr, sizeof(peerAddr)),
+                    WOLFSSL_SUCCESS);
 
     AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_dtls_export(ssl, NULL, &sessionSz), 0);
@@ -6650,6 +6693,8 @@ static void test_wolfSSL_dtls_export(void)
         AssertIntGT(wolfSSL_dtls_import(ssl, session, sessionSz), 0);
         AssertIntGT(wolfSSL_dtls_import(ssl, window, windowSz), 0);
         AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_dtls_set_peer(ssl, &peerAddr, sizeof(peerAddr)),
+                    WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
         AssertIntGE(wolfSSL_read(ssl, reply, sizeof(reply)), 0);
         AssertIntGT(wolfSSL_dtls_export_state_only(ssl, window, &windowSz), 0);
