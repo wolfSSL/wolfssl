@@ -709,6 +709,9 @@ then
 
     # Enable deterministic ECC signing API with variant
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+
+    # Store issuer name components when parsing certificates.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
 fi
 
 

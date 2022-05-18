@@ -1607,6 +1607,34 @@ struct DecodedCert {
     char    subjectPCEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
+#if defined(WOLFSSL_HAVE_ISSUER_NAMES)
+    char*   issuerCN;
+    int     issuerCNLen;
+    char    issuerCNEnc;
+    char*   issuerSN;
+    int     issuerSNLen;
+    char    issuerSNEnc;
+    char*   issuerC;
+    int     issuerCLen;
+    char    issuerCEnc;
+    char*   issuerL;
+    int     issuerLLen;
+    char    issuerLEnc;
+    char*   issuerST;
+    int     issuerSTLen;
+    char    issuerSTEnc;
+    char*   issuerO;
+    int     issuerOLen;
+    char    issuerOEnc;
+    char*   issuerOU;
+    int     issuerOULen;
+    char    issuerOUEnc;
+    char*   issuerSND;
+    int     issuerSNDLen;
+    char    issuerSNDEnc;
+    char*   issuerEmail;
+    int     issuerEmailLen;
+#endif /* WOLFSSL_HAVE_ISSUER_NAMES */
 #endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
