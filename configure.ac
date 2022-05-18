@@ -2758,7 +2758,7 @@ AC_ARG_ENABLE([ed25519-stream],
     )
 
 
-if (test "$ENABLED_OPENSSH" = "yes" && "x$ENABLED_FIPS" = "xno") || \
+if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
    test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_ED25519="yes"
