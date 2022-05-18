@@ -187,7 +187,7 @@ endif
 
 if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
-if BUILD_ARMASM
+if BUILD_ARMASM_CRYPTO
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
 endif
 endif
@@ -203,6 +203,11 @@ endif
 
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
+if BUILD_ARMASM_INLINE
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
+endif
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 if BUILD_INTELASM
@@ -300,10 +305,15 @@ endif
 endif !BUILD_FIPS_CURRENT
 
 if !BUILD_FIPS_CURRENT
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
+if BUILD_ARMASM_INLINE
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c
 else
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
+endif
+else
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_asm.S
 endif
@@ -383,7 +393,7 @@ endif
 if !BUILD_FIPS_CURRENT
 if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
-if BUILD_ARMASM
+if BUILD_ARMASM_CRYPTO
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
 endif
 if BUILD_AFALG

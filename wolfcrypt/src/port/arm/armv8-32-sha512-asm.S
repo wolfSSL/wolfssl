@@ -225,7 +225,7 @@ Transform_Sha512_Len:
 	strd	r6, r7, [sp, #176]
 	strd	r8, r9, [sp, #184]
 	# Start of loop processing a block
-L_sha512_len_neon_begin:
+L_SHA512_transform_len_begin:
 	# Load, Reverse and Store W
 	ldr	r12, [r1]
 	ldr	lr, [r1, #4]
@@ -319,7 +319,7 @@ L_sha512_len_neon_begin:
 	eor	r9, r9, lr
 	mov	r10, #4
 	# Start of 16 rounds
-L_sha512_len_neon_start:
+L_SHA512_transform_len_start:
 	# Round 0
 	ldr	r12, [r0, #32]
 	ldr	lr, [r0, #36]
@@ -2546,7 +2546,7 @@ L_sha512_len_neon_start:
 	str	lr, [sp, #124]
 	add	r3, r3, #0x80
 	subs	r10, r10, #1
-	bne	L_sha512_len_neon_start
+	bne	L_SHA512_transform_len_start
 	# Round 0
 	ldr	r12, [r0, #32]
 	ldr	lr, [r0, #36]
@@ -4035,7 +4035,7 @@ L_sha512_len_neon_start:
 	subs	r2, r2, #0x80
 	sub	r3, r3, #0x200
 	add	r1, r1, #0x80
-	bne	L_sha512_len_neon_begin
+	bne	L_SHA512_transform_len_begin
 	eor	r0, r0, r0
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
@@ -4216,7 +4216,7 @@ Transform_Sha512_Len:
 	# Load digest into working vars
 	vldm.64	r0, {d0-d7}
 	# Start of loop processing a block
-L_sha512_len_neon_begin:
+L_SHA512_transform_neon_len_begin:
 	# Load W
 	vldm.64	r1!, {d16-d31}
 	vrev64.8	q8, q8
@@ -4230,7 +4230,7 @@ L_sha512_len_neon_begin:
 	adr	r3, L_SHA512_transform_neon_len_k
 	mov	r12, #4
 	# Start of 16 rounds
-L_sha512_len_neon_start:
+L_SHA512_transform_neon_len_start:
 	# Round 0
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d4, #50
@@ -4856,7 +4856,7 @@ L_sha512_len_neon_start:
 	veor	q5, q6
 	vadd.i64	q15, q5
 	subs	r12, r12, #1
-	bne	L_sha512_len_neon_start
+	bne	L_SHA512_transform_neon_len_start
 	# Round 0
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d4, #50
@@ -5329,7 +5329,7 @@ L_sha512_len_neon_start:
 	vadd.i64	q3, q3, q7
 	vstm.64	r0, {d0-d7}
 	subs	r2, r2, #0x80
-	bne	L_sha512_len_neon_begin
+	bne	L_SHA512_transform_neon_len_begin
 	vpop	{d8-d15}
 	bx	lr
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
