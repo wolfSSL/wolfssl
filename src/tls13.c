@@ -7008,7 +7008,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (sniff == NO_SNIFF) {
         ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    #ifdef WOLFSSL_HAVE_TLS_UNIQUE
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             XMEMCPY(ssl->serverFinished, mac, finishedSz);
             ssl->serverFinished_len = finishedSz;
@@ -7017,7 +7017,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             XMEMCPY(ssl->clientFinished, mac, finishedSz);
             ssl->clientFinished_len = finishedSz;
         }
-    #endif
+    #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
         if (ret != 0)
             return ret;
         if (size != finishedSz)
@@ -7134,7 +7134,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
     ret = BuildTls13HandshakeHmac(ssl, secret, &input[headerSz], NULL);
     if (ret != 0)
         return ret;
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    #ifdef WOLFSSL_HAVE_TLS_UNIQUE
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             XMEMCPY(ssl->clientFinished, &input[headerSz], finishedSz);
             ssl->clientFinished_len = finishedSz;
@@ -7143,7 +7143,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
             XMEMCPY(ssl->serverFinished, &input[headerSz], finishedSz);
             ssl->serverFinished_len = finishedSz;
         }
-    #endif
+    #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
                                headerSz + finishedSz, handshake, 1, 0, 0);
