@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("wolfSSL-TLS-Server")]
+[assembly: AssemblyTitle("wolfSSL-TLS-ServerThreaded")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("wolfSSL")]
-[assembly: AssemblyProduct("wolfSSL-TLS-Server")]
+[assembly: AssemblyProduct("wolfSSL-TLS-ServerThreaded")]
 [assembly: AssemblyCopyright("Copyright wolfSSL 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
