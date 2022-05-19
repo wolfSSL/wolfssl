@@ -18403,9 +18403,15 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_MD5_DIGEST_SIZE;
 
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)
+    /* Expect failure with MD5 + HMAC when using FIPS 140-3. */
+    if (HMAC(EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen,
+            hash, 0) != NULL)
+#else
     if (HMAC(EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen,
             hash, 0) == NULL ||
         XMEMCMP(hash, c.output, WC_MD5_DIGEST_SIZE) != 0)
+#endif
     {
         return -8612;
     }
