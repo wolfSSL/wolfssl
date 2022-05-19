@@ -38533,7 +38533,12 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
 
     BIO* input;
     BIO* output;
-    X509* x509 = NULL;
+    X509* x509a = NULL;
+    X509* x509b = NULL;
+    ASN1_TIME* notBeforeA = NULL;
+    ASN1_TIME* notAfterA  = NULL;
+    ASN1_TIME* notBeforeB = NULL;
+    ASN1_TIME* notAfterB  = NULL;
     int expectedLen;
 
     printf(testingFmt, "wolfSSL_PEM_write_bio_X509()");
@@ -38542,51 +38547,50 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
             "certs/test/cert-ext-multiple.pem", "rb"));
     AssertIntEQ(wolfSSL_BIO_get_len(input), 2000);
 
+    /* read PEM into X509 struct, get notBefore / notAfter to verify against */
+    AssertNotNull(PEM_read_bio_X509(input, &x509a, NULL, NULL));
+    AssertNotNull(notBeforeA = X509_get_notBefore(x509a));
+    AssertNotNull(notAfterA = X509_get_notAfter(x509a));
+
+    /* write X509 back to PEM BIO */
     AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
-
-    AssertNotNull(PEM_read_bio_X509(input, &x509, NULL, NULL));
-
-    AssertIntEQ(PEM_write_bio_X509(output, x509), WOLFSSL_SUCCESS);
-
-#ifdef WOLFSSL_ALT_NAMES
-    /* Here we copy the validity struct from the original */
+    AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
+    /* compare length against expected */
     expectedLen = 2000;
-#else
-    /* Only difference is that we generate the validity in generalized
-     * time. Generating UTCTime vs Generalized time should be fixed in
-     * the future */
-    expectedLen = 2004;
-#endif
     AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
+
+    /* read exported X509 PEM back into struct, sanity check on export,
+     * make sure notBefore/notAfter are the same. */
+    AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
+    AssertNotNull(notBeforeB = X509_get_notBefore(x509b));
+    AssertNotNull(notAfterB = X509_get_notAfter(x509b));
+    AssertIntEQ(ASN1_TIME_compare(notBeforeA, notBeforeB), 0);
+    AssertIntEQ(ASN1_TIME_compare(notAfterA, notAfterB), 0);
+    X509_free(x509b);
 
     /* Reset output buffer */
     BIO_free(output);
     AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
 
     /* Test forcing the AKID to be generated just from KeyIdentifier */
-    if (x509->authKeyIdSrc != NULL) {
-        XMEMMOVE(x509->authKeyIdSrc, x509->authKeyId, x509->authKeyIdSz);
-        x509->authKeyId = x509->authKeyIdSrc;
-        x509->authKeyIdSrc = NULL;
-        x509->authKeyIdSrcSz = 0;
+    if (x509a->authKeyIdSrc != NULL) {
+        XMEMMOVE(x509a->authKeyIdSrc, x509a->authKeyId, x509a->authKeyIdSz);
+        x509a->authKeyId = x509a->authKeyIdSrc;
+        x509a->authKeyIdSrc = NULL;
+        x509a->authKeyIdSrcSz = 0;
     }
 
-    AssertIntEQ(PEM_write_bio_X509(output, x509), WOLFSSL_SUCCESS);
+    AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
 
     /* Check that we generate a smaller output since the AKID will
      * only contain the KeyIdentifier without any additional
      * information */
 
-#ifdef WOLFSSL_ALT_NAMES
     /* Here we copy the validity struct from the original */
     expectedLen = 1688;
-#else
-    /* UTCTime vs Generalized time */
-    expectedLen = 1692;
-#endif
     AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
-    X509_free(x509);
+    X509_free(x509a);
     BIO_free(input);
     BIO_free(output);
 
