@@ -974,6 +974,8 @@ enum Misc_ASN {
 
     PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
     PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
+
+    COUNTRY_CODE_LEN   = 2,        /* RFC 3739 */
 };
 
 #ifndef WC_MAX_NAME_ENTRIES
@@ -1009,6 +1011,9 @@ enum Oid_Types {
     oidTlsExtType       = 18,
     oidCrlExtType       = 19,
     oidCsrAttrType      = 20,
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+    oidSubjDirAttrType  = 21,
+#endif
     oidIgnoreType
 };
 
@@ -1128,7 +1133,7 @@ enum Extensions_Sum {
     EXT_KEY_USAGE_OID         = 151, /* 2.5.29.37 */
     NAME_CONS_OID             = 144, /* 2.5.29.30 */
     PRIV_KEY_USAGE_PERIOD_OID = 130, /* 2.5.29.16 */
-    SUBJECT_INFO_ACCESS       = 79,  /* 1.3.6.1.5.5.7.1.11 */
+    SUBJ_INFO_ACC_OID         = 79,  /* 1.3.6.1.5.5.7.1.11 */
     POLICY_MAP_OID            = 147, /* 2.5.29.33 */
     POLICY_CONST_OID          = 150, /* 2.5.29.36 */
     ISSUE_ALT_NAMES_OID       = 132, /* 2.5.29.18 */
@@ -1136,13 +1141,20 @@ enum Extensions_Sum {
     NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
     OCSP_NOCHECK_OID          = 121, /* 1.3.6.1.5.5.7.48.1.5
                                          id-pkix-ocsp-nocheck */
+    SUBJ_DIR_ATTR_OID         = 123, /* 2.5.29.9 */
 
     AKEY_PACKAGE_OID          = 1048 /* 2.16.840.1.101.2.1.2.78.5
                                         RFC 5958  - Asymmetric Key Packages */
 };
 
 enum CertificatePolicy_Sum {
-    CP_ANY_OID      = 146  /* id-ce 32 0 */
+    CP_ANY_OID              = 146, /* id-ce 32 0 */
+#ifdef WOLFSSL_FPKI
+    CP_FPKI_COMMON_AUTH_OID = 426, /* 2.16.840.1.101.3.2.1.3.13 */
+    CP_FPKI_PIV_AUTH_OID    = 453, /* 2.16.840.1.101.3.2.1.3.40 */
+    CP_FPKI_PIV_AUTH_HW_OID = 454, /* 2.16.840.1.101.3.2.1.3.41 */
+    CP_FPKI_PIVI_AUTH_OID   = 458  /* 2.16.840.1.101.3.2.1.3.45 */
+#endif /* WOLFSSL_FPKI */
 };
 
 enum SepHardwareName_Sum {
@@ -1150,10 +1162,15 @@ enum SepHardwareName_Sum {
 };
 
 enum AuthInfo_Sum {
-    AIA_OCSP_OID      = 116, /* 1.3.6.1.5.5.7.48.1 */
-    AIA_CA_ISSUER_OID = 117  /* 1.3.6.1.5.5.7.48.2 */
+    AIA_OCSP_OID      = 116, /* 1.3.6.1.5.5.7.48.1, id-ad-ocsp */
+    AIA_CA_ISSUER_OID = 117, /* 1.3.6.1.5.5.7.48.2, id-ad-caIssuers */
+    #ifdef WOLFSSL_SUBJ_INFO_ACC
+    AIA_CA_REPO_OID   = 120  /* 1.3.6.1.5.5.7.48.5, id-ad-caRepository */
+    #endif /* WOLFSSL_SUBJ_INFO_ACC */
 };
 
+#define ID_PKIX(num) (67+(num)) /* 1.3.6.1.5.5.7.num, id-pkix num */
+#define ID_KP(num) (ID_PKIX(3)+(num)) /* 1.3.6.1.5.5.7.3.num, id-kp num */
 enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_ANY_OID         = 151, /* 2.5.29.37.0, anyExtendedKeyUsage         */
     EKU_SERVER_AUTH_OID = 71,  /* 1.3.6.1.5.5.7.3.1, id-kp-serverAuth      */
@@ -1161,8 +1178,26 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_CODESIGNING_OID = 73,  /* 1.3.6.1.5.5.7.3.3, id-kp-codeSigning     */
     EKU_EMAILPROTECT_OID = 74, /* 1.3.6.1.5.5.7.3.4, id-kp-emailProtection */
     EKU_TIMESTAMP_OID   = 78,  /* 1.3.6.1.5.5.7.3.8, id-kp-timeStamping    */
-    EKU_OCSP_SIGN_OID   = 79   /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
+    EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
+
+    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authenticaiton */
+    EKU_SSH_CLIENT_AUTH_OID    = ID_KP(21), /* id-kp-secureShellClient */
+    EKU_SSH_MSCL_OID           = 264,
+        /* 1.3.6.1.4.1.311.20.2.2, MS Smart Card Logon */
+    EKU_SSH_KP_CLIENT_AUTH_OID = 64
+        /* 1.3.6.1.5.2.3.4, id-pkinit-KPClientAuth*/
 };
+
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+#define ID_PDA(num) (ID_PKIX(9)+(num)) /* 1.3.6.1.5.5.7.9.num, id-pda num */
+enum SubjDirAttr_Sum { /* From RFC 3739, section 3.3.2 */
+    SDA_DOB_OID    = ID_PDA(1), /* id-pda-dateOfBirth */
+    SDA_POB_OID    = ID_PDA(2), /* id-pda-placeOfBirth */
+    SDA_GENDER_OID = ID_PDA(3), /* id-pda-gender */
+    SDA_COC_OID    = ID_PDA(4), /* id-pda-countryOfCitizenship */
+    SDA_COR_OID    = ID_PDA(5)  /* id-pda-countryOfResidence */
+};
+#endif /* WOLFSSL_SUBJ_DIR_ATTR */
 
 #ifdef HAVE_LIBZ
 enum CompressAlg_Sum {
@@ -1218,6 +1253,11 @@ enum CsrAttrType {
 #define EXTKEYUSE_CLIENT_AUTH 0x04
 #define EXTKEYUSE_SERVER_AUTH 0x02
 #define EXTKEYUSE_ANY         0x01
+#ifdef WOLFSSL_WOLFSSH
+    #define EXTKEYUSE_SSH_CLIENT_AUTH    0x01
+    #define EXTKEYUSE_SSH_MSCL           0x02
+    #define EXTKEYUSE_SSH_KP_CLIENT_AUTH 0x04
+#endif /* WOLFSSL_WOLFSSH */
 
 #define WC_NS_SSL_CLIENT      0x80
 #define WC_NS_SSL_SERVER      0x40
@@ -1530,6 +1570,9 @@ struct DecodedCert {
     byte    policyConstSkip;         /* Policy Constraints skip certs value */
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
+#ifdef WOLFSSL_WOLFSSH
+    byte    extExtKeyUsageSsh;       /* Extended Key Usage bitfield for SSH */
+#endif /* WOLFSSL_WOLFSSH */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     const byte* extExtKeyUsageSrc;
@@ -1548,6 +1591,21 @@ struct DecodedCert {
     const byte* extSubjAltNameSrc;
     word32  extSubjAltNameSz;
 #endif
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+    char countryOfCitizenship[COUNTRY_CODE_LEN+1]; /* ISO 3166 Country Code */
+    #ifdef OPENSSL_ALL
+        const byte* extSubjDirAttrSrc;
+        word32 extSubjDirAttrSz;
+    #endif
+#endif /* WOLFSSL_SUBJ_DIR_ATTR */
+#ifdef WOLFSSL_SUBJ_INFO_ACC
+    const byte* extSubjInfoAccCaRepo;
+    word32 extSubjInfoAccCaRepoSz;
+    #ifdef OPENSSL_ALL
+        const byte* extSubjInfoAccSrc;
+        word32 extSubjInfoAccSz;
+    #endif
+#endif /* WOLFSSL_SUBJ_INFO_ACC */
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     word32  pkCurveOID;           /* Public Key's curve OID */
@@ -1717,6 +1775,12 @@ struct DecodedCert {
     byte extSubjKeyIdCrit : 1;
     byte extKeyUsageCrit : 1;
     byte extExtKeyUsageCrit : 1;
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+    byte extSubjDirAttrSet : 1;
+#endif
+#ifdef WOLFSSL_SUBJ_INFO_ACC
+    byte extSubjInfoAccSet : 1;
+#endif
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif

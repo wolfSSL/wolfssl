@@ -2198,7 +2198,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             WOLFSSL_MSG("Private Key Usage Period extension not supported");
             break;
 
-        case SUBJECT_INFO_ACCESS:
+        case SUBJ_INFO_ACC_OID:
             WOLFSSL_MSG("Subject Info Access extension not supported");
             break;
 

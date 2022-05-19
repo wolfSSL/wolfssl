@@ -80,6 +80,9 @@ ASN Options:
     extensions
  * WOLFSSL_HAVE_ISSUER_NAMES: Store pointers to issuer name components and their
     lengths and encodings.
+ * WOLFSSL_SUBJ_DIR_ATTR: Enable support for SubjectDirectoryAttributes
+    extension.
+ * WOLFSSL_SUBJ_INFO_ACC: Enable support for SubjectInfoAccess extension.
 */
 
 #ifndef NO_ASN
@@ -4053,13 +4056,33 @@ static const byte extExtKeyUsageOid[] = {85, 29, 37};
 #ifdef HAVE_CRL
 static const byte extCrlNumberOid[] = {85, 29, 20};
 #endif
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+    static const byte extSubjDirAttrOid[] = {85, 29, 9};
+#endif
+#ifdef WOLFSSL_SUBJ_INFO_ACC
+    static const byte extSubjInfoAccessOid[] = {43, 6, 1, 5, 5, 7, 1, 11};
+#endif
 
 /* certAuthInfoType */
 static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
 static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
+#ifdef WOLFSSL_SUBJ_INFO_ACC
+    static const byte extAuthInfoCaRespOid[] = {43, 6, 1, 5, 5, 7, 48, 5};
+#endif /* WOLFSSL_SUBJ_INFO_ACC */
 
 /* certPolicyType */
 static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
+#ifdef WOLFSSL_FPKI
+#define CERT_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 3, num}
+    static const byte extCertPolicyFpkiCommonAuthOid[] =
+            CERT_POLICY_TYPE_OID_BASE(13);
+    static const byte extCertPolicyFpkiPivAuthOid[] =
+            CERT_POLICY_TYPE_OID_BASE(40);
+    static const byte extCertPolicyFpkiPivAuthHwOid[] =
+            CERT_POLICY_TYPE_OID_BASE(41);
+    static const byte extCertPolicyFpkiPiviAuthOid[] =
+            CERT_POLICY_TYPE_OID_BASE(45);
+#endif /* WOLFSSL_FPKI */
 
 /* certAltNameType */
 static const byte extAltNamesHwNameOid[] = {43, 6, 1, 5, 5, 7, 8, 4};
@@ -4072,6 +4095,25 @@ static const byte extExtKeyUsageCodeSigningOid[]  = {43, 6, 1, 5, 5, 7, 3, 3};
 static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
+#ifdef WOLFSSL_WOLFSSH
+#define EXT_KEY_USAGE_OID_BASE(num) {43, 6, 1, 5, 5, 7, 3, num}
+    static const byte extExtKeyUsageSshClientAuthOid[] =
+            EXT_KEY_USAGE_OID_BASE(21);
+    static const byte extExtKeyUsageSshMSCLOid[] =
+            {43, 6, 1, 4, 1, 130, 55, 20, 2, 2};
+    static const byte extExtKeyUsageSshKpClientAuthOid[] =
+            {43, 6, 1, 5, 2, 3, 4};
+#endif /* WOLFSSL_WOLFSSH */
+
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+#define SUBJ_DIR_ATTR_TYPE_OID_BASE(num) {43, 6, 1, 5, 5, 7, 9, num}
+    static const byte extSubjDirAttrDobOid[] = SUBJ_DIR_ATTR_TYPE_OID_BASE(1);
+    static const byte extSubjDirAttrPobOid[] = SUBJ_DIR_ATTR_TYPE_OID_BASE(2);
+    static const byte extSubjDirAttrGenderOid[] =
+            SUBJ_DIR_ATTR_TYPE_OID_BASE(3);
+    static const byte extSubjDirAttrCocOid[] = SUBJ_DIR_ATTR_TYPE_OID_BASE(4);
+    static const byte extSubjDirAttrCorOid[] = SUBJ_DIR_ATTR_TYPE_OID_BASE(5);
+#endif
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
     defined(WOLFSSL_ASN_TEMPLATE) || defined(OPENSSL_EXTRA) || \
@@ -4628,6 +4670,18 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(ocspNoCheckOid);
                     break;
             #endif
+            #ifdef WOLFSSL_SUBJ_DIR_ATTR
+                case SUBJ_DIR_ATTR_OID:
+                    oid = extSubjDirAttrOid;
+                    *oidSz = sizeof(extSubjDirAttrOid);
+                    break;
+            #endif
+            #ifdef WOLFSSL_SUBJ_INFO_ACC
+                case SUBJ_INFO_ACC_OID:
+                    oid = extSubjInfoAccessOid;
+                    *oidSz = sizeof(extSubjInfoAccessOid);
+                    break;
+            #endif
                 default:
                     break;
             }
@@ -4660,6 +4714,11 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extAuthInfoCaIssuerOid;
                     *oidSz = sizeof(extAuthInfoCaIssuerOid);
                     break;
+                #ifdef WOLFSSL_SUBJ_INFO_ACC
+                case AIA_CA_REPO_OID:
+                    oid = extAuthInfoCaRespOid;
+                    *oidSz = sizeof(extAuthInfoCaRespOid);
+                #endif /* WOLFSSL_SUBJ_INFO_ACC */
                 default:
                     break;
             }
@@ -4671,6 +4730,24 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyAnyOid;
                     *oidSz = sizeof(extCertPolicyAnyOid);
                     break;
+                #if defined(WOLFSSL_FPKI)
+                case CP_FPKI_COMMON_AUTH_OID:
+                    oid = extCertPolicyFpkiCommonAuthOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCommonAuthOid);
+                    break;
+                case CP_FPKI_PIV_AUTH_OID:
+                    oid = extCertPolicyFpkiPivAuthOid;
+                    *oidSz = sizeof(extCertPolicyFpkiPivAuthOid);
+                    break;
+                case CP_FPKI_PIV_AUTH_HW_OID:
+                    oid = extCertPolicyFpkiPivAuthHwOid;
+                    *oidSz = sizeof(extCertPolicyFpkiPivAuthHwOid);
+                    break;
+                case CP_FPKI_PIVI_AUTH_OID:
+                    oid = extCertPolicyFpkiPiviAuthOid;
+                    *oidSz = sizeof(extCertPolicyFpkiPiviAuthOid);
+                    break;
+                #endif /* WOLFSSL_FPKI */
                 default:
                     break;
             }
@@ -4717,6 +4794,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extExtKeyUsageOcspSignOid;
                     *oidSz = sizeof(extExtKeyUsageOcspSignOid);
                     break;
+                #ifdef WOLFSSL_WOLFSSH
+                case EKU_SSH_CLIENT_AUTH_OID:
+                    oid = extExtKeyUsageSshClientAuthOid;
+                    *oidSz = sizeof(extExtKeyUsageSshClientAuthOid);
+                    break;
+                case EKU_SSH_MSCL_OID:
+                    oid = extExtKeyUsageSshMSCLOid;
+                    *oidSz = sizeof(extExtKeyUsageSshMSCLOid);
+                    break;
+                case EKU_SSH_KP_CLIENT_AUTH_OID:
+                    oid = extExtKeyUsageSshKpClientAuthOid;
+                    *oidSz = sizeof(extExtKeyUsageSshKpClientAuthOid);
+                    break;
+                #endif /* WOLFSSL_WOLFSSH */
                 default:
                     break;
             }
@@ -4942,6 +5033,34 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 #endif
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+        case oidSubjDirAttrType:
+            switch (id) {
+                case SDA_DOB_OID:
+                    oid = extSubjDirAttrDobOid;
+                    *oidSz = sizeof(extSubjDirAttrDobOid);
+                    break;
+                case SDA_POB_OID:
+                    oid = extSubjDirAttrPobOid;
+                    *oidSz = sizeof(extSubjDirAttrPobOid);
+                    break;
+                case SDA_GENDER_OID:
+                    oid = extSubjDirAttrGenderOid;
+                    *oidSz = sizeof(extSubjDirAttrGenderOid);
+                    break;
+                case SDA_COC_OID:
+                    oid = extSubjDirAttrCocOid;
+                    *oidSz = sizeof(extSubjDirAttrCocOid);
+                    break;
+                case SDA_COR_OID:
+                    oid = extSubjDirAttrCorOid;
+                    *oidSz = sizeof(extSubjDirAttrCorOid);
+                    break;
+                default:
+                    break;
+            }
+            break;
+#endif /* WOLFSSL_SUBJ_DIR_ATTR */
         case oidIgnoreType:
         default:
             break;
@@ -15961,6 +16080,17 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
             case EKU_OCSP_SIGN_OID:
                 cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
                 break;
+            #ifdef WOLFSSL_WOLFSSH
+            case EKU_SSH_CLIENT_AUTH_OID:
+                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_CLIENT_AUTH;
+                break;
+            case EKU_SSH_MSCL_OID:
+                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_MSCL;
+                break;
+            case EKU_SSH_KP_CLIENT_AUTH_OID:
+                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_KP_CLIENT_AUTH;
+                break;
+            #endif /* WOLFSSL_WOLFSSH */
             default:
                 break;
         }
@@ -16696,6 +16826,163 @@ exit:
     }
 #endif /* WOLFSSL_SEP */
 
+#ifdef WOLFSSL_SUBJ_DIR_ATTR
+/* Decode subject directory attributes extension in a certificate.
+ *
+ * X.509: RFC 5280, 4.2.1.8 - Subject Directory Attributes.
+ *
+ * @param [in]      input  Buffer holding data.
+ * @param [in]      sz     Size of data in buffer.
+ * @param [in, out] cert   Certificate object.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ */
+static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("DecodeSubjDirAttr");
+
+#ifdef OPENSSL_ALL
+    cert->extSubjDirAttrSrc = input;
+    cert->extSubjDirAttrSz = sz;
+#endif /* OPENSSL_ALL */
+
+    /* Unwrap the list of Attributes */
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (length == 0) {
+        /* RFC 5280 4.2.1.8.  Subject Directory Attributes
+           If the subjectDirectoryAttributes extension is present, the
+           sequence MUST contain at least one entry. */
+        return ASN_PARSE_E;
+    }
+
+    /* length is the length of the list contents */
+    while (idx < (word32)sz) {
+        word32 oid;
+
+        if (GetSequence(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetObjectId(input, &idx, &oid, oidSubjDirAttrType, sz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetSet(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+
+        /* There may be more than one countryOfCitizenship, but save the
+         * first one for now. */
+        if (oid == SDA_COC_OID) {
+            byte tag;
+
+            if (GetHeader(input, &tag, &idx, &length, sz, 1) < 0)
+                return ASN_PARSE_E;
+
+            if (length != COUNTRY_CODE_LEN)
+                return ASN_PARSE_E;
+
+            if (tag == ASN_PRINTABLE_STRING) {
+                XMEMCPY(cert->countryOfCitizenship,
+                        input + idx, COUNTRY_CODE_LEN);
+                cert->countryOfCitizenship[COUNTRY_CODE_LEN] = 0;
+            }
+        }
+        idx += length;
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_SUBJ_DIR_ATTR */
+
+#ifdef WOLFSSL_SUBJ_INFO_ACC
+/* Decode subject infomation access extension in a certificate.
+ *
+ * X.509: RFC 5280, 4.2.2.2 - Subject Information Access.
+ *
+ * @param [in]      input  Buffer holding data.
+ * @param [in]      sz     Size of data in buffer.
+ * @param [in, out] cert   Certificate object.
+ * @return  0 on success.
+ * @return  ASN_BITSTR_E when the expected BIT_STRING tag is not found.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("DecodeSubjInfoAcc");
+
+#ifdef OPENSSL_ALL
+    cert->extSubjAltNameSrc = input;
+    cert->extSubjAltNameSz = sz;
+#endif /* OPENSSL_ALL */
+
+    /* Unwrap SubjectInfoAccessSyntax, the list of AccessDescriptions */
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (length == 0) {
+        /* RFC 5280 4.2.2.2.  Subject Information Access
+           If the subjectInformationAccess extension is present, the
+           sequence MUST contain at least one entry. */
+        return ASN_PARSE_E;
+    }
+
+    /* Per fpkx-x509-cert-profile-common... section 5.3.
+     * [The] subjectInfoAccess extension must contain at least one
+     * instance of the id-ad-caRepository access method containing a
+     * publicly accessible HTTP URI which returns as certs-only
+     * CMS.
+     */
+
+    while (idx < (word32)sz) {
+        word32 oid;
+        byte b;
+
+        /* Unwrap an AccessDescription */
+        if (GetSequence(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+
+        /* Get the accessMethod */
+        if (GetObjectId(input, &idx, &oid, oidCertAuthInfoType, sz) < 0)
+            return ASN_PARSE_E;
+
+        /* Only supporting URIs right now. */
+        if (GetASNTag(input, &idx, &b, sz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+
+        /* Set ocsp entry */
+        if (b == GENERALNAME_URI && oid == AIA_OCSP_OID) {
+            cert->extSubjInfoAccCaRepoSz = length;
+            cert->extSubjInfoAccCaRepo = input + idx;
+            break;
+        }
+        idx += length;
+    }
+
+    if (cert->extSubjInfoAccCaRepo == NULL ||
+            cert->extSubjInfoAccCaRepoSz == 0) {
+        WOLFSSL_MSG("SubjectInfoAccess missing an URL.");
+        ret = ASN_PARSE_E;
+    }
+
+    WOLFSSL_LEAVE("DecodeSubjInfoAcc", ret);
+    return ret;
+}
+#endif /* WOLFSSL_SUBJ_INFO_ACC */
+
 /* Macro to check if bit is set, if not sets and return success.
     Otherwise returns failure */
 /* Macro required here because bit-field operation */
@@ -16726,13 +17013,13 @@ exit:
  *   Inhibit anyPolicy - INHIBIT_ANY_OID
  *   Netscape Certificate Type - NETSCAPE_CT_OID (able to be excluded)
  *   OCSP no check - OCSP_NOCHECK_OID (when compiling OCSP)
+ *   Subject Directory Attributes - SUBJ_DIR_ATTR_OID
+ *   Subject Information Access - SUBJ_INFO_ACC_OID
  * Unsupported extensions from RFC 5280:
  *   4.2.1.5 - Policy mappings
  *   4.2.1.7 - Issuer Alternative Name
- *   4.2.1.8 - Subject Directory Attributes
  *   4.2.1.11 - Policy Constraints
  *   4.2.1.15 - Freshest CRL
- *   4.2.2.2 - Subject Information Access
  *
  * @param [in]      input     Buffer containing extension type specific data.
  * @param [in]      length    Length of data.
@@ -16916,6 +17203,20 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
             if (DecodePolicyConstraints(&input[idx], length, cert) < 0)
                 return ASN_PARSE_E;
             break;
+    #ifdef WOLFSSL_SUBJ_DIR_ATTR
+        case SUBJ_DIR_ATTR_OID:
+            VERIFY_AND_SET_OID(cert->extSubjDirAttrSet);
+            if (DecodeSubjDirAttr(&input[idx], length, cert) < 0)
+                return ASN_PARSE_E;
+            break;
+    #endif
+    #ifdef WOLFSSL_SUBJ_INFO_ACC
+        case SUBJ_INFO_ACC_OID:
+            VERIFY_AND_SET_OID(cert->extSubjInfoAccSet);
+            if (DecodeSubjInfoAcc(&input[idx], length, cert) < 0)
+                return ASN_PARSE_E;
+            break;
+    #endif
         default:
             if (isUnknownExt != NULL)
                 *isUnknownExt = 1;
