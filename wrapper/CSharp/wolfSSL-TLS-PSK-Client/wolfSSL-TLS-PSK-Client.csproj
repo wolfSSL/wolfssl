@@ -83,6 +83,12 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\wolfSSL_CSharp\wolfSSL_CSharp.csproj">
+      <Project>{52609808-0418-46d3-8e17-141927a1a39a}</Project>
+      <Name>wolfSSL_CSharp</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">
       <Visible>False</Visible>
       <ProductName>Microsoft .NET Framework 4.8 %28x86 and x64%29</ProductName>
