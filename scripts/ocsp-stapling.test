@@ -430,13 +430,13 @@ if [ "$openssl_tls13" = "0" -a "$wolfssl_tls13" = "0" ]; then
 else
     echo -n 'skipping TLS1.3 stapling interoperability test:' 1>&2
     if [ "$openssl_tls13" != "0" ]; then
-	echo -n ' OpenSSL' 1>&2
+        echo -n ' OpenSSL' 1>&2
     fi
     if [ "$wolfssl_tls13" != "0" ]; then
-	if [ "$openssl_tls13" != "0" ]; then
-	    echo -n ' and' 1>&2
-	fi
-	echo -n ' wolfSSL' 1>&2
+        if [ "$openssl_tls13" != "0" ]; then
+            echo -n ' and' 1>&2
+        fi
+        echo -n ' wolfSSL' 1>&2
     fi
     echo -n ' missing TLS1.3 support.' 1>&2
 fi
