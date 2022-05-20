@@ -7896,6 +7896,11 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_KEY_UPDATE_SEND);
     WOLFSSL_ENTER("SendTls13KeyUpdate");
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        i = Dtls13GetRlHeaderLength(1) + DTLS_HANDSHAKE_HEADER_SZ;
+#endif /* WOLFSSL_DTLS13 */
+
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -7905,6 +7910,11 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
     input = output + RECORD_HEADER_SZ;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        input = output + Dtls13GetRlHeaderLength(1);
+#endif /* WOLFSSL_DTLS13 */
 
     AddTls13Headers(output, OPAQUE8_LEN, key_update, ssl);
 
@@ -7917,6 +7927,15 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
          !ssl->keys.updateResponseReq && !ssl->keys.keyUpdateRespond;
     /* Sent response, no longer need to respond. */
     ssl->keys.keyUpdateRespond = 0;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        ret = Dtls13HandshakeSend(ssl, output, outputSz,
+            OPAQUE8_LEN + Dtls13GetRlHeaderLength(1) + DTLS_HANDSHAKE_HEADER_SZ,
+            key_update, 0);
+    }
+    else {
+#endif /* WOLFSSL_DTLS13 */
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
@@ -7935,15 +7954,26 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     ssl->buffers.outputBuffer.length += sendSz;
 
     ret = SendBuffered(ssl);
+
+
     if (ret != 0 && ret != WANT_WRITE)
         return ret;
+#ifdef WOLFSSL_DTLS13
+    }
+#endif /* WOLFSSL_DTLS13 */
 
-    /* Future traffic uses new encryption keys. */
-    if ((ret = DeriveTls13Keys(ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1))
-                                                                           != 0)
-        return ret;
-    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-        return ret;
+    /* In DTLS we must wait for the ack before setting up the new keys */
+    if (!ssl->options.dtls) {
+
+        /* Future traffic uses new encryption keys. */
+        if ((ret = DeriveTls13Keys(
+                       ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1))
+            != 0)
+            return ret;
+        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+            return ret;
+    }
+
 
     WOLFSSL_LEAVE("SendTls13KeyUpdate", ret);
     WOLFSSL_END(WC_FUNC_KEY_UPDATE_SEND);
@@ -8001,8 +8031,37 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
         return ret;
 
-    if (ssl->keys.keyUpdateRespond)
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        w64Increment(&ssl->dtls13PeerEpoch);
+
+        ret = Dtls13NewEpoch(ssl, ssl->dtls13PeerEpoch, DECRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return ret;
+
+        ret = Dtls13SetEpochKeys(ssl, ssl->dtls13PeerEpoch, DECRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return ret;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    if (ssl->keys.keyUpdateRespond) {
+
+#ifdef WOLFSSL_DTLS13
+        /* we already sent a keyUpdate (either in response to a previous
+           KeyUpdate or initiated by the application) and we are waiting for the
+           ack. We can't send a new KeyUpdate right away but to honor the RFC we
+           should send another KeyUpdate after the one in-flight is acked. We
+           don't do that as it looks redundant, it will make the code more
+           complex and I don't see a good use case for that. */
+        if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck) {
+            ssl->keys.keyUpdateRespond = 0;
+            return 0;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
         return SendTls13KeyUpdate(ssl);
+    }
 
     WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
     WOLFSSL_END(WC_FUNC_KEY_UPDATE_DO);
@@ -9029,7 +9088,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
 
     case key_update:
-        WOLFSSL_MSG("processing finished");
+        WOLFSSL_MSG("processing key update");
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 
@@ -9893,6 +9952,17 @@ int wolfSSL_update_keys(WOLFSSL* ssl)
 
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_DTLS13
+    /* we are already waiting for the ack of a sent key update message. We can't
+       send another one before receiving its ack. Either wolfSSL_update_keys()
+       was invoked multiple times over a short period of time or we replied to a
+       KeyUpdate with update request. We'll just ignore sending this
+       KeyUpdate. */
+    /* TODO: add WOLFSSL_ERROR_ALREADY_IN_PROGRESS type of error here */
+    if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck)
+            return WOLFSSL_SUCCESS;
+#endif /* WOLFSSL_DTLS13 */
 
     ret = SendTls13KeyUpdate(ssl);
     if (ret == WANT_WRITE)

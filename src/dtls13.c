@@ -1551,6 +1551,9 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
     maxFrag = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
     maxLen = length;
 
+    if (handshakeType == key_update)
+        ssl->dtls13WaitKeyUpdateAck = 1;
+
     if (maxLen < maxFrag) {
         ret = Dtls13SendOneFragmentRtx(ssl, handshakeType, outputSize, message,
             length, hashOutput);
@@ -2106,6 +2109,26 @@ static int Dtls13RtxIsTrackedByRn(const Dtls13RtxRecord* r, w64wrapper epoch,
     return 0;
 }
 
+static int Dtls13KeyUpdateAckReceived(WOLFSSL* ssl)
+{
+    int ret;
+    w64Increment(&ssl->dtls13Epoch);
+
+    /* Epoch wrapped up */
+    if (w64IsZero(ssl->dtls13Epoch))
+        return BAD_STATE_E;
+
+    ret = DeriveTls13Keys(ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1);
+    if (ret != 0)
+        return ret;
+
+    ret = Dtls13NewEpoch(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+    if (ret != 0)
+        return ret;
+
+    return Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+}
+
 #ifdef WOLFSSL_DEBUG_TLS
 static void Dtls13PrintRtxRecord(Dtls13RtxRecord* r)
 {
@@ -2200,12 +2223,27 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
     return Dtls13RtxSendBuffered(ssl);
 }
 
+static int Dtls13RtxHasKeyUpdateBuffered(WOLFSSL* ssl)
+{
+    Dtls13RtxRecord* r = ssl->dtls13Rtx.rtxRecords;
+
+    while (r != NULL) {
+        if (r->handshakeType == key_update)
+            return 1;
+
+        r = r->next;
+    }
+
+    return 0;
+}
+
 int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     word32* processedSize)
 {
     const byte* ackMessage;
     w64wrapper epoch, seq;
     word16 length;
+    int ret;
     int i;
 
     if (inputSize < OPAQUE16_LEN)
@@ -2232,6 +2270,16 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
         ssl->options.connectState == WAIT_FINISHED_ACK &&
         ssl->dtls13Rtx.rtxRecords == NULL) {
         ssl->options.serverState = SERVER_FINISHED_ACKED;
+    }
+
+    if (ssl->dtls13WaitKeyUpdateAck) {
+        if (!Dtls13RtxHasKeyUpdateBuffered(ssl)) {
+            /* we removed the KeyUpdate message because it was ACKed */
+            ssl->dtls13WaitKeyUpdateAck = 0;
+            ret = Dtls13KeyUpdateAckReceived(ssl);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     *processedSize = length + OPAQUE16_LEN;

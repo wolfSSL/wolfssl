@@ -4635,6 +4635,7 @@ struct WOLFSSL {
     byte dtls13SendingFragments:1;
     byte dtls13SendingAckOrRtx:1;
     byte dtls13FastTimeout:1;
+    byte dtls13WaitKeyUpdateAck:1;
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
