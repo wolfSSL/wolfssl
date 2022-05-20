@@ -206,6 +206,7 @@ enum processReply {
     verifyEncryptedMessage,
     decryptMessage,
     verifyMessage,
+    runProcessingOneRecord,
     runProcessingOneMessage
 };
 
@@ -17916,10 +17917,14 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif
             }
 
-            ssl->options.processReply = runProcessingOneMessage;
+            ssl->options.processReply = runProcessingOneRecord;
             FALL_THROUGH;
 
         /* the record layer is here */
+        case runProcessingOneRecord:
+            ssl->options.processReply = runProcessingOneMessage;
+            FALL_THROUGH;
+
         case runProcessingOneMessage:
             /* can't process a message if we have no data.  */
             if (ssl->buffers.inputBuffer.idx
