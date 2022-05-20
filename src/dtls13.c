@@ -31,6 +31,10 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/kdf.h>
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef NO_INLINE
 #include <wolfssl/wolfcrypt/misc.h>
@@ -38,6 +42,103 @@
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
 #endif
+
+/**
+ * enum rnDirection - distinguish between RecordNumber Enc/Dec
+ * PROTECT: encrypt the Record Number
+ * DEPROTECT: decrypt the Record Number
+ */
+enum rnDirection {
+    PROTECT = 0,
+    DEPROTECT,
+};
+
+/**
+ * struct Dtls13HandshakeHeader: represent DTLS Handshake header
+ * @msg_type: type of message (client_hello,server_hello,etc)
+ * @length: length of the message
+ * @messageSeq: message sequence number (used for reordering and retransmission)
+ * @fragmentOffset: this is the offset of the data in the complete message. For
+ * an unfragmented message this is always zero
+ * @fragmentLength: length of this fragment (if not fragmented @fragmentLength
+ * is always equal to @length)
+ */
+typedef struct Dtls13HandshakeHeader {
+    byte msg_type;
+    byte length[3];
+    byte messageSeq[2];
+    byte fragmentOffset[3];
+    byte fragmentLength[3];
+} Dtls13HandshakeHeader;
+
+/**
+ * struct Dtls13Recordplaintextheader: represent header of unprotected DTLSv1.3
+ * record
+ * @contentType: content type of the record (handshake, applicationData, etc)
+ * @legacyversionrecord: legacy version field
+ * @epoch: epoch number (lower 16 bits)
+ * @sequenceNumber: sequence number (lower 16 bits)
+ * @length: length of the record
+ */
+typedef struct Dtls13RecordPlaintextHeader {
+    byte contentType;
+    ProtocolVersion legacyVersionRecord;
+    byte epoch[2];
+    byte sequenceNumber[6];
+    byte length[2];
+} Dtls13RecordPlaintextHeader;
+
+/**
+ * struct Dtls13RecordCiphertextHeader: represent the header of protected
+ * DTLSv1.3 used in wolfSSL
+ * @unifiedHdrflags: the first three bits are always 001, then CID bit: if
+ * setted the header contains a CID, S bit: if setted the header contains the 16
+ * LSBs of sequence number length, otherwise only the 8 LSBs are present, then
+ * the L bit: if present the length of the record is present, lastly EE: the
+ * last two bits of the epoch
+ * @sequenceNumber: 16 LSBs of the sequence number
+ * @length: length of the record
+ *
+ * DTLSv1.3 uses a variable length header, this struct represent only the
+ * representation used by wolfSSL, where CID is never present (not supported),
+ * the 16 LSBs of the sequence number and the length are always present.
+ */
+typedef struct Dtls13RecordCiphertextHeader {
+    /* 0 0 1 C S L E E */
+    byte unifiedHdrFlags;
+    byte sequenceNumber[2];
+    byte length[2];
+} Dtls13RecordCiphertextHeader;
+
+/* size of the len field in the unified header */
+#define DTLS13_LEN_SIZE 2
+/* size of the mask used to encrypt/decrypt Record Number  */
+#define DTLS13_RN_MASK_SIZE 16
+/* size of the flags in the unified header */
+#define DTLS13_HDR_FLAGS_SIZE 1
+/* size of the sequence number wher SEQ_LEN_BIT is present */
+#define DTLS13_SEQ_16_LEN 2
+/* size of the sequence number wher SEQ_LEN_BIT is not present */
+#define DTLS13_SEQ_8_LEN 1
+
+/* fixed bits mask to detect unified header  */
+#define DTLS13_FIXED_BITS_MASK (0x111 << 5)
+/* fixed bits value to detect unified header  */
+#define DTLS13_FIXED_BITS (0x1 << 5)
+/* ConnectionID present bit in the unified header flags */
+#define DTLS13_CID_BIT (0x1 << 4)
+/* Sequence number is 16 bits if this bit is into unified header flags */
+#define DTLS13_SEQ_LEN_BIT (0x1 << 3)
+/* Length field is present if this bit is into unified header flags */
+#define DTLS13_LEN_BIT (0x1 << 2)
+
+/* For now, the size of the outgoing DTLSv1.3 record header is fixed to 5 bytes
+   (8 bit header flags + 16bit record number + 16 bit length). In the future, we
+   can dynamically choose to remove the length from the header to save
+   space. Also it will need to account for client connection ID when
+   supported. */
+#define DTLS13_UNIFIED_HEADER_SIZE 5
+#define DTLS13_MIN_CIPHERTEXT 16
 
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
 {
@@ -77,6 +178,970 @@ WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
 WOLFSSL_METHOD* wolfDTLSv1_3_server_method(void)
 {
     return wolfDTLSv1_3_server_method_ex(NULL);
+}
+
+int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
+    enum ContentType content_type, word16 length)
+{
+    Dtls13RecordPlaintextHeader* hdr;
+    word32 seq[2];
+    int ret;
+
+    hdr = (Dtls13RecordPlaintextHeader*)out;
+    hdr->contentType = content_type;
+    hdr->legacyVersionRecord.major = DTLS_MAJOR;
+    hdr->legacyVersionRecord.minor = DTLSv1_2_MINOR;
+
+    ret = Dtls13GetSeq(ssl, CUR_ORDER, seq, 1);
+    if (ret != 0)
+        return ret;
+
+    /* seq[0] combines the epoch and 16 MSB of sequence number. We write on the
+       epoch field and will overflow to the first two bytes of the sequence
+       number */
+    c32toa(seq[0], hdr->epoch);
+    c32toa(seq[1], &hdr->sequenceNumber[2]);
+
+    c16toa(length, hdr->length);
+
+    return 0;
+}
+
+static int Dtls13HandshakeAddHeaderFrag(WOLFSSL* ssl, byte* output,
+    enum HandShakeType msg_type, word32 frag_offset, word32 frag_length,
+    word32 msg_length)
+{
+    Dtls13HandshakeHeader* hdr;
+
+    hdr = (Dtls13HandshakeHeader*)output;
+
+    hdr->msg_type = msg_type;
+    c32to24((word32)msg_length, hdr->length);
+    c16toa(ssl->keys.dtls_handshake_number, hdr->messageSeq);
+
+    c32to24(frag_offset, hdr->fragmentOffset);
+    c32to24(frag_length, hdr->fragmentLength);
+
+    return 0;
+}
+
+static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
+{
+    int ret = 0;
+
+    switch (hs_type) {
+    case hello_request:
+    case hello_verify_request:
+    case client_hello:
+    case server_hello:
+        break;
+    case encrypted_extensions:
+    case session_ticket:
+    case end_of_early_data:
+    case hello_retry_request:
+    case certificate:
+    case server_key_exchange:
+    case certificate_request:
+    case server_hello_done:
+    case certificate_verify:
+    case client_key_exchange:
+    case finished:
+    case certificate_status:
+    case key_update:
+    case change_cipher_hs:
+    case message_hash:
+    case no_shake:
+        ret = 1;
+    }
+
+    return ret;
+}
+
+static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
+    enum rnDirection dir)
+{
+    RecordNumberCiphers* c;
+    int ret;
+
+    if (dir == PROTECT)
+        c = &ssl->dtlsRecordNumberEncrypt;
+    else
+        c = &ssl->dtlsRecordNumberDecrypt;
+
+#ifdef HAVE_AESGCM
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+
+        if (c->aes == NULL)
+            return BAD_STATE_E;
+        return wc_AesEncryptDirect(c->aes, mask, ciphertext);
+    }
+#endif /* HAVE_AESGCM */
+
+#ifdef HAVE_CHACHA
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
+        word32 counter;
+
+        if (c->chacha == NULL)
+            return BAD_STATE_E;
+
+        /* assuming CIPHER[0..3] should be interpreted as little endian 32-bits
+           integer. The draft rfc isn't really clear on that. See sec 4.2.3 of
+           the draft. See also Section 2.3 of the Chacha RFC. */
+        XMEMCPY(&counter, ciphertext, sizeof(counter));
+#ifdef BIG_ENDIAN
+        counter = ByteReverseWord32(counter);
+#endif /* BIG_ENDIAN */
+
+        ret = wc_Chacha_SetIV(c->chacha, &ciphertext[4], counter);
+        if (ret != 0)
+            return ret;
+
+        XMEMSET(mask, 0, DTLS13_RN_MASK_SIZE);
+
+        return wc_Chacha_Process(c->chacha, mask, mask, DTLS13_RN_MASK_SIZE);
+    }
+#endif /* HAVE_CHACHA */
+
+    return NOT_COMPILED_IN;
+}
+
+static int Dtls13EncryptDecryptRecordNumber(WOLFSSL* ssl, byte* seq,
+    int SeqLength, const byte* ciphertext, enum rnDirection dir)
+{
+    byte mask[DTLS13_RN_MASK_SIZE];
+    int ret;
+
+    ret = Dtls13GetRnMask(ssl, ciphertext, mask, dir);
+    if (ret != 0)
+        return ret;
+
+    xorbuf(seq, mask, SeqLength);
+
+    return 0;
+}
+
+static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
+{
+    (void)hs;
+
+    ssl->keys.dtls_expected_peer_handshake_number++;
+}
+
+static int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
+{
+    DtlsMsg* msg = ssl->dtls_rx_msg_list;
+    word32 idx = 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("Dtls13ProcessBufferedMessages()");
+
+    while (msg != NULL) {
+        idx = 0;
+
+        /* message not in order */
+        if (ssl->keys.dtls_expected_peer_handshake_number != msg->seq)
+            break;
+
+        /* message not complete */
+        if (msg->fragSz != msg->sz)
+            break;
+
+        ret = DoTls13HandShakeMsgType(ssl, msg->msg, &idx, msg->type, msg->sz,
+            msg->sz);
+        if (ret != 0)
+            break;
+
+        Dtls13MsgWasProcessed(ssl, msg->type);
+
+        ssl->dtls_rx_msg_list = msg->next;
+        DtlsMsgDelete(msg, ssl->heap);
+        msg = ssl->dtls_rx_msg_list;
+        ssl->dtls_rx_msg_list_sz--;
+    }
+
+    WOLFSSL_LEAVE("dtls13_process_buffered_messages()", ret);
+
+    return ret;
+}
+
+static int Dtls13NextMessageComplete(WOLFSSL* ssl)
+{
+    return ssl->dtls_rx_msg_list != NULL &&
+           ssl->dtls_rx_msg_list->fragSz == ssl->dtls_rx_msg_list->sz &&
+           ssl->dtls_rx_msg_list->seq ==
+               ssl->keys.dtls_expected_peer_handshake_number;
+}
+
+static WC_INLINE int FragIsInOutputBuffer(WOLFSSL* ssl, const byte* frag)
+{
+    const byte* OutputBuffer = ssl->buffers.outputBuffer.buffer;
+    word32 OutputBufferSize = ssl->buffers.outputBuffer.bufferSize;
+
+    return frag >= OutputBuffer && frag < OutputBuffer + OutputBufferSize;
+}
+
+static int Dtls13SendFragFromBuffer(WOLFSSL* ssl, byte* output, word16 length)
+{
+    byte* buf;
+    int ret;
+
+    if (FragIsInOutputBuffer(ssl, output))
+        return BAD_FUNC_ARG;
+
+    ret = CheckAvailableSize(ssl, length);
+    if (ret != 0)
+        return ret;
+
+    buf = ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+
+    XMEMCPY(buf, output, length);
+
+    ssl->buffers.outputBuffer.length += length;
+
+    return SendBuffered(ssl);
+}
+
+static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
+{
+    if (!ssl->options.groupMessages)
+        return 1;
+
+    if (handshakeType == client_hello || handshakeType == hello_retry_request ||
+        handshakeType == finished || handshakeType == session_ticket ||
+        handshakeType == session_ticket || handshakeType == key_update)
+        return 1;
+
+    return 0;
+}
+
+/* Handshake header DTLS only fields are not inlcuded in the transcript hash */
+int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
+{
+    int ret;
+
+    if (length < DTLS_HANDSHAKE_HEADER_SZ)
+        return BAD_FUNC_ARG;
+
+    /* msg_type(1) + length (3) */
+    ret = HashRaw(ssl, output, OPAQUE32_LEN);
+    if (ret != 0)
+        return ret;
+
+    output += OPAQUE32_LEN;
+    length -= OPAQUE32_LEN;
+
+    /* message_seq(2) + fragment_offset(3) + fragment_length(3) */
+    output += OPAQUE64_LEN;
+    length -= OPAQUE64_LEN;
+
+    return HashRaw(ssl, output, length);
+}
+
+static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
+    word16 length, enum HandShakeType handshakeType, int hashOutput,
+    int sendImmediately)
+{
+    word16 recordHeaderLength;
+    word16 recordLength;
+    byte isProtected;
+    int sendLength;
+    byte* msg;
+    int ret;
+
+    if (output_size < length)
+        return BUFFER_ERROR;
+
+    isProtected = Dtls13TypeIsEncrypted(handshakeType);
+    recordHeaderLength = Dtls13GetRlHeaderLength(isProtected);
+
+    if (length <= recordHeaderLength)
+        return BUFFER_ERROR;
+
+    recordLength = length - recordHeaderLength;
+
+    if (!isProtected) {
+        ret = Dtls13RlAddPlaintextHeader(ssl, output, handshake, recordLength);
+        if (ret != 0)
+            return ret;
+    }
+    else {
+        msg = output + recordHeaderLength;
+
+        if (length <= recordHeaderLength)
+            return BUFFER_ERROR;
+
+        if (hashOutput) {
+            ret = Dtls13HashHandshake(ssl, msg, recordLength);
+            if (ret != 0)
+                return ret;
+        }
+
+        sendLength = BuildTls13Message(ssl, output, output_size, msg,
+            recordLength, handshake, 0, 0, 0);
+        if (sendLength < 0)
+            return sendLength;
+
+        length = (word16)sendLength;
+    }
+
+    if (!FragIsInOutputBuffer(ssl, output))
+        return Dtls13SendFragFromBuffer(ssl, output, length);
+
+    ssl->buffers.outputBuffer.length += length;
+
+    ret = 0;
+    if (sendImmediately)
+        ret = SendBuffered(ssl);
+
+    return ret;
+}
+
+static void Dtls13FreeFragmentsBuffer(WOLFSSL* ssl)
+{
+    XFREE(ssl->dtls13FragmentsBuffer.buffer, ssl->heap,
+        DYNAMIC_TYPE_TEMP_BUFFER);
+    ssl->dtls13FragmentsBuffer.buffer = NULL;
+    ssl->dtls13SendingFragments = 0;
+    ssl->dtls13MessageLength = ssl->dtls13FragOffset = 0;
+}
+
+static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
+{
+    int fragLength, rlHeaderLength;
+    int remainingSize, maxFragment;
+    int recordLength;
+    byte isEncrypted;
+    byte* output;
+    int ret;
+
+    isEncrypted = Dtls13TypeIsEncrypted(ssl->dtls13FragHandshakeType);
+    rlHeaderLength = Dtls13GetRlHeaderLength(isEncrypted);
+    maxFragment = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
+
+    remainingSize = ssl->dtls13MessageLength - ssl->dtls13FragOffset;
+
+    while (remainingSize > 0) {
+
+        fragLength = maxFragment - rlHeaderLength - DTLS_HANDSHAKE_HEADER_SZ;
+
+        recordLength = maxFragment;
+
+        if (fragLength > remainingSize) {
+            fragLength = remainingSize;
+            recordLength =
+                fragLength + rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ;
+        }
+
+        ret = CheckAvailableSize(ssl, recordLength + MAX_MSG_EXTRA);
+        if (ret != 0)
+            return ret;
+
+        output =
+            ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
+
+        ret = Dtls13HandshakeAddHeaderFrag(ssl, output + rlHeaderLength,
+            ssl->dtls13FragHandshakeType, ssl->dtls13FragOffset, fragLength,
+            ssl->dtls13MessageLength);
+        if (ret != 0) {
+            Dtls13FreeFragmentsBuffer(ssl);
+            return ret;
+        }
+
+        XMEMCPY(output + rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ,
+            ssl->dtls13FragmentsBuffer.buffer + ssl->dtls13FragOffset,
+            fragLength);
+
+        ret = Dtls13SendFragment(ssl, output, maxFragment, recordLength,
+            ssl->dtls13FragHandshakeType, 0, 1);
+        if (ret == WANT_WRITE) {
+            ssl->dtls13FragOffset += fragLength;
+            return ret;
+        }
+
+        if (ret != 0) {
+            Dtls13FreeFragmentsBuffer(ssl);
+            return ret;
+        }
+
+        ssl->dtls13FragOffset += fragLength;
+        remainingSize -= fragLength;
+    }
+
+    /* we sent all fragments */
+    Dtls13FreeFragmentsBuffer(ssl);
+    return 0;
+}
+
+static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
+    enum HandShakeType handshake_type, int hash_output)
+{
+    int rlHeaderLength;
+    byte isEncrypted;
+    int messageSize;
+    int ret;
+
+    if (ssl->dtls13SendingFragments != 0) {
+        WOLFSSL_MSG(
+            "dtls13_send_fragmented() invoked while already sending fragments");
+        return BAD_STATE_E;
+    }
+
+    isEncrypted = Dtls13TypeIsEncrypted(handshake_type);
+    rlHeaderLength = Dtls13GetRlHeaderLength(isEncrypted);
+
+    if (length < rlHeaderLength)
+        return INCOMPLETE_DATA;
+
+    /* DTLSv1.3 do not consider fragmentation for hash transcript. Build the
+       hash now pretending fragmentation will not happen */
+    if (hash_output) {
+        ret = Dtls13HashHandshake(ssl, message + rlHeaderLength,
+            length - rlHeaderLength);
+        if (ret != 0)
+            return ret;
+    }
+
+    messageSize = length - rlHeaderLength - DTLS_HANDSHAKE_HEADER_SZ;
+
+    ssl->dtls13FragmentsBuffer.buffer =
+        (byte*)XMALLOC(messageSize, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ssl->dtls13FragmentsBuffer.buffer == NULL)
+        return MEMORY_E;
+
+    XMEMCPY(ssl->dtls13FragmentsBuffer.buffer,
+        message + rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ, messageSize);
+
+    ssl->dtls13MessageLength = messageSize;
+    ssl->dtls13FragHandshakeType = handshake_type;
+    ssl->dtls13SendingFragments = 1;
+
+    return Dtls13SendFragmentedInternal(ssl);
+}
+
+static WC_INLINE word8 Dtls13GetEpochBits(w64wrapper epoch)
+{
+    return w64GetLow32(epoch) & EE_MASK;
+}
+
+/**
+ * dtls13RlAddCiphertextHeader() - add record layer header in the buffer
+ * @ssl: ssl object
+ * @out: output buffer where to put the header
+ * @length: length of the record
+ */
+int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out, word16 length)
+{
+    Dtls13RecordCiphertextHeader* hdr;
+    word16 seqNumber;
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->dtls13EncryptEpoch == NULL)
+        return BAD_STATE_E;
+
+    hdr = (Dtls13RecordCiphertextHeader*)out;
+
+    hdr->unifiedHdrFlags = DTLS13_FIXED_BITS;
+    hdr->unifiedHdrFlags |=
+        Dtls13GetEpochBits(ssl->dtls13EncryptEpoch->epochNumber);
+
+    /* include 16-bit seq */
+    hdr->unifiedHdrFlags |= DTLS13_SEQ_LEN_BIT;
+    /* include 16-bit length */
+    hdr->unifiedHdrFlags |= DTLS13_LEN_BIT;
+
+    seqNumber = (word16)w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+    c16toa(seqNumber, hdr->sequenceNumber);
+    c16toa(length, hdr->length);
+
+    return 0;
+}
+
+/**
+ * Dtls13HandshakeAddHeader() - add handshake layer header
+ * @ssl: ssl object
+ * @output: output buffer
+ * @msg_type: handshake type
+ * @length: length of the message
+ */
+int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
+    enum HandShakeType msg_type, word32 length)
+{
+    Dtls13HandshakeHeader* hdr;
+
+    hdr = (Dtls13HandshakeHeader*)output;
+
+    hdr->msg_type = msg_type;
+    c32to24((word32)length, hdr->length);
+    c16toa(ssl->keys.dtls_handshake_number, hdr->messageSeq);
+
+    /* send unfragmented first */
+    c32to24(0, hdr->fragmentOffset);
+    c32to24((word32)length, hdr->fragmentLength);
+
+    return 0;
+}
+
+/**
+ * Dtls13EncryptRecordNumber() - encrypt record number in the header
+ * @ssl: ssl object
+ * @hdr: header
+ *
+ * Further info rfc draft 43 sec 4.2.3
+ */
+int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
+{
+    int seqLength;
+    int hdrLength;
+
+    if (ssl == NULL || hdr == NULL)
+        return BAD_FUNC_ARG;
+
+    /* we need at least a 16 bytes of ciphertext to encrypt record number see
+       4.2.3*/
+    if (recordLength < Dtls13GetRlHeaderLength(1) + DTLS13_MIN_CIPHERTEXT)
+        return BUFFER_ERROR;
+
+    seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
+
+    /* header flags + seq number */
+    hdrLength = 1 + seqLength;
+
+    /* length present */
+    if (*hdr & DTLS13_LEN_BIT)
+        hdrLength += DTLS13_LEN_SIZE;
+
+    return Dtls13EncryptDecryptRecordNumber(ssl,
+        /* seq number offset */
+        hdr + 1,
+        /* seq size */
+        seqLength,
+        /* cipher text */
+        hdr + hdrLength, PROTECT);
+}
+
+/**
+ * Dtls13GetRlHeaderLength() - get record layer header length
+ * @ssl: ssl object
+ * @isEncrypted: whether the record will be protected or not
+ *
+ * returns the length of the record layer header in bytes.
+ */
+word16 Dtls13GetRlHeaderLength(byte isEncrypted)
+{
+    /* the function looks useless but allow to support variable length unified
+       header in the future */
+    if (!isEncrypted)
+        return DTLS_RECORD_HEADER_SZ;
+
+    return DTLS13_UNIFIED_HEADER_SIZE;
+}
+
+/**
+ * Dtls13GetHeadersLength() - return length of record + handshake header
+ * @type: type of handshake in the message
+ */
+word16 Dtls13GetHeadersLength(enum HandShakeType type)
+{
+    byte isEncrypted;
+
+    isEncrypted = Dtls13TypeIsEncrypted(type);
+
+    return Dtls13GetRlHeaderLength(isEncrypted) + DTLS_HANDSHAKE_HEADER_SZ;
+}
+
+/**
+ * Dtls13IsUnifiedHeader() - check if header is a DTLS unified header
+ * @header_flags: first byte of the header
+ *
+ * Further info: dtls v1.3 draft43 section 4
+ */
+int Dtls13IsUnifiedHeader(byte hdrFirstByte)
+{
+    if (hdrFirstByte == alert || hdrFirstByte == handshake ||
+        hdrFirstByte == ack)
+        return 0;
+
+    return ((hdrFirstByte & DTLS13_FIXED_BITS_MASK) == DTLS13_FIXED_BITS);
+}
+
+int Dtls13ReconstructSeqNumber(WOLFSSL* ssl, Dtls13UnifiedHdrInfo* hdrInfo,
+    w64wrapper* out)
+{
+    word16 expectedLowBits;
+    word16 seqLowBits;
+    w64wrapper temp;
+    word32 out32;
+    word32 shift;
+    word16 mask;
+    byte wrap = 0;
+
+    if (hdrInfo->seqHiPresent) {
+        seqLowBits = (hdrInfo->seqHi << 8) | hdrInfo->seqLo;
+        mask = 0xffff;
+        shift = (1 << 16);
+    }
+    else {
+        seqLowBits = hdrInfo->seqLo;
+        mask = 0xff;
+        shift = (1 << 8);
+    }
+
+    /* *out = (nextPeerSeqNumber & ~mask) | seqLowbits */
+    out32 = w64GetLow32(ssl->dtls13DecryptEpoch->nextPeerSeqNumber);
+    expectedLowBits = out32 & mask;
+    out32 = (out32 & ~mask) | seqLowBits;
+    *out = ssl->dtls13DecryptEpoch->nextPeerSeqNumber;
+    w64SetLow32(out, out32);
+    if (seqLowBits >= expectedLowBits) {
+        if ((word32)(seqLowBits - expectedLowBits) > shift / 2) {
+            temp = w64Sub32(*out, shift, &wrap);
+            if (!wrap)
+                *out = temp;
+            return 0;
+        }
+    }
+    else {
+        /*  seqLowbits < expectedLowBits */
+        if ((word32)(expectedLowBits - seqLowBits) > shift / 2) {
+            temp = w64Add32(*out, shift, &wrap);
+            if (!wrap)
+                *out = temp;
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
+    w64wrapper* epoch)
+{
+    w64wrapper _epoch;
+    Dtls13Epoch* e;
+    byte found;
+    int i;
+
+    if (Dtls13GetEpochBits(ssl->dtls13PeerEpoch) == epochBits) {
+        *epoch = ssl->dtls13PeerEpoch;
+        return 0;
+    }
+
+    w64Zero(&_epoch);
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
+        e = &ssl->dtls13Epochs[i];
+
+        if (!e->isValid)
+            continue;
+
+        if (Dtls13GetEpochBits(e->epochNumber) != epochBits)
+            continue;
+
+        if (w64GT(e->epochNumber, _epoch)) {
+            found = 1;
+            _epoch = e->epochNumber;
+        }
+    }
+
+    if (found) {
+        *epoch = _epoch;
+        return 0;
+    }
+
+    return SEQUENCE_ERROR;
+}
+
+/**
+ * Dtls13ParseUnifiedRecordLayer() - parse DTLS unified header
+ * @ssl: [in] ssl object
+ * @input: [in] buffer where the header is
+ * @inputSize: [in] size of the input buffer
+ * @hdrInfo: [out] header info struct
+ *
+ * It parse the header and put the relevant information inside @hdrInfo. Further
+ * info: draft43 section 4
+ *
+ * return 0 on success
+ */
+int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
+    word16 inputSize, Dtls13UnifiedHdrInfo* hdrInfo)
+{
+    byte seqLen, hasLength;
+    byte* seqNum;
+    word16 idx;
+    int ret;
+
+    if (input == NULL || inputSize == 0)
+        return BAD_FUNC_ARG;
+
+    if (*input & DTLS13_CID_BIT) {
+        WOLFSSL_MSG("DTLS1.3 header with connection ID. Not supported");
+        return WOLFSSL_NOT_IMPLEMENTED;
+    }
+
+    idx = DTLS13_HDR_FLAGS_SIZE;
+
+    seqLen = (*input & DTLS13_SEQ_LEN_BIT) != 0 ? DTLS13_SEQ_16_LEN
+                                                : DTLS13_SEQ_8_LEN;
+    hasLength = *input & DTLS13_LEN_BIT;
+    hdrInfo->epochBits = *input & EE_MASK;
+
+    idx += seqLen;
+
+    if (inputSize < idx)
+        return BUFFER_ERROR;
+
+    if (hasLength) {
+        if (inputSize < idx + DTLS13_LEN_SIZE)
+            return BUFFER_ERROR;
+
+        ato16(input + idx, &hdrInfo->recordLength);
+        idx += DTLS13_LEN_SIZE;
+
+        /* DTLS message must fit inside a datagram  */
+        if (inputSize < idx + hdrInfo->recordLength)
+            return LENGTH_ERROR;
+    }
+    else {
+        /* length not present. The size of the record is the all the remaining
+           data received with this datagram */
+        hdrInfo->recordLength = inputSize - idx;
+    }
+
+    /* minimum size for a dtls1.3 packet is 16 bytes (to have enough ciphertext
+       to create record number xor mask). (draft 43 - Sec 4.2.3) */
+    if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
+        return LENGTH_ERROR;
+
+    seqNum = (byte*)(input + DTLS13_HDR_FLAGS_SIZE);
+
+    ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
+        DEPROTECT);
+    if (ret != 0)
+        return ret;
+
+    hdrInfo->headerLength = idx;
+
+    if (seqLen == DTLS13_SEQ_16_LEN) {
+        hdrInfo->seqHiPresent = 1;
+        hdrInfo->seqHi = seqNum[0];
+        hdrInfo->seqLo = seqNum[1];
+    }
+    else {
+        hdrInfo->seqHiPresent = 0;
+        hdrInfo->seqLo = seqNum[0];
+    }
+
+    return 0;
+}
+
+int Dtls13RecordRecvd(WOLFSSL* ssl)
+{
+    (void)ssl;
+
+    return 0;
+}
+
+/**
+ * Dtls13HandshakeRecv() - process an handshake message. Deal with
+ fragmentation if needed
+ * @ssl: [in] ssl object
+ * @input: [in] input buffer
+ * @size: [in] input buffer size
+ * @type: [out] content type
+ * @processedSize: [out] amount of byte processed
+ *
+ * returns 0 on success
+ */
+static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte *input, word32 size,
+                        word32 *processedSize)
+{
+    word32 frag_off, frag_length;
+    byte isComplete, isFirst;
+    word32 message_length;
+    byte handshake_type;
+    word32 idx;
+    int ret;
+
+    idx = 0;
+    ret = GetDtlsHandShakeHeader(ssl, input, &idx, &handshake_type,
+        &message_length, &frag_off, &frag_length, size);
+    if (ret != 0)
+        return PARSE_ERROR;
+
+    if (idx + frag_length > size) {
+        WOLFSSL_ERROR(INCOMPLETE_DATA);
+        return INCOMPLETE_DATA;
+    }
+
+    if (frag_off + frag_length > message_length)
+        return BUFFER_ERROR;
+
+    if (ssl->keys.dtls_peer_handshake_number <
+        ssl->keys.dtls_expected_peer_handshake_number) {
+
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG(
+            "DTLS1.3 retransmission detected - discard and schedule a rtx");
+#endif /* WOLFSSL_DEBUG_TLS */
+
+        /* ignore the message */
+        *processedSize = idx + frag_length;
+
+        *processedSize += ssl->keys.padSz;
+
+        return 0;
+    }
+
+    isFirst = frag_off == 0;
+    isComplete = isFirst && frag_length == message_length;
+
+    if (!isComplete || ssl->keys.dtls_peer_handshake_number >
+                           ssl->keys.dtls_expected_peer_handshake_number) {
+        DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
+            ssl->keys.dtls_peer_handshake_number,
+            input + DTLS_HANDSHAKE_HEADER_SZ, message_length, handshake_type,
+            frag_off, frag_length, ssl->heap);
+
+        *processedSize = idx + frag_length;
+
+        *processedSize += ssl->keys.padSz;
+
+        if (Dtls13NextMessageComplete(ssl))
+            return Dtls13ProcessBufferedMessages(ssl);
+
+        return 0;
+    }
+
+    ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshake_type,
+        message_length, size);
+    if (ret != 0)
+        return ret;
+
+    Dtls13MsgWasProcessed(ssl, handshake_type);
+
+    *processedSize = idx;
+
+    /* check if we have buffered some message */
+    if (Dtls13NextMessageComplete(ssl))
+        return Dtls13ProcessBufferedMessages(ssl);
+
+    return 0;
+}
+
+int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+    word32 totalSz)
+{
+    word32 maxSize, processedSize = 0;
+    byte* message;
+    int ret;
+
+    message = input + *inOutIdx;
+    maxSize = totalSz - *inOutIdx;
+
+    ret = _Dtls13HandshakeRecv(ssl, message, maxSize, &processedSize);
+
+    *inOutIdx += processedSize;
+
+    return ret;
+}
+
+/**
+ * Dtls13FragmentsContinue() - keep sending pending fragments
+ * @ssl: ssl object
+ */
+int Dtls13FragmentsContinue(WOLFSSL* ssl)
+{
+    int ret;
+
+    ret = Dtls13SendFragmentedInternal(ssl);
+    if (ret == 0)
+        ssl->keys.dtls_handshake_number++;
+
+    return ret;
+}
+
+/**
+ * Dtls13AddHeaders() - setup handshake header
+ * @output: output buffer at the start of the record
+ * @length: length of the full message, included headers
+ * @hsType: handshake type
+ * @ssl: ssl object
+ *
+ * This function add the handshake headers and leaves space for the record
+ * layer. The real record layer will be added in dtls_send() for unprotected
+ * messages and in BuildTls13message() for protected messages.
+ *
+ * returns 0 on success, -1 otherwise
+ */
+int Dtls13AddHeaders(byte* output, word32 length, enum HandShakeType hsType,
+    WOLFSSL* ssl)
+{
+    word16 handshakeOffset;
+    int isEncrypted;
+
+    isEncrypted = Dtls13TypeIsEncrypted(hsType);
+    handshakeOffset = Dtls13GetRlHeaderLength(isEncrypted);
+
+    /* The record header is placed by either Dtls13HandshakeSend() or
+       BuildTls13Message() */
+
+    return Dtls13HandshakeAddHeader(ssl, output + handshakeOffset, hsType,
+        length);
+}
+
+/**
+ * Dtls13HandshakeSend() - send an handshake message. Fragment if necessary.
+ *
+ * @ssl: ssl object
+ * @message: message where the buffer is in. Handshake header already in place.
+ * @output_size: size of the @message buffer
+ * @length: length of the message including headers
+ * @handshakeType: handshake type of the message
+ * @hashOutput: if true add the message to the transcript hash
+ *
+ */
+int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
+    word16 length, enum HandShakeType handshakeType, int hashOutput)
+{
+    int maxFrag;
+    int maxLen;
+    int ret;
+
+    if (ssl->dtls13EncryptEpoch == NULL)
+        return BAD_STATE_E;
+
+    /* if we are here, the message is built */
+    ssl->options.buildingMsg = 0;
+
+    /* we want to send always with the highest epoch  */
+    if (!w64Equal(ssl->dtls13EncryptEpoch->epochNumber, ssl->dtls13Epoch)) {
+        ret = Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return ret;
+    }
+
+    maxFrag = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
+    maxLen = length;
+
+    if (maxLen < maxFrag) {
+        ret = Dtls13SendFragment(ssl, message, outputSize, length,
+            handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
+
+        if (ret == 0 || ret == WANT_WRITE)
+            ssl->keys.dtls_handshake_number++;
+    }
+    else {
+        ret = Dtls13SendFragmented(ssl, message, length, handshakeType,
+            hashOutput);
+        if (ret == 0)
+            ssl->keys.dtls_handshake_number++;
+    }
+
+    return ret;
 }
 
 #define SN_LABEL_SZ 2
@@ -231,6 +1296,48 @@ static void Dtls13EpochCopyKeys(WOLFSSL* ssl, Dtls13Epoch* e, Keys* k, int side)
     if (dec)
         XMEMCPY(e->aead_dec_imp_IV, k->aead_dec_imp_IV,
             sizeof(e->aead_dec_imp_IV));
+}
+
+/* For storing the sequence number we use a word32[2] array here, instead of
+   word64. This is to reuse existing code */
+int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq, byte increment)
+{
+    w64wrapper* nativeSeq;
+
+    if (order == PEER_ORDER) {
+        nativeSeq = &ssl->keys.curSeq;
+        /* never increment seq number for curent record. In DTLS seq number are
+           explicit */
+        increment = 0;
+    }
+    else if (order == CUR_ORDER) {
+
+        if (ssl->dtls13EncryptEpoch == NULL) {
+            return BAD_STATE_E;
+        }
+
+        nativeSeq = &ssl->dtls13EncryptEpoch->nextSeqNumber;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    seq[0] = w64GetHigh32(*nativeSeq);
+    seq[1] = w64GetLow32(*nativeSeq);
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG_EX("Dtls13GetSeq(): using seq: %ld", *nativeSeq);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+    if (increment) {
+        w64Increment(nativeSeq);
+
+        /* seq number wrapped up */
+        if (w64IsZero(*nativeSeq))
+            return BAD_STATE_E;
+    }
+
+    return 0;
 }
 
 static Dtls13Epoch* Dtls13NewEpochSlot(WOLFSSL* ssl)

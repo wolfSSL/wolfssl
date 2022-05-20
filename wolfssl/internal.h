@@ -1294,6 +1294,8 @@ enum Misc {
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
+    DTLS_UNIFIED_HEADER_MIN_SZ = 2,
+    DTLS_RECORD_HEADER_MAX_SZ = 13,
     DTLS_HANDSHAKE_EXTRA     = 8,  /* diff from normal */
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
@@ -2256,6 +2258,12 @@ typedef struct Keys {
     word16 curEpoch;    /* Received epoch in current record    */
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
+
+#ifdef WOLFSSL_DTLS13
+    w64wrapper curEpoch64;    /* Received epoch in current record    */
+    w64wrapper curSeq;
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_MULTICAST
     byte   curPeerId;   /* Received peer group ID in current record */
 #endif
@@ -4319,6 +4327,15 @@ typedef enum EarlyDataState {
 
 #ifdef WOLFSSL_DTLS13
 
+typedef struct Dtls13UnifiedHdrInfo {
+    word16 recordLength;
+    word16 headerLength;
+    byte seqLo;
+    byte seqHi;
+    byte seqHiPresent:1;
+    byte epochBits;
+} Dtls13UnifiedHdrInfo;
+
 enum  {
     DTLS13_EPOCH_EARLYDATA = 1,
     DTLS13_EPOCH_HANDSHAKE = 2,
@@ -4557,8 +4574,15 @@ struct WOLFSSL {
     w64wrapper dtls13Epoch;
     w64wrapper dtls13PeerEpoch;
 
-#endif /* WOLFSSL_DTLS13 */
+    word16 dtls13CurRlLength;
 
+    /* used to store the message if it needs to be fragmented */
+    buffer dtls13FragmentsBuffer;
+    byte dtls13SendingFragments:1;
+    word32 dtls13MessageLength;
+    word32 dtls13FragOffset;
+    byte dtls13FragHandshakeType;
+#endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -4842,7 +4866,10 @@ enum ContentType {
     change_cipher_spec = 20,
     alert              = 21,
     handshake          = 22,
-    application_data   = 23
+    application_data   = 23,
+#ifdef WOLFSSL_DTLS13
+    ack                = 26,
+#endif /* WOLFSSL_DTLS13 */
 };
 
 
@@ -5309,11 +5336,44 @@ WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
 WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);
+WOLFSSL_LOCAL int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq,
+    byte increment);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
     enum encrypt_side side);
 
+WOLFSSL_LOCAL int Dtls13AddHeaders(byte* output, word32 length,
+    enum HandShakeType hs_type, WOLFSSL* ssl);
+WOLFSSL_LOCAL word16 Dtls13GetHeadersLength(enum HandShakeType type);
+WOLFSSL_LOCAL word16 Dtls13GetRlHeaderLength(byte is_encrypted);
+WOLFSSL_LOCAL int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out,
+    word16 length);
+WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
+    enum ContentType content_type, word16 length);
+WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr,
+    word16 recordLength);
+WOLFSSL_LOCAL int Dtls13IsUnifiedHeader(byte header_flags);
+WOLFSSL_LOCAL int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
+    word16 input_size, Dtls13UnifiedHdrInfo* hdrInfo);
+WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,
+    word16 output_size, word16 length, enum HandShakeType handshake_type,
+    int hash_output);
+WOLFSSL_LOCAL int Dtls13RecordRecvd(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
+    word32* inOutIdx, word32 totalSz);
+WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
+    enum HandShakeType msg_type, word32 length);
+#define EE_MASK (0x3)
+WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
+
+WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
+    w64wrapper* epoch);
+WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
+    Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
+WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output,
+    word16 length);
 #endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);
 #endif

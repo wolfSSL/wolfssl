@@ -2081,6 +2081,15 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #endif
     }
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls &&
+        ssl->version.major == DTLS_MAJOR &&
+        ssl->version.minor <= DTLSv1_3_MINOR) {
+            ssl->options.tls = 1;
+            ssl->options.tls1_3 = 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     if (IsAtLeastTLSv1_3(ssl->version) || ssl->specs.cipher_type != block)
        ssl->options.encThenMac = 0;
@@ -2966,7 +2975,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 #ifdef WOLFSSL_DTLS
-    if (ret == 0 && ssl->options.dtls) {
+    if (ret == 0 && ssl->options.dtls && !ssl->options.tls1_3) {
         if (wc_encrypt)
             wc_encrypt->src = keys == &ssl->keys ? KEYS : SCR;
         if (wc_decrypt)
