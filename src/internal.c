@@ -21193,6 +21193,17 @@ startScr:
                 }
             }
         #endif
+
+#ifdef WOLFSSL_DTLS13
+            /* if wolfSSL_Peek() is invoked with sz == 0 it will not block (but
+             *  it processes pending non-application records) */
+            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version) && peek &&
+                sz == 0 && ssl->buffers.inputBuffer.idx
+                - ssl->buffers.inputBuffer.length  == 0) {
+                return 0;
+            }
+#endif /* WOLFSSL_DTLS13 */
+
 #ifndef WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.handShakeDone &&
