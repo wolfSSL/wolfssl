@@ -4317,6 +4317,43 @@ typedef enum EarlyDataState {
 } EarlyDataState;
 #endif
 
+#ifdef WOLFSSL_DTLS13
+
+enum  {
+    DTLS13_EPOCH_EARLYDATA = 1,
+    DTLS13_EPOCH_HANDSHAKE = 2,
+    DTLS13_EPOCH_TRAFFIC0 = 3
+};
+
+typedef struct Dtls13Epoch {
+    w64wrapper epochNumber;
+
+    w64wrapper nextSeqNumber;
+    w64wrapper nextPeerSeqNumber;
+
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+
+    /* key material for the epoch */
+    byte client_write_key[MAX_SYM_KEY_SIZE];
+    byte server_write_key[MAX_SYM_KEY_SIZE];
+    byte client_write_IV[MAX_WRITE_IV_SZ];
+    byte server_write_IV[MAX_WRITE_IV_SZ];
+
+    byte aead_exp_IV[AEAD_MAX_EXP_SZ];
+    byte aead_enc_imp_IV[AEAD_MAX_IMP_SZ];
+    byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
+
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+
+    byte isValid;
+    byte side;
+} Dtls13Epoch;
+
+#define DTLS13_EPOCH_SIZE 3
+
+#endif /* WOLFSSL_DTLS13 */
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -4514,6 +4551,12 @@ struct WOLFSSL {
 #ifdef WOLFSSL_DTLS13
     RecordNumberCiphers dtlsRecordNumberEncrypt;
     RecordNumberCiphers dtlsRecordNumberDecrypt;
+    Dtls13Epoch dtls13Epochs[DTLS13_EPOCH_SIZE];
+    Dtls13Epoch *dtls13EncryptEpoch;
+    Dtls13Epoch *dtls13DecryptEpoch;
+    w64wrapper dtls13Epoch;
+    w64wrapper dtls13PeerEpoch;
+
 #endif /* WOLFSSL_DTLS13 */
 
 #endif /* WOLFSSL_DTLS */
@@ -5260,6 +5303,12 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 
 #ifdef WOLFSSL_DTLS13
 
+WOLFSSL_LOCAL struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
+    w64wrapper epochNumber);
+WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
+    int side);
+WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
+    enum encrypt_side side);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
     enum encrypt_side side);
