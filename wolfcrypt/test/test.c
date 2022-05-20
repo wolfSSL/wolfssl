@@ -3326,21 +3326,21 @@ static int sha3_384_test(void)
         ret = wc_Sha3_384_Update(&sha, (byte*)test_sha[i].input,
             (word32)test_sha[i].inLen);
         if (ret != 0)
-            ERROR_OUT(-2801 - i, exit);
+            ERROR_OUT(-2801 - (i * 10), exit);
     #ifndef NO_INTM_HASH_TEST
         ret = wc_Sha3_384_GetHash(&sha, hashcopy);
         if (ret != 0)
-            ERROR_OUT(-2802 - i, exit);
+            ERROR_OUT(-2802 - (i * 10), exit);
     #endif
         ret = wc_Sha3_384_Final(&sha, hash);
         if (ret != 0)
-            ERROR_OUT(-2803 - i, exit);
+            ERROR_OUT(-2803 - (i * 10), exit);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_384_DIGEST_SIZE) != 0)
-            ERROR_OUT(-2804 - i, exit);
+            ERROR_OUT(-2804 - (i * 10), exit);
     #ifndef NO_INTM_HASH_TEST
         if (XMEMCMP(hash, hashcopy, WC_SHA3_384_DIGEST_SIZE) != 0)
-            ERROR_OUT(-2805 - i, exit);
+            ERROR_OUT(-2805 - (i * 10), exit);
     #endif
     }
 
