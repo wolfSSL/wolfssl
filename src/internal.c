@@ -14922,21 +14922,80 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
 }
 #endif /* WOLFSSL_MULTICAST */
 
-
-static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
+/* diff must be already incremented by one */
+static void DtlsUpdateWindowGTSeq(word32 diff, word32* window)
 {
-    word32* window;
-    word32* next_lo;
-    word16* next_hi;
-    int curLT;
+    word32 idx, newDiff, temp, i;
+    word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+
+    if (diff >= DTLS_SEQ_BITS)
+        XMEMSET(window, 0, DTLS_SEQ_SZ);
+    else {
+        temp = 0;
+        idx = diff / DTLS_WORD_BITS;
+        newDiff = diff % DTLS_WORD_BITS;
+
+        XMEMCPY(oldWindow, window, sizeof(oldWindow));
+
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            if (i < idx)
+                window[i] = 0;
+            else {
+                temp |= (oldWindow[i-idx] << newDiff);
+                window[i] = temp;
+                temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff - 1);
+            }
+        }
+    }
+    window[0] |= 1;
+}
+
+static WC_INLINE int _DtlsUpdateWindow(WOLFSSL* ssl, word16* next_hi,
+                                       word32* next_lo, word32 *window)
+{
     word32 cur_lo, diff;
+    int curLT;
     word16 cur_hi;
-    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
 
+    if (cur_hi == *next_hi) {
+        curLT = cur_lo < *next_lo;
+        diff = curLT ? *next_lo - cur_lo - 1 : cur_lo - *next_lo + 1;
+    }
+    else {
+        curLT = cur_hi < *next_hi;
+        diff = curLT ? cur_lo - *next_lo - 1 : *next_lo - cur_lo + 1;
+    }
+
+    if (curLT) {
+        word32 idx = diff / DTLS_WORD_BITS;
+        word32 newDiff = diff % DTLS_WORD_BITS;
+
+        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
+            window[idx] |= (1 << newDiff);
+    }
+    else {
+        DtlsUpdateWindowGTSeq(diff, window);
+        *next_lo = cur_lo + 1;
+        if (*next_lo < cur_lo)
+            (*next_hi)++;
+    }
+
+    return 1;
+}
+
+static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
+{
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+    word16 *next_hi;
+    word32 *next_lo;
+    word32* window;
+
 #ifdef WOLFSSL_MULTICAST
+    word32 cur_lo = ssl->keys.curSeq_lo;
+
     if (ssl->options.haveMcast) {
         WOLFSSL_DTLS_PEERSEQ* p;
         int i;
@@ -14988,52 +15047,7 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         window = peerSeq->prevWindow;
     }
 
-    if (cur_hi == *next_hi) {
-        curLT = cur_lo < *next_lo;
-        diff = curLT ? *next_lo - cur_lo - 1 : cur_lo - *next_lo + 1;
-    }
-    else {
-        curLT = cur_hi < *next_hi;
-        diff = curLT ? cur_lo - *next_lo - 1 : *next_lo - cur_lo + 1;
-    }
-
-    if (curLT) {
-        word32 idx = diff / DTLS_WORD_BITS;
-        word32 newDiff = diff % DTLS_WORD_BITS;
-
-        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
-            window[idx] |= (1 << newDiff);
-    }
-    else {
-        if (diff >= DTLS_SEQ_BITS)
-            XMEMSET(window, 0, DTLS_SEQ_SZ);
-        else {
-            word32 idx, newDiff, temp, i;
-            word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
-
-            temp = 0;
-            idx = diff / DTLS_WORD_BITS;
-            newDiff = diff % DTLS_WORD_BITS;
-
-            XMEMCPY(oldWindow, window, sizeof(oldWindow));
-
-            for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-                if (i < idx)
-                    window[i] = 0;
-                else {
-                    temp |= (oldWindow[i-idx] << newDiff);
-                    window[i] = temp;
-                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff - 1);
-                }
-            }
-        }
-        window[0] |= 1;
-        *next_lo = cur_lo + 1;
-        if (*next_lo < cur_lo)
-            (*next_hi)++;
-    }
-
-    return 1;
+    return _DtlsUpdateWindow(ssl, next_hi, next_lo, window);
 }
 
 
