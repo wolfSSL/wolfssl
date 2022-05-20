@@ -2589,6 +2589,14 @@ void InitCiphers(WOLFSSL* ssl)
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    XMEMSET(&ssl->dtlsRecordNumberEncrypt, 0,
+        sizeof(ssl->dtlsRecordNumberEncrypt));
+    XMEMSET(&ssl->dtlsRecordNumberDecrypt, 0,
+         sizeof(ssl->dtlsRecordNumberEncrypt));
+#endif /* WOLFSSL_DTLS13 */
+
 }
 
 
@@ -2642,6 +2650,29 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+#ifdef BUILD_AES
+    if (ssl->dtlsRecordNumberEncrypt.aes != NULL) {
+        wc_AesFree(ssl->dtlsRecordNumberEncrypt.aes);
+        XFREE(ssl->dtlsRecordNumberEncrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        ssl->dtlsRecordNumberEncrypt.aes = NULL;
+    }
+    if (ssl->dtlsRecordNumberDecrypt.aes != NULL) {
+        wc_AesFree(ssl->dtlsRecordNumberDecrypt.aes);
+        XFREE(ssl->dtlsRecordNumberDecrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        ssl->dtlsRecordNumberDecrypt.aes = NULL;
+    }
+#endif /* BUILD_AES */
+#ifdef HAVE_CHACHA
+    XFREE(ssl->dtlsRecordNumberEncrypt.chacha,
+          ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->dtlsRecordNumberDecrypt.chacha,
+          ssl->heap, DYNAMIC_TYPE_CIPHER);
+    ssl->dtlsRecordNumberEncrypt.chacha = NULL;
+    ssl->dtlsRecordNumberDecrypt.chacha = NULL;
+#endif /* HAVE_CHACHA */
+#endif /* WOLFSSL_DTLS13 */
 }
 
 

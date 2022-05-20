@@ -2242,6 +2242,11 @@ typedef struct Keys {
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+#endif /* WOLFSSL_DTLS13 */
+
     word32 peer_sequence_number_hi;
     word32 peer_sequence_number_lo;
     word32 sequence_number_hi;
@@ -3314,6 +3319,16 @@ typedef struct Ciphers {
 #endif
 } Ciphers;
 
+#ifdef WOLFSSL_DTLS13
+typedef struct RecordNumberCiphers {
+#if defined(BUILD_AES) || defined(BUILD_AESGCM)
+        Aes *aes;
+#endif /*  BUILD_AES || BUILD_AESGCM */
+#ifdef HAVE_CHACHA
+        ChaCha *chacha;
+#endif
+} RecordNumberCiphers;
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef HAVE_ONE_TIME_AUTH
 /* Ciphers for one time authentication such as poly1305 */
@@ -4496,6 +4511,11 @@ struct WOLFSSL {
                                         * (selected profiles - up to 16) */
     word16         dtlsSrtpId;         /* DTLS-with-SRTP profile ID selected */
 #endif
+#ifdef WOLFSSL_DTLS13
+    RecordNumberCiphers dtlsRecordNumberEncrypt;
+    RecordNumberCiphers dtlsRecordNumberDecrypt;
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -5239,6 +5259,10 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #endif
 
 #ifdef WOLFSSL_DTLS13
+
+WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
+WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
+    enum encrypt_side side);
 
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_STATIC_EPHEMERAL

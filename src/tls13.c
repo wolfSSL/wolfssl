@@ -153,6 +153,11 @@
 /* The protocol label for TLS v1.3. */
 static const byte tls13ProtocolLabel[TLS13_PROTOCOL_LABEL_SZ + 1] = "tls13 ";
 
+#ifdef WOLFSSL_DTLS13
+#define DTLS13_PROTOCOL_LABEL_SZ    6
+static const byte dtls13ProtocolLabel[DTLS13_PROTOCOL_LABEL_SZ + 1] = "dtls13";
+#endif /* WOLFSSL_DTLS13 */
+
 /* Derive a key from a message.
  *
  * ssl        The SSL/TLS object.
@@ -234,7 +239,15 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
             protocol = tls13ProtocolLabel;
             protocolLen = TLS13_PROTOCOL_LABEL_SZ;
             break;
+#ifdef WOLFSSL_DTLS13
+        case DTLSv1_3_MINOR:
+            if (!ssl->options.dtls)
+                return VERSION_ERROR;
 
+            protocol = dtls13ProtocolLabel;
+            protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+            break;
+#endif /* WOLFSSL_DTLS13 */
         default:
             return VERSION_ERROR;
     }
@@ -308,9 +321,15 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     if (ret != 0)
         return ret;
 
-    /* Only one protocol version defined at this time. */
     protocol = tls13ProtocolLabel;
     protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+         protocol = dtls13ProtocolLabel;
+         protocolLen = DTLS13_PROTOCOL_LABEL_SZ;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     if (outputLen == -1)
         outputLen = hashSz;
@@ -1262,6 +1281,18 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 
     /* Store keys and IVs but don't activate them. */
     ret = StoreKeys(ssl, key_dig, provision);
+
+#ifdef WOLFSSL_DTLS13
+    if (ret != 0)
+      goto end;
+
+    if (ssl->options.dtls) {
+        ret = Dtls13DeriveSnKeys(ssl, provision);
+        if (ret != 0)
+            return ret;
+    }
+
+#endif /* WOLFSSL_DTLS13 */
 
 end:
 #ifdef WOLFSSL_SMALL_STACK
