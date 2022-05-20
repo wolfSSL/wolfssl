@@ -1,0 +1,25 @@
+{
+    "Metadata": { 
+        "Type": "Azure Sphere Hardware Definition",
+        "Version": 1
+    },
+    "Description":  
+    {
+        "Name": "Template hardware abstraction for Seeed MT3620 MDB",
+        "MainCoreHeaderFileTopContent": [
+            "/* Copyright (c) Microsoft Corporation. All rights reserved.",
+            "   Licensed under the MIT License. */",
+            "",
+            "// This file defines the mapping from the Seeed MT3620 Mini Development Board (MDB) to the",
+            "// 'template appliance' abstraction used by the templates.",
+            "// Some peripherals are on-board on the Seeed MT3620 MDB, while other peripherals must be",
+            "// attached externally if needed.",
+            "// See https://aka.ms/AzureSphereHardwareDefinitions for more information on how to use",
+            "// hardware abstractions to enable apps to work across multiple hardware variants."
+        ]
+    },
+    "Imports" : [ {"Path": "seeed_mt3620_mdb.json"} ],
+    "Peripherals": [
+        {"Name": "TEMPLATE_LED", "Type": "Gpio", "Mapping": "SEEED_MT3620_MDB_USER_LED", "Comment": "MT3620 MDB: User LED."}
+    ]
+}
