@@ -4820,10 +4820,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif /* FREESCALE_LTC_AES_GCM */
 
-#if defined(WOLFSSL_XILINX_CRYPT)
-    wc_AesGcmSetKey_ex(aes, key, len, XSECURE_CSU_AES_KEY_SRC_KUP);
-#elif defined(WOLFSSL_AFALG_XILINX_AES)
-    wc_AesGcmSetKey_ex(aes, key, len, 0);
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
+    wc_AesGcmSetKey_ex(aes, key, len, WOLFSSL_XILINX_AES_KEY_SRC);
 #endif
 
 #ifdef WOLF_CRYPTO_CB

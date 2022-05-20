@@ -68,7 +68,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifdef WOLFSSL_XILINX_CRYPT
 #include "xsecure_aes.h"
-#endif
+#define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_CSU_AES_KEY_SRC_KUP
+#endif /* WOLFSSL_XILINX_CRYPT */
+
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
+#if !defined(WOLFSSL_XILINX_AES_KEY_SRC)
+#define WOLFSSL_XILINX_AES_KEY_SRC 0
+#endif /* !defined(WOLFSSL_XILINX_AES_KEY_SRC) */
+#endif /* all Xilinx crypto */
 
 #ifdef WOLFSSL_SE050
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
