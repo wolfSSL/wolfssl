@@ -1,4 +1,4 @@
-/* xil-sha3.h
+/* xil-versal-trng.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -20,34 +20,25 @@
  */
 
 
-#ifndef WOLF_XIL_CRYPT_SHA3_H
-#define WOLF_XIL_CRYPT_SHA3_H
+#ifndef WOLF_XIL_CRYPT_VERSAL_TRNG_H
+#define WOLF_XIL_CRYPT_VERSAL_TRNG_H
 
-#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_XILINX_CRYPT)
+#include <wolfssl/wolfcrypt/settings.h>
+
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
-#include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
-#else
-#include <xsecure_sha.h>
-#endif
 
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif
-
-/* Sha3 digest */
-typedef struct Sha3 {
-#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
-    wc_Xsecure xSec;
-#else
-    XSecure_Sha3 hw;
-    XCsuDma      dma;
-#endif
-} wc_Sha3;
+WOLFSSL_LOCAL int wc_VersalTrngInit(byte* nonce, word32 nonceSz);
+WOLFSSL_LOCAL int wc_VersalTrngReset(void);
+WOLFSSL_LOCAL int wc_VersalTrngSelftest(void);
+WOLFSSL_LOCAL int wc_VersalTrngGenerate(byte *output, word32 sz);
 
 #ifdef __cplusplus
-    } /* extern "C" */
+} /* extern "C" */
 #endif
 
-#endif /* WOLFSSL_SHA3 && WOLFSSL_XILINX_CRYPT */
-#endif /* WOLF_XIL_CRYPT_SHA3_H */
+#endif /* versal */
+#endif /* WOLF_XIL_CRYPT_VERSAL_TRNG_H */
 

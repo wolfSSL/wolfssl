@@ -146,6 +146,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include <predef.h>
     #include <basictypes.h>
     #include <random.h>
+#elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#include "wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -822,6 +824,12 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         return 0;
 #endif
 
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
+    ret = wc_VersalTrngInit(nonce, nonceSz);
+    if (ret)
+        return ret;
+#endif
+
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     ret = 0; /* success */
 #else
@@ -1112,6 +1120,12 @@ int wc_FreeRng(WC_RNG* rng)
 
     rng->status = DRBG_NOT_INIT;
 #endif /* HAVE_HASHDRBG */
+
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL\
+    /* don't overwrite previously set error */
+    if (wc_VersalTrngReset() && !ret)
+        ret = WC_HW_E;
+#endif
 
     return ret;
 }

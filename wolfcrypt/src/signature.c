@@ -201,7 +201,7 @@ int wc_SignatureVerifyHash(
         #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             byte *plain_data;
         #else
-            byte  plain_data[MAX_ENCODED_SIG_SZ];
+            ALIGN64 byte plain_data[MAX_ENCODED_SIG_SZ];
         #endif
 
             /* Make sure the plain text output is at least key size */

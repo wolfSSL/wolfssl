@@ -1,6 +1,6 @@
 # Common Gotcha's
 
-- If compiling all code together (ie no separate wolfssl library) than the -fPIC compiler flag should be used. Without using -fPIC in this build setup there could be unexpected failures.
+- If compiling all code together (ie no separate wolfssl library) then the -fPIC compiler flag should be used. Without using -fPIC in this build setup there could be unexpected failures.
 - If building with ARMv8 crypto extensions then the compiler flags "-mstrict-align -mcpu=generic+crypto" must be used.
 - Check that enough stack and heap memory is set for the operations if a crash or stall happens.
 
@@ -28,6 +28,82 @@ To use this example project:
 5. Import the wolfcrypt example project "File->Import->Eclipse workspace or zip file"
 6. Uncheck "Copy projects into workspace"
 7. Select the root directory of `wolfssl/IDE/XilinxSDK/2019_2`, and select `wolfCrypt_example` and `wolfCrypt_example_system`. Then click "Finish"
+
+
+# Detailed Instructions For Example Use With Vitis 2022.1
+
+This shows the necessary steps on the basis of using the VMK180 development board.
+
+1. Create a new workspace located in the directory `wolfssl/IDE/XilinxSDK/2022_1`.
+2. Create a new platform project.
+   - On the welcome screen select "Create platform project".
+   - Give it a good name, e.g. `vmk180` and click 'Next'.
+   - In the Hardware Specification drop-down menu select "vmk180" and click 'Finish'.
+3. Enable the necessary libraries in the bsp.
+   - Open `platform.spr` in the 'vmk180' platform project.
+   - In the tree-view select "Board Support Package" and click on "Modify BSP Settings...".
+   - Enable the `xilmailbox` and `xilsecure` libraries.
+   - In this tree-view on the left side under "Overview->standalone" appeared now a "xilsecure" entry.
+   - Select "xilsecure" and change the configuration of `cache_disable` to `false`. Press 'OK' to confirm the change.
+   - Build the platform project, either via "Project->Build All" or by the keyboard shortcut 'CTRL+b'.
+4. Import the wolfcrypt example projects "File->Import->Eclipse workspace or zip file".
+   - Behind 'Select Root directory' click on 'Browse...'. You should already be in the correct directory, but still make sure that you're in `wolfssl/IDE/XilinxSDK/2022_1/`. Click 'Open'.
+   - Uncheck "Copy projects into workspace".
+   - Select the two example projects `wolfCrypt_example` and `wolfCrypt_example_system`, then click 'Finish'.
+5. Fix the missing link from platform project and system project.
+   - In the 'Explorer' Window open the `wolfCrypt_example_system` and double-click `wolfCrypt_example_system.prj`.
+   - You should normally see a pop-up with the title "Platform invalid". Click on "Change referred platform", select your platform and click 'OK'.
+   - In case you didn't see the pop-up, you should see the 'System Project Settings'. Click on the `...` behind 'Platform', select your platform and click 'OK'.
+   - Vitis will now remind you that all build configurations will be cleaned, click 'Yes'.
+6. Create a new linker script
+   - In the 'Explorer' Window open the `wolfCrypt_example_system` and right-click on the `wolfCrypt_example` project. Click 'Generate Linker Script'.
+   - Configure the memory sections you want to use, the default should be OK for this example.
+   - 'Heap Size' must be increased according to your use case. For this example to run it is sufficient to increase to `8 MB`. For benchmarks with big chunk sizes increase to `512 MB`.
+   - Increase 'Stack Size' to `32 KB`.
+   - Click 'Generate'
+
+## FreeRTOS based example projects
+
+1. In the previously created `vmk180` platform, one can see a tree where you can also find the "Board support package" settings.
+   - Click on the bold green `+` on the top to 'Add Domain'.
+   - Give the new domain the name "freertos" and change the "OS" in the drop-down menu to "freertos".
+2. Repeat the same steps of the previous step 3 for the newly created domain.
+   - In the tree-view select "freertos10_xilinx" and then open the "kernel_behavior" sub-entry.
+   - Change `minimal_stack_size` to `8000`, `tick_rate` to `1000` and `total_heap_size` to `8388608`. "Big chunk sizes" have not been tested under FreeRTOS.
+3. Repeat the same steps of the preivous steps 4 to 6, but with the `wolfCrypt_FreeRTOS_example` resp. `wolfCrypt_FreeRTOS_example_system`.
+
+
+## Troubleshooting
+
+* `make: *** No rule to make target '../src/lscript.ld', needed by 'wolfCrypt_example.elf'.  Stop.`: You forgot to create the linker script
+* `/path/to/wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h:30:10: fatal error: xsecure_mailbox.h: No such file or directory`: You forgot to add the `xilmailbox` and/or `xilsecure` libraries.
+* `/path/to/wolfssl/wolfcrypt/src/port/xilinx/xil-aesgcm.c:90: undefined reference to 'Secure_AesInitialize'` (and others): You forgot to build the platform project after adding the libraries.
+
+## Code formatter
+
+In case one wants to write code in "wolfSSL style" in Vitis:
+   - go to "Window->Preferences->Additional->C/C++->Code Style->Formatter".
+   - Click on 'Import', navigate to `wolfssl/IDE/XilinxSDK/` and select the file `eclipse_formatter_profile.xml`, click on 'Apply and Close'.
+
+## Configuration
+
+All configuration is done through the header file in `wolfssl/IDE/XilinxSDK/user_settings.h`
+
+### Build flavors
+
+Define `WOLFSSL_XILINX_CRYPT` to enable the **crypto engines**. (This is the default)
+
+Undefine `WOLFSSL_XILINX_CRYPT` and define `WOLFSSL_ARMASM` to enable the **ARMv8 Cryptographic Extensions**.
+
+Undefine both `WOLFSSL_XILINX_CRYPT` and `WOLFSSL_ARMASM` to enable a **software-only build**.
+
+### Further features
+
+Define `WC_XIL_AESGCM_DPA_CM` to enable Counter Measures for Differential Power Analysis of the AES-GCM core. (Only available when using the crypto engines).
+
+Undefine `HAVE_HASHDRBG` to enable usage of the DRBG in the crypto engine.
+
+Define `WOLFSSL_ECDSA_DETERMINISTIC_K` to use "deterministic K" as of RFC6979. (Supported for all three build flavors).
 
 
 # Steps For Creating Project From Scratch

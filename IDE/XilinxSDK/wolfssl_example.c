@@ -48,26 +48,31 @@
 /*****************************************************************************
  * Public types/enumerations/variables
  ****************************************************************************/
-typedef struct func_args {
-	int argc;
-	char** argv;
-	int return_code;
+typedef struct func_args
+{
+    int argc;
+    char **argv;
+    int return_code;
 } func_args;
 
 const char menu1[] = "\n"
-		"\tt. WolfCrypt Test\n"
-		"\tb. WolfCrypt Benchmark\n";
+        "\tb. WolfCrypt Benchmark\n"
+        "\tt. WolfCrypt Test\n"
+        "\n"
+        "\tc. Command mode\n";
 
 /*****************************************************************************
  * Private functions
  ****************************************************************************/
+#if !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 /* Test RNG Seed Function */
 /* TODO: Must provide real seed to RNG */
 unsigned char my_rng_seed_gen(void)
 {
-	static unsigned int kTestSeed = 1;
-	return kTestSeed++;
+    static unsigned int kTestSeed = 1;
+    return kTestSeed++;
 }
+#endif
 
 /*****************************************************************************
  * Public functions
@@ -79,6 +84,8 @@ static TaskHandle_t xWolfsslTask;
 
 int main( void )
 {
+    xil_printf("\nStarting up FreeRTOS\n");
+
     xTaskCreate(wolfssl_task, /* The function that implements the task. */
                 (const char*) "Tx", /* Text name for the task, provided to assist debugging only. */
                 configMINIMAL_STACK_SIZE, /* The stack allocated to the task. */
@@ -103,8 +110,12 @@ static void wolfssl_task( void *pvParameters )
 int main()
 #endif
 {
-	uint8_t cmd;
-	func_args args;
+    uint8_t cmd[128], c;
+    char *arg[sizeof(cmd)/2 + 1];
+    size_t cmdlen, argnum, n;
+    func_args args;
+    int (*func)(int argc, char** argv);
+    int command_mode = 0;
 
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();
@@ -117,38 +128,87 @@ int main()
         memset(&args, 0, sizeof(args));
         args.return_code = NOT_COMPILED_IN; /* default */
 
-		xil_printf("\n\t\t\t\tMENU\n");
-		xil_printf(menu1);
-		xil_printf("Please select one of the above options:\n");
+        if (!command_mode) {
+            xil_printf("\n\t\t\t\tMENU\n");
+            xil_printf(menu1);
+            xil_printf("Please select one of the above options:\n");
+            xil_printf("Both 'b' and 't' allow arguments as if you'd call the regular shell version.\n");
+        }
 
+
+        cmdlen = 0;
         do {
-        	cmd = inbyte();
-        } while (cmd == '\n' || cmd == '\r');
+            c = inbyte();
+            cmd[cmdlen] = c;
+            if (!command_mode) outbyte(c);
+            cmdlen++;
+            cmdlen %= sizeof(cmd);
+        } while (c != '\n' && c != '\r');
 
-		switch (cmd) {
-		case 't':
-			xil_printf("Running wolfCrypt Tests...\n");
-        #ifndef NO_CRYPT_TEST
-			args.return_code = 0;
-			wolfcrypt_test(&args);
-        #endif
-			xil_printf("Crypt Test: Return code %d\n", args.return_code);
-			break;
+        if (cmdlen > 2) {
+            outbyte('\n');
+            /* Poor man's argv parser */
+            XMEMSET(arg, 0, sizeof(arg));
+            if (cmd[1] == ' ') {
+                if (cmd[0] == 'b') {
+                    arg[0] = "wolfcrypt_benchmark";
+                    func = wolfcrypt_benchmark_main;
+                } else if (cmd[0] == 't') {
+                    arg[0] = "wolfcrypt_test";
+                    func = wolfcrypt_test_main;
+                }
+                if (arg[0] != NULL) {
+                    argnum = 1;
+                    for (n = 2; n < cmdlen; ++n) {
+                        switch (cmd[n]) {
+                            case ' ':
+                            case '\t':
+                            case '\r':
+                            case '\n':
+                                cmd[n] = '\0';
+                                if (arg[argnum] != NULL)
+                                    argnum++;
+                                break;
+                            default:
+                                if (arg[argnum] == NULL)
+                                    arg[argnum] = (char*)&cmd[n];
+                                break;
+                        }
+                    }
+                    func(argnum, arg);
+                }
+            }
+        } else {
+            switch (cmd[0]) {
+            case 't':
+                xil_printf("Running wolfCrypt Tests...\n");
+            #ifndef NO_CRYPT_TEST
+                args.return_code = 0;
+                wolfcrypt_test(&args);
+            #endif
+                xil_printf("Crypt Test: Return code %d\n", args.return_code);
+                break;
 
-		case 'b':
-			xil_printf("Running wolfCrypt Benchmarks...\n");
-        #ifndef NO_CRYPT_BENCHMARK
-			args.return_code = 0;
-			benchmark_test(&args);
-        #endif
-			xil_printf("Benchmark Test: Return code %d\n", args.return_code);
-			break;
+            case 'b':
+                xil_printf("Running wolfCrypt Benchmarks...\n");
+            #ifndef NO_CRYPT_BENCHMARK
+                args.return_code = 0;
+                benchmark_test(&args);
+            #endif
+                xil_printf("Benchmark Test: Return code %d\n", args.return_code);
+                break;
 
-		default:
-			xil_printf("\nSelection out of range\n");
-			break;
-		}
-	}
+            case 'c':
+                if (!command_mode) xil_printf("Entering command mode, enter 'c<enter>' to return to manual mode\n");
+                command_mode ^= 1;
+                break;
+
+            default:
+                if (!command_mode) xil_printf("\nSelection out of range\n");
+                break;
+            }
+        }
+    }
 
     wolfCrypt_Cleanup();
 #ifndef FREERTOS

@@ -83,7 +83,11 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLFSSL_XILINX_CRYPT
-#include "xsecure_rsa.h"
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
+#include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
+#else
+#include <xsecure_rsa.h>
+#endif
 #endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
@@ -214,7 +218,12 @@ struct RsaKey {
 #ifdef WOLFSSL_XILINX_CRYPT
     word32 pubExp; /* to keep values in scope they are here in struct */
     byte*  mod;
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    int mSz;
+    wc_Xsecure xSec;
+#else
     XSecure_Rsa xRsa;
+#endif
 #endif
 #if defined(WOLFSSL_KCAPI_RSA)
     struct kcapi_handle* handle;
