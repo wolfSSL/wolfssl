@@ -14085,3 +14085,12 @@ int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA* rsa,
                                int flag, int padding);
+/*!
+
+\brief checks if DTLSv1.3 stack has some messages sent but not yet acknowledged
+ by the other peer
+
+ \return 1 if there are pending messages, 0 otherwise
+ \param ssl A WOLFSSL object pointer
+*/
+int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);

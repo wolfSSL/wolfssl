@@ -869,6 +869,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
 #ifdef WOLFSSL_DTLS13
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_server_method_ex(void* heap);
+    WOLFSSL_API int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
 #endif
 
 #endif
