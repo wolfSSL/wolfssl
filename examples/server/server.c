@@ -546,6 +546,11 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
         else if (SSL_get_error(ssl, 0) == 0 &&
                             tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
+            err = wolfSSL_peek(ssl, buffer, 0);
+            if(err < 0) {
+                err_sys_ex(runWithErrors, "wolfSSL_peek failed");
+            }
+            if (wolfSSL_pending(ssl))
                 err = WOLFSSL_ERROR_WANT_READ;
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
@@ -2160,13 +2165,22 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
     else {
         if (doDTLS) {
-            if (version == 3)
+            if (version == 3) {
                 version = -2;
+            }
+            else if (version == 4) {
+#ifdef WOLFSSL_DTLS13
+                version = -4;
+#else
+                err_sys_ex(runWithErrors, "Bad DTLS version");
+#endif /* WOLFSSL_DTLS13 */
+            }
         #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-            else if (version == EITHER_DOWNGRADE_VERSION)
+            else if (version == EITHER_DOWNGRADE_VERSION) {
                 version = -3;
+            }
         #endif
-            else
+            else if (version == 2)
                 version = -1;
         }
     }
@@ -2225,7 +2239,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif
 
         case SERVER_DOWNGRADE_VERSION:
-            method = wolfSSLv23_server_method_ex;
+            if (!doDTLS) {
+                method = wolfSSLv23_server_method_ex;
+            }
+            else {
+#ifdef WOLFSSL_DTLS13
+                method = wolfDTLS_server_method_ex;
+#else
+                err_sys_ex(runWithErrors, "version not supported");
+#endif /* WOLFSSL_DTLS13 */
+            }
             break;
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case EITHER_DOWNGRADE_VERSION:
@@ -2246,6 +2269,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             method = wolfDTLSv1_2_server_method_ex;
             break;
     #endif
+#ifdef WOLFSSL_DTLS13
+        case -4:
+            method = wolfDTLSv1_3_server_method_ex;
+            break;
+#endif
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case -3:
             method = wolfDTLSv1_2_method_ex;
@@ -2291,6 +2319,19 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(catastrophic, "unable to get ctx");
 
     if (minVersion != SERVER_INVALID_VERSION) {
+#ifdef WOLFSSL_DTLS13
+        switch (minVersion) {
+        case 4:
+            minVersion = WOLFSSL_DTLSV1_3;
+            break;
+        case 3:
+            minVersion = WOLFSSL_DTLSV1_2;
+            break;
+        case 2:
+            minVersion = WOLFSSL_DTLSV1;
+            break;
+        }
+#endif /* WOLFSSL_DTLS13 */
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
 
@@ -3343,6 +3384,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
 
                 wolfSSL_request_certificate(ssl);
+
             }
 
     #endif
@@ -3394,6 +3436,23 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #elif defined (WOLFSSL_TIRTOS)
         Task_yield();
 #endif
+
+#if defined(WOLFSSL_DTLS13)
+        if (wolfSSL_dtls(ssl) && version == -4) {
+            int zero_return = 0;
+            while (wolfSSL_dtls13_has_pending_msg(ssl)) {
+                err =
+                    process_handshake_messages(ssl, !nonBlocking, &zero_return);
+                if (err < 0) {
+                    /* other peer closes the connection, non fatal */
+                    if (zero_return)
+                        break;
+
+                    err_sys("Error while processing pending DTLSv1.3 messages");
+                }
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
 
         ret = SSL_shutdown(ssl);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
