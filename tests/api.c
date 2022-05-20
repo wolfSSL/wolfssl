@@ -44818,7 +44818,7 @@ static void test_wolfSSL_EVP_CIPHER_block_size(void)
     #endif
 #endif
 
-#ifdef HAVE_AES_GCM
+#ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_gcm()), 1);
     #endif
