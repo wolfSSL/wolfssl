@@ -112,3 +112,7 @@ EXTRA_DIST +=  scripts/dertoc.pl
 EXTRA_DIST += scripts/stm32l4-v4_0_1_build.sh
 
 EXTRA_DIST += scripts/cleanup_testfiles.sh
+
+if BUILD_DTLS13
+EXTRA_DIST += scripts/dtls13.test
+endif
