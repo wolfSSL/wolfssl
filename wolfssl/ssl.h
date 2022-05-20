@@ -865,6 +865,12 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_method_ex(void* heap);
+
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_client_method_ex(void* heap);
+    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_server_method_ex(void* heap);
+#endif
+
 #endif
 
 /* CTX Method Constructor Functions */
@@ -899,6 +905,12 @@ WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_client_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_method(void);
+
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_client_method(void);
+    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_3_server_method(void);
+#endif
+
 #endif
 
 #ifdef HAVE_POLY1305
@@ -2995,6 +3007,7 @@ enum {
     WOLFSSL_TLSV1_3  = 4,
     WOLFSSL_DTLSV1   = 5,
     WOLFSSL_DTLSV1_2 = 6,
+    WOLFSSL_DTLSV1_3 = 7,
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */

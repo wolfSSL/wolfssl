@@ -1179,6 +1179,7 @@ enum Misc {
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
     DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
+    DTLSv1_3_MINOR  = 0xfc,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
     SSLv3_MINOR     = 0,        /* TLSv1   minor version number */
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
@@ -1497,6 +1498,11 @@ enum Misc {
     #endif
 #endif
 
+/* minimum DTLS Downgrade Minor version */
+#ifndef WOLFSSL_MIN_DTLS_DOWNGRADE
+#define WOLFSSL_MIN_DTLS_DOWNGRADE DTLS_MINOR;
+#endif
+
 /* Set max implicit IV size for AEAD cipher suites */
 #define AEAD_MAX_IMP_SZ 12
 
@@ -1665,6 +1671,10 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_3(void);
+#endif /* WOLFSSL_DTLS13 */
 
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -5228,6 +5238,9 @@ WOLFSSL_LOCAL int oid2nid(word32 oid, int grp);
 WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #endif
 
+#ifdef WOLFSSL_DTLS13
+
+#endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);
 #endif

@@ -4516,6 +4516,18 @@ static int SetMinVersionHelper(byte* minVersion, int version)
             break;
     #endif
 
+#ifdef WOLFSSL_DTLS13
+        case WOLFSSL_DTLSV1:
+            *minVersion = DTLS_MINOR;
+            break;
+        case WOLFSSL_DTLSV1_2:
+            *minVersion = DTLSv1_2_MINOR;
+            break;
+        case WOLFSSL_DTLSV1_3:
+            *minVersion = DTLSv1_3_MINOR;
+            break;
+#endif /* WOLFSSL_DTLS13 */
+
         default:
             WOLFSSL_MSG("Bad function argument");
             return BAD_FUNC_ARG;
@@ -19795,6 +19807,8 @@ static const char* wolfSSL_internal_get_version(const ProtocolVersion* version)
                 return "DTLS";
             case DTLSv1_2_MINOR :
                 return "DTLSv1.2";
+            case DTLSv1_3_MINOR :
+                return "DTLSv1.3";
             default:
                 return "unknown";
         }

@@ -27,4 +27,47 @@
 
 #ifdef WOLFSSL_DTLS13
 
+#include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
+
+WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
+{
+    WOLFSSL_METHOD* method;
+
+    WOLFSSL_ENTER("DTLSv1_3_client_method_ex");
+
+    method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
+        DYNAMIC_TYPE_METHOD);
+    if (method)
+        InitSSL_Method(method, MakeDTLSv1_3());
+
+    return method;
+}
+
+WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
+{
+    WOLFSSL_METHOD* method;
+
+    WOLFSSL_ENTER("DTLSv1_3_server_method_ex");
+
+    method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
+        DYNAMIC_TYPE_METHOD);
+    if (method) {
+        InitSSL_Method(method, MakeDTLSv1_3());
+        method->side = WOLFSSL_SERVER_END;
+    }
+
+    return method;
+}
+
+WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
+{
+    return wolfDTLSv1_3_client_method_ex(NULL);
+}
+
+WOLFSSL_METHOD* wolfDTLSv1_3_server_method(void)
+{
+    return wolfDTLSv1_3_server_method_ex(NULL);
+}
+
 #endif /* WOLFSSL_DTLS13 */

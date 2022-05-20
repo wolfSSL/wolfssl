@@ -5628,6 +5628,58 @@ static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
 /******************************************************************************/
 
 #ifdef WOLFSSL_TLS13
+static WC_INLINE int versionIsGreater(byte isDtls, byte a, byte b)
+{
+    (void)isDtls;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS version increases backwards (-1,-2,-3,etc) */
+    if (isDtls)
+        return a < b;
+#endif /* WOLFSSL_DTLS */
+
+    return a > b;
+}
+
+static WC_INLINE int versionIsLesser(byte isDtls, byte a, byte b)
+{
+    (void)isDtls;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS version increases backwards (-1,-2,-3,etc) */
+    if (isDtls)
+        return a > b;
+#endif /* WOLFSSL_DTLS */
+
+    return a < b;
+}
+
+static WC_INLINE int versionIsAtLeast(byte isDtls, byte a, byte b)
+{
+    (void)isDtls;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS version increases backwards (-1,-2,-3,etc) */
+    if (isDtls)
+        return a <= b;
+#endif /* WOLFSSL_DTLS */
+
+    return a >= b;
+}
+
+static WC_INLINE int versionIsLessEqual(byte isDtls, byte a, byte b)
+{
+    (void)isDtls;
+
+#ifdef WOLFSSL_DTLS
+    /* DTLS version increases backwards (-1,-2,-3,etc) */
+    if (isDtls)
+        return a >= b;
+#endif /* WOLFSSL_DTLS */
+
+    return a <= b;
+}
+
 /* Return the size of the SupportedVersions extension's data.
  *
  * data       The SSL/TLS object.
@@ -5637,12 +5689,23 @@ static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
 static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
+    byte tls13Minor, tls12Minor, tls11Minor, isDtls;
+
+    /* unused on some configuration */
+    (void)tls12Minor;
+    (void)tls13Minor;
+    (void)tls11Minor;
+
+    isDtls = !!ssl->options.dtls;
+    tls13Minor = (byte)(isDtls ? DTLSv1_3_MINOR : TLSv1_3_MINOR);
+    tls12Minor = (byte)(isDtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR);
+    tls11Minor = (byte)(isDtls ? DTLS_MINOR : TLSv1_1_MINOR);
 
     if (msgType == client_hello) {
         /* TLS v1.2 and TLS v1.3  */
         int cnt = 0;
 
-        if ((ssl->options.minDowngrade <= TLSv1_3_MINOR)
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade, tls13Minor)
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
             defined(WOLFSSL_WPAS_SMALL)
             && (ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0
@@ -5653,17 +5716,19 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
 
         if (ssl->options.downgrade) {
     #ifndef WOLFSSL_NO_TLS12
-            if ((ssl->options.minDowngrade <= TLSv1_2_MINOR)
-            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
-                defined(WOLFSSL_WPAS_SMALL)
+            if (versionIsLessEqual(
+                    isDtls, ssl->options.minDowngrade, tls12Minor)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) ||                       \
+    defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0
-            #endif
+#endif
             ) {
                 cnt++;
             }
-    #endif
+#endif
     #ifndef NO_OLD_TLS
-            if ((ssl->options.minDowngrade <= TLSv1_1_MINOR)
+            if (versionIsLessEqual(
+                    isDtls, ssl->options.minDowngrade, tls11Minor)
             #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                 defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0
@@ -5672,7 +5737,7 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
                 cnt++;
             }
         #ifdef WOLFSSL_ALLOW_TLSV10
-            if ((ssl->options.minDowngrade <= TLSv1_MINOR)
+            if (!ssl->options.dtls && (ssl->options.minDowngrade <= TLSv1_MINOR)
             #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                 defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1) == 0
@@ -5709,6 +5774,24 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
     WOLFSSL* ssl = (WOLFSSL*)data;
     byte major;
     byte* cnt;
+    byte tls13minor, tls12minor, tls11minor, isDtls = 0;
+
+    tls13minor = (byte)TLSv1_3_MINOR;
+    tls12minor = (byte)TLSv1_2_MINOR;
+    tls11minor = (byte)TLSv1_1_MINOR;
+
+    /* unused in some configuration */
+    (void)tls11minor;
+    (void)tls12minor;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        tls13minor = (byte)DTLSv1_3_MINOR;
+        tls12minor = (byte)DTLSv1_2_MINOR;
+        tls11minor = (byte)DTLS_MINOR;
+        isDtls = 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     if (msgType == client_hello) {
         major = ssl->ctx->method->version.major;
@@ -5716,11 +5799,11 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
         cnt = output++;
         *cnt = 0;
 
-        if ((ssl->options.minDowngrade <= TLSv1_3_MINOR)
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
-            defined(WOLFSSL_WPAS_SMALL)
+        if (versionIsLessEqual(isDtls, ssl->options.minDowngrade, tls13minor)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) ||                       \
+    defined(WOLFSSL_WPAS_SMALL)
             && (ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0
-        #endif
+#endif
         ) {
             *cnt += OPAQUE16_LEN;
         #ifdef WOLFSSL_TLS13_DRAFT
@@ -5730,26 +5813,26 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
             *(output++) = TLS_DRAFT_MINOR;
         #else
             *(output++) = major;
-            *(output++) = (byte)TLSv1_3_MINOR;
+            *(output++) = tls13minor;
         #endif
         }
 
         if (ssl->options.downgrade) {
         #ifndef WOLFSSL_NO_TLS12
-            if ((ssl->options.minDowngrade <= TLSv1_2_MINOR)
-            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            if (versionIsLessEqual(isDtls, ssl->options.minDowngrade, tls12minor)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                 defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0
             #endif
             ) {
                 *cnt += OPAQUE16_LEN;
                 *(output++) = major;
-                *(output++) = (byte)TLSv1_2_MINOR;
+                *(output++) = tls12minor;
             }
         #endif
 
     #ifndef NO_OLD_TLS
-            if ((ssl->options.minDowngrade <= TLSv1_1_MINOR)
+            if (versionIsLessEqual(isDtls, ssl->options.minDowngrade, tls11minor)
             #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                 defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0
@@ -5757,10 +5840,10 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
             ) {
                 *cnt += OPAQUE16_LEN;
                 *(output++) = major;
-                *(output++) = (byte)TLSv1_1_MINOR;
+                *(output++) = tls11minor;
             }
         #ifdef WOLFSSL_ALLOW_TLSV10
-            if ((ssl->options.minDowngrade <= TLSv1_MINOR)
+            if (!ssl->options.dtls && (ssl->options.minDowngrade <= TLSv1_MINOR)
             #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                 defined(WOLFSSL_WPAS_SMALL)
                 && (ssl->options.mask & SSL_OP_NO_TLSv1) == 0
@@ -5806,6 +5889,20 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
     int newMinor = 0;
     int set = 0;
     int ret;
+    int tls13minor;
+    int tls12minor;
+    byte isDtls;
+
+    tls13minor = TLSv1_3_MINOR;
+    tls12minor = TLSv1_2_MINOR;
+    isDtls = ssl->options.dtls == 1;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        tls13minor = DTLSv1_3_MINOR;
+        tls12minor = DTLSv1_2_MINOR;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     if (msgType == client_hello) {
         /* Must contain a length and at least one version. */
@@ -5839,23 +5936,27 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
                 continue;
 
             /* No upgrade allowed. */
-            if (minor > ssl->version.minor)
+            if (versionIsGreater(isDtls, minor, ssl->version.minor))
                     continue;
+
             /* Check downgrade. */
-            if (minor < ssl->version.minor) {
+            if (versionIsLesser(isDtls, minor, ssl->version.minor)) {
                 if (!ssl->options.downgrade)
                     continue;
 
-                if (minor < ssl->options.minDowngrade)
+                if (versionIsLesser(
+                        isDtls, minor, ssl->options.minDowngrade))
                     continue;
 
-                if (newMinor == 0 && minor > ssl->options.oldMinor) {
+                if (newMinor == 0 &&
+                    versionIsGreater(
+                        isDtls, minor, ssl->options.oldMinor)) {
                     /* Downgrade the version. */
                     ssl->version.minor = minor;
                 }
             }
 
-            if (minor >= TLSv1_3_MINOR) {
+            if (versionIsAtLeast(isDtls, minor, tls13minor)) {
                 if (!ssl->options.tls1_3) {
                     ssl->options.tls1_3 = 1;
                     ret = TLSX_Prepend(&ssl->extensions,
@@ -5865,12 +5966,13 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
                     }
                     TLSX_SetResponse(ssl, TLSX_SUPPORTED_VERSIONS);
                 }
-                if (minor > newMinor) {
+                if (versionIsGreater(isDtls, minor, newMinor)) {
                     ssl->version.minor = minor;
                     newMinor = minor;
                 }
             }
-            else if (minor > ssl->options.oldMinor)
+            else if (versionIsGreater(
+                         isDtls, minor, ssl->options.oldMinor))
                 ssl->options.oldMinor = minor;
 
             set = 1;
@@ -5896,25 +5998,26 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
             return VERSION_ERROR;
 
         /* Can't downgrade with this extension below TLS v1.3. */
-        if (minor < TLSv1_3_MINOR)
+        if (versionIsLesser(isDtls, minor, tls13minor))
             return VERSION_ERROR;
 
         /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
-        if (ssl->options.downgrade && ssl->version.minor == TLSv1_2_MINOR) {
+        if (ssl->options.downgrade && ssl->version.minor == tls12minor) {
             /* Set minor version back to TLS v1.3+ */
             ssl->version.minor = ssl->ctx->method->version.minor;
         }
 
         /* No upgrade allowed. */
-        if (ssl->version.minor < minor)
+        if (versionIsLesser(isDtls, ssl->version.minor, minor))
             return VERSION_ERROR;
 
         /* Check downgrade. */
-        if (ssl->version.minor > minor) {
+        if (versionIsGreater(isDtls, ssl->version.minor, minor)) {
             if (!ssl->options.downgrade)
                 return VERSION_ERROR;
 
-            if (minor < ssl->options.minDowngrade)
+            if (versionIsLesser(
+                    isDtls, minor, ssl->options.minDowngrade))
                 return VERSION_ERROR;
 
             /* Downgrade the version. */
@@ -12768,7 +12871,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         (void)heap;
         WOLFSSL_ENTER("DTLS_server_method_ex");
         if (method) {
-        #if !defined(WOLFSSL_NO_TLS12)
+        #if defined(WOLFSSL_DTLS13)
+            InitSSL_Method(method, MakeDTLSv1_3());
+        #elif !defined(WOLFSSL_NO_TLS12)
             InitSSL_Method(method, MakeDTLSv1_2());
         #elif !defined(NO_OLD_TLS)
             InitSSL_Method(method, MakeDTLSv1());
