@@ -30407,52 +30407,74 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     if (idx < end_index)
     {
-        DecodedCert cert;
-
-        if (DecodeCerts(source, &idx, resp, size) < 0)
-            return ASN_PARSE_E;
-
-        InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
-
-        /* Don't verify if we don't have access to Cert Manager. */
-        ret = ParseCertRelative(&cert, CERT_TYPE,
-                                noVerify ? NO_VERIFY : VERIFY_OCSP_CERT, cm);
-        if (ret < 0) {
-            WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
-            FreeDecodedCert(&cert);
-            return ret;
-        }
-
-#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-        if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
-            if (XMEMCMP(cert.subjectHash,
-                        resp->single->issuerHash, OCSP_DIGEST_SIZE) == 0) {
-                WOLFSSL_MSG("\tOCSP Response signed by issuer");
-            }
-            else {
-                WOLFSSL_MSG("\tOCSP Responder key usage check failed");
-    #ifdef OPENSSL_EXTRA
-                resp->verifyError = OCSP_BAD_ISSUER;
-    #else
-                FreeDecodedCert(&cert);
-                return BAD_OCSP_RESPONDER;
-    #endif
-            }
-        }
+        int cert_inited = 0;
+#ifdef WOLFSSL_SMALL_STACK
+        DecodedCert *cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                  DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert == NULL)
+            return MEMORY_E;
+#else
+        DecodedCert cert[1];
 #endif
 
-        /* ConfirmSignature is blocking here */
-        ret = ConfirmSignature(&cert.sigCtx,
-            resp->response, resp->responseSz,
-            cert.publicKey, cert.pubKeySize, cert.keyOID,
-            resp->sig, resp->sigSz, resp->sigOID, NULL);
+        do {
+            if (DecodeCerts(source, &idx, resp, size) < 0) {
+                ret = ASN_PARSE_E;
+                break;
+            }
 
-        FreeDecodedCert(&cert);
+            InitDecodedCert(cert, resp->cert, resp->certSz, heap);
+            cert_inited = 1;
 
-        if (ret != 0) {
-            WOLFSSL_MSG("\tOCSP Confirm signature failed");
-            return ASN_OCSP_CONFIRM_E;
-        }
+            /* Don't verify if we don't have access to Cert Manager. */
+            ret = ParseCertRelative(cert, CERT_TYPE,
+                                    noVerify ? NO_VERIFY : VERIFY_OCSP_CERT,
+                                    cm);
+            if (ret < 0) {
+                WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
+                break;
+            }
+
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
+            if ((cert->extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
+                if (XMEMCMP(cert->subjectHash,
+                            resp->single->issuerHash, OCSP_DIGEST_SIZE) == 0) {
+                    WOLFSSL_MSG("\tOCSP Response signed by issuer");
+                }
+                else {
+                    WOLFSSL_MSG("\tOCSP Responder key usage check failed");
+    #ifdef OPENSSL_EXTRA
+                    resp->verifyError = OCSP_BAD_ISSUER;
+    #else
+                    ret = BAD_OCSP_RESPONDER;
+                    break;
+    #endif
+                }
+            }
+#endif
+
+            /* ConfirmSignature is blocking here */
+            ret = ConfirmSignature(
+                &cert->sigCtx,
+                resp->response, resp->responseSz,
+                cert->publicKey, cert->pubKeySize, cert->keyOID,
+                resp->sig, resp->sigSz, resp->sigOID, NULL);
+
+            if (ret != 0) {
+                WOLFSSL_MSG("\tOCSP Confirm signature failed");
+                ret = ASN_OCSP_CONFIRM_E;
+                break;
+            }
+        } while(0);
+
+        if (cert_inited)
+            FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+        if (ret != 0)
+            return ret;
     }
     else
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */

@@ -11,10 +11,8 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
-if [ $? -eq 0 ]; then
-    echo "TLS 1.2 or lower required"
-    echo "Skipped"
+if ! ./examples/client/client -V | grep -q 3; then
+    echo 'skipping ocsp-stapling.test because TLS1.2 is not available.' 1>&2
     exit 0
 fi
 
@@ -331,8 +329,7 @@ RESULT=$?
 printf '%s\n\n' "Test successfully REVOKED!"
 
 
-./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
-if [ $? -ne 0 ]; then
+if ./examples/client/client -V | grep -q 4; then
     printf '%s\n\n' "------------- TEST CASE 3 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERT
     remove_single_rF "$ready_file2"
@@ -376,6 +373,8 @@ if [ $? -ne 0 ]; then
                       printf '\n\n%s\n' "Client connection 5 succeeded $RESULT" \
                       && exit 1
     printf '%s\n\n' "Test successfully REVOKED!"
+else
+    echo 'skipping TLS1.3 stapling tests.' 1>&2
 fi
 
 # need a unique port since may run the same time as testsuite
@@ -408,9 +407,9 @@ printf '%s\n\n' "Test PASSED!"
 
 openssl ciphers -tls1_3
 openssl_tls13=$?
-./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
-wolfssl_not_tls13=$?
-if [ "$openssl_tls13" = "0" -a "$wolfssl_not_tls13" != "0" ]; then
+./examples/client/client -V | grep -q 4
+wolfssl_tls13=$?
+if [ "$openssl_tls13" = "0" -a "$wolfssl_tls13" = "0" ]; then
     printf '%s\n\n' "------------- TEST CASE 8 SHOULD PASS --------------------"
     # client asks for OCSP staple but doesn't fail when none returned
     ./examples/client/client -p $port -g -v 4 -W 1
@@ -428,6 +427,18 @@ if [ "$openssl_tls13" = "0" -a "$wolfssl_not_tls13" != "0" ]; then
                   && printf '\n\n%s\n' "Client connection 9 succeeded $RESULT" \
                   && exit 1
     printf '%s\n\n' "Test PASSED!"
+else
+    echo -n 'skipping TLS1.3 stapling interoperability test:' 1>&2
+    if [ "$openssl_tls13" != "0" ]; then
+        echo -n ' OpenSSL' 1>&2
+    fi
+    if [ "$wolfssl_tls13" != "0" ]; then
+        if [ "$openssl_tls13" != "0" ]; then
+            echo -n ' and' 1>&2
+        fi
+        echo -n ' wolfSSL' 1>&2
+    fi
+    echo -n ' missing TLS1.3 support.' 1>&2
 fi
 
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"

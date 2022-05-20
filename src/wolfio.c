@@ -317,8 +317,12 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #include <wolfssl/wolfcrypt/sha.h>
 
-#define SENDTO_FUNCTION sendto
-#define RECVFROM_FUNCTION recvfrom
+#ifndef DTLS_SENDTO_FUNCTION
+    #define DTLS_SENDTO_FUNCTION sendto
+#endif
+#ifndef DTLS_RECVFROM_FUNCTION
+    #define DTLS_RECVFROM_FUNCTION recvfrom
+#endif
 
 static int sockAddrEqual(
     SOCKADDR_S *a, XSOCKLENT aLen, SOCKADDR_S *b, XSOCKLENT bLen)
@@ -413,7 +417,9 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 #endif /* !NO_ASN_TIME */
 
-    recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
+    XMEMSET(&peer, 0, sizeof(peer));
+
+    recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
                                   (SOCKADDR*)&peer, &peerSz);
 
     recvd = TranslateReturnCode(recvd, sd);
@@ -455,7 +461,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
-    sent = (int)SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
+    sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
                                 (const SOCKADDR*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
 
@@ -483,7 +489,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedReceiveFromMcast()");
 
-    recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags, NULL, NULL);
+    recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags, NULL, NULL);
 
     recvd = TranslateReturnCode(recvd, sd);
 

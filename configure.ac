@@ -7788,10 +7788,10 @@ AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA],[test "x$ENABLED_INTEL_QA" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA_SYNC],[test "x$ENABLED_INTEL_QA_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_SP],[test "x$ENABLED_SP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_C32],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
+AM_CONDITIONAL([BUILD_SP_C32],[ ( ( (test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
                                || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
                              || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_64BIT" != "xyes"])
-AM_CONDITIONAL([BUILD_SP_C64],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
+AM_CONDITIONAL([BUILD_SP_C64],[ ( ( (test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
                                || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
                              || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_32BIT" != "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM64],[test "x$ENABLED_SP_ARM64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
