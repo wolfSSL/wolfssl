@@ -195,6 +195,11 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl);
 #endif
 
+#ifdef WOLFSSL_DTLS13
+#ifndef WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT
+#define WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT 0
+#endif
+#endif /* WOLFSSL_DTLS13 */
 
 enum processReply {
     doProcessInit = 0,
@@ -6778,6 +6783,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
     ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
     ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->options.dtls13SendMoreAcks = WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT;
+    ssl->dtls13Rtx.rtxRecordTailPtr = &ssl->dtls13Rtx.rtxRecords;
 #endif /* WOLFSSL_DTLS13 */
 
     return 0;
@@ -7425,6 +7432,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
     ssl->ca_names = NULL;
 #endif
+#ifdef WOLFSSL_DTLS13
+    Dtls13FreeFsmResources(ssl);
+#endif /* WOLFSSL_DTLS13 */
 }
 
 /* Free any handshake resources no longer needed */
@@ -9175,6 +9185,18 @@ retry:
 
             case WOLFSSL_CBIO_ERR_TIMEOUT:
             #ifdef WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TODO: support WANT_WRITE here */
+                    if (Dtls13RtxTimeout(ssl) < 0) {
+                        WOLFSSL_MSG(
+                            "Error trying to retransmit DTLS buffered message");
+                        return -1;
+                    }
+                    goto retry;
+                }
+#endif /* WOLFSSL_DTLS13 */
+
                 if (IsDtlsNotSctpMode(ssl) &&
                     ssl->options.handShakeState != HANDSHAKE_DONE &&
                     DtlsMsgPoolTimeout(ssl) == 0 &&
@@ -9604,15 +9626,30 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, const byte* input,
 
 #ifdef WOLFSSL_DTLS13
     word32 read_size;
+    int ret;
 
     read_size = ssl->buffers.inputBuffer.length - *inOutIdx;
 
     if (Dtls13IsUnifiedHeader(*(input + *inOutIdx))) {
 
         /* version 1.3 already negotiated */
-       if (ssl->options.tls1_3)
-           return GetDtls13RecordHeader(ssl, input, inOutIdx, rh, size);
+        if (ssl->options.tls1_3) {
+            ret = GetDtls13RecordHeader(ssl, input, inOutIdx, rh, size);
+            if (ret == 0 || ret != SEQUENCE_ERROR)
+                return ret;
+        }
 
+#ifndef NO_WOLFSSL_CLIENT
+        if (ssl->options.side == WOLFSSL_CLIENT_END
+            && ssl->options.serverState < SERVER_HELLO_COMPLETE
+            && IsAtLeastTLSv1_3(ssl->version)
+            && !ssl->options.handShakeDone) {
+            /* we may have lost ServerHello. Try to send a empty ACK to shortcut
+               Server retransmission timer */
+            ssl->dtls13Rtx.sendAcks = 1;
+        }
+#endif
+        return SEQUENCE_ERROR;
     }
 
     /* not a unified header, check that we have at least
@@ -9735,6 +9772,15 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else if (ssl->options.dtls && rh->type == handshake)
             /* Check the DTLS handshake message RH version later. */
             WOLFSSL_MSG("DTLS handshake, skip RH version number check");
+#ifdef WOLFSSL_DTLS13
+        else if (ssl->options.dtls && !ssl->options.handShakeDone) {
+            /* we may have lost the ServerHello and this is a unified record
+               before version been negotiated */
+            if (Dtls13IsUnifiedHeader(*input)) {
+                return SEQUENCE_ERROR;
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
         else {
             WOLFSSL_MSG("SSL version error");
             /* send alert per RFC5246 Appendix E. Backward Compatibility */
@@ -9771,6 +9817,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         case change_cipher_spec:
         case application_data:
         case alert:
+#ifdef WOLFSSL_DTLS13
+        case ack:
+#endif /* WOLFSSL_DTLS13 */
             break;
         case no_type:
         default:
@@ -17858,6 +17907,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 
+#ifdef WOLFSSL_DTLS13
+                /* return to send ACKS and shortcut rtx timer */
+                if (IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->dtls13Rtx.sendAcks)
+                    return 0;
+#endif /* WOLFSSL_DTLS13 */
+
                 continue;
             }
 #endif
@@ -18630,6 +18686,22 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         ret = 0;
                     break;
 
+#ifdef WOLFSSL_DTLS13
+            case ack:
+                WOLFSSL_MSG("got ACK");
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+                    word32 processedSize = 0;
+                    ret = DoDtls13Ack(ssl, ssl->buffers.inputBuffer.buffer +
+                                             ssl->buffers.inputBuffer.idx,
+                                             ssl->buffers.inputBuffer.length -
+                                             ssl->buffers.inputBuffer.idx -
+                                             ssl->keys.padSz, &processedSize);
+                    ssl->buffers.inputBuffer.idx += processedSize;
+                    ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                    break;
+                }
+                FALL_THROUGH;
+#endif /* WOLFSSL_DTLS13 */
                 default:
                     WOLFSSL_ERROR(UNKNOWN_RECORD_TYPE);
                     return UNKNOWN_RECORD_TYPE;
@@ -21088,6 +21160,16 @@ startScr:
             }
             return ssl->error;
         }
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            /* Dtls13DoScheduledWork(ssl) may return WANT_WRITE */
+            if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return ssl->error;
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
         #ifdef HAVE_SECURE_RENEGOTIATION
             if (ssl->secure_renegotiation &&
                 ssl->secure_renegotiation->startScr) {

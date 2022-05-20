@@ -6991,12 +6991,21 @@ exit_scv:
 static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                               word32 totalSz)
 {
-    int ret;
+    int ret = 0;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
     WOLFSSL_ENTER("DoTls13Certificate");
 
-    ret = ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && ssl->options.handShakeDone) {
+        /* certificate needs some special care after the handshake */
+        ret = Dtls13RtxProcessingCertificate(
+            ssl, input + *inOutIdx, totalSz);
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    if (ret == 0)
+        ret = ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
     if (ret == 0) {
 #if !defined(NO_WOLFSSL_CLIENT)
         if (ssl->options.side == WOLFSSL_CLIENT_END)
@@ -9123,6 +9132,15 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
                 ssl->options.processReply = 0; /* doProcessInit */
 
+                /*
+                   DTLSv1.3 note: We can't reset serverState to
+                   SERVER_FINISHED_COMPLETE with the goal that this connect
+                   blocks until the cert/cert_verify/finished flight gets ACKed
+                   by the server. The problem is that we will invoke
+                   ProcessReplyEx() in that case, but we came here from
+                   ProcessReplyEx() and it is not re-entrant safe (the input
+                   buffer would still have the certificate_request message). */
+
                 if (wolfSSL_connect_TLSv13(ssl) != WOLFSSL_SUCCESS) {
                     ret = ssl->error;
                     if (ret != WC_PENDING_E)
@@ -9317,7 +9335,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
-        advanceState = advanceState && !ssl->dtls13SendingFragments;
+        advanceState = advanceState && !ssl->dtls13SendingFragments
+            && !ssl->dtls13SendingAckOrRtx;
 #endif /* WOLFSSL_DTLS13 */
 
     if (ssl->buffers.outputBuffer.length > 0
@@ -9330,7 +9349,21 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         if ((ssl->error = SendBuffered(ssl)) == 0) {
             if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 if (advanceState) {
-                    ssl->options.connectState++;
+#ifdef WOLFSSL_DTLS13
+                    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version) &&
+                        ssl->options.connectState == FIRST_REPLY_FOURTH) {
+                    /* WAIT_FINISHED_ACK is a state added afterwards, but it
+                       can't follow FIRST_REPLY_FOURTH in the enum order. Indeed
+                       the value of the enum ConnectState is stored in
+                       serialized session. This would make importing serialized
+                       session from other wolfSSL version incompatible */
+                    ssl->options.connectState = WAIT_FINISHED_ACK;
+                    }
+                    else
+#endif /* WOLFSSL_DTLS13 */
+                    {
+                        ssl->options.connectState++;
+                    }
                     WOLFSSL_MSG("connect state: "
                                 "Advanced from last buffered fragment send");
                 }
@@ -9342,6 +9375,12 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #ifdef WOLFSSL_ASYNC_IO
             FreeAsyncCtx(ssl, 0);
         #endif
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                ssl->dtls13SendingAckOrRtx =0;
+#endif /* WOLFSSL_DTLS13 */
+
         }
         else {
             ssl->error = ret;
@@ -9402,9 +9441,18 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             while (ssl->options.serverState <
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
                 }
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+#endif /* WOLFSSL_DTLS13 */
             }
 
             if (!ssl->options.tls1_3) {
@@ -9450,9 +9498,18 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             /* Get the response/s from the server. */
             while (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
                 }
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+#endif /* WOLFSSL_DTLS13 */
             }
 
             ssl->options.connectState = FIRST_REPLY_DONE;
@@ -9545,6 +9602,26 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
             WOLFSSL_MSG("sent: finished");
 
+#ifdef WOLFSSL_DTLS13
+            ssl->options.connectState = WAIT_FINISHED_ACK;
+            WOLFSSL_MSG("connect state: WAIT_FINISHED_ACK");
+            FALL_THROUGH;
+
+        case WAIT_FINISHED_ACK:
+            if (ssl->options.dtls) {
+                while (ssl->options.serverState != SERVER_FINISHED_ACKED) {
+                    if ((ssl->error = ProcessReply(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
             ssl->options.connectState = FINISHED_DONE;
             WOLFSSL_MSG("connect state: FINISHED_DONE");
             FALL_THROUGH;
@@ -10340,8 +10417,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls)
-            advanceState = advanceState &&
-                !ssl->dtls13SendingFragments;
+            advanceState = advanceState && !ssl->dtls13SendingFragments
+                && !ssl->dtls13SendingAckOrRtx;
 #endif /* WOLFSSL_DTLS13 */
 
         if ((ssl->error = SendBuffered(ssl)) == 0) {
@@ -10359,6 +10436,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 WOLFSSL_MSG("accept state: "
                             "Not advanced, more fragments to send");
             }
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                ssl->dtls13SendingAckOrRtx = 0;
+#endif /* WOLFSSL_DTLS13 */
+
         }
         else {
             ssl->error = ret;
@@ -10397,6 +10480,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+#endif /* WOLFSSL_DTLS13 */
+
             }
 
             ssl->options.acceptState = TLS13_ACCEPT_CLIENT_HELLO_DONE;
@@ -10444,6 +10537,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+#endif /* WOLFSSL_DTLS13 */
+
                 }
             }
 
@@ -10578,11 +10681,21 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_PRE_TICKET_SENT :
-            while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
+            while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                 }
+#endif /* WOLFSSL_DTLS13 */
+            }
 
             ssl->options.acceptState = TLS13_ACCEPT_FINISHED_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FINISHED_DONE");
@@ -10881,8 +10994,19 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         ret = ReceiveData(ssl, (byte*)data, sz, FALSE);
         if (ret > 0)
             *outSz = ret;
-        if (ssl->error == ZERO_RETURN)
+        if (ssl->error == ZERO_RETURN) {
             ssl->error = WOLFSSL_ERROR_NONE;
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                ret = Dtls13DoScheduledWork(ssl);
+                if (ret  < 0) {
+                    ssl->error = ret;
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
+        }
     }
     else
         ret = 0;

@@ -11497,6 +11497,30 @@ int wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl)
     return timeout;
 }
 
+#ifdef WOLFSSL_DTLS13
+
+/*
+ * This API returns 1 when the user should set a short timeout for receiving
+ * data. It is recommended that it is at most 1/4 the value returned by
+ * wolfSSL_dtls_get_current_timeout().
+ */
+int wolfSSL_dtls13_use_quick_timeout(WOLFSSL* ssl)
+{
+    return ssl->dtls13FastTimeout;
+}
+
+/*
+ * When this is set, a DTLS 1.3 connection will send acks immediately when a
+ * disruption is detected to shortcut timeouts. This results in potentially
+ * more traffic but may make the handshake quicker.
+ */
+void wolfSSL_dtls13_set_send_more_acks(WOLFSSL* ssl, int value)
+{
+    if (ssl != NULL)
+        ssl->options.dtls13SendMoreAcks = !!value;
+}
+#endif /* WOLFSSL_DTLS13 */
+
 int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
     if (ssl && timeleft) {
@@ -11566,6 +11590,21 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        result = Dtls13RtxTimeout(ssl);
+        if (result < 0) {
+            if (result == WANT_WRITE)
+                ssl->dtls13SendingAckOrRtx = 1;
+            ssl->error = result;
+            WOLFSSL_ERROR(result);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
         if (DtlsMsgPoolTimeout(ssl) < 0){
@@ -11789,6 +11828,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     {
     #if !(defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13))
         int neededState;
+        byte advanceState;
     #endif
         int ret = 0;
 
@@ -11856,6 +11896,21 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
         #endif
 
+        /* fragOffset is non-zero when sending fragments. On the last
+         * fragment, fragOffset is zero again, and the state can be
+         * advanced. */
+        advanceState = ssl->fragOffset == 0 &&
+            (ssl->options.connectState == CONNECT_BEGIN ||
+             ssl->options.connectState == HELLO_AGAIN ||
+             (ssl->options.connectState >= FIRST_REPLY_DONE &&
+              ssl->options.connectState <= FIRST_REPLY_FOURTH));
+;
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
+            advanceState = advanceState && !ssl->dtls13SendingAckOrRtx;
+#endif /* WOLFSSL_DTLS13 */
+
         if (ssl->buffers.outputBuffer.length > 0
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* do not send buffered or advance state if last error was an
@@ -11863,15 +11918,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             && ssl->error != WC_PENDING_E
         #endif
         ) {
-            if ( (ret = SendBuffered(ssl)) == 0) {
-                /* fragOffset is non-zero when sending fragments. On the last
-                 * fragment, fragOffset is zero again, and the state can be
-                 * advanced. */
+            if ( (ssl->error = SendBuffered(ssl)) == 0) {
                 if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
-                    if (ssl->options.connectState == CONNECT_BEGIN ||
-                        ssl->options.connectState == HELLO_AGAIN ||
-                       (ssl->options.connectState >= FIRST_REPLY_DONE &&
-                        ssl->options.connectState <= FIRST_REPLY_FOURTH)) {
+                    if (advanceState) {
                         ssl->options.connectState++;
                         WOLFSSL_MSG("connect state: "
                                     "Advanced from last buffered fragment send");
@@ -11942,6 +11991,27 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     #endif
                             neededState = SERVER_HELLODONE_COMPLETE;
                     }
+#ifdef WOLFSSL_DTLS13
+
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->dtls13Rtx.sendAcks == 1) {
+                    ssl->dtls13Rtx.sendAcks = 0;
+                    /* we aren't negotiated the version yet, so we aren't sure
+                     * the other end can speak v1.3. On the other side we have
+                     * received a unified records, assuming that the
+                     * ServerHello got lost, we will send an empty ACK. In case
+                     * the server is a DTLS with version less than 1.3, it
+                     * should just ignore the message */
+                    if ((ssl->error = SendDtls13Ack(ssl)) < 0) {
+                        if (ssl->error == WANT_WRITE)
+                            ssl->dtls13SendingAckOrRtx = 1;
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+
+
+#endif /* WOLFSSL_DTLS13 */
             }
 
             ssl->options.connectState = HELLO_AGAIN;
@@ -12094,6 +12164,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.connectState = FINISHED_DONE;
             WOLFSSL_MSG("connect state: FINISHED_DONE");
             FALL_THROUGH;
+
+#ifdef WOLFSSL_DTLS13
+        case WAIT_FINISHED_ACK:
+            ssl->options.connectState = FINISHED_DONE;
+            FALL_THROUGH;
+#endif /* WOLFSSL_DTLS13 */
 
         case FINISHED_DONE :
             /* get response */

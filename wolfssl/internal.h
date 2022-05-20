@@ -1633,7 +1633,7 @@ enum Misc {
     typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
     (void)sizeof(_args_test)
 
-/* states */
+/* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {
     NULL_STATE = 0,
 
@@ -1654,7 +1654,12 @@ enum states {
     CLIENT_CHANGECIPHERSPEC_COMPLETE,
     CLIENT_FINISHED_COMPLETE,
 
-    HANDSHAKE_DONE
+    HANDSHAKE_DONE,
+
+#ifdef WOLFSSL_DTLS13
+    SERVER_FINISHED_ACKED,
+#endif /* WOLFSSL_DTLS13 */
+
 };
 
 /* SSL Version */
@@ -3556,7 +3561,12 @@ enum ConnectState {
     FIRST_REPLY_THIRD,
     FIRST_REPLY_FOURTH,
     FINISHED_DONE,
-    SECOND_REPLY_DONE
+    SECOND_REPLY_DONE,
+
+#ifdef WOLFSSL_DTLS13
+    WAIT_FINISHED_ACK
+#endif /* WOLFSSL_DTLS13 */
+
 };
 
 
@@ -3836,6 +3846,10 @@ typedef struct Options {
 #endif
     word16            buildingMsg:1;      /* If set then we need to re-enter the
                                            * handshake logic. */
+#ifdef WOLFSSL_DTLS13
+    word16            dtls13SendMoreAcks:1;  /* Send more acks during the
+                                              * handshake process */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -4367,7 +4381,47 @@ typedef struct Dtls13Epoch {
     byte side;
 } Dtls13Epoch;
 
-#define DTLS13_EPOCH_SIZE 3
+#ifndef DTLS13_EPOCH_SIZE
+#define DTLS13_EPOCH_SIZE 4
+#endif
+
+#ifndef DTLS13_RETRANS_RN_SIZE
+#define DTLS13_RETRANS_RN_SIZE 3
+#endif
+
+enum Dtls13RtxFsmState {
+    DTLS13_RTX_FSM_PREPARING = 0,
+    DTLS13_RTX_FSM_SENDING,
+    DTLS13_RTX_FSM_WAITING,
+    DTLS13_RTX_FSM_FINISHED
+};
+
+typedef struct Dtls13RtxRecord {
+    struct Dtls13RtxRecord *next;
+    word16 length;
+    byte *data;
+    w64wrapper epoch;
+    w64wrapper seq[DTLS13_RETRANS_RN_SIZE];
+    byte rnIdx;
+    byte handshakeType;
+} Dtls13RtxRecord;
+
+typedef struct Dtls13RecordNumber {
+    struct Dtls13RecordNumber *next;
+    w64wrapper epoch;
+    w64wrapper seq;
+} Dtls13RecordNumber;
+
+typedef struct Dtls13Rtx {
+    enum Dtls13RtxFsmState state;
+    Dtls13RtxRecord *rtxRecords;
+    Dtls13RtxRecord **rtxRecordTailPtr;
+    Dtls13RecordNumber *seenRecords;
+    byte triggeredRtxs;
+    byte sendAcks:1;
+    byte retransmit:1;
+    word32 lastRtx;
+} Dtls13Rtx;
 
 #endif /* WOLFSSL_DTLS13 */
 
@@ -4579,9 +4633,13 @@ struct WOLFSSL {
     /* used to store the message if it needs to be fragmented */
     buffer dtls13FragmentsBuffer;
     byte dtls13SendingFragments:1;
+    byte dtls13SendingAckOrRtx:1;
+    byte dtls13FastTimeout:1;
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
+    Dtls13Rtx dtls13Rtx;
+
 #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
@@ -5338,6 +5396,7 @@ WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
     enum encrypt_side side);
 WOLFSSL_LOCAL int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq,
     byte increment);
+WOLFSSL_LOCAL int Dtls13DoScheduledWork(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
 WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
     enum encrypt_side side);
@@ -5365,13 +5424,19 @@ WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     enum HandShakeType msg_type, word32 length);
 #define EE_MASK (0x3)
 WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
-
+WOLFSSL_LOCAL int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
+    word32* processedSize);
 WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
     w64wrapper* epoch);
 WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
     Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
+WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
+    word32 inputSize);
 WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output,
     word16 length);
+WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
