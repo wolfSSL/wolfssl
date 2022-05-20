@@ -1088,6 +1088,42 @@ int SuiteTest(int argc, char** argv)
     strcpy(argv0[2], "");
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    args.argc = 2;
+    strcpy(argv0[1], "tests/test-dtls13.conf");
+    printf("starting DTLSv1.3 suite\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
+#ifndef WOLFSSL_NO_TLS12
+    args.argc = 2;
+    strcpy(argv0[1], "tests/test-dtls13-downgrade.conf");
+    printf("starting DTLSv1.3 suite - downgrade\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* WOLFSSL_NO_TLS12 */
+
+#ifndef NO_PSK
+    XSTRLCPY(argv0[1], "tests/test-dtls13-psk.conf", sizeof(argv0[1]));
+    printf("starting DTLS 1.3 psk suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* NO_PSK */
+
+#endif /* WOLFSSL_DTLS13 */
+
 #endif
 #ifdef WOLFSSL_SCTP
     /* add dtls-sctp extra suites */
