@@ -189,7 +189,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #endif
 #endif
 
-    static int cipherExtraData(WOLFSSL* ssl);
 
 #ifdef WOLFSSL_DTLS
     static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl);
@@ -9575,10 +9574,10 @@ static int GetHandShakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef WOLFSSL_DTLS
-static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
-                                  word32* inOutIdx, byte *type, word32 *size,
-                                  word32 *fragOffset, word32 *fragSz,
-                                  word32 totalSz)
+int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
+                           word32* inOutIdx, byte *type, word32 *size,
+                           word32 *fragOffset, word32 *fragSz,
+                           word32 totalSz)
 {
     word32 idx = *inOutIdx;
 
@@ -14960,7 +14959,7 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 }
 
 
-static int DtlsMsgDrain(WOLFSSL* ssl)
+int DtlsMsgDrain(WOLFSSL* ssl)
 {
     DtlsMsg* item = ssl->dtls_rx_msg_list;
     int ret = 0;
@@ -19413,7 +19412,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
 
-static int cipherExtraData(WOLFSSL* ssl)
+int cipherExtraData(WOLFSSL* ssl)
 {
     int cipherExtra;
     /* Cipher data that may be added by BuildMessage */

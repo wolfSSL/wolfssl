@@ -261,9 +261,9 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
  * includeMsgs  Whether to include a hash of the handshake messages so far.
  * returns 0 on success, otherwise failure.
  */
-static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
-                     const byte* secret, const byte* label, word32 labelLen,
-                     int hashAlgo, int includeMsgs)
+int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
+                   const byte* secret, const byte* label, word32 labelLen,
+                   int hashAlgo, int includeMsgs)
 {
     int         ret = 0;
     byte        hash[WC_MAX_DIGEST_SIZE];
@@ -441,7 +441,7 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->secret,
                     earlyTrafficLabel, EARLY_TRAFFIC_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
@@ -486,7 +486,7 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
@@ -529,7 +529,7 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     serverHandshakeLabel, SERVER_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
@@ -572,7 +572,7 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     clientAppLabel, CLIENT_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
@@ -615,7 +615,7 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     serverAppLabel, SERVER_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
@@ -659,9 +659,9 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
-                    exporterMasterLabel, EXPORTER_MASTER_LABEL_SZ,
-                    ssl->specs.mac_algorithm, 1);
+    ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+                        exporterMasterLabel, EXPORTER_MASTER_LABEL_SZ,
+                        ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
     if (ret == 0 && ssl->tls13SecretCb != NULL) {
         ret = ssl->tls13SecretCb(ssl, EXPORTER_SECRET, key,
@@ -813,7 +813,7 @@ int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
     else {
         masterSecret = ssl->session->masterSecret;
     }
-    return DeriveKey(ssl, key, -1, masterSecret, resumeMasterLabel,
+    return Tls13DeriveKey(ssl, key, -1, masterSecret, resumeMasterLabel,
                      RESUME_MASTER_LABEL_SZ, ssl->specs.mac_algorithm, 1);
 }
 #endif
@@ -832,7 +832,7 @@ static const byte finishedLabel[FINISHED_LABEL_SZ+1] = "finished";
 static int DeriveFinishedSecret(WOLFSSL* ssl, byte* key, byte* secret)
 {
     WOLFSSL_MSG("Derive Finished Secret");
-    return DeriveKey(ssl, secret, -1, key, finishedLabel, FINISHED_LABEL_SZ,
+    return Tls13DeriveKey(ssl, secret, -1, key, finishedLabel, FINISHED_LABEL_SZ,
                      ssl->specs.mac_algorithm, 0);
 }
 
@@ -851,7 +851,7 @@ static const byte appTrafficLabel[APP_TRAFFIC_LABEL_SZ + 1] =
 static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret)
 {
     WOLFSSL_MSG("Derive New Application Traffic Secret");
-    return DeriveKey(ssl, secret, -1, secret,
+    return Tls13DeriveKey(ssl, secret, -1, secret,
                      appTrafficLabel, APP_TRAFFIC_LABEL_SZ,
                      ssl->specs.mac_algorithm, 0);
 }
@@ -1220,7 +1220,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     if (provision & PROVISION_CLIENT) {
         /* Derive the client key.  */
         WOLFSSL_MSG("Derive Client Key");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                         ssl->clientSecret, writeKeyLabel,
                         WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
         if (ret != 0)
@@ -1231,7 +1231,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     if (provision & PROVISION_SERVER) {
         /* Derive the server key.  */
         WOLFSSL_MSG("Derive Server Key");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                         ssl->serverSecret, writeKeyLabel,
                         WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
         if (ret != 0)
@@ -1242,7 +1242,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     if (provision & PROVISION_CLIENT) {
         /* Derive the client IV.  */
         WOLFSSL_MSG("Derive Client IV");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                         ssl->clientSecret, writeIVLabel,
                         WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
         if (ret != 0)
@@ -1253,7 +1253,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     if (provision & PROVISION_SERVER) {
         /* Derive the server IV.  */
         WOLFSSL_MSG("Derive Server IV");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+        ret = Tls13DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                         ssl->serverSecret, writeIVLabel,
                         WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
         if (ret != 0)

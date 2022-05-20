@@ -1799,6 +1799,10 @@ WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz,
                                      byte* extMsgType);
 WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
+
+WOLFSSL_LOCAL int Tls13DeriveKey(WOLFSSL *ssl, byte *output, int outputLen,
+    const byte *secret, const byte *label, word32 labelLen, int hashAlgo,
+    int includeMsgs);
 #endif
 int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
                     int pLen, int content);
@@ -4989,6 +4993,8 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
 #endif
 #endif
 
+WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
+
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
     #ifdef WOLFSSL_TLS13
@@ -5027,6 +5033,10 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
+    WOLFSSL_LOCAL int GetDtlsHandShakeHeader(WOLFSSL *ssl, const byte *input,
+        word32 *inOutIdx, byte *type, word32 *size, word32 *fragOffset,
+        word32 *fragSz, word32 totalSz);
+    WOLFSSL_LOCAL int DtlsMsgDrain(WOLFSSL *ssl);
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
