@@ -12504,6 +12504,8 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     else {
         pubKeySz = 1 + wc_ecc_size(privKey);
     }
+#else
+    (void) compressed; /* avoid unused parameter if WOLFSSL_ECIES_OLD is defined */
 #endif
 
     if (ctx->protocol == REQ_RESP_SERVER) {
