@@ -4487,7 +4487,7 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
     }
 #endif
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
     #ifdef WC_SHA512_DIGEST_SIZE
         #define MD_MAX_SIZE WC_SHA512_DIGEST_SIZE
     #else
@@ -4497,7 +4497,7 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
     byte server_side_msg2[MD_MAX_SIZE] = {0};/* msg received from client */
     byte client_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by client */
     byte client_side_msg2[MD_MAX_SIZE] = {0};/* msg received from server */
-#endif
+#endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -4518,7 +4518,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     SOCKADDR_IN_T cliAddr;
     socklen_t     cliLen;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
     size_t msg_len = 0;
 #endif
 
@@ -4726,7 +4726,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
     XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
     msg_len = wolfSSL_get_peer_finished(ssl, server_side_msg2, MD_MAX_SIZE);
     AssertIntGE(msg_len, 0);
@@ -4734,7 +4734,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     XMEMSET(server_side_msg1, 0, MD_MAX_SIZE);
     msg_len = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
     AssertIntGE(msg_len, 0);
-#endif
+#endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
     idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
@@ -6111,7 +6111,7 @@ static void test_wolfSSL_CTX_verifyDepth_ServerClient(void)
 
 static void test_client_get_finished(void* args, cbType cb)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
     SOCKET_T sockfd = 0;
     callback_functions* cbf;
 
@@ -6256,12 +6256,12 @@ done:
 #else
     (void)args;
     (void)cb;
-#endif
+#endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 }
 
 static void test_wolfSSL_get_finished(void)
 {
-#if !defined(NO_RSA) && defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#if !defined(NO_RSA) && defined(WOLFSSL_HAVE_TLS_UNIQUE)
 
     tcp_ready ready;
     func_args client_args;
@@ -6297,7 +6297,7 @@ static void test_wolfSSL_get_finished(void)
     FreeTcpReady(&ready);
 #else
     (void)test_client_get_finished;
-#endif
+#endif /* !NO_RSA && WOLFSSL_HAVE_TLS_UNIQUE */
 }
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \

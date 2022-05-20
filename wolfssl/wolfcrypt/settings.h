@@ -2430,6 +2430,16 @@ extern void uITRON4_free(void *p) ;
     #define KEEP_PEER_CERT
 #endif
 
+/*
+ * Keeps the "Finished" messages after a TLS handshake for use as the so-called
+ * "tls-unique" channel binding. See comment in internal.h around clientFinished
+ * and serverFinished for more information.
+ */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    #undef  WOLFSSL_HAVE_TLS_UNIQUE
+    #define WOLFSSL_HAVE_TLS_UNIQUE
+#endif
+
 /* RAW hash function APIs are not implemented */
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AFALG_HASH)
     #undef  WOLFSSL_NO_HASH_RAW

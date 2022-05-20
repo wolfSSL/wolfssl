@@ -22897,52 +22897,6 @@ int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp)
     return a->objSz;
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
-{
-    byte len = 0;
-
-    WOLFSSL_ENTER("SSL_get_finished");
-
-    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
-        WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FAILURE;
-    }
-
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        len = ssl->serverFinished_len;
-        XMEMCPY(buf, ssl->serverFinished, len);
-    }
-    else {
-        len = ssl->clientFinished_len;
-        XMEMCPY(buf, ssl->clientFinished, len);
-    }
-    return len;
-}
-
-WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
-{
-    byte len = 0;
-    WOLFSSL_ENTER("SSL_get_peer_finished");
-
-    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
-        WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FAILURE;
-    }
-
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        len = ssl->serverFinished_len;
-        XMEMCPY(buf, ssl->serverFinished, len);
-    }
-    else {
-        len = ssl->clientFinished_len;
-        XMEMCPY(buf, ssl->clientFinished, len);
-    }
-
-    return len;
-}
-#endif /* WOLFSSL_HAPROXY */
-
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
@@ -23041,6 +22995,52 @@ WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s,
 #endif /* HAVE_MAX_FRAGMENT */
 
 #endif /* OPENSSL_EXTRA */
+
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
+WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
+{
+    byte len = 0;
+
+    WOLFSSL_ENTER("SSL_get_finished");
+
+    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        len = ssl->serverFinished_len;
+        XMEMCPY(buf, ssl->serverFinished, len);
+    }
+    else {
+        len = ssl->clientFinished_len;
+        XMEMCPY(buf, ssl->clientFinished, len);
+    }
+    return len;
+}
+
+WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
+{
+    byte len = 0;
+    WOLFSSL_ENTER("SSL_get_peer_finished");
+
+    if (!ssl || !buf || count < TLS_FINISHED_SZ) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        len = ssl->serverFinished_len;
+        XMEMCPY(buf, ssl->serverFinished, len);
+    }
+    else {
+        len = ssl->clientFinished_len;
+        XMEMCPY(buf, ssl->clientFinished, len);
+    }
+
+    return len;
+}
+#endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
