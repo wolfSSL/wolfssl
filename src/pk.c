@@ -8398,7 +8398,7 @@ WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
     return p;
 }
 
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -8535,7 +8535,8 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH)
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_EC_POINT *p1,
                          const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
@@ -9027,13 +9028,16 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
     if (setupPoint(point) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
-
+    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
     ret = wc_ecc_point_is_at_infinity((ecc_point*)point->internal);
     if (ret < 0) {
         WOLFSSL_MSG("ecc_point_is_at_infinity failure");
         return WOLFSSL_FAILURE;
     }
-
+    #else
+        WOLFSSL_MSG("ecc_point_is_at_infinitiy compiled out");
+        return WOLFSSL_FAILURE;
+    #endif
     return ret;
 }
 
@@ -9260,6 +9264,13 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
                             const WOLFSSL_ECDSA_SIG *sig, WOLFSSL_EC_KEY *key)
 {
     int check_sign = 0;
+#ifdef WOLF_CRYPTO_CB_ONLY_ECC
+    byte signature[ECC_MAX_SIG_SIZE];
+    word32 signaturelen = (word32)sizeof(signature);
+    char* r;
+    char* s;
+    int ret = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_do_verify");
 
@@ -9279,6 +9290,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         }
     }
 
+    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
     if (wc_ecc_verify_hash_ex((mp_int*)sig->r->internal,
                               (mp_int*)sig->s->internal, d, dlen, &check_sign,
                               (ecc_key *)key->internal) != MP_OKAY) {
@@ -9289,6 +9301,36 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
         return WOLFSSL_FAILURE;
     }
+    #else
+    /* convert big number to hex */
+    r = wolfSSL_BN_bn2hex(sig->r);
+    s = wolfSSL_BN_bn2hex(sig->s);
+    /* get DER-encoded ECDSA signature */
+    ret = wc_ecc_rs_to_sig((const char*)r, (const char*)s, 
+                                        signature, &signaturelen);
+    /* free r and s */
+    if (r)
+        XFREE(r, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (s)
+        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_verify_hash failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    /* verify hash. expects to call wc_CryptoCb_EccVerify internally */ 
+    ret = wc_ecc_verify_hash(signature, signaturelen, d, dlen, &check_sign,
+                        (ecc_key*)key->internal);
+    
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_verify_hash failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    else if (check_sign == 0) {
+        WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
+        return WOLFSSL_FAILURE;
+    }
+    #endif
 
     return WOLFSSL_SUCCESS;
 }
@@ -9357,6 +9399,7 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
 }
 /* End ECDSA_SIG */
 
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
 /* Start ECDH */
 /* return code compliant with OpenSSL :
  *   length of computed key if success, -1 if error
@@ -9427,6 +9470,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
 
     return len;
 }
+#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 /* End ECDH */
 #if !defined(NO_FILESYSTEM)
 
