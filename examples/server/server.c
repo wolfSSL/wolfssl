@@ -416,6 +416,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                     else
                 #endif
                     if (err != WOLFSSL_ERROR_WANT_READ &&
+                                             err != WOLFSSL_ERROR_WANT_WRITE &&
                                              err != WOLFSSL_ERROR_ZERO_RETURN &&
                                              err != APP_DATA_READY) {
                         fprintf(stderr, "SSL_read echo error %d\n", err);
@@ -553,7 +554,9 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             if (wolfSSL_pending(ssl))
                 err = WOLFSSL_ERROR_WANT_READ;
         }
-    } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
+    } while (err == WC_PENDING_E
+             || err == WOLFSSL_ERROR_WANT_READ
+             || err == WOLFSSL_ERROR_WANT_WRITE);
     if (ret > 0) {
         /* null terminate message */
         input[ret] = '\0';

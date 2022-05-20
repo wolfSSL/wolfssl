@@ -807,7 +807,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                                 }
                                 else
                             #endif
-                                if (err != WOLFSSL_ERROR_WANT_READ) {
+                                if (err != WOLFSSL_ERROR_WANT_READ &&
+                                        err != WOLFSSL_ERROR_WANT_WRITE) {
                                     fprintf(stderr, "SSL_read bench error %d\n", err);
                                     err_sys("SSL_read failed");
                                 }
@@ -1072,7 +1073,9 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
         }
 
-        if (mustRead && err == WOLFSSL_ERROR_WANT_READ) {
+        if (mustRead &&
+            (err == WOLFSSL_ERROR_WANT_READ
+             || err == WOLFSSL_ERROR_WANT_WRITE)) {
             elapsed = current_time(0) - start;
             if (elapsed > MAX_NON_BLOCK_SEC) {
                 fprintf(stderr, "Nonblocking read timeout\n");
