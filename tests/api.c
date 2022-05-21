@@ -46426,7 +46426,6 @@ static void test_wolfSSL_OCSP_resp_get0(void)
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(WOLFSSL_OPENSSH)
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2, 0)
 #if (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC)
 
     EVP_PKEY_CTX *ctx;
@@ -46483,7 +46482,6 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 
     printf(resultFmt, "passed");
 #endif /* (!NO_DH && WOLFSSL_DH_EXTRA) || HAVE_ECC */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH */
 }
 
@@ -50505,8 +50503,7 @@ static void test_wolfssl_EVP_chacha20_poly1305(void)
 
 static void test_wolfSSL_EVP_PKEY_hkdf(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_HKDF) && (!defined(HAVE_FIPS) || \
-    FIPS_VERSION_GT(2,0))
+#if defined(OPENSSL_EXTRA) && defined(HAVE_HKDF)
     EVP_PKEY_CTX* ctx;
     byte salt[]  = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                     0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
@@ -50616,7 +50613,7 @@ static void test_wolfSSL_EVP_PKEY_hkdf(void)
     EVP_PKEY_CTX_free(ctx);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA && HAVE_HKDF && (!HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
+#endif /* OPENSSL_EXTRA && HAVE_HKDF */
 }
 
 #ifndef NO_BIO
