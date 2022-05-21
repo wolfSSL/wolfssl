@@ -41263,7 +41263,7 @@ static void test_wolfSSL_HMAC_CTX(void)
                           digest, digestSz), 0);
     #endif /* WOLFSSL_SHA512 */
 
-    #ifndef NO_MD5
+    #if !defined(NO_MD5) && (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
     AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_md5(), digest)), 16);
     AssertIntEQ(XMEMCMP("\xB7\x27\xC4\x41\xE5\x2E\x62\xBA\x54\xED\x72\x70\x9F"
                           "\xE4\x98\xDD", digest, digestSz), 0);
