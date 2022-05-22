@@ -21116,20 +21116,32 @@ int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
     int ret = ALT_NAME_E;
     DNS_entry* id = NULL;
 
-    id = wc_GetAltName(cert, ASN_URI_TYPE, id);
-    if (id != NULL) {
-        if (uuid == NULL) {
-            *uuidSz = id->len;
-            return LENGTH_ONLY_E;
-        }
+    do {
+        id = wc_GetAltName(cert, ASN_URI_TYPE, id);
+        if (id != NULL) {
+            /* check if URI string matches expected format for UUID */
+            if (id->len != DEFAULT_UUID_SZ) {
+                continue; /* size not right not a UUID URI */
+            }
 
-        if ((int)*uuidSz < id->len) {
-            return BUFFER_E;
-        }
+            if (XMEMCMP(id->name, "urn:uuid:", 9) != 0) {
+                continue; /* beginning text not right for a UUID URI */
+            }
 
-        XMEMCPY(uuid, id->name, id->len);
-        ret = 0; /* success */
-    }
+            if (uuid == NULL) {
+                *uuidSz = id->len;
+                return LENGTH_ONLY_E;
+            }
+
+            if ((int)*uuidSz < id->len) {
+                return BUFFER_E;
+            }
+
+            XMEMCPY(uuid, id->name, id->len);
+            ret = 0; /* success */
+            break;
+        }
+    } while (id != NULL);
 
     return ret;
 }

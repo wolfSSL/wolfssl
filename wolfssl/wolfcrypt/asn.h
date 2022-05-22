@@ -1293,6 +1293,10 @@ struct DNS_entry {
 #endif
 };
 
+#ifdef WOLFSSL_FPKI
+    /* RFC4122 i.e urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6 */
+    #define DEFAULT_UUID_SZ 45
+#endif
 
 typedef struct Base_entry  Base_entry;
 
