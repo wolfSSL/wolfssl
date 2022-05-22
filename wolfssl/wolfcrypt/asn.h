@@ -1143,8 +1143,9 @@ enum Extensions_Sum {
                                          id-pkix-ocsp-nocheck */
     SUBJ_DIR_ATTR_OID         = 123, /* 2.5.29.9 */
 
-    AKEY_PACKAGE_OID          = 1048 /* 2.16.840.1.101.2.1.2.78.5
+    AKEY_PACKAGE_OID          = 1048, /* 2.16.840.1.101.2.1.2.78.5
                                         RFC 5958  - Asymmetric Key Packages */
+    FASCN_OID = 419 /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
 };
 
 enum CertificatePolicy_Sum {
@@ -1286,6 +1287,9 @@ struct DNS_entry {
     char*      name;   /* actual DNS name */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     char*      ipString; /* human readable form of IP address */
+#endif
+#ifdef WOLFSSL_FPKI
+    int        oidSum; /* provid oid sum for verification */
 #endif
 };
 

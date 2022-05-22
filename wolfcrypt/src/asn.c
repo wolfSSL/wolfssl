@@ -14815,6 +14815,130 @@ enum {
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
+#ifdef WOLFSSL_SEP
+/* return 0 on success */
+static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
+    word32* idxIn, int sz)
+{
+    word32 idx = *idxIn;
+    int  strLen;
+    int  ret;
+    byte tag;
+
+    /* Certificates issued with this OID in the subject alt name are for
+     * verifying signatures created on a module.
+     * RFC 4108 Section 5. */
+    if (cert->hwType != NULL) {
+        WOLFSSL_MSG("\tAlready seen Hardware Module Name");
+        return ASN_PARSE_E;
+    }
+
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+        WOLFSSL_MSG("\twrong type");
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(input, &idx, &strLen, sz) < 0) {
+        WOLFSSL_MSG("\tfail: str len");
+        return ASN_PARSE_E;
+    }
+
+    if (GetSequence(input, &idx, &strLen, sz) < 0) {
+        WOLFSSL_MSG("\tBad Sequence");
+        return ASN_PARSE_E;
+    }
+
+    ret = GetASNObjectId(input, &idx, &strLen, sz);
+    if (ret != 0) {
+        WOLFSSL_MSG("\tbad OID");
+        return ret;
+    }
+
+    cert->hwType = (byte*)XMALLOC(strLen, cert->heap,
+                                  DYNAMIC_TYPE_X509_EXT);
+    if (cert->hwType == NULL) {
+        WOLFSSL_MSG("\tOut of Memory");
+        return MEMORY_E;
+    }
+
+    XMEMCPY(cert->hwType, &input[idx], strLen);
+    cert->hwTypeSz = strLen;
+    idx += strLen;
+
+    ret = GetOctetString(input, &idx, &strLen, sz);
+    if (ret < 0)
+        return ret;
+
+    cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap,
+                                       DYNAMIC_TYPE_X509_EXT);
+    if (cert->hwSerialNum == NULL) {
+        WOLFSSL_MSG("\tOut of Memory");
+        return MEMORY_E;
+    }
+
+    XMEMCPY(cert->hwSerialNum, &input[idx], strLen);
+    cert->hwSerialNum[strLen] = '\0';
+    cert->hwSerialNumSz = strLen;
+    idx += strLen;
+
+    *idxIn = idx;
+    return 0;
+}
+#endif /* WOLFSSL_SEP */
+
+#ifdef WOLFSSL_FPKI
+/* return 0 on success */
+static int DecodeFascNAltName(DecodedCert* cert, const byte* input, word32* idx,
+    int sz)
+{
+    int ret;
+    int strLen;
+    DNS_entry* dnsEntry;
+    byte tag;
+
+    if (GetASNTag(input, idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(input, idx, &strLen, sz) < 0)
+        return ASN_PARSE_E;
+
+    ret = GetOctetString(input, idx, &strLen, sz);
+    if (ret < 0)
+        return ret;
+
+    dnsEntry = AltNameNew(cert->heap);
+    if (dnsEntry == NULL) {
+        WOLFSSL_MSG("\tOut of Memory");
+        return MEMORY_E;
+    }
+
+    dnsEntry->type = ASN_OTHER_TYPE;
+    dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+        DYNAMIC_TYPE_ALTNAME);
+    if (dnsEntry->name == NULL) {
+        WOLFSSL_MSG("\tOut of Memory");
+        XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+        return MEMORY_E;
+    }
+    dnsEntry->len = strLen;
+    XMEMCPY(dnsEntry->name, &input[*idx], strLen);
+    dnsEntry->name[strLen] = '\0';
+    dnsEntry->oidSum = FASCN_OID;
+    AddAltName(cert, dnsEntry);
+    *idx += strLen;
+    return 0;
+}
+#endif /* WOLFSSL_FPKI */
+
 /* Decode subject alternative names extension.
  *
  * RFC 5280 4.2.1.6.  Subject Alternative Name
@@ -14931,7 +15055,6 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             dirEntry->len = strLen;
             XMEMCPY(dirEntry->name, &input[idx], strLen);
             dirEntry->name[strLen] = '\0';
-
             dirEntry->next = cert->altDirNames;
             cert->altDirNames = dirEntry;
 
@@ -14990,7 +15113,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return BUFFER_E;
             }
 
-        #ifndef WOLFSSL_NO_ASN_STRICT
+        #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
                 "The name MUST NOT be a relative URI" */
 
@@ -15091,14 +15214,12 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-#ifdef WOLFSSL_SEP
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
         {
             int strLen;
             word32 lenStartIdx = idx;
             word32 oid = 0;
             int    ret;
-            byte   tag;
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 WOLFSSL_MSG("\tfail: other name length");
@@ -15112,72 +15233,34 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-            if (oid != HW_NAME_OID) {
-                WOLFSSL_MSG("\tincorrect OID");
-                return ASN_PARSE_E;
+            /* handle parsing other type alt names */
+            switch (oid) {
+            #ifdef WOLFSSL_SEP
+                case HW_NAME_OID:
+                    ret = DecodeSepHwAltName(cert, input, &idx, sz);
+                    if (ret != 0)
+                        return ret;
+                    break;
+            #endif /* WOLFSSL_SEP */
+            #ifdef WOLFSSL_FPKI
+                case FASCN_OID:
+                    ret = DecodeFascNAltName(cert, input, &idx, sz);
+                    if (ret != 0)
+                        return ret;
+                    break;
+            #endif /* WOLFSSL_FPKI */
+
+                default:
+                    WOLFSSL_MSG("\tUnsupported other name type, skipping");
+                    if (GetLength(input, &idx, &strLen, sz) < 0) {
+                        WOLFSSL_MSG("\tfail: unsupported other name length");
+                        return ASN_PARSE_E;
+                    }
+                    length -= (strLen + idx - lenStartIdx);
+                    idx += strLen;
             }
-
-            /* Certificates issued with this OID in the subject alt name are for
-             * verifying signatures created on a module.
-             * RFC 4108 Section 5. */
-            if (cert->hwType != NULL) {
-                WOLFSSL_MSG("\tAlready seen Hardware Module Name");
-                return ASN_PARSE_E;
-            }
-
-            if (GetASNTag(input, &idx, &tag, sz) < 0) {
-                return ASN_PARSE_E;
-            }
-
-            if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
-                WOLFSSL_MSG("\twrong type");
-                return ASN_PARSE_E;
-            }
-
-            if (GetLength(input, &idx, &strLen, sz) < 0) {
-                WOLFSSL_MSG("\tfail: str len");
-                return ASN_PARSE_E;
-            }
-
-            if (GetSequence(input, &idx, &strLen, sz) < 0) {
-                WOLFSSL_MSG("\tBad Sequence");
-                return ASN_PARSE_E;
-            }
-
-            ret = GetASNObjectId(input, &idx, &strLen, sz);
-            if (ret != 0) {
-                WOLFSSL_MSG("\tbad OID");
-                return ret;
-            }
-
-            cert->hwType = (byte*)XMALLOC(strLen, cert->heap,
-                                          DYNAMIC_TYPE_X509_EXT);
-            if (cert->hwType == NULL) {
-                WOLFSSL_MSG("\tOut of Memory");
-                return MEMORY_E;
-            }
-
-            XMEMCPY(cert->hwType, &input[idx], strLen);
-            cert->hwTypeSz = strLen;
-            idx += strLen;
-
-            ret = GetOctetString(input, &idx, &strLen, sz);
-            if (ret < 0)
-                return ret;
-
-            cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap,
-                                               DYNAMIC_TYPE_X509_EXT);
-            if (cert->hwSerialNum == NULL) {
-                WOLFSSL_MSG("\tOut of Memory");
-                return MEMORY_E;
-            }
-
-            XMEMCPY(cert->hwSerialNum, &input[idx], strLen);
-            cert->hwSerialNum[strLen] = '\0';
-            cert->hwSerialNumSz = strLen;
-            idx += strLen;
+            (void)ret;
         }
-    #endif /* WOLFSSL_SEP */
         else {
             int strLen;
             word32 lenStartIdx = idx;
@@ -20996,6 +21079,88 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
 
     return ret;
 }
+
+#ifdef WOLFSSL_FPKI
+/* Search through list for first matching alt name of the same type
+ * If 'current' is null then the search starts at the head of the list
+ * otherwise the search starts from the node after 'current' alt name.
+ * Returns 0 on success
+ */
+static DNS_entry* wc_GetAltName(struct DecodedCert* cert, int nameType,
+    DNS_entry* current)
+{
+    DNS_entry* entry;
+
+    if (current == NULL) {
+        entry = cert->altNames;
+    }
+    else {
+        entry = current->next;
+    }
+
+    /* cycle through alt names to check for needed types */
+    while (entry != NULL) {
+        if (entry->type == nameType) {
+            break;
+        }
+        entry = entry->next;
+    }
+
+    return entry;
+}
+
+
+/* returns 0 on success */
+int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
+{
+    int ret = ALT_NAME_E;
+    DNS_entry* id = NULL;
+
+    id = wc_GetAltName(cert, ASN_URI_TYPE, id);
+    if (id != NULL) {
+        if (uuid == NULL) {
+            *uuidSz = id->len;
+            return LENGTH_ONLY_E;
+        }
+
+        if ((int)*uuidSz < id->len) {
+            return BUFFER_E;
+        }
+
+        XMEMCPY(uuid, id->name, id->len);
+        ret = 0; /* success */
+    }
+
+    return ret;
+}
+
+
+/* reutrns 0 on success */
+int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
+{
+    int ret = ALT_NAME_E;
+    DNS_entry* id = NULL;
+
+    do {
+        id = wc_GetAltName(cert, ASN_OTHER_TYPE, id);
+        if (id != NULL && id->oidSum == FASCN_OID) {
+            if (fascn == NULL) {
+                *fascnSz = id->len;
+                return LENGTH_ONLY_E;
+            }
+
+            if ((int)*fascnSz < id->len) {
+                return BUFFER_E;
+            }
+
+            XMEMCPY(fascn, id->name, id->len);
+            ret = 0; /* success */
+        }
+    } while (id != NULL);
+
+    return ret;
+}
+#endif /* WOLFSSL_FPKI */
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
     defined(WOLFSSL_KCAPI_RSA) || \
