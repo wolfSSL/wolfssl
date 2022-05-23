@@ -11859,6 +11859,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         WOLFSSL_MSG("connect state: "
                                     "Advanced from last buffered fragment send");
                     }
+                #ifdef WOLFSSL_ASYNC_IO
+                    /* Cleanup async */
+                    FreeAsyncCtx(ssl, 0);
+                #endif
                 }
                 else {
                     WOLFSSL_MSG("connect state: "
@@ -12108,6 +12112,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->secure_renegotiation->startScr = 0;
             }
         #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+        #if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
+            /* Free the remaining async context if not using it for crypto */
+            FreeAsyncCtx(ssl, 1);
+        #endif
 
             WOLFSSL_LEAVE("SSL_connect()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
@@ -12336,6 +12344,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         WOLFSSL_MSG("accept state: "
                                     "Advanced from last buffered fragment send");
                     }
+                #ifdef WOLFSSL_ASYNC_IO
+                    /* Cleanup async */
+                    FreeAsyncCtx(ssl, 0);
+                #endif
                 }
                 else {
                     WOLFSSL_MSG("accept state: "
@@ -12563,6 +12575,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->secure_renegotiation->startScr = 0;
             }
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+#if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
+            /* Free the remaining async context if not using it for crypto */
+            FreeAsyncCtx(ssl, 1);
+#endif
 
 #if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
             if (ssl->dtls_export) {
