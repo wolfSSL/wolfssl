@@ -12,21 +12,21 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>../../zlib-1.2.8/adler32.c</itemPath>
-      <itemPath>../../zlib-1.2.8/compress.c</itemPath>
-      <itemPath>../../zlib-1.2.8/crc32.c</itemPath>
-      <itemPath>../../zlib-1.2.8/deflate.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzclose.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzlib.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzread.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzwrite.c</itemPath>
-      <itemPath>../../zlib-1.2.8/infback.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inffast.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inflate.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inftrees.c</itemPath>
-      <itemPath>../../zlib-1.2.8/trees.c</itemPath>
-      <itemPath>../../zlib-1.2.8/uncompr.c</itemPath>
-      <itemPath>../../zlib-1.2.8/zutil.c</itemPath>
+      <itemPath>../../zlib/adler32.c</itemPath>
+      <itemPath>../../zlib/compress.c</itemPath>
+      <itemPath>../../zlib/crc32.c</itemPath>
+      <itemPath>../../zlib/deflate.c</itemPath>
+      <itemPath>../../zlib/gzclose.c</itemPath>
+      <itemPath>../../zlib/gzlib.c</itemPath>
+      <itemPath>../../zlib/gzread.c</itemPath>
+      <itemPath>../../zlib/gzwrite.c</itemPath>
+      <itemPath>../../zlib/infback.c</itemPath>
+      <itemPath>../../zlib/inffast.c</itemPath>
+      <itemPath>../../zlib/inflate.c</itemPath>
+      <itemPath>../../zlib/inftrees.c</itemPath>
+      <itemPath>../../zlib/trees.c</itemPath>
+      <itemPath>../../zlib/uncompr.c</itemPath>
+      <itemPath>../../zlib/zutil.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -76,7 +76,7 @@
         <property key="enable-symbols" value="true"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
-        <property key="extra-include-directories" value="../../zlib-1.2.8"/>
+        <property key="extra-include-directories" value="../../zlib"/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
