@@ -2260,6 +2260,44 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
 #endif
 }
 
+static void test_wolfSSL_FPKI(void)
+{
+#if defined(WOLFSSL_FPKI)
+    XFILE f;
+    const char* fpkiCert = "./certs/fpki-cert.der";
+    DecodedCert cert;
+    byte buf[4096];
+    byte* uuid;
+    byte* fascn;
+    word32 fascnSz;
+    word32 uuidSz;
+    int bytes;
+
+    printf(testingFmt, "test_wolfSSL_FPKI");
+    f = XFOPEN(fpkiCert, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+printf("size of file = %d\n", bytes);
+
+    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
+    AssertIntEQ(wc_GetFASCNFromCert(&cert, NULL, &fascnSz), LENGTH_ONLY_E) ;
+    fascn = (byte*)XMALLOC(fascnSz, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    AssertNotNull(fascn);
+    AssertIntEQ(wc_GetFASCNFromCert(&cert, fascn, &fascnSz), 0);
+    XFREE(fascn, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+
+    AssertIntEQ(wc_GetUUIDFromCert(&cert, NULL, &uuidSz), LENGTH_ONLY_E);
+    uuid = (byte*)XMALLOC(uuidSz, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    AssertNotNull(uuid);
+    AssertIntEQ(wc_GetUUIDFromCert(&cert, uuid, &uuidSz), 0);
+    XFREE(uuid, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -8982,7 +9020,8 @@ static void test_wolfSSL_URI(void)
     wolfSSL_FreeX509(x509);
 
     x509 = wolfSSL_X509_load_certificate_file(badUri, WOLFSSL_FILETYPE_PEM);
-#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_NO_ASN_STRICT)
+#if !defined(IGNORE_NAME_CONSTRAINTS) && !defined(WOLFSSL_NO_ASN_STRICT) \
+    && !defined(WOLFSSL_FPKI)
     AssertNull(x509);
 #else
     AssertNotNull(x509);
@@ -54100,6 +54139,7 @@ void ApiTest(void)
     test_wolfSSL_CertManagerNameConstraint3();
     test_wolfSSL_CertManagerNameConstraint4();
     test_wolfSSL_CertManagerNameConstraint5();
+    test_wolfSSL_FPKI();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();
