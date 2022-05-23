@@ -16118,6 +16118,268 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 
 
 #ifndef WOLFSSL_AEAD_ONLY
+#ifdef WOLSSL_OLD_TIMINGPADVERIFY
+#define COMPRESS_LOWER      64
+#define COMPRESS_UPPER      55
+#define COMPRESS_CONSTANT   13
+
+#ifndef NO_OLD_TLS
+
+static WC_INLINE void Md5Rounds(int rounds, const byte* data, int sz)
+{
+    wc_Md5 md5;
+    int i;
+
+    wc_InitMd5(&md5);   /* no error check on purpose, dummy round */
+
+    for (i = 0; i < rounds; i++)
+        wc_Md5Update(&md5, data, sz);
+    wc_Md5Free(&md5); /* in case needed to release resources */
+}
+
+
+
+/* do a dummy sha round */
+static WC_INLINE void ShaRounds(int rounds, const byte* data, int sz)
+{
+    wc_Sha sha;
+    int i;
+
+    wc_InitSha(&sha);  /* no error check on purpose, dummy round */
+
+    for (i = 0; i < rounds; i++)
+        wc_ShaUpdate(&sha, data, sz);
+    wc_ShaFree(&sha); /* in case needed to release resources */
+}
+#endif
+
+
+#ifndef NO_SHA256
+
+static WC_INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
+{
+    wc_Sha256 sha256;
+    int i;
+
+    wc_InitSha256(&sha256);  /* no error check on purpose, dummy round */
+
+    for (i = 0; i < rounds; i++) {
+        wc_Sha256Update(&sha256, data, sz);
+        /* no error check on purpose, dummy round */
+    }
+    wc_Sha256Free(&sha256); /* in case needed to release resources */
+}
+
+#endif
+
+
+#ifdef WOLFSSL_SHA384
+
+static WC_INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
+{
+    wc_Sha384 sha384;
+    int i;
+
+    wc_InitSha384(&sha384);  /* no error check on purpose, dummy round */
+
+    for (i = 0; i < rounds; i++) {
+        wc_Sha384Update(&sha384, data, sz);
+        /* no error check on purpose, dummy round */
+    }
+    wc_Sha384Free(&sha384); /* in case needed to release resources */
+}
+
+#endif
+
+
+#ifdef WOLFSSL_SHA512
+static WC_INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
+{
+    wc_Sha512 sha512;
+    int i;
+
+    wc_InitSha512(&sha512);  /* no error check on purpose, dummy round */
+
+    for (i = 0; i < rounds; i++) {
+        wc_Sha512Update(&sha512, data, sz);
+        /* no error check on purpose, dummy round */
+    }
+    wc_Sha512Free(&sha512); /* in case needed to release resources */
+}
+
+#endif
+
+
+#ifdef WOLFSSL_RIPEMD
+
+static WC_INLINE void RmdRounds(int rounds, const byte* data, int sz)
+{
+    RipeMd ripemd;
+    int i;
+
+    wc_InitRipeMd(&ripemd);
+
+    for (i = 0; i < rounds; i++)
+        wc_RipeMdUpdate(&ripemd, data, sz);
+}
+
+#endif
+
+
+/* Do dummy rounds */
+static WC_INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
+{
+    (void)rounds;
+    (void)data;
+    (void)sz;
+
+    switch (type) {
+        case no_mac :
+            break;
+
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+        case md5_mac :
+            Md5Rounds(rounds, data, sz);
+            break;
+#endif
+
+#ifndef NO_SHA
+        case sha_mac :
+            ShaRounds(rounds, data, sz);
+            break;
+#endif
+#endif
+
+#ifndef NO_SHA256
+        case sha256_mac :
+            Sha256Rounds(rounds, data, sz);
+            break;
+#endif
+
+#ifdef WOLFSSL_SHA384
+        case sha384_mac :
+            Sha384Rounds(rounds, data, sz);
+            break;
+#endif
+
+#ifdef WOLFSSL_SHA512
+        case sha512_mac :
+            Sha512Rounds(rounds, data, sz);
+            break;
+#endif
+
+#ifdef WOLFSSL_RIPEMD
+        case rmd_mac :
+            RmdRounds(rounds, data, sz);
+            break;
+#endif
+
+        default:
+            WOLFSSL_MSG("Bad round type");
+            break;
+    }
+}
+
+
+/* do number of compression rounds on dummy data */
+static WC_INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
+{
+    if (rounds)
+        DoRounds(ssl->specs.mac_algorithm, rounds, dummy, COMPRESS_LOWER);
+}
+
+
+/* check all length bytes for the pad value, return 0 on success */
+static int PadCheck(const byte* a, byte pad, int length)
+{
+    int i;
+    int compareSum = 0;
+
+    for (i = 0; i < length; i++) {
+        compareSum |= a[i] ^ pad;
+    }
+
+    return compareSum;
+}
+
+
+/* get compression extra rounds */
+static WC_INLINE int GetRounds(int pLen, int padLen, int t)
+{
+    int  roundL1 = 1;  /* round up flags */
+    int  roundL2 = 1;
+
+    int L1 = COMPRESS_CONSTANT + pLen - t;
+    int L2 = COMPRESS_CONSTANT + pLen - padLen - 1 - t;
+
+    L1 -= COMPRESS_UPPER;
+    L2 -= COMPRESS_UPPER;
+
+    if ( (L1 % COMPRESS_LOWER) == 0)
+        roundL1 = 0;
+    if ( (L2 % COMPRESS_LOWER) == 0)
+        roundL2 = 0;
+
+    L1 /= COMPRESS_LOWER;
+    L2 /= COMPRESS_LOWER;
+
+    L1 += roundL1;
+    L2 += roundL2;
+
+    return L1 - L2;
+}
+
+
+/* timing resistant pad/verify check, return 0 on success */
+ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
+                     int pLen, int content)
+{
+    byte verify[WC_MAX_DIGEST_SIZE];
+    byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
+    byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
+    int  ret = 0;
+
+    (void)dmy;
+
+    if ( (t + padLen + 1) > pLen) {
+        WOLFSSL_MSG("Plain Len not long enough for pad/mac");
+        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
+        /* still compare */
+        ssl->hmac(ssl, verify, input, pLen - t, -1, content, 1, PEER_ORDER);
+        ConstantCompare(verify, input + pLen - t, t);
+
+        return VERIFY_MAC_ERROR;
+    }
+
+    if (PadCheck(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
+        WOLFSSL_MSG("PadCheck failed");
+        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+        /* still compare */
+        ssl->hmac(ssl, verify, input, pLen - t, -1, content, 1, PEER_ORDER);
+        ConstantCompare(verify, input + pLen - t, t);
+
+        return VERIFY_MAC_ERROR;
+    }
+
+    PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+    ret = ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, -1, content,
+                                                                 1, PEER_ORDER);
+
+    CompressRounds(ssl, GetRounds(pLen, padLen, t), dummy);
+
+    if (ConstantCompare(verify, input + (pLen - padLen - 1 - t), t) != 0) {
+        WOLFSSL_MSG("Verify MAC compare failed");
+        return VERIFY_MAC_ERROR;
+    }
+
+    /* treat any faulure as verify MAC error */
+    if (ret != 0)
+        ret = VERIFY_MAC_ERROR;
+
+    return ret;
+}
+#else
 /* check all length bytes for the pad value, return 0 on success */
 static int PadCheck(const byte* a, byte pad, int length)
 {
@@ -16255,6 +16517,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 
     return ret;
 }
+#endif
 #endif
 
 
