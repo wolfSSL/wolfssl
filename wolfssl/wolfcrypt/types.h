@@ -218,7 +218,7 @@ decouple library dependencies with standard string, memory and so on.
                              mp_digit, no 64 bit type so make mp_digit 16 bit */
 #endif
 
-#ifdef WC_PTR_TYPE /* Allow user suppied type */
+#ifdef WC_PTR_TYPE /* Allow user supplied type */
     typedef WC_PTR_TYPE wc_ptr_t;
 #elif defined(HAVE_UINTPTR_T)
     #include <stdint.h>

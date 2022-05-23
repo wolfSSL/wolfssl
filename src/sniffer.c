@@ -743,6 +743,14 @@ static void FreePacketList(PacketBuffer* in)
 static void FreeSnifferSession(SnifferSession* session)
 {
     if (session) {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* if session has pending operation then poll till event is done */
+        if (session->sslServer && session->sslServer->error == WC_PENDING_E) {
+            while (wolfSSL_AsyncPoll(session->sslServer,
+                WOLF_POLL_FLAG_CHECK_HW) == 0);
+        }
+    #endif
+
         wolfSSL_free(session->sslClient);
         wolfSSL_free(session->sslServer);
 
