@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Test WolfSSL/OpenSSL srtp interoperability
 #
 # TODO: add OpenSSL client with WolfSSL server
@@ -59,7 +59,7 @@ start_openssl_server() {
 
     server_output_file=/tmp/openssl_srtp_out
 
-    # hackish but OpenSSL doesn't work if input is feeded before handshaking and
+    # hackish but OpenSSL doesn't work if input is fed before handshaking and
     # the wolfSSL client needs a reply to stop
     (sleep 1;echo -n "I hear you fa shizzle...") | \
         ${OPENSSL} s_server \

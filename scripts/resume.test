@@ -74,7 +74,7 @@ do_test() {
     esac
 
     remove_ready_file
-    echo "./examples/server/server -r -R "$ready_file" -p $resume_port"
+    echo "./examples/server/server -r -R \"$ready_file\" -p $resume_port"
     ./examples/server/server -r -R "$ready_file" -p $resume_port &
     server_pid=$!
 

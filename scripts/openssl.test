@@ -321,11 +321,11 @@ do_wolfssl_client() {
     if [ "$version" != "5" -a "$version" != "" ]
     then
         echo "#"
-        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl"
+        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
         $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     else
         echo "#"
-        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl"
+        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\" $crl"
         # do all versions
         $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     fi
@@ -451,10 +451,10 @@ esac
 wolf_ciphers=`$WOLFSSL_CLIENT -e`
 # get wolfssl supported versions
 wolf_versions=`$WOLFSSL_CLIENT -V`
-wolf_versions="$wolf_versions:5" #5 will test without -v flag
+wolf_versions="${wolf_versions}:5" #5 will test without -v flag
 
-OIFS=$IFS # store old separator to reset
-IFS=$'\:' # set delimiter
+OIFS="$IFS" # store old separator to reset
+IFS=: # set delimiter
 for version in $wolf_versions
 do
     case $version in
@@ -466,7 +466,7 @@ do
         ;;
     esac
 done
-IFS=$OIFS #restore separator
+IFS="$OIFS" #restore separator
 
 #
 # Start OpenSSL servers
@@ -552,8 +552,8 @@ case $openssl_nodhe in
 esac
 
 # Check suites to determine support in wolfSSL
-OIFS=$IFS # store old separator to reset
-IFS=$'\:' # set delimiter
+OIFS="$IFS" # store old separator to reset
+IFS=: # set delimiter
 for wolfSuite in $wolf_ciphers; do
     case $wolfSuite in
     *ECDHE-RSA-*)
@@ -589,7 +589,7 @@ for wolfSuite in $wolf_ciphers; do
         wolf_rsa=yes
     esac
 done
-IFS=$OIFS #restore separator
+IFS="$OIFS" #restore separator
 
 openssl_ciphers=`$OPENSSL ciphers ALL 2>&1`
 case $openssl_ciphers in
@@ -744,8 +744,8 @@ do
     check_server_ready
 done
 
-OIFS=$IFS # store old separator to reset
-IFS=$'\:' # set delimiter
+OIFS="$IFS" # store old separator to reset
+IFS=: # set delimiter
 set -f # no globbing
 
 wolf_temp_cases_total=0
@@ -1173,7 +1173,7 @@ do
     open_temp_cases_tested=0
     wolfdowngrade="$version"
 done
-IFS=$OIFS #restore separator
+IFS="$OIFS" #restore separator
 
 do_cleanup
 

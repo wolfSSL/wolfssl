@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
+if [ -n "$NETWORK_UNSHARE_HELPER" ]; then
     exec "${NETWORK_UNSHARE_HELPER}" "@builddir@/tests/unit.test" "$@" || exit $?
 elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"

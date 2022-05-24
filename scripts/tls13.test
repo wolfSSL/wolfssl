@@ -38,7 +38,7 @@ server_out_file="$(pwd)/wolfssl_tls13_server_out$$"
 # Client output
 client_out_file="$(pwd)/wolfssl_tls13_client_out$$"
 
-echo "ready file "$ready_file""
+echo "ready file \"$ready_file\""
 
 create_port() {
     while [ ! -s "$ready_file" ]; do
@@ -262,7 +262,7 @@ if [ "$early_data" = "yes" ]; then
              tee "$server_out_file") &
         server_pid=$!
         create_port
-        ./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
+        ./examples/client/client -v 4 -r -0 -p $port >"$client_out_file" 2>&1
         RESULT=$?
         cat "$client_out_file"
         remove_ready_file
