@@ -4656,7 +4656,7 @@ struct WOLFSSL {
  * to the error queue on file end. This should not be left
  * for the caller to find so we clear the last error.
  */
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
 #define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
     (err) = wolfSSL_ERR_peek_last_error();                  \
     if (ERR_GET_LIB(err) == ERR_LIB_PEM &&                  \
