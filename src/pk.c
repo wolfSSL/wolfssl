@@ -9306,7 +9306,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
     r = wolfSSL_BN_bn2hex(sig->r);
     s = wolfSSL_BN_bn2hex(sig->s);
     /* get DER-encoded ECDSA signature */
-    ret = wc_ecc_rs_to_sig((const char*)r, (const char*)s, 
+    ret = wc_ecc_rs_to_sig((const char*)r, (const char*)s,
                                         signature, &signaturelen);
     /* free r and s */
     if (r)
@@ -9318,10 +9318,10 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         WOLFSSL_MSG("wc_ecc_verify_hash failed");
         return WOLFSSL_FATAL_ERROR;
     }
-    /* verify hash. expects to call wc_CryptoCb_EccVerify internally */ 
+    /* verify hash. expects to call wc_CryptoCb_EccVerify internally */
     ret = wc_ecc_verify_hash(signature, signaturelen, d, dlen, &check_sign,
                         (ecc_key*)key->internal);
-    
+
     if (ret != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_verify_hash failed");
         return WOLFSSL_FATAL_ERROR;
