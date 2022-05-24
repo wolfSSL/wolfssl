@@ -293,7 +293,7 @@ typedef struct ecc_set_type {
 } ecc_set_type;
 #else
 #define MAX_ECC_NAME 16
-#define MAX_ECC_STRING ((MAX_ECC_BYTES * 2) + 1)
+#define MAX_ECC_STRING ((MAX_ECC_BYTES * 2) + 2)
     /* The values are stored as text strings. */
 
 typedef struct ecc_set_type {
