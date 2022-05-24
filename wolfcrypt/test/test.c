@@ -39428,7 +39428,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     byte* out = (byte*)XMALLOC(sizeof(byte),
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #ifdef OPENSSL_EXTRA
-    byte* check = (byte*)XMALLOC(sizeof(byte)*(256), HEAP_HINT, 
+    byte* check = (byte*)XMALLOC(sizeof(byte)*(256), HEAP_HINT,
                                             DYNAMIC_TYPE_TMP_BUFFER);
 
     #endif
@@ -39581,10 +39581,10 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     else
         ret = 0;
-    
- 
+
+
     #ifdef OPENSSL_EXTRA
-    
+
     (void)pkey;
     cp = ecc_clikey_der_256;
     privKey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &cp,
@@ -39594,7 +39594,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     pkey = (ecc_key*)privKey->ecc->internal;
     pkey->devId = devId;
-   
+
     p = ecc_clikeypub_der_256;
     pubKey = d2i_PUBKEY(NULL, &p, sizeof_ecc_clikeypub_der_256);
     if (pubKey == NULL) {
@@ -39605,7 +39605,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
 
     /* sign */
     EVP_MD_CTX_init(&mdCtx);
-    
+
     ret = EVP_DigestSignInit(&mdCtx, NULL, EVP_sha256(), NULL, privKey);
     if (ret != WOLFSSL_SUCCESS) {
         ERROR_OUT(-8021, exit_onlycb);
@@ -39647,7 +39647,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
 
     /* verify */
-    
+
     EVP_MD_CTX_init(&mdCtx);
 
     if (ret == SSL_SUCCESS) {

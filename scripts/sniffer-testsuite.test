@@ -102,7 +102,7 @@ then
 fi
 
 # TLS v1.3 sniffer test X25519
-if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x22519 == yes
+if test $RESULT -eq 0 && test $has_tlsv13 == yes && test $has_x25519 == yes
 then
     ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-x25519.pcap ./certs/statickeys/x25519.pem 127.0.0.1 11111
 

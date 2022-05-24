@@ -189,11 +189,11 @@ create_cert() {
     mv ./certs/intermediate/tmp.pem ./certs/intermediate/$4.pem
 }
 
-if [ "$1" == "clean" ]; then
+if [ "$1" = "clean" ]; then
     echo "Cleaning temp files"
     cleanup_files
 fi
-if [ "$1" == "cleanall" ]; then
+if [ "$1" = "cleanall" ]; then
     echo "Cleaning all files"
     rm -f ./certs/intermediate/*.pem
     rm -f ./certs/intermediate/*.der
