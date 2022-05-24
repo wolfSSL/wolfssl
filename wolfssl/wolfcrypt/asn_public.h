@@ -390,11 +390,11 @@ typedef struct Cert {
 #ifdef WOLFSSL_ALT_NAMES
     byte     altNames[CTC_MAX_ALT_SIZE]; /* altNames copy */
     int      altNamesSz;                 /* altNames size in bytes */
+#endif
     byte     beforeDate[CTC_DATE_SIZE];  /* before date copy */
     int      beforeDateSz;               /* size of copy */
     byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
     int      afterDateSz;                /* size of copy */
-#endif
 #ifdef WOLFSSL_CERT_EXT
     byte    skid[CTC_MAX_SKID_SIZE];     /* Subject Key Identifier */
     int     skidSz;                      /* SKID size in bytes */

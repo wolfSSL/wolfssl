@@ -8171,7 +8171,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
     }
 #endif /* WOLFSSL_CERT_REQ */
 
-#ifdef WOLFSSL_ALT_NAMES
     /* converts WOLFSSL_AN1_TIME to Cert form, returns positive size on
      * success */
     static int CertDateFromX509(byte* out, int outSz, WOLFSSL_ASN1_TIME* t)
@@ -8189,7 +8188,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         }
         return t->length + sz;
     }
-#endif /* WOLFSSL_ALT_NAMES */
 
     /* convert a WOLFSSL_X509 to a Cert structure for writing out */
     static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
@@ -8209,7 +8207,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 
         cert->version = (int)wolfSSL_X509_get_version(x509);
 
-    #ifdef WOLFSSL_ALT_NAMES
         if (x509->notBefore.length > 0) {
             cert->beforeDateSz = CertDateFromX509(cert->beforeDate,
                         CTC_DATE_SIZE, &x509->notBefore);
@@ -8234,6 +8231,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             cert->afterDateSz = 0;
         }
 
+    #ifdef WOLFSSL_ALT_NAMES
         cert->altNamesSz = FlattenAltNames(cert->altNames,
                 sizeof(cert->altNames), x509->altNames);
     #endif /* WOLFSSL_ALT_NAMES */

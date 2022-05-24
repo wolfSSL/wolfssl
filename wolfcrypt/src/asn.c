@@ -21752,7 +21752,6 @@ static void SetTime(struct tm* date, byte* output)
 }
 #endif
 
-#ifdef WOLFSSL_ALT_NAMES
 #ifndef WOLFSSL_ASN_TEMPLATE
 
 /* Copy Dates from cert, return bytes written */
@@ -21773,7 +21772,6 @@ static int CopyValidity(byte* output, Cert* cert)
 }
 
 #endif /* !WOLFSSL_ASN_TEMPLATE */
-#endif
 
 
 /* Simple name OID size. */
@@ -23997,16 +23995,14 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         return PUBLIC_KEY_E;
 
     der->validitySz = 0;
-#ifdef WOLFSSL_ALT_NAMES
-    /* date validity copy ? */
+    /* copy date validity if already set in cert struct */
     if (cert->beforeDateSz && cert->afterDateSz) {
         der->validitySz = CopyValidity(der->validity, cert);
         if (der->validitySz <= 0)
             return DATE_E;
     }
-#endif
 
-    /* date validity */
+    /* set date validity using daysValid if not set already */
     if (der->validitySz == 0) {
         der->validitySz = SetValidity(der->validity, cert->daysValid);
         if (der->validitySz <= 0)
