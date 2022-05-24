@@ -828,7 +828,7 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #ifndef OFFSETOF
-        #if defined(__clang__) || (__GNUC__ >= 4)
+        #if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 4))
             #define OFFSETOF(type, field) __builtin_offsetof(type, field)
         #else
             #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
