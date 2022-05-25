@@ -648,8 +648,8 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
         cryptoInfo.cipher.aesccm_dec.out       = out;
         cryptoInfo.cipher.aesccm_dec.in        = in;
         cryptoInfo.cipher.aesccm_dec.sz        = sz;
-        cryptoInfo.cipher.aesccm_enc.nonce     = nonce;
-        cryptoInfo.cipher.aesccm_enc.nonceSz   = nonceSz;
+        cryptoInfo.cipher.aesccm_dec.nonce     = nonce;
+        cryptoInfo.cipher.aesccm_dec.nonceSz   = nonceSz;
         cryptoInfo.cipher.aesccm_dec.authTag   = authTag;
         cryptoInfo.cipher.aesccm_dec.authTagSz = authTagSz;
         cryptoInfo.cipher.aesccm_dec.authIn    = authIn;
