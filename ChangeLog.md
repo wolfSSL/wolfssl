@@ -160,12 +160,12 @@ Release 5.3.0 of wolfSSL embedded TLS has bug fixes and new features including:
   bypassed. If a malicious client does not send the certificate_verify
   message a client can connect without presenting a certificate even
   if the server requires one. Thank you to Aina Toky Rasoamanana and
-  Olivier Levillain of Télécom SudParis.
+  Olivier Levillain of Télécom SudParis. (CVE-2022-25640)
 * \[High\] A TLS v1.3 client attempting to authenticate a TLS v1.3
   server can have its certificate check bypassed. If the sig_algo in
   the certificate_verify message is different than the certificate
   message checking may be bypassed. Thank you to Aina Toky Rasoamanana and
-  Olivier Levillain of Télécom SudParis.
+  Olivier Levillain of Télécom SudParis. (CVE-2022-25638)
 
 ## New Feature Additions
 
