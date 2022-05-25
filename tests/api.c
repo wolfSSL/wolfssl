@@ -49934,8 +49934,8 @@ static void test_wolfSSL_d2i_X509_REQ(void)
          * Obtain the challenge password from the CSR
          */
         AssertIntEQ(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword, -1),
-                NID_pkcs9_challengePassword);
-        AssertNotNull(attr = X509_REQ_get_attr(req, NID_pkcs9_challengePassword));
+                1);
+        AssertNotNull(attr = X509_REQ_get_attr(req, 1));
         AssertNotNull(at = X509_ATTRIBUTE_get0_type(attr, 0));
         AssertNotNull(at->value.asn1_string);
         AssertStrEQ((char*)ASN1_STRING_data(at->value.asn1_string), "2xIE+qqp/rhyTXP+");
@@ -49975,8 +49975,8 @@ static void test_wolfSSL_d2i_X509_REQ(void)
          * Obtain the challenge password from the CSR
          */
         AssertIntEQ(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword, -1),
-                NID_pkcs9_challengePassword);
-        AssertNotNull(attr = X509_REQ_get_attr(req, NID_pkcs9_challengePassword));
+                0);
+        AssertNotNull(attr = X509_REQ_get_attr(req, 0));
         AssertNotNull(at = X509_ATTRIBUTE_get0_type(attr, 0));
         AssertNotNull(at->value.asn1_string);
         AssertStrEQ((char*)ASN1_STRING_data(at->value.asn1_string), "IGCu/xNL4/0/wOgo");

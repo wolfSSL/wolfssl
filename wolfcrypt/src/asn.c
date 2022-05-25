@@ -4088,6 +4088,10 @@ static const byte attrPkcs9ContentTypeOid[] =  CSR_ATTR_TYPE_OID_BASE(3);
 static const byte attrChallengePasswordOid[] = CSR_ATTR_TYPE_OID_BASE(7);
 static const byte attrExtensionRequestOid[] =  CSR_ATTR_TYPE_OID_BASE(14);
 static const byte attrSerialNumberOid[] = {85, 4, 5};
+static const byte attrDnQualifier[] = {85, 4, 46};
+static const byte attrInitals[] = {85, 4, 43};
+static const byte attrSurname[] = {85, 4, 4};
+static const byte attrGivenName[] = {85, 4, 42};
 #endif
 #endif
 
@@ -4913,6 +4917,22 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 #ifdef WOLFSSL_CERT_REQ
         case oidCsrAttrType:
             switch (id) {
+                case GIVEN_NAME_OID:
+                    oid = attrGivenName;
+                    *oidSz = sizeof(attrGivenName);
+                    break;
+                case SURNAME_OID:
+                    oid = attrSurname;
+                    *oidSz = sizeof(attrSurname);
+                    break;
+                case INITIALS_OID:
+                    oid = attrInitals;
+                    *oidSz = sizeof(attrInitals);
+                    break;
+                case DNQUALIFIER_OID:
+                    oid = attrDnQualifier;
+                    *oidSz = sizeof(attrDnQualifier);
+                    break;
                 case UNSTRUCTURED_NAME_OID:
                     oid = attrUnstructuredNameOid;
                     *oidSz = sizeof(attrUnstructuredNameOid);
@@ -18720,6 +18740,57 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                             XMEMCPY(cert->serial, cert->sNum, cert->sNumLen);
                             cert->serialSz = cert->sNumLen;
                         }
+                        break;
+                    case DNQUALIFIER_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        cert->dnQualifier = (char*)cert->source + cert->srcIdx;
+                        cert->dnQualifierLen = len;
+                        cert->srcIdx += len;
+                        break;
+                    case INITIALS_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        cert->initials = (char*)cert->source + cert->srcIdx;
+                        cert->initialsLen = len;
+                        cert->srcIdx += len;
+                        break;
+                    case SURNAME_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        cert->surname = (char*)cert->source + cert->srcIdx;
+                        cert->surnameLen = len;
+                        cert->srcIdx += len;
+                        break;
+                    case GIVEN_NAME_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        cert->givenName = (char*)cert->source + cert->srcIdx;
+                        cert->givenNameLen = len;
+                        cert->srcIdx += len;
+                        break;
+                    case UNSTRUCTURED_NAME_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        cert->unstructuredName =
+                            (char*)cert->source + cert->srcIdx;
+                        cert->unstructuredNameLen = len;
+                        cert->srcIdx += len;
                         break;
                     case EXTENSION_REQUEST_OID:
                         /* save extensions */
