@@ -20,10 +20,21 @@
  */
 #undef WOLFSSL_ESPIDF
 #define WOLFSSL_ESPIDF
+
+/*
+ * choose ONE of these Espressif chips to define:
+ * 
+ * WOLFSSL_ESPWROOM32
+ * WOLFSSL_ESPWROOM32SE
+ * WOLFSSL_ESP8266
+ * 
+ * comment out the others:
+ */
+
 #define WOLFSSL_ESPWROOM32
-/* Uncomment next line if using Espressif ESP32-WROOM-32SE */
-/* comment the above line #define WOLFSSL_ESPWROOM32 */
 /* #define WOLFSSL_ESPWROOM32SE */
+/* #define WOLFSSL_ESP8266 */
+
 
 #define BENCH_EMBEDDED
 #define USE_CERT_BUFFERS_2048
