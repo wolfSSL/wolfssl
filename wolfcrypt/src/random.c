@@ -377,8 +377,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 #ifdef LITTLE_ENDIAN_ORDER
     bits = ByteReverseWord32(bits);
 #endif
-    len = (outSz / OUTPUT_BLOCK_LEN)
-        + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
+    len = ((int)outSz / OUTPUT_BLOCK_LEN)
+        + (((int)outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
     ctr = 1;
     for (i = 0; i < len; i++) {
@@ -489,7 +489,7 @@ static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
 
-    for (i = dataSz - 1; i >= 0; i--)
+    for (i = (int)dataSz - 1; i >= 0; i--)
     {
         data[i]++;
         if (data[i] != 0) break;
@@ -522,7 +522,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
     if (outSz == 0) outSz = 1;
 
-    len = (outSz / OUTPUT_BLOCK_LEN) + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
+    len = ((int)outSz / OUTPUT_BLOCK_LEN) +
+          (((int)outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
@@ -588,21 +589,21 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
-    word16 carry = 0;
+    int carry = 0;
 
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
 
-        dIdx = dLen - 1;
-        for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)d[dIdx] + (word16)s[sIdx];
+        dIdx = (int)dLen - 1;
+        for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
+            carry += (int)d[dIdx] + (int)s[sIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;
         }
 
         for (; dIdx >= 0; dIdx--) {
-            carry += (word16)d[dIdx];
+            carry += d[dIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }
@@ -750,7 +751,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
     while (seedIdx < seedSz - SEED_BLOCK_SZ) {
         if (ConstantCompare(seed + seedIdx,
                             seed + seedIdx + scratchSz,
-                            scratchSz) == 0) {
+                            (int)scratchSz) == 0) {
 
             ret = DRBG_CONT_FAILURE;
         }
@@ -2812,7 +2813,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;
         for (i = 0; i < sz; i++ )
-            output[i] = i;
+            output[i] = (byte)i;
 
         (void)os;
 

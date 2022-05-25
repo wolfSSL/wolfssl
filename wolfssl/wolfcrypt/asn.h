@@ -1685,7 +1685,7 @@ struct DecodedCert {
 #ifndef IGNORE_NAME_CONSTRAINTS
     byte extNameConstraintSet : 1;
 #endif
-    byte isCA : 1;                 /* CA basic constraint true */
+    byte isCA;                 /* CA basic constraint true */
     byte pathLengthSet : 1;        /* CA basic const path length set */
     byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
     byte extKeyUsageSet : 1;

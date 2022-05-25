@@ -2919,7 +2919,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         aes->left = 0;
     #endif
 
-        aes->keylen = keylen;
+        aes->keylen = (int)keylen;
         aes->rounds = (keylen/4) + 6;
 
     #ifdef WOLFSSL_AESNI
@@ -4500,7 +4500,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
-    for (i = ctrSz-1; i >= 0; i--) {
+    for (i = (int)(ctrSz-1); i >= 0; i--) {
         if (++ctr[i])
             break;
     }
@@ -8250,7 +8250,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
      * the pairwise bytes in the strings.
      */
-    res = ConstantCompare(authTag, Tprime, authTagSz);
+    res = ConstantCompare(authTag, Tprime, (int)authTagSz);
     /* convert positive retval from ConstantCompare() to all-1s word, in
      * constant time.
      */
@@ -9634,7 +9634,7 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 {
     int ret = 0;
 
-    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize(ivSz)) {
+    if (aes == NULL || iv == NULL || !CheckAesGcmIvSize((int)ivSz)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -9662,7 +9662,7 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
 {
     int ret = 0;
 
-    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize(ivSz) ||
+    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize((int)ivSz) ||
         (ivFixed == NULL && ivFixedSz != 0) ||
         (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
 

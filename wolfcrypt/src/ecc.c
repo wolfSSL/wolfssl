@@ -1366,13 +1366,15 @@ enum ecc_curve_load_mask {
 static void wc_ecc_curve_cache_free_spec_item(ecc_curve_spec* curve, mp_int* item,
     byte mask)
 {
+    int tmp_l_mask = (int)curve->load_mask;
     if (item) {
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_free(&item->raw);
     #endif
         mp_clear(item);
     }
-    curve->load_mask &= ~mask;
+    tmp_l_mask &= ~mask; /* perform int promotion arithmetic */
+    curve->load_mask = (byte)tmp_l_mask; /* cast on assign */
 }
 static void wc_ecc_curve_cache_free_spec(ecc_curve_spec* curve)
 {
@@ -2915,7 +2917,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
         }
 #else
         /* Swap R[0] and R[1] if other index is needed. */
-        swap ^= b;
+        swap ^= (int)b;
         if (err == MP_OKAY)
             err = mp_cond_swap_ct(R[0]->x, R[1]->x, modulus->used, swap);
         if (err == MP_OKAY)
@@ -3941,7 +3943,7 @@ static int wc_ecc_cmp_param(const char* curveParam,
     }
 
     if (err == MP_OKAY) {
-        err = mp_read_unsigned_bin(a, param, paramSz);
+        err = mp_read_unsigned_bin(a, param, (int)paramSz);
     }
     if (err == MP_OKAY)
         err = mp_read_radix(b, curveParam, MP_RADIX_HEX);
@@ -4409,7 +4411,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             err = ecc_map_ex(result, curve->prime, mp, 1);
         }
         if (err == MP_OKAY) {
-            x = mp_unsigned_bin_size(curve->prime);
+            x = (word32)mp_unsigned_bin_size(curve->prime);
             if (*outlen < x || (int)x < mp_unsigned_bin_size(result->x)) {
                 err = BUFFER_E;
             }
@@ -4418,7 +4420,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         if (err == MP_OKAY) {
             XMEMSET(out, 0, x);
             err = mp_to_unsigned_bin(result->x,out +
-                                     (x - mp_unsigned_bin_size(result->x)));
+                           (x - (word32)mp_unsigned_bin_size(result->x)));
         }
         *outlen = x;
 
@@ -4755,7 +4757,7 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     size += 8;
 
     /* make up random string */
-    err = wc_RNG_GenerateBlock(rng, buf, size);
+    err = wc_RNG_GenerateBlock(rng, buf, (word32)size);
 
     /* load random buffer data into k */
     if (err == 0)
@@ -5047,7 +5049,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
         return err;
     }
 
-    key->flags = flags;
+    key->flags = (word32)flags;
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
@@ -5549,7 +5551,7 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
        FREE_CURVE_SPECS();
        return err;
     }
-    orderBits = mp_count_bits(curve->order);
+    orderBits = (word32)mp_count_bits(curve->order);
 
     wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
@@ -6343,16 +6345,16 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    /* load digest into e */
    if (err == MP_OKAY) {
        /* we may need to truncate if hash is longer than key size */
-       word32 orderBits = mp_count_bits(curve->order);
+       word32 orderBits = (word32)mp_count_bits(curve->order);
 
        /* truncate down to byte size, may be all that's needed */
        if ((WOLFSSL_BIT_SIZE * inlen) > orderBits)
            inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(e, in, inlen);
+       err = mp_read_unsigned_bin(e, in, (int)inlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, WOLFSSL_BIT_SIZE - ((int)orderBits & 0x7));
    }
 
    /* make up a key and export the public copy */
@@ -7625,7 +7627,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       return err;
    }
 
-   keySz = key->dp->size;
+   keySz = (word32)key->dp->size;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
@@ -7882,16 +7884,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    /* read hash */
    if (err == MP_OKAY) {
        /* we may need to truncate if hash is longer than key size */
-       unsigned int orderBits = mp_count_bits(curve->order);
+       unsigned int orderBits = (unsigned int)mp_count_bits(curve->order);
 
        /* truncate down to byte size, may be all that's needed */
        if ( (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
            hashlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(e, hash, hashlen);
+       err = mp_read_unsigned_bin(e, hash, (int)hashlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, WOLFSSL_BIT_SIZE - ((int)orderBits & 0x7));
    }
 
    /* check for async hardware acceleration */
@@ -8175,7 +8177,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
 #ifdef HAVE_COMP_KEY
     keysize = compressed && !shortKeySize ? inLen : inLen>>1;
 #else
-    keysize = inLen>>1;
+    keysize = (int)inLen>>1;
 #endif
 
     /* read data */
@@ -8377,7 +8379,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     if ((curve_idx < 0) || (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
 
-    numlen = ecc_sets[curve_idx].size;
+    numlen = (word32)ecc_sets[curve_idx].size;
 
     /* return length needed only */
     if (point != NULL && out == NULL && outLen != NULL) {
@@ -8411,7 +8413,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     /* pad and store x */
     XMEMSET(buf, 0, ECC_BUFSIZE);
     ret = mp_to_unsigned_bin(point->x, buf +
-                                 (numlen - mp_unsigned_bin_size(point->x)));
+                         (numlen - (word32)mp_unsigned_bin_size(point->x)));
     if (ret != MP_OKAY)
         goto done;
     XMEMCPY(out+1, buf, numlen);
@@ -8419,7 +8421,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     /* pad and store y */
     XMEMSET(buf, 0, ECC_BUFSIZE);
     ret = mp_to_unsigned_bin(point->y, buf +
-                                 (numlen - mp_unsigned_bin_size(point->y)));
+                         (numlen - (word32)mp_unsigned_bin_size(point->y)));
     if (ret != MP_OKAY)
         goto done;
     XMEMCPY(out+1+numlen, buf, numlen);
@@ -8519,7 +8521,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    /* return length needed only */
    if (key != NULL && out == NULL && outLen != NULL) {
       /* if key hasn't been setup assume max bytes for size estimation */
-      numlen = key->dp ? key->dp->size : MAX_ECC_BYTES;
+      numlen = (word32)(key->dp ? key->dp->size : MAX_ECC_BYTES);
       *outLen = 1 + 2*numlen;
       return LENGTH_ONLY_E;
    }
@@ -8550,7 +8552,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
        return ECC_BAD_ARG_E;
    }
 
-   numlen = key->dp->size;
+   numlen = (word32)key->dp->size;
 
     /* verify room in out buffer */
    if (*outLen < (1 + 2*numlen)) {
@@ -8559,8 +8561,8 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    }
 
    /* verify public key length is less than key size */
-   pubxlen = mp_unsigned_bin_size(key->pubkey.x);
-   pubylen = mp_unsigned_bin_size(key->pubkey.y);
+   pubxlen = (word32)mp_unsigned_bin_size(key->pubkey.x);
+   pubylen = (word32)mp_unsigned_bin_size(key->pubkey.y);
    if ((pubxlen > numlen) || (pubylen > numlen)) {
       WOLFSSL_MSG("Public key x/y invalid!");
       return BUFFER_E;
@@ -9386,7 +9388,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     #endif
 
         /* determine key size */
-        keysize = (inLen>>1);
+        keysize = ((int)inLen>>1);
         err = wc_ecc_set_curve(key, keysize, curve_id);
         key->type = ECC_PUBLICKEY;
     }
@@ -9594,7 +9596,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
-    keySz = key->dp->size;
+    keySz = (word32)key->dp->size;
 
     /* private key, d */
     if (d != NULL) {
@@ -9741,7 +9743,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         wc_ecc_reset(key);
 
         /* set key size */
-        ret = wc_ecc_set_curve(key, privSz, curve_id);
+        ret = wc_ecc_set_curve(key, (int)privSz, curve_id);
         key->type = ECC_PRIVATEKEY_ONLY;
     }
 
@@ -9815,7 +9817,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #endif
 
-    ret = mp_read_unsigned_bin(&key->k, priv, privSz);
+    ret = mp_read_unsigned_bin(&key->k, priv, (int)privSz);
 #ifdef HAVE_WOLF_BIGINT
     if (ret == 0 &&
                   wc_bigint_from_unsigned_bin(&key->k.raw, priv, privSz) != 0) {

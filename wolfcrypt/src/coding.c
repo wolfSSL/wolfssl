@@ -96,19 +96,27 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     /* 80 characters in table.
      * 64 bytes in a cache line - first line has 64, second has 16
      */
+    /* int v; */
     byte v;
+    /* int mask; */
     byte mask;
+    /* int tmpC = (int)c; */
 
+    /* tmpC -= BASE64_MIN; */
     c -= BASE64_MIN;
+    /* mask = ((0x3f - tmpC) >> 7) - 1; */
     mask = (((byte)(0x3f - c)) >> 7) - 1;
     /* Load a value from the first cache line and use when mask set. */
-    v  = base64Decode[ c & 0x3f        ] &   mask ;
+    /* v  = (int)base64Decode[ (byte)tmpC & 0x3f          ] &   (byte)mask; */
+    v = base64Decode[ c & 0x3f ] & mask;
     /* Load a value from the second cache line and use when mask not set. */
+    /* v |= (int)base64Decode[(((byte)tmpC & 0x0f) | 0x40)] & (byte)(~mask); */
     v |= base64Decode[(c & 0x0f) | 0x40] & (~mask);
 
+    /* return (byte)v; */
     return v;
 #else
-    return base64Decode[c - BASE64_MIN];
+    return base64Decode[(byte)(tmpC - BASE64_MIN)];
 #endif
 }
 #endif

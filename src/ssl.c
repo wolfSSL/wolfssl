@@ -1055,7 +1055,7 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
         return NULL;
 
     cipher = wolfSSL_get_cipher_name_iana(ssl);
-    len = min(len, (int)(XSTRLEN(cipher) + 1));
+    len = (int)min((word32)len, (word32)(XSTRLEN(cipher) + 1));
     XMEMCPY(buf, cipher, len);
     return buf;
 }
@@ -2105,8 +2105,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         return MEMORY_E;
     }
 
-    ssl->buffers.serverDH_P.length = pSz;
-    ssl->buffers.serverDH_G.length = gSz;
+    ssl->buffers.serverDH_P.length = (unsigned int)pSz;
+    ssl->buffers.serverDH_G.length = (unsigned int)gSz;
 
     XMEMCPY(ssl->buffers.serverDH_P.buffer, p, pSz);
     XMEMCPY(ssl->buffers.serverDH_G.buffer, g, gSz);
@@ -2196,7 +2196,7 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         if (!error) {
             freeKey = 1;
             error = wc_DhSetCheckKey(checkKey,
-                                 p, pSz, g, gSz, NULL, 0, 0, &rng);
+                             p, (word32)pSz, g, (word32)gSz, NULL, 0, 0, &rng);
         }
         if (freeKey)
             wc_FreeDhKey(checkKey);
@@ -2227,8 +2227,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         return MEMORY_E;
     }
 
-    ctx->serverDH_P.length = pSz;
-    ctx->serverDH_G.length = gSz;
+    ctx->serverDH_P.length = (unsigned int)pSz;
+    ctx->serverDH_G.length = (unsigned int)gSz;
 
     XMEMCPY(ctx->serverDH_P.buffer, p, pSz);
     XMEMCPY(ctx->serverDH_G.buffer, g, gSz);
@@ -3009,11 +3009,11 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
     if (*listSz == 0)
         return BUFFER_ERROR;
 
-    *list = (char *)XMALLOC((*listSz)+1, ssl->heap, DYNAMIC_TYPE_TLSX);
+    *list = (char *)XMALLOC((size_t)(*listSz+1), ssl->heap, DYNAMIC_TYPE_TLSX);
     if (*list == NULL)
         return MEMORY_ERROR;
 
-    XSTRNCPY(*list, ssl->alpn_client_list, (*listSz)+1);
+    XSTRNCPY(*list, ssl->alpn_client_list, (size_t)((int)*listSz+1));
     (*list)[*listSz] = 0;
 
     return WOLFSSL_SUCCESS;
@@ -4421,7 +4421,7 @@ int wolfSSL_pending(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-    return ssl->buffers.clearOutputBuffer.length;
+    return (int)ssl->buffers.clearOutputBuffer.length;
 }
 
 int wolfSSL_has_pending(const WOLFSSL* ssl)
@@ -5579,14 +5579,14 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             if (format == WOLFSSL_FILETYPE_PEM) {
             #ifdef WOLFSSL_PEM_TO_DER
-                ret = PemToDer(buff + consumed, remain, type, &part,
+                ret = PemToDer(buff + consumed, (long)remain, type, &part,
                                heap, info, NULL);
             #else
                 ret = NOT_COMPILED_IN;
             #endif
             }
             else {
-                int length = remain;
+                int length = (int)remain;
                 if (format == WOLFSSL_FILETYPE_ASN1) {
                     /* get length of der (read sequence) */
                     word32 inOutIdx = 0;
@@ -5594,11 +5594,11 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                             remain) < 0) {
                         ret = ASN_NO_PEM_HEADER;
                     }
-                    length += inOutIdx; /* include leading sequence */
+                    length += (int)inOutIdx; /* include leading sequence */
                 }
                 info->consumed = length;
                 if (ret == 0) {
-                    ret = AllocDer(&part, length, type, heap);
+                    ret = AllocDer(&part, (word32)length, type, heap);
                     if (ret == 0) {
                         XMEMCPY(part->buffer, buff + consumed, length);
                     }
@@ -6129,12 +6129,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             /* get length of der (read sequence or octet string) */
             word32 inOutIdx = 0;
             if (GetSequence(buff, &inOutIdx, &length, (word32)sz) >= 0) {
-                length += inOutIdx; /* include leading sequence */
+                length += (int)inOutIdx; /* include leading sequence */
             }
             /* get length using octect string (allowed for private key types) */
             else if (type == PRIVATEKEY_TYPE &&
                     GetOctetString(buff, &inOutIdx, &length, (word32)sz) >= 0) {
-                length += inOutIdx; /* include leading oct string */
+                length += (int)inOutIdx; /* include leading oct string */
             }
             else {
                 ret = ASN_PARSE_E;
@@ -6156,8 +6156,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                                                  &algId)) > 0) {
                     /* Found PKCS8 header */
                     /* ToTraditional_ex moves buff and returns adjusted length */
-                    der->length = ret;
-                    keyFormat = algId;
+                    der->length = (word32)ret;
+                    keyFormat = (int)algId;
                 }
                 ret = 0; /* failures should be ignored */
             }
@@ -7210,7 +7210,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
         return MEMORY_E;
 #endif
 
-    InitDecodedCert(cert, der, sz, NULL);
+    InitDecodedCert(cert, der, (word32)sz, NULL);
 
     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
@@ -12838,7 +12838,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return NULL;
 
-    len = min(SERVER_ID_LEN, (word32)len);
+    len = (int)min(SERVER_ID_LEN, (word32)len);
 
 #ifdef HAVE_EXT_CACHE
     if (ssl->ctx->get_sess_cb != NULL) {
@@ -12858,7 +12858,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     }
 #endif
 
-    row = HashSession(id, len, &error) % CLIENT_SESSION_ROWS;
+    row = HashSession(id, (word32)len, &error) % CLIENT_SESSION_ROWS;
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return NULL;
@@ -12870,7 +12870,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     }
 
     /* start from most recently used */
-    count = min((word32)ClientCache[row].totalCount, CLIENT_SESSIONS_PER_ROW);
+    count = (int)min((word32)ClientCache[row].totalCount, CLIENT_SESSIONS_PER_ROW);
     idx = ClientCache[row].nextIdx - 1;
     if (idx < 0 || idx >= CLIENT_SESSIONS_PER_ROW) {
         idx = CLIENT_SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
@@ -13073,7 +13073,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     }
 
     /* start from most recently used */
-    count = min((word32)sessRow->totalCount, SESSIONS_PER_ROW);
+    count = (int)min((word32)sessRow->totalCount, SESSIONS_PER_ROW);
     idx = sessRow->nextIdx - 1;
     if (idx < 0 || idx >= SESSIONS_PER_ROW) {
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
@@ -13323,7 +13323,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
         else
             error = -1;
         if (error == 0 && wc_LockMutex(&clisession_mutex) == 0) {
-            clientIdx = ClientCache[clientRow].nextIdx++;
+            clientIdx = (word32)ClientCache[clientRow].nextIdx++;
             ClientCache[clientRow].Clients[clientIdx].serverRow =
                                                             (word16)row;
             ClientCache[clientRow].Clients[clientIdx].serverIdx =
@@ -13512,13 +13512,13 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
                 sessRow->Sessions[i].side == side) {
             WOLFSSL_MSG("Session already exists. Overwriting.");
             overwrite = 1;
-            idx = i;
+            idx = (word32)i;
             break;
         }
     }
 
     if (!overwrite)
-        idx = sessRow->nextIdx;
+        idx = (word32)sessRow->nextIdx;
 #ifdef SESSION_INDEX
     if (sessionIndex != NULL)
         *sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
@@ -13601,8 +13601,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
 #ifndef NO_CLIENT_CACHE
     if (ret == 0 && clientCacheEntry != NULL) {
-        ClientSession* clientCache = AddSessionToClientCache(side, row, idx,
-                addSession->serverID, addSession->idLen, id, useTicket);
+        ClientSession* clientCache = AddSessionToClientCache(side, row,
+             (int)idx, addSession->serverID, addSession->idLen, id, useTicket);
         if (clientCache != NULL)
             *clientCacheEntry = clientCache;
     }
@@ -14759,9 +14759,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 if (wc_DhParamsLoad(der->buffer, der->length, p, &pSz, g, &gSz) < 0)
                     ret = WOLFSSL_BAD_FILETYPE;
                 else if (ssl)
-                    ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+                    ret = wolfSSL_SetTmpDH(ssl, p, (int)pSz, g, (int)gSz);
                 else
-                    ret = wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+                    ret = wolfSSL_CTX_SetTmpDH(ctx, p, (int)pSz, g, (int)gSz);
             }
         }
 
@@ -15645,9 +15645,9 @@ cleanup:
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
-        ctx->mask = wolf_set_options(ctx->mask, opt);
+        ctx->mask = (unsigned long)wolf_set_options((long)ctx->mask, opt);
 
-        return ctx->mask;
+        return (long)ctx->mask;
     }
 
 #ifdef OPENSSL_EXTRA
@@ -19935,12 +19935,12 @@ WOLFSSL_CIPHER* wolfSSL_sk_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
 
 word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 {
-    word16 cipher_id = 0;
+    word32 cipher_id = 0;
 
     WOLFSSL_ENTER("SSL_CIPHER_get_id");
 
     if (cipher && cipher->ssl) {
-        cipher_id = (cipher->ssl->options.cipherSuite0 << 8) |
+        cipher_id = (word32)(cipher->ssl->options.cipherSuite0 << 8) |
                      cipher->ssl->options.cipherSuite;
     }
 
@@ -19954,8 +19954,8 @@ const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
     WOLFSSL_ENTER("SSL_get_cipher_by_value");
 
     /* extract cipher id information */
-    cipherSuite =   (value       & 0xFF);
-    cipherSuite0 = ((value >> 8) & 0xFF);
+    cipherSuite =   (byte)((int)value       & 0xFF);
+    cipherSuite0 = (byte)(((int)value >> 8) & 0xFF);
 
     /* TODO: lookup by cipherSuite0 / cipherSuite */
     (void)cipherSuite0;

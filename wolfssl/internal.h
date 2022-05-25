@@ -1681,8 +1681,8 @@ struct WOLFSSL_BY_DIR {
 /* wolfSSL method type */
 struct WOLFSSL_METHOD {
     ProtocolVersion version;
-    byte            side;         /* connection side, server or client */
-    byte            downgrade;    /* whether to downgrade version, default no */
+    byte            side:2;         /* connection side, server or client */
+    byte            downgrade:1;    /* whether to downgrade version, default no */
 };
 
 /* wolfSSL buffer type - internal uses "buffer" type */
@@ -2807,7 +2807,8 @@ struct WOLFSSL_CTX {
     byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
     byte        quietShutdown:1;  /* don't send close notify */
     byte        groupMessages:1;  /* group handshake messages before sending */
-    byte        minDowngrade;     /* minimum downgrade version */
+    byte        minDowngrade;     /* minimum downgrade version (address is used,
+                                   * cannot be a bit-field */
     byte        haveEMS:1;        /* have extended master secret extension */
     byte        useClientOrder:1; /* Use client's cipher preference order */
 #if defined(HAVE_SESSION_TICKET)
@@ -2820,7 +2821,7 @@ struct WOLFSSL_CTX {
     byte        noTicketTls13:1;  /* TLS 1.3 Server won't create new Ticket */
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #endif
-    byte        mutualAuth:1;     /* Mutual authentication required */
+    byte        mutualAuth;     /* Mutual authentication required */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
     byte        verifyPostHandshake:1; /* Only send client cert req post
@@ -2926,7 +2927,7 @@ struct WOLFSSL_CTX {
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    byte        havePSK;                /* psk key set by user */
+    byte        havePSK:1;                /* psk key set by user */
     wc_psk_client_callback client_psk_cb;  /* client callback */
     wc_psk_server_callback server_psk_cb;  /* server callback */
 #ifdef WOLFSSL_TLS13
@@ -3005,7 +3006,7 @@ struct WOLFSSL_CTX {
     #endif
     #endif
     #ifdef HAVE_SUPPORTED_CURVES
-        byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
+        byte userCurves:1;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
     #endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
@@ -3374,7 +3375,7 @@ struct WOLFSSL_SESSION {
     byte               sessionIDSz;
 
     byte*              masterSecret;      /* stored secret            */
-    word16             haveEMS;           /* ext master secret flag   */
+    word16             haveEMS:1;           /* ext master secret flag   */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
 #endif
@@ -3697,7 +3698,7 @@ typedef struct Options {
     word16            weOwnRng:1;         /* will be true unless CTX owns */
     word16            haveEMS:1;          /* using extended master secret */
 #ifdef HAVE_POLY1305
-    word16            oldPoly:1;        /* set when to use old rfc way of poly*/
+    word16            oldPoly;        /* set when to use old rfc way of poly*/
 #endif
     word16            haveAnon:1;       /* User wants to allow Anon suites */
 #ifdef HAVE_SESSION_TICKET
@@ -3722,7 +3723,7 @@ typedef struct Options {
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */
-    word16            mutualAuth:1;       /* Mutual authentication is required */
+    word16            mutualAuth;       /* Mutual authentication is required */
     word16            peerAuthGood:1;     /* Any required peer auth done */
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     word16            pskNegotiated:1;    /* Session Ticket/PSK negotiated. */

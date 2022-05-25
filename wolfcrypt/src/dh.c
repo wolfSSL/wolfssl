@@ -1104,7 +1104,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     }
 
     /* generate extra 64 bits so that bias from mod function is negligible */
-    cSz = *privSz + (64 / WOLFSSL_BIT_SIZE);
+    cSz = (int)*privSz + (64 / WOLFSSL_BIT_SIZE);
     cBuf = (byte*)XMALLOC(cSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cBuf == NULL) {
         return MEMORY_E;
@@ -1138,7 +1138,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         /* generate N+64 bits (c) from RBG into tmpX, making sure positive.
          * Hash_DRBG uses SHA-256 which matches maximum
          * requested_security_strength of (L,N) */
-        err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
+        err = wc_RNG_GenerateBlock(rng, cBuf, (word32)cSz);
         if (err == MP_OKAY)
             err = mp_read_unsigned_bin(tmpX, cBuf, cSz);
         if (err != MP_OKAY) {
@@ -1153,12 +1153,12 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         }
     } while (mp_cmp_d(tmpX, 1) != MP_GT);
 
-    ForceZero(cBuf, cSz);
+    ForceZero(cBuf, (word32)cSz);
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* tmpQ: M = min(2^N,q) - 1 */
     if (err == MP_OKAY)
-        err = mp_2expt(tmpQ, *privSz * 8);
+        err = mp_2expt(tmpQ, (int)*privSz * 8);
 
     if (err == MP_OKAY) {
         if (mp_cmp(tmpQ, &key->q) == MP_GT) {
@@ -1184,7 +1184,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
             WOLFSSL_MSG("DH private key output buffer too small");
             err = BAD_FUNC_ARG;
         } else {
-            *privSz = pSz;
+            *privSz = (word32)pSz;
             err = mp_to_unsigned_bin(tmpX, priv);
         }
     }
@@ -1224,7 +1224,7 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
 #endif
     {
 
-        sz = mp_unsigned_bin_size(&key->p);
+        sz = (word32)mp_unsigned_bin_size(&key->p);
 
         /* Table of predetermined values from the operation
            2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
@@ -1324,14 +1324,14 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
         return MP_INIT_E;
     }
 
-    if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
+    if (mp_read_unsigned_bin(x, priv, (int)privSz) != MP_OKAY)
         ret = MP_READ_E;
 
     if (ret == 0 && mp_exptmod(&key->g, x, &key->p, y) != MP_OKAY)
         ret = MP_EXPTMOD_E;
 
     if (ret == 0) {
-        binSz = mp_unsigned_bin_size(y);
+        binSz = (word32)mp_unsigned_bin_size(y);
         if (binSz > *pubSz) {
             ret = WC_KEY_SIZE_E;
         }
@@ -1506,12 +1506,12 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
 
     SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-    if (mp_read_unsigned_bin(y, pub, pubSz) != MP_OKAY) {
+    if (mp_read_unsigned_bin(y, pub, (int)pubSz) != MP_OKAY) {
         ret = MP_READ_E;
     }
 
     if (ret == 0 && prime != NULL) {
-        if (mp_read_unsigned_bin(q, prime, primeSz) != MP_OKAY)
+        if (mp_read_unsigned_bin(q, prime, (int)primeSz) != MP_OKAY)
             ret = MP_READ_E;
 
     } else if (mp_iszero(&key->q) == MP_NO) {
@@ -1716,13 +1716,13 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
         return MP_INIT_E;
     }
 
-    if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY) {
+    if (mp_read_unsigned_bin(x, priv, (int)privSz) != MP_OKAY) {
         ret = MP_READ_E;
     }
 
     if (ret == 0) {
         if (prime != NULL) {
-            if (mp_read_unsigned_bin(q, prime, primeSz) != MP_OKAY)
+            if (mp_read_unsigned_bin(q, prime, (int)primeSz) != MP_OKAY)
                 ret = MP_READ_E;
         }
         else if (mp_iszero(&key->q) == MP_NO) {
@@ -1832,8 +1832,8 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
     SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
     /* Load the private and public keys into big integers. */
-    if (mp_read_unsigned_bin(publicKey, pub, pubSz) != MP_OKAY ||
-        mp_read_unsigned_bin(privateKey, priv, privSz) != MP_OKAY) {
+    if (mp_read_unsigned_bin(publicKey, pub, (int)pubSz) != MP_OKAY ||
+        mp_read_unsigned_bin(privateKey, priv, (int)privSz) != MP_OKAY) {
 
         ret = MP_READ_E;
     }
@@ -2094,10 +2094,10 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
     SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-    if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
+    if (mp_read_unsigned_bin(x, priv, (int)privSz) != MP_OKAY)
         ret = MP_READ_E;
 
-    if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+    if (ret == 0 && mp_read_unsigned_bin(y, otherPub, (int)pubSz) != MP_OKAY)
         ret = MP_READ_E;
 
     if (ret == 0 && mp_exptmod(y, x, &key->p, z) != MP_OKAY)
@@ -2111,7 +2111,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         ret = MP_TO_E;
 
     if (ret == 0)
-        *agreeSz = mp_unsigned_bin_size(z);
+        *agreeSz = (word32)mp_unsigned_bin_size(z);
 
     mp_clear(z);
     mp_clear(y);
@@ -2386,7 +2386,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     }
 
     if (ret == 0) {
-        if (mp_read_unsigned_bin(&key->p, p, pSz) != MP_OKAY)
+        if (mp_read_unsigned_bin(&key->p, p, (int)pSz) != MP_OKAY)
             ret = ASN_DH_KEY_E;
         else
             keyP = &key->p;
@@ -2406,7 +2406,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && mp_init(&key->g) != MP_OKAY)
         ret = MP_INIT_E;
     if (ret == 0) {
-        if (mp_read_unsigned_bin(&key->g, g, gSz) != MP_OKAY)
+        if (mp_read_unsigned_bin(&key->g, g, (int)gSz) != MP_OKAY)
             ret = ASN_DH_KEY_E;
         else
             keyG = &key->g;
@@ -2417,7 +2417,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
             ret = MP_INIT_E;
     }
     if (ret == 0 && q != NULL) {
-        if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
+        if (mp_read_unsigned_bin(&key->q, q, (int)qSz) != MP_OKAY)
             ret = MP_INIT_E;
         else
             key->trustedGroup = trusted;
@@ -2569,7 +2569,7 @@ word32 wc_DhGetNamedKeyMinSize(int name)
             size = 0;
     }
 
-    return size;
+    return (word32)size;
 }
 
 
