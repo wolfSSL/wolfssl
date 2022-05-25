@@ -49618,7 +49618,13 @@ SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m,
         "stm	%[a]!, {r1, r2, r3, r4, r5, r6}\n\t"
         "ldm	%[a], {r1, r2, r3, r4, r5}\n\t"
         "ldm	r14!, {r7, r8, r9, r10, r11}\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r14, #0x1\n\t"
+        "lsl	r14, r14, #8\n\t"
+        "add	r14, r14, #0xff\n\t"
+#else
         "mov	r14, #0x1ff\n\t"
+#endif
         "and	r5, r5, r14\n\t"
         "adcs	r1, r1, r7\n\t"
         "adcs	r2, r2, r8\n\t"
@@ -49682,7 +49688,13 @@ SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit*
         "mul	r8, %[mp], r10\n\t"
         "cmp	r12, #64\n\t"
         "bne	L_521_mont_reduce_17_nomask\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r7, #0x1\n\t"
+        "lsl	r7, r7, #8\n\t"
+        "add	r7, r7, #0xff\n\t"
+#else
         "mov	r7, #0x1ff\n\t"
+#endif
         "and	r8, r8, r7\n\t"
         "L_521_mont_reduce_17_nomask:\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -50392,7 +50404,13 @@ static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ldm	%[a]!, {r4}\n\t"
         "ldm	%[b]!, {r8}\n\t"
         "adcs	r4, r4, r8\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r14, #0x1\n\t"
+        "lsl	r14, r14, #8\n\t"
+        "add	r14, r14, #0xff\n\t"
+#else
         "mov	r14, #0x1ff\n\t"
+#endif
         "lsr	r12, r4, #9\n\t"
         "and	r4, r4, r14\n\t"
         "stm	%[r]!, {r4}\n\t"
@@ -50476,7 +50494,13 @@ static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "adcs	r4, r4, r4\n\t"
         "adcs	r5, r5, r5\n\t"
         "adcs	r6, r6, r6\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r9, #0x1\n\t"
+        "lsl	r9, r9, #8\n\t"
+        "add	r9, r9, #0xff\n\t"
+#else
         "mov	r9, #0x1ff\n\t"
+#endif
         "lsr	r8, r6, #9\n\t"
         "and	r6, r6, r9\n\t"
         "stm	%[r]!, {r2, r3, r4, r5, r6}\n\t"
@@ -50585,7 +50609,13 @@ static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a, const sp_digit* m
         "ldm	%[r], {r8}\n\t"
         "ldm	%[a]!, {r4}\n\t"
         "adcs	r8, r8, r4\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r14, #0x1\n\t"
+        "lsl	r14, r14, #8\n\t"
+        "add	r14, r14, #0xff\n\t"
+#else
         "mov	r14, #0x1ff\n\t"
+#endif
         "lsr	r12, r8, #9\n\t"
         "and	r8, r8, r14\n\t"
         "stm	%[r]!, {r8}\n\t"
@@ -50670,7 +50700,13 @@ static void sp_521_mont_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b
         "ldm	%[a]!, {r4}\n\t"
         "ldm	%[b]!, {r8}\n\t"
         "sbcs	r4, r4, r8\n\t"
+#if __ARM_ARCH <= 6
+        "mov	r14, #0x1\n\t"
+        "lsl	r14, r14, #8\n\t"
+        "add	r14, r14, #0xff\n\t"
+#else
         "mov	r14, #0x1ff\n\t"
+#endif
         "asr	r12, r4, #9\n\t"
         "and	r4, r4, r14\n\t"
         "neg	r12, r12\n\t"
