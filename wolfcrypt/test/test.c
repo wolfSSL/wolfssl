@@ -2895,6 +2895,7 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA512_DIGEST_SIZE) != 0)
         ERROR_OUT(-2410, exit);
 
+#ifndef NO_UNALIGNED_MEMORY_TEST
     /* Unaligned memory access test */
     for (i = 1; i < 16; i++) {
         ret = wc_Sha512Update(&sha, (byte*)large_input + i,
@@ -2903,6 +2904,7 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
             ERROR_OUT(-2411, exit);
         ret = wc_Sha512Final(&sha, hash);
     }
+#endif
     } /* END LARGE HASH TEST */
 
 exit:
