@@ -65,6 +65,13 @@
  *     may be received by a client. To support detecting this, peek will
  *     return WOLFSSL_ERROR_WANT_READ.
  *     This define turns off this behaviour.
+*  WOLFSSL_DTLS_NO_HVR_ON_RESUME
+ *     If defined, a DTLS server will not do a cookie exchange on successful
+ *     client resumption: the resumption will be faster (one RTT less) and
+ *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
+ *     less). On the other hand, if a valid SessionID is collected, forged
+ *     clientHello messages will consume resources on the server.
+ *     This define is turned off by default.
  */
 
 
@@ -14195,9 +14202,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* Also, skip hashing the client_hello message here for DTLS. It will be
      * hashed later if the DTLS cookie is correct. */
     if (type != hello_request
-    #ifdef WOLFSSL_DTLS
-            && !(IsDtlsNotSctpMode(ssl) && type == client_hello)
-    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
             && ssl->error != WC_PENDING_E
     #endif
@@ -29785,6 +29789,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int             ret = 0;
 #ifdef WOLFSSL_DTLS
         Hmac            cookieHmac;
+        byte            newCookie[MAX_COOKIE_LEN];
         byte            peerCookie[MAX_COOKIE_LEN];
         byte            peerCookieSz = 0;
         byte            cookieType;
@@ -29808,8 +29813,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(&pv, input + i, OPAQUE16_LEN);
         ssl->chVersion = pv;   /* store */
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
-                                                       !ssl->options.resuming) {
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             #if defined(NO_SHA) && defined(NO_SHA256)
                 #error "DTLS needs either SHA or SHA-256"
             #endif /* NO_SHA && NO_SHA256 */
@@ -29971,8 +29975,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
-                                                       !ssl->options.resuming) {
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
             if (ret != 0) goto out;
         }
@@ -30007,8 +30010,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)
-                                                    && !ssl->options.resuming) {
+            if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) &&
+                    !IsSCR(ssl)) {
                 ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
                 if (ret != 0) goto out;
             }
@@ -30113,8 +30116,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
-                                                       !ssl->options.resuming) {
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
                                     clSuites.suiteSz + OPAQUE16_LEN);
@@ -30142,45 +30144,34 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl)) {
-            if (IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl) &&
-                                                       !ssl->options.resuming) {
-                byte newCookie[MAX_COOKIE_LEN];
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
 
-                ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
-                if (ret != 0) goto out;
-                ret = wc_HmacFinal(&cookieHmac, newCookie);
-                if (ret != 0) goto out;
+            ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
+            if (ret != 0) goto out;
+            ret = wc_HmacFinal(&cookieHmac, newCookie);
+            if (ret != 0) goto out;
 
-                /* If a cookie callback is set, call it to overwrite the cookie.
-                 * This should be deprecated. The code now calculates the cookie
-                 * using an HMAC as expected. */
-                if (ssl->ctx->CBIOCookie != NULL &&
-                    ssl->ctx->CBIOCookie(ssl, newCookie, cookieSz,
-                                                 ssl->IOCB_CookieCtx) != cookieSz) {
-                    ret = COOKIE_ERROR;
-                    goto out;
-                }
-
-                /* Check the cookie, see if we progress the state machine. */
-                if (peerCookieSz != cookieSz ||
-                    XMEMCMP(peerCookie, newCookie, cookieSz) != 0) {
-
-                    /* Send newCookie to client in a HelloVerifyRequest message
-                     * and let the state machine alone. */
-                    ssl->msgsReceived.got_client_hello = 0;
-                    ssl->keys.dtls_handshake_number = 0;
-                    ssl->keys.dtls_expected_peer_handshake_number = 0;
-                    *inOutIdx += helloSz;
-                    ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
-                    goto out;
-                }
+            /* If a cookie callback is set, call it to overwrite the cookie.
+             * This should be deprecated. The code now calculates the cookie
+             * using an HMAC as expected. */
+            if (ssl->ctx->CBIOCookie != NULL &&
+                ssl->ctx->CBIOCookie(ssl, newCookie, cookieSz,
+                                     ssl->IOCB_CookieCtx) != cookieSz) {
+                ret = COOKIE_ERROR;
+                goto out;
             }
 
-            /* This was skipped in the DTLS case so we could handle the hello
-             * verify request. */
-            ret = HashInput(ssl, input + *inOutIdx, helloSz);
-            if (ret != 0) goto out;
+
+#ifndef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+            if (peerCookieSz != cookieSz ||
+                 XMEMCMP(peerCookie, newCookie, cookieSz) != 0) {
+                *inOutIdx += helloSz;
+                ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
+                goto out;
+            }
+#endif /* !WOLFSSL_DTLS_NO_HVR_ON_RESUME */
+
+
         }
 #endif /* WOLFSSL_DTLS */
 
@@ -30358,6 +30349,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 goto out;
             }
         }
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
+
+            if (!ssl->options.resuming) {
+                /* resume failed, check the cookie */
+                if (peerCookieSz != cookieSz ||
+                    XMEMCMP(peerCookie, newCookie, cookieSz) != 0) {
+                    *inOutIdx = begin + helloSz;
+                    ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
+                    goto out;
+                }
+            }
+        }
+#endif /* WOLFSSL_DTLS && WOLFSSL_DTLS_NO_HVR_ON_RESUME */
 
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_DH_DEFAULT_PARAMS)
     #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
@@ -31928,6 +31934,15 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         if (IsEncryptionOn(ssl, 1)) {
             sendSz += MAX_MSG_EXTRA;
         }
+
+        /* reset states  */
+        ssl->msgsReceived.got_client_hello = 0;
+        ssl->keys.dtls_handshake_number = 0;
+        ssl->keys.dtls_expected_peer_handshake_number = 0;
+        ssl->options.clientState = 0;
+        ret = InitHandshakeHashes(ssl);
+        if (ret != 0)
+            return ret;
 
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
