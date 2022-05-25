@@ -1,6 +1,6 @@
 /* wolfssl_demo.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,10 +38,10 @@
 
 #include "FreeRTOS.h"
 #if defined(FREERTOS_TCP)
-#include "FreeRTOS_IP.h"
-#include "FreeRTOS_Sockets.h"
-#include "platform/iot_network.h"
-#include "platform.h"
+    #include "FreeRTOS_IP.h"
+    #include "FreeRTOS_Sockets.h"
+    #include "platform/iot_network.h"
+    #include "platform.h"
 #endif
 
 #if defined(BENCHMARK)
