@@ -17766,14 +17766,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return ret;
     }
 
-    void wolfSSL_ERR_clear_error(void)
-    {
-        WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-        wc_ClearErrorNodes();
-#endif
-    }
-
 #ifndef NO_DES3
     /* 0 on ok */
     int wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
@@ -18027,6 +18019,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 #endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    void wolfSSL_ERR_clear_error(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
+        wc_ClearErrorNodes();
+    }
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     int wolfSSL_clear(WOLFSSL* ssl)
