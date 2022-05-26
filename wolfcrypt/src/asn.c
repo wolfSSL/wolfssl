@@ -23601,11 +23601,14 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SKID_KEYID],
                     cert->skid, cert->skidSz);
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out Subject Key Identifier extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_SKID_SEQ,
                     CERTEXTSASN_IDX_SKID_KEYID);
         }
+    #ifdef WOLFSSL_CERT_EXT
         if (cert->akidSz > 0) {
             /* Set Authority Key Identifier OID and data. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_AKID_OID],
@@ -23625,11 +23628,14 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                         cert->akid, cert->akidSz);
             }
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out Authority Key Identifier extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_AKID_SEQ,
                     CERTEXTSASN_IDX_AKID_KEYID);
         }
+    #ifdef WOLFSSL_CERT_EXT
         if (cert->keyUsage != 0) {
             /* Set Key Usage OID, critical and value. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_KU_OID],
@@ -23638,11 +23644,14 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Int16Bit(&dataASN[CERTEXTSASN_IDX_KU_USAGE],
                     cert->keyUsage);
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out Key Usage extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_KU_SEQ,
                     CERTEXTSASN_IDX_KU_USAGE);
         }
+    #ifdef WOLFSSL_CERT_EXT
         if (cert->extKeyUsage != 0) {
             /* Calculate size of Extended Key Usage data. */
             sz = SetExtKeyUsage(cert, NULL, 0, cert->extKeyUsage);
@@ -23655,12 +23664,15 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_EKU_STR],
                     NULL, sz);
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out Extended Key Usage extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_EKU_SEQ,
                     CERTEXTSASN_IDX_EKU_STR);
         }
 
+    #ifdef WOLFSSL_CERT_EXT
         if ((!forRequest) && (cert->certPoliciesNb > 0)) {
             /* Calculate size of certificate policies. */
             sz = SetCertificatePolicies(NULL, 0, cert->certPolicies,
@@ -23677,12 +23689,14 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                 ret = CERTPOLICIES_E;
             }
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out Certificate Policies extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_POLICIES_SEQ,
                     CERTEXTSASN_IDX_POLICIES_INFO);
         }
-    #ifndef IGNORE_NETSCAPE_CERT_TYPE
+    #if defined(WOLFSSL_CERT_EXT) && !defined(IGNORE_NETSCAPE_CERT_TYPE)
         /* Netscape Certificate Type */
         if (cert->nsCertType != 0) {
             /* Set Netscape Certificate Type OID and data. */
@@ -23698,6 +23712,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_NSTYPE_SEQ,
                     CERTEXTSASN_IDX_NSTYPE_USAGE);
         }
+    #ifdef WOLFSSL_CERT_EXT
         if (cert->crlInfoSz > 0) {
             /* Set CRL Distribution Points OID and data. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_CRLINFO_OID],
@@ -23705,13 +23720,15 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_CRLINFO_STR],
                     cert->crlInfo, cert->crlInfoSz);
         }
-        else {
+        else
+    #endif
+        {
             /* Don't write out CRL Distribution Points. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_CRLINFO_SEQ,
                     CERTEXTSASN_IDX_CRLINFO_STR);
         }
 
-    #ifdef WOLFSSL_CUSTOM_OID
+    #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CUSTOM_OID)
         /* encode a custom oid and value */
         if (cert->extCustom.oidSz > 0) {
             /* Set CRL Distribution Points OID and data. */
@@ -23729,7 +23746,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         }
 
         i = 0;
-    #ifdef WOLFSSL_CUSTOM_OID
+    #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CUSTOM_OID)
         for (; i < cert->customCertExtCount; i++) {
              int idx = CERTEXTSASN_IDX_START_CUSTOM + (i * 4);
              word32 encodedOidSz = MAX_OID_SZ;
@@ -23757,7 +23774,6 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                              CERTEXTSASN_IDX_START_CUSTOM + (i * 4) + 3);
             i++;
         }
-    #endif /* WOLFSSL_CERT_EXT */
     }
 
     if (ret == 0) {
