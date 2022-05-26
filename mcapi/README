@@ -54,10 +54,10 @@ Included Project Files
 
     This project builds the zlib library for use in the wolfcrypt_test.X
     and wolfcrypt_mcapi.X projects. This project expects the zlib sources
-    to be located under the wolfSSL root directory. Currently it is set up
-    to work with zlib 1.2.8, and looks for sources under:
+    to be located under the wolfSSL root directory. It is set up to work
+    with the latest zlib, and looks for sources under:
 
-    <wolfssl_root>/zlib-1.2.8
+    <wolfssl_root>/zlib
 
 PIC32MX/PIC32MZ
 ---------------

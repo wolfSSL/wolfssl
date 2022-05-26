@@ -417,7 +417,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS(b,s,f) -2 /* Not ported yet */
 
 #elif defined(WOLFSSL_ZEPHYR)
-    #include <fs.h>
+    #include <fs/fs.h>
 
     #define XFILE      struct fs_file_t*
     #define STAT       struct fs_dirent
