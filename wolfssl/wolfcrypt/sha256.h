@@ -147,7 +147,7 @@ enum {
     #include "wolfssl/wolfcrypt/port/af_alg/afalg_hash.h"
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
-    #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h"
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT) && \
    !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h"
