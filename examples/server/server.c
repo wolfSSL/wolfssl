@@ -2035,8 +2035,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case '6' :
+#ifdef WOLFSSL_ASYNC_IO
                 nonBlocking = 1;
                 simulateWantWrite = 1;
+#else
+                fprintf(stderr, "Ignoring -6 since async I/O support not "
+                                "compiled in.\n");
+#endif
                 break;
             case '7' :
                 minVersion = atoi(myoptarg);
