@@ -533,6 +533,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             else
         #endif
             if (err != WOLFSSL_ERROR_WANT_READ
+                    && err != WOLFSSL_ERROR_WANT_WRITE /* Can happen during
+                                                        * handshake */
         #ifdef HAVE_SECURE_RENEGOTIATION
                     && err != APP_DATA_READY
         #endif

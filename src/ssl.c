@@ -11850,7 +11850,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
-                if (ssl->fragOffset == 0) {
+                if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                     if (ssl->options.connectState == CONNECT_BEGIN ||
                         ssl->options.connectState == HELLO_AGAIN ||
                        (ssl->options.connectState >= FIRST_REPLY_DONE &&
@@ -12330,7 +12330,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
-                if (ssl->fragOffset == 0) {
+                if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                     if (ssl->options.acceptState == ACCEPT_FIRST_REPLY_DONE ||
                         ssl->options.acceptState == SERVER_HELLO_SENT ||
                         ssl->options.acceptState == CERT_SENT ||

@@ -3505,7 +3505,6 @@ enum AcceptState {
     ACCEPT_HELLO_RETRY_REQUEST_DONE,
     ACCEPT_FIRST_REPLY_DONE,
     SERVER_HELLO_SENT,
-    SERVER_EXTENSIONS_SENT,
     CERT_SENT,
     CERT_VERIFY_SENT,
     CERT_STATUS_SENT,
@@ -3773,6 +3772,8 @@ typedef struct Options {
     word16            buildArgsSet:1;         /* buildArgs are set and need to
                                                * be free'd */
 #endif
+    word16            buildingMsg:1;      /* If set then we need to re-enter the
+                                           * handshake logic. */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */

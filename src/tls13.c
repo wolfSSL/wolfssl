@@ -5932,6 +5932,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         word32 i = RECORD_HEADER_SZ;
         int    sendSz = RECORD_HEADER_SZ;
 
+        ssl->options.buildingMsg = 1;
+
         if (ssl->fragOffset == 0) {
             if (headerSz + certSz + extSz + certChainSz <=
                                             maxFragment - HANDSHAKE_HEADER_SZ) {
@@ -6053,6 +6055,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 
     if (ret != WANT_WRITE) {
         /* Clean up the fragment offset. */
+        ssl->options.buildingMsg = 0;
         ssl->fragOffset = 0;
         if (ssl->options.side == WOLFSSL_SERVER_END)
             ssl->options.serverState = SERVER_CERT_COMPLETE;
@@ -8720,7 +8723,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             /* fragOffset is non-zero when sending fragments. On the last
              * fragment, fragOffset is zero again, and the state can be
              * advanced. */
-            if (ssl->fragOffset == 0) {
+            if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 /* Only increment from states in which we send data */
                 if (ssl->options.connectState == CONNECT_BEGIN ||
                     ssl->options.connectState == HELLO_AGAIN ||
@@ -9688,7 +9691,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             /* fragOffset is non-zero when sending fragments. On the last
              * fragment, fragOffset is zero again, and the state can be
              * advanced. */
-            if (ssl->fragOffset == 0) {
+            if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                 /* Only increment from states in which we send data */
                 if (ssl->options.acceptState == TLS13_ACCEPT_CLIENT_HELLO_DONE ||
                     ssl->options.acceptState == TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE ||
