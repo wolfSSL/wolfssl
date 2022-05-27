@@ -12389,6 +12389,10 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         mini = ts->tm_min;
         sec  = ts->tm_sec;
         #if defined(WOLF_C89)
+            if (len < 14) {
+                WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
+                return BUFFER_E;
+            }
             ret = XSPRINTF((char*)buf,
         #else
             ret = XSNPRINTF((char*)buf, len,
@@ -12405,6 +12409,10 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         mini = ts->tm_min;
         sec  = ts->tm_sec;
         #if defined(WOLF_C89)
+            if (len < 16) {
+                WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
+                return BUFFER_E;
+            }
             ret = XSPRINTF((char*)buf,
         #else
             ret = XSNPRINTF((char*)buf, len,
