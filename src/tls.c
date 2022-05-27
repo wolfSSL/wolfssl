@@ -4680,6 +4680,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
+                    key |= ssl->pkCurveOID == oid;
                 break;
     #endif /* HAVE_ECC && WOLFSSL_STATIC_DH */
 #endif
