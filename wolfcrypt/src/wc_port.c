@@ -1018,6 +1018,54 @@ size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
 }
 #endif /* USE_WOLF_STRLCAT */
 
+#ifndef SINGLE_THREADED
+/* TODO: use atomic operations instead of mutex */
+void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)
+{
+    int ret = wc_InitMutex(&ref->mutex);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to create mutex for reference counting!");
+    }
+    ref->count = 1;
+
+    *err = ret;
+}
+
+void wolfSSL_RefFree(wolfSSL_Ref* ref)
+{
+    if (wc_FreeMutex(&ref->mutex) != 0) {
+        WOLFSSL_MSG("Failed to free mutex of reference counting!");
+    }
+}
+
+void wolfSSL_RefInc(wolfSSL_Ref* ref, int* err)
+{
+    int ret = wc_LockMutex(&ref->mutex);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to lock mutex for reference increment!");
+    }
+    else {
+        ref->count++;
+        wc_UnLockMutex(&ref->mutex);
+    }
+    *err = ret;
+}
+
+void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err)
+{
+    int ret = wc_LockMutex(&ref->mutex);
+    if (ret != 0) {
+        WOLFSSL_MSG("Failed to lock mutex for reference decrement!");
+    }
+    else {
+        ref->count--;
+        *isZero = (ref->count == 0);
+        wc_UnLockMutex(&ref->mutex);
+    }
+    *err = ret;
+}
+#endif
+
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */
 static wolfSSL_Mutex wcCryptHwMutex;

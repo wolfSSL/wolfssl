@@ -59,44 +59,42 @@
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 typedef struct WOLFSSL_RSA_METHOD {
+    /* Flags of RSA key implementation. */
     int flags;
+    /* Name of RSA key implementation. */
     char *name;
+    /* RSA method dynamically allocated. */
+    word16 dynamic:1;
 } WOLFSSL_RSA_METHOD;
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 #define WOLFSSL_RSA_TYPE_DEFINED
+/* RSA key compatable with OpenSSL. */
 typedef struct WOLFSSL_RSA {
-#ifdef WC_RSA_BLINDING
-    WC_RNG* rng;              /* for PrivateDecrypt blinding */
-#endif
-    WOLFSSL_BIGNUM* n;
-    WOLFSSL_BIGNUM* e;
-    WOLFSSL_BIGNUM* d;
-    WOLFSSL_BIGNUM* p;
-    WOLFSSL_BIGNUM* q;
-    WOLFSSL_BIGNUM* dmp1;      /* dP */
-    WOLFSSL_BIGNUM* dmq1;      /* dQ */
-    WOLFSSL_BIGNUM* iqmp;      /* u */
-    void*          heap;
-    void*          internal;  /* our RSA */
+    WOLFSSL_BIGNUM* n;              /* Modulus. */
+    WOLFSSL_BIGNUM* e;              /* Public exponent. */
+    WOLFSSL_BIGNUM* d;              /* Private exponent. */
+    WOLFSSL_BIGNUM* p;              /* First prime. */
+    WOLFSSL_BIGNUM* q;              /* Second prime. */
+    WOLFSSL_BIGNUM* dmp1;           /* dP = d mod (p - 1) */
+    WOLFSSL_BIGNUM* dmq1;           /* dQ = d mod (q - 1) */
+    WOLFSSL_BIGNUM* iqmp;           /* u = (1 / q) mod p */
+    void* heap;                     /* Heap used for memory allocations. */
+    void* internal;                 /* wolfCrypt RSA key. */
 #if defined(OPENSSL_EXTRA)
-    WOLFSSL_RSA_METHOD* meth;
+    const WOLFSSL_RSA_METHOD* meth; /* RSA method. */
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
-#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
-#endif
-    int              refCount;                       /* reference count */
-#endif
-    word16 pkcs8HeaderSz;
+    wolfSSL_Ref ref;                 /* Reference count information. */
+    word16 pkcs8HeaderSz;            /* Size of PKCS#8 header from decode. */
+    int flags;                       /* Flags of implementation. */
 
     /* bits */
-    byte inSet:1;     /* internal set from external ? */
-    byte exSet:1;     /* external set from internal ? */
-    byte ownRng:1;    /* flag for if the rng should be free'd */
+    byte inSet:1;                    /* Internal set from external. */
+    byte exSet:1;                    /* External set from internal. */
+    byte ownRng:1;                   /* Rng needs to be free'd. */
 } WOLFSSL_RSA;
 #endif
 

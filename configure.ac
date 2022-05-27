@@ -7608,6 +7608,12 @@ case $host_os in
         fi ;;
 esac
 
+if test "$enable_shared" = "no"; then
+    if test "$enable_static" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TEST_STATIC_BUILD"
+    fi
+fi
+
 if test "x$ENABLED_LINUXKM" = "xyes"; then
     AX_SIMD_CC_COMPILER_FLAGS
     AC_SUBST([CFLAGS_FPU_DISABLE])
