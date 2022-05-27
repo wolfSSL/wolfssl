@@ -3562,6 +3562,18 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
+        suites->suites[idx++] = ECDHE_PSK_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
     if (tls && havePSK) {
         suites->suites[idx++] = ECC_BYTE;
@@ -10073,6 +10085,21 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }   /* switch */
         }   /* if     */
 
+        /* ECC extensions */
+        if (first == ECDHE_PSK_BYTE) {
+
+        switch (second) {
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+        case TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
+        default:
+            WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC PSK");
+            return 0;
+        }   /* switch */
+        }   /* if     */
 #endif /* !WOLFSSL_NO_TLS12 */
 
         /* Distinct TLS v1.3 cipher suites with cipher and digest only. */
@@ -10098,7 +10125,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #ifndef WOLFSSL_NO_TLS12
 
         if (first != ECC_BYTE && first != CHACHA_BYTE &&
-            first != TLS13_BYTE) {   /* normal suites */
+            first != TLS13_BYTE && first != ECDHE_PSK_BYTE) {
+        /* normal suites */
         switch (second) {
 
 #ifndef NO_RSA
@@ -21585,6 +21613,10 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
     SUITE_INFO("ECDHE-PSK-AES128-CBC-SHA256","TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256",ECC_BYTE,TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,TLSv1_MINOR,SSLv3_MAJOR),
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
+    SUITE_INFO("ECDHE-PSK-AES128-GCM-SHA256","TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256",ECDHE_PSK_BYTE,TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256,TLSv1_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256

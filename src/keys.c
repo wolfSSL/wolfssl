@@ -1226,9 +1226,41 @@ int SetCipherSpecs(WOLFSSL* ssl)
         }
     }
 
+    if (ssl->options.cipherSuite0 == ECDHE_PSK_BYTE) {
+
+    switch (ssl->options.cipherSuite) {
+
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
+    case TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecdhe_psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = WC_SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+        ssl->options.usingPSK_cipher     = 1;
+        break;
+#endif
+#endif
+
+    default:
+        break;
+    }
+    }
+
+
     if (ssl->options.cipherSuite0 != ECC_BYTE &&
-            ssl->options.cipherSuite0 != CHACHA_BYTE &&
-            ssl->options.cipherSuite0 != TLS13_BYTE) {   /* normal suites */
+        ssl->options.cipherSuite0 != ECDHE_PSK_BYTE &&
+        ssl->options.cipherSuite0 != CHACHA_BYTE &&
+        ssl->options.cipherSuite0 != TLS13_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA

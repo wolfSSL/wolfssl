@@ -667,6 +667,10 @@
             defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
             #define BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
         #endif
+        #if !defined(NO_PSK) && !defined(NO_SHA256) && !defined(NO_AES) && \
+            defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM)
+            #define BUILD_TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
+        #endif
     #endif
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
         #if !defined(NO_OLD_POLY1305)
@@ -1050,6 +1054,9 @@ enum {
     TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 = 0x14,
     TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256     = 0x15,
 
+    /* ECDHE_PSK RFC8442, first byte is 0xD0 (EDHE_PSK_BYTE) */
+    TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256    = 0x01,
+
     /* TLS v1.3 cipher suites */
     TLS_AES_128_GCM_SHA256       = 0x01,
     TLS_AES_256_GCM_SHA384       = 0x02,
@@ -1159,10 +1166,11 @@ enum {
 #endif
 
 enum Misc {
-    CIPHER_BYTE = 0x00,            /* Default ciphers */
-    ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
-    CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
-    TLS13_BYTE  = 0x13,            /* TLS v1.3 first byte of cipher suite */
+    CIPHER_BYTE    = 0x00,         /* Default ciphers */
+    ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
+    CHACHA_BYTE    = 0xCC,         /* ChaCha first cipher suite */
+    TLS13_BYTE     = 0x13,         /* TLS v1.3 first byte of cipher suite */
+    ECDHE_PSK_BYTE = 0xD0,         /* RFC 8442 */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,

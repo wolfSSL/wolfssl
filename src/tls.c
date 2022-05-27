@@ -3860,7 +3860,8 @@ static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
         if (ssl->suites->suites[i] == TLS13_BYTE)
             return;
         if ((ssl->suites->suites[i] == ECC_BYTE) ||
-                (ssl->suites->suites[i] == CHACHA_BYTE)) {
+            (ssl->suites->suites[i] == ECDHE_PSK_BYTE) ||
+            (ssl->suites->suites[i] == CHACHA_BYTE)) {
         #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
             return;
@@ -3888,7 +3889,8 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
         if (ssl->suites->suites[i] == TLS13_BYTE)
             return;
         if ((ssl->suites->suites[i] == ECC_BYTE) ||
-                (ssl->suites->suites[i] == CHACHA_BYTE)) {
+            (ssl->suites->suites[i] == ECDHE_PSK_BYTE) ||
+            (ssl->suites->suites[i] == CHACHA_BYTE)) {
         #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
             return;
@@ -3919,6 +3921,7 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
         return;
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
     if (ssl->options.cipherSuite0 == ECC_BYTE ||
+        ssl->options.cipherSuite0 == ECDHE_PSK_BYTE ||
         ssl->options.cipherSuite0 == CHACHA_BYTE) {
         return;
     }
@@ -4439,7 +4442,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         }
     }
-    if (first == ECC_BYTE || first == CHACHA_BYTE)
+    if (first == ECC_BYTE || first == ECDHE_PSK_BYTE || first == CHACHA_BYTE)
         extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
     if (!extension)
         return 1; /* no suite restriction */
@@ -11115,7 +11118,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 #endif
 
                 #ifdef HAVE_NULL_CIPHER
-                    if (cipherSuite0 == ECC_BYTE) {
+                    if (cipherSuite0 == ECC_BYTE ||
+                        cipherSuite0 == ECDHE_PSK_BYTE) {
                         if (cipherSuite != TLS_SHA256_SHA256 &&
                                              cipherSuite != TLS_SHA384_SHA384) {
                             continue;
