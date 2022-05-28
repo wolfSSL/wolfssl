@@ -34995,7 +34995,11 @@ static int pkcs7signed_run_vectors(
         #endif
 
             for (j = 0, k = 2; j < (int)sizeof(digest); j++, k += 2) {
-                XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
+                #if defined(WOLF_C89)
+                    XSPRINTF((char*)&transId[k], "%02x", digest[j]);
+                #else
+                    XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
+                #endif
             }
         }
 
