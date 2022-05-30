@@ -10,6 +10,7 @@ tests_unit_test_SOURCES = \
                   tests/api.c \
                   tests/suites.c \
                   tests/hash.c \
+                  tests/w64wrapper.c \
                   tests/srp.c \
                   examples/client/client.c \
                   examples/server/server.c

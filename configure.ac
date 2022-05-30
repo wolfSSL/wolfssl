@@ -3524,6 +3524,7 @@ then
         then
                 AC_MSG_ERROR([You need to enable both DTLS and TLSv1.3 to use DTLSv1.3])
         fi
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS13 -DWOLFSSL_W64_WRAPPER"
   if test "x$ENABLED_AES" = "xyes"
   then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"

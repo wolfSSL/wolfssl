@@ -2700,6 +2700,11 @@ extern void uITRON4_free(void *p) ;
     #define NO_SESSION_CACHE_REF
 #endif
 
+/* DTLS v1.3 requires 64-bit number wrappers */
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_W64_WRAPPER)
+    #define WOLFSSL_W64_WRAPPER
+#endif
+
 /* DTLS v1.3 requires AES ECB if using AES */
 #if defined(WOLFSSL_DTLS13) && !defined(NO_AES) && \
     !defined(WOLFSSL_AES_DIRECT)
