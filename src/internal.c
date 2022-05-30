@@ -13383,8 +13383,7 @@ exit_ppc:
     FreeProcPeerCertArgs(ssl, args);
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP || WOLFSSL_SMALL_STACK */
 
-#if defined(WOLFSSL_ASYNC_CRYPT)
-#elif defined(WOLFSSL_SMALL_STACK)
+#if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
     XFREE(args, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
