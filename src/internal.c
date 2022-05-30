@@ -14369,7 +14369,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
             {
                 ssl->options.cacheMessages = 0;
-                if (ssl->hsHashes->messages != NULL) {
+                if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
                     XFREE(ssl->hsHashes->messages, ssl->heap,
                         DYNAMIC_TYPE_HASHES);
                     ssl->hsHashes->messages = NULL;
@@ -14455,7 +14455,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
             {
                 ssl->options.cacheMessages = 0;
-                if (ssl->hsHashes->messages != NULL) {
+                if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
                     XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
                     ssl->hsHashes->messages = NULL;
                 }
