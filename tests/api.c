@@ -28353,6 +28353,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
                     sizeof_client_cert_der_2048), 0);
         pkcs7->privateKey   = (byte*)client_key_der_2048;
         pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        AssertIntLT(wc_PKCS7_DecodeEnvelopedData(pkcs7, cms, cmsSz, out,
+                    2), 0);
         AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, cms, cmsSz, out,
                     sizeof(out)), 0);
         XFREE(cms, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28916,6 +28918,7 @@ static void test_PKCS7_signed_enveloped(void)
     pkcs7->privateKey   = key;
     pkcs7->privateKeySz = keySz;
     AssertIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
+    AssertIntLT(wc_PKCS7_EncodeEnvelopedData(pkcs7, env, 2), 0);
     wc_PKCS7_Free(pkcs7);
 #endif
 

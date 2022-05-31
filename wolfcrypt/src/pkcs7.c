@@ -8291,6 +8291,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* version, defined in Section 6.1 of RFC 5652 */
     kariVersion = wc_PKCS7_GetCMSVersion(pkcs7, ENVELOPED_DATA);
     if (kariVersion < 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         WOLFSSL_MSG("Failed to set CMS EnvelopedData version");
         return PKCS7_RECIP_E;
     }
@@ -8298,38 +8299,49 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     verSz = SetMyVersion(kariVersion, ver, 0);
 
     ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    if (ret != 0)
+    if (ret != 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
+    }
 
     /* generate IV for block cipher */
     ret = wc_PKCS7_GenerateBlock(pkcs7, &rng, tmpIv, blockSz);
     wc_FreeRng(&rng);
-    if (ret != 0)
+    if (ret != 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
+    }
 
     /* EncryptedContentInfo */
     ret = wc_SetContentType(pkcs7->contentOID, contentType,
                             sizeof(contentType));
-    if (ret < 0)
+    if (ret < 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
+    }
 
     contentTypeSz = ret;
 
     /* allocate encrypted content buffer and PKCS#7 padding */
     padSz = wc_PKCS7_GetPadSize(pkcs7->contentSz, blockSz);
-    if (padSz < 0)
+    if (padSz < 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return padSz;
+    }
 
     encryptedOutSz = pkcs7->contentSz + padSz;
 
     plain = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    if (plain == NULL)
+    if (plain == NULL) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return MEMORY_E;
+    }
 
     ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
                            encryptedOutSz, blockSz);
     if (ret < 0) {
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
     }
 
@@ -8337,6 +8349,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                       DYNAMIC_TYPE_PKCS7);
     if (encryptedContent == NULL) {
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return MEMORY_E;
     }
 
@@ -8351,6 +8364,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (contentEncAlgoSz == 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return BAD_FUNC_ARG;
     }
 
@@ -8362,6 +8376,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
     }
 
@@ -8397,6 +8412,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return BUFFER_E;
     }
 
@@ -11095,12 +11111,15 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     }
 
     ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
-    if (ret != 0)
+    if (ret != 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
+    }
 
     ret = wc_PKCS7_GenerateBlock(pkcs7, &rng, nonce, nonceSz);
     wc_FreeRng(&rng);
     if (ret != 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         return ret;
     }
 
@@ -11126,6 +11145,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             if (pkcs7->contentTypeSz == 0) {
                 WOLFSSL_MSG("CMS pkcs7->contentType must be set if "
                             "contentOID is not");
+                wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
                 return BAD_FUNC_ARG;
             }
             contentTypeAttrib.value = pkcs7->contentType;
@@ -11151,6 +11171,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         flatAuthAttribs = (byte*)XMALLOC(authAttribsSz, pkcs7->heap,
                                          DYNAMIC_TYPE_PKCS7);
         if (flatAuthAttribs == NULL) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
             return MEMORY_E;
         }
 
@@ -11169,6 +11190,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         aadBuffer = (byte*)XMALLOC(authAttribsSz + authAttribsAadSetSz,
                                    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (aadBuffer == NULL) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
             XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
@@ -11192,6 +11214,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         flatUnauthAttribs = (byte*)XMALLOC(unauthAttribsSz, pkcs7->heap,
                                             DYNAMIC_TYPE_PKCS7);
         if (flatUnauthAttribs == NULL) {
+            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
             if (aadBuffer)
                 XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (flatAuthAttribs)
@@ -11210,6 +11233,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
                                       DYNAMIC_TYPE_PKCS7);
     if (encryptedContent == NULL) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (aadBuffer)
             XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (flatUnauthAttribs)
@@ -11230,6 +11254,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     }
 
     if (ret != 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (flatUnauthAttribs)
             XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAuthAttribs)
@@ -11242,6 +11267,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     ret = wc_SetContentType(pkcs7->contentOID, contentType,
                             sizeof(contentType));
     if (ret < 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (flatUnauthAttribs)
             XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAuthAttribs)
@@ -11266,6 +11292,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
                                  macIntSz);
 
     if (contentEncAlgoSz == 0) {
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (flatUnauthAttribs)
             XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAuthAttribs)
@@ -11306,6 +11333,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
+        wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
         if (flatUnauthAttribs)
             XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAuthAttribs)
