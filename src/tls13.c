@@ -8689,6 +8689,8 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
  */
 int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 {
+    int ret = 0;
+
     WOLFSSL_ENTER("wolfSSL_connect_TLSv13()");
 
     #ifdef HAVE_ERRNO_H
@@ -8696,7 +8698,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     #endif
 
     if (ssl->options.side != WOLFSSL_CLIENT_END) {
-        WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
+        ssl->error = SIDE_ERROR;
+        WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -8706,7 +8709,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         if ((ssl->ConnectFilter(ssl, ssl->ConnectFilter_arg, &res) ==
              WOLFSSL_SUCCESS) &&
             (res == WOLFSSL_NETFILTER_REJECT)) {
-            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+            ssl->error = SOCKET_FILTERED_E;
+            WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
     }
@@ -8719,7 +8723,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         && ssl->error != WC_PENDING_E
     #endif
     ) {
-        if ((ssl->error = SendBuffered(ssl)) == 0) {
+        if ((ret = SendBuffered(ssl)) == 0) {
             /* fragOffset is non-zero when sending fragments. On the last
              * fragment, fragOffset is zero again, and the state can be
              * advanced. */
@@ -8743,9 +8747,17 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         #endif
         }
         else {
+            ssl->error = ret;
             WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
+    }
+
+    ret = RetrySendAlert(ssl);
+    if (ret != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
     }
 
     switch (ssl->options.connectState) {
@@ -8945,6 +8957,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             /* Free the remaining async context if not using it for crypto */
             FreeAsyncCtx(ssl, 1);
         #endif
+
+            ssl->error = 0; /* clear the error */
 
             WOLFSSL_LEAVE("wolfSSL_connect_TLSv13()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
@@ -9609,6 +9623,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #if !defined(NO_CERTS) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     word16 havePSK = 0;
 #endif
+    int ret = 0;
     WOLFSSL_ENTER("SSL_accept_TLSv13()");
 
 #ifdef HAVE_ERRNO_H
@@ -9620,7 +9635,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
 
     if (ssl->options.side != WOLFSSL_SERVER_END) {
-        WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
+        ssl->error = SIDE_ERROR;
+        WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -9630,7 +9646,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) ==
              WOLFSSL_SUCCESS) &&
             (res == WOLFSSL_NETFILTER_REJECT)) {
-            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+            ssl->error = SOCKET_FILTERED_E;
+            WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
     }
@@ -9654,7 +9671,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 !ssl->buffers.certificate->buffer) {
 
                 WOLFSSL_MSG("accept error: server cert required");
-                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                ssl->error = NO_PRIVATE_KEY;
+                WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
 
@@ -9672,7 +9690,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             #endif
                 {
                     WOLFSSL_MSG("accept error: server key required");
-                    WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                    ssl->error = NO_PRIVATE_KEY;
+                    WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
@@ -9687,7 +9706,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         && ssl->error != WC_PENDING_E
     #endif
     ) {
-        if ((ssl->error = SendBuffered(ssl)) == 0) {
+        if ((ret = SendBuffered(ssl)) == 0) {
             /* fragOffset is non-zero when sending fragments. On the last
              * fragment, fragOffset is zero again, and the state can be
              * advanced. */
@@ -9718,9 +9737,17 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
         }
         else {
+            ssl->error = ret;
             WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
+    }
+
+    ret = RetrySendAlert(ssl);
+    if (ret != 0) {
+        ssl->error = ret;
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
     }
 
     switch (ssl->options.acceptState) {
@@ -9982,6 +10009,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             /* Free the remaining async context if not using it for crypto */
             FreeAsyncCtx(ssl, 1);
 #endif
+
+            ssl->error = 0; /* clear the error */
 
             WOLFSSL_LEAVE("SSL_accept()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
