@@ -49,6 +49,8 @@
     #include <errno.h>
 #endif
 
+static char currentCAName[ASN_NAME_MAX];
+static  int currentCANameLen = 0;
 
 #if !defined(WOLFSSL_ALLOW_NO_SUITES) && !defined(WOLFCRYPT_ONLY)
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
@@ -4813,6 +4815,17 @@ int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
+/* return the CA common name that was used for the handshake */
+int getCurrentCAName(char *name)
+{
+    if (currentCANameLen>0 && currentCANameLen<WC_ASN_NAME_MAX)
+    {
+        XSTRNCPY(name, currentCAName, currentCANameLen);
+        return currentCANameLen;
+    }
+    return 0;
+}
+
 /* return CA if found, otherwise NULL */
 Signer* GetCA(void* vp, byte* hash)
 {
@@ -4839,6 +4852,9 @@ Signer* GetCA(void* vp, byte* hash)
         #endif
         if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
             ret = signers;
+            // saving the last CA that matched
+            XSTRNCPY(currentCAName, signers->name, signers->nameLen);
+            currentCANameLen = signers->nameLen;
             break;
         }
         signers = signers->next;
@@ -4870,6 +4886,9 @@ Signer* GetCAByName(void* vp, byte* hash)
             if (XMEMCMP(hash, signers->subjectNameHash,
                         SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
+                // saving the last CA that matched
+                XSTRNCPY(currentCAName, signers->name, signers->nameLen);
+                currentCANameLen = signers->nameLen;
             }
             signers = signers->next;
         }
