@@ -35,7 +35,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
-#if !defined(NO_SHA)
+#if !defined(NO_SHA) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 #include <wolfssl/wolfcrypt/sha.h>
 
 static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
@@ -246,7 +246,7 @@ int wc_ShaCopy(wc_Sha256* src, wc_Sha256* dst)
 }
 #endif /* !NO_SHA */
 
-#if !defined(NO_SHA256)
+#if !defined(NO_SHA256) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 #include <wolfssl/wolfcrypt/sha256.h>
 
 /*  */

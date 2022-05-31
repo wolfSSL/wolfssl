@@ -1,6 +1,6 @@
 /* wolfssl_demo.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,11 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "FreeRTOS.h"
-#include "FreeRTOS_IP.h"
-#include "FreeRTOS_Sockets.h"
-#include "platform/iot_network.h"
-#include "platform.h"
+
 
 
 #include <wolfssl/wolfcrypt/settings.h>
@@ -39,6 +35,14 @@
 #include "wolfssl_demo.h"
 #include <wolfcrypt/test/test.h>
 #include <wolfcrypt/benchmark/benchmark.h>
+
+#include "FreeRTOS.h"
+#if defined(FREERTOS_TCP)
+    #include "FreeRTOS_IP.h"
+    #include "FreeRTOS_Sockets.h"
+    #include "platform/iot_network.h"
+    #include "platform.h"
+#endif
 
 #if defined(BENCHMARK)
     #include "r_cmt_rx_if.h"
@@ -60,7 +64,7 @@
     static WOLFSSL_CTX* client_ctx;
 #endif /* TLS_CLIENT */
 
-#define TLSSERVER_IP      "192.168.1.12"
+#define TLSSERVER_IP      "192.168.11.49"
 #define TLSSERVER_PORT    11111
 #define YEAR 2022
 #define MON  3
