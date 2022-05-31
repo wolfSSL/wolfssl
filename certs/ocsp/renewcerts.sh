@@ -79,3 +79,14 @@ update_cert server2          "www2.wolfssl.com"                intermediate1-ca 
 update_cert server3          "www3.wolfssl.com"                intermediate2-ca v3_req2 07
 update_cert server4          "www4.wolfssl.com"                intermediate2-ca v3_req2 08 # REVOKED
 update_cert server5          "www5.wolfssl.com"                intermediate3-ca v3_req3 09
+
+
+# Create response DER buffer for test
+openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem &
+PID=$!
+
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der
+
+kill $PID
+wait $PID
+

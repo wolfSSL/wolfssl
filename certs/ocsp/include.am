@@ -32,4 +32,5 @@ EXTRA_DIST += \
         certs/ocsp/server5-key.pem \
         certs/ocsp/server5-cert.pem \
         certs/ocsp/root-ca-key.pem \
-        certs/ocsp/root-ca-cert.pem
+        certs/ocsp/root-ca-cert.pem \
+        certs/ocsp/test-response.der
