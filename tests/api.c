@@ -1437,6 +1437,7 @@ static void test_wolfSSL_CheckOCSPResponse(void)
     bs = wolfSSL_OCSP_response_get1_basic(res);
     AssertNotNull(bs);
     AssertIntEQ(wolfSSL_OCSP_basic_verify(bs, NULL, st, 0), WOLFSSL_SUCCESS);
+    wolfSSL_OCSP_BASICRESP_free(bs);
     wolfSSL_OCSP_RESPONSE_free(res);
     wolfSSL_X509_STORE_free(st);
     wolfSSL_X509_free(issuer);

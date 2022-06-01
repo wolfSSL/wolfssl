@@ -90,3 +90,4 @@ openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url h
 kill $PID
 wait $PID
 
+exit 0
