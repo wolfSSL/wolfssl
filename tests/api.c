@@ -45202,7 +45202,7 @@ static void test_evp_cipher_aes_gcm(void)
      * wolfSSL OpenSSH clients because there was a bug in this flow that
      * happened to "cancel out" if both sides of the connection had the bug.
      */
-    enum { 
+    enum {
         NUM_ENCRYPTIONS = 3,
         AAD_SIZE = 4
     };
@@ -45278,7 +45278,7 @@ static void test_evp_cipher_aes_gcm(void)
         },
         {
             0x3B, 0xED, 0x18, 0x9C, 0xB3, 0xE3, 0x61, 0x1E, 0x11, 0xEB, 0x13,
-            0x5B, 0xEC, 0x52, 0x49, 0x32, 
+            0x5B, 0xEC, 0x52, 0x49, 0x32,
         }
     };
 
@@ -45294,7 +45294,7 @@ static void test_evp_cipher_aes_gcm(void)
     };
     const byte expCipherText3[] = {
         0xD0, 0x37, 0x59, 0x1C, 0x2F, 0x85, 0x39, 0x4D, 0xED, 0xC2, 0x32, 0x5B,
-        0x80, 0x5E, 0x6B, 
+        0x80, 0x5E, 0x6B,
     };
     const byte* expCipherTexts[NUM_ENCRYPTIONS] = {
         expCipherText1,
@@ -45457,7 +45457,7 @@ static void test_evp_cipher_aes_gcm(void)
         EVP_CIPHER_CTX_free(encCtx);
         EVP_CIPHER_CTX_free(decCtx);
     }
-    
+
     printf(resultFmt, passed);
 #endif
 }

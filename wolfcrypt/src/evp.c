@@ -1012,7 +1012,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (ret == WOLFSSL_SUCCESS) {
 #if defined(HAVE_AESGCM) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
     || FIPS_VERSION_GE(2,0))
-        /* 
+        /*
          * This flag needs to retain its value between wolfSSL_EVP_CipherFinal
          * calls. wolfSSL_EVP_CipherInit will clear it, so we save and restore
          * it here.
@@ -5444,7 +5444,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 }
             #ifdef HAVE_AESGCM
                 if (ret == WOLFSSL_SUCCESS) {
-                    /* 
+                    /*
                      * OpenSSL requires that a EVP_CTRL_AEAD_SET_IV_FIXED
                      * command be issued before a EVP_CTRL_GCM_IV_GEN command.
                      * This flag is used to enforce that.
@@ -5752,7 +5752,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ret = WOLFSSL_FAILURE;
         }
     #ifdef WOLFSSL_AESGCM_STREAM
-        /* 
+        /*
          * Initialize with key and IV if available. wc_AesGcmInit will fail
          * if called with IV only and no key has been set.
          */
@@ -5864,7 +5864,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
              * Clear any leftover AAD on final (final is when src is
              * NULL).
              */
-            XMEMSET(ctx->gcmAuthIn, 0, ctx->gcmAuthInSz);
+            if (ctx->gcmAuthIn != NULL) {
+                XMEMSET(ctx->gcmAuthIn, 0, ctx->gcmAuthInSz);
+            }
             ctx->gcmAuthInSz = 0;
         }
         if (ret == 0) {
