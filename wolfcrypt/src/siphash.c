@@ -165,15 +165,15 @@ int wc_InitSipHash(SipHash* sipHash, const unsigned char* key,
         word64 k1 = GET_U64(key + 8);
 
         /* Initialize state with key. */
-        sipHash->v[0] = 0x736f6d6570736575UL;
+        sipHash->v[0] = 0x736f6d6570736575ULL;
         if (outSz == SIPHASH_MAC_SIZE_8) {
-            sipHash->v[1] = 0x646f72616e646f6dUL;
+            sipHash->v[1] = 0x646f72616e646f6dULL;
         }
         else {
-            sipHash->v[1] = 0x646f72616e646f83UL;
+            sipHash->v[1] = 0x646f72616e646f83ULL;
         }
-        sipHash->v[2] = 0x6c7967656e657261UL;
-        sipHash->v[3] = 0x7465646279746573UL;
+        sipHash->v[2] = 0x6c7967656e657261ULL;
+        sipHash->v[3] = 0x7465646279746573ULL;
 
         sipHash->v[0] ^= k0;
         sipHash->v[1] ^= k1;
@@ -860,10 +860,10 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         word64 b = (word64)((word64)inSz << 56);
 
         /* Initialize state with key. */
-        v0 = 0x736f6d6570736575UL;
-        v1 = 0x646f72616e646f6dUL;
-        v2 = 0x6c7967656e657261UL;
-        v3 = 0x7465646279746573UL;
+        v0 = 0x736f6d6570736575ULL;
+        v1 = 0x646f72616e646f6dULL;
+        v2 = 0x6c7967656e657261ULL;
+        v3 = 0x7465646279746573ULL;
 
         if (outSz == SIPHASH_MAC_SIZE_16) {
             v1 ^= 0xee;
