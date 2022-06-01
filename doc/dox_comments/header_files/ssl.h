@@ -11337,12 +11337,43 @@ int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const unsigned char* buf,
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)”initial session”);
     \endcode
 
-    \sa wolfSSL_set_SessionTicket
+    \sa wolfSSL_get_SessionTicket
     \sa CallbackSessionTicket
     \sa sessionTicketCB
 */
 int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
                                  CallbackSessionTicket cb, void* ctx);
+
+/*!
+    \brief This function sends a session ticket to the client after a TLS v1.3
+    handhsake has been established.
+
+    \return WOLFSSL_SUCCESS returned if a new session ticket was sent.
+    \return BAD_FUNC_ARG returned if WOLFSSL structure is NULL, or not using
+    TLS v1.3.
+    \return SIDE_ERROR returned if not a server.
+    \return NOT_READY_ERROR returned if the handshake has not completed.
+    \return WOLFSSL_FATAL_ERROR returned if creating or sending message fails.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new( method );
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    …
+    ret = wolfSSL_send_SessionTicket(ssl);
+    if (ret != WOLFSSL_SUCCESS) {
+        // New session ticket not sent.
+    }
+    \endcode
+
+    \sa wolfSSL_get_SessionTicket
+    \sa CallbackSessionTicket
+    \sa sessionTicketCB
+ */
+int wolfSSL_send_SessionTicket(WOLFSSL* ssl);
 
 /*!
     \brief This function sets the session ticket key encrypt callback function

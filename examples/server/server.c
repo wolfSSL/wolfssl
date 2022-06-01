@@ -788,7 +788,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][63] = {
+static const char* server_usage_msg[][64] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -944,9 +944,13 @@ static const char* server_usage_msg[][63] = {
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 61 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        "--send-ticket    Send a new session ticket during application data\n",
+                                                                        /* 62 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 62 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 63 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1112,9 +1116,13 @@ static const char* server_usage_msg[][63] = {
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 61 */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        "--send-ticket    Send a new session ticket during application data\n",
+                                                                        /* 62 */
+#endif
         "\n"
         "For simpler wolfSSL TLS server examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 62 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 63 */
         NULL,
     },
 #endif
@@ -1263,6 +1271,9 @@ static void Usage(void)
 #ifdef WOLFSSL_SRTP
     printf("%s", msg[++msgId]);     /* dtls-srtp */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    printf("%s", msg[++msgId]);     /* send-ticket */
+#endif
 }
 
 #ifdef WOLFSSL_SRTP
@@ -1358,6 +1369,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #ifdef WOLFSSL_SRTP
         { "srtp", 2, 260 }, /* optional argument */
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        { "send-ticket", 0, 261 },
 #endif
         { 0, 0, 0 }
     };
@@ -1457,6 +1471,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int mutualAuth = 0;
 #endif
     int postHandAuth = 0;
+    int sendTicket = 0;
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
@@ -1572,6 +1587,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)mutualAuth;
 #endif
     (void)postHandAuth;
+    (void)sendTicket;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
     (void)nonBlocking;
@@ -2105,6 +2121,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 usePqc = 1;
                 onlyKeyShare = 2;
                 pqcAlg = myoptarg;
+                break;
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+            case 261:
+                sendTicket = 1;
                 break;
 #endif
 
@@ -3311,6 +3333,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
             if (postHandAuth)
                 wolfSSL_request_certificate(ssl);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+            if (sendTicket) {
+                if (wolfSSL_send_SessionTicket(ssl) != WOLFSSL_SUCCESS) {
+                    fprintf(stderr, "Sending new session ticket failed\n");
+                }
+                else {
+                    fprintf(stderr, "New session ticket sent\n");
+                }
+            }
 #endif
 
             /* Write data */

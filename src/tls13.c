@@ -9897,6 +9897,37 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 }
 #endif
 
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
+/* Server sends a session ticket to the peer.
+ *
+ * RFC 8446, section 4.6.1, para 1.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ *         SIDE_ERROR when not a server,
+ *         NOT_READY_ERROR when handshake not complete,
+ *         WOLFSSL_FATAL_ERROR when creating or sending message fails, and
+ *         WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_send_SessionTicket(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+    if (ssl->options.handShakeState != HANDSHAKE_DONE)
+        return NOT_READY_ERROR;
+
+    if ((ssl->error = SendTls13NewSessionTicket(ssl)) != 0) {
+        WOLFSSL_ERROR(ssl->error);
+        return WOLFSSL_FATAL_ERROR;
+    }
+    ssl->options.ticketsSent++;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 #ifdef WOLFSSL_EARLY_DATA
 /* Sets the maximum amount of early data that can be seen by server when using
  * session tickets for resumption.

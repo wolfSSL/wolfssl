@@ -7378,8 +7378,13 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         || ssl->specs.cipher_type == stream
 #endif
 #if defined(WOLFSSL_TLS13)
-    #if !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    /* Post-handshake auth requires random on client side for TLS 1.3.
+     * Session ticket requires random on server side.
+     */
+    #if !defined(WOLFSSL_POST_HANDSHAKE_AUTH) && !defined(HAVE_SESSION_TICKET)
         || ssl->options.tls1_3
+    #elif !defined(WOLFSSL_POST_HANDSHAKE_AUTH) && defined(HAVE_SESSION_TICKET)
+        || (ssl->options.tls1_3 && ssl->options.side == WOLFSSL_CLIENT_END)
     #elif !defined(HAVE_SESSION_TICKET)
         || (ssl->options.tls1_3 && ssl->options.side == WOLFSSL_SERVER_END)
     #endif

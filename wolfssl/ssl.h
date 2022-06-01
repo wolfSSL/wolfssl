@@ -3876,6 +3876,9 @@ typedef int (*CallbackSessionTicket)(WOLFSSL* ssl, const unsigned char*, int, vo
 WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
                                                   CallbackSessionTicket cb, void* ctx);
 #endif /* NO_WOLFSSL_CLIENT */
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_API int wolfSSL_send_SessionTicket(WOLFSSL* ssl);
+#endif /* !NO_WOLFSSL_SERVER */
 
 
 #define WOLFSSL_TICKET_NAME_SZ 16
