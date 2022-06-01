@@ -20294,8 +20294,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
 
     ret = RetrySendAlert(ssl);
-    if (ret != 0)
-        return ret;
+    if (ret != 0) {
+        ssl->error = ret;
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     for (;;) {
         byte* out;
