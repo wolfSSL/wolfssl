@@ -32,11 +32,15 @@
 
 #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
 
+#include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
+
 #if !defined(NO_SHA) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 #include <wolfssl/wolfcrypt/sha.h>
+
+extern struct WOLFSSL_HEAP_HINT* tsip_heap_hint;
 
 static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
 {
@@ -59,7 +63,13 @@ static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
     (void)devId;
     XMEMSET(hash, 0, sizeof(wolfssl_TSIP_Hash));
 
-    hash->heap = heap;
+    if (heap == NULL && tsip_heap_hint != NULL) {
+        hash->heap = (struct wolfSSL_HEAP_HINT*)tsip_heap_hint;
+    }
+    else {
+        hash->heap = heap;
+    }
+    
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;

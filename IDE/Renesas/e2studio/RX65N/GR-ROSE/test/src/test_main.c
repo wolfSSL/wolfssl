@@ -52,6 +52,17 @@ extern "C" {
     user_PKCbInfo            guser_PKCbInfo;
 #endif
 
+#if defined(TLS_CLIENT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && defined(WOLFSSL_STATIC_MEMORY)
+    #include <wolfssl/wolfcrypt/memory.h>
+    WOLFSSL_HEAP_HINT*  heapHint = NULL;
+
+    #define  BUFFSIZE_GEN  (110 * 1024)
+    unsigned char heapBufGen[BUFFSIZE_GEN];
+
+#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_STATIC_MEMORY */
+#endif /* TLS_CLIENT */
+
 static long tick;
 static void timeTick(void *pdata)
 {
@@ -242,6 +253,15 @@ void main(void)
 #endif
 #elif defined(TLS_CLIENT)
     #include "r_cmt_rx_if.h"
+
+
+#if defined(WOLFSSL_STATIC_MEMORY)
+    if (wc_LoadStaticMemory(&heapHint, heapBufGen, sizeof(heapBufGen),
+                                            WOLFMEM_GENERAL, 1) !=0) {
+        printf("unable to load static memory.\n");
+        return;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 
     Open_tcp();
 

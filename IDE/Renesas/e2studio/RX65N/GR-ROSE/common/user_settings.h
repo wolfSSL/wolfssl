@@ -124,6 +124,15 @@
  *----------------------------------------------------------------------------*/
   #define SIZEOF_LONG_LONG 8
 
+  /*#define WOLFSSL_STATIC_MEMORY*/
+  
+  #if defined(WOLFSSL_STATIC_MEMORY)
+    #define USE_FAST_MATH
+  #else
+    #define WOLFSSL_SMALL_STACK
+  #endif /* WOLFSSL_STATIC_MEMORY */
+
+
 #if !defined(min)
   #define min(data1, data2)                _builtin_min(data1, data2)
 #endif
@@ -145,7 +154,7 @@
   #define WOLFSSL_LOG_PRINTF
   #define WOLFSSL_HAVE_MIN
   #define WOLFSSL_HAVE_MAX
-  #define WOLFSSL_SMALL_STACK
+  
   #define NO_WRITEV
   #define WOLFSSL_USER_IO
 
@@ -220,3 +229,6 @@
     #define HAVE_HKDF
     #define WC_RSA_PSS
 #endif
+
+
+#define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
