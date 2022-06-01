@@ -4871,7 +4871,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
     defined(HAVE_INTEL_QA)
-    if (err == MP_OKAY) {
+    if (err == MP_OKAY && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
         word32 keySz = key->dp->size;
         /* sync private key to raw */
         err = wc_mp_to_bigint_sz(&key->k, &key->k.raw, keySz);
@@ -4883,9 +4883,11 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
                 key->dp->cofactor);
         }
     }
-#else
-
+    else
+#endif
+    { /* BEGIN: Software Crypto */
 #ifdef WOLFSSL_HAVE_SP_ECC
+    /* Single-Precision Math (optimized for specific curves) */
     if (err != MP_OKAY) {
     }
     else
@@ -4913,6 +4915,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         err = WC_KEY_SIZE_E;
 #else
     if (err == MP_OKAY) {
+        /* Multi-Precision Math: compute public curve */
         mp_digit mp = 0;
         ecc_point* base = NULL;
     #ifdef WOLFSSL_NO_MALLOC
@@ -4948,12 +4951,12 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         wc_ecc_del_point_ex(base, key->heap);
     }
 #endif /* WOLFSSL_SP_MATH */
-#endif /* HAVE_INTEL_QA */
+    } /* END: Software Crypto */
 
     if (err != MP_OKAY
-#ifdef WOLFSSL_ASYNC_CRYPT
-    && err != WC_PENDING_E
-#endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        && err != WC_PENDING_E
+    #endif
     ) {
         /* clean up if failed */
     #ifndef ALT_ECC_SIZE
