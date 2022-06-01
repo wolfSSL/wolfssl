@@ -1055,7 +1055,8 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ && err != APP_DATA_READY) {
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                    err != WOLFSSL_ERROR_WANT_WRITE && err != APP_DATA_READY) {
                 fprintf(stderr, "SSL_read reply error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
                 if (!exitWithRet) {
@@ -1076,6 +1077,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
         }
     } while ((mustRead && err == WOLFSSL_ERROR_WANT_READ)
+        || err == WOLFSSL_ERROR_WANT_WRITE
     #ifdef WOLFSSL_ASYNC_CRYPT
         || err == WC_PENDING_E
     #endif
@@ -2561,8 +2563,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case '6' :
+#ifdef WOLFSSL_ASYNC_IO
                 nonBlocking = 1;
                 simulateWantWrite = 1;
+#else
+                fprintf(stderr, "Ignoring -6 since async I/O support not "
+                                "compiled in.\n");
+#endif
                 break;
 
             case '7' :

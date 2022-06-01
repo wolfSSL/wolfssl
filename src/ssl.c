@@ -11778,6 +11778,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #if !(defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13))
         int neededState;
     #endif
+        int ret = 0;
+
+        (void)ret;
 
         WOLFSSL_ENTER("SSL_connect()");
 
@@ -11820,14 +11823,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             if ((ssl->ConnectFilter(ssl, ssl->ConnectFilter_arg, &res) ==
                  WOLFSSL_SUCCESS) &&
                 (res == WOLFSSL_NETFILTER_REJECT)) {
-                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+                ssl->error = SOCKET_FILTERED_E;
+                WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
         }
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
-            WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
+            ssl->error = SIDE_ERROR;
+            WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
 
@@ -11846,11 +11851,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             && ssl->error != WC_PENDING_E
         #endif
         ) {
-            if ( (ssl->error = SendBuffered(ssl)) == 0) {
+            if ( (ret = SendBuffered(ssl)) == 0) {
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
-                if (ssl->fragOffset == 0) {
+                if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                     if (ssl->options.connectState == CONNECT_BEGIN ||
                         ssl->options.connectState == HELLO_AGAIN ||
                        (ssl->options.connectState >= FIRST_REPLY_DONE &&
@@ -11859,6 +11864,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         WOLFSSL_MSG("connect state: "
                                     "Advanced from last buffered fragment send");
                     }
+                #ifdef WOLFSSL_ASYNC_IO
+                    /* Cleanup async */
+                    FreeAsyncCtx(ssl, 0);
+                #endif
                 }
                 else {
                     WOLFSSL_MSG("connect state: "
@@ -11866,9 +11875,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             }
             else {
+                ssl->error = ret;
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
+        }
+
+        ret = RetrySendAlert(ssl);
+        if (ret != 0) {
+            ssl->error = ret;
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
         }
 
         switch (ssl->options.connectState) {
@@ -12108,6 +12125,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->secure_renegotiation->startScr = 0;
             }
         #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+        #if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
+            /* Free the remaining async context if not using it for crypto */
+            FreeAsyncCtx(ssl, 1);
+        #endif
+
+            ssl->error = 0; /* clear the error */
 
             WOLFSSL_LEAVE("SSL_connect()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
@@ -12199,6 +12222,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         word16 haveAnon = 0;
         word16 haveMcast = 0;
 #endif
+        int ret = 0;
+
+        (void)ret;
 
         if (ssl == NULL)
             return WOLFSSL_FATAL_ERROR;
@@ -12230,7 +12256,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) ==
                  WOLFSSL_SUCCESS) &&
                 (res == WOLFSSL_NETFILTER_REJECT)) {
-                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+                ssl->error = SOCKET_FILTERED_E;
+                WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
         }
@@ -12256,7 +12283,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         (void)haveMcast;
 
         if (ssl->options.side != WOLFSSL_SERVER_END) {
-            WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
+            ssl->error = SIDE_ERROR;
+            WOLFSSL_ERROR(ssl->error);
             return WOLFSSL_FATAL_ERROR;
         }
 
@@ -12295,7 +12323,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 #endif
                     {
                         WOLFSSL_MSG("accept error: server key required");
-                        WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                        ssl->error = NO_PRIVATE_KEY;
+                        WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
                 }
@@ -12318,11 +12347,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             && ssl->error != WC_PENDING_E
         #endif
         ) {
-            if ( (ssl->error = SendBuffered(ssl)) == 0) {
+            if ( (ret = SendBuffered(ssl)) == 0) {
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
-                if (ssl->fragOffset == 0) {
+                if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                     if (ssl->options.acceptState == ACCEPT_FIRST_REPLY_DONE ||
                         ssl->options.acceptState == SERVER_HELLO_SENT ||
                         ssl->options.acceptState == CERT_SENT ||
@@ -12336,6 +12365,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         WOLFSSL_MSG("accept state: "
                                     "Advanced from last buffered fragment send");
                     }
+                #ifdef WOLFSSL_ASYNC_IO
+                    /* Cleanup async */
+                    FreeAsyncCtx(ssl, 0);
+                #endif
                 }
                 else {
                     WOLFSSL_MSG("accept state: "
@@ -12343,9 +12376,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             }
             else {
+                ssl->error = ret;
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
+        }
+
+        ret = RetrySendAlert(ssl);
+        if (ret != 0) {
+            ssl->error = ret;
+            WOLFSSL_ERROR(ssl->error);
+            return WOLFSSL_FATAL_ERROR;
         }
 
         switch (ssl->options.acceptState) {
@@ -12563,6 +12604,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->secure_renegotiation->startScr = 0;
             }
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+#if defined(WOLFSSL_ASYNC_IO) && !defined(WOLFSSL_ASYNC_CRYPT)
+            /* Free the remaining async context if not using it for crypto */
+            FreeAsyncCtx(ssl, 1);
+#endif
 
 #if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
             if (ssl->dtls_export) {
@@ -12573,6 +12618,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             }
 #endif
+            ssl->error = 0; /* clear the error */
 
             WOLFSSL_LEAVE("SSL_accept()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;

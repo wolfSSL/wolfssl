@@ -533,6 +533,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             else
         #endif
             if (err != WOLFSSL_ERROR_WANT_READ
+                    && err != WOLFSSL_ERROR_WANT_WRITE /* Can happen during
+                                                        * handshake */
         #ifdef HAVE_SECURE_RENEGOTIATION
                     && err != APP_DATA_READY
         #endif
@@ -2049,8 +2051,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case '6' :
+#ifdef WOLFSSL_ASYNC_IO
                 nonBlocking = 1;
                 simulateWantWrite = 1;
+#else
+                fprintf(stderr, "Ignoring -6 since async I/O support not "
+                                "compiled in.\n");
+#endif
                 break;
             case '7' :
                 minVersion = atoi(myoptarg);

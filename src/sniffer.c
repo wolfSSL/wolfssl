@@ -2332,9 +2332,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     WOLFSSL* ssl = session->sslServer;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    SetupKeysArgs* args = (SetupKeysArgs*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    SetupKeysArgs* args = NULL;
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async->args, *args);
 #else
     SetupKeysArgs  args[1];
 #endif
@@ -2349,6 +2348,15 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->async == NULL) {
+        ssl->async = (struct WOLFSSL_ASYNC*)
+                XMALLOC(sizeof(struct WOLFSSL_ASYNC), ssl->heap,
+                        DYNAMIC_TYPE_ASYNC);
+        if (ssl->async == NULL)
+            ERROR_OUT(MEMORY_E, exit_sk);
+    }
+    args = (SetupKeysArgs*)ssl->async->args;
+
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
@@ -2363,7 +2371,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(SetupKeysArgs));
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ssl->async.freeArgs = FreeSetupKeysArgs;
+        ssl->async->freeArgs = FreeSetupKeysArgs;
     #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         args->key = (SnifferKey*)XMALLOC(sizeof(SnifferKey), NULL,
@@ -3090,7 +3098,11 @@ exit_sk:
 #endif
 
     /* Final cleanup */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    FreeAsyncCtx(ssl, 1);
+#else
     FreeSetupKeysArgs(ssl, args);
+#endif
 
     return ret;
 }

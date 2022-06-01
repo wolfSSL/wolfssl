@@ -1613,6 +1613,9 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y)                              \
+    typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
+    (void)sizeof(_args_test)
 
 /* states */
 enum states {
@@ -1749,9 +1752,12 @@ WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx);
 #endif
 #endif
+#ifdef WOLFSSL_ASYNC_IO
+WOLFSSL_LOCAL void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync);
+#endif
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
-WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 size);
+WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN);
@@ -3507,7 +3513,6 @@ enum AcceptState {
     ACCEPT_HELLO_RETRY_REQUEST_DONE,
     ACCEPT_FIRST_REPLY_DONE,
     SERVER_HELLO_SENT,
-    SERVER_EXTENSIONS_SENT,
     CERT_SENT,
     CERT_VERIFY_SENT,
     CERT_STATUS_SENT,
@@ -3695,7 +3700,6 @@ typedef struct Options {
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
     word16            usingAnon_cipher:1; /* are we using an anon cipher */
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
-    word16            sendAlertState:1;   /* nonblocking resume */
     word16            partialWrite:1;     /* only one msg per write call */
     word16            quietShutdown:1;    /* don't send close notify */
     word16            certOnly:1;         /* stop once we get cert */
@@ -3771,6 +3775,12 @@ typedef struct Options {
     word16            startedETMRead:1;       /* Doing Encrypt-Then-MAC read */
     word16            startedETMWrite:1;      /* Doing Encrypt-Then-MAC write */
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    word16            buildArgsSet:1;         /* buildArgs are set and need to
+                                               * be free'd */
+#endif
+    word16            buildingMsg:1;      /* If set then we need to re-enter the
+                                           * handshake logic. */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -4212,17 +4222,16 @@ typedef struct BuildMsgArgs {
 } BuildMsgArgs;
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef WOLFSSL_ASYNC_IO
     #define MAX_ASYNC_ARGS 18
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
 
     struct WOLFSSL_ASYNC {
-        WC_ASYNC_DEV* dev;
-        FreeArgsCb    freeArgs; /* function pointer to cleanup args */
-        word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
-#ifndef WOLFSSL_NO_TLS12
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_NO_TLS12)
         BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
 #endif
+        FreeArgsCb    freeArgs; /* function pointer to cleanup args */
+        word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
     };
 #endif
 
@@ -4300,10 +4309,13 @@ struct WOLFSSL {
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
     void*           hsDoneCtx;         /*  user handshake cb context  */
 #endif
+#ifdef WOLFSSL_ASYNC_IO
 #ifdef WOLFSSL_ASYNC_CRYPT
-    struct WOLFSSL_ASYNC async;
-#elif defined(WOLFSSL_NONBLOCK_OCSP)
-    void*           nonblockarg;        /* dynamic arg for handling non-block resume */
+    WC_ASYNC_DEV* asyncDev;
+#endif
+    /* Message building context should be stored here for functions that expect
+     * to encounter encryption blocking or fragment the message. */
+    struct WOLFSSL_ASYNC* async;
 #endif
     void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
@@ -4319,6 +4331,7 @@ struct WOLFSSL {
     ClientSession*  clientSession;
 #endif
     WOLFSSL_ALERT_HISTORY alert_history;
+    WOLFSSL_ALERT   pendingAlert;
     int             error;
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */
@@ -4834,6 +4847,7 @@ WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
 WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
+WOLFSSL_LOCAL int RetrySendAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);
 WOLFSSL_LOCAL int ProcessReply(WOLFSSL* ssl);
 WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr);

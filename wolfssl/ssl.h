@@ -769,6 +769,7 @@ enum AlertDescription {
 
 
 enum AlertLevel {
+    alert_none = 0, /* Used to indicate no alert level is set */
     alert_warning = 1,
     alert_fatal   = 2
 };
