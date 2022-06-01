@@ -48194,7 +48194,8 @@ static void test_wolfSSL_PKCS7_sign(void)
         tmpPtr = NULL;
         AssertIntEQ(i2d_X509(signCert, &tmpPtr), p7Ver->verifyCertSz);
         AssertIntEQ(XMEMCMP(tmpPtr, p7Ver->verifyCert, p7Ver->verifyCertSz), 0);
-        free(tmpPtr);
+        XFREE(tmpPtr, NULL, DYNAMIC_TYPE_OPENSSL);
+        tmpPtr = NULL;
 
         wc_PKCS7_Free(p7Ver);
 
