@@ -33441,7 +33441,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;
     word32 idx = *ioIndex;
+    #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     word32 end_index;
+    #endif
     int    ret;
     int    sigLength;
 
@@ -33453,7 +33455,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
     if (idx + length > size)
         return ASN_INPUT_E;
+    #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     end_index = idx + length;
+    #endif
 
     if ((ret = DecodeResponseData(source, &idx, resp, size)) < 0)
         return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */

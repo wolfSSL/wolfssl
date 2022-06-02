@@ -1407,6 +1407,7 @@ static void test_wolfSSL_CheckOCSPResponse(void)
 {
 #if defined(HAVE_OCSP) && !defined(NO_RSA) && defined(OPENSSL_ALL)
     const char* responseFile = "./certs/ocsp/test-response.der";
+    const char* responseNoInternFile = "./certs/ocsp/test-response-nointern.der";
     const char* caFile = "./certs/ocsp/root-ca-cert.pem";
     OcspResponse* res = NULL;
     byte data[4096];
@@ -1441,6 +1442,18 @@ static void test_wolfSSL_CheckOCSPResponse(void)
     wolfSSL_OCSP_RESPONSE_free(res);
     wolfSSL_X509_STORE_free(st);
     wolfSSL_X509_free(issuer);
+
+    /* check loading a response with optional certs */
+    f = XFOPEN(responseNoInternFile, "rb");
+    AssertTrue(f != XBADFILE);
+    dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+    AssertIntGT(dataSz, 0);
+    XFCLOSE(f);
+
+    pt = data;
+    res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+    AssertNotNull(res);
+    wolfSSL_OCSP_RESPONSE_free(res);
 
     printf(resultFmt, passed);
 #endif /* HAVE_OCSP */

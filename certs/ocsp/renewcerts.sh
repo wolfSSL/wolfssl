@@ -86,6 +86,9 @@ openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -r
 PID=$!
 
 openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-nointern.der -no_intern
+# can verify with the following command
+# openssl ocsp -respin test-response-nointern.der -CAfile root-ca-cert.pem -issuer intermediate1-ca-cert.pem
 
 kill $PID
 wait $PID
