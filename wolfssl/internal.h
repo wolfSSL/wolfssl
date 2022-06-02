@@ -1510,7 +1510,14 @@ enum Misc {
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
+#ifdef HAVE_PQC
+    /* If we are building with post-quantum algorithms, we likely want to
+     * inter-op with OQS's OpenSSL and they send a lot more sigalgs.
+     */
+    #define WOLFSSL_MAX_SIGALGO 128
+#else
     #define WOLFSSL_MAX_SIGALGO 38
+#endif
 #endif
 
 
