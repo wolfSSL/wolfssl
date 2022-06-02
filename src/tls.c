@@ -5642,43 +5642,56 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
         /* TLS v1.2 and TLS v1.3  */
         int cnt = 0;
 
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_3_MINOR))
+        if ((ssl->options.minDowngrade <= TLSv1_3_MINOR)
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0
         #endif
-                cnt++;
+        ) {
+            cnt++;
+        }
 
         if (ssl->options.downgrade) {
-#ifndef WOLFSSL_NO_TLS12
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_2_MINOR))
-        #endif
+    #ifndef WOLFSSL_NO_TLS12
+            if ((ssl->options.minDowngrade <= TLSv1_2_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0
+            #endif
+            ) {
                 cnt++;
-#endif
-
-#ifndef NO_OLD_TLS
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_1_MINOR))
-        #endif
-                cnt++;
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_MINOR))
-        #endif
-                cnt++;
+            }
     #endif
-#endif
+    #ifndef NO_OLD_TLS
+            if ((ssl->options.minDowngrade <= TLSv1_1_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0
+            #endif
+            ) {
+                cnt++;
+            }
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            if ((ssl->options.minDowngrade <= TLSv1_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1) == 0
+            #endif
+            ) {
+                cnt++;
+            }
+        #endif
+    #endif
         }
 
         *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
     }
-    else if (msgType == server_hello || msgType == hello_retry_request)
+    else if (msgType == server_hello || msgType == hello_retry_request) {
         *pSz += OPAQUE16_LEN;
-    else
+    }
+    else {
         return SANITY_MSG_E;
+    }
 
     return 0;
 }
@@ -5700,60 +5713,65 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
     if (msgType == client_hello) {
         major = ssl->ctx->method->version.major;
 
-
         cnt = output++;
         *cnt = 0;
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_3_MINOR))
+
+        if ((ssl->options.minDowngrade <= TLSv1_3_MINOR)
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+            defined(WOLFSSL_WPAS_SMALL)
+            && (ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0
         #endif
-            {
-                *cnt += OPAQUE16_LEN;
-#ifdef WOLFSSL_TLS13_DRAFT
-                /* The TLS draft major number. */
-                *(output++) = TLS_DRAFT_MAJOR;
-                /* Version of draft supported. */
-                *(output++) = TLS_DRAFT_MINOR;
-#else
-                *(output++) = major;
-                *(output++) = (byte)TLSv1_3_MINOR;
-#endif
-            }
+        ) {
+            *cnt += OPAQUE16_LEN;
+        #ifdef WOLFSSL_TLS13_DRAFT
+            /* The TLS draft major number. */
+            *(output++) = TLS_DRAFT_MAJOR;
+            /* Version of draft supported. */
+            *(output++) = TLS_DRAFT_MINOR;
+        #else
+            *(output++) = major;
+            *(output++) = (byte)TLSv1_3_MINOR;
+        #endif
+        }
+
         if (ssl->options.downgrade) {
-#ifndef WOLFSSL_NO_TLS12
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_2_MINOR))
-        #endif
-            {
+        #ifndef WOLFSSL_NO_TLS12
+            if ((ssl->options.minDowngrade <= TLSv1_2_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0
+            #endif
+            ) {
                 *cnt += OPAQUE16_LEN;
                 *(output++) = major;
                 *(output++) = (byte)TLSv1_2_MINOR;
             }
-#endif
-
-#ifndef NO_OLD_TLS
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_1_MINOR))
         #endif
-            {
+
+    #ifndef NO_OLD_TLS
+            if ((ssl->options.minDowngrade <= TLSv1_1_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0
+            #endif
+            ) {
                 *cnt += OPAQUE16_LEN;
                 *(output++) = major;
                 *(output++) = (byte)TLSv1_1_MINOR;
             }
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 &&
-                (ssl->options.minDowngrade <= TLSv1_MINOR))
-        #endif
-            {
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            if ((ssl->options.minDowngrade <= TLSv1_MINOR)
+            #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                defined(WOLFSSL_WPAS_SMALL)
+                && (ssl->options.mask & SSL_OP_NO_TLSv1) == 0
+            #endif
+            ) {
                 *cnt += OPAQUE16_LEN;
                 *(output++) = major;
                 *(output++) = (byte)TLSv1_MINOR;
             }
+        #endif
     #endif
-#endif
         }
 
         *pSz += (word16)(OPAQUE8_LEN + *cnt);
