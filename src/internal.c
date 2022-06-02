@@ -18579,13 +18579,14 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 #ifndef WOLFSSL_NO_TLS12
 void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args)
 {
+    (void)ssl;
     if (args
 #ifdef WOLFSSL_ASYNC_CRYPT
             && ssl->options.buildArgsSet
 #endif
         ) {
         /* only free the IV if it was dynamically allocated */
-        if (ssl && args->iv && (args->iv != args->staticIvBuffer)) {
+        if (args->iv && (args->iv != args->staticIvBuffer)) {
             XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
         }
     }
@@ -20597,22 +20598,7 @@ startScr:
     return size;
 }
 
-int RetrySendAlert(WOLFSSL* ssl)
-{
-    int type = ssl->pendingAlert.code;
-    int severity = ssl->pendingAlert.level;
-
-    if (severity == alert_none)
-        return 0;
-
-    ssl->pendingAlert.code = 0;
-    ssl->pendingAlert.level = alert_none;
-
-    return SendAlert(ssl, severity, type);
-}
-
-/* send alert message */
-int SendAlert(WOLFSSL* ssl, int severity, int type)
+static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 {
     byte input[ALERT_SIZE];
     byte *output;
@@ -20642,21 +20628,6 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
         return 0;
     }
 #endif
-
-    if (ssl->pendingAlert.level != alert_none) {
-        ret = RetrySendAlert(ssl);
-        if (ret != 0) {
-            if (ssl->pendingAlert.level == alert_none ||
-                    (ssl->pendingAlert.level != alert_fatal &&
-                            severity == alert_fatal)) {
-                /* Store current alert if pendingAlert if free or if current
-                 * is fatal and previous was not */
-                ssl->pendingAlert.code = type;
-                ssl->pendingAlert.level = severity;
-            }
-            return ret;
-        }
-    }
 
     ssl->pendingAlert.code = type;
     ssl->pendingAlert.level = severity;
@@ -20754,6 +20725,43 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     WOLFSSL_LEAVE("SendAlert", ret);
 
     return ret;
+}
+
+int RetrySendAlert(WOLFSSL* ssl)
+{
+    int type = ssl->pendingAlert.code;
+    int severity = ssl->pendingAlert.level;
+
+    if (severity == alert_none)
+        return 0;
+
+    ssl->pendingAlert.code = 0;
+    ssl->pendingAlert.level = alert_none;
+
+    return SendAlert_ex(ssl, severity, type);
+}
+
+/* send alert message */
+int SendAlert(WOLFSSL* ssl, int severity, int type)
+{
+    int ret;
+
+    if (ssl->pendingAlert.level != alert_none) {
+        ret = RetrySendAlert(ssl);
+        if (ret != 0) {
+            if (ssl->pendingAlert.level == alert_none ||
+                    (ssl->pendingAlert.level != alert_fatal &&
+                            severity == alert_fatal)) {
+                /* Store current alert if pendingAlert is empty or if current
+                 * is fatal and previous was not */
+                ssl->pendingAlert.code = type;
+                ssl->pendingAlert.level = severity;
+            }
+            return ret;
+        }
+    }
+
+    return SendAlert_ex(ssl, severity, type);
 }
 
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
@@ -29533,7 +29541,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif /* WOLFSSL_ASYNC_IO */
 
         /* Final cleanup */
-        if (args->input != NULL) {
+        if (args != NULL && args->input != NULL) {
             XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             args->input = NULL;
         }

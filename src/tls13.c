@@ -4646,7 +4646,7 @@ static void FreeDch13Args(WOLFSSL* ssl, void* pArgs)
 
     (void)ssl;
 
-    if (args->clSuites) {
+    if (args && args->clSuites) {
         XFREE(args->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
         args->clSuites = NULL;
     }
@@ -6097,7 +6097,7 @@ static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
 
     (void)ssl;
 
-    if (args->sigData) {
+    if (args && args->sigData) {
         XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
@@ -6581,7 +6581,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
 {
     Dcv13Args* args = (Dcv13Args*)pArgs;
 
-    if (args->sigData != NULL) {
+    if (args && args->sigData != NULL) {
         XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
