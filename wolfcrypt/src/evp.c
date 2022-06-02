@@ -5702,6 +5702,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         int ret = WOLFSSL_SUCCESS;
 
+        if (ctx->gcmAuthIn) {
+            XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->gcmAuthIn = NULL;
+        }
+        ctx->gcmAuthInSz = 0;
+
         ctx->block_size = AES_BLOCK_SIZE;
         ctx->authTagSz = AES_BLOCK_SIZE;
         if (ctx->ivSz == 0) {
@@ -5765,6 +5771,15 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ret = WOLFSSL_FAILURE;
         }
     #endif /* WOLFSSL_AESGCM_STREAM */
+
+        /*
+         * OpenSSL clears this flag, which permits subsequent use of
+         * EVP_CTRL_GCM_IV_GEN, when EVP_CipherInit is called with no key.
+         * If a key is provided, the flag retains its value.
+         */
+        if (ret == WOLFSSL_SUCCESS && key == NULL) {
+            ctx->gcmIvGenEnable = 0;
+        }
 
         return ret;
     }
@@ -5911,15 +5926,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         if (!iv && ctx->ivSz) {
             iv = ctx->iv;
         }
-#endif
-#ifdef HAVE_AESGCM
-        if (ctx->gcmAuthIn) {
-            XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->gcmAuthIn = NULL;
-        }
-        ctx->gcmAuthInSz = 0;
-        ctx->gcmIvGenEnable = 0;
-        ctx->gcmIncIv = 0;
 #endif
 
 #ifndef NO_AES
