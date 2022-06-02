@@ -6581,7 +6581,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
 {
     Dcv13Args* args = (Dcv13Args*)pArgs;
 
-    if (args->sigData != NULL) {
+    if (args && args->sigData != NULL) {
         XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
