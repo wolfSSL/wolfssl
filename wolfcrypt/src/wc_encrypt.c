@@ -277,7 +277,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        info->keySz, hashType)) != 0) {
+                         (int)info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
@@ -334,7 +334,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
-                                        info->keySz, hashType)) != 0) {
+                         (int)info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
@@ -562,10 +562,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             }
 
             if (enc) {
-                wc_Des_CbcEncrypt(&des, input, input, length);
+                wc_Des_CbcEncrypt(&des, input, input, (word32)length);
             }
             else {
-                wc_Des_CbcDecrypt(&des, input, input, length);
+                wc_Des_CbcDecrypt(&des, input, input, (word32)length);
             }
             break;
         }
@@ -602,10 +602,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 return ret;
             }
             if (enc) {
-                ret = wc_Des3_CbcEncrypt(&des, input, input, length);
+                ret = wc_Des3_CbcEncrypt(&des, input, input, (word32)length);
             }
             else {
-                ret = wc_Des3_CbcDecrypt(&des, input, input, length);
+                ret = wc_Des3_CbcDecrypt(&des, input, input, (word32)length);
             }
             if (ret != 0) {
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
@@ -623,8 +623,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         {
             Arc4    dec;
 
-            wc_Arc4SetKey(&dec, key, derivedLen);
-            wc_Arc4Process(&dec, input, input, length);
+            wc_Arc4SetKey(&dec, key, (word32)derivedLen);
+            wc_Arc4Process(&dec, input, input, (word32)length);
             break;
         }
 #endif
@@ -648,19 +648,19 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             if (ret == 0) {
                 free_aes = 1;
                 if (enc) {
-                    ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
+                    ret = wc_AesSetKey(aes, key, (word32)derivedLen, cbcIv,
                                                                 AES_ENCRYPTION);
                 }
                 else {
-                    ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
+                    ret = wc_AesSetKey(aes, key, (word32)derivedLen, cbcIv,
                                                                 AES_DECRYPTION);
                 }
             }
             if (ret == 0) {
                 if (enc)
-                    ret = wc_AesCbcEncrypt(aes, input, input, length);
+                    ret = wc_AesCbcEncrypt(aes, input, input, (word32)length);
                 else
-                    ret = wc_AesCbcDecrypt(aes, input, input, length);
+                    ret = wc_AesCbcDecrypt(aes, input, input, (word32)length);
             }
             if (free_aes)
                 wc_AesFree(aes);

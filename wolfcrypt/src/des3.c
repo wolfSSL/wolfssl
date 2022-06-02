@@ -1444,7 +1444,7 @@
                 for (j = 0; j < 48; j++) {        /* select bits individually     */
                     if (pcr[pc2[j] - 1]) {        /* check bit that goes to ks[j] */
                         l= j % 6;                 /* mask it in if it's there     */
-                        ks[j/6] |= bytebit[l] >> 2;
+                        ks[j/6] = (byte)(ks[j/6] | (bytebit[l] >> 2));
                     }
                 }
 

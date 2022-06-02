@@ -232,7 +232,8 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 
     for (*status = entry->status; *status; *status = (*status)->next)
         if ((*status)->serialSz == request->serialSz
-        &&  !XMEMCMP((*status)->serial, request->serial, (*status)->serialSz))
+        &&  !XMEMCMP((*status)->serial, request->serial,
+            (size_t)(*status)->serialSz))
             break;
 
     if (responseBuffer && *status && !(*status)->rawOcspResponse) {
@@ -312,8 +313,8 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         return MEMORY_E;
     }
 #endif
-    InitOcspResponse(ocspResponse, newSingle, newStatus, response, responseSz,
-                     ocsp->cm->heap);
+    InitOcspResponse(ocspResponse, newSingle, newStatus, response,
+                     (word32)responseSz, ocsp->cm->heap);
 
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
     if (ret != 0) {
@@ -338,7 +339,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
                                                 DYNAMIC_TYPE_TMP_BUFFER);
 
         if (responseBuffer->buffer) {
-            responseBuffer->length = responseSz;
+            responseBuffer->length = (unsigned int)responseSz;
             XMEMCPY(responseBuffer->buffer, response, responseSz);
         }
     }
@@ -491,7 +492,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         return MEMORY_ERROR;
     }
 
-    requestSz = EncodeOcspRequest(ocspRequest, request, requestSz);
+    requestSz = EncodeOcspRequest(ocspRequest, request, (word32)requestSz);
     if (requestSz > 0 && ocsp->cm->ocspIOCb) {
         responseSz = ocsp->cm->ocspIOCb(ioCtx, url, urlSz,
                                         request, requestSz, &response);

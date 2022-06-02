@@ -517,7 +517,7 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d line:%u file:%s",
                     error, line, file);
 
-            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+            if (wc_AddErrorNode(error, (int)line, buffer, (char*)file) != 0) {
                 WOLFSSL_MSG("Error creating logging node");
                 /* with void function there is no return here, continue on
                  * to unlock mutex and log what buffer was created. */

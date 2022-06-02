@@ -226,7 +226,7 @@ void mp_forcezero(mp_int * a)
     /* only do anything if a hasn't been freed previously */
     if (a->dp != NULL) {
       /* force zero the used digits */
-      ForceZero(a->dp, a->used * sizeof(mp_digit));
+      ForceZero(a->dp, (word32)(a->used * (int)sizeof(mp_digit)));
 #ifdef HAVE_WOLF_BIGINT
       wc_bigint_zero(&a->raw);
 #endif
@@ -423,7 +423,8 @@ int mp_grow (mp_int * a, int size)
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
+    tmp = OPT_CAST(mp_digit) XREALLOC (a->dp,
+                                          sizeof(mp_digit) * (size_t)size, NULL,
                                                            DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
       /* reallocation failed but "a" is still valid [can be freed] */
@@ -567,7 +568,7 @@ void mp_rshb (mp_int *c, int x)
 {
     mp_digit *tmpc, mask, shift;
     mp_digit r, rr;
-    mp_digit D = x;
+    mp_digit D = (mp_digit)x;
 
     /* shifting by a negative number not supported, and shifting by
      * zero changes nothing.
@@ -578,7 +579,7 @@ void mp_rshb (mp_int *c, int x)
     if (x >= DIGIT_BIT) {
         mp_rshd(c, x / DIGIT_BIT);
         /* recalculate number of bits to shift */
-        D = x % DIGIT_BIT;
+        D = (mp_digit)(x % DIGIT_BIT);
         /* check if any more shifting needed */
         if (D == 0) return;
     }
@@ -717,7 +718,7 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
   x = DIGIT_BIT - (b % DIGIT_BIT);
   if (x != DIGIT_BIT) {
     c->dp[bmax - 1] &=
-         ((mp_digit)~((mp_digit)0)) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
+         ((mp_digit)~((mp_digit)0)) >> (x + (((int)sizeof(mp_digit)*8) - DIGIT_BIT));
   }
   mp_clamp (c);
   return MP_OKAY;
@@ -2531,7 +2532,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     return MP_MEM;
 #endif
 
-  XMEMSET(W, 0, (n->used * 2 + 1) * sizeof(mp_word));
+  XMEMSET(W, 0, (size_t)((n->used * 2 + 1) * (int)sizeof(mp_word)));
 
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
@@ -3293,8 +3294,8 @@ int mp_init_size (mp_int * a, int size)
   size += (MP_PREC * 2) - (size % MP_PREC);
 
   /* alloc mem */
-  a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * size, NULL,
-                                      DYNAMIC_TYPE_BIGINT);
+  a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof(mp_digit) *
+                  (size_t)size, NULL, DYNAMIC_TYPE_BIGINT);
   if (a->dp == NULL) {
     return MP_MEM;
   }
@@ -4965,7 +4966,7 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
     return err;
   }
 
-  bitSz = mp_count_bits(a);
+  bitSz = (word32)mp_count_bits(a);
   baseSz = (bitSz / 8) + ((bitSz % 8) ? 1 : 0);
   bitSz %= 8;
 
@@ -4989,10 +4990,12 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
 
     /* Clear bits higher than those in a. */
     if (bitSz > 0) {
-        base[0] &= (1 << bitSz) - 1;
+        int tmp_b0 = (int)base[0];
+        tmp_b0 &= (1 << (int)bitSz) - 1; /* perform int promotion arithmetic */
+        base[0] = (byte)tmp_b0; /* cast on assign */
     }
 
-    if ((err = mp_read_unsigned_bin(&b, base, baseSz)) != MP_OKAY) {
+    if ((err = mp_read_unsigned_bin(&b, base, (int)baseSz)) != MP_OKAY) {
         goto LBL_B;
     }
 

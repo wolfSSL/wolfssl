@@ -497,7 +497,7 @@ decouple library dependencies with standard string, memory and so on.
                 #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
             #else
-                #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s)))
+                #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((size_t)(s)))
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                     #define XFREE(p, h, t)       wolfSSL_Free(p)
                 #else
@@ -609,17 +609,17 @@ decouple library dependencies with standard string, memory and so on.
             #include <string.h>
         #endif
 
-            #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-            #define XMEMSET(b,c,l)    memset((b),(c),(l))
-            #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-            #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+            #define XMEMCPY(d,s,l)    memcpy((d),(s),(size_t)(l))
+            #define XMEMSET(b,c,l)    memset((b),(c),(size_t)(l))
+            #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(size_t)(n))
+            #define XMEMMOVE(d,s,l)   memmove((d),(s),(size_t)(l))
 
         #define XSTRLEN(s1)       strlen((s1))
-        #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
+        #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(size_t)(n))
         /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
          * not required for wolfCrypt only */
         #define XSTRSTR(s1,s2)    strstr((s1),(s2))
-        #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+        #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(unsigned int)(n))
         #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
         #define XSTRCMP(s1,s2)    strcmp((s1),(s2))
         #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
@@ -649,7 +649,9 @@ decouple library dependencies with standard string, memory and so on.
             #endif
             #if defined(WOLFSSL_DEOS)
                 #define XSTRCASECMP(s1,s2) stricmp((s1),(s2))
-            #elif defined(WOLFSSL_CMSIS_RTOSv2)
+            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE)
+                #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
+            #elif defined(WOLF_C89)
                 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
             #elif defined(WOLF_C89)
                 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
@@ -678,7 +680,9 @@ decouple library dependencies with standard string, memory and so on.
             #endif
             #if defined(WOLFSSL_DEOS)
                 #define XSTRNCASECMP(s1,s2,n) strnicmp((s1),(s2),(n))
-            #elif defined(WOLFSSL_CMSIS_RTOSv2)
+            #elif defined(WOLFSSL_CMSIS_RTOSv2) || defined(WOLFSSL_AZSPHERE)
+                #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
+            #elif defined(WOLF_C89)
                 #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
             #elif defined(WOLF_C89)
                 #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))

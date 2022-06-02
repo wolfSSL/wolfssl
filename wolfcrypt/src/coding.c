@@ -99,16 +99,17 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     byte v;
     byte mask;
 
-    c -= BASE64_MIN;
-    mask = (((byte)(0x3f - c)) >> 7) - 1;
+    c = (byte)((int)c - BASE64_MIN);
+    mask = (byte)((((byte)(0x3f - (int)c)) >> 7) - 1);
     /* Load a value from the first cache line and use when mask set. */
-    v  = base64Decode[ c & 0x3f        ] &   mask ;
+    v = base64Decode[ c & 0x3f ] & mask;
     /* Load a value from the second cache line and use when mask not set. */
-    v |= base64Decode[(c & 0x0f) | 0x40] & (~mask);
+    v |= (byte)(base64Decode[((int)c & 0x0f) | 0x40] & ((int)~mask));
 
+    /* return (byte)v; */
     return v;
 #else
-    return base64Decode[c - BASE64_MIN];
+    return base64Decode[(byte)((int)c - BASE64_MIN)];
 #endif
 }
 #endif
@@ -507,7 +508,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     if (inLen == 1 && *outLen && in) {
-        byte b = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
+        byte b = (byte)((int)in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
 
         /* sanity check */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -531,8 +532,8 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     while (inLen) {
-        byte b  = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
-        byte b2 = in[inIdx++] - BASE16_MIN;
+        byte b  = (byte)((int)in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
+        byte b2 = (byte)((int)in[inIdx++] - BASE16_MIN);
 
         /* sanity checks */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -571,14 +572,14 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         lb = in[i] & 0x0f;
 
         /* ASCII value */
-        hb += '0';
+        hb = (byte)((int)hb + '0');
         if (hb > '9')
-            hb += 7;
+            hb = (byte)((int)hb + 7);
 
         /* ASCII value */
-        lb += '0';
+        lb = (byte)((int)lb + '0');
         if (lb>'9')
-            lb += 7;
+            lb = (byte)((int)lb + 7);
 
         out[outIdx++] = hb;
         out[outIdx++] = lb;

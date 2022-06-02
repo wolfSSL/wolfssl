@@ -3289,7 +3289,8 @@ int DeriveKeys(WOLFSSL* ssl)
             XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
             if (ret == 0) {
                 ret = wc_ShaUpdate(sha, shaInput,
-                    (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN) - KEY_PREFIX + j);
+                                   (word32)((KEY_PREFIX + SECRET_LEN +
+                                   2 * RAN_LEN) - KEY_PREFIX + j));
             }
             if (ret == 0) {
                 ret = wc_ShaFinal(sha, shaOutput);
@@ -3323,12 +3324,13 @@ int DeriveKeys(WOLFSSL* ssl)
 
 static int CleanPreMaster(WOLFSSL* ssl)
 {
-    int i, ret, sz = ssl->arrays->preMasterSz;
+    int i, ret, sz = (int)ssl->arrays->preMasterSz;
 
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
-    ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
+    ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                               (word32)sz);
     if (ret != 0)
         return ret;
 
@@ -3416,8 +3418,8 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             }
 
             idx = 0;
-            XMEMCPY(shaInput, prefix, i + 1);
-            idx += i + 1;
+            XMEMCPY(shaInput, prefix, (size_t)(i + 1));
+            idx += (word32)(i + 1);
 
             XMEMCPY(shaInput + idx, ssl->arrays->preMasterSecret, pmsSz);
             idx += pmsSz;

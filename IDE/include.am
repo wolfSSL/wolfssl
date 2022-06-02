@@ -16,6 +16,7 @@ include IDE/INTIME-RTOS/include.am
 include IDE/KDS/include.am
 include IDE/STM32Cube/include.am
 include IDE/VS-ARM/include.am
+include IDE/MSVS-2019-AZSPHERE/include.am
 include IDE/VS-AZURE-SPHERE/include.am
 include IDE/GCC-ARM/include.am
 include IDE/CSBENCH/include.am

@@ -897,7 +897,7 @@ static int InitSha256(wc_Sha256* sha256)
             S[i] = sha256->digest[i];
 
         for (i = 0; i < 16; i++)
-            W[i] = *((const word32*)&data[i*sizeof(word32)]);
+            W[i] = *((const word32*)&data[i*(int)sizeof(word32)]);
 
         for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
             W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];

@@ -1700,7 +1700,7 @@ struct DecodedCert {
 #ifndef IGNORE_NAME_CONSTRAINTS
     byte extNameConstraintSet : 1;
 #endif
-    byte isCA : 1;                 /* CA basic constraint true */
+    byte isCA;                 /* CA basic constraint true */
     byte pathLengthSet : 1;        /* CA basic const path length set */
     byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
     byte extKeyUsageSet : 1;
@@ -1720,20 +1720,20 @@ struct DecodedCert {
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicySet : 1;
 #endif
-    byte extCRLdistCrit : 1;
-    byte extAuthInfoCrit : 1;
-    byte extBasicConstCrit : 1;
-    byte extPolicyConstCrit : 1;
-    byte extSubjAltNameCrit : 1;
-    byte extAuthKeyIdCrit : 1;
+    byte extCRLdistCrit;
+    byte extAuthInfoCrit;
+    byte extBasicConstCrit;
+    byte extPolicyConstCrit;
+    byte extSubjAltNameCrit;
+    byte extAuthKeyIdCrit;
 #ifndef IGNORE_NAME_CONSTRAINTS
-    byte extNameConstraintCrit : 1;
+    byte extNameConstraintCrit;
 #endif
-    byte extSubjKeyIdCrit : 1;
-    byte extKeyUsageCrit : 1;
-    byte extExtKeyUsageCrit : 1;
+    byte extSubjKeyIdCrit;
+    byte extKeyUsageCrit;
+    byte extExtKeyUsageCrit;
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-    byte extCertPolicyCrit : 1;
+    byte extCertPolicyCrit;
 #endif
 #ifdef WOLFSSL_CERT_REQ
     byte isCSR : 1;                /* Do we intend on parsing a CSR? */

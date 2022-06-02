@@ -398,7 +398,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         WOLFSSL_BUFFER(ikm, ikmLen);
 #endif
 
-        ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
+        ret = wc_HKDF_Extract(digest, salt, (word32)saltLen, ikm,
+                              (word32)ikmLen, prk);
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  PRK");
@@ -441,15 +442,15 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         data[idx++] = (byte)(protocolLen + labelLen);
         /* Protocol */
         XMEMCPY(&data[idx], protocol, protocolLen);
-        idx += protocolLen;
+        idx += (int)protocolLen;
         /* Label */
         XMEMCPY(&data[idx], label, labelLen);
-        idx += labelLen;
+        idx += (int)labelLen;
         /* Length of hash of messages */
         data[idx++] = (byte)infoLen;
         /* Hash of messages */
         XMEMCPY(&data[idx], info, infoLen);
-        idx += infoLen;
+        idx += (int)infoLen;
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  PRK");
@@ -458,14 +459,15 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         WOLFSSL_BUFFER(data, idx);
 #endif
 
-        ret = wc_HKDF_Expand(digest, prk, prkLen, data, idx, okm, okmLen);
+        ret = wc_HKDF_Expand(digest, prk, prkLen, data, (word32)idx, okm,
+                             okmLen);
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  OKM");
         WOLFSSL_BUFFER(okm, okmLen);
 #endif
 
-        ForceZero(data, idx);
+        ForceZero(data, (word32)idx);
 
         return ret;
     }
@@ -661,8 +663,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     if (k[0] & 0x80) kPad = 1;
     c32toa(kSz + kPad, kSzFlat);
 
-    blocks = keySz / digestSz;
-    remainder = keySz % digestSz;
+    blocks = keySz / (word32)digestSz;
+    remainder = keySz % (word32)digestSz;
 
     ret = _HashInit(enmhashId, &hash);
     if (ret == 0)
@@ -690,7 +692,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         else {
             word32 runningKeySz, curBlock;
 
-            runningKeySz = digestSz;
+            runningKeySz = (word32)digestSz;
             ret = _HashFinal(enmhashId, &hash, key);
 
             for (curBlock = 1; curBlock < blocks; curBlock++) {
@@ -709,7 +711,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                 if (ret != 0) break;
                 ret = _HashFinal(enmhashId, &hash, key + runningKeySz);
                 if (ret != 0) break;
-                runningKeySz += digestSz;
+                runningKeySz += (word32)digestSz;
             }
 
             if (remainder > 0) {

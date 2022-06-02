@@ -103,7 +103,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 #if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
     unsigned int mask = (unsigned int)0 - copy;
 #else
-    mp_digit mask = (mp_digit)0 - copy;
+    mp_digit mask = (mp_digit)(0 - copy);
 #endif
 
     if (a == NULL || b == NULL)
@@ -146,7 +146,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
-    int cnt = digits * sizeof(mp_digit);
+    int cnt = digits * (int)sizeof(mp_digit);
 #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
     int i;
 #endif
@@ -178,7 +178,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif
     /* fill the data with random bytes */
     if (ret == MP_OKAY) {
-        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, cnt);
+        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, (word32)cnt);
     }
     if (ret == MP_OKAY) {
 #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
@@ -241,7 +241,7 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
         }
         *len = keySz;
         XMEMSET(buf, 0, *len);
-        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
+        err = mp_to_unsigned_bin(mp, buf + ((int)keySz - mp_unsigned_bin_size(mp)));
     }
 
     return err;
