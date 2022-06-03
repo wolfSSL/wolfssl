@@ -21,4 +21,5 @@ EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE/wolfssl_new_azsphere/app_manifest.json
 EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE/wolfssl_new_azsphere/applibs_versions.h
 EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE/wolfssl_new_azsphere/launch.vs.json
 EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE/wolfssl_new_azsphere/main.c
+EXTRA_DIST+= IDE/MSVS-2019-AZSPHERE/README.md
 
