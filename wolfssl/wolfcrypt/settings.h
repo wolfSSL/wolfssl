@@ -565,8 +565,6 @@
     /* #define WOLFSSL_PTHREADS */
     #define WOLFSSL_HAVE_MIN
     #define WOLFSSL_HAVE_MAX
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
     #define NO_MAIN_DRIVER
     #define NO_DEV_RANDOM
     #define NO_WRITEV

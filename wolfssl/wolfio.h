@@ -312,6 +312,9 @@
     #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
     #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
 #elif defined(WOLFSSL_VXWORKS)
+    /*socket.h already has "typedef struct sockaddr SOCKADDR;"
+      so don't redefine it in wolfSSL */
+    #define HAVE_SOCKADDR_DEFINED
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
 #elif defined(WOLFSSL_NUCLEUS_1_2)
@@ -364,7 +367,9 @@
 
     /* Socket Addr Support */
     #ifdef HAVE_SOCKADDR
+    #ifndef HAVE_SOCKADDR_DEFINED
         typedef struct sockaddr         SOCKADDR;
+    #endif
         typedef struct sockaddr_storage SOCKADDR_S;
         typedef struct sockaddr_in      SOCKADDR_IN;
         #ifdef WOLFSSL_IPV6

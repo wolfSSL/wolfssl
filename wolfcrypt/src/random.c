@@ -2206,30 +2206,49 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 #elif defined(WOLFSSL_VXWORKS)
+    #ifdef WOLFSSL_VXWORKS_6_x
+        #include "stdlib.h"
+        #warning "potential for not enough entropy, currently being used for testing"
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            unsigned int seed = (unsigned int)XTIME(0);
+            (void)os;
 
-    #include <randomNumGen.h>
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
-        STATUS        status;
-
-        #ifdef VXWORKS_SIM
-            /* cannot generate true entropy with VxWorks simulator */
-            #warning "not enough entropy, simulator for testing only"
-            int i = 0;
-
-            for (i = 0; i < 1000; i++) {
-                randomAddTimeStamp();
+            for (i = 0; i < sz; i++ ) {
+                output[i] = rand_r(&seed) % 256;
+                if ((i % 8) == 7) {
+                    seed = (unsigned int)XTIME(0);
+                    rand_r(&seed);
+                }
             }
-        #endif
 
-        status = randBytes (output, sz);
-        if (status == ERROR) {
-            return RNG_FAILURE_E;
+            return 0;
         }
+    #else
+        #include <randomNumGen.h>
 
-        return 0;
-    }
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
+            STATUS        status;
 
+            #ifdef VXWORKS_SIM
+                /* cannot generate true entropy with VxWorks simulator */
+                #warning "not enough entropy, simulator for testing only"
+                int i = 0;
+
+                for (i = 0; i < 1000; i++) {
+                    randomAddTimeStamp();
+                }
+            #endif
+
+            status = randBytes (output, sz);
+            if (status == ERROR) {
+                return RNG_FAILURE_E;
+            }
+
+            return 0;
+        }
+    #endif
 #elif defined(WOLFSSL_NRF51) || defined(WOLFSSL_NRF5x)
     #include "app_error.h"
     #include "nrf_drv_rng.h"

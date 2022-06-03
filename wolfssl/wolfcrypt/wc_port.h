@@ -100,6 +100,11 @@
     #include "fsl_os_abstraction.h"
 #elif defined(WOLFSSL_VXWORKS)
     #include <semLib.h>
+    #ifdef WOLFSSL_VXWORKS_6_x
+        #ifndef SEM_ID_NULL
+            #define SEM_ID_NULL ((SEM_ID)NULL)
+        #endif
+    #endif
 #elif defined(WOLFSSL_uITRON4)
     #include "stddef.h"
     #include "kernel.h"

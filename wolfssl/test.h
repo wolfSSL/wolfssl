@@ -104,7 +104,11 @@
     #include <sys/types.h>
     #include <netinet/in.h>
     #include <fcntl.h>
-    #include <sys/time.h>
+    #ifdef WOLFSSL_VXWORKS_6_x
+        #include <time.h>
+    #else
+        #include <sys/time.h>
+    #endif
     #include <netdb.h>
     #include <pthread.h>
     #define SOCKET_T int
