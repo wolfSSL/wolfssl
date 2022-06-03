@@ -9621,30 +9621,29 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     #endif
     #ifdef WOLFSSL_QNX_CAAM
         if (key->blackKey == CAAM_BLACK_KEY_CCM) {
-                if (*dLen < keySz + WC_CAAM_MAC_SZ) {
-                    *dLen = keySz + WC_CAAM_MAC_SZ;
-                    return BUFFER_E;
-                }
-
-                    err = wc_export_int(&key->k, d, dLen, keySz + WC_CAAM_MAC_SZ, encType);
+            if (*dLen < keySz + WC_CAAM_MAC_SZ) {
                 *dLen = keySz + WC_CAAM_MAC_SZ;
+                return BUFFER_E;
+            }
+
+            err = wc_export_int(&key->k, d, dLen, keySz + WC_CAAM_MAC_SZ,
+                encType);
+            *dLen = keySz + WC_CAAM_MAC_SZ;
         }
         else if (encType == WC_TYPE_BLACK_KEY &&
-             key->blackKey != CAAM_BLACK_KEY_ECB &&
-             key->blackKey > 0) {
-                if (*dLen < keySz + WC_CAAM_MAC_SZ) {
-                    *dLen = keySz + WC_CAAM_MAC_SZ;
-                    return BUFFER_E;
-                }
-
-                if (key->blackKey != CAAM_BLACK_KEY_CCM) {
-                    if (caamReadPartition(key->blackKey, d, keySz + WC_CAAM_MAC_SZ) != 0)
-                        return WC_HW_E;
-                }
-                else {
-                }
-
+                key->blackKey != CAAM_BLACK_KEY_ECB &&
+                key->blackKey > 0) {
+            if (*dLen < keySz + WC_CAAM_MAC_SZ) {
                 *dLen = keySz + WC_CAAM_MAC_SZ;
+                return BUFFER_E;
+            }
+
+            if (key->blackKey != CAAM_BLACK_KEY_CCM) {
+                if (caamReadPartition(key->blackKey, d, keySz + WC_CAAM_MAC_SZ) != 0)
+                    return WC_HW_E;
+            }
+
+            *dLen = keySz + WC_CAAM_MAC_SZ;
         }
         else
     #endif

@@ -299,7 +299,7 @@ int caamFindUnusedPartition()
 }
 
 
-/* flag contains how the parition is set i.e CSP flag and read/write access
+/* flag contains how the partition is set i.e CSP flag and read/write access
  *      it also contains if locked
  */
 static Error caamCreatePartition(unsigned int* page, unsigned int par,
@@ -371,7 +371,7 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
     err = caamCreatePartition(&part, part, CAAM_SM_CSP | CAAM_SM_SMAP_LOCK |
                 CAAM_SM_CSP | CAAM_SM_ALL_RW);
     if (err != Success) {
-        WOLFSSL_MSG("Error creating partiions for secure ecc key");
+        WOLFSSL_MSG("Error creating partitions for secure ecc key");
         return 0;
     }
 
@@ -529,7 +529,7 @@ int caamInitRng(struct CAAM_DEVICE* dev)
         }
 
         if (reg & (1U << 30)) {
-            WOLFSSL_MSG("JKDKEK rng was setup using a non determinstic key");
+            WOLFSSL_MSG("JKDKEK rng was setup using a non deterministic key");
             return 0;
         }
 
