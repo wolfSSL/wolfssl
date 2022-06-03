@@ -407,7 +407,9 @@ WOLFSSL_API void tsip_set_callbacks(struct WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetRsaVerifyCb(ctx, (CallbackRsaVerify)Renesas_cmn_RsaVerify);
     wolfSSL_CTX_SetGenPreMasterCb(ctx, Renesas_cmn_generatePremasterSecret);
     wolfSSL_CTX_SetRsaEncCb(ctx, Renesas_cmn_RsaEnc);
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     wolfSSL_CTX_SetVerifyMacCb(ctx, (CallbackVerifyMac)Renesas_cmn_VerifyHmac);
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
     WOLFSSL_LEAVE("tsip_set_callbacks", 0);
 }
@@ -428,8 +430,9 @@ WOLFSSL_API int tsip_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx)
     wolfSSL_SetRsaVerifyCtx(ssl, user_ctx);
     wolfSSL_SetGenPreMasterCtx(ssl, user_ctx);
     wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)    
     wolfSSL_SetVerifyMacCtx(ssl, user_ctx);
-
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
     /* set up crypt callback */
     wc_CryptoCb_CryptInitRenesasCmn(ssl, user_ctx);
     WOLFSSL_LEAVE("tsip_set_callback_ctx", 0);
