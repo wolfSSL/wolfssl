@@ -544,7 +544,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int version, int earlyData)
 {
     /* time passed in number of connects give average */
-    int times = benchmark, skip = times * 0.1;
+    int times = benchmark;
+    double skip = (double) times * 0.1;
     int loops = resumeSession ? 2 : 1;
     int i = 0, err, ret;
 #ifndef NO_SESSION_CACHE
@@ -569,13 +570,16 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     #ifndef NO_SESSION_CACHE
         int benchResume = resumeSession && loops == 0;
     #endif
-        double start = current_time(1), avg;
+        double start = current_time(1), avg, check;
 
         for (i = 0; i < times; i++) {
             SOCKET_T sockfd;
             WOLFSSL* ssl;
 
-            if (i == skip)
+             /* cannot compare doubles with == or != instead subtract and if
+              * result is 0 then they were equal */
+            check = (double)i - skip;
+            if (check > -1.0 && check < 1.0)
                 start = current_time(1);
 
             ssl = wolfSSL_new(ctx);
