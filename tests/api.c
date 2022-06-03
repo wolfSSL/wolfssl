@@ -45319,8 +45319,20 @@ static void test_evp_cipher_aes_gcm(void)
         if (i == 0) {
             AssertIntEQ(EVP_CipherInit(encCtx, EVP_aes_256_gcm(), key, NULL, 1),
                         SSL_SUCCESS);
+
+            /*
+             * The call to EVP_CipherInit below (with NULL key) should clear the
+             * gcmIvGenEnable flag set by EVP_CTRL_GCM_SET_IV_FIXED. As such, a
+             * subsequent EVP_CTRL_GCM_IV_GEN should fail. This matches OpenSSL
+             * behavior.
+             */
+            AssertIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_SET_IV_FIXED, -1,
+                    (void*)iv), SSL_SUCCESS);
             AssertIntEQ(EVP_CipherInit(encCtx, NULL, NULL, iv, 1),
                         SSL_SUCCESS);
+            AssertIntEQ(EVP_CIPHER_CTX_ctrl(encCtx, EVP_CTRL_GCM_IV_GEN, -1,
+                        currentIv), SSL_FAILURE);
+
             AssertIntEQ(EVP_CipherInit(decCtx, EVP_aes_256_gcm(), key, NULL, 0),
                         SSL_SUCCESS);
             AssertIntEQ(EVP_CipherInit(decCtx, NULL, NULL, iv, 0),
