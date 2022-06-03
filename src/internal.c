@@ -11101,7 +11101,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
         if (dCert->cPwdLen < CTC_NAME_SIZE) {
             XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
             x509->challengePw[dCert->cPwdLen] = '\0';
-        #ifdef OPENSSL_ALL
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
             if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
                                         NID_pkcs9_challengePassword,
                                         MBSTRING_ASC,
@@ -11122,7 +11122,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->contentType, dCert->contentType, dCert->contentTypeLen);
             x509->contentType[dCert->contentTypeLen] = '\0';
         }
-    #ifdef OPENSSL_ALL
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
                                         NID_pkcs9_contentType,
                                         MBSTRING_ASC,
@@ -11134,7 +11134,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     #endif
     }
 
-    #ifdef OPENSSL_ALL
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
     if (dCert->sNum) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
                                         NID_serialNumber,
@@ -11366,8 +11366,6 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->altNames       = dCert->altNames;
     dCert->weOwnAltNames = 0;
-    x509->altNamesNext   = x509->altNames;  /* index hint */
-
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(IGNORE_NAME_CONSTRAINTS)
     /* add copies of email names from dCert to X509 */
@@ -11383,6 +11381,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         return MEMORY_E;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+    x509->altNamesNext   = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
