@@ -4431,6 +4431,15 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 return BAD_FUNC_ARG;
             }
 
+        #ifdef WOLF_CRYPTO_CB
+            if (aes->devId != INVALID_DEVID) {
+                int crypto_cb_ret = wc_CryptoCb_AesCtrEncrypt(aes, out, in, sz);
+                if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+                    return crypto_cb_ret;
+                /* fall-through when unavailable */
+            }
+        #endif
+
             /* consume any unused bytes left in aes->tmp */
             tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
             while (aes->left && sz) {

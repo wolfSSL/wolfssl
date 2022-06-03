@@ -25,15 +25,12 @@
 #ifndef CAAM_QNX_H
 #define CAAM_QNX_H
 
-#ifdef WOLFSSL_CAAM_PRINT
-#include <stdio.h>
-#define WOLFSSL_MSG(in) printf("%s\n", (in))
-#else
-#define WOLFSSL_MSG(in)
-#endif
-
 #include <sys/mman.h>
-#include <hw/inout.h>
+#ifdef __aarch64__
+    #include <aarch64/inout.h>
+#else
+    #include <hw/inout.h>
+#endif
 #include <sys/iofunc.h>
 #include <sys/neutrino.h>
 #include <pthread.h>
@@ -47,7 +44,7 @@
 #define Error int
 #define Value int
 #define Boolean int
-#define CAAM_ADDRESS unsigned int
+#define CAAM_ADDRESS uintptr_t
 #define Success 1
 #define Failure 0
 #define INTERRUPT_Panic()
@@ -55,6 +52,7 @@
 #define CAAM_WAITING -2
 #define NoActivityReady -1
 #define MemoryOperationNotPerformed -1
+#define CAAM_ARGS_E -3
 
 #ifndef WOLFSSL_CAAM_BUFFER
 #define WOLFSSL_CAAM_BUFFER
@@ -68,8 +66,15 @@
 /* check kernel and yield to same priority threads waiting */
 #define CAAM_CPU_CHILL() sched_yield()
 
-/* IMX6UL */
-#define CAAM_BASE 0x02140000
-#define CAAM_PAGE 0x00100000
+#ifdef __aarch64__
+    /* if on an AArch64 system make assumption that it is an i.MX8 QXP */
+    /* use block of memory set aside for job ring 2 */
+    #define CAAM_BASE 0x31400000
+    #define CAAM_PAGE 0x31800000
+#else
+    /* IMX6UL */
+    #define CAAM_BASE 0x02140000
+    #define CAAM_PAGE 0x00100000
+#endif
 
 #endif /* CAAM_QNX_H */

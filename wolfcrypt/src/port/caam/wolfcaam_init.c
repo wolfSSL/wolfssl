@@ -307,21 +307,30 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                     }
                     break;
 
-        #if defined(HAVE_AES_ECB)
-            case WC_CIPHER_AES_ECB:
-                if (info->cipher.enc == 1) {
-                    ret = wc_CAAM_AesEcbEncrypt(info->cipher.aesecb.aes,
-                                info->cipher.aesecb.out,
-                                info->cipher.aesecb.in,
-                                info->cipher.aesecb.sz);
-                }
-                else {
-                    ret = wc_CAAM_AesEcbDecrypt(info->cipher.aesecb.aes,
-                                info->cipher.aesecb.out,
-                                info->cipher.aesecb.in,
-                                info->cipher.aesecb.sz);
+            #ifdef WOLFSSL_AES_COUNTER
+                case WC_CIPHER_AES_CTR:
+                    ret = wc_CAAM_AesCtrEncrypt(info->cipher.aesctr.aes,
+                                info->cipher.aesctr.out,
+                                info->cipher.aesctr.in,
+                                info->cipher.aesctr.sz);
+                    break;
+            #endif /* WOLFSSL_AES_COUNTER */
+
+            #if defined(HAVE_AES_ECB)
+                case WC_CIPHER_AES_ECB:
+                    if (info->cipher.enc == 1) {
+                        ret = wc_CAAM_AesEcbEncrypt(info->cipher.aesecb.aes,
+                                    info->cipher.aesecb.out,
+                                    info->cipher.aesecb.in,
+                                    info->cipher.aesecb.sz);
                     }
-        #endif /* HAVE_AES_ECB */
+                    else {
+                        ret = wc_CAAM_AesEcbDecrypt(info->cipher.aesecb.aes,
+                                    info->cipher.aesecb.out,
+                                    info->cipher.aesecb.in,
+                                    info->cipher.aesecb.sz);
+                        }
+            #endif /* HAVE_AES_ECB */
             }
         #endif /* WOLFSSL_CAAM_CIPHER */
             break;

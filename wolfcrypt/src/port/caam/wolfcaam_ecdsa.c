@@ -62,7 +62,7 @@ static int wc_CAAM_DevEccSign(const byte* in, int inlen, byte* out,
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
 
     (void)rng;
     if (key->dp != NULL) {
@@ -165,7 +165,7 @@ static int wc_CAAM_DevEcdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     const ecc_set_type* dp;
     int ret, keySz;
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte qx[MAX_ECC_BYTES] = {0};
     byte qy[MAX_ECC_BYTES] = {0};
     byte qxy[MAX_ECC_BYTES * 2] = {0};
@@ -213,7 +213,7 @@ static int wc_CAAM_DevMakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
     int ret;
     int blackKey = 1; /* default to using black encrypted keys */
 
-    byte s[MAX_ECC_BYTES]    = {0};
+    byte s[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte xy[MAX_ECC_BYTES*2] = {0};
 
     key->type = ECC_PRIVATEKEY;
@@ -291,7 +291,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
     word32 idx = 0;
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
 
 #if defined(WOLFSSL_DEVCRYPTO_ECDSA)
     if (devId == WOLFSSL_CAAM_DEVID) {
@@ -322,18 +322,28 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     keySz  = wc_ecc_size(key);
 
     /* private key */
-    if (key->blackKey > 0) {
+    if (key->blackKey == CAAM_BLACK_KEY_SM) {
         buf[idx].TheAddress = (CAAM_ADDRESS)key->blackKey;
-        args[0] = 1; /* is a black key */
+        args[0] = CAAM_BLACK_KEY_SM; /* is a black key in sm */
+        buf[idx].Length = keySz;
     }
     else {
-        if (mp_to_unsigned_bin_len(&key->k, pk, keySz) != MP_OKAY) {
-            return MP_TO_E;
+        if (key->blackKey == CAAM_BLACK_KEY_CCM) {
+            if (mp_to_unsigned_bin_len(&key->k, pk, keySz + WC_CAAM_MAC_SZ)
+                != MP_OKAY) {
+                return MP_TO_E;
+            }
+            buf[idx].Length = keySz + WC_CAAM_MAC_SZ;
+        }
+        else {
+            if (mp_to_unsigned_bin_len(&key->k, pk, keySz) != MP_OKAY) {
+                return MP_TO_E;
+            }
+            buf[idx].Length = keySz;
         }
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        args[0] = 0; /* non black key */
+        args[0] = key->blackKey; /* potentail black key, not in sm */
     }
-    buf[idx].Length = keySz;
     idx++;
 
     /* hash to sign */
@@ -522,7 +532,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     word32 ecdsel = 0; /* ecc parameters in hardware */
     word32 idx    = 0;
 
-    byte pk[MAX_ECC_BYTES] = {0};
+    byte pk[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte qx[MAX_ECC_BYTES] = {0};
     byte qy[MAX_ECC_BYTES] = {0};
     byte qxy[MAX_ECC_BYTES * 2] = {0};
@@ -541,7 +551,7 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
         dp = wc_ecc_get_curve_params(private_key->idx);
     }
 
-    if (dp->id != ECC_SECP256R1) {
+    if (dp->id != ECC_SECP256R1 && dp->id != ECC_SECP384R1) {
         return CRYPTOCB_UNAVAILABLE;
     }
 
@@ -575,23 +585,46 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     idx++;
 
     /* private key */
-    if (private_key->blackKey > 0) {
+    if (private_key->blackKey > 0 &&
+        (private_key->blackKey != CAAM_BLACK_KEY_CCM &&
+         private_key->blackKey != CAAM_BLACK_KEY_ECB)) {
         buf[idx].TheAddress = (CAAM_ADDRESS)private_key->blackKey;
-        args[0] = 1; /* is a black key */
+        args[0] = CAAM_BLACK_KEY_SM; /* is a black key */
+        buf[idx].Length = sizeof(unsigned int);
     }
     else {
         if (keySz > MAX_ECC_BYTES) {
             return BUFFER_E;
         }
 
-        if (mp_to_unsigned_bin_len(&private_key->k, pk, keySz) != MP_OKAY) {
-            return MP_TO_E;
+        if (private_key->blackKey == CAAM_BLACK_KEY_CCM) {
+            if (mp_to_unsigned_bin_len(&private_key->k, pk,
+                keySz + WC_CAAM_MAC_SZ) != MP_OKAY) {
+                return MP_TO_E;
+            }
+            buf[idx].Length = keySz + WC_CAAM_MAC_SZ;
+        }
+        else {
+            if (mp_to_unsigned_bin_len(&private_key->k, pk, keySz) != MP_OKAY) {
+                return MP_TO_E;
+            }
+            buf[idx].Length = keySz;
         }
 
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        args[0] = 0; /* non black key */
+        args[0] = private_key->blackKey; /* potential black key, but not sm */
     }
-    buf[idx].Length = keySz;
+
+#if 0
+    {
+        int z;
+        unsigned char* pt = (unsigned char*)buf[idx].TheAddress;
+        printf("sending private key [%d] :", buf[idx].Length);
+        for (z = 0; z < buf[idx].Length; z++)
+            printf("%02X", pt[z]);
+        printf("\n");
+    }
+#endif
     idx++;
 
     /* output shared secret */
@@ -618,13 +651,13 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
 int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
     int devId)
 {
-    word32 args[4] = {0};
-    CAAM_BUFFER buf[2]  = {0};
+    word32 args[4]     = {0};
+    CAAM_BUFFER buf[2] = {0};
     word32 ecdsel = 0;
 
     int ret;
 
-    byte s[MAX_ECC_BYTES] = {0};
+    byte s[MAX_ECC_BYTES + WC_CAAM_MAC_SZ] = {0};
     byte xy[MAX_ECC_BYTES*2] = {0};
 
 #if defined(WOLFSSL_DEVCRYPTO_ECDSA)
@@ -636,6 +669,7 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
 
     /* if set to default curve then assume SECP256R1 */
     if (keySize == 32 && curveId == ECC_CURVE_DEF) curveId = ECC_SECP256R1;
+    if (keySize == 48 && curveId == ECC_CURVE_DEF) curveId = ECC_SECP384R1;
 
     if (curveId != ECC_SECP256R1 && curveId != ECC_SECP384R1) {
         /* currently only implemented P256/P384 support */
@@ -651,34 +685,59 @@ int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId,
     (void)rng;
     (void)devId;
 
+    if (key->blackKey == 0) {
+    #ifdef WOLFSSL_CAAM_NO_BLACK_KEY
+        args[0] = 0;
+    #elif defined(WOLFSSL_CAAM_BLACK_KEY_AESCCM)
+        args[0] = CAAM_BLACK_KEY_CCM;
+    #elif defined(WOLFSSL_CAAM_BLACK_KEY_SM)
+        args[0] = CAAM_BLACK_KEY_SM;
+    #else
+        args[0] = CAAM_BLACK_KEY_ECB;
+    #endif
+    }
+    else {
+        /* type of black key was already set in the ecc key struct */
+        args[0] = key->blackKey;
+    }
+
+    args[1] = ecdsel;
+    args[3] = keySize;
+
     buf[0].TheAddress = (CAAM_ADDRESS)s;
-    buf[0].Length     = keySize;
+    if (args[0] == CAAM_BLACK_KEY_SM) {
+        /* only get a physical address */
+        buf[0].Length = sizeof(unsigned int);
+    }
+    else if (args[0] == CAAM_BLACK_KEY_CCM) {
+        /* account for additional MAC */
+        buf[0].Length = keySize + WC_CAAM_MAC_SZ;
+    }
+    else {
+        buf[0].Length = keySize;
+    }
     buf[1].TheAddress = (CAAM_ADDRESS)xy;
     buf[1].Length     = keySize*2;
-
-    args[0] = 1; /* Creating Black Key */
-    args[1] = ecdsel;
+    key->blackKey     = args[0];
 
     ret = wc_caamAddAndWait(buf, 2, args, CAAM_ECDSA_KEYPAIR);
-    if (args[0] == 1 && ret == 0) {
-        key->blackKey     = (word32)buf[0].TheAddress;
-    #if defined(WOLFSSL_SECO_CAAM)
+    if (args[0] == CAAM_BLACK_KEY_SM && ret == 0) {
+        unsigned char* pt = (unsigned char*)buf[0].TheAddress;
+        key->blackKey     = (pt[0] << 24) | (pt[1] << 16) | (pt[2] << 8) | pt[3];
         if (wc_ecc_import_unsigned(key, xy, xy + keySize, NULL, curveId) != 0) {
             WOLFSSL_MSG("issue importing public key");
             return -1;
         }
-    #else
-        key->securePubKey = (word32)buf[1].TheAddress;
         key->partNum = args[2];
-    #endif
         return MP_OKAY;
     }
-    if (args[0] == 0 && ret == 0) {
+    else if (ret == 0) {
         if (wc_ecc_import_unsigned(key, xy, xy + keySize,
                    s, curveId) != 0) {
             WOLFSSL_MSG("issue importing key");
             return -1;
         }
+        key->blackKey = args[0];
         return MP_OKAY;
     }
     return -1;

@@ -12,6 +12,9 @@ LD = $(CC)
 INCLUDES += -I../../../ -I../../../wolfssl/wolfcrypt/port/caam/
 CCFLAGS += -O2 -Wall
 
+# For debugging print outs build with WOLFSSL_CAAM_PRINT defined
+#CCFLAGS += -DWOLFSSL_CAAM_PRINT -O2 -Wall
+
 SRCS = \
     ../../../wolfcrypt/src/port/caam/caam_driver.c \
     ../../../wolfcrypt/src/port/caam/caam_error.c \

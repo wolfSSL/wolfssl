@@ -79,10 +79,15 @@ void wc_CAAMFreeInterface()
 #define WC_CAAM_BLOB_DECAP __DIOTF(_DCMD_ALL, CAAM_BLOB_DECAP, iov_t)
 
 #define WC_CAAM_CMAC __DIOTF(_DCMD_ALL, CAAM_CMAC, iov_t)
+#define WC_CAAM_AESECB __DIOTF(_DCMD_ALL, CAAM_AESECB, iov_t)
+#define WC_CAAM_AESCTR __DIOTF(_DCMD_ALL, CAAM_AESCTR, iov_t)
+#define WC_CAAM_AESCBC __DIOTF(_DCMD_ALL, CAAM_AESCBC, iov_t)
+#define WC_CAAM_AESCCM __DIOTF(_DCMD_ALL, CAAM_AESCCM, iov_t)
+#define WC_CAAM_AESGCM __DIOTF(_DCMD_ALL, CAAM_AESGCM, iov_t)
 
 #define WC_CAAM_FIFO_S __DIOTF(_DCMD_ALL, CAAM_FIFO_S, iov_t)
 
-#define MAX_IN_IOVS 5
+#define MAX_IN_IOVS 6
 #define MAX_OUT_IOVS 3
 
 /* Do a synchronous operations and block till done
@@ -93,7 +98,7 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
     int ret, inIdx = 0, outIdx = 0;
     int cmd = 0;
     iov_t in[MAX_IN_IOVS], out[MAX_OUT_IOVS];
-    CAAM_ADDRESS pubkey, privkey;
+    CAAM_ADDRESS privkey;
 
     if (args != NULL) {
         SETIOV(&in[inIdx], args, sizeof(unsigned int) * 4);
@@ -141,18 +146,11 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
         break;
 
     case CAAM_ECDSA_KEYPAIR:
-        /* set input to get lengths */
-        SETIOV(&in[inIdx], &buf[0], sizeof(CAAM_BUFFER));
-        inIdx = inIdx + 1;
-
-        SETIOV(&in[inIdx], &buf[1], sizeof(CAAM_BUFFER));
-        inIdx = inIdx + 1;
-
         /* set output to store directly to CAAM_BUFFER's */
-        SETIOV(&out[outIdx], &buf[0], sizeof(CAAM_BUFFER));
+        SETIOV(&out[outIdx], buf[0].TheAddress, buf[0].Length);
         outIdx = outIdx + 1;
 
-        SETIOV(&out[outIdx], &buf[1], sizeof(CAAM_BUFFER));
+        SETIOV(&out[outIdx], buf[1].TheAddress, buf[1].Length);
         outIdx = outIdx + 1;
 
         /* get args for updated partition number used */
@@ -164,15 +162,8 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
 
     case CAAM_ECDSA_VERIFY:
         /* public key */
-        if (args[0] == 1) {
-            pubkey = buf[0].TheAddress;
-            SETIOV(&in[inIdx], &pubkey, sizeof(CAAM_ADDRESS));
-            inIdx = inIdx + 1;
-        }
-        else {
-            SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
-            inIdx = inIdx + 1;
-        }
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
 
         /* msg */
         SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
@@ -193,7 +184,7 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
         /* private key */
         if (args[0] == 1) {
             privkey = buf[0].TheAddress;
-            SETIOV(&in[inIdx], &privkey, sizeof(CAAM_ADDRESS));
+            SETIOV(&in[inIdx], &privkey, sizeof(unsigned int));
             inIdx = inIdx + 1;
         }
         else {
@@ -218,20 +209,13 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
 
     case CAAM_ECDSA_ECDH:
         /* when using memory in secure partition just send the address */
-        if (args[1] == 1) {
-            pubkey = buf[0].TheAddress;
-            SETIOV(&in[inIdx], &pubkey, sizeof(CAAM_ADDRESS));
-            inIdx = inIdx + 1;
-        }
-        else {
-            SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
-            inIdx = inIdx + 1;
-        }
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
 
         /* private key */
-        if (args[0] == 1) {
+        if (args[0] == CAAM_BLACK_KEY_SM) {
             privkey = buf[1].TheAddress;
-            SETIOV(&in[inIdx], &privkey, sizeof(CAAM_ADDRESS));
+            SETIOV(&in[inIdx], &privkey, sizeof(unsigned int));
             inIdx = inIdx + 1;
         }
         else {
@@ -282,6 +266,137 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
         }
 
         cmd = WC_CAAM_BLOB_DECAP;
+        break;
+
+    case CAAM_AESECB:
+        /* key */
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
+
+        /* in */
+        SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
+        inIdx = inIdx + 1;
+
+        /* out */
+        SETIOV(&out[outIdx], buf[2].TheAddress, buf[2].Length);
+        outIdx = outIdx + 1;
+        cmd = WC_CAAM_AESECB;
+        break;
+
+    case CAAM_AESCBC:
+        /* key */
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
+
+        /* in */
+        SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
+        inIdx = inIdx + 1;
+
+        /* iv */
+        SETIOV(&in[inIdx], buf[2].TheAddress, buf[2].Length);
+        inIdx = inIdx + 1;
+
+        /* out */
+        SETIOV(&out[outIdx], buf[3].TheAddress, buf[3].Length);
+        outIdx = outIdx + 1;
+
+        /* out updated IV */
+        SETIOV(&out[outIdx], buf[4].TheAddress, buf[4].Length);
+        outIdx = outIdx + 1;
+
+        cmd = WC_CAAM_AESCBC;
+        break;
+
+    case CAAM_AESCTR:
+        /* key */
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
+
+        /* iv */
+        SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
+        inIdx = inIdx + 1;
+
+        /* in */
+        SETIOV(&in[inIdx], buf[2].TheAddress, buf[2].Length);
+        inIdx = inIdx + 1;
+
+        /* out */
+        SETIOV(&out[outIdx], buf[3].TheAddress, buf[3].Length);
+        outIdx = outIdx + 1;
+
+        /* out updated IV */
+        SETIOV(&out[outIdx], buf[4].TheAddress, buf[4].Length);
+        outIdx = outIdx + 1;
+
+        cmd = WC_CAAM_AESCTR;
+        break;
+
+    case CAAM_AESCCM:
+        /* key */
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
+
+        /* iv */
+        SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
+        inIdx = inIdx + 1;
+
+        /* in */
+        SETIOV(&in[inIdx], buf[2].TheAddress, buf[2].Length);
+        inIdx = inIdx + 1;
+
+        /* out */
+        SETIOV(&out[outIdx], buf[3].TheAddress, buf[3].Length);
+        outIdx = outIdx + 1;
+
+        /* set TAG as input or output */
+        if ((args[0] & 0xFFFF) == CAAM_ENC) {
+            SETIOV(&out[outIdx], buf[4].TheAddress, buf[4].Length);
+            outIdx = outIdx + 1;
+        }
+        else {
+            SETIOV(&in[inIdx], buf[4].TheAddress, buf[4].Length);
+            inIdx = inIdx + 1;
+        }
+
+        /* aad */
+        SETIOV(&in[inIdx], buf[5].TheAddress, buf[5].Length);
+        inIdx = inIdx + 1;
+
+        cmd = WC_CAAM_AESCCM;
+        break;
+
+    case CAAM_AESGCM:
+        /* key */
+        SETIOV(&in[inIdx], buf[0].TheAddress, buf[0].Length);
+        inIdx = inIdx + 1;
+
+        /* iv */
+        SETIOV(&in[inIdx], buf[1].TheAddress, buf[1].Length);
+        inIdx = inIdx + 1;
+
+        /* in */
+        SETIOV(&in[inIdx], buf[2].TheAddress, buf[2].Length);
+        inIdx = inIdx + 1;
+
+        /* out */
+        SETIOV(&out[outIdx], buf[3].TheAddress, buf[3].Length);
+        outIdx = outIdx + 1;
+
+        /* set TAG as input or output */
+        if ((args[0] & 0xFFFF) == CAAM_ENC) {
+            SETIOV(&out[outIdx], buf[4].TheAddress, buf[4].Length);
+            outIdx = outIdx + 1;
+        }
+        else {
+            SETIOV(&in[inIdx], buf[4].TheAddress, buf[4].Length);
+            inIdx = inIdx + 1;
+        }
+
+        /* aad */
+        SETIOV(&in[inIdx], buf[5].TheAddress, buf[5].Length);
+        inIdx = inIdx + 1;
+
+        cmd = WC_CAAM_AESGCM;
         break;
 
     case CAAM_CMAC:

@@ -23,6 +23,10 @@
     #include <config.h>
 #endif
 
+/* settings.h is only included for wolfSSL version and IAR build warnings
+ * wolfssl/wolfcrypt/- path includes other than
+ * wolfssl/wolfcrypt/port/caam/caam_* should be avoided!! */
+#define WC_NO_HARDEN /* silence warning, it is irrelavent here */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(__QNX__) || defined(__QNXNTO__)
@@ -67,37 +71,86 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb);
 
 
 /* read the contents at offset from BASE address */
-unsigned int CAAM_READ(unsigned int ofst) {
-    return in32(virtual_base + ofst);
+unsigned int CAAM_READ(CAAM_ADDRESS reg) {
+    return in32(reg);
 }
 
 
 /* takes in offset from BASE address */
-void CAAM_WRITE(unsigned int ofst, unsigned int in)
+void CAAM_WRITE(CAAM_ADDRESS reg, unsigned int in)
 {
-    out32(virtual_base + ofst, in);
+    out32(reg, in);
 }
 
 
 /* Sets the base address to use for read/write
  * returns 0 on success
  */
-int CAAM_SET_BASEADDR()
+int CAAM_SET_BASEADDR(CAAM_ADDRESS* baseAddr)
 {
+#ifndef __aarch64__
+    void* vaddr;
+
     /* address range for CAAM is CAAM_BASE plus 0x10000 */
-    virtual_base = mmap_device_io(0x00010000, CAAM_BASE);
-    if (virtual_base == (uintptr_t)MAP_FAILED) {
+    vaddr = mmap_device_io(0x0000FFFF, CAAM_BASE);
+    if (vaddr == (uintptr_t)MAP_FAILED) {
         WOLFSSL_MSG("Unable to map virtual memory");
         return -1;
     }
+    *baseAddr = (CAAM_ADDRESS)vaddr;
+#endif
+
     return 0;
 }
 
 
-/* cleans up having set the base address */
-void CAAM_UNSET_BASEADDR()
+int CAAM_SET_JOBRING_ADDR(CAAM_ADDRESS* base, CAAM_ADDRESS* ringInPhy,
+    void** ringInVir)
 {
-    munmap_device_io(virtual_base, 0x00010000);
+    void* vaddr;
+
+#ifdef __aarch64__
+    /* if on an AArch64 system make assumption that it is an i.MX8 QXP */
+    /* use block of memory set aside for job ring 2 */
+    /* try to map to job rings 2 address */
+    *base = mmap_device_io(0x0000FFFF, CAAM_BASE + 0x00030000);
+#else
+    /* try to map to job rings 1 address */
+    *base = mmap_device_io(0x0000FFFF, CAAM_BASE + 0x00001000);
+#endif
+    if (*base == (uintptr_t)MAP_FAILED) {
+        WOLFSSL_MSG("Unable to map virtual memory");
+        return -1;
+    }
+
+    /* create DMA buffer for job rings */
+    vaddr = mmap(0, 1024, PROT_READ | PROT_WRITE | PROT_NOCACHE,
+        MAP_SHARED | MAP_PHYS | MAP_ANON, NOFD, 0);
+    if (vaddr == (void*)MAP_FAILED) {
+        WOLFSSL_MSG("mmap failed\n");
+        return -1;
+    }
+
+    *ringInPhy = CAAM_ADR_TO_PHYSICAL(vaddr, 1024);
+    *ringInVir = vaddr;
+    return 0;
+}
+
+
+void CAAM_UNSET_JOBRING_ADDR(CAAM_ADDRESS base, CAAM_ADDRESS ringInPhy,
+    void* ringInVir)
+{
+    munmap_device_io(base, 0x0000FFFF);
+    munmap(ringInVir, 1024);
+}
+
+
+/* cleans up having set the base address */
+void CAAM_UNSET_BASEADDR(CAAM_ADDRESS baseAddr)
+{
+#ifndef __aarch64__
+    munmap_device_io(baseAddr, 0x0000FFFF);
+#endif
 }
 
 /* convert a virtual address to a physical address
@@ -145,7 +198,7 @@ CAAM_ADDRESS CAAM_ADR_TO_VIRTUAL(CAAM_ADDRESS in, int len)
 /* map a virtual address to a created coherent physical address
  * returns the mapped address on success
  */
-void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy)
+void* CAAM_ADR_MAP(CAAM_ADDRESS in, int inSz, unsigned char copy)
 {
     int  sz;
     void *vaddr;
@@ -162,10 +215,11 @@ void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy)
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
         perror("Failed to map memory : ");
     #endif
+        return NULL;
     }
     else {
         if (copy && in != 0 && inSz > 0) {
-            memcpy((unsigned char*)vaddr, (unsigned char*)in, inSz);
+            memcpy(vaddr, (void*)in, inSz);
         }
 
         if (msync(vaddr, sz, MS_SYNC) != 0) {
@@ -177,7 +231,7 @@ void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy)
 
 
 /* un map address, should be called when done with a mapped address */
-void CAAM_ADR_UNMAP(void* vaddr, unsigned int out, int outSz,
+void CAAM_ADR_UNMAP(void* vaddr, CAAM_ADDRESS out, int outSz,
         unsigned char copy)
 {
     int sz;
@@ -232,6 +286,11 @@ int CAAM_ADR_SYNC(void* vaddr, int sz)
 #define WC_CAAM_BLOB_DECAP __DIOTF(_DCMD_ALL, CAAM_BLOB_DECAP, iov_t)
 
 #define WC_CAAM_CMAC __DIOTF(_DCMD_ALL, CAAM_CMAC, iov_t)
+#define WC_CAAM_AESECB __DIOTF(_DCMD_ALL, CAAM_AESECB, iov_t)
+#define WC_CAAM_AESCBC __DIOTF(_DCMD_ALL, CAAM_AESCBC, iov_t)
+#define WC_CAAM_AESCTR __DIOTF(_DCMD_ALL, CAAM_AESCTR, iov_t)
+#define WC_CAAM_AESCCM __DIOTF(_DCMD_ALL, CAAM_AESCCM, iov_t)
+#define WC_CAAM_AESGCM __DIOTF(_DCMD_ALL, CAAM_AESGCM, iov_t)
 
 #define WC_CAAM_FIFO_S __DIOTF(_DCMD_ALL, CAAM_FIFO_S, iov_t)
 
@@ -243,7 +302,7 @@ int CAAM_ADR_SYNC(void* vaddr, int sz)
  */
 static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 {
-    if (partAddr < CAAM_PAGE || partAddr > CAAM_PAGE * MAX_PART ||
+    if (partAddr < CAAM_PAGE || partAddr > CAAM_PAGE + (MAX_PART*4096) ||
             partSz > 4096) {
         WOLFSSL_MSG("error in physical address range");
         return -1;
@@ -379,7 +438,7 @@ static int doTRNG(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
             return ECANCELED;
         }
 
-        ret = caamTRNG(buf, length);
+        ret = caamEntropy(buf, length);
         if (ret == CAAM_WAITING) {
             /* waiting for more entropy */
             CAAM_ADR_UNMAP(buf, 0, length, 0);
@@ -388,6 +447,7 @@ static int doTRNG(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
         SETIOV(&out_iov, buf, length);
         ret = resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
+        DEBUG_PRINT_ARRAY(buf, length, "RNG data");
         CAAM_ADR_UNMAP(buf, 0, length, 0);
         if (ret < 0) {
             return ECANCELED;
@@ -509,42 +569,364 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 /* helper function to setup and make ECC key
  * returns EOK on success
  */
-static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx, iofunc_ocb_t *ocb)
+static int doAEAD(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
+        unsigned int idx, int type)
 {
-    int ret;
+    int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[2];
-    iov_t in_iovs[2], out_iovs[3];
+    CAAM_BUFFER tmp[6] = {0};
+    iov_t in_iovs[6], out_iovs[2];
+    int inIdx = 0, outIdx = 0, algo;
+    unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL, *aad = NULL,
+                  *tag = NULL;
+    int keySz, ivSz = 0, inSz, outSz, aadSz = 0, tagSz = 0;
 
-    SETIOV(&in_iovs[0], &tmp[0], sizeof(CAAM_BUFFER));
-    SETIOV(&in_iovs[1], &tmp[1], sizeof(CAAM_BUFFER));
-    ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
+    /* get key info */
+    keySz = args[1] & 0xFFFF; /* key size */
+    key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
+    if (key == NULL) {
+        ret = ECANCELED;
+    }
+    SETIOV(&in_iovs[inIdx], key, keySz);
+    inIdx++;
 
-    caamDescInit(&desc, CAAM_ECDSA_KEYPAIR, args, tmp, 2);
-    ret = caamECDSAMake(&desc, tmp, args);
-    if (ret != Success) {
-        return ECANCELED;
+    /* check for IV */
+    if (ret == EOK) {
+        ivSz = (args[1] >> 24)  & 0xFF;
+        iv   = (unsigned char*)CAAM_ADR_MAP(0, ivSz, 0);
+        if (iv == NULL) {
+            ret = ECANCELED;
+        }
+        SETIOV(&in_iovs[inIdx], iv, ivSz);
+        inIdx++;
     }
 
-    SETIOV(&out_iovs[0], &tmp[0], sizeof(CAAM_BUFFER));
-    SETIOV(&out_iovs[1], &tmp[1], sizeof(CAAM_BUFFER));
-    SETIOV(&out_iovs[2], args, sizeof(int) * 4);
-    ret = resmgr_msgwritev(ctp, &out_iovs[0], 3, sizeof(msg->o));
-    if (ret < 0) {
-        return ECANCELED;
+    /* get input buffer */
+    if (ret == EOK) {
+        inSz = args[2]; /* input size */
+        in   = (unsigned char*)CAAM_ADR_MAP(0, inSz, 0);
+        if (in == NULL) {
+            ret = ECANCELED;
+        }
+        SETIOV(&in_iovs[inIdx], in, inSz);
+        inIdx++;
+    }
+
+    /* create output buffer to store results */
+    if (ret == EOK) {
+        outSz = args[2]; /* output size */
+        out   = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
+    }
+
+    /* add in TAG and AAD if set */
+    if (ret == EOK) {
+        tagSz = (args[1] >> 16) & 0xFF;
+        tag   = (unsigned char*)CAAM_ADR_MAP(0, tagSz, 0);
+        if (tag == NULL) {
+            ret = ECANCELED;
+        }
+    }
+
+    /* when decrypting the TAG is an input */
+    if (ret == EOK) {
+        if ((args[0] & 0xFFFF) == CAAM_DEC) {
+            SETIOV(&in_iovs[inIdx], tag, tagSz);
+            inIdx++;
+        }
+
+        /* AAD input */
+        aadSz = (args[0] >> 16) & 0xFFFF;
+        if (aadSz > 0) {
+            aad = (unsigned char*)CAAM_ADR_MAP(0, aadSz, 0);
+            if (aad == NULL) {
+                ret = ECANCELED;
+            }
+            SETIOV(&in_iovs[inIdx], aad, aadSz);
+            inIdx++;
+        }
+    }
+
+    if (ret == EOK) {
+        if (resmgr_msgreadv(ctp, in_iovs, inIdx, idx) < 0) {
+            ret = EBADMSG;
+        }
+    }
+
+    if (ret == EOK) {
+        switch (type) {
+            case WC_CAAM_AESCCM: algo = CAAM_AESCCM; break;
+            case WC_CAAM_AESGCM: algo = CAAM_AESGCM; break;
+            default:
+                WOLFSSL_MSG("Unknown/supported AES mode");
+                ret =  ECANCELED;
+        }
+    }
+
+    if (ret == EOK) {
+        tmp[i].Length = keySz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)key;
+        i++;
+
+        tmp[i].Length = ivSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)iv;
+        i++;
+
+        tmp[i].Length = inSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)in;
+        i++;
+
+        tmp[i].Length = outSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)out;
+        i++;
+
+        tmp[i].Length = tagSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)tag;
+        i++;
+
+        tmp[i].Length = aadSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)aad;
+        i++;
+
+        caamDescInit(&desc, algo, args, tmp, 6);
+        if (caamAead(&desc, tmp, args) != Success) {
+            ret = ECANCELED;
+        }
+    }
+
+    /* sync the new IV/MAC and output buffer */
+    if (ret == EOK) {
+        CAAM_ADR_SYNC(out, outSz);
+        SETIOV(&out_iovs[0], out, outSz);
+        outIdx++;
+
+        if ((desc.state == CAAM_ENC &&
+                 (type == WC_CAAM_AESCCM || type == WC_CAAM_AESGCM))) {
+            CAAM_ADR_SYNC(tag, tagSz);
+            SETIOV(&out_iovs[1], tag, tagSz);
+            outIdx++;
+        }
+
+        if (resmgr_msgwritev(ctp, &out_iovs[0], outIdx, sizeof(msg->o)) < 0) {
+            ret = ECANCELED;
+        }
+    }
+
+    if (key != NULL)
+        CAAM_ADR_UNMAP(key, 0, keySz, 0);
+    if (iv != NULL)
+        CAAM_ADR_UNMAP(iv, 0, ivSz, 0);
+    if (in != NULL)
+        CAAM_ADR_UNMAP(in, 0, inSz, 0);
+    if (out != NULL)
+        CAAM_ADR_UNMAP(out, 0, outSz, 0);
+    if (tag != NULL)
+        CAAM_ADR_UNMAP(tag, 0, tagSz, 0);
+    if (aad != NULL)
+        CAAM_ADR_UNMAP(aad, 0, aadSz, 0);
+
+    return ret;
+}
+
+
+/* helper function to setup and make ECC key
+ * returns EOK on success
+ */
+static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
+        unsigned int idx, int type)
+{
+    int ret = EOK, i = 0;
+    DESCSTRUCT desc;
+    CAAM_BUFFER tmp[6] = {0};
+    iov_t in_iovs[6], out_iovs[2];
+    int inIdx = 0, outIdx = 0;
+    int algo;
+    unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
+    int keySz, ivSz = 0, inSz, outSz;
+
+    /* get key info */
+    keySz = args[1] & 0xFFFF; /* key size */
+    key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
+    if (key == NULL) {
+        ret = ECANCELED;
+    }
+    SETIOV(&in_iovs[inIdx], key, keySz);
+    inIdx++;
+
+    /* check for IV */
+    if (ret == EOK) {
+        if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
+            ivSz = 16;
+            iv   = (unsigned char*)CAAM_ADR_MAP(0, ivSz, 0);
+            if (iv == NULL) {
+                ret = ECANCELED;
+            }
+            SETIOV(&in_iovs[inIdx], iv, ivSz);
+            inIdx++;
+        }
+    }
+
+    /* get input buffer */
+    if (ret == EOK) {
+        inSz = args[2]; /* input size */
+        in   = (unsigned char*)CAAM_ADR_MAP(0, inSz, 0);
+        if (in == NULL) {
+            ret = ECANCELED;
+        }
+        SETIOV(&in_iovs[inIdx], in, inSz);
+        inIdx++;
+    }
+
+    /* create output buffer to store results */
+    if (ret == EOK) {
+        outSz = args[2]; /* output size */
+        out   = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
+        if (out == NULL) {
+            ret = ECANCELED;
+        }
+    }
+
+    if (ret == EOK) {
+        if (resmgr_msgreadv(ctp, in_iovs, inIdx, idx) < 0) {
+            ret = ECANCELED;
+        }
+    }
+
+    if (ret == EOK) {
+        switch (type) {
+            case WC_CAAM_AESCBC: algo = CAAM_AESCBC; break;
+            case WC_CAAM_AESCTR: algo = CAAM_AESCTR; break;
+            case WC_CAAM_AESECB: algo = CAAM_AESECB; break;
+            default:
+                WOLFSSL_MSG("Unknown/supported AES mode");
+                ret = ECANCELED;
+        }
+    }
+
+    if (ret == EOK) {
+        tmp[i].Length = keySz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)key;
+        i++;
+
+        if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
+            tmp[i].Length = ivSz;
+            tmp[i].TheAddress = (CAAM_ADDRESS)iv;
+            i++;
+        }
+
+        tmp[i].Length = inSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)in;
+        i++;
+
+        tmp[i].Length = outSz;
+        tmp[i].TheAddress = (CAAM_ADDRESS)out;
+
+        caamDescInit(&desc, algo, args, tmp, 6);
+        if (caamAes(&desc, tmp, args) != Success) {
+            ret = ECANCELED;
+        }
+    }
+
+    /* sync the new IV/MAC and output buffer */
+    if (ret == EOK) {
+        if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
+            CAAM_ADR_SYNC(iv, ivSz);
+            SETIOV(&out_iovs[1], iv, ivSz);
+            outIdx++;
+        }
+        CAAM_ADR_SYNC(out, outSz);
+        SETIOV(&out_iovs[0], out, outSz);
+        outIdx++;
+
+        if (resmgr_msgwritev(ctp, &out_iovs[0], outIdx, sizeof(msg->o)) < 0) {
+            ret = ECANCELED;
+        }
+    }
+
+    if (key != NULL)
+        CAAM_ADR_UNMAP(key, 0, keySz, 0);
+    if (iv != NULL)
+        CAAM_ADR_UNMAP(iv, 0, ivSz, 0);
+    if (in != NULL)
+        CAAM_ADR_UNMAP(in, 0, inSz, 0);
+    if (out != NULL)
+        CAAM_ADR_UNMAP(out, 0, outSz, 0);
+
+    return ret;
+}
+
+
+/* helper function to setup and make ECC key
+ * returns EOK on success
+ */
+static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
+    unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
+{
+    int ret = EOK;
+    int keySz;
+    int privSz;
+    DESCSTRUCT desc;
+    CAAM_BUFFER tmp[2];
+    iov_t out_iovs[3];
+    unsigned char *priv = NULL, *pub = NULL;
+
+    privSz = keySz = args[3];
+    if (args[0] == CAAM_BLACK_KEY_CCM) {
+        privSz += BLACK_KEY_MAC_SZ;
+    }
+    if (args[0] == CAAM_BLACK_KEY_SM) {
+        privSz = sizeof(unsigned int);
+    }
+    
+    /* private key */
+    tmp[0].Length = privSz;
+    priv = (unsigned char*)CAAM_ADR_MAP(0, privSz, 0);
+    if (priv == NULL) {
+        ret = ECANCELED;
+    }
+    tmp[0].TheAddress = (CAAM_ADDRESS)priv;
+
+    /* public key */
+    if (ret == EOK) {
+        tmp[1].Length = keySz * 2;
+        pub = (unsigned char*)CAAM_ADR_MAP(0, keySz * 2, 0);
+        if (pub == NULL) {
+            ret = ECANCELED;
+        }
+        tmp[1].TheAddress = (CAAM_ADDRESS)pub;
+    }
+
+    if (ret == EOK) {
+        caamDescInit(&desc, CAAM_ECDSA_KEYPAIR, args, tmp, 2);
+        if (caamECDSAMake(&desc, tmp, args) != Success) {
+            ret = ECANCELED;
+        }
+    }
+
+    if (ret == EOK) {
+        SETIOV(&out_iovs[0], tmp[0].TheAddress, privSz);
+        SETIOV(&out_iovs[1], tmp[1].TheAddress, keySz * 2);
+        SETIOV(&out_iovs[2], args, sizeof(int) * 4);
+        if (resmgr_msgwritev(ctp, &out_iovs[0], 3, sizeof(msg->o)) < 0) {
+            ret = ECANCELED;
+        }
     }
 
     /* claim ownership of a secure memory location */
-    if (pthread_mutex_lock(&sm_mutex) != EOK) {
-        return ECANCELED;
-    }
-    else {
-        sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
-        pthread_mutex_unlock(&sm_mutex);
+    if (ret == EOK && args[0] == CAAM_BLACK_KEY_SM) {
+        if (pthread_mutex_lock(&sm_mutex) != EOK) {
+            ret = ECANCELED;
+        }
+        else {
+            sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
+            pthread_mutex_unlock(&sm_mutex);
+        }
     }
 
-    return EOK;
+    if (priv != NULL)
+        CAAM_ADR_UNMAP(priv, 0, privSz, 0);
+    if (pub != NULL)
+        CAAM_ADR_UNMAP(pub, 0, keySz*2, 0);
+    return ret;
 }
 
 
@@ -562,7 +944,7 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg,
     unsigned char *hash, *pubkey = NULL, *r, *s;
     CAAM_ADDRESS securePub;
 
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         pubSz = sizeof(CAAM_ADDRESS);
 
         SETIOV(&in_iovs[0], &securePub, sizeof(CAAM_ADDRESS));
@@ -615,7 +997,7 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg,
     }
 
     /* setup CAAM buffers to pass to driver */
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         tmp[0].TheAddress = securePub;
     }
     else {
@@ -669,12 +1051,15 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
 
     iov_t in_iovs[2], out_iovs[2];
 
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         keySz = sizeof(CAAM_ADDRESS);
         SETIOV(&in_iovs[0], &blackKey, sizeof(CAAM_ADDRESS));
     }
     else {
         keySz = args[3];
+        if (args[0] == CAAM_BLACK_KEY_CCM) {
+            keySz += BLACK_KEY_MAC_SZ;
+        }
         key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
         if (key == NULL) {
             return ECANCELED;
@@ -691,6 +1076,7 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
     SETIOV(&in_iovs[1], hash, args[2]);
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
     if ((keySz + args[2]) > ret) {
+        WOLFSSL_MSG("Overflow reading key and hash");
         CAAM_ADR_UNMAP(hash, 0, args[2], 0);
         if (key != NULL)
             CAAM_ADR_UNMAP(key, 0, keySz, 0);
@@ -699,13 +1085,14 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
 
 
     /* setup CAAM buffers to pass to driver */
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         tmp[0].TheAddress = blackKey;
+        tmp[0].Length = args[3];
     }
     else {
         tmp[0].TheAddress = (CAAM_ADDRESS)key;
+        tmp[0].Length = keySz;
     }
-    tmp[0].Length = args[3];
 
     tmp[1].TheAddress = (CAAM_ADDRESS)hash;
     tmp[1].Length = args[2];
@@ -779,7 +1166,7 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
     CAAM_ADDRESS securePub, blackKey;
 
     /* when using memory in secure partition just send the address */
-    if (args[1] == 1) {
+    if (args[1] == CAAM_BLACK_KEY_SM) {
         SETIOV(&in_iovs[0], &securePub, sizeof(CAAM_ADDRESS));
         expectedSz += sizeof(CAAM_ADDRESS);
     }
@@ -793,20 +1180,31 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
         expectedSz += args[3]*2;
     }
 
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         SETIOV(&in_iovs[1], &blackKey, sizeof(CAAM_ADDRESS));
         expectedSz += sizeof(CAAM_ADDRESS);
     }
     else {
-        key = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
+        if (args[0] == CAAM_BLACK_KEY_CCM) {
+            key = (unsigned char*)CAAM_ADR_MAP(0, args[3] + BLACK_KEY_MAC_SZ, 0);
+        }
+        else {
+            key = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
+        }
         if (key == NULL) {
             if (pubkey != NULL)
                 CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
             return ECANCELED;
         }
 
-        SETIOV(&in_iovs[1], key, args[3]);
-        expectedSz += args[3];
+        if (args[0] == CAAM_BLACK_KEY_CCM) {
+            SETIOV(&in_iovs[1], key, args[3] + BLACK_KEY_MAC_SZ);
+            expectedSz += args[3] + BLACK_KEY_MAC_SZ;
+        }
+        else {
+            SETIOV(&in_iovs[1], key, args[3]);
+            expectedSz += args[3];
+        }
     }
 
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
@@ -819,7 +1217,7 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
     }
 
     /* setup CAAM buffers to pass to driver */
-    if (args[1] == 1) {
+    if (args[1] == CAAM_BLACK_KEY_SM) {
         tmp[0].TheAddress = securePub;
     }
     else {
@@ -827,7 +1225,7 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
     }
     tmp[0].Length = args[3]*2;
 
-    if (args[0] == 1) {
+    if (args[0] == CAAM_BLACK_KEY_SM) {
         tmp[1].TheAddress = blackKey;
     }
     else {
@@ -1097,6 +1495,17 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             ret = doBLOB(ctp, msg, args, idx);
             break;
 
+        case WC_CAAM_AESECB:
+        case WC_CAAM_AESCTR:
+        case WC_CAAM_AESCBC:
+            ret = doAES(ctp, msg, args, idx, msg->i.dcmd);
+            break;
+
+        case WC_CAAM_AESCCM:
+        case WC_CAAM_AESGCM:
+            ret = doAEAD(ctp, msg, args, idx, msg->i.dcmd);
+            break;
+
         case WC_CAAM_ECDSA_KEYPAIR:
             ret = doECDSA_KEYPAIR(ctp, msg, args, idx, ocb);
             break;
@@ -1219,6 +1628,7 @@ char cannedResponse[] = {
         LIBWOLFSSL_VERSION_STRING
         "\nSupports:\n"
         "\tAES-CMAC\n"
+        "\tAES (GCM/CCM/ECB/CBC/CTR)\n"
         "\tECC (sign, verify, ecdh, keygen)\n"
         "\tBlobs (black and red)\n"
 };
@@ -1300,12 +1710,23 @@ int main(int argc, char *argv[])
 
     ctp = dispatch_context_alloc(dpp);
     while (1) {
-        ctp = dispatch_block(ctp);
-        if (ctp == NULL) {
-            CleanupCAAM();
-            exit (1);
+        dispatch_context_t *current_ctp;
+
+        current_ctp = dispatch_block(ctp);
+        if (current_ctp == NULL) {
+            /* test if was just an interrupt, if so retry */
+            if (errno == EINTR)
+                continue;
+
+            /* other errors are EFAULT, EINVAL, ENOMEM
+             * close down in these cases */
+            perror("Error from dispatch_block ");
+            break;
         }
-        dispatch_handler(ctp);
+        else {
+            ctp = current_ctp;
+            dispatch_handler(ctp);
+        }
     }
 
     pthread_mutex_destroy(&sm_mutex);
