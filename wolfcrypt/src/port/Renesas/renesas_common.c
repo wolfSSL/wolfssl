@@ -852,6 +852,7 @@ WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message,
     return ret;
 }
 
+#ifndef WOLFSSL_AEAD_ONLY
 /* Renesas Security Library Common Callback
  * Callback for TLS hmac
  *
@@ -915,6 +916,7 @@ WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest,
 
     return ret;
 }
+#endif /* !WOLFSSL_AEAD_ONLY */
 
 /* Renesas Security Library Common Callback
  * Callback for Signature PK Rsa verify
