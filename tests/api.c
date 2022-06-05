@@ -18392,7 +18392,7 @@ static int test_wc_MakeRsaKey (void)
 
     printf(testingFmt, "wc_MakeRsaKey()");
 
-    ret = wc_InitRsaKey(&genKey, NULL);
+    ret = wc_InitRsaKey(&genKey, HEAP_HINT);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {

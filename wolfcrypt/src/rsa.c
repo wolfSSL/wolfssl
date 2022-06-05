@@ -626,7 +626,7 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     sigLen = wc_RsaEncryptSize(key);
 
     /* Sign and verify. */
-    sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_RSA);
+    sig = (byte*)XMALLOC(sigLen, key->heap, DYNAMIC_TYPE_RSA);
     if (sig == NULL) {
         return MEMORY_E;
     }
@@ -669,7 +669,7 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
         ret = RSA_KEY_PAIR_E;
 
     ForceZero(sig, sigLen);
-    XFREE(sig, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(sig, key->heap, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
