@@ -335,7 +335,7 @@ static int sockAddrEqual(
 
     if (a->ss_family == AF_INET) {
 
-        if (aLen < sizeof(SOCKADDR_IN))
+        if (aLen < (XSOCKLENT)sizeof(SOCKADDR_IN))
             return 0;
 
         if (((SOCKADDR_IN*)a)->sin_port != ((SOCKADDR_IN*)b)->sin_port)
@@ -352,7 +352,7 @@ static int sockAddrEqual(
     if (a->ss_family == AF_INET6) {
         SOCKADDR_IN6 *a6, *b6;
 
-        if (aLen < sizeof(SOCKADDR_IN6))
+        if (aLen < (XSOCKLENT)sizeof(SOCKADDR_IN6))
             return 0;
 
         a6 = (SOCKADDR_IN6*)a;

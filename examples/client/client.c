@@ -544,7 +544,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int version, int earlyData)
 {
     /* time passed in number of connects give average */
-    int times = benchmark, skip = times * 0.1;
+    int times = benchmark, skip = (int)((double)times * 0.1);
     int loops = resumeSession ? 2 : 1;
     int i = 0, err, ret;
 #ifndef NO_SESSION_CACHE
