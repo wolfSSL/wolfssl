@@ -18079,11 +18079,11 @@ static int test_wc_InitRsaKey (void)
 
     printf(testingFmt, "wc_InitRsaKey()");
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_InitRsaKey(NULL, NULL);
+        ret = wc_InitRsaKey(NULL, HEAP_HINT);
         #ifndef HAVE_USER_RSA
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -18128,7 +18128,7 @@ static int test_wc_RsaPrivateKeyDecode (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     if (ret == 0) {
-        ret = wc_InitRsaKey(&key, NULL);
+        ret = wc_InitRsaKey(&key, HEAP_HINT);
     }
     if (ret == 0) {
         #ifdef USE_CERT_BUFFERS_1024
@@ -18209,7 +18209,7 @@ static int test_wc_RsaPublicKeyDecode (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     if (ret == 0) {
-        ret = wc_InitRsaKey(&keyPub, NULL);
+        ret = wc_InitRsaKey(&keyPub, HEAP_HINT);
     }
     if (ret == 0) {
         #ifdef USE_CERT_BUFFERS_1024
@@ -18299,7 +18299,7 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
 
     printf(testingFmt, "wc_RsaPublicKeyDecodeRaw()");
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
     if (ret == 0) {
         ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, &key);
     }
@@ -18392,7 +18392,7 @@ static int test_wc_MakeRsaKey (void)
 
     printf(testingFmt, "wc_MakeRsaKey()");
 
-    ret = wc_InitRsaKey(&genKey, NULL);
+    ret = wc_InitRsaKey(&genKey, HEAP_HINT);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
@@ -18485,7 +18485,7 @@ static int test_RsaDecryptBoundsCheck(void)
     ret = wc_InitRng(&rng);
 
     if (ret == 0)
-        ret = wc_InitRsaKey(&key, NULL);
+        ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     if (ret == 0) {
         const byte* derKey;
@@ -18625,7 +18625,7 @@ static int test_wc_CheckProbablePrime (void)
     printf(testingFmt, "wc_CheckProbablePrime()");
 
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
@@ -18728,7 +18728,7 @@ static int test_wc_RsaPSS_Verify (void)
 
     printf(testingFmt, "wc_RsaPSS_Verify()");
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -18818,7 +18818,7 @@ static int test_wc_RsaPSS_VerifyCheck (void)
     XMEMSET(digest, 0, sizeof(digest));
     XMEMSET(pSignature, 0, sizeof(pSignature));
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -18909,7 +18909,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
 
     printf(testingFmt, "wc_RsaPSS_VerifyCheckInline()");
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     XMEMSET(digest, 0, sizeof(digest));
     XMEMSET(pSignature, 0, sizeof(pSignature));
@@ -19071,7 +19071,7 @@ static int test_wc_RsaKeyToDer (void)
     }
     /* Init structures. */
     if (ret == 0) {
-        ret = wc_InitRsaKey(&genKey, NULL);
+        ret = wc_InitRsaKey(&genKey, HEAP_HINT);
     }
         if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -19177,7 +19177,7 @@ static int test_wc_RsaKeyToPublicDer (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     if (ret == 0) {
-        ret = wc_InitRsaKey(&key, NULL);
+        ret = wc_InitRsaKey(&key, HEAP_HINT);
     }
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -19291,7 +19291,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
 #endif
     XMEMCPY(in, inStr, inLen);
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
@@ -19388,7 +19388,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
 
-    ret = wc_InitRsaKey_ex(&key, NULL, INVALID_DEVID);
+    ret = wc_InitRsaKey_ex(&key, HEAP_HINT, INVALID_DEVID);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
@@ -19504,7 +19504,7 @@ static int test_wc_RsaSSL_SignVerify (void)
 #endif
     XMEMCPY(in, inStr, inLen);
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -19647,7 +19647,7 @@ static int test_wc_RsaEncryptSize (void)
     RsaKey  key;
     WC_RNG  rng;
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
 
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -19732,7 +19732,7 @@ static int test_wc_RsaFlattenPublicKey (void)
     int         bits = 2048;
     #endif
 
-    ret = wc_InitRsaKey(&key, NULL);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
@@ -26827,7 +26827,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
     if (ret == 0) { /*RSA*/
-        ret = wc_InitRsaKey(&rsaKey, NULL);
+        ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
         if (ret == 0) {
             MAKE_RSA_KEY(&rsaKey, bits, WC_RSA_EXPONENT, &rng);
         }
@@ -26919,7 +26919,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
     if (ret == 0) { /*RSA*/
-        ret = wc_InitRsaKey(&rsaKey, NULL);
+        ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
         if (ret == 0) {
             MAKE_RSA_KEY(&rsaKey, bits, WC_RSA_EXPONENT, &rng);
         }
@@ -30476,7 +30476,7 @@ static void test_wc_GetPubKeyDerFromCert(void)
     AssertIntGT(keyDerSz, 0);
 
     /* sanity check, verify we can import DER public key */
-    ret = wc_InitRsaKey(&rsaKey, NULL);
+    ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
     AssertIntEQ(ret, 0);
     ret = wc_RsaPublicKeyDecode(keyDer, &idx, &rsaKey, keyDerSz);
     AssertIntEQ(ret, 0);
@@ -30523,7 +30523,7 @@ static void test_wc_GetPubKeyDerFromCert(void)
         AssertIntGT(keyDerSz, 0);
 
         /* sanity check, verify we can import DER public key */
-        ret = wc_InitRsaKey(&rsaKey, NULL);
+        ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
         AssertIntEQ(ret, 0);
         idx = 0;
         ret = wc_RsaPublicKeyDecode(keyDer, &idx, &rsaKey, keyDerSz);
@@ -53760,7 +53760,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     if (ret != 0) {
                         return ret;
                     }
-                    ret = wc_InitRsaKey(&key, NULL);
+                    ret = wc_InitRsaKey(&key, HEAP_HINT);
                     if (ret == 0) {
                         word32 keyIdx = 0;
                         /* load RSA private key and perform private transform */

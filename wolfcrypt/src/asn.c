@@ -20593,16 +20593,11 @@ int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
             ret = BUFFER_E;
         }
         else if (sz > (long)sizeof(staticBuffer)) {
-        #ifdef WOLFSSL_STATIC_MEMORY
-            WOLFSSL_MSG("File was larger then static buffer");
-            ret = MEMORY_E;
-        #else
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
             else
                 dynamic = 1;
-        #endif
         }
 
         if (ret == 0) {
@@ -20679,16 +20674,11 @@ int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
             ret = BUFFER_E;
         }
         else if (sz > (long)sizeof(staticBuffer)) {
-        #ifdef WOLFSSL_STATIC_MEMORY
-            WOLFSSL_MSG("File was larger then static buffer");
-            ret = MEMORY_E;
-        #else
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
             else
                 dynamic = 1;
-        #endif
         }
         if (ret == 0) {
             if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
