@@ -2278,7 +2278,6 @@ static void test_wolfSSL_FPKI(void)
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
-printf("size of file = %d\n", bytes);
 
     wc_InitDecodedCert(&cert, buf, bytes, NULL);
     AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
@@ -2293,6 +2292,7 @@ printf("size of file = %d\n", bytes);
     AssertNotNull(uuid);
     AssertIntEQ(wc_GetUUIDFromCert(&cert, uuid, &uuidSz), 0);
     XFREE(uuid, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    wc_FreeDecodedCert(&cert);
 
     printf(resultFmt, passed);
 #endif
@@ -9016,7 +9016,6 @@ static void test_wolfSSL_URI(void)
 
     x509 = wolfSSL_X509_load_certificate_file(uri, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
-
     wolfSSL_FreeX509(x509);
 
     x509 = wolfSSL_X509_load_certificate_file(badUri, WOLFSSL_FILETYPE_PEM);
@@ -9025,6 +9024,7 @@ static void test_wolfSSL_URI(void)
     AssertNull(x509);
 #else
     AssertNotNull(x509);
+    wolfSSL_FreeX509(x509);
 #endif
 
     printf(resultFmt, passed);
