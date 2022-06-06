@@ -93,6 +93,13 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_SHA */
 
+/* adder for HW crypto */
+#ifdef STM32_HASH
+#define CTX_SHA2_HW_ADDER 30
+#else
+#define CTX_SHA2_HW_ADDER 0
+#endif
+
 #ifdef WOLFSSL_SHA224
 
 /* Using ALIGN16 because when AES-NI is enabled digest and buffer in Sha256
@@ -100,7 +107,8 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
  * to Sha224, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA224_CTX {
     /* big enough to hold wolfcrypt Sha224, but check on init */
-    ALIGN16 void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    ALIGN16 void* holder[(274 + CTX_SHA2_HW_ADDER + WC_ASYNC_DEV_SIZE) /
+                                                                 sizeof(void*)];
 } WOLFSSL_SHA224_CTX;
 
 WOLFSSL_API int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha);
@@ -133,7 +141,8 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
  * to Sha256, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA256_CTX {
     /* big enough to hold wolfcrypt Sha256, but check on init */
-    ALIGN16 void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    ALIGN16 void* holder[(274 + CTX_SHA2_HW_ADDER + WC_ASYNC_DEV_SIZE) /
+                                                                 sizeof(void*)];
 } WOLFSSL_SHA256_CTX;
 
 WOLFSSL_API int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256);

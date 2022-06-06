@@ -78,7 +78,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
         ret = wc_Stm32_Hash_Update(&md5->stmCtx, HASH_AlgoSelection_MD5,
-                                   data, len);
+                                   data, len, WC_MD5_BLOCK_SIZE);
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;

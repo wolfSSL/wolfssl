@@ -46,9 +46,7 @@
 
 #ifdef STM32_HASH
 
-#ifdef WOLFSSL_STM32L4
-    #define HASH_STR_NBW HASH_STR_NBLW
-#endif
+/* #define DEBUG_STM32_HASH */
 
 /* User can override STM32_HASH_CLOCK_ENABLE and STM32_HASH_CLOCK_DISABLE */
 #ifndef STM32_HASH_CLOCK_ENABLE
@@ -77,8 +75,22 @@
     #define STM32_HASH_CLOCK_DISABLE(ctx) wc_Stm32_Hash_Clock_Disable(ctx)
 #endif
 
+
 /* STM32 Port Internal Functions */
-static WC_INLINE void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
+static void wc_Stm32_Hash_NumValidBits(word32 len)
+{
+    /* calculate number of valid bits in last word */
+    /* NBLW = 0x00 (all 32-bits are valid) */
+    word32 nbvalidbytesdata = (len % STM32_HASH_REG_SIZE);
+    HASH->STR &= ~HASH_STR_NBW;
+    HASH->STR |= (8 * nbvalidbytesdata) & HASH_STR_NBW;
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Valid Last bits (%d)\n", 8 * nbvalidbytesdata);
+#endif
+}
+
+static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
 {
     int i;
 
@@ -89,13 +101,46 @@ static WC_INLINE void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     for (i=0; i<HASH_CR_SIZE; i++) {
         ctx->HASH_CSR[i] = HASH->CSR[i];
     }
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Save CR %lx, IMR %lx, STR %lx\n",
+        HASH->CR, HASH->IMR, HASH->STR);
+#endif
 }
 
-static WC_INLINE int wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx)
+static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
 {
     int i;
 
-    if (ctx->HASH_CR != 0) {
+    if (ctx->HASH_CR == 0) {
+        /* init content */
+
+    #if defined(HASH_IMR_DINIE) && defined(HASH_IMR_DCIE)
+        /* enable IRQ's */
+        HASH->IMR |= (HASH_IMR_DINIE | HASH_IMR_DCIE);
+    #endif
+
+        /* reset the control register */
+        HASH->CR &= ~(HASH_CR_ALGO | HASH_CR_MODE | HASH_CR_DATATYPE
+        #ifdef HASH_CR_LKEY
+            | HASH_CR_LKEY
+        #endif
+        );
+
+        /* configure algorithm, mode and data type */
+        HASH->CR |= (algo | HASH_ALGOMODE_HASH | HASH_DATATYPE_8B);
+
+        /* reset HASH processor */
+        HASH->CR |= HASH_CR_INIT;
+
+        /* by default mark all bits valid */
+        wc_Stm32_Hash_NumValidBits(0);
+
+#ifdef DEBUG_STM32_HASH
+        printf("STM Init algo %x\n", algo);
+#endif
+    }
+    else {
         /* restore context registers */
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
@@ -108,12 +153,15 @@ static WC_INLINE int wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx)
         for (i=0; i<HASH_CR_SIZE; i++) {
             HASH->CSR[i] = ctx->HASH_CSR[i];
         }
-        return 1;
+
+#ifdef DEBUG_STM32_HASH
+        printf("STM Restore CR %lx, IMR %lx, STR %lx\n",
+            HASH->CR, HASH->IMR, HASH->STR);
+#endif
     }
-    return 0;
 }
 
-static WC_INLINE void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
+static void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 {
     word32 digest[HASH_MAX_DIGEST/sizeof(word32)];
 
@@ -137,17 +185,35 @@ static WC_INLINE void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
     ByteReverseWords(digest, digest, digestSize);
 
     XMEMCPY(hash, digest, digestSize);
+
+#ifdef DEBUG_STM32_HASH
+    {
+        word32 i;
+        printf("STM Digest %d\n", digestSize);
+        for (i=0; i<digestSize/sizeof(word32); i++) {
+            printf("\tDIG 0x%04x\n", digest[i]);
+        }
+    }
+#endif
 }
 
-
-/* STM32 Port Exposed Functions */
-static WC_INLINE int wc_Stm32_Hash_WaitDone(void)
+static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
 {
-    /* wait until hash hardware is not busy */
     int timeout = 0;
-    while ((HASH->SR & HASH_SR_BUSY) && ++timeout < STM32_HASH_TIMEOUT) {
+    (void)stmCtx;
 
-    }
+    /* wait until hash digest is complete */
+    while ((HASH->SR & HASH_SR_BUSY) &&
+        #ifdef HASH_IMR_DCIE
+            (HASH->SR & HASH_SR_DCIS) == 0 && 
+        #endif
+        ++timeout < STM32_HASH_TIMEOUT) {
+    };
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Wait done %d, HASH->SR %lx\n", timeout, HASH->SR);
+#endif
+
     /* verify timeout did not occur */
     if (timeout >= STM32_HASH_TIMEOUT) {
         return WC_TIMEOUT_E;
@@ -155,22 +221,58 @@ static WC_INLINE int wc_Stm32_Hash_WaitDone(void)
     return 0;
 }
 
+static void wc_Stm32_Hash_Data(STM32_HASH_Context* stmCtx, word32 len)
+{
+    word32 i, blocks;
 
+    if (len > stmCtx->buffLen)
+        len = stmCtx->buffLen;
+
+    /* calculate number of 32-bit blocks */
+    blocks = ((len + STM32_HASH_REG_SIZE-1) / STM32_HASH_REG_SIZE);
+#ifdef DEBUG_STM32_HASH
+    printf("STM DIN %d blocks\n", blocks);
+#endif
+    for (i=0; i<blocks; i++) {
+    #ifdef DEBUG_STM32_HASH
+        printf("\tDIN 0x%04x\n", stmCtx->buffer[i]);
+    #endif
+        HASH->DIN = stmCtx->buffer[i];
+    }
+    stmCtx->loLen += len; /* total */
+    stmCtx->buffLen -= len;
+    if (stmCtx->buffLen > 0) {
+        XMEMMOVE(stmCtx->buffer, (byte*)stmCtx->buffer+len, stmCtx->buffLen);
+    }
+}
+
+
+/* STM32 Port Exposed Functions */
 void wc_Stm32_Hash_Init(STM32_HASH_Context* stmCtx)
 {
     /* clear context */
+    /* this also gets called after finish */
     XMEMSET(stmCtx, 0, sizeof(STM32_HASH_Context));
 }
 
 int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
-    const byte* data, int len)
+    const byte* data, word32 len, word32 blockSize)
 {
     int ret = 0;
     byte* local = (byte*)stmCtx->buffer;
     int wroteToFifo = 0;
+    const word32 fifoSz = (STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE);
+
+    if (blockSize > fifoSz)
+        blockSize = fifoSz;
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Hash Update: algo %x, len %d, blockSz %d\n",
+        algo, len, blockSize);
+#endif
 
     /* check that internal buffLen is valid */
-    if (stmCtx->buffLen >= STM32_HASH_REG_SIZE) {
+    if (stmCtx->buffLen > blockSize) {
         return BUFFER_E;
     }
 
@@ -178,36 +280,38 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     STM32_HASH_CLOCK_ENABLE(stmCtx);
 
     /* restore hash context or init as new hash */
-    if (wc_Stm32_Hash_RestoreContext(stmCtx) == 0) {
-        /* reset the control register */
-        HASH->CR &= ~(HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo);
 
-        /* configure algorithm, mode and data type */
-        HASH->CR |= (algo | HASH_ALGOMODE_HASH | HASH_DATATYPE_8B);
-
-        /* reset HASH processor */
-        HASH->CR |= HASH_CR_INIT;
-    }
-
-    /* write 4-bytes at a time into FIFO */
+    /* write blocks to FIFO */
     while (len) {
-        word32 add = min(len, STM32_HASH_REG_SIZE - stmCtx->buffLen);
+        word32 fillBlockSz = blockSize, add;
+
+        /* if FIFO already has bytes written then fill remainder first */
+        if (stmCtx->fifoBytes > 0) {
+            fillBlockSz -= stmCtx->fifoBytes;
+            stmCtx->fifoBytes = 0;
+        }
+
+        add = min(len, fillBlockSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
 
         stmCtx->buffLen += add;
         data            += add;
         len             -= add;
 
-        if (stmCtx->buffLen == STM32_HASH_REG_SIZE) {
+        if (len > 0 && stmCtx->buffLen == fillBlockSz) {
+            wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
             wroteToFifo = 1;
-            HASH->DIN = *(word32*)stmCtx->buffer;
-
-            stmCtx->loLen += STM32_HASH_REG_SIZE;
-            stmCtx->buffLen = 0;
         }
     }
 
     if (wroteToFifo) {
+        /* If we wrote a block send one more 32-bit to FIFO to trigger
+         * start. We cannot leave 16 deep FIFO filled before saving off
+         * context */
+        wc_Stm32_Hash_Data(stmCtx, 4);
+        stmCtx->fifoBytes += 4;
+
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);
     }
@@ -219,33 +323,34 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
 }
 
 int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
-    byte* hash, int digestSize)
+    byte* hash, word32 digestSize)
 {
     int ret = 0;
-    word32 nbvalidbitsdata = 0;
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Hash Final: algo %x, digestSz %d\n", algo, digestSize);
+#endif
 
     /* turn on hash clock */
     STM32_HASH_CLOCK_ENABLE(stmCtx);
 
-    /* restore hash state */
-    wc_Stm32_Hash_RestoreContext(stmCtx);
+    /* restore hash context or init as new hash */
+    wc_Stm32_Hash_RestoreContext(stmCtx, algo);
 
     /* finish reading any trailing bytes into FIFO */
     if (stmCtx->buffLen > 0) {
-        HASH->DIN = *(word32*)stmCtx->buffer;
-        stmCtx->loLen += stmCtx->buffLen;
+        /* send remainder of data */
+        wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
     }
 
     /* calculate number of valid bits in last word */
-    nbvalidbitsdata = 8 * (stmCtx->loLen % STM32_HASH_REG_SIZE);
-    HASH->STR &= ~HASH_STR_NBW;
-    HASH->STR |= nbvalidbitsdata;
+    wc_Stm32_Hash_NumValidBits(stmCtx->loLen + stmCtx->buffLen);
 
     /* start hash processor */
     HASH->STR |= HASH_STR_DCAL;
 
     /* wait for hash done */
-    ret = wc_Stm32_Hash_WaitDone();
+    ret = wc_Stm32_Hash_WaitDone(stmCtx);
     if (ret == 0) {
         /* read message digest */
         wc_Stm32_Hash_GetDigest(hash, digestSize);
