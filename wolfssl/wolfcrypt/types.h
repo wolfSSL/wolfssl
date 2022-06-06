@@ -616,6 +616,7 @@ decouple library dependencies with standard string, memory and so on.
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
+        #define XSTRCPY(s1,s2)    strcpy((s1),(s2))
         /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
          * not required for wolfCrypt only */
         #define XSTRSTR(s1,s2)    strstr((s1),(s2))
