@@ -1,1 +1,1 @@
-Zephyr Project Port has been moved to https://github.com/wolfSSL/wolfssl/tree/master/zephyr
+Zephyr Project Port has been moved to [wolfssl/zephyr](../../zephyr/README.md)
