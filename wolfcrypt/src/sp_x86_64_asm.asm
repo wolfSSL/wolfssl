@@ -9711,6 +9711,15 @@ _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_16 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -10860,6 +10869,15 @@ sp_2048_get_from_table_16 PROC
         movdqu	[rcx+32], xmm6
         movdqu	[rcx+48], xmm7
         ; END: 8-15
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_2048_get_from_table_16 ENDP
 _text ENDS
@@ -11199,6 +11217,15 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_avx2_16 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -11728,6 +11755,15 @@ sp_2048_get_from_table_avx2_16 PROC
         vmovdqu	YMMWORD PTR [rcx+64], ymm6
         vmovdqu	YMMWORD PTR [rcx+96], ymm7
         ; END: 0-15
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_2048_get_from_table_avx2_16 ENDP
 _text ENDS
@@ -13132,6 +13168,15 @@ _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_32 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -17729,6 +17774,15 @@ sp_2048_get_from_table_32 PROC
         movdqu	[rcx+32], xmm6
         movdqu	[rcx+48], xmm7
         ; END: 24-31
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_2048_get_from_table_32 ENDP
 _text ENDS
@@ -18143,6 +18197,15 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_avx2_32 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -20284,6 +20347,15 @@ sp_2048_get_from_table_avx2_32 PROC
         vmovdqu	YMMWORD PTR [rcx+64], ymm6
         vmovdqu	YMMWORD PTR [rcx+96], ymm7
         ; END: 16-31
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_2048_get_from_table_avx2_32 ENDP
 _text ENDS
@@ -31764,6 +31836,15 @@ _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_24 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -33501,6 +33582,15 @@ sp_3072_get_from_table_24 PROC
         movdqu	[rcx+32], xmm6
         movdqu	[rcx+48], xmm7
         ; END: 16-23
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_3072_get_from_table_24 ENDP
 _text ENDS
@@ -33827,6 +33917,15 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_avx2_24 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -34716,6 +34815,15 @@ sp_3072_get_from_table_avx2_24 PROC
         vmovdqu	YMMWORD PTR [rcx], ymm4
         vmovdqu	YMMWORD PTR [rcx+32], ymm5
         ; END: 16-23
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_3072_get_from_table_avx2_24 ENDP
 _text ENDS
@@ -36744,6 +36852,15 @@ _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_48 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -38533,6 +38650,15 @@ sp_3072_get_from_table_48 PROC
         movdqu	[rcx+32], xmm6
         movdqu	[rcx+48], xmm7
         ; END: 40-47
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_3072_get_from_table_48 ENDP
 _text ENDS
@@ -39123,6 +39249,15 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_avx2_48 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -39964,6 +40099,15 @@ sp_3072_get_from_table_avx2_48 PROC
         vmovdqu	YMMWORD PTR [rcx+64], ymm6
         vmovdqu	YMMWORD PTR [rcx+96], ymm7
         ; END: 32-47
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_3072_get_from_table_avx2_48 ENDP
 _text ENDS
@@ -49079,6 +49223,15 @@ _text ENDS
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_4096_get_from_table_64 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -51468,6 +51621,15 @@ sp_4096_get_from_table_64 PROC
         movdqu	[rcx+32], xmm6
         movdqu	[rcx+48], xmm7
         ; END: 56-63
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_4096_get_from_table_64 ENDP
 _text ENDS
@@ -52234,6 +52396,15 @@ ENDIF
 IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_4096_get_from_table_avx2_64 PROC
+        sub	rsp, 128
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -53359,6 +53530,15 @@ sp_4096_get_from_table_avx2_64 PROC
         vmovdqu	YMMWORD PTR [rcx+64], ymm6
         vmovdqu	YMMWORD PTR [rcx+96], ymm7
         ; END: 48-63
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        add	rsp, 128
         ret
 sp_4096_get_from_table_avx2_64 ENDP
 _text ENDS
@@ -55677,6 +55857,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_point_33_4 PROC
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rax, 1
         movd	xmm13, r8d
         add	rdx, 200
@@ -55723,6 +55914,17 @@ L_256_get_point_33_4_start_1:
         movdqu	[rcx+80], xmm3
         movdqu	[rcx+128], xmm4
         movdqu	[rcx+144], xmm5
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         ret
 sp_256_get_point_33_4 ENDP
 _text ENDS
@@ -55735,6 +55937,11 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_point_33_avx2_4 PROC
+        sub	rsp, 64
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
         mov	rax, 1
         movd	xmm7, r8d
         add	rdx, 200
@@ -55765,6 +55972,11 @@ L_256_get_point_33_avx2_4_start:
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
         vmovupd	YMMWORD PTR [rcx+128], ymm2
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        add	rsp, 64
         ret
 sp_256_get_point_33_avx2_4 ENDP
 _text ENDS
@@ -56363,6 +56575,13 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_entry_64_4 PROC
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         ; From entry 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -56400,6 +56619,13 @@ L_256_get_entry_64_4_start_0:
         movdqu	[rcx+16], xmm1
         movdqu	[rcx+64], xmm2
         movdqu	[rcx+80], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         ret
 sp_256_get_entry_64_4 ENDP
 _text ENDS
@@ -56412,6 +56638,9 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_entry_64_avx2_4 PROC
+        sub	rsp, 32
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
         mov	rax, 1
         movd	xmm5, r8d
         add	rdx, 64
@@ -56437,6 +56666,9 @@ L_256_get_entry_64_avx2_4_start:
         jnz	L_256_get_entry_64_avx2_4_start
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        add	rsp, 32
         ret
 sp_256_get_entry_64_avx2_4 ENDP
 _text ENDS
@@ -56451,6 +56683,13 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_entry_65_4 PROC
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         ; From entry 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -56488,6 +56727,13 @@ L_256_get_entry_65_4_start_0:
         movdqu	[rcx+16], xmm1
         movdqu	[rcx+64], xmm2
         movdqu	[rcx+80], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         ret
 sp_256_get_entry_65_4 ENDP
 _text ENDS
@@ -56500,6 +56746,9 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_get_entry_65_avx2_4 PROC
+        sub	rsp, 32
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
         mov	rax, 1
         movd	xmm5, r8d
         add	rdx, 64
@@ -56525,6 +56774,9 @@ L_256_get_entry_65_avx2_4_start:
         jnz	L_256_get_entry_65_avx2_4_start
         vmovupd	YMMWORD PTR [rcx], ymm0
         vmovupd	YMMWORD PTR [rcx+64], ymm1
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        add	rsp, 32
         ret
 sp_256_get_entry_65_avx2_4 ENDP
 _text ENDS
@@ -57578,6 +57830,16 @@ sp_256_mod_inv_avx2_4 PROC
         push	rdi
         push	rsi
         push	rbx
+        sub	rsp, 144
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
         mov	rax, QWORD PTR [r8]
         mov	r9, QWORD PTR [r8+8]
         mov	r10, QWORD PTR [r8+16]
@@ -57852,6 +58114,16 @@ L_256_mod_inv_avx2_4_3_no_add_order:
         mov	QWORD PTR [rcx+8], r10
         mov	QWORD PTR [rcx+16], r12
         mov	QWORD PTR [rcx+24], r14
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        add	rsp, 144
         pop	rbx
         pop	rsi
         pop	rdi
@@ -59792,6 +60064,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_point_33_6 PROC
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rax, 1
         movd	xmm13, r8d
         add	rdx, 296
@@ -59869,6 +60152,17 @@ L_384_get_point_33_6_start_2:
         movdqu	[rcx+192], xmm0
         movdqu	[rcx+208], xmm1
         movdqu	[rcx+224], xmm2
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         ret
 sp_384_get_point_33_6 ENDP
 _text ENDS
@@ -59881,6 +60175,17 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_point_33_avx2_6 PROC
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rax, 1
         movd	xmm13, r8d
         add	rdx, 296
@@ -59926,6 +60231,17 @@ L_384_get_point_33_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+128], xmm3
         vmovupd	YMMWORD PTR [rcx+192], ymm4
         vmovdqu	OWORD PTR [rcx+224], xmm5
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         ret
 sp_384_get_point_33_avx2_6 ENDP
 _text ENDS
@@ -60382,6 +60698,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_entry_64_6 PROC
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -60429,6 +60756,17 @@ L_384_get_entry_64_6_start_0:
         movdqu	[rcx+96], xmm3
         movdqu	[rcx+112], xmm4
         movdqu	[rcx+128], xmm5
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         ret
 sp_384_get_entry_64_6 ENDP
 _text ENDS
@@ -60441,6 +60779,13 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_entry_64_avx2_6 PROC
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	rax, 1
         movd	xmm9, r8d
         add	rdx, 96
@@ -60476,6 +60821,13 @@ L_384_get_entry_64_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
         vmovdqu	OWORD PTR [rcx+128], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         ret
 sp_384_get_entry_64_avx2_6 ENDP
 _text ENDS
@@ -60490,6 +60842,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_entry_65_6 PROC
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -60537,6 +60900,17 @@ L_384_get_entry_65_6_start_0:
         movdqu	[rcx+96], xmm3
         movdqu	[rcx+112], xmm4
         movdqu	[rcx+128], xmm5
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         ret
 sp_384_get_entry_65_6 ENDP
 _text ENDS
@@ -60549,6 +60923,13 @@ IFDEF HAVE_INTEL_AVX2
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_get_entry_65_avx2_6 PROC
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	rax, 1
         movd	xmm9, r8d
         add	rdx, 96
@@ -60584,6 +60965,13 @@ L_384_get_entry_65_avx2_6_start:
         vmovdqu	OWORD PTR [rcx+32], xmm1
         vmovupd	YMMWORD PTR [rcx+96], ymm2
         vmovdqu	OWORD PTR [rcx+128], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         ret
 sp_384_get_entry_65_avx2_6 ENDP
 _text ENDS
@@ -64996,6 +65384,17 @@ sp_521_get_point_33_9 PROC
         push	r12
         push	r13
         push	r14
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -65116,6 +65515,17 @@ L_521_get_point_33_9_start_2:
         movdqu	[rcx+320], xmm4
         movdqu	[rcx+336], xmm5
         mov	QWORD PTR [rcx+352], r13
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         pop	r14
         pop	r13
         pop	r12
@@ -65136,6 +65546,17 @@ sp_521_get_point_33_avx2_9 PROC
         push	r14
         push	r15
         push	rdi
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         mov	rdi, 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -65202,6 +65623,17 @@ L_521_get_point_33_avx2_9_start:
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
         mov	QWORD PTR [rcx+352], r12
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         pop	rdi
         pop	r15
         pop	r14
@@ -66715,6 +67147,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_521_get_entry_64_9 PROC
         push	r12
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	r12, 1
         mov	rax, 1
@@ -66811,6 +67254,17 @@ L_521_get_entry_64_9_start_1:
         movdqu	[rcx+176], xmm2
         movdqu	[rcx+192], xmm3
         mov	QWORD PTR [rcx+208], r11
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         pop	r12
         ret
 sp_521_get_entry_64_9 ENDP
@@ -66827,6 +67281,13 @@ sp_521_get_entry_64_avx2_9 PROC
         push	r12
         push	r13
         push	r14
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -66878,6 +67339,13 @@ L_521_get_entry_64_avx2_9_start:
         vmovupd	YMMWORD PTR [rcx+176], ymm3
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         pop	r14
         pop	r13
         pop	r12
@@ -66896,6 +67364,17 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_521_get_entry_65_9 PROC
         push	r12
+        sub	rsp, 160
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
+        vmovdqu	OWORD PTR [rsp+96], xmm12
+        vmovdqu	OWORD PTR [rsp+112], xmm13
+        vmovdqu	OWORD PTR [rsp+128], xmm14
+        vmovdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	r12, 1
         mov	rax, 1
@@ -66992,6 +67471,17 @@ L_521_get_entry_65_9_start_1:
         movdqu	[rcx+176], xmm2
         movdqu	[rcx+192], xmm3
         mov	QWORD PTR [rcx+208], r11
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        vmovdqu	xmm12, OWORD PTR [rsp+96]
+        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        vmovdqu	xmm14, OWORD PTR [rsp+128]
+        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        add	rsp, 160
         pop	r12
         ret
 sp_521_get_entry_65_9 ENDP
@@ -67008,6 +67498,13 @@ sp_521_get_entry_65_avx2_9 PROC
         push	r12
         push	r13
         push	r14
+        sub	rsp, 96
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	OWORD PTR [rsp+80], xmm11
         mov	r14, 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -67059,6 +67556,13 @@ L_521_get_entry_65_avx2_9_start:
         vmovupd	YMMWORD PTR [rcx+176], ymm3
         mov	QWORD PTR [rcx+64], r10
         mov	QWORD PTR [rcx+208], r11
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        add	rsp, 96
         pop	r14
         pop	r13
         pop	r12
