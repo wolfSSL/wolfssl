@@ -2423,12 +2423,16 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #ifdef TFM_TIMING_RESISTANT
 #if DIGIT_BIT <= 16
     #define WINSIZE    2
+    #define WINMASK    0x3
 #elif DIGIT_BIT <= 32
     #define WINSIZE    3
+    #define WINMASK    0x7
 #elif DIGIT_BIT <= 64
     #define WINSIZE    4
+    #define WINMASK    0xf
 #elif DIGIT_BIT <= 128
     #define WINSIZE    5
+    #define WINMASK    0x1f
 #endif
 
 /* y = 2**x (mod b)
@@ -2544,7 +2548,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
     y       = (int)(buf >> (DIGIT_BIT - 1)) & 1;
     buf   <<= (fp_digit)1;
     /* add bit to the window */
+  #ifndef WC_PROTECT_ENCRYPTED_MEM
     bitbuf |= (y << (WINSIZE - ++bitcpy));
+  #else
+    /* Ensure value changes even when y is zero. */
+    bitbuf += (WINMASK + 1) + (y << (WINSIZE - ++bitcpy));
+  #endif
 
     if (bitcpy == WINSIZE) {
       /* ok window is filled so square as required and multiply  */
@@ -2567,7 +2576,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       }
 
       /* then multiply by 2^bitbuf */
+    #ifndef WC_PROTECT_ENCRYPTED_MEM
       err = fp_mul_2d(res, bitbuf, res);
+    #else
+      /* Get the window bits. */
+      err = fp_mul_2d(res, bitbuf & WINMASK, res);
+    #endif
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
         XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2592,7 +2606,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 
       /* empty window and reset */
       bitcpy = 0;
+    #ifndef WC_PROTECT_ENCRYPTED_MEM
       bitbuf = 0;
+    #else
+      /* Ensure value is new even when bottom bits are 0. */
+      bitbuf = (WINMASK + 1) + (bitbuf & ~WINMASK);
+    #endif
     }
   }
 

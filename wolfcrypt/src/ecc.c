@@ -2788,26 +2788,33 @@ static int wc_ecc_gen_z(WC_RNG* rng, int size, ecc_point* p,
         err = mp_init(mu);
     if (err == MP_OKAY)
         err = mp_montgomery_calc_normalization(mu, modulus);
+    /* Generate random value to multiply into p->z. */
     if (err == MP_OKAY)
         err = wc_ecc_gen_k(rng, size, ty, modulus);
+    /* Convert to montogmery form. */
     if (err == MP_OKAY)
         err = mp_mulmod(ty, mu, modulus, ty);
+    /* Multiply random value into p->z. */
     if (err == MP_OKAY)
         err = mp_mul(p->z, ty, p->z);
     if (err == MP_OKAY)
         err = mp_montgomery_reduce(p->z, modulus, mp);
+    /* Square random value for X (X' = X / Z^2). */
     if (err == MP_OKAY)
         err = mp_sqr(ty, tx);
     if (err == MP_OKAY)
         err = mp_montgomery_reduce(tx, modulus, mp);
+    /* Multiply square of random by random value for Y. */
     if (err == MP_OKAY)
         err = mp_mul(ty, tx, ty);
     if (err == MP_OKAY)
         err = mp_montgomery_reduce(ty, modulus, mp);
+    /* Multiply square into X. */
     if (err == MP_OKAY)
         err = mp_mul(p->x, tx, p->x);
     if (err == MP_OKAY)
         err = mp_montgomery_reduce(p->x, modulus, mp);
+    /* Multiply cube into Y (Y' = Y / Z^3). */
     if (err == MP_OKAY)
         err = mp_mul(p->y, ty, p->y);
     if (err == MP_OKAY)
@@ -3108,12 +3115,21 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
         /* Ensure 'swap' changes to a previously unseen value. */
         swap += (kt->dp[j] >> cnt) + swap;
 
+        /* R[0] = 2*R[0] */
         err = ecc_projective_dbl_point_safe(R[set + 0], R[set + 0], a, modulus,
                                             mp);
         if (err == MP_OKAY) {
+            /* R[0] = R[1] + R[0] */
             err = ecc_projective_add_point_safe(R[set + 0], R[set + 1],
                                          R[set + 0], a, modulus, mp, &infinity);
         }
+        /*  R[1]->z * 2 - same point. */
+        mp_addmod_ct(R[set + 1]->z, R[set + 1]->z, modulus, R[set + 1]->z);
+        mp_addmod_ct(R[set + 1]->x, R[set + 1]->x, modulus, R[set + 1]->x);
+        mp_addmod_ct(R[set + 1]->x, R[set + 1]->x, modulus, R[set + 1]->x);
+        mp_addmod_ct(R[set + 1]->y, R[set + 1]->y, modulus, R[set + 1]->y);
+        mp_addmod_ct(R[set + 1]->y, R[set + 1]->y, modulus, R[set + 1]->y);
+        mp_addmod_ct(R[set + 1]->y, R[set + 1]->y, modulus, R[set + 1]->y);
     }
     /* Step 4: end for */
     /* Swap back if last bit is 0. */
