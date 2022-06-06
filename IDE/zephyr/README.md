@@ -1,0 +1,1 @@
+Zephyr Project Port has been moved to https://github.com/wolfSSL/wolfssl/tree/master/zephyr
