@@ -60,6 +60,11 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
+#if defined(WOLFSSL_STM32U5)
+#define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
+#else
+#define STM32_HASH_FIFO_SIZE 1
+#endif
 
 /* STM32 Hash Context */
 typedef struct {
@@ -70,19 +75,20 @@ typedef struct {
     uint32_t HASH_CSR[HASH_CR_SIZE];
 
     /* Hash state / buffers */
-    word32 buffer[STM32_HASH_REG_SIZE / sizeof(word32)]; /* partial word buffer */
+    word32 buffer[STM32_HASH_FIFO_SIZE]; /* partial word buffer */
     word32 buffLen; /* partial word remain */
     word32 loLen;   /* total update bytes
                  (only lsb 6-bits is used for nbr valid bytes in last word) */
+    int    fifoBytes; /* number of currently filled FIFO bytes */
 } STM32_HASH_Context;
 
 
 /* API's */
 void wc_Stm32_Hash_Init(STM32_HASH_Context* stmCtx);
 int  wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
-    const byte* data, int len);
+    const byte* data, word32 len, word32 blockSize);
 int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
-    byte* hash, int digestSize);
+    byte* hash, word32 digestSize);
 
 #endif /* STM32_HASH */
 
@@ -92,7 +98,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
-			defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
+			defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
+            defined(WOLFSSL_STM32U5))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -102,7 +109,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define CRYP AES1
         #define STM32_HAL_V2
     #endif
-    #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5)
+    #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
+        defined(WOLFSSL_STM32U5)
 		#ifdef WOLFSSL_STM32L4
         	#define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
 		#endif
@@ -114,7 +122,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
     /* Detect newer CubeMX crypto HAL (HAL_CRYP_Encrypt / HAL_CRYP_Decrypt) */
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
-        (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
+        (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
+         defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5))
         #define STM32_HAL_V2
     #endif
 

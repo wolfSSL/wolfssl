@@ -567,7 +567,7 @@ static int InitSha256(wc_Sha256* sha256)
         ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
             ret = wc_Stm32_Hash_Update(&sha256->stmCtx,
-                HASH_AlgoSelection_SHA256, data, len);
+                HASH_AlgoSelection_SHA256, data, len, WC_SHA256_BLOCK_SIZE);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -1405,7 +1405,7 @@ static int InitSha256(wc_Sha256* sha256)
         ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
             ret = wc_Stm32_Hash_Update(&sha224->stmCtx,
-                HASH_AlgoSelection_SHA224, data, len);
+                HASH_AlgoSelection_SHA224, data, len, WC_SHA224_BLOCK_SIZE);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
