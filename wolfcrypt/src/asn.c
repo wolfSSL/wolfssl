@@ -4739,7 +4739,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyFpkiPivAuthOid;
                     *oidSz = sizeof(extCertPolicyFpkiPivAuthOid);
                     break;
-                case CP_FPKI_PIV_AUTH_HW_OID:
+                case CP_FPKI_PIV_AUTH_HW_OID: /* collision with AES256CBCb */
                     oid = extCertPolicyFpkiPivAuthHwOid;
                     *oidSz = sizeof(extCertPolicyFpkiPivAuthHwOid);
                     break;
@@ -5383,6 +5383,22 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     if (oidType != oidIgnoreType) {
         /* Get the OID data for the id-type. */
         checkOid = OidFromId(*oid, oidType, &checkOidSz);
+
+    #if defined(WOLFSSL_FPKI)
+        /* Handle OID sum collision of
+            AES256CBCb (454) 2.16.840.1.101.3.4.1.42
+            CP_FPKI_PIV_AUTH_HW_OID (454) 2.16.840.1.101.3.2.1.3.41
+        */
+        #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+        if ((actualOidSz == (word32)sizeof(blkAes256CbcOid)) &&
+                (XMEMCMP(actualOid, blkAes256CbcOid,
+                 sizeof(blkAes256CbcOid)) == 0)) {
+
+            checkOid   = blkAes256CbcOid;
+            checkOidSz = sizeof(blkAes256CbcOid);
+        }
+        #endif /* HAVE_AES_CBC */
+    #endif /* WOLFSSL_FPKI */
 
     #ifdef ASN_DUMP_OID
         /* Dump out the data for debug. */
@@ -11074,6 +11090,40 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 #ifdef WOLFSSL_ASN_TEMPLATE
 #if defined(WOLFSSL_CERT_GEN) || \
     (!defined(NO_CERTS) && !defined(IGNORE_NAME_CONSTRAINTS))
+
+/* Adds a DNS entry to a list of DNS entries
+ *
+ * @param [in, out] lst      Linked list of DNS name entries.
+ * @param [in]      entry    Entry to add to the list
+ * @return  0 on success.
+ */
+static int AddDNSEntryToList(DNS_entry** lst, DNS_entry* entry)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
+    entry->next = NULL;
+    if (*lst == NULL) {
+        /* First on list */
+        *lst = entry;
+    }
+    else {
+        DNS_entry* temp = *lst;
+
+        /* Find end */
+        for (; (temp->next != NULL); temp = temp->next);
+
+        /* Add to end */
+        temp->next = entry;
+    }
+#else
+    /* Prepend entry to linked list. */
+    entry->next = *lst;
+    *lst = entry;
+#endif
+
+    return 0;
+}
+
+
 /* Allocate a DNS entry and set the fields.
  *
  * @param [in]      cert     Certificate object.
@@ -11127,26 +11177,7 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
     }
 
     if (ret == 0) {
-    #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
-        dnsEntry->next = NULL;
-        if (*entries == NULL) {
-            /* First on list */
-            *entries = dnsEntry;
-        }
-        else {
-            DNS_entry* temp = *entries;
-
-            /* Find end */
-            for (; (temp->next != NULL); temp = temp->next);
-
-            /* Add to end */
-            temp->next = dnsEntry;
-        }
-    #else
-        /* Prepend entry to linked list. */
-        dnsEntry->next = *entries;
-        *entries = dnsEntry;
-    #endif
+        ret = AddDNSEntryToList(entries, dnsEntry);
     }
 
     return ret;
@@ -14557,7 +14588,7 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
 #endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
 /* ASN.1 template for OtherName of an X.509 certificate.
  * X.509: RFC 5280, 4.2.1.6 - OtherName (without implicit outer SEQUENCE).
  * HW Name: RFC 4108, 5 - Hardware Module Name
@@ -14565,14 +14596,16 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
  */
 static const ASNItem otherNameASN[] = {
 /* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
-/* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 0, 0 },
-/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 1, 0 },
+/* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
+/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
 /* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
 };
 enum {
     OTHERNAMEASN_IDX_TYPEID = 0,
     OTHERNAMEASN_IDX_VALUE,
+    OTHERNAMEASN_IDX_FASCN,
     OTHERNAMEASN_IDX_HWN_SEQ,
     OTHERNAMEASN_IDX_HWN_TYPE,
     OTHERNAMEASN_IDX_HWN_NUM,
@@ -14581,57 +14614,21 @@ enum {
 /* Number of items in ASN.1 template for OtherName of an X.509 certificate. */
 #define otherNameASN_Length (sizeof(otherNameASN) / sizeof(ASNItem))
 
-/* Decode data with OtherName format from after implicit SEQUENCE.
- *
- * @param [in, out] cert      Certificate object.
- * @param [in]      input     Buffer containing encoded OtherName.
- * @param [in, out] inOutIdx  On in, the index of the start of the OtherName.
- *                            On out, index after OtherName.
- * @param [in]      maxIdx    Maximum index of data in buffer.
- * @return  0 on success.
- * @return  MEMORY_E on dynamic memory allocation failure.
- * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
- *          is invalid.
- * @return  ASN_PARSE_E when OID does is not HW Name.
- * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
- * @return  BUFFER_E when data in buffer is too small.
- */
-static int DecodeOtherName(DecodedCert* cert, const byte* input,
-                           word32* inOutIdx, word32 maxIdx)
+#ifdef WOLFSSL_SEP
+static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
 {
-    DECL_ASNGETDATA(dataASN, otherNameASN_Length);
     int ret = 0;
     word32 oidLen, serialLen;
 
-    CALLOC_ASNGETDATA(dataASN, otherNameASN_Length, ret, cert->heap);
+    oidLen = dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.length;
+    serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
 
-    if (ret == 0) {
-        /* Check the first OID is a recognized Alt Cert Name type. */
-        GetASN_OID(&dataASN[OTHERNAMEASN_IDX_TYPEID], oidCertAltNameType);
-        /* Only support HW serial number. */
-        GetASN_OID(&dataASN[OTHERNAMEASN_IDX_HWN_TYPE], oidIgnoreType);
-        /* Parse OtherName. */
-        ret = GetASN_Items(otherNameASN, dataASN, otherNameASN_Length, 1, input,
-                           inOutIdx, maxIdx);
-    }
-    if (ret == 0) {
-        /* Ensure expected OID. */
-        if (dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum != HW_NAME_OID) {
-            WOLFSSL_MSG("\tunsupported OID");
-            ret = ASN_PARSE_E;
-        }
-    }
+    /* Allocate space for HW type OID. */
+    cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
+                                  DYNAMIC_TYPE_X509_EXT);
+    if (cert->hwType == NULL)
+        ret = MEMORY_E;
 
-    if (ret == 0) {
-        oidLen = dataASN[OTHERNAMEASN_IDX_HWN_TYPE].data.oid.length;
-        serialLen = dataASN[OTHERNAMEASN_IDX_HWN_NUM].data.ref.length;
-
-        /* Allocate space for HW type OID. */
-        cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
-                                      DYNAMIC_TYPE_X509_EXT);
-        if (cert->hwType == NULL)
-            ret = MEMORY_E;
-    }
     if (ret == 0) {
         /* Copy, into cert HW type OID */
         XMEMCPY(cert->hwType,
@@ -14654,11 +14651,86 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         cert->hwSerialNum[serialLen] = '\0';
         cert->hwSerialNumSz = serialLen;
     }
+    return ret;
+}
+#endif /* WOLFSSL_SEP */
+
+#ifdef WOLFSSL_FPKI
+static int DecodeFASCN(ASNGetData* dataASN, DecodedCert* cert)
+{
+    int ret;
+    word32 fascnLen;
+    DNS_entry* entry = NULL;
+
+    fascnLen = dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.length;
+    ret = SetDNSEntry(cert,
+            (const char*)dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.data,
+            fascnLen, ASN_OTHER_TYPE, &entry);
+
+    if (ret == 0) {
+        entry->oidSum = FASCN_OID;
+        AddDNSEntryToList(&cert->altNames, entry);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_FPKI */
+
+/* Decode data with OtherName format from after implicit SEQUENCE.
+ *
+ * @param [in, out] cert      Certificate object.
+ * @param [in]      input     Buffer containing encoded OtherName.
+ * @param [in, out] inOutIdx  On in, the index of the start of the OtherName.
+ *                            On out, index after OtherName.
+ * @param [in]      maxIdx    Maximum index of data in buffer.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  ASN_PARSE_E when OID does is not HW Name.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  BUFFER_E when data in buffer is too small.
+ */
+static int DecodeOtherName(DecodedCert* cert, const byte* input,
+                           word32* inOutIdx, word32 maxIdx)
+{
+    DECL_ASNGETDATA(dataASN, otherNameASN_Length);
+    int ret = 0;
+
+    CALLOC_ASNGETDATA(dataASN, otherNameASN_Length, ret, cert->heap);
+
+    if (ret == 0) {
+        /* Check the first OID is a recognized Alt Cert Name type. */
+        GetASN_OID(&dataASN[OTHERNAMEASN_IDX_TYPEID], oidCertAltNameType);
+        /* Parse OtherName. */
+        ret = GetASN_Items(otherNameASN, dataASN, otherNameASN_Length, 1, input,
+                           inOutIdx, maxIdx);
+    }
+    if (ret == 0) {
+        /* Ensure expected OID. */
+        switch (dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum) {
+        #ifdef WOLFSSL_SEP
+            case HW_NAME_OID:
+                /* Only support HW serial number. */
+                GetASN_OID(&dataASN[OTHERNAMEASN_IDX_HWN_TYPE], oidIgnoreType);
+                ret = DecodeSEP(dataASN, cert);
+                break;
+        #endif /* WOLFSSL_SEP */
+        #ifdef WOLFSSL_FPKI
+            case FASCN_OID:
+                ret = DecodeFASCN(dataASN, cert);
+                break;
+        #endif /* WOLFSSL_FPKI */
+            default:
+                WOLFSSL_MSG("\tunsupported OID");
+                ret = ASN_PARSE_E;
+        }
+    }
 
     FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 }
-#endif /* WOLFSSL_SEP */
+#endif /* WOLFSSL_SEP || WOLFSSL_FPKI */
 
 /* Decode a GeneralName.
  *
@@ -14718,7 +14790,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
         WOLFSSL_MSG("\tPutting URI into list but not using");
 
-    #ifndef WOLFSSL_NO_ASN_STRICT
+    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
             "The name MUST NOT be a relative URI" */
         {
@@ -14764,7 +14836,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
     /* GeneralName choice: otherName */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
         /* TODO: test data for code path */
@@ -14815,7 +14887,7 @@ enum {
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) && !defined(WOLFSSL_ASN_TEMPLATE)
 /* return 0 on success */
 static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
     word32* idxIn, int sz)
@@ -14890,7 +14962,7 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
 }
 #endif /* WOLFSSL_SEP */
 
-#ifdef WOLFSSL_FPKI
+#if defined(WOLFSSL_FPKI) && !defined(WOLFSSL_ASN_TEMPLATE)
 /* return 0 on success */
 static int DecodeFascNAltName(DecodedCert* cert, const byte* input, word32* idx,
     int sz)
@@ -16910,6 +16982,28 @@ exit:
 #endif /* WOLFSSL_SEP */
 
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for subject dir attribute.
+ * X.509: RFC 5280, 4.2.1.8 - Subject Directory Attributes.
+ */
+static const ASNItem subjDirAttrASN[] = {
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* OID  */          { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* PLEN */          { 2, ASN_SET, 1, 1, 0 },
+/* BIT_STR */       { 2, ASN_PRINTABLE_STRING, 0, 0, 0 }
+};
+enum {
+    SUBJDIRATTRASN_IDX_SEQ = 0,
+    SUBJDIRATTRASN_IDX_SEQ2,
+    SUBJDIRATTRASN_IDX_OID,
+    SUBJDIRATTRASN_IDX_SET,
+    SUBJDIRATTRASN_IDX_STRING,
+};
+
+/* Number of items in ASN.1 template for BasicContraints. */
+#define subjDirAttrASN_Length (sizeof(subjDirAttrASN) / sizeof(ASNItem))
+#endif
 /* Decode subject directory attributes extension in a certificate.
  *
  * X.509: RFC 5280, 4.2.1.8 - Subject Directory Attributes.
@@ -16923,6 +17017,7 @@ exit:
  */
 static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
 {
+#ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int length = 0;
     int ret = 0;
@@ -16979,6 +17074,36 @@ static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
     }
 
     return ret;
+#else
+    DECL_ASNGETDATA(dataASN, subjDirAttrASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+
+    WOLFSSL_ENTER("DecodeSubjDirAttr");
+
+    CALLOC_ASNGETDATA(dataASN, subjDirAttrASN_Length, ret, cert->heap);
+
+    if (ret == 0) {
+        ret = GetASN_Items(subjDirAttrASN, dataASN, subjDirAttrASN_Length, 1,
+            input, &idx, sz);
+    }
+
+    /* There may be more than one countryOfCitizenship, but save the
+     * first one for now. */
+    if (dataASN[SUBJDIRATTRASN_IDX_OID].data.oid.sum == SDA_COC_OID) {
+        word32 cuLen;
+
+        cuLen = dataASN[SUBJDIRATTRASN_IDX_STRING].data.ref.length;
+        if (cuLen != COUNTRY_CODE_LEN)
+            return ASN_PARSE_E;
+
+        XMEMCPY(cert->countryOfCitizenship,
+            dataASN[SUBJDIRATTRASN_IDX_STRING].data.ref.data, cuLen);
+        cert->countryOfCitizenship[COUNTRY_CODE_LEN] = 0;
+    }
+    FREE_ASNGETDATA(dataASN, cert->heap);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 #endif /* WOLFSSL_SUBJ_DIR_ATTR */
 
