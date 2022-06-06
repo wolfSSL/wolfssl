@@ -26895,7 +26895,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif
         return WOLFSSL_FAILURE;
     }
-    XSTRNCPY((char*)*cipherInfo, info->name, cipherInfoSz);
+    XSTRCPY((char*)*cipherInfo, info->name);
     XSTRNCAT((char*)*cipherInfo, ",", 2);
 
     idx = (word32)XSTRLEN((char*)*cipherInfo);
