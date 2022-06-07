@@ -9954,7 +9954,7 @@ static int GetCertHeader(DecodedCert* cert)
                                                             cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
-    if (GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
+    if (wc_GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
                                            &cert->serialSz, cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
@@ -19343,13 +19343,13 @@ int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
 #endif /* !NO_CERTS */
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-int GetSerialNumber(const byte* input, word32* inOutIdx,
+int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx)
 {
     int result = 0;
     int ret;
 
-    WOLFSSL_ENTER("GetSerialNumber");
+    WOLFSSL_ENTER("wc_GetSerialNumber");
 
     if (serial == NULL || input == NULL || serialSz == NULL) {
         return BAD_FUNC_ARG;
@@ -29754,7 +29754,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     idx += length;
 
     /* Get serial number */
-    if (GetSerialNumber(source, &idx, single->status->serial, &single->status->serialSz, size) < 0)
+    if (wc_GetSerialNumber(source, &idx, single->status->serial,
+                        &single->status->serialSz, size) < 0)
         return ASN_PARSE_E;
     single->rawCertIdSize = idx - certIdIdx;
 
@@ -31532,7 +31533,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
         return MEMORY_E;
     }
 
-    if (GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
+    if (wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
                                                                 maxIdx) < 0) {
         XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ASN_PARSE_E;
