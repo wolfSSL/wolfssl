@@ -973,11 +973,11 @@ static void client_thread(const void* args)
 #endif
         }
         info->client.ret = ret;
-        info->client.done = 1;
+        info->server.done = 1;
         osThreadSuspend(info->client.threadId);
 
         if (info->doShutdown)
-            info->client.done = 1;
+            info->server.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->client.threadId);
@@ -1248,11 +1248,11 @@ static void server_thread(const void* args)
 #endif
         }
         info->server.ret = ret;
-        info->server.done = 1;
+        info->client.done = 1;
         osThreadSuspend(info->server.threadId);
 
         if (info->doShutdown)
-            info->server.done = 1;
+            info->client.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->server.threadId);

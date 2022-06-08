@@ -968,6 +968,19 @@ static int bench_tls_client(info_t* info)
     }
 #endif
 
+#ifndef NO_PSK
+    wolfSSL_CTX_set_psk_client_callback(cli_ctx, my_psk_client_cb);
+    #ifdef WOLFSSL_TLS13
+    #if !defined(WOLFSSL_PSK_TLS13_CB) && !defined(WOLFSSL_PSK_ONE_ID)
+    wolfSSL_CTX_set_psk_client_cs_callback(cli_ctx, my_psk_client_cs_cb);
+    #else
+    wolfSSL_CTX_set_psk_client_tls13_callback(cli_ctx, my_psk_client_tls13_cb);
+    #endif
+    #endif
+    wolfSSL_CTX_set_psk_callback_ctx(cli_ctx, (void*)info->cipher);
+#endif /* !NO_PSK */
+
+
     /* Allocate and initialize a packet sized buffer */
     writeBuf = (unsigned char*)XMALLOC(info->packetSize, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
@@ -1186,7 +1199,7 @@ static void* client_thread(void* args)
     ret = bench_tls_client(info);
 
     pthread_cond_signal(&info->to_server.cond);
-    info->to_client.done = 1;
+    info->to_server.done = 1;
     info->client.ret = ret;
 
     return NULL;
@@ -1413,6 +1426,13 @@ static int bench_tls_server(info_t* info)
     }
 #endif
 
+#ifndef NO_PSK
+    wolfSSL_CTX_set_psk_server_callback(srv_ctx, my_psk_server_cb);
+    #ifdef WOLFSSL_TLS13
+    wolfSSL_CTX_set_psk_server_tls13_callback(srv_ctx, my_psk_server_tls13_cb);
+    #endif
+#endif /* !NO_PSK */
+
     /* Allocate read buffer */
     readBufSz = info->packetSize;
     readBuf = (unsigned char*)XMALLOC(readBufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1633,7 +1653,7 @@ static void* server_thread(void* args)
     }
 
     pthread_cond_signal(&info->to_client.cond);
-    info->to_server.done = 1;
+    info->to_client.done = 1;
     info->server.ret = ret;
 
     return NULL;
