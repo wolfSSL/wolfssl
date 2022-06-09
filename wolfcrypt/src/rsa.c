@@ -1167,6 +1167,10 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
             XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
         return MEMORY_E;
     }
+#else
+    if (pkcsBlockLen - hLen - 1 > sizeof(dbMask)) {
+        return MEMORY_E;
+    }
 #endif
     XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
     ret = RsaMGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1, heap);
@@ -3117,7 +3121,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return RSA_BUFFER_E;
     }
 
-    if (sz < RSA_MIN_PAD_SZ) {
+    if (sz < RSA_MIN_PAD_SZ || sz > (int)RSA_MAX_SIZE/8) {
         return WC_KEY_SIZE_E;
     }
 

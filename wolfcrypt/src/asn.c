@@ -19192,7 +19192,7 @@ void FreeSigner(Signer* signer, void* heap)
     FreeDer(&signer->derCert);
 #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
-
+    (void)signer;
     (void)heap;
 }
 
