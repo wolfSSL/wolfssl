@@ -156,7 +156,7 @@
         (void)dir;
 
         XMEMCPY(dkey, key, 8);
-    #ifndef WOLFSSL_STM32_CUBEMX
+    #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(dkey, dkey, 8);
     #endif
 
@@ -173,7 +173,7 @@
         (void)dir;
 
     #ifndef WOLFSSL_STM32_CUBEMX
-        {
+        {   
             word32 *dkey1 = des->key[0];
             word32 *dkey2 = des->key[1];
             word32 *dkey3 = des->key[2];
@@ -187,7 +187,11 @@
             ByteReverseWords(dkey3, dkey3, 8);
         }
     #else
-        XMEMCPY(des->key[0], key, DES3_KEYLEN); /* CUBEMX wants keys in sequential memory */
+        /* CUBEMX wants keys in sequential memory */
+        XMEMCPY(des->key[0], key, DES3_KEYLEN);
+        #ifdef STM32_HAL_V2
+        ByteReverseWords((word32*)des->key, (word32*)des->key, DES3_KEYLEN);
+        #endif
     #endif
 
         return wc_Des3_SetIV(des, iv);
@@ -216,15 +220,33 @@
         hcryp.Instance = CRYP;
         hcryp.Init.KeySize  = CRYP_KEYSIZE_128B;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
-        hcryp.Init.pKey = (uint8_t*)des->key;
-        hcryp.Init.pInitVect = (uint8_t*)des->reg;
+        hcryp.Init.pKey = (STM_CRYPT_TYPE*)des->key;
+        hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)des->reg;
+    #ifdef STM32_HAL_V2
+        hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+        ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
+        if (mode == DES_CBC)
+            hcryp.Init.Algorithm = CRYP_DES_CBC;
+        else
+            hcryp.Init.Algorithm = CRYP_DES_ECB;
+    #endif
 
         HAL_CRYP_Init(&hcryp);
 
+    #ifdef STM32_HAL_V2
+        if (dir == DES_ENCRYPTION) {
+            HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+                STM32_HAL_TIMEOUT);
+        }
+        else {
+            HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+                STM32_HAL_TIMEOUT);
+        }
+    #else
         while (sz > 0) {
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-
+        
             if (mode == DES_CBC) {
                 if (dir == DES_ENCRYPTION) {
                     HAL_CRYP_DESCBC_Encrypt(&hcryp, (uint8_t*)in,
@@ -253,6 +275,7 @@
             in  += DES_BLOCK_SIZE;
             out += DES_BLOCK_SIZE;
         }
+    #endif /* STM32_HAL_V2 */
 
         HAL_CRYP_DeInit(&hcryp);
     #else
@@ -359,13 +382,27 @@
             hcryp.Instance = CRYP;
             hcryp.Init.KeySize  = CRYP_KEYSIZE_128B;
             hcryp.Init.DataType = CRYP_DATATYPE_8B;
-            hcryp.Init.pKey = (uint8_t*)des->key;
-            hcryp.Init.pInitVect = (uint8_t*)des->reg;
+            hcryp.Init.pKey = (STM_CRYPT_TYPE*)des->key;
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)des->reg;
+        #ifdef STM32_HAL_V2
+            hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+            ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
+            hcryp.Init.Algorithm = CRYP_TDES_CBC;
+        #endif
 
             HAL_CRYP_Init(&hcryp);
 
-            while (sz > 0)
-            {
+        #ifdef STM32_HAL_V2
+            if (dir == DES_ENCRYPTION) {
+                HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+                    STM32_HAL_TIMEOUT);
+            }
+            else {
+                HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
+                    STM32_HAL_TIMEOUT);
+            }
+        #else
+            while (sz > 0) {
                 if (dir == DES_ENCRYPTION) {
                     HAL_CRYP_TDESCBC_Encrypt(&hcryp, (byte*)in,
                                        DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
@@ -382,6 +419,7 @@
                 in  += DES_BLOCK_SIZE;
                 out += DES_BLOCK_SIZE;
             }
+        #endif /* STM32_HAL_V2 */
 
             HAL_CRYP_DeInit(&hcryp);
         }

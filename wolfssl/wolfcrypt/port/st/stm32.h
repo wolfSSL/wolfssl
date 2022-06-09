@@ -60,7 +60,7 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
-#if defined(WOLFSSL_STM32U5)
+#if defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H7)
 #define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
 #else
 #define STM32_HASH_FIFO_SIZE 1
