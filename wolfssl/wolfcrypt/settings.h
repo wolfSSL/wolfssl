@@ -657,7 +657,6 @@
     #define USE_CERT_BUFFERS_2048   /* use when NO_FILESYSTEM */
     #define NO_MAIN_DRIVER
     #define NO_RC4
-    #define SINGLE_THREADED         /* Not ported at this time */
 #endif
 
 #ifdef WOLFSSL_RIOT_OS
@@ -1770,6 +1769,15 @@ extern void uITRON4_free(void *p) ;
     #define USE_WOLFSSL_MEMORY
 #endif
 
+#ifdef WOLFSSL_EMBOS
+    #include "RTOS.h"
+    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
+        !defined(WOLFSSL_STATIC_MEMORY)
+        #define XMALLOC(s, h, type)  OS_HEAP_malloc((s))
+        #define XFREE(p, h, type)    OS_HEAP_free((p))
+        #define XREALLOC(p, n, h, t) OS_HEAP_realloc(((p), (n))
+    #endif
+#endif
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
     #undef  KEEP_PEER_CERT

@@ -166,7 +166,8 @@
     #ifdef __cplusplus
         extern "C" {
     #endif
-
+#elif defined(WOLFSSL_EMBOS)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #ifndef WOLFSSL_USER_MUTEX
@@ -266,6 +267,8 @@
         typedef struct k_mutex wolfSSL_Mutex;
     #elif defined(WOLFSSL_TELIT_M2MB)
         typedef M2MB_OS_MTX_HANDLE wolfSSL_Mutex;
+    #elif defined(WOLFSSL_EMBOS)
+        typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(WOLFSSL_USER_MUTEX)
         /* typedef User_Mutex wolfSSL_Mutex; */
     #elif defined(WOLFSSL_LINUXKM)
