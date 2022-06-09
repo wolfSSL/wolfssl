@@ -142,7 +142,7 @@
 
 
 /* Hardware Acceleration */
-#if defined(STM32_CRYPTO)
+#if defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY)
 
     /*
      * STM32F2/F4 hardware DES/3DES support through the standard

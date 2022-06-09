@@ -79,6 +79,9 @@ enum {
 
 
 #if defined(STM32_CRYPTO)
+
+#include <wolfssl/wolfcrypt/port/st/stm32.h>
+
 enum {
     DES_CBC = 0,
     DES_ECB = 1
