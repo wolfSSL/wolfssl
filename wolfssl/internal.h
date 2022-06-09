@@ -194,6 +194,8 @@
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
     /* do nothing */
+#elif defined(WOLFSSL_EMBOS)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #if defined(WOLFSSL_LINUXKM)

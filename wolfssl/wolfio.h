@@ -174,6 +174,10 @@
         #include <errno.h>
     #endif
 
+    #if defined(WOLFSSL_EMBOS)
+        #include <errno.h>
+    #endif
+
 #endif /* USE_WINDOWS_API */
 
 #ifdef __sun
@@ -287,6 +291,15 @@
     #define SOCKET_EPIPE       ERR_CLSD
     #define SOCKET_ECONNREFUSED ERR_CONN
     #define SOCKET_ECONNABORTED ERR_ABRT
+#elif defined(WOLFSSL_EMNET)
+    #include <IP/IP.h>
+    #define SOCKET_EWOULDBLOCK  IP_ERR_WOULD_BLOCK
+    #define SOCKET_EAGAIN       IP_ERR_WOULD_BLOCK
+    #define SOCKET_ECONNRESET   IP_ERR_CONN_RESET
+    #define SOCKET_EINTR        IP_ERR_FAULT
+    #define SOCKET_EPIPE        IP_ERR_PIPE
+    #define SOCKET_ECONNREFUSED IP_ERR_CONN_REFUSED
+    #define SOCKET_ECONNABORTED IP_ERR_CONN_ABORTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
