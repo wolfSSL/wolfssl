@@ -3418,6 +3418,32 @@ int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
 int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
 
 /*!
+    \brief When using non-blocking sockets with DTLS, this function retransmits
+    the last handshake flight ignoring the expected timeout value and
+    retransmit count. It is useful for applications that are using DTLS and
+    need to manage even the timeout and retry count.
+
+    \return SSL_SUCCESS will be returned upon success
+    \return SSL_FATAL_ERROR will be returned if there have been too many
+    retransmissions/timeouts without getting a response from the peer.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    ...
+    ret = wolfSSL_dtls_retransmit(ssl);
+    \endcode
+
+    \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls
+*/
+int wolfSSL_dtls_retransmit(WOLFSSL* ssl);
+
+/*!
     \brief This function is used to determine if the SSL session has been
     configured to use DTLS.
 
