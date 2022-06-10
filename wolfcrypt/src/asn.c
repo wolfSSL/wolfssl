@@ -14978,8 +14978,8 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
 static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
         word32* idx, int sz, int oid)
 {
-    int ret = 0;
-    int strLen;
+    int ret    = 0;
+    int strLen = 0;
     byte tag;
     DNS_entry* dnsEntry = NULL;
 
