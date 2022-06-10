@@ -1855,6 +1855,13 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             WOLFSSL_BUFFER(aad, aadSz);
         #endif
 
+        #ifdef WOLFSSL_CIPHER_TEXT_CHECK
+            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) {
+                XMEMCPY(ssl->encrypt.sanityCheck, input,
+                    min(dataSz, sizeof(ssl->encrypt.sanityCheck)));
+            }
+        #endif
+
         #ifdef CIPHER_NONCE
             if (ssl->encrypt.nonce == NULL)
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
@@ -1978,6 +1985,18 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 WOLFSSL_BUFFER(output, dataSz);
                 WOLFSSL_MSG("Authentication Tag");
                 WOLFSSL_BUFFER(output + dataSz, macSz);
+        #endif
+
+        #ifdef WOLFSSL_CIPHER_TEXT_CHECK
+            if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null &&
+                XMEMCMP(output, ssl->encrypt.sanityCheck,
+                    min(dataSz, sizeof(ssl->encrypt.sanityCheck))) == 0) {
+
+                WOLFSSL_MSG("EncryptTls13 sanity check failed! Glitch?");
+                return ENCRYPT_ERROR;
+            }
+            ForceZero(ssl->encrypt.sanityCheck,
+                sizeof(ssl->encrypt.sanityCheck));
         #endif
 
         #ifdef CIPHER_NONCE

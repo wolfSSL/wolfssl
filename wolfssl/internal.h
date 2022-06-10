@@ -3256,6 +3256,13 @@ enum CipherSrc {
 };
 #endif
 
+#ifdef WOLFSSL_CIPHER_TEXT_CHECK
+    #ifndef WOLFSSL_CIPHER_CHECK_SZ
+        /* 64-bits to confirm encrypt operation worked */
+        #define WOLFSSL_CIPHER_CHECK_SZ 8
+    #endif
+#endif
+
 /* cipher for now */
 typedef struct Ciphers {
 #ifdef BUILD_ARC4
@@ -3282,6 +3289,9 @@ typedef struct Ciphers {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
     Hmac* hmac;
+#endif
+#ifdef WOLFSSL_CIPHER_TEXT_CHECK
+    word32 sanityCheck[WOLFSSL_CIPHER_CHECK_SZ/sizeof(word32)];
 #endif
     byte    state;
     byte    setup;       /* have we set it up flag for detection */
