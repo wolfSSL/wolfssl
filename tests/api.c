@@ -51931,7 +51931,7 @@ static void test_wolfSSL_RSA_sign(void)
 #endif
     unsigned int signatureLen;
     const unsigned char* der;
-    
+
     printf(testingFmt, "wolfSSL_RSA_sign");
 
     XMEMSET(hash, 0, sizeof(hash));
@@ -52001,7 +52001,7 @@ static void test_wolfSSL_RSA_sign_ex(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
-    
+
     printf(testingFmt, "wolfSSL_RSA_sign_ex");
 
     XMEMSET(hash, 0, sizeof(hash));
@@ -52043,7 +52043,7 @@ static void test_wolfSSL_RSA_sign_ex(void)
         &encodedHashLen, rsa, 0), 1);
     AssertIntEQ(encodedHashLen, sizeof(expEncHash));
     AssertIntEQ(XMEMCMP(encodedHash, expEncHash, sizeof(expEncHash)), 0);
-    
+
     RSA_free(rsa);
     der = pubDer;
     rsa = NULL;
@@ -52191,7 +52191,7 @@ static void test_wolfSSL_RSA_public_decrypt(void)
     defined(WC_RSA_NO_PADDING)
     int i;
 #endif
-    
+
     printf(testingFmt, "wolfSSL_RSA_public_decrypt");
 
     XMEMSET(msg, 0, sizeof(msg));
@@ -52359,7 +52359,7 @@ static void test_wolfSSL_RSA_private_encrypt(void)
 #endif
 #endif
     const unsigned char* der;
-    
+
     printf(testingFmt, "wolfSSL_RSA_private_encrypt");
 
     XMEMSET(msg, 0x00, sizeof(msg));
@@ -52404,7 +52404,7 @@ static void test_wolfSSL_RSA_public_encrypt(void)
     RSA* rsa;
     const unsigned char msg[2048/8] = { 0 };
     unsigned char encMsg[2048/8];
-    
+
     printf(testingFmt, "wolfSSL_RSA_public_decrypt");
 
     AssertNotNull(rsa = RSA_new());
@@ -52435,7 +52435,7 @@ static void test_wolfSSL_RSA_private_decrypt(void)
     RSA* rsa;
     unsigned char msg[2048/8];
     const unsigned char encMsg[2048/8] = { 0 };
-    
+
     printf(testingFmt, "wolfSSL_RSA_private_decrypt");
 
     AssertNotNull(rsa = RSA_new());
@@ -52517,7 +52517,7 @@ static void test_wolfSSL_RSA_blinding_on(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
-    
+
     printf(testingFmt, "wolfSSL_RSA_blinding_on");
 
     der = privDer;
@@ -52643,7 +52643,7 @@ static void test_wolfSSL_RSA_To_Der(void)
     AssertNotNull(outDer);
     AssertIntEQ(XMEMCMP(outDer, privDer, privDerSz), 0);
     XFREE(outDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER.);
-    
+
     AssertIntEQ(wolfSSL_RSA_To_Der(rsa, NULL, 1, HEAP_HINT), pubDerSz);
     outDer = out;
     AssertIntEQ(wolfSSL_RSA_To_Der(rsa, &outDer, 1, HEAP_HINT), pubDerSz);

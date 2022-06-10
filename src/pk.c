@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(WOLFSSL_PK_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -134,8 +139,8 @@ static int pk_bn_field_print_fp(XFILE fp, int indent, const char* field,
  * @param [in] bio      BIO object to write to.
  * @param [in] line     Buffer to put characters to before writing to BIO.
  * @param [in] lineLen  Length of buffer.
- * @ereturn  1 on success.
- * @ereturn  0 on failure.
+ * @return  1 on success.
+ * @return  0 on failure.
  */
 static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
     int indent)
@@ -301,7 +306,7 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
  * Add the length of the SEQUENCE data to the length of the SEQUENCE header.
  *
  * @param [in] seq  Buffer holding DER encoded sequence.
- * @praam [in] len  Length of data in buffer (may be larger than SEQ).
+ * @param [in] len  Length of data in buffer (may be larger than SEQ).
  * @return  Size of complete DER encoding on success.
  * @return  0 on failure.
  */
@@ -339,7 +344,7 @@ static int wolfssl_der_length(const unsigned char* seq, int len)
 #if defined(OPENSSL_EXTRA)
 /* Return a blank RSA method and set the name and flags.
  *
- * Only one implemenation of RSA operations.
+ * Only one implementation of RSA operations.
  * name is duplicated.
  *
  * @param [in] name   Name to use in method.
@@ -390,7 +395,7 @@ const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_default_method(void)
 {
     static const WOLFSSL_RSA_METHOD wolfssl_rsa_meth = {
         0, /* No flags. */
-        (char*)"wolfSSL RSA", 
+        (char*)"wolfSSL RSA",
         0  /* Static definition. */
     };
     return &wolfssl_rsa_meth;
@@ -433,7 +438,7 @@ int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *meth, void* p)
 #endif /* OPENSSL_EXTRA */
 
 /*
- * RSA constructor/decstructor APIs
+ * RSA constructor/deconstructor APIs
  */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -526,7 +531,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
  * wolfSSL API.
  *
  * @param [in] heap   Heap hint.
- * @param [in] devId  Device identifer value.
+ * @param [in] devId  Device identifier value.
  * @return  RSA key on success.
  * @return  NULL on failure.
  */
@@ -778,7 +783,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **out,
 
 /* Convert RSA private key data to internal.
  *
- * Createa new RSA key from the DER encoded RSA private key.
+ * Create a new RSA key from the DER encoded RSA private key.
  *
  * @param [out]     out      Pointer to RSA key to return through. May be NULL.
  * @param [in, out] derBuf   Pointer to start of DER encoded data.
@@ -838,7 +843,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **out,
  *                       May be NULL.
  *                       On out, newly allocated buffer or pointer to byte after
  *                       encoding in passed in buffer.
- *             
+ *
  * @return  Size of DER encoding on success
  * @return  BAD_FUNC_ARG when rsa is NULL.
  * @return  0 on failure.
@@ -1770,7 +1775,7 @@ int wolfSSL_PEM_write_RSA_PUBKEY(XFILE fp, WOLFSSL_RSA *rsa)
 #if defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
 /* Print an RSA key to a file pointer.
- * 
+ *
  * @param [in] fp      File pointer to write to.
  * @param [in] rsa     RSA key to write.
  * @param [in] indent  Number of spaces to prepend to each line.
@@ -2362,7 +2367,7 @@ int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *p,
 }
 
 /* Get the BN objects for the basic key numbers of the RSA key (modulus, public
- * exponenet, private exponent).
+ * exponent, private exponent).
  *
  * @param [in]  rsa  RSA key.
  * @param [out] n    BN that is the modulus. May be NULL.
@@ -2387,7 +2392,7 @@ void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *rsa, const WOLFSSL_BIGNUM **n,
 }
 
 /* Set the BN objects for the basic key numbers into the RSA key (modulus,
- * public exponenet, private exponent).
+ * public exponent, private exponent).
  *
  * If BN parameter is NULL then there must be one in the RSA key already.
  *
@@ -2486,7 +2491,7 @@ void wolfSSL_RSA_clear_flags(WOLFSSL_RSA *rsa, int flags)
  *
  * @param [in] rsa  RSA key.
  * @return  Matching flags of RSA key on success.
- * @return  0 when RSA keyis NULL.
+ * @return  0 when RSA key is NULL.
  */
 int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *rsa, int flags)
 {
@@ -2576,7 +2581,7 @@ int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx, void *data,
      !defined(WOLFSSL_NO_RSA_KEY_CHECK)
 #define WOLFSSL_NO_RSA_KEY_CHECK
 #endif
-    
+
 
 #ifndef WOLFSSL_NO_RSA_KEY_CHECK
 /* Check that the RSA key is valid using wolfCrypt.
@@ -2680,7 +2685,7 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA* rsa, WC_RNG** tmpRng, int* initTmpRng)
 /* Use the wolfCrypt RSA APIs to generate a new RSA key.
  *
  * @param [in, out] rsa   RSA key.
- * @param [in]      bits  Numner of bits that the modulus must have.
+ * @param [in]      bits  Number of bits that the modulus must have.
  * @param [in]      e     A BN object holding the public exponent to use.
  * @param [in]      cb    Status callback. Unused.
  * @return 0 on success.
@@ -2762,7 +2767,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
  *       down to nearest multiple of 8. For example generating a key of size
  *       2999 bits will make a key of size 374 bytes instead of 375 bytes.
  *
- * @param [in]      bits  Numner of bits that the modulus must have i.e. 2048.
+ * @param [in]      bits  Number of bits that the modulus must have i.e. 2048.
  * @param [in]      e     Public exponent to use i.e. 65537.
  * @param [in]      cb    Status callback. Unused.
  * @param [in]      data  Data to pass to status callback. Unused.
@@ -2839,7 +2844,7 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int bits, unsigned long e,
  *       down to nearest multiple of 8. For example generating a key of size
  *       2999 bits will make a key of size 374 bytes instead of 375 bytes.
  *
- * @param [in]      bits  Numner of bits that the modulus must have i.e. 2048.
+ * @param [in]      bits  Number of bits that the modulus must have i.e. 2048.
  * @param [in]      e     Public exponent to use, i.e. 65537, as a BN.
  * @param [in]      cb    Status callback. Unused.
  * @return 1 on success.
@@ -3211,9 +3216,9 @@ static int wolfssl_rsa_sig_encode(int hashAlg, const unsigned char* hash,
     unsigned int hLen, unsigned char* enc, unsigned int* encLen, int padding)
 {
     int ret = 1;
-    int hType = WC_HASH_TYPE_NONE; 
+    int hType = WC_HASH_TYPE_NONE;
 
-    /* Validate parmeters. */
+    /* Validate parameters. */
     if ((hash == NULL) || (enc == NULL) || (encLen == NULL)) {
         ret = 0;
     }
@@ -4025,7 +4030,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
  *
  * @param [in, out] rsa  RSA key.
  * @return 1 on success.
- * @return -1 on faulure.
+ * @return -1 on failure.
  */
 int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 {
@@ -6319,7 +6324,7 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 #endif /* WOLFSSL_DH_EXTRA */
 
 /* Set the members of DhKey into WOLFSSL_DH
- * Specify elements to set via the 2nd parmeter
+ * Specify elements to set via the 2nd parameter
  */
 int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
 {
@@ -10381,7 +10386,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         }
     }
 
-    #ifndef WOLF_CRYPTO_CB_ONLY_ECC
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
     if (wc_ecc_verify_hash_ex((mp_int*)sig->r->internal,
                               (mp_int*)sig->s->internal, d, dlen, &check_sign,
                               (ecc_key *)key->internal) != MP_OKAY) {
@@ -10392,7 +10397,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
         return 0;
     }
-    #else
+#else
     /* convert big number to hex */
     r = wolfSSL_BN_bn2hex(sig->r);
     s = wolfSSL_BN_bn2hex(sig->s);
@@ -10421,7 +10426,7 @@ int wolfSSL_ECDSA_do_verify(const unsigned char *d, int dlen,
         WOLFSSL_MSG("wc_ecc_verify_hash incorrect signature detected");
         return 0;
     }
-    #endif
+#endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
     return 1;
 }
