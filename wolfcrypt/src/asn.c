@@ -26549,7 +26549,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if ((ret == 0) && (sz > (int)derSz)) {
         ret = BUFFER_E;
     }
-    if (ret == 0) {
+    if (ret == 0 && derBuffer != NULL) {
         /* Encode certificate request body into buffer. */
         SetASN_Items(certReqBodyASN, dataASN, certReqBodyASN_Length, derBuffer);
 
@@ -26565,14 +26565,15 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 &cert->subject, cert->heap);
         }
     }
-    if (ret >= 0) {
+    if (ret >= 0 && derBuffer != NULL) {
         /* Encode public key into space in buffer. */
         ret = EncodePublicKey(cert->keyType,
             (byte*)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
             dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
-    if ((ret >= 0) && (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
+    if ((ret >= 0 && derBuffer != NULL) &&
+            (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
         /* Encode extensions into space in buffer. */
         ret = EncodeExtensions(cert,
                 (byte*)dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.data,

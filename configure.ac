@@ -1234,17 +1234,17 @@ AC_ARG_ENABLE([wpas-dpp],
     [ ENABLED_WPAS_DPP=no ]
     )
 
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_WPAS="yes"
+fi
+
 # ntp support
 AC_ARG_ENABLE([ntp],
     [AS_HELP_STRING([--enable-ntp],[Enable ntp support (default: disabled)])],
     [ ENABLED_NTP=$enableval ],
     [ ENABLED_NTP=no ]
     )
-
-if test "$ENABLED_WPAS_DPP" = "yes"
-then
-    ENABLED_WPAS="yes"
-fi
 
 # Fortress build
 AC_ARG_ENABLE([fortress],
@@ -2677,6 +2677,10 @@ AC_ARG_ENABLE([certreq],
     [ ENABLED_CERTREQ=no ]
     )
 
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_CERTREQ="yes"
+fi
 
 # CERT REQUEST EXTENSION
 AC_ARG_ENABLE([certext],
@@ -2814,6 +2818,11 @@ AC_ARG_ENABLE([ecccustcurves],
     [ ENABLED_ECCCUSTCURVES=$enableval ],
     [ ENABLED_ECCCUSTCURVES=no ]
     )
+
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_ECCCUSTCURVES="all"
+fi
 
 if test "$ENABLED_ECCCUSTCURVES" != "no"
 then
@@ -4812,6 +4821,11 @@ AC_ARG_ENABLE([pkcs7],
     [ ENABLED_PKCS7=$enableval ],
     [ ENABLED_PKCS7=no ]
     )
+    
+if test "x$ENABLED_WPAS_DPP" = "xyes"
+then
+    ENABLED_PKCS7=yes
+fi
 
 # wolfSSH Options
 AC_ARG_ENABLE([wolfssh],
@@ -6450,7 +6464,7 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
         AC_MSG_ERROR([Must have SP enabled with SP math: --enable-sp])
     fi
-    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
+    if test "$ENABLED_ECCCUSTCURVES" != "no"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])
     fi
     if test "$ENABLED_DSA" = "yes"; then
