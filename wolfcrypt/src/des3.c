@@ -173,7 +173,7 @@
         (void)dir;
 
     #ifndef WOLFSSL_STM32_CUBEMX
-        {   
+        {
             word32 *dkey1 = des->key[0];
             word32 *dkey2 = des->key[1];
             word32 *dkey3 = des->key[2];
@@ -224,7 +224,6 @@
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)des->reg;
     #ifdef STM32_HAL_V2
         hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-        ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
         if (mode == DES_CBC)
             hcryp.Init.Algorithm = CRYP_DES_CBC;
         else
@@ -242,11 +241,14 @@
             HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
                 STM32_HAL_TIMEOUT);
         }
+        /* save off IV */
+        des->reg[0] = hcryp.Instance->IV0LR;
+        des->reg[1] = hcryp.Instance->IV0RR;
     #else
         while (sz > 0) {
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-        
+
             if (mode == DES_CBC) {
                 if (dir == DES_ENCRYPTION) {
                     HAL_CRYP_DESCBC_Encrypt(&hcryp, (uint8_t*)in,
@@ -386,7 +388,6 @@
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)des->reg;
         #ifdef STM32_HAL_V2
             hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-            ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
             hcryp.Init.Algorithm = CRYP_TDES_CBC;
         #endif
 
@@ -401,6 +402,9 @@
                 HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, sz, (uint32_t*)out,
                     STM32_HAL_TIMEOUT);
             }
+            /* save off IV */
+            des->reg[0] = hcryp.Instance->IV0LR;
+            des->reg[1] = hcryp.Instance->IV0RR;
         #else
             while (sz > 0) {
                 if (dir == DES_ENCRYPTION) {
@@ -1818,8 +1822,12 @@
 
 void wc_Des_SetIV(Des* des, const byte* iv)
 {
-    if (des && iv)
+    if (des && iv) {
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+    #ifdef STM32_HAL_V2
+        ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
+    #endif
+    }
     else if (des)
         XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
 }
@@ -1829,8 +1837,12 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
     if (des == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (iv)
+    if (iv) {
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+    #ifdef STM32_HAL_V2
+        ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
+    #endif
+    }
     else
         XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
 
