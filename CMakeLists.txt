@@ -1554,6 +1554,10 @@ add_option("WOLFSSL_CRYPT_TESTS_LIBS"
     "Build static libraries from the wolfCrypt test and benchmark sources (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_CRYPT_TESTS_HELP"
+    "Add help text to wolfCrypt test (default: disabled)"
+    "no" "yes;no")
+
 # TODO: - LIBZ
 #       - PKCS#11
 #       - Cavium
@@ -1974,6 +1978,9 @@ if(WOLFSSL_CRYPT_TESTS)
         set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
         target_link_libraries(wolfcrypttest_lib wolfssl)
         target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
+        if(WOLFSSL_CRYPT_TESTS_HELP)
+            target_compile_options(wolfcrypttest_lib PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+        endif()
 
         # Make another library for the wolfCrypt benchmark code.
         add_library(wolfcryptbench_lib
@@ -1993,6 +2000,9 @@ if(WOLFSSL_CRYPT_TESTS)
     set_property(TARGET wolfcrypttest
                  PROPERTY RUNTIME_OUTPUT_NAME
                  testwolfcrypt)
+    if(WOLFSSL_CRYPT_TESTS_HELP)
+        target_compile_options(wolfcrypttest PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+    endif()
 
     # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
