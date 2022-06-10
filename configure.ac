@@ -1008,7 +1008,7 @@ AC_ARG_ENABLE([mcast],
 # net-snmp (--enable-net-snmp)
 # krb (--enable-krb) WOLFSSL_KRB
 # FFmpeg (--enable-ffmpeg) WOLFSSL_FFMPEG
-
+# strongSwan (--enable-strongswan)
 
 # Bind DNS compatibility Build
 AC_ARG_ENABLE([bind],
@@ -1198,6 +1198,13 @@ AC_ARG_ENABLE([signal],
     [ ENABLED_SIGNAL=no ]
     )
 
+# strongSwan support
+AC_ARG_ENABLE([strongswan],
+    [AS_HELP_STRING([--enable-strongswan],[Enable strongSwan support (default: disabled)])],
+    [ ENABLED_STRONGSWAN=$enableval ],
+    [ ENABLED_STRONGSWAN=no ]
+    )
+
 # OpenSSL Coexist
 AC_ARG_ENABLE([opensslcoexist],
     [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
@@ -1308,7 +1315,7 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
    test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
    test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
-   test "$ENABLED_FFMPEG" = "yes"
+   test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -2479,7 +2486,9 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
+   test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
+   test "x$ENABLED_STRONGSWAN" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -2501,7 +2510,10 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
-if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
+   test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || \
+   test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || \
+   test "$ENABLED_STRONGSWAN" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi
@@ -2513,7 +2525,9 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_CHRONY" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
+   test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
+   test "$ENABLED_CHRONY" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi
@@ -2532,7 +2546,7 @@ AC_ARG_ENABLE([certext],
     [ ENABLED_CERTEXT=$enableval ],
     [ ENABLED_CERTEXT=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
 then
     ENABLED_CERTEXT=yes
 fi
@@ -3225,7 +3239,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
     # Requires PSK make sure on
@@ -3569,7 +3582,7 @@ if (test "$ENABLED_OPENSSH" = "yes" && \
    test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || \
    test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || \
-   test "$ENABLED_WOLFENGINE" = "yes"
+   test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -4049,11 +4062,6 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=$enableval ],
     [ ENABLED_OCSP=no ]
     )
-if test "$ENABLED_OCSP" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-fi
-
 
 if test "$ENABLED_OCSP" = "yes"
 then
@@ -4089,7 +4097,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 fi
 
@@ -4114,7 +4121,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 fi
 
@@ -4123,12 +4129,12 @@ fi
 AC_ARG_ENABLE([crl],
     [AS_HELP_STRING([--enable-crl],[Enable CRL (Use =io for inline CRL HTTP GET) (default: disabled)])],
     [ ENABLED_CRL=$enableval ],
-    [ ENABLED_CRL=no ],
+    [ ENABLED_CRL=no ]
     )
 
 if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
    test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
-   test "x$ENABLED_KRB" = "xyes"
+   test "x$ENABLED_KRB" = "xyes" || test "x$ENABLED_STRONGSWAN" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -4147,7 +4153,7 @@ fi
 AC_ARG_ENABLE([crl-monitor],
     [AS_HELP_STRING([--enable-crl-monitor],[Enable CRL Monitor (default: disabled)])],
     [ ENABLED_CRL_MONITOR=$enableval ],
-    [ ENABLED_CRL_MONITOR=no ],
+    [ ENABLED_CRL_MONITOR=no ]
     )
 
 if test "$ENABLED_CRL_MONITOR" = "yes"
@@ -4895,7 +4901,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
     if test "x$ENABLED_CRL_MONITOR" = "xno" && test "x$ENABLED_DISTRO" = "xno"
     then
@@ -5172,7 +5177,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 fi
 
@@ -5203,7 +5207,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
     # Requires sessioncerts make sure on
@@ -5297,7 +5300,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
     if test "x$ENABLED_CODING" = "xno"
@@ -5407,7 +5409,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
     if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xno"
@@ -5520,7 +5521,6 @@ then
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
     # Requires PKCS7
@@ -7110,6 +7110,16 @@ then
     ENABLED_ALTNAMES="yes"
 fi
 
+if test "$ENABLED_STRONGSWAN" = "yes"; then
+    if test "$ENABLED_CERTREQ" = "no"; then
+        ENABLED_CERTREQ="yes"
+    fi
+
+    if test "$ENABLED_OCSP" = "no"; then
+        ENABLED_OCSP="yes"
+    fi
+fi
+
 AS_IF([test "x$ENABLED_MCAPI" = "xyes"],
       [AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])])
 
@@ -7269,6 +7279,12 @@ AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
+
+AS_IF([test "x$ENABLED_OCSP" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
+
+AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"])
 
 if test "$ENABLED_ED25519_STREAM" != "no"
 then
@@ -7482,9 +7498,11 @@ AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && \
        (test "x$ENABLED_SHA224" = "xyes")],
       [AC_MSG_ERROR([--enable-sha224 with --enable-devcrypto not yet supported])])
 
-# SCTP and Multicast require DTLS
+# SCTP, Multicast, SRTP, and strongSwan require DTLS
 AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
-        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes" || test "x$ENABLED_SRTP" = "xyes")],
+        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes" || \
+         test "x$ENABLED_SRTP" = "xyes" || \
+         test "x$ENABLED_STRONGSWAN" = "xyes")],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
        ENABLED_DTLS=yes])
 
@@ -8142,6 +8160,7 @@ echo "   * Qt:                         $ENABLED_QT"
 echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * chrony:                     $ENABLED_CHRONY"
+echo "   * strongSwan:                 $ENABLED_STRONGSWAN"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
