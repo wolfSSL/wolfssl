@@ -14597,6 +14597,7 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
 static const ASNItem otherNameASN[] = {
 /* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
 /* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 1, 0 },
+/* UPN      */     { 1, ASN_UTF8STRING, 0, 0, 2 },
 /* FASC-N   */     { 1, ASN_OCTET_STRING, 0, 0, 2 },
 /* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 2 },
 /* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
@@ -14605,6 +14606,7 @@ static const ASNItem otherNameASN[] = {
 enum {
     OTHERNAMEASN_IDX_TYPEID = 0,
     OTHERNAMEASN_IDX_VALUE,
+    OTHERNAMEASN_IDX_UPN,
     OTHERNAMEASN_IDX_FASCN,
     OTHERNAMEASN_IDX_HWN_SEQ,
     OTHERNAMEASN_IDX_HWN_TYPE,
@@ -14656,22 +14658,29 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
 #endif /* WOLFSSL_SEP */
 
 #ifdef WOLFSSL_FPKI
-static int DecodeFASCN(ASNGetData* dataASN, DecodedCert* cert)
+static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
 {
-    int ret;
-    word32 fascnLen;
     DNS_entry* entry = NULL;
+    int ret;
+    word32 bufLen;
+    const char* buf;
 
-    fascnLen = dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.length;
-    ret = SetDNSEntry(cert,
-            (const char*)dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.data,
-            fascnLen, ASN_OTHER_TYPE, &entry);
-
-    if (ret == 0) {
-        entry->oidSum = FASCN_OID;
-        AddDNSEntryToList(&cert->altNames, entry);
+    switch (oid) {
+        case FASCN_OID:
+            bufLen = dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.length;
+            buf    = (const char*)dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.data;
+            break;
+        case UPN_OID:
+            bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
+            buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
+            break;
     }
 
+    ret = SetDNSEntry(cert, buf, bufLen, ASN_OTHER_TYPE, &entry);
+    if (ret == 0) {
+        entry->oidSum = oid;
+        AddDNSEntryToList(&cert->altNames, entry);
+    }
     return ret;
 }
 #endif /* WOLFSSL_FPKI */
@@ -14718,7 +14727,9 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #endif /* WOLFSSL_SEP */
         #ifdef WOLFSSL_FPKI
             case FASCN_OID:
-                ret = DecodeFASCN(dataASN, cert);
+            case UPN_OID:
+                ret = DecodeOtherHelper(dataASN, cert,
+                        dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum);
                 break;
         #endif /* WOLFSSL_FPKI */
             default:
@@ -14962,54 +14973,101 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
 }
 #endif /* WOLFSSL_SEP */
 
-#if defined(WOLFSSL_FPKI) && !defined(WOLFSSL_ASN_TEMPLATE)
+#if !defined(WOLFSSL_ASN_TEMPLATE)
 /* return 0 on success */
-static int DecodeFascNAltName(DecodedCert* cert, const byte* input, word32* idx,
-    int sz)
+static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
+        word32* idx, int sz, int oid)
 {
-    int ret;
+    int ret = 0;
     int strLen;
-    DNS_entry* dnsEntry;
     byte tag;
+    DNS_entry* dnsEntry = NULL;
 
     if (GetASNTag(input, idx, &tag, sz) < 0) {
-        return ASN_PARSE_E;
+        ret = ASN_PARSE_E;
     }
 
-    if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
-        return ASN_PARSE_E;
+    if (ret == 0 && (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED))) {
+        ret = ASN_PARSE_E;
     }
 
-    if (GetLength(input, idx, &strLen, sz) < 0)
-        return ASN_PARSE_E;
-
-    ret = GetOctetString(input, idx, &strLen, sz);
-    if (ret < 0)
-        return ret;
-
-    dnsEntry = AltNameNew(cert->heap);
-    if (dnsEntry == NULL) {
-        WOLFSSL_MSG("\tOut of Memory");
-        return MEMORY_E;
+    if (ret == 0 && (GetLength(input, idx, &strLen, sz) < 0)) {
+        ret = ASN_PARSE_E;
     }
 
-    dnsEntry->type = ASN_OTHER_TYPE;
-    dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
-        DYNAMIC_TYPE_ALTNAME);
-    if (dnsEntry->name == NULL) {
-        WOLFSSL_MSG("\tOut of Memory");
+    if (ret == 0) {
+        dnsEntry = AltNameNew(cert->heap);
+        if (dnsEntry == NULL) {
+            WOLFSSL_MSG("\tOut of Memory");
+            return MEMORY_E;
+        }
+    }
+
+    if (ret == 0) {
+        switch (oid) {
+        #ifdef WOLFSSL_FPKI
+            case FASCN_OID:
+                ret = GetOctetString(input, idx, &strLen, sz);
+                if (ret > 0) {
+                    ret = 0;
+                }
+                break;
+        #endif /* WOLFSSL_FPKI */
+            case UPN_OID:
+                if (GetASNTag(input, idx, &tag, sz) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+
+                if (ret == 0 &&
+                        tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
+                                    tag != ASN_IA5_STRING) {
+                    WOLFSSL_MSG("Was expecting a string for UPN");
+                    ret = ASN_PARSE_E;
+                }
+
+                if (ret == 0 && (GetLength(input, idx, &strLen, sz) < 0)) {
+                    WOLFSSL_MSG("Was expecting a string for UPN");
+                    ret = ASN_PARSE_E;
+                }
+                break;
+
+            default:
+                WOLFSSL_MSG("Unknown constructed other name, skipping");
+                *idx += strLen;
+                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                dnsEntry = NULL;
+        }
+    }
+
+    if (ret == 0 && dnsEntry != NULL) {
+        dnsEntry->type = ASN_OTHER_TYPE;
+        dnsEntry->len = strLen;
+        dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+            DYNAMIC_TYPE_ALTNAME);
+    #ifdef WOLFSSL_FPKI
+        dnsEntry->oidSum = oid;
+    #endif /* WOLFSSL_FPKI */
+        if (dnsEntry->name == NULL) {
+            WOLFSSL_MSG("\tOut of Memory");
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(dnsEntry->name, &input[*idx], strLen);
+            dnsEntry->name[strLen] = '\0';
+            AddAltName(cert, dnsEntry);
+        }
+    }
+
+    if (ret == 0) {
+        *idx += strLen;
+    }
+    else {
         XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-        return MEMORY_E;
     }
-    dnsEntry->len = strLen;
-    XMEMCPY(dnsEntry->name, &input[*idx], strLen);
-    dnsEntry->name[strLen] = '\0';
-    dnsEntry->oidSum = FASCN_OID;
-    AddAltName(cert, dnsEntry);
-    *idx += strLen;
-    return 0;
+
+    return ret;
 }
-#endif /* WOLFSSL_FPKI */
+#endif
 
 /* Decode subject alternative names extension.
  *
@@ -15316,7 +15374,9 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             #endif /* WOLFSSL_SEP */
             #ifdef WOLFSSL_FPKI
                 case FASCN_OID:
-                    ret = DecodeFascNAltName(cert, input, &idx, sz);
+                case UPN_OID:
+                    ret = DecodeConstructedOtherName(cert, input, &idx, sz,
+                            oid);
                     if (ret != 0)
                         return ret;
                     break;
@@ -15325,11 +15385,21 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 default:
                     WOLFSSL_MSG("\tUnsupported other name type, skipping");
                     if (GetLength(input, &idx, &strLen, sz) < 0) {
-                        WOLFSSL_MSG("\tfail: unsupported other name length");
-                        return ASN_PARSE_E;
+                        /* check to skip constructed other names too */
+                        if (DecodeConstructedOtherName(cert, input, &idx, sz,
+                                    oid) != 0) {
+                            WOLFSSL_MSG("\tfail: unsupported other name length");
+                            return ASN_PARSE_E;
+                        }
+                        else {
+                            /* idx will have been advanced to end of alt name */
+                            length -= (idx - lenStartIdx);
+                        }
                     }
-                    length -= (strLen + idx - lenStartIdx);
-                    idx += strLen;
+                    else {
+                        length -= (strLen + idx - lenStartIdx);
+                        idx += strLen;
+                    }
             }
             (void)ret;
         }

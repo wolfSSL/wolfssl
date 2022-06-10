@@ -1145,7 +1145,8 @@ enum Extensions_Sum {
 
     AKEY_PACKAGE_OID          = 1048, /* 2.16.840.1.101.2.1.2.78.5
                                         RFC 5958  - Asymmetric Key Packages */
-    FASCN_OID = 419 /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
+    FASCN_OID = 419, /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
+    UPN_OID   = 265  /* 1.3.6.1.4.1.311.20.2.3 UPN */
 };
 
 enum CertificatePolicy_Sum {
