@@ -17793,13 +17793,15 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         case runProcessingOneMessage:
             /* can't process a message if we have no data.  */
             if (ssl->buffers.inputBuffer.idx
-                >= ssl->buffers.inputBuffer.length)
+                    >= ssl->buffers.inputBuffer.length) {
                 return BUFFER_ERROR;
-
+            }
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                if ((ssl->curSize -
-                        ssl->keys.padSz -
+                /* For TLS v1.1 the block size and explcit IV are added to idx,
+                 * so it needs to be included in this limit check */
+                if ((ssl->curSize - ssl->keys.padSz -
+                        (ssl->buffers.inputBuffer.idx - startIdx) -
                         MacSize(ssl) > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
@@ -17816,8 +17818,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             else
        #endif
                 /* TLS13 plaintext limit is checked earlier before decryption */
+                /* For TLS v1.1 the block size and explcit IV are added to idx,
+                 * so it needs to be included in this limit check */
                 if (!IsAtLeastTLSv1_3(ssl->version)
-                        && ssl->curSize - ssl->keys.padSz > MAX_PLAINTEXT_SZ
+                        && ssl->curSize - ssl->keys.padSz - 
+                            (ssl->buffers.inputBuffer.idx - startIdx)
+                                > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
                                 ssl->buffers.inputBuffer.idx
