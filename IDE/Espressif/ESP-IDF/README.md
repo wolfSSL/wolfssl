@@ -1,4 +1,10 @@
 # ESP-IDF port
+
+NOTICE: These Espressif examples have been created and tested with the latest stable release branch of 
+[ESP-IDF V4](https://docs.espressif.com/projects/esp-idf/en/v4.4.1/esp32/get-started/index.html)
+and have not yet been upgraded to the master branch V5. 
+See the latest [migration guides](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/migration-guides/index.html).
+
 ## Overview
  ESP-IDF development framework with wolfSSL by setting *WOLFSSL_ESPIDF* definition
 
