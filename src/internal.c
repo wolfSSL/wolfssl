@@ -309,9 +309,11 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         */
         buffSz  = labelSz + (RAN_LEN * 2) + 1 + ((*secretSz) * 2) + 1;
         log     = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
-
         if (log == NULL)
             return MEMORY_E;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SessionSecret log", log, buffSz);
+#endif
 
         XMEMSET(log, 0, buffSz);
         XMEMCPY(log, label, labelSz -1);     /* put label w/o terminator */
@@ -444,6 +446,9 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         log    = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
         if (log == NULL)
             return MEMORY_E;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SessionSecret log", log, buffSz);
+#endif
 
         XMEMSET(log, 0, buffSz);
         XMEMCPY(log, label, labelSz - 1);     /* put label w/o terminator */
@@ -6347,6 +6352,21 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     int  ret;
 
     XMEMSET(ssl, 0, sizeof(WOLFSSL));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("SSL Keys", &ssl->keys, sizeof(ssl->keys));
+#ifdef WOLFSSL_TLS13
+    wc_MemZero_Add("SSL client secret", &ssl->clientSecret,
+        sizeof(ssl->clientSecret));
+    wc_MemZero_Add("SSL client secret", &ssl->serverSecret,
+        sizeof(ssl->serverSecret));
+#endif
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
+    wc_MemZero_Add("ClientFinished hash", &ssl->clientFinished,
+        TLS_FINISHED_SZ_MAX);
+    wc_MemZero_Add("ServerFinished hash", &ssl->serverFinished,
+        TLS_FINISHED_SZ_MAX);
+#endif
+#endif
 
 #if defined(WOLFSSL_STATIC_MEMORY)
     if (ctx->heap != NULL) {
@@ -6633,6 +6653,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             WOLFSSL_MSG("Arrays Memory error");
             return MEMORY_E;
         }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SSL Arrays", ssl->arrays, sizeof(*ssl->arrays));
+#endif
         XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
         ssl->arrays->preMasterSz = ENCRYPT_LEN;
@@ -6641,6 +6664,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         if (ssl->arrays->preMasterSecret == NULL) {
             return MEMORY_E;
         }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SSL Arrays", ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+#endif
         XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
 #endif
 
@@ -7696,6 +7722,9 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     if (ctx)
         FreeSSL_Ctx(ctx); /* will decrement and free underlying CTX if 0 */
     (void)heap;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(ssl, sizeof(*ssl));
+#endif
 }
 
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
@@ -8736,6 +8765,10 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
             XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
         }
         if (ret == 0) {
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("Handshake messages", msgs,
+                ssl->hsHashes->length + sz);
+        #endif
             ssl->hsHashes->messages = msgs;
             XMEMCPY(msgs + ssl->hsHashes->length, data, sz);
             ssl->hsHashes->prevLen = ssl->hsHashes->length;
@@ -15890,10 +15923,16 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         nonce[10] ^= add[6];
         nonce[11] ^= add[7];
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChachaAEADEncrypt nonce", nonce, CHACHA20_NONCE_SZ);
+#endif
 
     /* set the nonce for chacha and get poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
         return ret;
     }
 
@@ -15901,21 +15940,37 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, poly,
                                                     poly, sizeof(poly))) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
         return ret;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
+#endif
 
     /* set the counter after getting poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
         ForceZero(poly, sizeof(poly));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+    #endif
         return ret;
     }
     ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+#endif
 
     /* encrypt the plain text */
     if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out,
                                                          input, msgLen)) != 0) {
         ForceZero(poly, sizeof(poly));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+    #endif
         return ret;
     }
 
@@ -15924,6 +15979,9 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         if ((ret = Poly1305TagOld(ssl, add, (const byte* )out,
                                                          poly, sz, tag)) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
     }
@@ -15931,15 +15989,24 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
                                                           sizeof(poly))) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
         if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add,
                             sizeof(add), out, msgLen, tag, sizeof(tag))) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
     }
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+#endif
 
     /* append tag to ciphertext */
     XMEMCPY(out + msgLen, tag, sizeof(tag));
@@ -16057,10 +16124,16 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         nonce[10] ^= add[6];
         nonce[11] ^= add[7];
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChachaAEADEncrypt nonce", nonce, CHACHA20_NONCE_SZ);
+#endif
 
     /* set nonce and get poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
         return ret;
     }
 
@@ -16068,21 +16141,37 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, poly,
                                                     poly, sizeof(poly))) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+    #endif
         return ret;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChachaAEADEncrypt poly", poly, CHACHA20_256_KEY_SIZE);
+#endif
 
     /* set counter after getting poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
         ForceZero(poly, sizeof(poly));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+        wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+    #endif
         return ret;
     }
     ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(nonce, CHACHA20_NONCE_SZ);
+#endif
 
     /* get the tag using Poly1305 */
     if (ssl->options.oldPoly != 0) {
         if ((ret = Poly1305TagOld(ssl, add, input, poly, sz, tag)) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
     }
@@ -16090,15 +16179,24 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
                                                           sizeof(poly))) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
         if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add,
                           sizeof(add), input, msgLen, tag, sizeof(tag))) != 0) {
             ForceZero(poly, sizeof(poly));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+        #endif
             return ret;
         }
     }
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(poly, CHACHA20_256_KEY_SIZE);
+#endif
 
     /* check tag sent along with packet */
     if (ConstantCompare(input + msgLen, tag, ssl->specs.aead_mac_size) != 0) {
@@ -16365,9 +16463,16 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                 if (ssl->encrypt.additional == NULL)
                     ssl->encrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-                if (ssl->encrypt.nonce == NULL)
+                if (ssl->encrypt.nonce == NULL) {
                     ssl->encrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    if (ssl->encrypt.nonce != NULL) {
+                        wc_MemZero_Add("Encrypt nonce", ssl->encrypt.nonce,
+                            AESGCM_NONCE_SZ);
+                    }
+                #endif
+                }
                 if (ssl->encrypt.additional == NULL ||
                          ssl->encrypt.nonce == NULL) {
                     return MEMORY_E;
@@ -16424,6 +16529,12 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input,
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
             }
         #endif /* BUILD_AESGCM || HAVE_AESCCM */
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            if ((ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) &&
+                    (out != input) && (ret == 0)) {
+                wc_MemZero_Add("TLS Encrypt plaintext", input, sz);
+            }
+        #endif
             break;
         }
 
@@ -16582,6 +16693,13 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             ret = DECRYPT_ERROR;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if ((ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) &&
+            (ret == 0)) {
+        wc_MemZero_Add("Decrypted data", plain, sz);
+    }
+#endif
+
     return ret;
 }
 
@@ -16625,9 +16743,16 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
                 if (ssl->decrypt.additional == NULL)
                     ssl->decrypt.additional = (byte*)XMALLOC(AEAD_AUTH_DATA_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-                if (ssl->decrypt.nonce == NULL)
+                if (ssl->decrypt.nonce == NULL) {
                     ssl->decrypt.nonce = (byte*)XMALLOC(AESGCM_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    if (ssl->decrypt.nonce != NULL) {
+                        wc_MemZero_Add("DecryptTls nonce", ssl->decrypt.nonce,
+                            AESGCM_NONCE_SZ);
+                    }
+                #endif
+                }
                 if (ssl->decrypt.additional == NULL ||
                          ssl->decrypt.nonce == NULL) {
                     return MEMORY_E;
@@ -28914,6 +29039,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             (word32*)&ssl->buffers.serverDH_Priv.length,
                             ssl->buffers.serverDH_Pub.buffer,
                             (word32*)&ssl->buffers.serverDH_Pub.length);
+                    #ifdef WOLFSSL_CHECK_MEM_ZERO
+                        wc_MemZero_Add("DH private key buffer",
+                            ssl->buffers.serverDH_Priv.buffer,
+                            ssl->buffers.serverDH_Priv.length);
+                    #endif
                         break;
                     }
                     else
@@ -29014,6 +29144,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             (word32*)&ssl->buffers.serverDH_Priv.length,
                             ssl->buffers.serverDH_Pub.buffer,
                             (word32*)&ssl->buffers.serverDH_Pub.length);
+                    #ifdef WOLFSSL_CHECK_MEM_ZERO
+                        wc_MemZero_Add("DH private key buffer",
+                            ssl->buffers.serverDH_Priv.buffer,
+                            ssl->buffers.serverDH_Priv.length);
+                    #endif
                         break;
                     }
                 #endif /* !NO_DH && (!NO_PSK || !NO_RSA) */
@@ -32172,6 +32307,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                            sizeof(TicketNonce));
 #endif
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Ticket has sensitive data in it now. */
+        wc_MemZero_Add("Create Ticket internal", &it, sizeof(InternalTicket));
+    #endif
 
 #ifdef WOLFSSL_TICKET_HAVE_ID
         {
@@ -32194,6 +32333,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                            ID_LEN);
                 if (ret != 0) {
                     ForceZero(&it, sizeof(it));
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(&it, sizeof(InternalTicket));
+                #endif
                     return ret;
                 }
                 ssl->session->haveAltSessionID = 1;
@@ -32230,6 +32372,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen, ssl->ctx->ticketEncCtx);
             if (ret != WOLFSSL_TICKET_RET_OK) {
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Internal ticket data wasn't encrypted maybe. */
+                wc_MemZero_Add("Create Ticket enc_ticket", et->enc_ticket,
+                    sizeof(InternalTicket));
+            #endif
                 ForceZero(&it, sizeof(it));
                 ForceZero(et->enc_ticket, sizeof(it));
             }
@@ -32240,6 +32387,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ForceZero(&it, sizeof(it));
                 ForceZero(et->enc_ticket, sizeof(it));
                 WOLFSSL_MSG("Bad user ticket encrypt size");
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(&it, sizeof(InternalTicket));
+            #endif
                 return BAD_TICKET_KEY_CB_SZ;
             }
 
@@ -32252,6 +32402,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ForceZero(&it, sizeof(it));
                 ForceZero(et->enc_ticket, sizeof(it));
                 WOLFSSL_MSG("User ticket encrypt didn't encrypt");
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(&it, sizeof(InternalTicket));
+            #endif
                 return BAD_TICKET_ENCRYPT;
             }
 
@@ -32261,18 +32414,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* name */
             if (XMEMCMP(et->key_name, zeros, WOLFSSL_TICKET_NAME_SZ) == 0) {
                 WOLFSSL_MSG("User ticket encrypt didn't set name");
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(&it, sizeof(InternalTicket));
+            #endif
                 return BAD_TICKET_ENCRYPT;
             }
 
             /* iv */
             if (XMEMCMP(et->iv, zeros, WOLFSSL_TICKET_IV_SZ) == 0) {
                 WOLFSSL_MSG("User ticket encrypt didn't set iv");
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(&it, sizeof(InternalTicket));
+            #endif
                 return BAD_TICKET_ENCRYPT;
             }
 
             /* mac */
             if (XMEMCMP(et->mac, zeros, WOLFSSL_TICKET_MAC_SZ) == 0) {
                 WOLFSSL_MSG("User ticket encrypt didn't set mac");
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Check(&it, sizeof(InternalTicket));
+            #endif
                 return BAD_TICKET_ENCRYPT;
             }
 
@@ -32285,6 +32447,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&it, sizeof(InternalTicket));
+    #endif
         return ret;
     }
 
@@ -32343,6 +32508,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         it = (InternalTicket*)et->enc_ticket;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Internal ticket successfully decrypted. */
+        wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
+    #endif
 
         /* get master secret */
         if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
@@ -32550,6 +32719,15 @@ static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx, TicketEncCbCtx* keyCtx)
     XMEMSET(keyCtx, 0, sizeof(*keyCtx));
     keyCtx->ctx = ctx;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("TicketEncCbCtx_Init keyCtx->name", keyCtx->name,
+        sizeof(keyCtx->name));
+    wc_MemZero_Add("TicketEncCbCtx_Init keyCtx->key[0]", keyCtx->key[0],
+        sizeof(keyCtx->key[0]));
+    wc_MemZero_Add("TicketEncCbCtx_Init keyCtx->key[1]", keyCtx->key[1],
+        sizeof(keyCtx->key[1]));
+#endif
+
 #ifndef SINGLE_THREADED
     ret = wc_InitMutex(&keyCtx->mutex);
 #endif
@@ -32611,6 +32789,12 @@ static void TicketEncCbCtx_Free(TicketEncCbCtx* keyCtx)
     ForceZero(keyCtx->name, sizeof(keyCtx->name));
     ForceZero(keyCtx->key[0], sizeof(keyCtx->key[0]));
     ForceZero(keyCtx->key[1], sizeof(keyCtx->key[1]));
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(keyCtx->name, sizeof(keyCtx->name));
+    wc_MemZero_Check(keyCtx->key[0], sizeof(keyCtx->key[0]));
+    wc_MemZero_Check(keyCtx->key[1], sizeof(keyCtx->key[1]));
+#endif
 
 #ifndef SINGLE_THREADED
     wc_FreeMutex(&keyCtx->mutex);

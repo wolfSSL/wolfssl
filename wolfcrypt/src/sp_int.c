@@ -15980,4 +15980,26 @@ word32 CheckRunTimeFastMath(void)
     return SP_WORD_SIZE;
 }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+/* Add an MP to check.
+ *
+ * @param [in] name  Name of address to check.
+ * @param [in] mp    mp_int that needs to be checked.
+ */
+void sp_memzero_add(const char* name, mp_int* mp)
+{
+    wc_MemZero_Add(name, mp->dp, mp->size * sizeof(sp_digit));
+}
+
+/* Check the memory in the data pointer for memory that must be zero.
+ *
+ * @param [in] mp    mp_int that needs to be checked.
+ */
+void sp_memzero_check(mp_int* mp)
+{
+    wc_MemZero_Check(mp->dp, mp->size * sizeof(sp_digit));
+}
+#endif /* WOLFSSL_CHECK_MEM_ZERO */
+
+
 #endif /* WOLFSSL_SP_MATH || WOLFSSL_SP_MATH_ALL */

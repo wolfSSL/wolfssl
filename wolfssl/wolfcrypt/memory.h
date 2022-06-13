@@ -238,6 +238,14 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
             __cyg_profile_func_exit(void *func, void *caller);
 #endif /* WOLFSSL_STACK_LOG */
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+WOLFSSL_LOCAL void wc_MemZero_Init(void);
+WOLFSSL_LOCAL void wc_MemZero_Free(void);
+WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
+    size_t len);
+WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

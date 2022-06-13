@@ -132,6 +132,12 @@ int wolfCrypt_Init(void)
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Initialize the mutex for access to the list of memory locations that
+         * must be freed. */
+        wc_MemZero_Init();
+    #endif
+
     #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
         {
             word32 rngMallocFail;
@@ -422,6 +428,12 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_LINUXKM_SIMD_X86)
         free_wolfcrypt_linuxkm_fpu_states();
+    #endif
+
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Free the mutex for access to the list of memory locations that
+         * must be freed. */
+        wc_MemZero_Free();
     #endif
     }
 

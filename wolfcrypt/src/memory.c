@@ -120,6 +120,147 @@ int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*  mf,
 }
 
 #ifndef WOLFSSL_STATIC_MEMORY
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+
+#ifndef WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN
+/* Number of entries in table of addresses to check. */
+#define WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN    256
+#endif
+
+/* Alignment to maintain when adding length to allocated pointer.
+ * Intel x64 wants to use aligned loads of XMM registers.
+ */
+#define MEM_ALIGN       16
+
+/* An address that is meant to be all zeros for its length. */
+typedef struct MemZero {
+    /* Name of address to check. */
+    const char* name;
+    /* Address to check. */
+    const void* addr;
+    /* Length of data that must be zero. */
+    size_t len;
+} MemZero;
+
+/* List of addresses to check. */
+static MemZero memZero[WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN];
+/* Next index to place address at.
+ * -1 indicates uninitialized.
+ * If nextIdx is equal to WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN then all entries
+ * have been used.
+ */
+static int nextIdx = -1;
+/* Mutex to protect modifying list of addresses to check. */
+static wolfSSL_Mutex zeroMutex;
+
+/* Initialize the table of addresses and the mutex.
+ */
+void wc_MemZero_Init()
+{
+    /* Clear the table to more easily see what is valid. */
+    XMEMSET(memZero, 0, sizeof(memZero));
+    /* Initialize mutex. */
+    wc_InitMutex(&zeroMutex);
+    /* Next index is first entry. */
+    nextIdx = 0;
+}
+
+/* Free the mutex and check we have not any uncheck addresses.
+ */
+void wc_MemZero_Free()
+{
+    /* Free mutex. */
+    wc_FreeMutex(&zeroMutex);
+    /* Make sure we checked all addresses. */
+    if (nextIdx > 0) {
+        int i;
+        fprintf(stderr, "[MEM_ZERO] Unseen: %d\n", nextIdx);
+        for (i = 0; i < nextIdx; i++) {
+            fprintf(stderr, "  %s - %p:%ld\n", memZero[i].name, memZero[i].addr,
+                memZero[i].len);
+        }
+    }
+    /* Uninitialized value in next index. */
+    nextIdx = -1;
+}
+
+/* Add an address to check.
+ *
+ * @param [in] name  Name of address to check.
+ * @param [in] addr  Address that needs to be checked.
+ * @param [in] len   Length of data that must be zero.
+ */
+void wc_MemZero_Add(const char* name, const void* addr, size_t len)
+{
+    /* Initialize if not done. */
+    if (nextIdx == -1) {
+        wc_MemZero_Init();
+    }
+
+    /* Add an entry to the table while locked. */
+    wc_LockMutex(&zeroMutex);
+    if (nextIdx < WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN) {
+        /* Fill in the next entry and update next index. */
+        memZero[nextIdx].name = name;
+        memZero[nextIdx].addr = addr;
+        memZero[nextIdx].len  = len;
+        nextIdx++;
+    }
+    else {
+        /* Abort when too many entries. */
+        fprintf(stderr, "\n[MEM_ZERO] Too many addresses to check\n");
+        fprintf(stderr, "[MEM_ZERO] WOLFSSL_MEM_CHECK_ZERO_CACHE_LEN\n");
+        abort();
+    }
+    wc_UnLockMutex(&zeroMutex);
+}
+
+/* Check the memory in the range of the address for memory that must be zero.
+ *
+ * @param [in] addr  Start address of memory that is to be checked.
+ * @param [in] len   Length of data associated with address.
+ */
+void wc_MemZero_Check(void* addr, size_t len)
+{
+    int i;
+    size_t j;
+
+    wc_LockMutex(&zeroMutex);
+    /* Look at each address for overlap with address passes in. */
+    for (i = 0; i < nextIdx; i++) {
+        if ((memZero[i].addr < addr) ||
+               ((size_t)memZero[i].addr >= (size_t)addr + len)) {
+            /* Check address not part of memory to check. */
+            continue;
+        }
+
+        /* Address is in range of memory being freed - check each byte zero. */
+        for (j = 0; j < memZero[i].len; j++) {
+            if (((unsigned char*)memZero[i].addr)[j] != 0) {
+                /* Byte not zero - abort! */
+                fprintf(stderr, "\n[MEM_ZERO] %s:%p + %ld is not zero\n",
+                    memZero[i].name, memZero[i].addr, j);
+                fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
+                abort();
+                break;
+            }
+        }
+        /* Update next index to write to. */
+        nextIdx--;
+        if (nextIdx > 0) {
+            /* Remove entry. */
+            XMEMCPY(memZero + i, memZero + i + 1,
+                sizeof(MemZero) * (nextIdx - i));
+            /* Clear out top to make it easier to see what is to be checked. */
+            XMEMSET(&memZero[nextIdx], 0, sizeof(MemZero));
+        }
+        /* Need to check this index again with new data. */
+        i--;
+    }
+    wc_UnLockMutex(&zeroMutex);
+}
+#endif /* WOLFSSL_CHECK_MEM_ZERO */
+
 #ifdef WOLFSSL_DEBUG_MEMORY
 void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line)
 #else
@@ -127,6 +268,11 @@ void* wolfSSL_Malloc(size_t size)
 #endif
 {
     void* res = 0;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Space for requested size. */
+    size += MEM_ALIGN;
+#endif
 
     if (malloc_function) {
     #ifdef WOLFSSL_DEBUG_MEMORY
@@ -149,6 +295,16 @@ void* wolfSSL_Malloc(size_t size)
         WOLFSSL_MSG("No malloc available");
     #endif
     }
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Restore size to requested value. */
+    size -= MEM_ALIGN;
+    if (res != NULL) {
+        /* Place size at front of allocated data and move pointer passed it. */
+        *(size_t*)res = size;
+        res = ((unsigned char*)res) + MEM_ALIGN;
+    }
+#endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
@@ -200,6 +356,13 @@ void wolfSSL_Free(void *ptr)
 #endif
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Move pointer back to originally allocated pointer. */
+    ptr = ((unsigned char*)ptr) - MEM_ALIGN;
+    /* Check that the pointer is zero where required. */
+    wc_MemZero_Check(((unsigned char*)ptr) + MEM_ALIGN, *(size_t*)ptr);
+#endif
+
     if (free_function) {
     #ifdef WOLFSSL_DEBUG_MEMORY
         free_function(ptr, func, line);
@@ -222,6 +385,33 @@ void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int lin
 void* wolfSSL_Realloc(void *ptr, size_t size)
 #endif
 {
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    /* Can't check data that has been freed during realloc.
+     * Manually allocated new memory, copy data and free original pointer.
+     */
+#ifdef WOLFSSL_DEBUG_MEMORY
+    void* res = wolfSSL_Malloc(size, func, line);
+#else
+    void* res = wolfSSL_Malloc(size);
+#endif
+    if (ptr != NULL) {
+        /* Copy the minimum of old and new size. */
+        size_t copySize = *(size_t*)(((unsigned char*)ptr) - MEM_ALIGN);
+        if (size < copySize) {
+            copySize = size;
+        }
+        XMEMCPY(res, ptr, copySize);
+        /* Dispose of old pointer. */
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        wolfSSL_Free(ptr, func, line);
+    #else
+        wolfSSL_Free(ptr);
+    #endif
+    }
+
+    /* Return new pointer with data copied into it. */
+    return res;
+#else
     void* res = 0;
 
     if (realloc_function) {
@@ -240,6 +430,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     }
 
     return res;
+#endif
 }
 #endif /* WOLFSSL_STATIC_MEMORY */
 

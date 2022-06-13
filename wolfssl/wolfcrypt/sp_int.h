@@ -908,6 +908,11 @@ MP_API int sp_lcm(sp_int* a, sp_int* b, sp_int* r);
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+WOLFSSL_LOCAL void sp_memzero_add(const char* name, mp_int* mp);
+WOLFSSL_LOCAL void sp_memzero_check(mp_int* mp);
+#endif
+
 
 /* Map mp functions to SP math versions. */
 /* Different name or signature. */
@@ -998,6 +1003,9 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_prime_is_prime_ex                sp_prime_is_prime_ex
 #define mp_gcd                              sp_gcd
 #define mp_lcm                              sp_lcm
+
+#define mp_memzero_add                      sp_memzero_add
+#define mp_memzero_check                    sp_memzero_check
 
 #ifdef WOLFSSL_DEBUG_MATH
 #define mp_dump(d, a, v)                    sp_print(a, d)

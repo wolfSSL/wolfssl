@@ -5895,4 +5895,16 @@ int mp_lshd (mp_int * a, int b)
   return fp_lshd(a, b);
 }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+void mp_memzero_add(const char* name, mp_int* a)
+{
+    wc_MemZero_Add(name, a->dp, sizeof(a->dp));
+}
+
+void mp_memzero_check(mp_int* a)
+{
+    wc_MemZero_Check(a->dp, sizeof(a->dp));
+}
+#endif /* WOLFSSL_CHECK_MEM_ZERO */
+
 #endif /* USE_FAST_MATH */

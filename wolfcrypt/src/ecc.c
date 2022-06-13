@@ -4418,6 +4418,12 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #endif
         }
         if (err == MP_OKAY) {
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            mp_memzero_add("wc_ecc_shared_secret_gen_sync result->x",
+                result->x);
+            mp_memzero_add("wc_ecc_shared_secret_gen_sync result->y",
+                result->y);
+        #endif
             err = mp_montgomery_setup(curve->prime, &mp);
         }
         if (err == MP_OKAY) {
@@ -4775,6 +4781,9 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 
     /* make up random string */
     err = wc_RNG_GenerateBlock(rng, buf, size);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ecc_gen_k buf", buf, size);
+#endif
 
     /* load random buffer data into k */
     if (err == 0)
@@ -4794,6 +4803,9 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     }
 
     ForceZero(buf, ECC_MAXSIZE_GEN);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(buf, ECC_MAXSIZE_GEN);
+#endif
 
     return err;
 #else
@@ -5489,6 +5501,10 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     key->keyId = -1;
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    mp_memzero_add("ECC k", &key->k);
+#endif
+
     return ret;
 }
 
@@ -5926,7 +5942,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
                                                             DYNAMIC_TYPE_ECC);
         }
 
-        if (key->sign_k) {
+        if (key->sign_k != NULL) {
             /* currently limiting to SHA256 for auto create */
             if (mp_init(key->sign_k) != MP_OKAY ||
                 wc_ecc_gen_deterministic_k(in, inlen,
@@ -5937,6 +5953,11 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
                 key->sign_k = NULL;
                 err = ECC_PRIV_KEY_E;
             }
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            else {
+                mp_memzero_add("deterministic_sign_helper sign_k", key->sign_k);
+            }
+        #endif
         }
         else {
             err = MEMORY_E;
@@ -6001,6 +6022,11 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
         while (err == MP_ZERO_E);
         loop_check = 0;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (err == MP_OKAY) {
+        mp_memzero_add("ecc_sign_hash_sw b", b);
+    }
+#endif
 
     for (; err == MP_OKAY;) {
         if (++loop_check > 64) {
@@ -6046,6 +6072,11 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
             err = _ecc_make_key_ex(rng, key->dp->size, pubkey, key->dp->id,
                     WC_ECC_FLAG_NONE);
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        if (err == MP_OKAY) {
+            mp_memzero_add("ecc_sign_hash_sw k", &pubkey->k);
+        }
+    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* for async do blocking wait here */
         err = wc_AsyncWait(err, &pubkey->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6112,6 +6143,8 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
     mp_forcezero(b);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    mp_memzero_check(b);
 #endif
 
     return err;
@@ -6633,6 +6666,9 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     mp_init(z1); /* always init z1 and free z1 */
     ret = mp_to_unsigned_bin_len(priv, x, qLen);
     if (ret == 0) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_ecc_gen_deterministic_k x", x, qLen);
+    #endif
         qbits = mp_count_bits(order);
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
     }
@@ -6766,6 +6802,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (h1 != NULL)
         XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(x, MAX_ECC_BYTES);
 #endif
 
     return ret;
@@ -6914,6 +6952,10 @@ int wc_ecc_free(ecc_key* key)
 #ifdef WOLFSSL_CUSTOM_CURVES
     if (key->deallocSet && key->dp != NULL)
         wc_ecc_free_curve(key->dp, key->heap);
+#endif
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(ecc_key));
 #endif
 
     return 0;
@@ -7145,6 +7187,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #else
   XMEMSET(precomp, 0, sizeof(ecc_point*) * SHAMIR_PRECOMP_SZ);
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+  wc_MemZero_Add("ecc_mul2add tA", tA, ECC_BUFSIZE);
+  wc_MemZero_Add("ecc_mul2add tB", tB, ECC_BUFSIZE);
+#endif
 
   /* get sizes */
   lenA = mp_unsigned_bin_size(kA);
@@ -7353,6 +7399,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #ifndef WOLFSSL_NO_MALLOC
   XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
   XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+  wc_MemZero_Check(tB, ECC_BUFSIZE);
+  wc_MemZero_Check(tA, ECC_BUFSIZE);
 #endif
   return err;
 }
@@ -11259,6 +11308,10 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    if ((err = mp_copy(k, tk)) != MP_OKAY)
        goto done;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+   mp_memzero_add("accel_fp_mul tk", tk);
+#endif
+
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(k) > mp_unsigned_bin_size(modulus)) {
       /* find order */
@@ -11306,6 +11359,9 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 
    XMEMSET(kb, 0, KB_SIZE);
    if ((err = mp_to_unsigned_bin(tk, kb)) == MP_OKAY) {
+   #ifdef WOLFSSL_CHECK_MEM_ZERO
+      wc_MemZero_Add("accel_fp_mul kb", kb, KB_SIZE);
+   #endif
       /* let's reverse kb so it's little endian */
       x = 0;
       y = mp_unsigned_bin_size(tk);
@@ -11377,6 +11433,9 @@ done:
    XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    XFREE(order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    XFREE(tk, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+   wc_MemZero_Check(kb, KB_SIZE);
+   mp_memzero_check(tk);
 #endif
 
 #undef KB_SIZE
@@ -11460,6 +11519,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
          goto done;
       }
    }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+   mp_memzero_add("accel_fp_mul2add tka", tka);
+#endif
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(kB) > mp_unsigned_bin_size(modulus)) {
@@ -11492,6 +11554,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
          goto done;
       }
    }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+   mp_memzero_add("accel_fp_mul2add tkb", tkb);
+#endif
 
    /* get bitlen and round up to next multiple of FP_LUT */
    bitlen  = mp_unsigned_bin_size(modulus) << 3;
@@ -11519,6 +11584,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
    if ((err = mp_to_unsigned_bin(tka, kb[0])) != MP_OKAY) {
       goto done;
    }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+   wc_MemZero_Add("accel_fp_mul2add kb[0]", kb[0], KB_SIZE);
+#endif
 
    /* let's reverse kb so it's little endian */
    x = 0;
@@ -11541,6 +11609,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #endif
 
    XMEMSET(kb[1], 0, KB_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+   wc_MemZero_Add("accel_fp_mul2add kb[1]", kb[1], KB_SIZE);
+#endif
    if ((err = mp_to_unsigned_bin(tkb, kb[1])) == MP_OKAY) {
       x = 0;
       y = mp_unsigned_bin_size(tkb);
@@ -11639,6 +11710,11 @@ done:
    XFREE(order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    XFREE(tkb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    XFREE(tka, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+   wc_MemZero_Check(kb[1], KB_SIZE);
+   wc_MemZero_Check(kb[0], KB_SIZE);
+   mp_memzero_check(tkb);
+   mp_memzero_check(tka);
 #endif
 
 #undef KB_SIZE

@@ -157,6 +157,9 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
     }
 
     *hashLen = hashSz;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+     wc_MemZero_Add("TLS hasndshake hash", hash, hashSz);
+#endif
 
     if (ret != 0)
         ret = BUILD_MSG_ERROR;
@@ -226,6 +229,8 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     WC_FREE_VAR(handshake_hash, ssl->heap);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(handshake_hash, HSHASH_SZ);
 #endif
 
     return ret;
@@ -530,6 +535,8 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(handshake_hash, HSHASH_SZ);
     #endif
     }
     else

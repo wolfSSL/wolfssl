@@ -39159,7 +39159,12 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
     XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #ifndef WOLFSSL_STATIC_MEMORY
+#ifndef WOLFSSL_CHECK_MEM_ZERO
     if (malloc_cnt != 1 || free_cnt != 1 || realloc_cnt != 1)
+#else
+    /* Checking zeroized memory means realloc is a malloc and free. */
+    if (malloc_cnt != 2 || free_cnt != 2 || realloc_cnt != 0)
+#endif
 #else
     if (malloc_cnt != 0 || free_cnt != 0 || realloc_cnt != 0)
 #endif

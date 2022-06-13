@@ -1870,6 +1870,10 @@ int wc_Des3Init(Des3* des3, void* heap, int devId)
     ret = wolfAsync_DevCtxInit(&des3->asyncDev, WOLFSSL_ASYNC_MARKER_3DES,
                                                         des3->heap, devId);
 #endif
+#if defined(WOLFSSL_CHECK_MEM_ZERO) && (defined(WOLF_CRYPTO_CB) || \
+        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)))
+    wc_MemZero_Add("DES3 devKey", &des3->devKey, sizeof(des3->devKey));
+#endif
 
     return ret;
 }
@@ -1886,6 +1890,9 @@ void wc_Des3Free(Des3* des3)
 #if defined(WOLF_CRYPTO_CB) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES))
     ForceZero(des3->devKey, sizeof(des3->devKey));
+#endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(des3, sizeof(Des3));
 #endif
 }
 
