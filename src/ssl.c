@@ -26916,7 +26916,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
 
 #ifndef NO_BIO
-static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
+static int pem_write_bio_pubkey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 {
     int ret;
     int pemSz;
@@ -27005,14 +27005,14 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 
     pemSz = wc_DerToPem(derBuf, derSz, NULL, 0, PUBLICKEY_TYPE);
     if (pemSz < 0) {
-        WOLFSSL_LEAVE("WriteBioPUBKEY", pemSz);
+        WOLFSSL_LEAVE("pem_write_bio_pubkey", pemSz);
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
 
     pemBuf = (byte*)XMALLOC(pemSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (pemBuf == NULL) {
-        WOLFSSL_LEAVE("WriteBioPUBKEY", pemSz);
+        WOLFSSL_LEAVE("pem_write_bio_pubkey", pemSz);
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
@@ -27020,7 +27020,7 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     ret = wc_DerToPem(derBuf, derSz, pemBuf, pemSz, PUBLICKEY_TYPE);
     XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
     if (ret < 0) {
-        WOLFSSL_LEAVE("WriteBioPUBKEY", ret);
+        WOLFSSL_LEAVE("pem_write_bio_pubkey", ret);
         XFREE(pemBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
@@ -27042,7 +27042,7 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_ENTER("wolfSSL_PEM_write_bio_PUBKEY");
 
-    return WriteBioPUBKEY(bio, key);
+    return pem_write_bio_pubkey(bio, key);
 }
 
 /* Takes a private key and writes it out to a WOLFSSL_BIO
@@ -33605,6 +33605,22 @@ word32 nid2oid(int nid, int grp)
             #ifdef WOLFSSL_SHA512
                 case NID_sha512:
                     return SHA512h;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_224
+                case NID_sha3_224:
+                    return SHA3_224h;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_256
+                case NID_sha3_256:
+                    return SHA3_256h;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_384
+                case NID_sha3_384:
+                    return SHA3_384h;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_512
+                case NID_sha3_512:
+                    return SHA3_512h;
             #endif
             }
             break;

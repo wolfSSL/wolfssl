@@ -16512,7 +16512,7 @@ static WC_INLINE int GetRounds(int pLen, int padLen, int t)
         return VERIFY_MAC_ERROR;
     }
 
-    /* treat any faulure as verify MAC error */
+    /* treat any failure as verify MAC error */
     if (ret != 0)
         ret = VERIFY_MAC_ERROR;
 

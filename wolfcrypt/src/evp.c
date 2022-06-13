@@ -1526,6 +1526,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     ctx->pkey = pkey;
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
+    ctx->md = NULL;
 #endif
 #ifdef HAVE_ECC
     if (pkey->ecc && pkey->ecc->group) {
@@ -1555,6 +1556,26 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding)
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_set_rsa_padding");
     ctx->padding = padding;
+    return WOLFSSL_SUCCESS;
+}
+
+/* Sets the message digest type for RSA padding to use.
+ *
+ * ctx  structure to set padding in.
+ * md   Message digest
+ *
+ * returns WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+    const EVP_MD* md)
+{
+    if (ctx == NULL) return 0;
+    WOLFSSL_ENTER("EVP_PKEY_CTX_set_signature_md");
+#ifndef NO_RSA
+    ctx->md = md;
+#else
+    (void)md;
+#endif
     return WOLFSSL_SUCCESS;
 }
 
@@ -2247,10 +2268,11 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
         }
         /* wolfSSL_RSA_sign_generic_padding performs a check that the output
          * sig buffer is large enough */
-        if (wolfSSL_RSA_sign_generic_padding(WC_HASH_TYPE_NONE, tbs,
-            (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1, ctx->padding)
-            != WOLFSSL_SUCCESS)
+        if (wolfSSL_RSA_sign_generic_padding(wolfSSL_EVP_MD_type(ctx->md), tbs,
+                (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1,
+                ctx->padding) != WOLFSSL_SUCCESS) {
             return WOLFSSL_FAILURE;
+        }
         *siglen = (size_t)usiglen;
         return WOLFSSL_SUCCESS;
     }
