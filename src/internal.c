@@ -244,6 +244,9 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                        const unsigned char* secret, int secretSz, void* ctx);
 #endif
 
+    /* Label string for client random. */
+    #define SSC_CR      "CLIENT_RANDOM"
+
     /*
      * This function builds up string for key-logging then call user's
      * key-log-callback to pass the string for TLS1.2 and older.
@@ -264,8 +267,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         int msSz;
         int hasVal;
         int i;
-        const char* label = "CLIENT_RANDOM";
-        int labelSz = sizeof("CLIENT_RANDOM");
+        const char* label = SSC_CR;
+        int labelSz = sizeof(SSC_CR);
         int buffSz;
         byte* log = NULL;
         word32 outSz;
@@ -297,7 +300,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         /* build up a hex-decoded keylog string
            "CLIENT_RANDOM <hex-encoded client random> <hex-encoded master-secret>"
-           note that each keylog string does not have LF.
+           note that each keylog string does not have CR/LF.
         */
         buffSz  = labelSz + (RAN_LEN * 2) + 1 + ((*secretSz) * 2) + 1;
         log     = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
@@ -307,7 +310,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         XMEMSET(log, 0, buffSz);
         XMEMCPY(log, label, labelSz -1);     /* put label w/o terminator */
-        XMEMSET(log + labelSz - 1, ' ', 1);               /* '\0' -> ' ' */
+        log[labelSz - 1] = ' ';              /* '\0' -> ' ' */
         idx = labelSz;
         outSz = buffSz - idx;
         if ((ret = Base16_Encode(ssl->arrays->clientRandom, RAN_LEN,
@@ -316,8 +319,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
             outSz = buffSz - idx;
 
             if (outSz > 1) {
-                XMEMSET(log + idx, ' ', 1);  /* add space*/
-                idx++;
+                log[idx++] = ' ';  /* add space*/
                 outSz = buffSz - idx;
 
                 if ((ret = Base16_Encode((byte*)secret, *secretSz,
@@ -333,7 +335,24 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         XFREE(log, ssl->heap, DYNAMIC_TYPE_SECRET);
         return ret;
     }
+
 #if defined(WOLFSSL_TLS13)
+
+     /* Label string for client early traffic secret. */
+     #define SSC_TLS13_CETS     "CLIENT_EARLY_TRAFFIC_SECRET"
+     /* Label string for client handshake traffic secret. */
+     #define SSC_TLS13_CHTS     "CLIENT_HANDSHAKE_TRAFFIC_SECRET"
+     /* Label string for server handshake traffic secret. */
+     #define SSC_TLS13_SHTS     "SERVER_HANDSHAKE_TRAFFIC_SECRET"
+     /* Label string for client traffic secret. */
+     #define SSC_TLS13_CTS      "CLIENT_TRAFFIC_SECRET_0"
+     /* Label string for server traffic secret. */
+     #define SSC_TLS13_STS      "SERVER_TRAFFIC_SECRET_0"
+     /* Label string for early exporter secret. */
+     #define SSC_TLS13_EES      "EARLY_EXPORTER_SECRET"
+     /* Label string for exporter secret. */
+     #define SSC_TLS13_ES       "EXPORTER_SECRET"
+
     /*
      * This function builds up string for key-logging then call user's
      * key-log-callback to pass the string for TLS1.3.
@@ -353,10 +372,10 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         const unsigned char* secret, int secretSz, void* ctx)
     {
         wolfSSL_CTX_keylog_cb_func logCb = NULL;
-        char  label[50];
-        int   labelSz = 0;
-        int   buffSz  = 0;
-        byte* log     = NULL;
+        const char* label;
+        int         labelSz = 0;
+        int         buffSz  = 0;
+        byte*       log     = NULL;
         word32 outSz;
         int idx;
         int ret;
@@ -375,51 +394,45 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         switch (id) {
             case CLIENT_EARLY_TRAFFIC_SECRET:
-
-                labelSz = sizeof("CLIENT_EARLY_TRAFFIC_SECRET");
-                XSTRNCPY(label,"CLIENT_EARLY_TRAFFIC_SECRET", labelSz);
+                labelSz = sizeof(SSC_TLS13_CETS);
+                label = SSC_TLS13_CETS;
                 break;
 
             case CLIENT_HANDSHAKE_TRAFFIC_SECRET:
-
-                labelSz = sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET");
-                XSTRNCPY(label, "CLIENT_HANDSHAKE_TRAFFIC_SECRET", labelSz);
+                labelSz = sizeof(SSC_TLS13_CHTS);
+                label = SSC_TLS13_CHTS;
                 break;
 
             case SERVER_HANDSHAKE_TRAFFIC_SECRET:
-
-                labelSz = sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET");
-                XSTRNCPY(label, "SERVER_HANDSHAKE_TRAFFIC_SECRET", labelSz);
+                labelSz = sizeof(SSC_TLS13_SHTS);
+                label = SSC_TLS13_SHTS;
                 break;
 
             case CLIENT_TRAFFIC_SECRET:
-
-                labelSz = sizeof("CLIENT_TRAFFIC_SECRET_0");
-                XSTRNCPY(label, "CLIENT_TRAFFIC_SECRET_0", labelSz);
+                labelSz = sizeof(SSC_TLS13_CTS);
+                label = SSC_TLS13_CTS;
                 break;
 
             case SERVER_TRAFFIC_SECRET:
-
-                labelSz = sizeof("SERVER_TRAFFIC_SECRET_0");
-                XSTRNCPY(label, "SERVER_TRAFFIC_SECRET_0", labelSz);
+                labelSz = sizeof(SSC_TLS13_STS);
+                label = SSC_TLS13_STS;
                 break;
 
             case EARLY_EXPORTER_SECRET:
-
-                labelSz = sizeof("EARLY_EXPORTER_SECRET");
-                XSTRNCPY(label, "EARLY_EXPORTER_SECRET", labelSz);
+                labelSz = sizeof(SSC_TLS13_EES);
+                label = SSC_TLS13_EES;
                 break;
 
             case EXPORTER_SECRET:
-
-                labelSz = sizeof("EXPORTER_SECRET");
-                XSTRNCPY(label, "EXPORTER_SECRET", labelSz);
+                labelSz = sizeof(SSC_TLS13_ES);
+                label = SSC_TLS13_ES;
                 break;
 
             default:
                 return BAD_FUNC_ARG;
         }
-        /* prepare a log string for passing user callback */
+        /* prepare a log string for passing user callback
+         * "<Label> <hex-encoded client random> <hex-encoded secret>" */
         buffSz = labelSz + (RAN_LEN * 2) + 1 + secretSz * 2 + 1;
         log    = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
         if (log == NULL)
@@ -427,18 +440,17 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         XMEMSET(log, 0, buffSz);
         XMEMCPY(log, label, labelSz - 1);     /* put label w/o terminator */
-        XMEMSET(log + labelSz - 1, ' ', 1);               /* '\0' -> ' ' */
+        log[labelSz - 1] = ' ';               /* '\0' -> ' ' */
 
         idx = labelSz;
         outSz = buffSz - idx;
         if ((ret = Base16_Encode(ssl->arrays->clientRandom, RAN_LEN,
                                             log + idx, &outSz)) == 0) {
-            idx  += (outSz -1); /* reduce terminator byte */
+            idx  += (outSz - 1); /* reduce terminator byte */
             outSz = buffSz - idx;
 
             if (outSz >1) {
-                XMEMSET(log + idx, ' ', 1);        /* add space*/
-                idx++;
+                log[idx++] = ' ';        /* add space*/
                 outSz = buffSz - idx;
 
                 if ((ret = Base16_Encode((byte*)secret, secretSz,
