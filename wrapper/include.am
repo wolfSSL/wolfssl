@@ -3,5 +3,6 @@
 # All paths should be given relative to the root
 
 include wrapper/CSharp/include.am
+include wrapper/Golang/include.am
 
 EXTRA_DIST+= wrapper/python/README.md
