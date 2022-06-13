@@ -178,9 +178,9 @@
     #include <android/log.h>
 
     #define printf(...)       \
-                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
+              __android_log_print(ANDROID_LOG_DEBUG, "[WOLFCRYPT]", __VA_ARGS__)
     #define fprintf(fp, ...)  \
-                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
+              __android_log_print(ANDROID_LOG_DEBUG, "[WOLFCRYPT]", __VA_ARGS__)
 
 #else
     #if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
