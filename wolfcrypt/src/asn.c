@@ -22091,7 +22091,7 @@ enum {
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
-                           int with_header)
+                           int with_header, int comp)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret, idx = 0, algoSz, curveSz, bitStringSz;
@@ -22101,7 +22101,10 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     /* public size */
     pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
-    pubSz = 1 + 2 * pubSz;
+    if (comp)
+        pubSz = 1 + pubSz;
+    else
+        pubSz = 1 + 2 * pubSz;
 
     /* check for buffer overflow */
     if (output != NULL && pubSz > (word32)outLen) {
@@ -22144,7 +22147,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     /* pub */
     if (output) {
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, output + idx, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, output + idx, &pubSz, comp);
         PRIVATE_KEY_LOCK();
         if (ret != 0) {
             return ret;
@@ -22168,7 +22171,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if (ret == 0) {
         /* Calculate the size of the encoded public point. */
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, NULL, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
         PRIVATE_KEY_LOCK();
         /* LENGTH_ONLY_E on success. */
         if (ret == LENGTH_ONLY_E) {
@@ -22238,7 +22241,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if ((ret == 0) && (output != NULL)) {
         /* Encode public point. */
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, output, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, output, &pubSz, comp);
         PRIVATE_KEY_LOCK();
     }
     if (ret == 0) {
@@ -22266,12 +22269,18 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {
-    return SetEccPublicKey(output, key, inLen, with_AlgCurve);
+    return SetEccPublicKey(output, key, inLen, with_AlgCurve, 0);
+}
+
+int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 inLen,
+                                                    int with_AlgCurve, int comp)
+{
+    return SetEccPublicKey(output, key, inLen, with_AlgCurve, comp);
 }
 
 int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 {
-    return SetEccPublicKey(NULL, key, 0, with_AlgCurve);
+    return SetEccPublicKey(NULL, key, 0, with_AlgCurve, 0);
 }
 
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
@@ -24131,7 +24140,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif
     #ifdef HAVE_ECC
         case ECC_KEY:
-            ret = SetEccPublicKey(output, eccKey, outLen, 1);
+            ret = SetEccPublicKey(output, eccKey, outLen, 1, 0);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -24811,7 +24820,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (eccKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey,
-                                           sizeof(der->publicKey), 1);
+                                           sizeof(der->publicKey), 1, 0);
     }
 #endif
 
@@ -26066,7 +26075,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
         if (eccKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey,
-                                           sizeof(der->publicKey), 1);
+                                           sizeof(der->publicKey), 1, 0);
     }
 #endif
 
@@ -26799,7 +26808,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifdef HAVE_ECC
     /* ECC public key */
     if (eckey != NULL)
-        bufferSz = SetEccPublicKey(buf, eckey, MAX_PUBLIC_KEY_SZ, 0);
+        bufferSz = SetEccPublicKey(buf, eckey, MAX_PUBLIC_KEY_SZ, 0, 0);
 #endif
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     /* ED25519 public key */

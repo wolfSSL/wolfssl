@@ -22571,6 +22571,17 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-9890, done);
     }
 
+#ifdef HAVE_COMP_KEY
+    /* test export of compressed public key */
+    derSz = wc_EccPublicKeyToDer_ex(userA, der, ECC_BUFSIZE, 1, 1);
+    if (derSz < 0) {
+        ERROR_OUT(derSz, done);
+    }
+    if (derSz == 0) {
+        ERROR_OUT(-9890, done);
+    }
+#endif
+
     ret = SaveDerAndPem(der, derSz, eccPubKeyDerFile, NULL, 0, -8348);
     if (ret != 0) {
         goto done;
