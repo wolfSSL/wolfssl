@@ -2024,7 +2024,7 @@ WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz);
 #ifndef WOLFSSL_ASN_TEMPLATE
-WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx);
 #endif
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
