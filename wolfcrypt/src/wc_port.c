@@ -1332,7 +1332,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
             return BAD_MUTEX_E;
     }
 
-#elif defined(WOLFSSL_KTHREADS)
+#elif defined(WOLFSSL_LINUXKM)
 
     /* Linux kernel mutex routines are voids, alas. */
 

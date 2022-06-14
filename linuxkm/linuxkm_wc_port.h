@@ -59,8 +59,6 @@
           (int)_xatoi_res;                              \
         })
 
-    #define WOLFSSL_KTHREADS
-
     #ifdef BUILDING_WOLFSSL
 
     #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
