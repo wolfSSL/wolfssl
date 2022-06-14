@@ -20,7 +20,7 @@
  */
 
 #ifdef WOLFSSL_USER_SETTINGS
-#include "wolfssl/wolfcrpyt/settings.h"
+#include "wolfssl/wolfcrypt/settings.h"
 #endif
 
 #ifndef HAVE_INTEL_AVX1
