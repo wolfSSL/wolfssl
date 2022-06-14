@@ -16034,7 +16034,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
 
         /* Clear dynamic data items and set OID type expected. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
-        GetASN_OID(&dataASN[KEYPURPOSEIDASN_IDX_OID], oidCertKeyUseType);
+        GetASN_OID(&dataASN[KEYPURPOSEIDASN_IDX_OID], oidIgnoreType);
         /* Decode KeyPurposeId. */
         ret = GetASN_Items(keyPurposeIdASN, dataASN, keyPurposeIdASN_Length, 0,
                            input, &idx, sz);
