@@ -13090,9 +13090,16 @@ int DecodeToKey(DecodedCert* cert, int verify)
         return ret;
 
     /* Determine if self signed */
-    cert->selfSigned = XMEMCMP(cert->issuerHash,
-                               cert->subjectHash,
-                               KEYID_SIZE) == 0 ? 1 : 0;
+#ifdef WOLFSSL_CERT_REQ
+    if (cert->isCSR)
+        cert->selfSigned = 1;
+    else
+#endif
+    {
+        cert->selfSigned = XMEMCMP(cert->issuerHash,
+                                   cert->subjectHash,
+                                   KEYID_SIZE) == 0 ? 1 : 0;
+    }
 
     ret = GetCertKey(cert, cert->source, &cert->srcIdx, cert->maxIdx);
     if (ret != 0)
@@ -18092,8 +18099,15 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     }
     if (ret == 0) {
         /* Determine if self signed by comparing issuer and subject hashes. */
-        cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
-                                   KEYID_SIZE) == 0 ? 1 : 0;
+    #ifdef WOLFSSL_CERT_REQ
+        if (cert->isCSR)
+            cert->selfSigned = 1;
+        else
+    #endif
+        {
+            cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
+                                       KEYID_SIZE) == 0 ? 1 : 0;
+        }
 
         if (stopAtPubKey) {
             /* Return any bad date error through badDateRet and return offset of
@@ -19755,6 +19769,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         #endif /* IGNORE_NAME_CONSTRAINTS */
         }
+#ifdef WOLFSSL_CERT_REQ
+        else if (type == CERTREQ_TYPE) {
+            if ((ret = ConfirmSignature(&cert->sigCtx,
+                    cert->source + cert->certBegin,
+                    cert->sigIndex - cert->certBegin,
+                    cert->publicKey, cert->pubKeySize,
+                    cert->keyOID, cert->signature,
+                    cert->sigLength, cert->signatureOID,
+                    sce_tsip_encRsaKeyIdx)) != 0) {
+                if (ret != WC_PENDING_E) {
+                    WOLFSSL_MSG("Confirm signature failed");
+                }
+                return ret;
+            }
+        }
+#endif
         else {
             /* no signer */
             WOLFSSL_MSG("No CA signer to verify with");

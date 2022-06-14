@@ -30576,7 +30576,7 @@ static void test_wc_GetPubKeyDerFromCert(void)
         XFCLOSE(fp);
 
         wc_InitDecodedCert(&decoded, certBuf, certBufSz, NULL);
-        ret = wc_ParseCert(&decoded, CERTREQ_TYPE, NO_VERIFY, NULL);
+        ret = wc_ParseCert(&decoded, CERTREQ_TYPE, VERIFY, NULL);
         AssertIntEQ(ret, 0);
 
         /* good test case - RSA DER certificate request */
