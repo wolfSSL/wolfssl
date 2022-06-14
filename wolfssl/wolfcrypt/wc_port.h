@@ -219,8 +219,6 @@
         typedef CRITICAL_SECTION wolfSSL_Mutex;
     #elif defined(WOLFSSL_PTHREADS)
         typedef pthread_mutex_t wolfSSL_Mutex;
-    #elif defined(WOLFSSL_KTHREADS)
-        typedef struct mutex wolfSSL_Mutex;
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
     #elif defined(WOLFSSL_DEOS)

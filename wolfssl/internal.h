@@ -199,8 +199,7 @@
 #else
     #ifndef SINGLE_THREADED
         #if defined(WOLFSSL_LINUXKM)
-            #define WOLFSSL_KTHREADS
-            #include <linux/kthread.h>
+            /* setup is in linuxkm/linuxkm_wc_port.h */
         #elif defined(WOLFSSL_USER_MUTEX)
             /* do nothing */
         #else

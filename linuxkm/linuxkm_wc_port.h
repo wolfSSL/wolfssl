@@ -59,10 +59,6 @@
           (int)_xatoi_res;                              \
         })
 
-    #define WOLFSSL_KTHREADS
-
-    typedef struct mutex wolfSSL_Mutex;
-
     #ifdef BUILDING_WOLFSSL
 
     #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
@@ -577,6 +573,13 @@
     #define NO_TIMEVAL 1
 
     #endif /* BUILDING_WOLFSSL */
+
+    /* if BUILDING_WOLFSSL, mutex.h will have already been included recursively
+     * above, with the bevy of warnings suppressed, and the below include will
+     * be a redundant no-op.
+     */
+    #include <linux/mutex.h>
+    typedef struct mutex wolfSSL_Mutex;
 
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
     #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
