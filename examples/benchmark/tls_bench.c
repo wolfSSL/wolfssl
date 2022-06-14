@@ -1199,7 +1199,7 @@ static void* client_thread(void* args)
     ret = bench_tls_client(info);
 
     pthread_cond_signal(&info->to_server.cond);
-    info->to_server.done = 1;
+    info->to_client.done = 1;
     info->client.ret = ret;
 
     return NULL;
@@ -1653,7 +1653,7 @@ static void* server_thread(void* args)
     }
 
     pthread_cond_signal(&info->to_client.cond);
-    info->to_client.done = 1;
+    info->to_server.done = 1;
     info->server.ret = ret;
 
     return NULL;

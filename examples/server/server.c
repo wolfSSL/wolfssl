@@ -2473,7 +2473,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifndef NO_PSK
         const char *defaultCipherList = cipherList;
 
-        wolfSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
+        SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     #ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_psk_server_tls13_callback(ctx, my_psk_server_tls13_cb);
     #endif
