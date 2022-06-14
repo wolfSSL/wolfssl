@@ -17833,7 +17833,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 /* For TLS v1.1 the block size and explcit IV are added to idx,
                  * so it needs to be included in this limit check */
                 if (!IsAtLeastTLSv1_3(ssl->version)
-                        && ssl->curSize - ssl->keys.padSz - 
+                        && ssl->curSize - ssl->keys.padSz -
                             (ssl->buffers.inputBuffer.idx - startIdx)
                                 > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
