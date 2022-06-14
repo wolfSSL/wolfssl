@@ -10500,6 +10500,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
         ret = 0;
     }
 
+#ifndef ONLY_ALT_NAME_VERIFICATION
     if (checkCN == 1) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
                             domainName) == 1) {
@@ -10509,6 +10510,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
             WOLFSSL_MSG("DomainName match on common name failed");
         }
     }
+#endif /* #ifndef ONLY_ALT_NAME_VERIFICATION */
 
     return ret;
 }
@@ -11333,6 +11335,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     }
                 }
             }
+        #ifndef ONLY_ALT_NAME_VERIFICATION
             else {
                 if (args->dCert->subjectCN) {
                     if (MatchDomainName(args->dCert->subjectCN,
@@ -11344,6 +11347,13 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     }
                 }
             }
+        #else /* #ifndef ONLY_ALT_NAME_VERIFICATION */
+            else {
+                if (ret == 0) {
+                    ret = DOMAIN_NAME_MISMATCH;
+                }
+            }
+        #endif /* #ifndef ONLY_ALT_NAME_VERIFICATION */
         }
 
         /* perform IP address check on the peer certificate */
