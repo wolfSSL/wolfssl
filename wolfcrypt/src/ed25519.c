@@ -229,7 +229,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     }
 #endif
 
-    ret  = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
+    ret = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
     if (ret != 0)
         return ret;
 

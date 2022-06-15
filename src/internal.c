@@ -332,6 +332,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
             else
                 ret = MEMORY_E;
         }
+        /* Zero out Base16 encoded secret and other data. */
+        ForceZero(log, buffSz);
         XFREE(log, ssl->heap, DYNAMIC_TYPE_SECRET);
         return ret;
     }
@@ -462,6 +464,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
             else
                 ret = MEMORY_E;
         }
+        /* Zero out Base16 encoded secret and other data. */
+        ForceZero(log, buffSz);
         XFREE(log, ssl->heap, DYNAMIC_TYPE_SECRET);
         return ret;
     }
@@ -2376,6 +2380,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* SINGLE_THREADED */
 
 #ifndef NO_CERTS
+    if (ctx->privateKey != NULL && ctx->privateKey->buffer != NULL) {
+        ForceZero(ctx->privateKey->buffer, ctx->privateKey->length);
+    }
     FreeDer(&ctx->privateKey);
 #ifdef OPENSSL_ALL
     wolfSSL_EVP_PKEY_free(ctx->privateKeyPKey);
@@ -2613,10 +2620,16 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->decrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_CHACHA
+    if (ssl->encrypt.chacha)
+        ForceZero(ssl->encrypt.chacha, sizeof(ChaCha));
+    if (ssl->decrypt.chacha)
+        ForceZero(ssl->decrypt.chacha, sizeof(ChaCha));
     XFREE(ssl->encrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
+    if (ssl->auth.poly1305)
+        ForceZero(ssl->auth.poly1305, sizeof(Poly1305));
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
@@ -6238,6 +6251,7 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     #if (defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
                                                 !defined(WOLFSSL_NO_CLIENT_AUTH)
         if (ssl->hsHashes->messages != NULL) {
+            ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
             XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
             ssl->hsHashes->messages = NULL;
          }
@@ -6728,7 +6742,7 @@ void FreeArrays(WOLFSSL* ssl, int keep)
             ssl->session->sessionIDSz = ssl->arrays->sessionIDSz;
         }
         if (ssl->arrays->preMasterSecret) {
-            ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+            ForceZero(ssl->arrays->preMasterSecret, ENCRYPT_LEN);
             XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
             ssl->arrays->preMasterSecret = NULL;
         }
@@ -7107,7 +7121,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     ssl->clientFinished_len = 0;
 #endif
 #ifndef NO_DH
-    if (ssl->buffers.serverDH_Priv.buffer) {
+    if (ssl->buffers.serverDH_Priv.buffer != NULL) {
         ForceZero(ssl->buffers.serverDH_Priv.buffer,
                                              ssl->buffers.serverDH_Priv.length);
     }
@@ -7135,6 +7149,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+    if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
+        ForceZero(ssl->buffers.tls13CookieSecret.buffer,
+            ssl->buffers.tls13CookieSecret.length);
+    }
     XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
@@ -7148,6 +7166,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
 #ifndef NO_WOLFSSL_SERVER
+    if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
+        ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
+            ssl->buffers.dtlsCookieSecret.length);
+    }
     XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
@@ -8607,11 +8629,15 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
     byte* msgs;
 
     if (ssl->options.cacheMessages) {
-        msgs = (byte*)XREALLOC(ssl->hsHashes->messages,
-                                                ssl->hsHashes->length + sz,
-                                                ssl->heap, DYNAMIC_TYPE_HASHES);
+        msgs = (byte*)XMALLOC(ssl->hsHashes->length + sz, ssl->heap,
+            DYNAMIC_TYPE_HASHES);
         if (msgs == NULL)
             ret = MEMORY_E;
+        if ((ret == 0) && (ssl->hsHashes->messages != NULL)) {
+            XMEMCPY(msgs, ssl->hsHashes->messages, ssl->hsHashes->length);
+            ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
+            XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
+        }
         if (ret == 0) {
             ssl->hsHashes->messages = msgs;
             XMEMCPY(msgs + ssl->hsHashes->length, data, sz);
@@ -9105,6 +9131,11 @@ retry:
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
+    if (IsEncryptionOn(ssl, 0)) {
+        ForceZero(ssl->buffers.outputBuffer.buffer -
+            ssl->buffers.outputBuffer.offset,
+            ssl->buffers.outputBuffer.bufferSize);
+    }
     XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
@@ -9125,11 +9156,17 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 
     WOLFSSL_MSG("Shrinking input buffer");
 
-    if (!forcedFree && usedLength > 0)
+    if (!forcedFree && usedLength > 0) {
         XMEMCPY(ssl->buffers.inputBuffer.staticBuffer,
                ssl->buffers.inputBuffer.buffer + ssl->buffers.inputBuffer.idx,
                usedLength);
+    }
 
+    if (IsEncryptionOn(ssl, 1) || forcedFree) {
+        ForceZero(ssl->buffers.inputBuffer.buffer -
+            ssl->buffers.inputBuffer.offset,
+            ssl->buffers.inputBuffer.bufferSize);
+    }
     XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
@@ -9267,10 +9304,16 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
                ssl->buffers.outputBuffer.length);
 
-    if (ssl->buffers.outputBuffer.dynamicFlag)
+    if (ssl->buffers.outputBuffer.dynamicFlag) {
+        if (IsEncryptionOn(ssl, 0)) {
+            ForceZero(ssl->buffers.outputBuffer.buffer -
+                ssl->buffers.outputBuffer.offset,
+                ssl->buffers.outputBuffer.bufferSize);
+        }
         XFREE(ssl->buffers.outputBuffer.buffer -
               ssl->buffers.outputBuffer.offset, ssl->heap,
               DYNAMIC_TYPE_OUT_BUFFER);
+    }
     ssl->buffers.outputBuffer.dynamicFlag = 1;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
@@ -9341,9 +9384,15 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
         XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
                     ssl->buffers.inputBuffer.idx, usedLength);
 
-    if (ssl->buffers.inputBuffer.dynamicFlag)
+    if (ssl->buffers.inputBuffer.dynamicFlag) {
+        if (IsEncryptionOn(ssl, 1)) {
+            ForceZero(ssl->buffers.inputBuffer.buffer -
+                ssl->buffers.inputBuffer.offset,
+                ssl->buffers.inputBuffer.bufferSize);
+        }
         XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
-              ssl->heap,DYNAMIC_TYPE_IN_BUFFER);
+              ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    }
 
     ssl->buffers.inputBuffer.dynamicFlag = 1;
 #if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
@@ -14406,6 +14455,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             {
                 ssl->options.cacheMessages = 0;
                 if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
+                    ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
                     XFREE(ssl->hsHashes->messages, ssl->heap,
                         DYNAMIC_TYPE_HASHES);
                     ssl->hsHashes->messages = NULL;
@@ -14492,6 +14542,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             {
                 ssl->options.cacheMessages = 0;
                 if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
+                    ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
                     XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
                     ssl->hsHashes->messages = NULL;
                 }
@@ -15423,6 +15474,7 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     /* set the counter after getting poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+        ForceZero(poly, sizeof(poly));
         return ret;
     }
     ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
@@ -15589,6 +15641,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     /* set counter after getting poly1305 key */
     if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1)) != 0) {
         ForceZero(nonce, CHACHA20_NONCE_SZ);
+        ForceZero(poly, sizeof(poly));
         return ret;
     }
     ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
@@ -31485,8 +31538,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (idSz == 0) {
                 ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
                                            ID_LEN);
-                if (ret != 0)
+                if (ret != 0) {
+                    ForceZero(&it, sizeof(it));
                     return ret;
+                }
                 ssl->session->haveAltSessionID = 1;
                 id = ssl->session->altSessionID;
                 idSz = ID_LEN;
@@ -31510,6 +31565,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
 #endif
                         ) {
+            ForceZero(&it, sizeof(it));
             ret = WOLFSSL_TICKET_RET_FATAL;
         }
         else {
@@ -31520,6 +31576,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen, ssl->ctx->ticketEncCtx);
             if (ret != WOLFSSL_TICKET_RET_OK) {
+                ForceZero(&it, sizeof(it));
                 ForceZero(et->enc_ticket, sizeof(it));
             }
         }

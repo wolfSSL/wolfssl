@@ -297,6 +297,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
             info->iv);
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
 
+    ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
@@ -354,6 +355,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
             info->iv);
 #endif /* !NO_AES && HAVE_AES_CBC */
 
+    ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif

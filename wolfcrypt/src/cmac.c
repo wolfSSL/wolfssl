@@ -242,6 +242,9 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     }
 
 #if defined(WOLFSSL_HASH_KEEP)
+    /* TODO: msg is leaked if wc_CmacFinal() is not called
+     * e.g. when multiple calls to wc_CmacUpdate() and one fails but
+     * wc_CmacFinal() not called. */
     if (cmac->msg != NULL) {
         XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
         cmac->msg = NULL;

@@ -1258,12 +1258,14 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
                         WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
         if (ret != 0)
             goto end;
+        i += ssl->specs.iv_size;
     }
 
     /* Store keys and IVs but don't activate them. */
     ret = StoreKeys(ssl, key_dig, provision);
 
 end:
+    ForceZero(key_dig, i);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #endif
@@ -2051,8 +2053,10 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
         return ret;
+    }
 
     /* Set key for Poly1305. */
     ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
@@ -3003,7 +3007,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
      */
     while (current != NULL) {
         if ((ret = SetupPskKey(ssl, current, 1)) != 0)
-            return ret;
+            break;
 
     #ifdef HAVE_SESSION_TICKET
         if (current->resumption)
@@ -3014,22 +3018,26 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
             ret = DeriveBinderKey(ssl, binderKey);
     #endif
         if (ret != 0)
-            return ret;
+            break;
 
         /* Derive the Finished message secret. */
         ret = DeriveFinishedSecret(ssl, binderKey,
                                              ssl->keys.client_write_MAC_secret);
         if (ret != 0)
-            return ret;
+            break;
 
         /* Build the HMAC of the handshake message data = binder. */
         ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret,
             current->binder, &current->binderLen);
         if (ret != 0)
-            return ret;
+            break;
 
         current = current->next;
     }
+
+    ForceZero(binderKey, sizeof(binderKey));
+    if (ret != 0)
+        return ret;
 
     /* Data entered into extension, now write to message. */
     ret = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data, output + idx,
@@ -8407,6 +8415,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                IsAtLeastTLSv1_3(ssl->version)) {
             ssl->options.cacheMessages = 0;
             if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
+                ForceZero(ssl->hsHashes->messages, ssl->hsHashes->length);
                 XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
                 ssl->hsHashes->messages = NULL;
             }

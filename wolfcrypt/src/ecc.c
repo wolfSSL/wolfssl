@@ -4438,6 +4438,8 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         }
         *outlen = x;
 
+        mp_forcezero(result->x);
+        mp_forcezero(result->y);
         wc_ecc_del_point_ex(result, private_key->heap);
 
         wc_ecc_curve_free(curve);
@@ -4762,7 +4764,8 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     int err;
     byte buf[ECC_MAXSIZE_GEN];
 
-    if (rng == NULL || size > ECC_MAXSIZE_GEN || k == NULL || order == NULL) {
+    if (rng == NULL || size + 8 > ECC_MAXSIZE_GEN || k == NULL ||
+                                                                order == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -4790,7 +4793,7 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
           err = MP_ZERO_E;
     }
 
-    ForceZero(buf, ECC_MAXSIZE);
+    ForceZero(buf, ECC_MAXSIZE_GEN);
 
     return err;
 #else
@@ -6106,7 +6109,7 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
      #endif
          mp_forcezero(&pubkey->k);
     }
-    mp_clear(b);
+    mp_forcezero(b);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
 #endif
@@ -6751,6 +6754,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         } while (ret == 0 && err != 0);
     }
 
+    ForceZero(x, MAX_ECC_BYTES);
 #ifdef WOLFSSL_SMALL_STACK
     if (z1 != NULL)
         XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
@@ -11367,7 +11371,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 done:
    /* cleanup */
    mp_clear(order);
-   mp_clear(tk);
+   mp_forcezero(tk);
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
@@ -11616,8 +11620,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
 done:
    /* cleanup */
-   mp_clear(tkb);
-   mp_clear(tka);
+   mp_forcezero(tkb);
+   mp_forcezero(tka);
    mp_clear(order);
 
 #ifdef WOLFSSL_SMALL_STACK

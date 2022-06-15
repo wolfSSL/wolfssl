@@ -31230,7 +31230,7 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
     if (req == NULL)
         return BAD_FUNC_ARG;
 
-    ForceZero(req, sizeof(OcspRequest));
+    XMEMSET(req, 0, sizeof(OcspRequest));
     req->heap = heap;
 
     if (cert) {

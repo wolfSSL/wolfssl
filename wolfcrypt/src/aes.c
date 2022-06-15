@@ -4454,8 +4454,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 XTRANSFORM_AESCTRBLOCK(aes, out, in);
             #else
                 ret = wc_AesEncrypt(aes, (byte*)aes->reg, scratch);
-                if (ret != 0)
+                if (ret != 0) {
+                    ForceZero(scratch, AES_BLOCK_SIZE);
                     return ret;
+                }
                 xorbuf(scratch, in, AES_BLOCK_SIZE);
                 XMEMCPY(out, scratch, AES_BLOCK_SIZE);
             #endif
@@ -4471,8 +4473,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* handle non block size remaining and store unused byte count in left */
             if (sz) {
                 ret = wc_AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->tmp);
-                if (ret != 0)
+                if (ret != 0) {
+                    ForceZero(scratch, AES_BLOCK_SIZE);
                     return ret;
+                }
                 IncrementAesCounter((byte*)aes->reg);
 
                 aes->left = AES_BLOCK_SIZE;
@@ -4718,8 +4722,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
-    if (aes == NULL)
+    if (aes == NULL) {
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+        ForceZero(local, sizeof(local));
+#endif
         return BAD_FUNC_ARG;
+    }
 
 #ifdef OPENSSL_EXTRA
     XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
@@ -10186,18 +10194,26 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     ret = wc_AesEncrypt(aes, B, A);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(B, sizeof(B));
         return ret;
+    }
 
     if (authInSz > 0) {
         ret = roll_auth(aes, authIn, authInSz, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
     }
     if (inSz > 0) {
         ret = roll_x(aes, in, inSz, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
     }
     XMEMCPY(authTag, A, authTagSz);
 
@@ -10205,8 +10221,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     ret = wc_AesEncrypt(aes, B, A);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(A, sizeof(A));
+        ForceZero(B, sizeof(B));
         return ret;
+    }
     xorbuf(authTag, A, authTagSz);
 
     B[15] = 1;
@@ -10233,8 +10252,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif
     while (inSz >= AES_BLOCK_SIZE) {
         ret = wc_AesEncrypt(aes, B, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(out, A, AES_BLOCK_SIZE);
 
@@ -10245,14 +10267,17 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     if (inSz > 0) {
         ret = wc_AesEncrypt(aes, B, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
         xorbuf(A, in, inSz);
         XMEMCPY(out, A, inSz);
     }
 
-    ForceZero(A, AES_BLOCK_SIZE);
-    ForceZero(B, AES_BLOCK_SIZE);
+    ForceZero(A, sizeof(A));
+    ForceZero(B, sizeof(B));
 
     return 0;
 }
@@ -10334,8 +10359,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif
     while (oSz >= AES_BLOCK_SIZE) {
         ret = wc_AesEncrypt(aes, B, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(o, A, AES_BLOCK_SIZE);
 
@@ -10346,8 +10374,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
     if (inSz > 0) {
         ret = wc_AesEncrypt(aes, B, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
         xorbuf(A, in, oSz);
         XMEMCPY(o, A, oSz);
     }
@@ -10355,8 +10386,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     ret = wc_AesEncrypt(aes, B, A);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(A, sizeof(A));
+        ForceZero(B, sizeof(B));
         return ret;
+    }
 
     o = out;
     oSz = inSz;
@@ -10371,26 +10405,38 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     ret = wc_AesEncrypt(aes, B, A);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(A, sizeof(A));
+        ForceZero(B, sizeof(B));
         return ret;
+    }
 
     if (authInSz > 0) {
         ret = roll_auth(aes, authIn, authInSz, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
     }
     if (inSz > 0) {
         ret = roll_x(aes, o, oSz, A);
-        if (ret != 0)
+        if (ret != 0) {
+            ForceZero(A, sizeof(A));
+            ForceZero(B, sizeof(B));
             return ret;
+        }
     }
 
     B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     ret = wc_AesEncrypt(aes, B, B);
-    if (ret != 0)
+    if (ret != 0) {
+        ForceZero(A, sizeof(A));
+        ForceZero(B, sizeof(B));
         return ret;
+    }
     xorbuf(A, B, authTagSz);
 
     if (ConstantCompare(A, authTag, authTagSz) != 0) {
@@ -10407,8 +10453,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ret = AES_CCM_AUTH_E;
     }
 
-    ForceZero(A, AES_BLOCK_SIZE);
-    ForceZero(B, AES_BLOCK_SIZE);
+    ForceZero(A, sizeof(A));
+    ForceZero(B, sizeof(B));
     o = NULL;
 
     return ret;
