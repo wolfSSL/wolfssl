@@ -52724,7 +52724,9 @@ static void test_wolfSSL_PEM_write_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
+#ifndef NO_AES
     unsigned char passwd[] = "password";
+#endif
 
     printf(testingFmt, "wolfSSL_PEM_write_RSAPrivateKey");
 
@@ -52744,11 +52746,12 @@ static void test_wolfSSL_PEM_write_RSAPrivateKey(void)
 
     AssertIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stdout, rsa, NULL, NULL, 0,
         NULL, NULL), 1);
+#ifndef NO_AES
     AssertIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stdout, rsa, EVP_aes_128_cbc(),
         NULL, 0, NULL, NULL), 1);
     AssertIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stdout, rsa, EVP_aes_128_cbc(),
         passwd, sizeof(passwd) - 1, NULL, NULL), 1);
-
+#endif
     RSA_free(rsa);
 
     printf(resultFmt, passed);
@@ -52769,7 +52772,9 @@ static void test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
+#ifndef NO_AES
     unsigned char passwd[] = "password";
+#endif
     unsigned char* pem;
     int plen;
 
@@ -52794,12 +52799,14 @@ static void test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
     AssertIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, NULL, NULL, 0, &pem,
         &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
+#ifndef NO_AES
     AssertIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, EVP_aes_128_cbc(),
         NULL, 0, &pem, &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     AssertIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, EVP_aes_128_cbc(),
         passwd, sizeof(passwd) - 1, &pem, &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
+#endif
 
     RSA_free(rsa);
 
