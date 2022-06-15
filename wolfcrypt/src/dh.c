@@ -1754,7 +1754,7 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
         }
     }
 
-    mp_clear(x);
+    mp_forcezero(x);
     mp_clear(q);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(q, key->heap, DYNAMIC_TYPE_DH);
@@ -2113,7 +2113,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     if (ret == 0)
         *agreeSz = mp_unsigned_bin_size(z);
 
-    mp_clear(z);
+    mp_forcezero(z);
     mp_clear(y);
     mp_forcezero(x);
 
@@ -2299,7 +2299,7 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
             mp_clear(&key->pub);
             havePub = 0;
             if (havePriv) {
-                mp_clear(&key->priv);
+                mp_forcezero(&key->priv);
                 havePriv = 0; /* set to 0 to error out with failed read pub */
             }
         } else {

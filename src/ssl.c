@@ -6228,7 +6228,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
     else if (type == CERT_TYPE) {
-        if (ssl) {
+        if (ssl != NULL) {
              /* Make sure previous is free'd */
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
@@ -6243,7 +6243,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
             ssl->buffers.weOwnCert = 1;
         }
-        else if (ctx) {
+        else if (ctx != NULL) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
         #ifdef KEEP_OUR_CERT
             if (ctx->ourCert) {
@@ -6256,15 +6256,19 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
     else if (type == PRIVATEKEY_TYPE) {
-        if (ssl) {
+        if (ssl != NULL) {
              /* Make sure previous is free'd */
             if (ssl->buffers.weOwnKey) {
+                ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
                 FreeDer(&ssl->buffers.key);
             }
             ssl->buffers.key = der;
             ssl->buffers.weOwnKey = 1;
         }
-        else if (ctx) {
+        else if (ctx != NULL) {
+            if (ctx->privateKey != NULL && ctx->privateKey->buffer != NULL) {
+                ForceZero(ctx->privateKey->buffer, ctx->privateKey->length);
+            }
             FreeDer(&ctx->privateKey);
             ctx->privateKey = der;
         }
@@ -6308,6 +6312,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 ret = ToTraditionalEnc(der->buffer, der->length,
                                        password, passwordSz, &algId);
                 if (ret >= 0) {
+                    ForceZero(der->buffer + ret, der->length - ret);
                     der->length = ret;
                 }
                 /* ignore failures and try parsing as unencrypted */
@@ -14971,6 +14976,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
+            ForceZero(ssl->buffers.key->buffer, ssl->buffers.key->length);
             FreeDer(&ssl->buffers.key);
             ssl->buffers.weOwnKey = 0;
         }
@@ -19687,6 +19693,11 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
     wolfSSL_CRYPTO_cleanup_ex_data(&session->ex_data);
 #endif
+
+    /* Make sure masterSecret is zeroed. */
+    ForceZero(session->masterSecret, SECRET_LEN);
+    /* Session ID is sensitive information too. */
+    ForceZero(session->sessionID, ID_LEN);
 
     if (session->type == WOLFSSL_SESSION_TYPE_HEAP) {
         XFREE(session, session->heap, DYNAMIC_TYPE_SESSION);

@@ -571,15 +571,17 @@ int wc_FreeRsaKey(RsaKey* key)
         mp_forcezero(&key->p);
         mp_forcezero(&key->d);
     }
-    /* private part */
+    else {
+        /* private part */
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-    mp_clear(&key->u);
-    mp_clear(&key->dQ);
-    mp_clear(&key->dP);
+        mp_clear(&key->u);
+        mp_clear(&key->dQ);
+        mp_clear(&key->dP);
 #endif
-    mp_clear(&key->q);
-    mp_clear(&key->p);
-    mp_clear(&key->d);
+        mp_clear(&key->q);
+        mp_clear(&key->p);
+        mp_clear(&key->d);
+    }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     /* public part */
@@ -825,7 +827,6 @@ int wc_CheckRsaKey(RsaKey* key)
     }
 
     mp_forcezero(tmp);
-    mp_clear(tmp);
 
     RESTORE_VECTOR_REGISTERS();
 
@@ -1213,6 +1214,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         idx++;
     }
 
+    /* Zeroize masking bytes so that padding can't be unmasked. */
+    ForceZero(seed, hLen);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
         XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
@@ -1541,7 +1544,6 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte* tmp  = NULL;
 #else
     byte tmp[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
-    XMEMSET(tmp, 0, RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ);
 #endif
     /* no label is allowed, but catch if no label provided and length > 0 */
     if (optLabel == NULL && labelLen > 0) {
@@ -1578,6 +1580,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* get dbMask value */
     if ((ret = RsaMGF(mgf, tmp, hLen, tmp + hLen,
                                        pkcsBlockLen - hLen - 1, heap)) != 0) {
+        ForceZero(tmp, hLen);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmp, NULL, DYNAMIC_TYPE_RSA_BUFFER);
 #endif
@@ -1589,6 +1592,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         pkcsBlock[hLen + 1 + idx] = pkcsBlock[hLen + 1 + idx] ^ tmp[idx + hLen];
     }
 
+    ForceZero(tmp, pkcsBlockLen);
 #ifdef WOLFSSL_SMALL_STACK
     /* done with use of tmp buffer */
     XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
@@ -2611,11 +2615,14 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 if (tmpa != NULL)
             #endif
                 {
-                    if (cleara)
-                        mp_clear(tmpa);
-                    if (clearb)
-                        mp_clear(tmpb);
+                    if (cleara) {
+                        mp_forcezero(tmpa);
+                    }
+                    if (clearb) {
+                        mp_forcezero(tmpb);
+                    }
             #ifdef WOLFSSL_SMALL_STACK
+                    /* tmpb is allocated after tmpa. */
                     XFREE(tmpa, key->heap, DYNAMIC_TYPE_RSA);
             #endif
                 }
@@ -2659,14 +2666,14 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     *outLen = inLen;
 #endif
 
-    mp_clear(tmp);
+    mp_forcezero(tmp);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
 #endif
 #ifdef WC_RSA_BLINDING
     if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
-        mp_clear(rndi);
-        mp_clear(rnd);
+        mp_forcezero(rndi);
+        mp_forcezero(rnd);
     }
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(rnd, key->heap, DYNAMIC_TYPE_RSA);
@@ -4201,7 +4208,7 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (d != NULL) {
-        mp_clear(d);
+        mp_forcezero(d);
         XFREE(d, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
     if (c != NULL) {
@@ -4209,7 +4216,7 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
         XFREE(c, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
 #else
-    mp_clear(d);
+    mp_forcezero(d);
     mp_clear(c);
 #endif
 
@@ -4360,7 +4367,7 @@ notOkay:
 
 #ifdef WOLFSSL_SMALL_STACK
     if (tmp1 != NULL) {
-        mp_clear(tmp1);
+        mp_forcezero(tmp1);
         XFREE(tmp1, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
     if (tmp2 != NULL) {
@@ -4368,7 +4375,7 @@ notOkay:
         XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
     }
 #else
-    mp_clear(tmp1);
+    mp_forcezero(tmp1);
     mp_clear(tmp2);
 #endif
 
@@ -4438,11 +4445,11 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (p != NULL) {
-        mp_clear(p);
+        mp_forcezero(p);
         XFREE(p, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
     if (q != NULL) {
-        mp_clear(q);
+        mp_forcezero(q);
         XFREE(q, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
     if (e != NULL) {
@@ -4450,8 +4457,8 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
         XFREE(e, NULL, DYNAMIC_TYPE_RSA_BUFFER);
     }
 #else
-    mp_clear(p);
-    mp_clear(q);
+    mp_forcezero(p);
+    mp_forcezero(q);
     mp_clear(e);
 #endif
 
@@ -4749,7 +4756,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_sub_d(p, 2, tmp3);
     if (err == MP_OKAY)                /* key->u = 1/q mod p = q^p-2 mod p */
-        err = mp_exptmod(q, tmp3 , p, &key->u);
+        err = mp_exptmod(q, tmp3, p, &key->u);
 #endif
     if (err == MP_OKAY)
         err = mp_copy(p, &key->p);
@@ -4781,11 +4788,14 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     RESTORE_VECTOR_REGISTERS();
 
-    mp_clear(tmp1);
-    mp_clear(tmp2);
-    mp_clear(tmp3);
-    mp_clear(p);
-    mp_clear(q);
+    /* Last value p - 1. */
+    mp_forcezero(tmp1);
+    /* Last value q - 1. */
+    mp_forcezero(tmp2);
+    /* Last value p - 2. */
+    mp_forcezero(tmp3);
+    mp_forcezero(p);
+    mp_forcezero(q);
 
 #ifndef WOLFSSL_NO_RSA_KEY_CHECK
     /* Perform the pair-wise consistency test on the new key. */

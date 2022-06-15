@@ -170,21 +170,24 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     int ret;
     const byte* side = NULL;
     word32 hashSz = HSHASH_SZ;
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+#if !defined(WOLFSSL_ASYNC_CRYPT) || defined(WC_ASYNC_NO_HASH)
+    byte handshake_hash[HSHASH_SZ];
+#else
     WC_DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
     if (handshake_hash == NULL)
         return MEMORY_E;
-#else
-    byte handshake_hash[HSHASH_SZ];
 #endif
 
     ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
     if (ret == 0) {
-        if (XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
+        if (XSTRNCMP((const char*)sender, (const char*)client,
+                                                          SIZEOF_SENDER) == 0) {
             side = tls_client;
-        else if (XSTRNCMP((const char*)sender, (const char*)server, SIZEOF_SENDER)
-                 == 0)
+        }
+        else if (XSTRNCMP((const char*)sender, (const char*)server,
+                                                          SIZEOF_SENDER) == 0) {
             side = tls_server;
+        }
         else {
             ret = BAD_FUNC_ARG;
             WOLFSSL_MSG("Unexpected sender value");
@@ -210,6 +213,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                    ssl->heap, ssl->devId);
             PRIVATE_KEY_LOCK();
         }
+        ForceZero(handshake_hash, hashSz);
 #else
         /* Pseudo random function must be enabled in the configuration. */
         ret = PRF_MISSING;
@@ -401,12 +405,12 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
                                void* heap, int devId)
 {
     int ret;
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+#if !defined(WOLFSSL_ASYNC_CRYPT) || defined(WC_ASYNC_NO_HASH)
+    byte seed[SEED_LEN];
+#else
     WC_DECLARE_VAR(seed, byte, SEED_LEN, heap);
     if (seed == NULL)
         return MEMORY_E;
-#else
-    byte seed[SEED_LEN];
 #endif
 
     XMEMCPY(seed,           cr, RAN_LEN);
@@ -521,6 +525,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
                 handshake_hash, hashSz,
                 IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                 ssl->heap, ssl->devId);
+            ForceZero(handshake_hash, hashSz);
         }
 
     #ifdef WOLFSSL_SMALL_STACK

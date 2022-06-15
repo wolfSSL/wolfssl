@@ -7804,6 +7804,7 @@ static int aes_key_size_test(void)
     ret = 0; /* success */
   out:
 
+    wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
