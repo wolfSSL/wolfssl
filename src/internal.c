@@ -15027,6 +15027,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return INCOMPLETE_DATA;
     }
 
+    /* check that the fragment is contained in the message */
+    if (fragOffset + fragSz > size) {
+        WOLFSSL_ERROR(LENGTH_ERROR);
+        return LENGTH_ERROR;
+    }
+
     if (type == finished && ssl->keys.dtls_peer_handshake_number >=
                             ssl->keys.dtls_expected_peer_handshake_number &&
                             ssl->keys.curEpoch == ssl->keys.dtls_epoch) {
@@ -15099,7 +15105,17 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
         }
         else {
-            ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+            if (fragSz < size) {
+                /* a fragmented ClientHello, very probably forged or
+                   erroneous. Even if the packet is valid, we don't want to save
+                   state while processing a ClientHello to avoid DoS attacks */
+                WOLFSSL_MSG("Ignoring datagram with fragmented ClientHello");
+                *inOutIdx = totalSz;
+            }
+            else {
+                ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size,
+                    totalSz);
+            }
         }
     }
     else if (ssl->keys.dtls_peer_handshake_number <
@@ -15142,6 +15158,13 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * be pointing to the message with this fragment in it. Check it to see
          * if it is completed. */
         WOLFSSL_MSG("Branch is in order, but fragmented");
+
+        if (type == client_hello) {
+            WOLFSSL_MSG("Ignoring datagram with fragmented ClientHello");
+            *inOutIdx = totalSz;
+            return 0;
+        }
+
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
