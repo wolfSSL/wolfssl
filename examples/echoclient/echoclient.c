@@ -138,7 +138,11 @@ void echoclient_test(void* args)
 #endif
 
 #if defined(CYASSL_DTLS)
+    #ifdef WOLFSSL_DTLS13
+    method = wolfDTLSv1_3_client_method();
+    #elif !defined(WOLFSSL_NO_TLS12)
     method  = DTLSv1_2_client_method();
+    #endif
 #elif !defined(NO_TLS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
     method = CyaTLSv1_2_client_method();

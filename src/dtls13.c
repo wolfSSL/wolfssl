@@ -372,7 +372,7 @@ static int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         if (ret != 0)
             break;
 
-        Dtls13MsgWasProcessed(ssl, msg->type);
+        Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
 
         ssl->dtls_rx_msg_list = msg->next;
         DtlsMsgDelete(msg, ssl->heap);
@@ -814,7 +814,8 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
     byte* output;
     int ret;
 
-    isEncrypted = Dtls13TypeIsEncrypted(ssl->dtls13FragHandshakeType);
+    isEncrypted = Dtls13TypeIsEncrypted(
+        (enum HandShakeType)ssl->dtls13FragHandshakeType);
     rlHeaderLength = Dtls13GetRlHeaderLength(isEncrypted);
     maxFragment = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
 
@@ -840,8 +841,8 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
             ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
 
         ret = Dtls13HandshakeAddHeaderFrag(ssl, output + rlHeaderLength,
-            ssl->dtls13FragHandshakeType, ssl->dtls13FragOffset, fragLength,
-            ssl->dtls13MessageLength);
+            (enum HandShakeType)ssl->dtls13FragHandshakeType,
+            ssl->dtls13FragOffset, fragLength, ssl->dtls13MessageLength);
         if (ret != 0) {
             Dtls13FreeFragmentsBuffer(ssl);
             return ret;
@@ -851,7 +852,8 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
             ssl->dtls13FragmentsBuffer.buffer + ssl->dtls13FragOffset,
             fragLength);
 
-        ret = Dtls13SendOneFragmentRtx(ssl, ssl->dtls13FragHandshakeType,
+        ret = Dtls13SendOneFragmentRtx(ssl,
+            (enum HandShakeType)ssl->dtls13FragHandshakeType,
             recordLength + MAX_MSG_EXTRA, output, recordLength, 0);
         if (ret == WANT_WRITE) {
             ssl->dtls13FragOffset += fragLength;
@@ -1321,7 +1323,8 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
 
         ret = Dtls13SendFragment(ssl, output, sendSz, r->length + headerLength,
-            r->handshakeType, 0, isLast || !ssl->options.groupMessages);
+            (enum HandShakeType)r->handshakeType, 0,
+            isLast || !ssl->options.groupMessages);
         if (ret != 0 && ret != WANT_WRITE)
             return ret;
 
@@ -1385,7 +1388,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     if (frag_off + frag_length > message_length)
         return BUFFER_ERROR;
 
-    ret = Dtls13RtxMsgRecvd(ssl, handshake_type, frag_off);
+    ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshake_type, frag_off);
     if (ret != 0)
         return ret;
 
@@ -1430,7 +1433,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     if (ret != 0)
         return ret;
 
-    Dtls13MsgWasProcessed(ssl, handshake_type);
+    Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshake_type);
 
     *processedSize = idx;
 

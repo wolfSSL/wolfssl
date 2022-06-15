@@ -541,6 +541,7 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 #endif
 }
 
+#ifndef WOLFSSL_NO_TLS12
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
  * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
@@ -552,6 +553,7 @@ static WC_INLINE int IsDtlsNotSrtpMode(WOLFSSL* ssl)
     return ssl->options.dtls;
 #endif
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -2906,6 +2908,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
     int    dtls   = 0;
     int    haveRSAsig = 1;
+
+#ifdef WOLFSSL_DTLS
+    /* If DTLS v1.2 or later than set tls1_2 flag */
+    if (pv.major == DTLS_MAJOR && pv.minor <= DTLSv1_2_MINOR) {
+        tls1_2 = 1;
+    }
+#endif
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
@@ -15382,8 +15391,15 @@ int DtlsMsgDrain(WOLFSSL* ssl)
             item->fragSz == item->sz &&
             ret == 0) {
         word32 idx = 0;
-        if ((ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
-                                      item->sz, item->sz)) == 0) {
+
+    #ifdef WOLFSSL_NO_TLS12
+        ret = DoTls13HandShakeMsgType(ssl, item->msg, &idx, item->type,
+                                      item->sz, item->sz);
+    #else
+        ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
+                                      item->sz, item->sz);
+    #endif
+        if (ret == 0) {
             DtlsTxMsgListClean(ssl);
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -15520,8 +15536,13 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = totalSz;
             }
             else {
+            #ifdef WOLFSSL_NO_TLS12
+                ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
+                    totalSz);
+            #else
                 ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size,
                     totalSz);
+            #endif
             }
         }
     }
@@ -15623,7 +15644,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
         ret = DtlsMsgDrain(ssl);
 #else
+    #ifdef WOLFSSL_NO_TLS12
+        ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
+                                      totalSz);
+    #else
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    #endif
         if (ret == 0) {
             DtlsTxMsgListClean(ssl);
             if (ssl->dtls_rx_msg_list != NULL) {
@@ -15636,7 +15662,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_LEAVE("DoDtlsHandShakeMsg()", ret);
     return ret;
 }
-#endif
+#endif /* WOLFSSL_DTLS13 */
 
 #ifndef WOLFSSL_NO_TLS12
 

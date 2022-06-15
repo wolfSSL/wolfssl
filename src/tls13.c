@@ -1653,7 +1653,7 @@ static void AddTls13HandShakeHeader(byte* output, word32 length,
        when computing the hash transcript, we can avoid to use the DTLS
        handshake header. */
     if (ssl->options.dtls && type != message_hash) {
-        Dtls13HandshakeAddHeader(ssl, output, type, length);
+        Dtls13HandshakeAddHeader(ssl, output, (enum HandShakeType)type, length);
         return;
     }
 #endif /* WOLFSSL_DTLS13 */
@@ -1680,7 +1680,7 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        Dtls13AddHeaders(output, length, type, ssl);
+        Dtls13AddHeaders(output, length, (enum HandShakeType)type, ssl);
         return;
     }
 #endif /* WOLFSSL_DTLS13 */
@@ -1711,7 +1711,7 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     /* we ignore fragmentation fields here because fragmentation logic for
        DTLS1.3 is inside dtls13_handshake_send(). */
     if (ssl->options.dtls) {
-        Dtls13AddHeaders(output, length, type, ssl);
+        Dtls13AddHeaders(output, length, (enum HandShakeType)type, ssl);
         return;
     }
 #endif /* WOLFSSL_DTLS13 */

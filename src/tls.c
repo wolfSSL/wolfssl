@@ -12510,7 +12510,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         (void)heap;
         WOLFSSL_ENTER("DTLS_client_method_ex");
         if (method) {
-        #if !defined(WOLFSSL_NO_TLS12)
+        #if defined(WOLFSSL_DTLS13)
+            InitSSL_Method(method, MakeDTLSv1_3());
+        #elif !defined(WOLFSSL_NO_TLS12)
             InitSSL_Method(method, MakeDTLSv1_2());
         #elif !defined(NO_OLD_TLS)
             InitSSL_Method(method, MakeDTLSv1());
