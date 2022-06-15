@@ -24713,7 +24713,7 @@ static int test_wc_ecc_export_x963_ex (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_export_x963_ex(&key, out, &badOutLen, COMP);
         }
-        if (ret == BUFFER_E) {
+        if (ret == LENGTH_ONLY_E) {
             key.idx = -4;
             ret = wc_ecc_export_x963_ex(&key, out, &outlen, COMP);
         }
