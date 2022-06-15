@@ -508,6 +508,7 @@ int wc_InitRsaHw(RsaKey* key)
     key->type = RSA_PRIVATE;
     return 0;
 }
+
 static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
 {
     CRYSError_t             ret = 0;
@@ -612,9 +613,7 @@ int wc_FreeRsaKey(RsaKey* key)
     return ret;
 }
 
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
-
+#ifdef WOLFSSL_RSA_KEY_CHECK
 /* Check the pair-wise consistency of the RSA key. */
 static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 {
@@ -626,6 +625,8 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
     msgLen = (word32)XSTRLEN(msg);
     sigLen = wc_RsaEncryptSize(key);
+
+    WOLFSSL_MSG("Doing RSA consistency test");
 
     /* Sign and verify. */
     sig = (byte*)XMALLOC(sigLen, key->heap, DYNAMIC_TYPE_RSA);
@@ -679,9 +680,6 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
 int wc_CheckRsaKey(RsaKey* key)
 {
-#if defined(WOLFSSL_CRYPTOCELL)
-    return 0;
-#endif
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *tmp = NULL;
     WC_RNG *rng = NULL;
@@ -838,8 +836,7 @@ int wc_CheckRsaKey(RsaKey* key)
 
     return ret;
 }
-#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_NO_RSA_KEY_CHECK */
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* WOLFSSL_RSA_KEY_CHECK */
 
 
 #if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
@@ -3180,7 +3177,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
-         return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
+            return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
                                   cc310_hashModeRSA(hash, 0));
         }
     #endif /* WOLFSSL_CRYPTOCELL */
@@ -4534,7 +4531,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     err = cc310_RSA_GenerateKeyPair(key, size, e);
     goto out;
 
-#endif /*WOLFSSL_CRYPTOCELL*/
+#endif /* WOLFSSL_CRYPTOCELL */
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
@@ -4797,7 +4794,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_forcezero(p);
     mp_forcezero(q);
 
-#ifndef WOLFSSL_NO_RSA_KEY_CHECK
+#ifdef WOLFSSL_RSA_KEY_CHECK
     /* Perform the pair-wise consistency test on the new key. */
     if (err == 0)
         err = _ifc_pairwise_consistency_test(key, rng);

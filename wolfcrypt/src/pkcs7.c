@@ -1765,19 +1765,13 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
             /* If not using old FIPS or CAVP selftest, or not using FAST,
              * or USER RSA, able to check RSA key. */
             if (ret == 0) {
-        #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
-            !defined(HAVE_USER_RSA) && (!defined(HAVE_FIPS) || \
-            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-            !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA)
-
-            #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+        #ifdef WOLFSSL_RSA_KEY_CHECK
                 /* verify imported private key is a valid key before using it */
                 ret = wc_CheckRsaKey(privKey);
                 if (ret != 0) {
                     WOLFSSL_MSG("Invalid RSA private key, check "
                                 "pkcs7->privateKey");
                 }
-            #endif
         #endif
             }
         #ifdef WOLF_CRYPTO_CB

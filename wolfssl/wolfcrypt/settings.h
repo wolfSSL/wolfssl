@@ -2716,6 +2716,22 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
+/* RSA Key Checking is disabled by default unless WOLFSSL_RSA_KEY_CHECK is
+ *   defined or FIPS v2 3389, FIPS v5 or later.
+ * Not allowed for:
+ *   RSA public only, CAVP selftest, fast RSA, user RSA, QAT or CryptoCell */
+#if (defined(WOLFSSL_RSA_KEY_CHECK) || (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0))) && \
+    !defined(WOLFSSL_NO_RSA_KEY_CHECK) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) && \
+    !defined(HAVE_INTEL_QA) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(HAVE_SELFTEST)
+
+    #undef  WOLFSSL_RSA_KEY_CHECK
+    #define WOLFSSL_RSA_KEY_CHECK
+#endif
+
+
+
 
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling

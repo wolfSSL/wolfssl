@@ -51374,10 +51374,7 @@ static void test_wolfSSL_RSA(void)
     AssertIntEQ(RSA_set0_key(rsa, NULL, NULL, NULL), 0);
     AssertIntEQ(RSA_set0_crt_params(rsa, NULL, NULL, NULL), 0);
     AssertIntEQ(RSA_set0_factors(rsa, NULL, NULL), 0);
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
-    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION >= 2))) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_INTEL_QA) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+#ifdef WOLFSSL_RSA_KEY_CHECK
     AssertIntEQ(RSA_check_key(rsa), 0);
 #endif
 
@@ -51385,10 +51382,7 @@ static void test_wolfSSL_RSA(void)
     AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
     AssertIntEQ(RSA_size(rsa), 256);
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
-    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION >= 2))) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_INTEL_QA) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+#ifdef WOLFSSL_RSA_KEY_CHECK
     AssertIntEQ(RSA_check_key(NULL), 0);
     AssertIntEQ(RSA_check_key(rsa), 1);
 #endif
