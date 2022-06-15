@@ -142,6 +142,10 @@ static int lng_index = 0;
 #endif
 
 #ifdef HAVE_SESSION_TICKET
+
+#ifndef SESSION_TICKET_LEN
+#define SESSION_TICKET_LEN 256
+#endif
     static int sessionTicketCB(WOLFSSL* ssl,
                         const unsigned char* ticket, int ticketSz,
                         void* ctx)
@@ -803,7 +807,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                                 }
                                 else
                             #endif
-                                if (err != WOLFSSL_ERROR_WANT_READ) {
+                                if (err != WOLFSSL_ERROR_WANT_READ &&
+                                        err != WOLFSSL_ERROR_WANT_WRITE) {
                                     fprintf(stderr, "SSL_read bench error %d\n", err);
                                     err_sys("SSL_read failed");
                                 }
@@ -1068,7 +1073,9 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
         }
 
-        if (mustRead && err == WOLFSSL_ERROR_WANT_READ) {
+        if (mustRead &&
+            (err == WOLFSSL_ERROR_WANT_READ
+             || err == WOLFSSL_ERROR_WANT_WRITE)) {
             elapsed = current_time(0) - start;
             if (elapsed > MAX_NON_BLOCK_SEC) {
                 fprintf(stderr, "Nonblocking read timeout\n");
@@ -1868,6 +1875,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_SRTP
         { "srtp", 2, 260 }, /* optional argument */
 #endif
+#ifdef WOLFSSL_DTLS13
+        /* allow waitTicket option even when HAVE_SESSION_TICKET is 0. Otherwise
+         *  tests that use this option will ignore the options following
+         *  --waitTicket in the command line and fail */
+        {"waitTicket", 0, 261},
+#endif /* WOLFSSL_DTLS13 */
         { 0, 0, 0 }
     };
 #endif
@@ -1993,6 +2006,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_SRTP
     const char* dtlsSrtpProfiles = NULL;
 #endif
+
+#ifdef HAVE_SESSION_TICKET
+    int waitTicket = 0;
+#endif /* HAVE_SESSION_TICKET */
 
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
@@ -2140,6 +2157,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 printf("Using SRTP Profile(s): %s\n", dtlsSrtpProfiles);
                 break;
         #endif
+
+#ifdef WOLFSSL_DTLS13
+        case 261:
+#ifdef HAVE_SESSION_TICKET
+            waitTicket = 1;
+#endif /* HAVE_SESSION_TICKET */
+            break;
+#endif /* WOLFSSL_DTLS13 */
 
             case 'G' :
             #ifdef WOLFSSL_SCTP
@@ -2749,12 +2774,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
     else {
         if (doDTLS) {
-            if (version == 3)
+            if (version == 3) {
                 version = -2;
+            }
         #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-            else if (version == EITHER_DOWNGRADE_VERSION)
+            else if (version == EITHER_DOWNGRADE_VERSION) {
                 version = -3;
+            }
         #endif
+            else if (version == 4) {
+#ifdef WOLFSSL_DTLS13
+                version = -4;
+#else
+                err_sys("Bad DTLS version");
+#endif /* WOLFSSL_DTLS13 */
+            }
             else
                 version = -1;
         }
@@ -2833,6 +2867,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfDTLSv1_2_client_method_ex;
             break;
     #endif
+#ifdef WOLFSSL_DTLS13
+        case -4:
+            method = wolfDTLSv1_3_client_method_ex;
+            break;
+#endif /* WOLFSSL_DTLS13 */
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case -3:
             method = wolfDTLSv1_2_method_ex;
@@ -3450,7 +3489,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-    if (!helloRetry && version >= 4) {
+    if (!helloRetry && (version >= 4 || version <= -4)) {
         SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
                     pqcAlg, 0);
     }
@@ -4027,6 +4066,29 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(WOLFSSL_TLS13)
     if (updateKeysIVs || postHandAuth)
         (void)ClientWrite(ssl, msg, msgSz, "", 0);
+#endif
+
+#if defined(HAVE_SESSION_TICKET)
+    while (waitTicket == 1) {
+        unsigned char ticketBuf[SESSION_TICKET_LEN];
+        int zeroReturn = 0;
+        word32 size;
+
+        (void)zeroReturn;
+        size = sizeof(ticketBuf);
+        err = wolfSSL_get_SessionTicket(ssl, ticketBuf, &size);
+        if (err < 0)
+            err_sys("wolfSSL_get_SessionTicket failed");
+
+        if (size == 0) {
+            err = process_handshake_messages(ssl, !nonBlocking, &zeroReturn);
+            if (err < 0)
+                err_sys("error waiting for session ticket ");
+        }
+        else {
+            waitTicket = 0;
+        }
+    }
 #endif
 
 #ifndef NO_SESSION_CACHE

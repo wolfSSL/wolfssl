@@ -266,6 +266,26 @@ if("${FIPS_VERSION}" STREQUAL "v1")
     override_cache(WOLFSSL_TLS13 "no")
 endif()
 
+# DTLS v1.3
+add_option("WOLFSSL_DTLS13"
+    "Enable wolfSSL DTLS v1.3 (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_DTLS13)
+    if (NOT WOLFSSL_DTLS)
+      message(FATAL_ERROR "DTLS13 requires DTLS")
+    endif()
+    if (NOT WOLFSSL_TLS13)
+      message(FATAL_ERROR "DTLS13 requires TLS13")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS13")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_W64_WRAPPER")
+
+    if (WOLFSSL_AES)
+      list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_DIRECT")
+    endif()
+endif()
+
 # Post-handshake authentication
 add_option("WOLFSSL_POSTAUTH"
     "Enable wolfSSL Post-handshake Authentication (default: disabled)"
@@ -1870,6 +1890,7 @@ if(WOLFSSL_EXAMPLES)
         tests/hash.c
         tests/srp.c
         tests/suites.c
+        tests/w64wrapper.c
         tests/unit.c
         examples/server/server.c
         examples/client/client.c)

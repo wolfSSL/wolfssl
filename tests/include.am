@@ -10,6 +10,7 @@ tests_unit_test_SOURCES = \
                   tests/api.c \
                   tests/suites.c \
                   tests/hash.c \
+                  tests/w64wrapper.c \
                   tests/srp.c \
                   examples/client/client.c \
                   examples/server/server.c
@@ -39,6 +40,9 @@ EXTRA_DIST += tests/unit.h \
               tests/test-dtls-sha2.conf \
               tests/test-dtls-srtp.conf \
               tests/test-dtls-srtp-fails.conf \
+              tests/test-dtls13.conf \
+              tests/test-dtls13-downgrade.conf \
+              tests/test-dtls13-psk.conf \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \

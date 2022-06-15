@@ -350,6 +350,10 @@
     #endif
 #endif
 
+#ifndef DEFAULT_TIMEOUT_SEC
+#define DEFAULT_TIMEOUT_SEC 2
+#endif
+
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
 #define caCertFile        "certs/ca-cert.pem"
@@ -5299,6 +5303,67 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_EARLY_DATA */
 
+#if defined(HAVE_SESSION_TICKET) || defined (WOLFSSL_DTLS13)
+static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
+    int* zero_return)
+{
+    int timeout = DEFAULT_TIMEOUT_SEC;
+    char foo[1];
+    int ret = 0;
+    int dtls;
+
+    (void)dtls;
+
+    if (zero_return == NULL || ssl == NULL)
+        return -1;
+
+    dtls = wolfSSL_dtls(ssl);
+    *zero_return = 0;
+
+    if (!blocking) {
+#ifdef WOLFSSL_DTLS
+        if (dtls) {
+            timeout = wolfSSL_dtls_get_current_timeout(ssl);
+
+#ifdef WOLFSSL_DTLS13
+            if (timeout > 4 && wolfSSL_dtls13_use_quick_timeout(ssl))
+                timeout /= 4;
+#endif /* WOLFSSL_DTLS13 */
+        }
+#endif /* WOLFSSL_DTLS */
+
+        ret = tcp_select(wolfSSL_get_fd(ssl), timeout);
+        if (ret == TEST_ERROR_READY) {
+            err_sys("tcp_select error");
+            return -1;
+        }
+
+        if (ret == TEST_TIMEOUT) {
+#ifdef WOLFSSL_DTLS
+            if (dtls) {
+                ret = wolfSSL_dtls_got_timeout(ssl);
+                if (ret != WOLFSSL_SUCCESS && !wolfSSL_want_write(ssl) &&
+                    !wolfSSL_want_read(ssl)) {
+                    err_sys("got timeout error");
+                    return -1;
+                }
+            }
+#endif /* WOLFSSL_DTLS */
+            /* do the peek to detect if the peer closed the connection*/
+        }
+    }
+
+    ret = wolfSSL_peek(ssl, foo, 0);
+    if (ret < 0 && !wolfSSL_want_read(ssl) && !wolfSSL_want_write(ssl)) {
+        ret = wolfSSL_get_error(ssl, ret);
+        if (ret == WOLFSSL_ERROR_ZERO_RETURN)
+            *zero_return = 1;
+        return -1;
+    }
+
+    return 0;
+}
+#endif /* HAVE_SESSION_TICKET || WOLFSSL_DTLS13 */
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)

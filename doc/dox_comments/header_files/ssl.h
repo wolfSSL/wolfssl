@@ -3326,6 +3326,47 @@ int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);
     \sa wolfSSL_dtls_set_peer
 */
 int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
+/*!
+    \brief This function returns true if the application should setup a quicker
+    timeout. When using non-blocking sockets, something in the user code needs
+    to decide when to check for available data and how long it needs to wait. If
+    this function returns true, it means that the library already detected some
+    disruption in the communication, but it wants to wait for a little longer in
+    case some messages from the other peers are still in flight. Is up to the
+    application to fine tune the value of this timer, a good one may be
+    dtls_get_current_timeout() / 4.
+
+    \return true if the application code should setup a quicker timeout
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    \sa wolfSSL_dtls
+    \sa wolfSSL_dtls_get_peer
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls13_set_send_more_acks
+*/
+int  wolfSSL_dtls13_use_quick_timeout(WOLFSSL *ssl);
+/*!
+  \ingroup Setup
+
+    \brief This function sets whether the library should send ACKs to the other
+    peer immediately when detecting disruption or not. Sending ACKs immediately
+    assures minimum latency but it may consume more bandwidth than necessary. If
+    the application manages the timer by itself and this option is set to 0 then
+    application code can use wolfSSL_dtls13_use_quick_timeout() to determine if
+    it should setup a quicker timeout to send those delayed ACKs.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param value 1 to set the option, 0 to disable the option
+
+    \sa wolfSSL_dtls
+    \sa wolfSSL_dtls_get_peer
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls13_use_quick_timeout
+*/
+void  wolfSSL_dtls13_set_send_more_acks(WOLFSSL *ssl, int value);
 
 /*!
     \ingroup Setup
@@ -14044,3 +14085,12 @@ int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA* rsa,
                                int flag, int padding);
+/*!
+
+\brief checks if DTLSv1.3 stack has some messages sent but not yet acknowledged
+ by the other peer
+
+ \return 1 if there are pending messages, 0 otherwise
+ \param ssl A WOLFSSL object pointer
+*/
+int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);

@@ -905,9 +905,15 @@ static int bench_tls_client(info_t* info)
 #ifdef WOLFSSL_DTLS
     if (info->doDTLS) {
         if (tls13) {
-            return WOLFSSL_SUCCESS;
+        #ifdef WOLFSSL_DTLS13
+            cli_ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method());
+        #endif
         }
-        cli_ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
+        else {
+        #ifndef WOLFSSL_NO_TLS12
+            cli_ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
+        #endif
+        }
     }
     else
 #endif
@@ -1348,9 +1354,15 @@ static int bench_tls_server(info_t* info)
 #ifdef WOLFSSL_DTLS
     if (info->doDTLS) {
         if (tls13) {
-            return WOLFSSL_SUCCESS;
+        #ifdef WOLFSSL_DTLS13
+            srv_ctx = wolfSSL_CTX_new(wolfDTLSv1_3_server_method());
+        #endif
         }
-        srv_ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method());
+        else {
+        #ifndef WOLFSSL_NO_TLS12
+            srv_ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method());
+        #endif
+        }
     }
     else
 #endif

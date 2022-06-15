@@ -163,6 +163,14 @@ int unit_test(int argc, char** argv)
             printf("hash test failed with %d\n", ret);
             goto exit;
         }
+
+#ifdef WOLFSSL_W64_WRAPPER
+        if ((ret = w64wrapper_test()) != 0) {
+            printf("w64wrapper test failed with %d\n", ret);
+            goto exit;
+        }
+#endif /* WOLFSSL_W64_WRAPPER */
+
     }
 
 #ifndef NO_WOLFSSL_CIPHER_SUITE_TEST

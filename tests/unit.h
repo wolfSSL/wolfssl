@@ -107,6 +107,7 @@ void ApiTest(void);
 int  SuiteTest(int argc, char** argv);
 int  HashTest(void);
 void SrpTest(void);
+int w64wrapper_test(void);
 
 
 #endif /* CyaSSL_UNIT_H */

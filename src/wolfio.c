@@ -381,6 +381,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int recvd;
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+    byte doDtlsTimeout;
     SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
 
@@ -388,16 +389,41 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     /* Don't use ssl->options.handShakeDone since it is true even if
      * we are in the process of renegotiation */
-    if (ssl->options.handShakeState == HANDSHAKE_DONE)
+    doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        doDtlsTimeout =
+            doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
+            (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    if (!doDtlsTimeout)
         dtls_timeout = 0;
 
     if (!wolfSSL_get_using_nonblock(ssl)) {
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
+            #ifdef WOLFSSL_DTLS13
+            if (wolfSSL_dtls13_use_quick_timeout(ssl) &&
+                IsAtLeastTLSv1_3(ssl->version))
+                timeout /= 4;
+            #endif /* WOLFSSL_DTLS13 */
         #else
             struct timeval timeout;
             XMEMSET(&timeout, 0, sizeof(timeout));
-            timeout.tv_sec = dtls_timeout;
+            #ifdef WOLFSSL_DTLS13
+            if (wolfSSL_dtls13_use_quick_timeout(ssl) &&
+                IsAtLeastTLSv1_3(ssl->version)) {
+                if (dtls_timeout >= 4)
+                    timeout.tv_sec = dtls_timeout / 4;
+                else
+                    timeout.tv_usec = dtls_timeout * 1000000 / 4;
+            }
+            else
+            #endif /* WOLFSSL_DTLS13 */
+                timeout.tv_sec = dtls_timeout;
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                        sizeof(timeout)) != 0) {

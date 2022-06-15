@@ -145,7 +145,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     tcp_listen(&sockfd, &port, useAnyAddr, doDTLS, 0);
 
 #if defined(CYASSL_DTLS)
+    #ifdef WOLFSSL_DTLS13
+    method = wolfDTLSv1_3_server_method();
+    #elif !defined(WOLFSSL_NO_TLS12)
     method  = CyaDTLSv1_2_server_method();
+    #endif
 #elif !defined(NO_TLS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
     method = CyaTLSv1_2_server_method();

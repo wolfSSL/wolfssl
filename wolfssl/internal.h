@@ -1179,6 +1179,7 @@ enum Misc {
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
     DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
+    DTLSv1_3_MINOR  = 0xfc,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
     SSLv3_MINOR     = 0,        /* TLSv1   minor version number */
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
@@ -1293,6 +1294,8 @@ enum Misc {
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
+    DTLS_UNIFIED_HEADER_MIN_SZ = 2,
+    DTLS_RECORD_HEADER_MAX_SZ = 13,
     DTLS_HANDSHAKE_EXTRA     = 8,  /* diff from normal */
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
@@ -1497,6 +1500,11 @@ enum Misc {
     #endif
 #endif
 
+/* minimum DTLS Downgrade Minor version */
+#ifndef WOLFSSL_MIN_DTLS_DOWNGRADE
+#define WOLFSSL_MIN_DTLS_DOWNGRADE DTLS_MINOR;
+#endif
+
 /* Set max implicit IV size for AEAD cipher suites */
 #define AEAD_MAX_IMP_SZ 12
 
@@ -1625,7 +1633,7 @@ enum Misc {
     typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
     (void)sizeof(_args_test)
 
-/* states */
+/* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {
     NULL_STATE = 0,
 
@@ -1646,7 +1654,12 @@ enum states {
     CLIENT_CHANGECIPHERSPEC_COMPLETE,
     CLIENT_FINISHED_COMPLETE,
 
-    HANDSHAKE_DONE
+    HANDSHAKE_DONE,
+
+#ifdef WOLFSSL_DTLS13
+    SERVER_FINISHED_ACKED,
+#endif /* WOLFSSL_DTLS13 */
+
 };
 
 /* SSL Version */
@@ -1665,6 +1678,10 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_3(void);
+#endif /* WOLFSSL_DTLS13 */
 
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -1799,6 +1816,10 @@ WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz,
                                      byte* extMsgType);
 WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
+
+WOLFSSL_LOCAL int Tls13DeriveKey(WOLFSSL *ssl, byte *output, int outputLen,
+    const byte *secret, const byte *label, word32 labelLen, int hashAlgo,
+    int includeMsgs);
 #endif
 int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
                     int pLen, int content);
@@ -2228,6 +2249,11 @@ typedef struct Keys {
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+#endif /* WOLFSSL_DTLS13 */
+
     word32 peer_sequence_number_hi;
     word32 peer_sequence_number_lo;
     word32 sequence_number_hi;
@@ -2237,6 +2263,12 @@ typedef struct Keys {
     word16 curEpoch;    /* Received epoch in current record    */
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
+
+#ifdef WOLFSSL_DTLS13
+    w64wrapper curEpoch64;    /* Received epoch in current record    */
+    w64wrapper curSeq;
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_MULTICAST
     byte   curPeerId;   /* Received peer group ID in current record */
 #endif
@@ -3300,6 +3332,16 @@ typedef struct Ciphers {
 #endif
 } Ciphers;
 
+#ifdef WOLFSSL_DTLS13
+typedef struct RecordNumberCiphers {
+#if defined(BUILD_AES) || defined(BUILD_AESGCM)
+        Aes *aes;
+#endif /*  BUILD_AES || BUILD_AESGCM */
+#ifdef HAVE_CHACHA
+        ChaCha *chacha;
+#endif
+} RecordNumberCiphers;
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef HAVE_ONE_TIME_AUTH
 /* Ciphers for one time authentication such as poly1305 */
@@ -3519,7 +3561,12 @@ enum ConnectState {
     FIRST_REPLY_THIRD,
     FIRST_REPLY_FOURTH,
     FINISHED_DONE,
-    SECOND_REPLY_DONE
+    SECOND_REPLY_DONE,
+
+#ifdef WOLFSSL_DTLS13
+    WAIT_FINISHED_ACK
+#endif /* WOLFSSL_DTLS13 */
+
 };
 
 
@@ -3799,6 +3846,10 @@ typedef struct Options {
 #endif
     word16            buildingMsg:1;      /* If set then we need to re-enter the
                                            * handshake logic. */
+#ifdef WOLFSSL_DTLS13
+    word16            dtls13SendMoreAcks:1;  /* Send more acks during the
+                                              * handshake process */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -4288,6 +4339,92 @@ typedef enum EarlyDataState {
 } EarlyDataState;
 #endif
 
+#ifdef WOLFSSL_DTLS13
+
+typedef struct Dtls13UnifiedHdrInfo {
+    word16 recordLength;
+    word16 headerLength;
+    byte seqLo;
+    byte seqHi;
+    byte seqHiPresent:1;
+    byte epochBits;
+} Dtls13UnifiedHdrInfo;
+
+enum  {
+    DTLS13_EPOCH_EARLYDATA = 1,
+    DTLS13_EPOCH_HANDSHAKE = 2,
+    DTLS13_EPOCH_TRAFFIC0 = 3
+};
+
+typedef struct Dtls13Epoch {
+    w64wrapper epochNumber;
+
+    w64wrapper nextSeqNumber;
+    w64wrapper nextPeerSeqNumber;
+
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+
+    /* key material for the epoch */
+    byte client_write_key[MAX_SYM_KEY_SIZE];
+    byte server_write_key[MAX_SYM_KEY_SIZE];
+    byte client_write_IV[MAX_WRITE_IV_SZ];
+    byte server_write_IV[MAX_WRITE_IV_SZ];
+
+    byte aead_exp_IV[AEAD_MAX_EXP_SZ];
+    byte aead_enc_imp_IV[AEAD_MAX_IMP_SZ];
+    byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
+
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+
+    byte isValid;
+    byte side;
+} Dtls13Epoch;
+
+#ifndef DTLS13_EPOCH_SIZE
+#define DTLS13_EPOCH_SIZE 4
+#endif
+
+#ifndef DTLS13_RETRANS_RN_SIZE
+#define DTLS13_RETRANS_RN_SIZE 3
+#endif
+
+enum Dtls13RtxFsmState {
+    DTLS13_RTX_FSM_PREPARING = 0,
+    DTLS13_RTX_FSM_SENDING,
+    DTLS13_RTX_FSM_WAITING,
+    DTLS13_RTX_FSM_FINISHED
+};
+
+typedef struct Dtls13RtxRecord {
+    struct Dtls13RtxRecord *next;
+    word16 length;
+    byte *data;
+    w64wrapper epoch;
+    w64wrapper seq[DTLS13_RETRANS_RN_SIZE];
+    byte rnIdx;
+    byte handshakeType;
+} Dtls13RtxRecord;
+
+typedef struct Dtls13RecordNumber {
+    struct Dtls13RecordNumber *next;
+    w64wrapper epoch;
+    w64wrapper seq;
+} Dtls13RecordNumber;
+
+typedef struct Dtls13Rtx {
+    enum Dtls13RtxFsmState state;
+    Dtls13RtxRecord *rtxRecords;
+    Dtls13RtxRecord **rtxRecordTailPtr;
+    Dtls13RecordNumber *seenRecords;
+    byte triggeredRtxs;
+    byte sendAcks:1;
+    byte retransmit:1;
+    word32 lastRtx;
+} Dtls13Rtx;
+
+#endif /* WOLFSSL_DTLS13 */
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -4482,6 +4619,29 @@ struct WOLFSSL {
                                         * (selected profiles - up to 16) */
     word16         dtlsSrtpId;         /* DTLS-with-SRTP profile ID selected */
 #endif
+#ifdef WOLFSSL_DTLS13
+    RecordNumberCiphers dtlsRecordNumberEncrypt;
+    RecordNumberCiphers dtlsRecordNumberDecrypt;
+    Dtls13Epoch dtls13Epochs[DTLS13_EPOCH_SIZE];
+    Dtls13Epoch *dtls13EncryptEpoch;
+    Dtls13Epoch *dtls13DecryptEpoch;
+    w64wrapper dtls13Epoch;
+    w64wrapper dtls13PeerEpoch;
+
+    word16 dtls13CurRlLength;
+
+    /* used to store the message if it needs to be fragmented */
+    buffer dtls13FragmentsBuffer;
+    byte dtls13SendingFragments:1;
+    byte dtls13SendingAckOrRtx:1;
+    byte dtls13FastTimeout:1;
+    byte dtls13WaitKeyUpdateAck:1;
+    word32 dtls13MessageLength;
+    word32 dtls13FragOffset;
+    byte dtls13FragHandshakeType;
+    Dtls13Rtx dtls13Rtx;
+
+#endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -4765,7 +4925,10 @@ enum ContentType {
     change_cipher_spec = 20,
     alert              = 21,
     handshake          = 22,
-    application_data   = 23
+    application_data   = 23,
+#ifdef WOLFSSL_DTLS13
+    ack                = 26,
+#endif /* WOLFSSL_DTLS13 */
 };
 
 
@@ -4989,6 +5152,8 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
 #endif
 #endif
 
+WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
+
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
     #ifdef WOLFSSL_TLS13
@@ -5027,6 +5192,10 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
+    WOLFSSL_LOCAL int GetDtlsHandShakeHeader(WOLFSSL *ssl, const byte *input,
+        word32 *inOutIdx, byte *type, word32 *size, word32 *fragOffset,
+        word32 *fragSz, word32 totalSz);
+    WOLFSSL_LOCAL int DtlsMsgDrain(WOLFSSL *ssl);
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
@@ -5217,6 +5386,59 @@ WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entr
 WOLFSSL_LOCAL int oid2nid(word32 oid, int grp);
 WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+
+WOLFSSL_LOCAL struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
+    w64wrapper epochNumber);
+WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
+    int side);
+WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
+    enum encrypt_side side);
+WOLFSSL_LOCAL int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq,
+    byte increment);
+WOLFSSL_LOCAL int Dtls13DoScheduledWork(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision);
+WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
+    enum encrypt_side side);
+
+WOLFSSL_LOCAL int Dtls13AddHeaders(byte* output, word32 length,
+    enum HandShakeType hs_type, WOLFSSL* ssl);
+WOLFSSL_LOCAL word16 Dtls13GetHeadersLength(enum HandShakeType type);
+WOLFSSL_LOCAL word16 Dtls13GetRlHeaderLength(byte is_encrypted);
+WOLFSSL_LOCAL int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out,
+    word16 length);
+WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
+    enum ContentType content_type, word16 length);
+WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr,
+    word16 recordLength);
+WOLFSSL_LOCAL int Dtls13IsUnifiedHeader(byte header_flags);
+WOLFSSL_LOCAL int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
+    word16 input_size, Dtls13UnifiedHdrInfo* hdrInfo);
+WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,
+    word16 output_size, word16 length, enum HandShakeType handshake_type,
+    int hash_output);
+WOLFSSL_LOCAL int Dtls13RecordRecvd(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
+    word32* inOutIdx, word32 totalSz);
+WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
+    enum HandShakeType msg_type, word32 length);
+#define EE_MASK (0x3)
+WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
+    word32* processedSize);
+WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
+    w64wrapper* epoch);
+WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
+    Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
+WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
+    word32 inputSize);
+WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output,
+    word16 length);
+WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);

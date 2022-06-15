@@ -693,6 +693,10 @@ if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
 
+if BUILD_DTLS13
+src_libwolfssl_la_SOURCES += src/dtls13.c
+endif
+
 endif !BUILD_CRYPTONLY
 
 

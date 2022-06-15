@@ -189,13 +189,17 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #endif
 #endif
 
-    static int cipherExtraData(WOLFSSL* ssl);
 
 #ifdef WOLFSSL_DTLS
     static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl);
     static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl);
 #endif
 
+#ifdef WOLFSSL_DTLS13
+#ifndef WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT
+#define WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT 0
+#endif
+#endif /* WOLFSSL_DTLS13 */
 
 enum processReply {
     doProcessInit = 0,
@@ -207,6 +211,7 @@ enum processReply {
     verifyEncryptedMessage,
     decryptMessage,
     verifyMessage,
+    runProcessingOneRecord,
     runProcessingOneMessage
 };
 
@@ -495,15 +500,31 @@ int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 
 int IsAtLeastTLSv1_3(const ProtocolVersion pv)
 {
-    return (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR);
+    int ret;
+    ret = (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR);
+
+#ifdef WOLFSSL_DTLS13
+    if (ret == 0 && pv.major == DTLS_MAJOR && pv.minor <= DTLSv1_3_MINOR)
+        return 1;
+#endif
+
+    return ret;
 }
 
 static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 {
     #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
-    if (ssl->options.dtls && !isSend && ssl->keys.curEpoch == 0)
-        return 0;
+    if (ssl->options.dtls && !isSend) {
+        if (!IsAtLeastTLSv1_3(ssl->version) && ssl->keys.curEpoch == 0)
+            return 0;
+#ifdef WOLFSSL_DTLS13
+        else if (IsAtLeastTLSv1_3(ssl->version)
+                     && w64IsZero(ssl->keys.curEpoch64))
+            return 0;
+#endif /* WOLFSSL_DTLS13 */
+
+    }
     #endif /* WOLFSSL_DTLS */
 
     return ssl->keys.encryptionOn &&
@@ -524,6 +545,7 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 #endif
 }
 
+#ifndef WOLFSSL_NO_TLS12
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
  * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
@@ -535,6 +557,7 @@ static WC_INLINE int IsDtlsNotSrtpMode(WOLFSSL* ssl)
     return ssl->options.dtls;
 #endif
 }
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -2104,7 +2127,17 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
     ctx->heap     = ctx;        /* defaults to self */
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
-    ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE; /* current default: TLSv1_MINOR */
+
+#ifdef WOLFSSL_DTLS
+    if (method->version.major == DTLS_MAJOR) {
+        ctx->minDowngrade = WOLFSSL_MIN_DTLS_DOWNGRADE;
+    }
+    else
+#endif /* WOLFSSL_DTLS */
+    {
+        /* current default: TLSv1_MINOR */
+        ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
+    }
 
     if (wc_InitMutex(&ctx->countMutex) < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
@@ -2579,6 +2612,14 @@ void InitCiphers(WOLFSSL* ssl)
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    XMEMSET(&ssl->dtlsRecordNumberEncrypt, 0,
+        sizeof(ssl->dtlsRecordNumberEncrypt));
+    XMEMSET(&ssl->dtlsRecordNumberDecrypt, 0,
+         sizeof(ssl->dtlsRecordNumberEncrypt));
+#endif /* WOLFSSL_DTLS13 */
+
 }
 
 
@@ -2638,6 +2679,29 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+#ifdef BUILD_AES
+    if (ssl->dtlsRecordNumberEncrypt.aes != NULL) {
+        wc_AesFree(ssl->dtlsRecordNumberEncrypt.aes);
+        XFREE(ssl->dtlsRecordNumberEncrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        ssl->dtlsRecordNumberEncrypt.aes = NULL;
+    }
+    if (ssl->dtlsRecordNumberDecrypt.aes != NULL) {
+        wc_AesFree(ssl->dtlsRecordNumberDecrypt.aes);
+        XFREE(ssl->dtlsRecordNumberDecrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+        ssl->dtlsRecordNumberDecrypt.aes = NULL;
+    }
+#endif /* BUILD_AES */
+#ifdef HAVE_CHACHA
+    XFREE(ssl->dtlsRecordNumberEncrypt.chacha,
+          ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->dtlsRecordNumberDecrypt.chacha,
+          ssl->heap, DYNAMIC_TYPE_CIPHER);
+    ssl->dtlsRecordNumberEncrypt.chacha = NULL;
+    ssl->dtlsRecordNumberDecrypt.chacha = NULL;
+#endif /* HAVE_CHACHA */
+#endif /* WOLFSSL_DTLS13 */
 }
 
 
@@ -2857,6 +2921,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
     int    dtls   = 0;
     int    haveRSAsig = 1;
+
+#ifdef WOLFSSL_DTLS
+    /* If DTLS v1.2 or later than set tls1_2 flag */
+    if (pv.major == DTLS_MAJOR && pv.minor <= DTLSv1_2_MINOR) {
+        tls1_2 = 1;
+    }
+#endif
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
@@ -6728,6 +6799,17 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+
+#ifdef WOLFSSL_DTLS13
+    /* setup 0 (un-protected) epoch */
+    ssl->dtls13Epochs[0].isValid = 1;
+    ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
+    ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->options.dtls13SendMoreAcks = WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT;
+    ssl->dtls13Rtx.rtxRecordTailPtr = &ssl->dtls13Rtx.rtxRecords;
+#endif /* WOLFSSL_DTLS13 */
+
     return 0;
 }
 
@@ -7381,6 +7463,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
     ssl->ca_names = NULL;
 #endif
+#ifdef WOLFSSL_DTLS13
+    Dtls13FreeFsmResources(ssl);
+#endif /* WOLFSSL_DTLS13 */
 }
 
 /* Free any handshake resources no longer needed */
@@ -7389,8 +7474,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     WOLFSSL_ENTER("FreeHandshakeResources");
 
 #ifdef WOLFSSL_DTLS
-    /* DTLS_POOL */
-    if (ssl->options.dtls) {
+    /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
+    if (ssl->options.dtls && !IsAtLeastTLSv1_3(ssl->version)) {
         DtlsMsgPoolReset(ssl);
         DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
         ssl->dtls_rx_msg_list = NULL;
@@ -8373,6 +8458,18 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
+#ifdef WOLFSSL_DTLS13
+
+ProtocolVersion MakeDTLSv1_3(void)
+{
+    ProtocolVersion pv;
+    pv.major = DTLS_MAJOR;
+    pv.minor = DTLSv1_3_MINOR;
+
+    return pv;
+}
+
+#endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -8715,8 +8812,19 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        adj += DTLS_RECORD_EXTRA;
-        sz  -= DTLS_RECORD_EXTRA;
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_DTLS13
+            word16 dtls_record_extra;
+            dtls_record_extra = Dtls13GetRlHeaderLength(IsEncryptionOn(ssl, 1));
+            dtls_record_extra -= RECORD_HEADER_SZ;
+
+            adj += dtls_record_extra;
+            sz  -= dtls_record_extra;
+#endif /* WOLFSSL_DTLS13 */
+        } else {
+            adj += DTLS_RECORD_EXTRA;
+            sz  -= DTLS_RECORD_EXTRA;
+        }
     }
 #endif
 
@@ -8740,6 +8848,12 @@ int HashInput(WOLFSSL* ssl, const byte* input, int sz)
     if (ssl->options.dtls) {
         adj -= DTLS_HANDSHAKE_EXTRA;
         sz  += DTLS_HANDSHAKE_EXTRA;
+
+#ifdef WOLFSSL_DTLS13
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return Dtls13HashHandshake(ssl, adj, sz);
+#endif /* WOLFSSL_DTLS13 */
+
     }
 #endif
 
@@ -9106,6 +9220,18 @@ retry:
 
             case WOLFSSL_CBIO_ERR_TIMEOUT:
             #ifdef WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+                    /* TODO: support WANT_WRITE here */
+                    if (Dtls13RtxTimeout(ssl) < 0) {
+                        WOLFSSL_MSG(
+                            "Error trying to retransmit DTLS buffered message");
+                        return -1;
+                    }
+                    goto retry;
+                }
+#endif /* WOLFSSL_DTLS13 */
+
                 if (IsDtlsNotSctpMode(ssl) &&
                     ssl->options.handShakeState != HANDSHAKE_DONE &&
                     DtlsMsgPoolTimeout(ssl) == 0 &&
@@ -9445,7 +9571,12 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 #else
                 ssl->dtls_expected_rx
 #endif
-                ) {
+#ifdef WOLFSSL_DTLS13
+            /* DTLS1.3 uses the output buffer to store the full message and deal
+               with fragmentation later in dtls13HandshakeSend() */
+            && !IsAtLeastTLSv1_3(ssl->version)
+#endif /* WOLFSSL_DTLS13 */
+            ) {
             WOLFSSL_MSG("CheckAvailableSize() called with size greater than MTU.");
             return DTLS_SIZE_ERROR;
         }
@@ -9461,14 +9592,186 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     return 0;
 }
 
+#ifdef WOLFSSL_DTLS13
+static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, RecordLayerHeader* rh, word16* size)
+{
+
+    Dtls13UnifiedHdrInfo hdrInfo;
+    w64wrapper epochNumber;
+    byte epochBits;
+    int readSize;
+    int ret;
+
+    readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    epochBits = *input & EE_MASK;
+    ret = Dtls13ReconstructEpochNumber(ssl, epochBits, &epochNumber);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG_EX("reconstructed epoch number: %ld",
+                   epochNumber);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+    /* protected records always use unified_headers in DTLSv1.3 */
+    if (w64IsZero(epochNumber))
+        return SEQUENCE_ERROR;
+
+    if (ssl->dtls13DecryptEpoch == NULL)
+        return BAD_STATE_E;
+
+#ifdef WOLFSSL_EARLY_DATA
+    if (w64Equal(epochNumber, w64From32(0x0, DTLS13_EPOCH_EARLYDATA)) &&
+            ssl->options.handShakeDone) {
+        WOLFSSL_MSG("discarding early data after handshake");
+        return SEQUENCE_ERROR;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    if (!w64Equal(ssl->dtls13DecryptEpoch->epochNumber, epochNumber)) {
+        ret = Dtls13SetEpochKeys(ssl, epochNumber, DECRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return SEQUENCE_ERROR;
+    }
+
+    ret = Dtls13ParseUnifiedRecordLayer(ssl, input + *inOutIdx, readSize,
+        &hdrInfo);
+
+    if (ret != 0)
+        return ret;
+
+    *size = hdrInfo.recordLength;
+    c16toa(*size, rh->length);
+
+   /* type is implicit */
+    rh->type = application_data;
+
+    /* version is implicit */
+    rh->pvMajor = ssl->version.major;
+    rh->pvMinor = DTLSv1_2_MINOR;
+
+    ssl->keys.curEpoch64 = epochNumber;
+
+    ret = Dtls13ReconstructSeqNumber(ssl, &hdrInfo, &ssl->keys.curSeq);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG_EX("reconstructed seq number: %ld",
+                   ssl->keys.curSeq);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+    *inOutIdx += hdrInfo.headerLength;
+    ssl->dtls13CurRlLength = hdrInfo.headerLength;
+
+    return 0;
+}
+
+#endif /* WOLFSSL_DTLS13 */
+
+#ifdef WOLFSSL_DTLS
+static int GetDtlsRecordHeader(WOLFSSL* ssl, const byte* input,
+    word32* inOutIdx, RecordLayerHeader* rh, word16* size)
+{
+
+#ifdef HAVE_FUZZER
+    if (ssl->fuzzerCb)
+        ssl->fuzzerCb(ssl, input + *inOutIdx, DTLS_RECORD_HEADER_SZ,
+                       FUZZ_HEAD, ssl->fuzzerCtx);
+#endif
+
+#ifdef WOLFSSL_DTLS13
+    word32 read_size;
+    int ret;
+
+    read_size = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    if (Dtls13IsUnifiedHeader(*(input + *inOutIdx))) {
+
+        /* version 1.3 already negotiated */
+        if (ssl->options.tls1_3) {
+            ret = GetDtls13RecordHeader(ssl, input, inOutIdx, rh, size);
+            if (ret == 0 || ret != SEQUENCE_ERROR)
+                return ret;
+        }
+
+#ifndef NO_WOLFSSL_CLIENT
+        if (ssl->options.side == WOLFSSL_CLIENT_END
+            && ssl->options.serverState < SERVER_HELLO_COMPLETE
+            && IsAtLeastTLSv1_3(ssl->version)
+            && !ssl->options.handShakeDone) {
+            /* we may have lost ServerHello. Try to send a empty ACK to shortcut
+               Server retransmission timer */
+            ssl->dtls13Rtx.sendAcks = 1;
+        }
+#endif
+        return SEQUENCE_ERROR;
+    }
+
+    /* not a unified header, check that we have at least
+       DTLS_RECORD_HEADER_SZ */
+    if (read_size < DTLS_RECORD_HEADER_SZ)
+        return LENGTH_ERROR;
+
+#endif /* WOLFSSL_DTLS13 */
+
+    /* type and version in same spot */
+    XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
+    *inOutIdx += ENUM_LEN + VERSION_SZ;
+    ato16(input + *inOutIdx, &ssl->keys.curEpoch);
+#ifdef WOLFSSL_DTLS13
+    /* only non protected message can use the DTLSPlaintext record header */
+    if (ssl->options.tls1_3 && ssl->keys.curEpoch != 0)
+            return SEQUENCE_ERROR;
+
+    w64Zero(&ssl->keys.curEpoch64);
+    if (!w64IsZero(ssl->dtls13DecryptEpoch->epochNumber))
+        Dtls13SetEpochKeys(ssl, ssl->keys.curEpoch64, DECRYPT_SIDE_ONLY);
+
+#endif /* WOLFSSL_DTLS13 */
+    *inOutIdx += OPAQUE16_LEN;
+    if (ssl->options.haveMcast) {
+    #ifdef WOLFSSL_MULTICAST
+        ssl->keys.curPeerId = input[*inOutIdx];
+        ssl->keys.curSeq_hi = input[*inOutIdx+1];
+    #endif
+    }
+    else
+        ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
+    *inOutIdx += OPAQUE16_LEN;
+    ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
+    *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
+
+#ifdef WOLFSSL_DTLS13
+    /* DTLSv1.3 PlainText records use DTLSv1.2 sequence number encoding. Update
+       the DTLv1.3 word64 version as well */
+    ssl->keys.curSeq = w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
+#endif /* WOLFSSL_DTLS13 */
+
+    ato16(input + *inOutIdx, size);
+    *inOutIdx += LENGTH_SZ;
+
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
 
 /* do all verify and sanity checks on record header */
 static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
+    byte tls12minor;
+#ifdef WOLFSSL_DTLS
+    int ret;
+#endif /* WOLFSSL_DTLS */
+
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
 #endif
+
+    (void)tls12minor;
+
     if (!ssl->options.dtls) {
 #ifdef HAVE_FUZZER
         if (ssl->fuzzerCb)
@@ -9481,34 +9784,16 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     else {
 #ifdef WOLFSSL_DTLS
-#ifdef HAVE_FUZZER
-        if (ssl->fuzzerCb)
-            ssl->fuzzerCb(ssl, input + *inOutIdx, DTLS_RECORD_HEADER_SZ,
-                           FUZZ_HEAD, ssl->fuzzerCtx);
-#endif
-        /* type and version in same sport */
-        XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
-        *inOutIdx += ENUM_LEN + VERSION_SZ;
-        ato16(input + *inOutIdx, &ssl->keys.curEpoch);
-        *inOutIdx += OPAQUE16_LEN;
-        if (ssl->options.haveMcast) {
-        #ifdef WOLFSSL_MULTICAST
-            ssl->keys.curPeerId = input[*inOutIdx];
-            ssl->keys.curSeq_hi = input[*inOutIdx+1];
-        #endif
-        }
-        else
-            ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
-        *inOutIdx += OPAQUE16_LEN;
-        ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
-        *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
-        ato16(input + *inOutIdx, size);
-        *inOutIdx += LENGTH_SZ;
+        ret = GetDtlsRecordHeader(ssl, input, inOutIdx, rh, size);
+        if (ret != 0)
+            return ret;
 #endif
     }
 
 #ifdef WOLFSSL_DTLS
-    if (IsDtlsNotSctpMode(ssl)) {
+    /* DTLSv1.3 MUST check window after deprotecting to avoid timing channel
+       (RFC9147 Section 4.5.1) */
+    if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
         if (!DtlsCheckWindow(ssl) ||
                 (rh->type == application_data && ssl->keys.curEpoch == 0) ||
                 (rh->type == alert && ssl->options.handShakeDone &&
@@ -9519,13 +9804,18 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+    tls12minor = TLSv1_2_MINOR;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        tls12minor = DTLSv1_2_MINOR;
+#endif /* WOLFSSL_DTLS13 */
     /* catch version mismatch */
 #ifndef WOLFSSL_TLS13
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor)
 #else
     if (rh->pvMajor != ssl->version.major ||
         (rh->pvMinor != ssl->version.minor &&
-         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_2_MINOR)
+         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != tls12minor)
         ))
 #endif
     {
@@ -9540,6 +9830,15 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else if (ssl->options.dtls && rh->type == handshake)
             /* Check the DTLS handshake message RH version later. */
             WOLFSSL_MSG("DTLS handshake, skip RH version number check");
+#ifdef WOLFSSL_DTLS13
+        else if (ssl->options.dtls && !ssl->options.handShakeDone) {
+            /* we may have lost the ServerHello and this is a unified record
+               before version been negotiated */
+            if (Dtls13IsUnifiedHeader(*input)) {
+                return SEQUENCE_ERROR;
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
         else {
             WOLFSSL_MSG("SSL version error");
             /* send alert per RFC5246 Appendix E. Backward Compatibility */
@@ -9576,6 +9875,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         case change_cipher_spec:
         case application_data:
         case alert:
+#ifdef WOLFSSL_DTLS13
+        case ack:
+#endif /* WOLFSSL_DTLS13 */
             break;
         case no_type:
         default:
@@ -9624,10 +9926,10 @@ static int GetHandShakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef WOLFSSL_DTLS
-static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
-                                  word32* inOutIdx, byte *type, word32 *size,
-                                  word32 *fragOffset, word32 *fragSz,
-                                  word32 totalSz)
+int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
+                           word32* inOutIdx, byte *type, word32 *size,
+                           word32 *fragOffset, word32 *fragSz,
+                           word32 totalSz)
 {
     word32 idx = *inOutIdx;
 
@@ -9648,9 +9950,10 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
 
-    if (ssl->curRL.pvMajor != ssl->version.major ||
-        ssl->curRL.pvMinor != ssl->version.minor) {
-
+    if ((ssl->curRL.pvMajor != ssl->version.major) ||
+        (!IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != ssl->version.minor) ||
+        (IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != DTLSv1_2_MINOR)
+        ) {
         if (*type != client_hello && *type != hello_verify_request) {
             WOLFSSL_ERROR(VERSION_ERROR);
             return VERSION_ERROR;
@@ -14878,6 +15181,51 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     return 1;
 }
 
+#ifdef WOLFSSL_DTLS13
+static WC_INLINE int Dtls13CheckWindow(WOLFSSL* ssl)
+{
+    w64wrapper nextSeq, seq;
+    w64wrapper diff64;
+    word32 *window;
+    int wordOffset;
+    int wordIndex;
+    word32 diff;
+
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Can't find decrypting epoch");
+        return 0;
+    }
+
+    nextSeq = ssl->dtls13DecryptEpoch->nextPeerSeqNumber;
+    window = ssl->dtls13DecryptEpoch->window;
+    seq = ssl->keys.curSeq;
+
+    if (w64GTE(seq, nextSeq))
+        return 1;
+
+    /* seq < nextSeq, nextSeq - seq */
+    diff64 = w64Sub(nextSeq, seq);
+
+    /* diff >= DTLS_SEQ_BITS, outside of the window */
+    if (w64GT(diff64, w64From32(0, DTLS_SEQ_BITS)))
+        return 0;
+
+    /* we are assuming DTLS_SEQ_BITS <= 2**32 */
+    diff = w64GetLow32(diff64);
+
+    /* zero based index */
+    diff--;
+
+    wordIndex = ((int)diff) / DTLS_WORD_BITS;
+    wordOffset = ((int)diff) % DTLS_WORD_BITS;
+
+    if (window[wordIndex] & (1 << wordOffset))
+        return 0;
+
+    return 1;
+}
+
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_MULTICAST
 static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
@@ -14896,21 +15244,80 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
 }
 #endif /* WOLFSSL_MULTICAST */
 
-
-static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
+/* diff must be already incremented by one */
+static void DtlsUpdateWindowGTSeq(word32 diff, word32* window)
 {
-    word32* window;
-    word32* next_lo;
-    word16* next_hi;
-    int curLT;
+    word32 idx, newDiff, temp, i;
+    word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+
+    if (diff >= DTLS_SEQ_BITS)
+        XMEMSET(window, 0, DTLS_SEQ_SZ);
+    else {
+        temp = 0;
+        idx = diff / DTLS_WORD_BITS;
+        newDiff = diff % DTLS_WORD_BITS;
+
+        XMEMCPY(oldWindow, window, sizeof(oldWindow));
+
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            if (i < idx)
+                window[i] = 0;
+            else {
+                temp |= (oldWindow[i-idx] << newDiff);
+                window[i] = temp;
+                temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff - 1);
+            }
+        }
+    }
+    window[0] |= 1;
+}
+
+static WC_INLINE int _DtlsUpdateWindow(WOLFSSL* ssl, word16* next_hi,
+                                       word32* next_lo, word32 *window)
+{
     word32 cur_lo, diff;
+    int curLT;
     word16 cur_hi;
-    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
 
+    if (cur_hi == *next_hi) {
+        curLT = cur_lo < *next_lo;
+        diff = curLT ? *next_lo - cur_lo - 1 : cur_lo - *next_lo + 1;
+    }
+    else {
+        curLT = cur_hi < *next_hi;
+        diff = curLT ? cur_lo - *next_lo - 1 : *next_lo - cur_lo + 1;
+    }
+
+    if (curLT) {
+        word32 idx = diff / DTLS_WORD_BITS;
+        word32 newDiff = diff % DTLS_WORD_BITS;
+
+        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
+            window[idx] |= (1 << newDiff);
+    }
+    else {
+        DtlsUpdateWindowGTSeq(diff, window);
+        *next_lo = cur_lo + 1;
+        if (*next_lo < cur_lo)
+            (*next_hi)++;
+    }
+
+    return 1;
+}
+
+static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
+{
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+    word16 *next_hi;
+    word32 *next_lo;
+    word32* window;
+
 #ifdef WOLFSSL_MULTICAST
+    word32 cur_lo = ssl->keys.curSeq_lo;
+
     if (ssl->options.haveMcast) {
         WOLFSSL_DTLS_PEERSEQ* p;
         int i;
@@ -14962,56 +15369,65 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         window = peerSeq->prevWindow;
     }
 
-    if (cur_hi == *next_hi) {
-        curLT = cur_lo < *next_lo;
-        diff = curLT ? *next_lo - cur_lo - 1 : cur_lo - *next_lo + 1;
+    return _DtlsUpdateWindow(ssl, next_hi, next_lo, window);
+}
+
+#ifdef WOLFSSL_DTLS13
+static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
+{
+    w64wrapper nextSeq, seq;
+    w64wrapper diff64;
+    word32 *window;
+    int wordOffset;
+    int wordIndex;
+    word32 diff;
+
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Can't find decrypting Epoch");
+        return BAD_STATE_E;
     }
-    else {
-        curLT = cur_hi < *next_hi;
-        diff = curLT ? cur_lo - *next_lo - 1 : *next_lo - cur_lo + 1;
-    }
 
-    if (curLT) {
-        word32 idx = diff / DTLS_WORD_BITS;
-        word32 newDiff = diff % DTLS_WORD_BITS;
+    nextSeq = ssl->dtls13DecryptEpoch->nextPeerSeqNumber;
+    window = ssl->dtls13DecryptEpoch->window;
+    seq = ssl->keys.curSeq;
 
-        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
-            window[idx] |= (1 << newDiff);
-    }
-    else {
-        if (diff >= DTLS_SEQ_BITS)
-            XMEMSET(window, 0, DTLS_SEQ_SZ);
-        else {
-            word32 idx, newDiff, temp, i;
-            word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+    /* seq < nextSeq */
+    if (w64LT(seq, nextSeq)) {
+        diff64 = w64Sub(nextSeq, seq);
 
-            temp = 0;
-            idx = diff / DTLS_WORD_BITS;
-            newDiff = diff % DTLS_WORD_BITS;
+        /* zero based index */
+        w64Decrement(&diff64);
 
-            XMEMCPY(oldWindow, window, sizeof(oldWindow));
+        /* FIXME: check that diff64 < DTLS_WORDS_BITS */
+        diff = w64GetLow32(diff64);
+        wordIndex = ((int)diff) / DTLS_WORD_BITS;
+        wordOffset = ((int)diff) % DTLS_WORD_BITS;
 
-            for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-                if (i < idx)
-                    window[i] = 0;
-                else {
-                    temp |= (oldWindow[i-idx] << newDiff);
-                    window[i] = temp;
-                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff - 1);
-                }
-            }
+        if (wordIndex >= WOLFSSL_DTLS_WINDOW_WORDS) {
+            WOLFSSL_MSG("Invalid sequence number to Dtls13UpdateWindow");
+            return BAD_STATE_E;
         }
-        window[0] |= 1;
-        *next_lo = cur_lo + 1;
-        if (*next_lo < cur_lo)
-            (*next_hi)++;
+
+        window[wordIndex] |= (1 << wordOffset);
+        return 1;
     }
+
+    /* seq >= nextSeq, seq - nextSeq */
+    diff64 = w64Sub(seq, nextSeq);
+
+    /* as we are considering nextSeq inside the window, we should add + 1 */
+    w64Increment(&diff64);
+    DtlsUpdateWindowGTSeq(w64GetLow32(diff64), window);
+
+    w64Increment(&seq);
+    ssl->dtls13DecryptEpoch->nextPeerSeqNumber = seq;
 
     return 1;
 }
+#endif /* WOLFSSL_DTLS13 */
 
 
-static int DtlsMsgDrain(WOLFSSL* ssl)
+int DtlsMsgDrain(WOLFSSL* ssl)
 {
     DtlsMsg* item = ssl->dtls_rx_msg_list;
     int ret = 0;
@@ -15026,8 +15442,15 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
             item->fragSz == item->sz &&
             ret == 0) {
         word32 idx = 0;
-        if ((ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
-                                      item->sz, item->sz)) == 0) {
+
+    #ifdef WOLFSSL_NO_TLS12
+        ret = DoTls13HandShakeMsgType(ssl, item->msg, &idx, item->type,
+                                      item->sz, item->sz);
+    #else
+        ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
+                                      item->sz, item->sz);
+    #endif
+        if (ret == 0) {
             DtlsTxMsgListClean(ssl);
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -15164,8 +15587,13 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 *inOutIdx = totalSz;
             }
             else {
+            #ifdef WOLFSSL_NO_TLS12
+                ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
+                    totalSz);
+            #else
                 ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size,
                     totalSz);
+            #endif
             }
         }
     }
@@ -15267,7 +15695,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
         ret = DtlsMsgDrain(ssl);
 #else
+    #ifdef WOLFSSL_NO_TLS12
+        ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
+                                      totalSz);
+    #else
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    #endif
         if (ret == 0) {
             DtlsTxMsgListClean(ssl);
             if (ssl->dtls_rx_msg_list != NULL) {
@@ -15280,7 +15713,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_LEAVE("DoDtlsHandShakeMsg()", ret);
     return ret;
 }
-#endif
+#endif /* WOLFSSL_DTLS13 */
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -17430,8 +17863,15 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             readSz = RECORD_HEADER_SZ;
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls)
+            if (ssl->options.dtls) {
                 readSz = DTLS_RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.tls1_3) {
+                    /* dtls1.3 unified header can be as little as 2 bytes */
+                    readSz = DTLS_UNIFIED_HEADER_MIN_SZ;
+                }
+#endif /* WOLFSSL_DTLS13 */
+            }
         #endif
 
             /* get header or return error */
@@ -17527,6 +17967,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         /* get the record layer header */
         case getRecordLayerHeader:
 
+            /* DTLSv1.3 record numbers in the header are encrypted, and AAD
+             * uses the unecrypted form. Because of this we need to modify the
+             * header, decrypting the numbers inside
+             * DtlsParseUnifiedRecordLayer(). This violates the const attribute
+             * of the buffer parameter of GetRecordHeader() used here. */
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
@@ -17540,6 +17985,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #ifdef WOLFSSL_DTLS_DROP_STATS
                 ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
+
+#ifdef WOLFSSL_DTLS13
+                /* return to send ACKS and shortcut rtx timer */
+                if (IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->dtls13Rtx.sendAcks)
+                    return 0;
+#endif /* WOLFSSL_DTLS13 */
 
                 continue;
             }
@@ -17747,11 +18199,22 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     else
                     {
                 #ifdef WOLFSSL_TLS13
+                        byte *aad = (byte*)&ssl->curRL;
+                        word16 aad_size = RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+                        if (ssl->options.dtls) {
+                            /* aad now points to the record header */
+                            aad = in->buffer +
+                                in->idx - ssl->dtls13CurRlLength;
+                            aad_size = ssl->dtls13CurRlLength;
+                        }
+#endif /* WOLFSSL_DTLS13 */
+
                         ret = DecryptTls13(ssl,
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
-                                        (byte*)&ssl->curRL, RECORD_HEADER_SZ, 1);
+                                        aad, aad_size, 1);
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
@@ -17778,6 +18241,15 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 else {
                     WOLFSSL_MSG("Decrypt failed");
                     WOLFSSL_ERROR(ret);
+#ifdef WOLFSSL_DTLS13
+                    if (ssl->options.tls1_3 && ssl->options.dtls) {
+                        WOLFSSL_MSG("DTLS: Ignoring decrypted failed record");
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.idx =
+                            ssl->buffers.inputBuffer.length;
+                        return 0;
+                    }
+#endif /* WOLFSSL_DTLS13 */
                 #ifdef WOLFSSL_EARLY_DATA
                     if (ssl->options.tls1_3) {
                          if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -17893,10 +18365,43 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif
             }
 
-            ssl->options.processReply = runProcessingOneMessage;
+            ssl->options.processReply = runProcessingOneRecord;
             FALL_THROUGH;
 
         /* the record layer is here */
+        case runProcessingOneRecord:
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+
+                if(!Dtls13CheckWindow(ssl)) {
+                    /* drop packet */
+                    WOLFSSL_MSG(
+                            "Dropping DTLS record outside receiving window");
+                    ssl->options.processReply = doProcessInit;
+                    ssl->buffers.inputBuffer.idx += ssl->curSize;
+                    if (ssl->buffers.inputBuffer.idx >
+                            ssl->buffers.inputBuffer.length)
+                        return BUFFER_E;
+
+                    continue;
+                }
+
+                ret = Dtls13UpdateWindow(ssl);
+                if (ret != 1) {
+                    WOLFSSL_ERROR(ret);
+                    return ret;
+                }
+
+                ret = Dtls13RecordRecvd(ssl);
+                if (ret != 0) {
+                    WOLFSSL_ERROR(ret);
+                    return ret;
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
+            ssl->options.processReply = runProcessingOneMessage;
+            FALL_THROUGH;
+
         case runProcessingOneMessage:
             /* can't process a message if we have no data.  */
             if (ssl->buffers.inputBuffer.idx
@@ -17944,7 +18449,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             }
 
 #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl)) {
+            if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
                 DtlsUpdateWindow(ssl);
             }
 #endif /* WOLFSSL_DTLS */
@@ -17957,11 +18462,36 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     /* debugging in DoHandShakeMsg */
                     if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
-                        ret = DoDtlsHandShakeMsg(ssl,
-                                            ssl->buffers.inputBuffer.buffer,
-                                            &ssl->buffers.inputBuffer.idx,
-                                            ssl->buffers.inputBuffer.length);
+                        if (!IsAtLeastTLSv1_3(ssl->version)) {
+                                ret = DoDtlsHandShakeMsg(ssl,
+                                                         ssl->buffers.inputBuffer.buffer,
+                                                         &ssl->buffers.inputBuffer.idx,
+                                                         ssl->buffers.inputBuffer.length);
+                        }
 #endif
+#ifdef WOLFSSL_DTLS13
+                        if (IsAtLeastTLSv1_3(ssl->version)) {
+                            ret = Dtls13HandshakeRecv(ssl,
+                                ssl->buffers.inputBuffer.buffer,
+                                &ssl->buffers.inputBuffer.idx,
+                                ssl->buffers.inputBuffer.length);
+#ifdef WOLFSSL_EARLY_DATA
+                            if (ret == 0 &&
+                                ssl->options.side == WOLFSSL_SERVER_END &&
+                                ssl->earlyData > early_data_ext &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+
+                                /* return so wolfSSL_read_early_data can return
+                                   exit */
+                                ssl->earlyData = no_early_data;
+                                ssl->options.processReply = doProcessInit;
+
+                                return ZERO_RETURN;
+                            }
+#endif /* WOLFSSL_EARLY_DATA */
+
+                        }
+#endif /* WOLFSSL_DTLS13 */
                     }
                     else if (!IsAtLeastTLSv1_3(ssl->version)
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
@@ -18235,6 +18765,22 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         ret = 0;
                     break;
 
+#ifdef WOLFSSL_DTLS13
+            case ack:
+                WOLFSSL_MSG("got ACK");
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+                    word32 processedSize = 0;
+                    ret = DoDtls13Ack(ssl, ssl->buffers.inputBuffer.buffer +
+                                             ssl->buffers.inputBuffer.idx,
+                                             ssl->buffers.inputBuffer.length -
+                                             ssl->buffers.inputBuffer.idx -
+                                             ssl->keys.padSz, &processedSize);
+                    ssl->buffers.inputBuffer.idx += processedSize;
+                    ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                    break;
+                }
+                FALL_THROUGH;
+#endif /* WOLFSSL_DTLS13 */
                 default:
                     WOLFSSL_ERROR(UNKNOWN_RECORD_TYPE);
                     return UNKNOWN_RECORD_TYPE;
@@ -19466,7 +20012,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
 
-static int cipherExtraData(WOLFSSL* ssl)
+int cipherExtraData(WOLFSSL* ssl)
 {
     int cipherExtra;
     /* Cipher data that may be added by BuildMessage */
@@ -20455,6 +21001,42 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
 
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && ssl->options.tls1_3) {
+            byte isEarlyData = 0;
+
+            if (ssl->dtls13EncryptEpoch == NULL)
+                return ssl->error = BAD_STATE_E;
+
+#ifdef WOLFSSL_EARLY_DATA
+            isEarlyData = ssl->earlyData != no_early_data;
+#endif
+
+            if (isEarlyData) {
+#ifdef WOLFSSL_EARLY_DATA
+                ret = Dtls13SetEpochKeys(ssl,
+                    w64From32(0x0, DTLS13_EPOCH_EARLYDATA), ENCRYPT_SIDE_ONLY);
+                if (ret != 0) {
+                    WOLFSSL_MSG(
+                        "trying to send early data without epoch 1");
+                    ssl->error = BUILD_MSG_ERROR;
+                    return WOLFSSL_FATAL_ERROR;
+                }
+#endif /* WOLFSSL_EARLY_DATA */
+            }
+            else if (!w64Equal(
+                         ssl->dtls13EncryptEpoch->epochNumber,
+                         ssl->dtls13Epoch)) {
+                ret = Dtls13SetEpochKeys(
+                    ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+                if (ret != 0) {
+                    ssl->error = BUILD_MSG_ERROR;
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
@@ -20657,6 +21239,16 @@ startScr:
             }
             return ssl->error;
         }
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            /* Dtls13DoScheduledWork(ssl) may return WANT_WRITE */
+            if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return ssl->error;
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
         #ifdef HAVE_SECURE_RENEGOTIATION
             if (ssl->secure_renegotiation &&
                 ssl->secure_renegotiation->startScr) {
@@ -20680,6 +21272,17 @@ startScr:
                 }
             }
         #endif
+
+#ifdef WOLFSSL_DTLS13
+            /* if wolfSSL_Peek() is invoked with sz == 0 it will not block (but
+             *  it processes pending non-application records) */
+            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version) && peek &&
+                sz == 0 && ssl->buffers.inputBuffer.idx
+                - ssl->buffers.inputBuffer.length  == 0) {
+                return 0;
+            }
+#endif /* WOLFSSL_DTLS13 */
+
 #ifndef WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.handShakeDone &&
@@ -20798,12 +21401,33 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
      * TLS 1.3 encrypts handshake packets after the ServerHello
      */
     if (IsEncryptionOn(ssl, 1)) {
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls
+            && IsAtLeastTLSv1_3(ssl->version)
+            && !w64Equal(ssl->dtls13EncryptEpoch->epochNumber, ssl->dtls13Epoch)) {
+            ret = Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+            if (ret != 0)
+                return ret;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
         sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert,
                                                                        0, 0, 0, CUR_ORDER);
     }
     else {
 
-        AddRecordHeader(output, ALERT_SIZE, alert, ssl, CUR_ORDER);
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+            ret = Dtls13RlAddPlaintextHeader(ssl, output, alert, ALERT_SIZE);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif /* WOLFSSL_DTLS13 */
+            {
+                AddRecordHeader(output, ALERT_SIZE, alert, ssl, CUR_ORDER);
+            }
+
         output += RECORD_HEADER_SZ;
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
@@ -30227,6 +30851,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32          i = *inOutIdx;
         word32          begin = i;
         int             ret = 0;
+        byte            lesserVersion;
+
 #ifdef WOLFSSL_DTLS
         Hmac            cookieHmac;
         byte            newCookie[MAX_COOKIE_LEN];
@@ -30284,11 +30910,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR)
             pv.minor = TLSv1_2_MINOR;
 
-        if ((!ssl->options.dtls && ssl->version.minor > pv.minor) ||
-            (ssl->options.dtls && ssl->version.minor != DTLS_MINOR
-             && ssl->version.minor != DTLSv1_2_MINOR && pv.minor != DTLS_MINOR
-             && pv.minor != DTLSv1_2_MINOR)) {
+        lesserVersion = !ssl->options.dtls && ssl->version.minor > pv.minor;
+        lesserVersion |= ssl->options.dtls && ssl->version.minor < pv.minor;
 
+        if (lesserVersion) {
+            byte   belowMinDowngrade;
             word16 haveRSA = 0;
             word16 havePSK = 0;
             int    keySz   = 0;
@@ -30301,7 +30927,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ret = VERSION_ERROR;
                 goto out;
             }
-            if (pv.minor < ssl->options.minDowngrade) {
+
+            belowMinDowngrade = pv.minor < ssl->options.minDowngrade;
+
+            /* DTLS versions increase backwards (-1,-2,-3) ecc  */
+            if (ssl->options.dtls)
+                belowMinDowngrade = ssl->options.dtls
+                    && pv.minor > ssl->options.minDowngrade;
+
+            if (belowMinDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
 #if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
                 SendAlert(ssl, alert_fatal, handshake_failure);
@@ -30310,26 +30944,46 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 goto out;
             }
 
-            if (pv.minor == SSLv3_MINOR) {
-                /* turn off tls */
-                WOLFSSL_MSG("\tdowngrading to SSLv3");
-                ssl->options.tls    = 0;
-                ssl->options.tls1_1 = 0;
-                ssl->version.minor  = SSLv3_MINOR;
+            if (!ssl->options.dtls) {
+                if (pv.minor == SSLv3_MINOR) {
+                    /* turn off tls */
+                    WOLFSSL_MSG("\tdowngrading to SSLv3");
+                    ssl->options.tls    = 0;
+                    ssl->options.tls1_1 = 0;
+                    ssl->version.minor  = SSLv3_MINOR;
+                }
+                else if (pv.minor == TLSv1_MINOR) {
+                    /* turn off tls 1.1+ */
+                    WOLFSSL_MSG("\tdowngrading to TLSv1");
+                    ssl->options.tls1_1 = 0;
+                    ssl->version.minor  = TLSv1_MINOR;
+                }
+                else if (pv.minor == TLSv1_1_MINOR) {
+                    WOLFSSL_MSG("\tdowngrading to TLSv1.1");
+                    ssl->version.minor  = TLSv1_1_MINOR;
+                }
+                else if (pv.minor == TLSv1_2_MINOR) {
+                    WOLFSSL_MSG("    downgrading to TLSv1.2");
+                    ssl->version.minor  = TLSv1_2_MINOR;
+                }
             }
-            else if (pv.minor == TLSv1_MINOR) {
-                /* turn off tls 1.1+ */
-                WOLFSSL_MSG("\tdowngrading to TLSv1");
-                ssl->options.tls1_1 = 0;
-                ssl->version.minor  = TLSv1_MINOR;
-            }
-            else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
-                ssl->version.minor  = TLSv1_1_MINOR;
-            }
-            else if (pv.minor == TLSv1_2_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.2");
-                ssl->version.minor  = TLSv1_2_MINOR;
+            else {
+                if (pv.minor == DTLSv1_2_MINOR) {
+                    WOLFSSL_MSG("\tDowngrading to DTLSv1.2");
+                    ssl->options.tls1_3 = 0;
+                    ssl->version.minor = DTLSv1_2_MINOR;
+
+                    /* reset hashes, DTLSv1.2 will take care of the hashing
+                       later */
+                    ret = InitHandshakeHashes(ssl);
+                    if (ret != 0)
+                        return ret;
+                }
+                else if (pv.minor == DTLS_MINOR) {
+                    WOLFSSL_MSG("\tDowngrading to DTLSv1.2");
+                    ssl->options.tls1_3 = 0;
+                    ssl->version.minor = DTLS_MINOR;
+                }
             }
 #ifndef NO_RSA
             haveRSA = 1;
