@@ -5312,12 +5312,11 @@ static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
     int ret = 0;
     int dtls;
 
-    (void)dtls;
-
     if (zero_return == NULL || ssl == NULL)
         return -1;
 
     dtls = wolfSSL_dtls(ssl);
+    (void)dtls;
     *zero_return = 0;
 
     if (!blocking) {
