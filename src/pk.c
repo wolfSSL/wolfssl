@@ -2572,18 +2572,7 @@ int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx, void *data,
  * RSA check key APIs
  */
 
-/* If not using old FIPS or CAVP selftest or not using fast or user RSA, able
- * to check RSA key. */
-#if (defined(HAVE_USER_RSA) || defined(HAVE_FAST_RSA) || \
-     defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(HAVE_INTEL_QA) || \
-     !defined(WOLFSSL_KEY_GEN) || (defined(HAVE_FIPS) && \
-     FIPS_VERSION_LT(2, 0)) || defined(HAVE_SELFTEST)) && \
-     !defined(WOLFSSL_NO_RSA_KEY_CHECK)
-#define WOLFSSL_NO_RSA_KEY_CHECK
-#endif
-
-
-#ifndef WOLFSSL_NO_RSA_KEY_CHECK
+#ifdef WOLFSSL_RSA_KEY_CHECK
 /* Check that the RSA key is valid using wolfCrypt.
  *
  * @param [in] rsa  RSA key.
@@ -2612,7 +2601,7 @@ int wolfSSL_RSA_check_key(const WOLFSSL_RSA* rsa)
 
     return ret;
 }
-#endif /* !WOLFSSL_NO_RSA_KEY_CHECK */
+#endif /* WOLFSSL_RSA_KEY_CHECK */
 
 /*
  * RSA generate APIs

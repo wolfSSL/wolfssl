@@ -14661,17 +14661,12 @@ static int rsa_keygen_test(WC_RNG* rng)
     }
     TEST_SLEEP();
 
-    /* If not using old FIPS, or not using FAST or USER RSA... */
-    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
-        (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-        !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA) \
-        && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+#ifdef WOLFSSL_RSA_KEY_CHECK
     ret = wc_CheckRsaKey(genKey);
     if (ret != 0) {
         ERROR_OUT(-7872, exit_rsa);
     }
-    #endif
+#endif
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ERROR_OUT(-7873, exit_rsa);
