@@ -40408,6 +40408,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
         AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 1192);
         AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                                sizeof_client_key_der_2048);
+        AssertStrEQ((const char*)bufPtr, (const char*)client_key_der_2048); 
         bufPtr = NULL;
         AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                                sizeof_client_key_der_2048);
@@ -51571,6 +51572,7 @@ static void test_wolfSSL_RSA_DER(void)
         newBuff = NULL;
         AssertIntEQ(i2d_RSAPublicKey(rsa, &newBuff), pub[i].sz);
         AssertNotNull(newBuff);
+        AssertStrEQ((const char*)newBuff, (const char*)pub[i].der); 
         AssertIntEQ(0, memcmp((void *)newBuff, (void *)pub[i].der, pub[i].sz));
         XFREE((void *)newBuff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         RSA_free(rsa);
