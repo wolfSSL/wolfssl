@@ -5696,15 +5696,15 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
     WOLFSSL* ssl = (WOLFSSL*)data;
     byte tls13Minor, tls12Minor, tls11Minor, isDtls;
 
-    /* unused on some configuration */
-    (void)tls12Minor;
-    (void)tls13Minor;
-    (void)tls11Minor;
-
     isDtls = !!ssl->options.dtls;
     tls13Minor = (byte)(isDtls ? DTLSv1_3_MINOR : TLSv1_3_MINOR);
     tls12Minor = (byte)(isDtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR);
     tls11Minor = (byte)(isDtls ? DTLS_MINOR : TLSv1_1_MINOR);
+
+    /* unused on some configuration */
+    (void)tls12Minor;
+    (void)tls13Minor;
+    (void)tls11Minor;
 
     if (msgType == client_hello) {
         /* TLS v1.2 and TLS v1.3  */
