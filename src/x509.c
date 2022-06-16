@@ -8378,6 +8378,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         if (ret == WOLFSSL_SUCCESS) {
             cert->version = req->version;
             cert->isCA = req->isCa;
+            cert->basicConstSet = req->basicConstSet;
     #ifdef WOLFSSL_CERT_EXT
             if (req->subjKeyIdSz != 0) {
                 XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
@@ -8469,6 +8470,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         cert->sigType = wolfSSL_X509_get_signature_type(x509);
         cert->keyType = x509->pubKeyOID;
         cert->isCA    = wolfSSL_X509_get_isCA(x509);
+        cert->basicConstSet = x509->basicConstSet;
 
     #ifdef WOLFSSL_CERT_EXT
         if (x509->subjKeyIdSz <= CTC_MAX_SKID_SIZE) {
