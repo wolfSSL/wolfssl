@@ -5622,7 +5622,8 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 cnt++;
 #endif
                 if ((idx + part->length + CERT_HEADER_SZ) > bufferSz) {
-                    WOLFSSL_MSG("   Cert Chain bigger than buffer");
+                    WOLFSSL_MSG("   Cert Chain bigger than buffer. "
+                                "Consider increasing MAX_CHAIN_DEPTH");
                     ret = BUFFER_E;
                 }
                 else {
@@ -5636,9 +5637,12 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
 
                 /* add CA's to certificate manager */
-                if (type == CA_TYPE) {
+                if (ret == 0 && type == CA_TYPE) {
                     /* verify CA unless user set to no verify */
                     ret = AddCA(ctx->cm, &part, WOLFSSL_USER_CA, verify);
+                    if (ret == WOLFSSL_SUCCESS) {
+                        ret = 0; /* converted success case */
+                    }
                     gotOne = 0; /* don't exit loop for CA type */
                 }
             }
