@@ -38593,7 +38593,54 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     expectedLen = 1688;
     AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
+    /* Reset buffers and x509 */
+    BIO_free(input);
+    BIO_free(output);
     X509_free(x509a);
+
+    /* test CA and basicConstSet values are encoded when 
+     * the cert is a CA */ 
+    AssertNotNull(input = BIO_new_file(
+            "certs/server-cert.pem", "rb"));
+
+    /* read PEM into X509 struct */
+    AssertNotNull(PEM_read_bio_X509(input, &x509a, NULL, NULL));
+
+    /* write X509 back to PEM BIO */
+    AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
+    AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
+
+    /* read exported X509 PEM back into struct, ensure isCa and
+     * basicConstSet values are maintained */
+    AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
+    AssertIntEQ(x509b->isCa, 1);
+    AssertIntEQ(x509b->basicConstSet, 1);
+    
+    X509_free(x509a);
+    X509_free(x509b);
+    BIO_free(input);
+    BIO_free(output);
+
+    /* test CA and basicConstSet values are encoded when 
+     * the cert is not CA */ 
+    AssertNotNull(input = BIO_new_file(
+            "certs/client-uri-cert.pem", "rb"));
+
+    /* read PEM into X509 struct */
+    AssertNotNull(PEM_read_bio_X509(input, &x509a, NULL, NULL));
+
+    /* write X509 back to PEM BIO */
+    AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
+    AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
+
+    /* read exported X509 PEM back into struct, ensure isCa and
+     * basicConstSet values are maintained */
+    AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
+    AssertIntEQ(x509b->isCa, 0);
+    AssertIntEQ(x509b->basicConstSet, 1);
+    
+    X509_free(x509a);
+    X509_free(x509b);
     BIO_free(input);
     BIO_free(output);
 

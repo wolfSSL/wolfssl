@@ -443,9 +443,10 @@ typedef struct Cert {
     CertExtension customCertExt[NUM_CUSTOM_EXT];
     int customCertExtCount;
 #endif
-    void*   decodedCert;    /* internal DecodedCert allocated from heap */
-    byte*   der;            /* Pointer to buffer of current DecodedCert cache */
-    void*   heap;           /* heap hint */
+    void*   decodedCert;      /* internal DecodedCert allocated from heap */
+    byte*   der;              /* Pointer to buffer of current DecodedCert cache */
+    void*   heap;             /* heap hint */
+    byte    basicConstSet:1;  /* Indicator for when Basic Constaint is set */
 } Cert;
 
 

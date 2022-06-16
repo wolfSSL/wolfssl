@@ -22041,21 +22041,46 @@ static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 }
 
 
-/* encode CA basic constraint true, return total bytes written */
+/* encode CA basic constraints true
+ * return total bytes written */
 static int SetCa(byte* out, word32 outSz)
 {
-    const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
-                               0x05, 0x30, 0x03, 0x01, 0x01, 0xff };
+    /* ASN1->DER sequence for Basic Constraints True */
+    const byte caBasicConstASN1[] = {
+        0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
+        0x05, 0x30, 0x03, 0x01, 0x01, 0xff
+    };
 
     if (out == NULL)
         return BAD_FUNC_ARG;
 
-    if (outSz < sizeof(ca))
+    if (outSz < sizeof(caBasicConstASN1))
         return BUFFER_E;
 
-    XMEMCPY(out, ca, sizeof(ca));
+    XMEMCPY(out, caBasicConstASN1, sizeof(caBasicConstASN1));
 
-    return (int)sizeof(ca);
+    return (int)sizeof(caBasicConstASN1);
+}
+
+/* encode basic constraints without CA Boolean
+ * return total bytes written */
+static int SetBC(byte* out, word32 outSz)
+{
+    /* ASN1->DER sequence for Basic Constraint without CA Boolean */
+ const byte BasicConstASN1[] = {
+        0x30, 0x09, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
+        0x02, 0x30, 0x00
+    };
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz < sizeof(BasicConstASN1))
+        return BUFFER_E;
+
+    XMEMCPY(out, BasicConstASN1, sizeof(BasicConstASN1));
+
+    return (int)sizeof(BasicConstASN1);
 }
 #endif
 
@@ -23589,6 +23614,12 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* TODO: consider adding path length field in Cert. */
             dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
         }
+        else if (cert->basicConstSet) {
+            /* Set Basic Constraints to be a non Certificate Authority. */
+            SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
+            dataASN[CERTEXTSASN_IDX_BC_CA].noOut = 1;
+            dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
+        }
         else {
             /* Don't write out Basic Constraints extension items. */
             SetASNItem_NoOut(dataASN, CERTEXTSASN_IDX_BC_SEQ,
@@ -24172,11 +24203,19 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
-    /* CA */
+    /* Set CA */
     if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
+    /* Set Basic Constraint */
+    else if (cert->basicConstSet) {
+        der->caSz = SetBC(der->ca, sizeof(der->ca));
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
 
         der->extensionsSz += der->caSz;
     }
@@ -25335,11 +25374,19 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
-    /* CA */
+    /* Set CA */
     if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
+    /* Set Basic Constraint */
+    else if (cert->basicConstSet) {
+        der->caSz = SetBC(der->ca, sizeof(der->ca));
+        if (der->caSz <= 0)
+            return EXTENSIONS_E;
 
         der->extensionsSz += der->caSz;
     }
