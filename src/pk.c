@@ -861,7 +861,7 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
     }
     /* Encode the RSA key as a DER. Call allocates buffer into pp.
      * No heap hint as this gets returned to the user */
-    else if ((ret = wolfSSL_RSA_To_Der(rsa, pp, 0, NULL)) < 0) {
+    else if ((ret = wolfSSL_RSA_To_Der_ex(rsa, pp, 0, NULL)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         ret = 0;
     }
@@ -898,7 +898,7 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, unsigned char **pp)
     }
     /* Encode the RSA key as a DER. Call allocates buffer into pp.
      * No heap hint as this gets returned to the user */
-    else if ((ret = wolfSSL_RSA_To_Der(rsa, pp, 1, NULL)) < 0) {
+    else if ((ret = wolfSSL_RSA_To_Der_ex(rsa, pp, 1, NULL)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         ret = 0;
     }
