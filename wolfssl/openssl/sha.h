@@ -95,7 +95,7 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 
 /* adder for HW crypto */
 #ifdef STM32_HASH
-#define CTX_SHA2_HW_ADDER 30
+#define CTX_SHA2_HW_ADDER 34
 #else
 #define CTX_SHA2_HW_ADDER 0
 #endif

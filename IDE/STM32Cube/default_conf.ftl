@@ -135,12 +135,18 @@ extern ${variable.value} ${variable.name};
     #define HAL_CONSOLE_UART huart1
     #define WOLFSSL_STM32U5
     #define STM32_HAL_V2
+    #ifdef STM32U585xx
+        #undef  NO_STM32_HASH
+        #undef  NO_STM32_CRYPTO
+        #define WOLFSSL_STM32_PKA
+    #endif
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
     /* You need to define a CPU type, HW crypto and debug UART */
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4, 
-        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4 and WOLFSSL_STM32L5 */
+        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
+        WOLFSSL_STM32G0, WOLFSSL_STM32WB and WOLFSSL_STM32U5 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */

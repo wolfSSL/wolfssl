@@ -580,6 +580,51 @@ CPU: Cortex-M33 at 160 MHz
 IDE: STM32CubeIDE
 RTOS: FreeRTOS
 
+### STM32U585 (STM Symmetric AES/SHA acceleration, STM PKA PKA w/Fast Math)
+
+This test uses `WOLFSSL_SMALL_STACK_CACHE`, which slightly improves the DRBG RNG performance.
+
+Only the ECC sign and verify are currently being accelerated by PKA.
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.3.1
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                575 KB took 1.039 seconds,  553.417 KB/s
+AES-128-CBC-enc      6 MB took 1.000 seconds,    6.274 MB/s
+AES-128-CBC-dec      6 MB took 1.000 seconds,    6.128 MB/s
+AES-256-CBC-enc      6 MB took 1.000 seconds,    6.274 MB/s
+AES-256-CBC-dec      6 MB took 1.000 seconds,    6.152 MB/s
+AES-128-GCM-enc      6 MB took 1.000 seconds,    5.640 MB/s
+AES-128-GCM-dec      6 MB took 1.000 seconds,    5.566 MB/s
+AES-256-GCM-enc      6 MB took 1.000 seconds,    5.615 MB/s
+AES-256-GCM-dec      6 MB took 1.000 seconds,    5.542 MB/s
+GMAC Small          11 MB took 1.000 seconds,   11.499 MB/s
+CHACHA               4 MB took 1.000 seconds,    3.882 MB/s
+CHA-POLY             2 MB took 1.008 seconds,    2.470 MB/s
+3DES               200 KB took 1.071 seconds,  186.741 KB/s
+MD5                  6 MB took 1.000 seconds,    6.299 MB/s
+POLY1305            10 MB took 1.000 seconds,   10.449 MB/s
+SHA                  6 MB took 1.000 seconds,    6.299 MB/s
+SHA-256              6 MB took 1.000 seconds,    6.250 MB/s
+HMAC-MD5             6 MB took 1.000 seconds,    6.177 MB/s
+HMAC-SHA             6 MB took 1.000 seconds,    6.177 MB/s
+HMAC-SHA256          6 MB took 1.000 seconds,    6.104 MB/s
+RSA     2048 public         28 ops took 1.031 sec, avg 36.821 ms, 27.158 ops/sec
+RSA     2048 private         2 ops took 4.310 sec, avg 2155.000 ms, 0.464 ops/sec
+DH      2048 key gen         3 ops took 1.197 sec, avg 399.000 ms, 2.506 ops/sec
+DH      2048 agree           2 ops took 1.525 sec, avg 762.500 ms, 1.311 ops/sec
+ECC   [      SECP256R1]   256 key gen        50 ops took 1.019 sec, avg 20.380 ms, 49.068 ops/sec
+ECDHE [      SECP256R1]   256 agree          52 ops took 1.008 sec, avg 19.385 ms, 51.587 ops/sec
+ECDSA [      SECP256R1]   256 sign           56 ops took 1.000 sec, avg 17.857 ms, 56.000 ops/sec
+ECDSA [      SECP256R1]   256 verify         56 ops took 1.008 sec, avg 18.000 ms, 55.556 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
 ### STM32U585 (STM Symmetric AES/SHA acceleration, SP Math ASM Cortex M)
 
 ```
