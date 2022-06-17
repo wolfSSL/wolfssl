@@ -352,6 +352,10 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
                              hash, hashOutSz, digestAlg);
     #endif
     PRIVATE_KEY_LOCK();
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("TLS 1.3 derived key", output, outputLen);
+#endif
     return ret;
     PRAGMA_GCC_DIAG_POP;
 }
@@ -1299,6 +1303,8 @@ end:
     ForceZero(key_dig, i);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(key_dig, MAX_PRF_DIG);
 #endif
 
     return ret;
@@ -1811,6 +1817,9 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
     if (ret != 0)
         return ret;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChaCha20Poly1305_Encrypt poly", poly, sizeof(poly));
+#endif
     ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1);
     if (ret != 0)
         return ret;
@@ -1818,12 +1827,18 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
     if (ret != 0) {
         ForceZero(poly, sizeof(poly));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(poly, sizeof(poly));
+    #endif
         return ret;
     }
 
     /* Set key for Poly1305. */
     ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(poly, sizeof(poly));
+#endif
     if (ret != 0)
         return ret;
     /* Add authentication code of encrypted data to end. */
@@ -1929,9 +1944,16 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #endif
 
         #ifdef CIPHER_NONCE
-            if (ssl->encrypt.nonce == NULL)
+            if (ssl->encrypt.nonce == NULL) {
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                if (ssl->encrypt.nonce != NULL) {
+                    wc_MemZero_Add("EncryptTls13 nonce", ssl->encrypt.nonce,
+                        AEAD_NONCE_SZ);
+                }
+            #endif
+            }
             if (ssl->encrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -2064,6 +2086,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             ForceZero(ssl->encrypt.sanityCheck,
                 sizeof(ssl->encrypt.sanityCheck));
         #endif
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            if ((ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) &&
+                    (output != input) && (ret == 0)) {
+                wc_MemZero_Add("TLS 1.3 Encrypt plaintext", input, sz);
+            }
+        #endif
 
         #ifdef CIPHER_NONCE
             ForceZero(ssl->encrypt.nonce, AEAD_NONCE_SZ);
@@ -2075,6 +2103,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         default:
             break;
     }
+
 
     /* Reset state */
     ssl->encrypt.state = CIPHER_STATE_BEGIN;
@@ -2116,15 +2145,24 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
     ret = wc_Chacha_Process(ssl->decrypt.chacha, poly, poly, sizeof(poly));
     if (ret != 0)
         return ret;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("ChaCha20Poly1305_Decrypt poly", poly, sizeof(poly));
+#endif
     ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1);
     if (ret != 0) {
         ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(poly, sizeof(poly));
+    #endif
         return ret;
     }
 
     /* Set key for Poly1305. */
     ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(poly, sizeof(poly));
+#endif
     if (ret != 0)
         return ret;
     /* Generate authentication tag for encrypted data. */
@@ -2249,9 +2287,16 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
         #endif
 
         #ifdef CIPHER_NONCE
-            if (ssl->decrypt.nonce == NULL)
+            if (ssl->decrypt.nonce == NULL) {
                 ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                if (ssl->decrypt.nonce != NULL) {
+                    wc_MemZero_Add("DecryptTls13 nonce", ssl->decrypt.nonce,
+                        AEAD_NONCE_SZ);
+                }
+            #endif
+            }
             if (ssl->decrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -2352,6 +2397,12 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
             #endif
                 WOLFSSL_MSG("Decrypted data");
                 WOLFSSL_BUFFER(output, dataSz);
+        #endif
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            if ((ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) &&
+                    (ret == 0)) {
+                wc_MemZero_Add("TLS 1.3 Decrypted data", output, sz);
+            }
         #endif
 
         #ifdef CIPHER_NONCE
@@ -3096,6 +3147,12 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
         return ret;
 
     current = (PreSharedKey*)ext->data;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (current != NULL) {
+        wc_MemZero_Add("WritePSKBinders binderKey", binderKey,
+            sizeof(binderKey));
+    }
+#endif
     /* Calculate the binder for each identity based on previous handshake data.
      */
     while (current != NULL) {
@@ -3129,6 +3186,9 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
     }
 
     ForceZero(binderKey, sizeof(binderKey));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(binderKey, sizeof(binderKey));
+#endif
     if (ret != 0)
         return ret;
 
@@ -9777,6 +9837,11 @@ int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
         }
         ssl->buffers.tls13CookieSecret.buffer = newSecret;
         ssl->buffers.tls13CookieSecret.length = secretSz;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wolfSSL_send_hrr_cookie secret",
+            ssl->buffers.tls13CookieSecret.buffer,
+            ssl->buffers.tls13CookieSecret.length);
+    #endif
     }
 
     /* If the supplied secret is NULL, randomly generate a new secret. */

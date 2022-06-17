@@ -2983,6 +2983,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 && \
             defined(WOLFSSL_AES_128)
         case 16:
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
+        #endif
             while (1)
             {
                 temp  = rk[3];
@@ -3012,6 +3015,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 192 && \
             defined(WOLFSSL_AES_192)
         case 24:
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
+        #endif
             /* for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack */
             while (1)
             {
@@ -3044,6 +3050,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 256 && \
             defined(WOLFSSL_AES_256)
         case 32:
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
+        #endif
             while (1)
             {
                 temp = rk[ 7];
@@ -3154,6 +3163,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
+    #endif
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(&temp, sizeof(temp));
     #endif
         return ret;
     }
@@ -4448,6 +4460,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                sz--;
             }
 
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_AesCtrEncrypt scratch", scratch, AES_BLOCK_SIZE);
+        #endif
             /* do as many block size ops as possible */
             while (sz >= AES_BLOCK_SIZE) {
             #ifdef XTRANSFORM_AESCTRBLOCK
@@ -4456,6 +4471,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 ret = wc_AesEncrypt(aes, (byte*)aes->reg, scratch);
                 if (ret != 0) {
                     ForceZero(scratch, AES_BLOCK_SIZE);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(scratch, AES_BLOCK_SIZE);
+                #endif
                     return ret;
                 }
                 xorbuf(scratch, in, AES_BLOCK_SIZE);
@@ -4475,6 +4493,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 ret = wc_AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->tmp);
                 if (ret != 0) {
                     ForceZero(scratch, AES_BLOCK_SIZE);
+                #ifdef WOLFSSL_CHECK_MEM_ZERO
+                    wc_MemZero_Check(scratch, AES_BLOCK_SIZE);
+                #endif
                     return ret;
                 }
                 IncrementAesCounter((byte*)aes->reg);
@@ -4488,6 +4509,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 }
             }
 
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(scratch, AES_BLOCK_SIZE);
+        #endif
             return 0;
         }
 
@@ -10193,17 +10217,31 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+#endif
+
     ret = wc_AesEncrypt(aes, B, A);
     if (ret != 0) {
         ForceZero(B, sizeof(B));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(B, sizeof(B));
+    #endif
         return ret;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
+#endif
 
     if (authInSz > 0) {
         ret = roll_auth(aes, authIn, authInSz, A);
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
     }
@@ -10212,6 +10250,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
     }
@@ -10224,6 +10266,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (ret != 0) {
         ForceZero(A, sizeof(A));
         ForceZero(B, sizeof(B));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(A, sizeof(A));
+        wc_MemZero_Check(B, sizeof(B));
+    #endif
         return ret;
     }
     xorbuf(authTag, A, authTagSz);
@@ -10255,6 +10301,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
         xorbuf(A, in, AES_BLOCK_SIZE);
@@ -10270,6 +10320,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
         xorbuf(A, in, inSz);
@@ -10278,6 +10332,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ForceZero(A, sizeof(A));
     ForceZero(B, sizeof(B));
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(A, sizeof(A));
+    wc_MemZero_Check(B, sizeof(B));
+#endif
 
     return 0;
 }
@@ -10336,6 +10395,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_AesCcmEncrypt A", A, sizeof(A));
+    wc_MemZero_Add("wc_AesCcmEncrypt B", B, sizeof(B));
+#endif
+
 #ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -10362,6 +10426,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
         xorbuf(A, in, AES_BLOCK_SIZE);
@@ -10377,6 +10445,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
         xorbuf(A, in, oSz);
@@ -10389,6 +10461,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (ret != 0) {
         ForceZero(A, sizeof(A));
         ForceZero(B, sizeof(B));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(A, sizeof(A));
+        wc_MemZero_Check(B, sizeof(B));
+    #endif
         return ret;
     }
 
@@ -10408,6 +10484,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (ret != 0) {
         ForceZero(A, sizeof(A));
         ForceZero(B, sizeof(B));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(A, sizeof(A));
+        wc_MemZero_Check(B, sizeof(B));
+    #endif
         return ret;
     }
 
@@ -10416,6 +10496,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
     }
@@ -10424,6 +10508,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         if (ret != 0) {
             ForceZero(A, sizeof(A));
             ForceZero(B, sizeof(B));
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(A, sizeof(A));
+            wc_MemZero_Check(B, sizeof(B));
+        #endif
             return ret;
         }
     }
@@ -10435,6 +10523,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (ret != 0) {
         ForceZero(A, sizeof(A));
         ForceZero(B, sizeof(B));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(A, sizeof(A));
+        wc_MemZero_Check(B, sizeof(B));
+    #endif
         return ret;
     }
     xorbuf(A, B, authTagSz);
@@ -10456,6 +10548,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     ForceZero(A, sizeof(A));
     ForceZero(B, sizeof(B));
     o = NULL;
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(A, sizeof(A));
+    wc_MemZero_Check(B, sizeof(B));
+#endif
 
     return ret;
 }
@@ -10698,6 +10795,9 @@ void wc_AesFree(Aes* aes)
     wc_psa_aes_free(aes);
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(aes, sizeof(Aes));
+#endif
 }
 
 
@@ -12148,6 +12248,12 @@ static WARN_UNUSED_RESULT int S2V(
             if (ret == 0)
         #endif
             {
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Aes part is checked by wc_AesFree. */
+                wc_MemZero_Add("wc_AesCmacGenerate cmac",
+                    ((unsigned char *)cmac) + sizeof(Aes),
+                    sizeof(Cmac) - sizeof(Aes));
+            #endif
                 xorbuf(tmp[0], data + (dataSz - AES_BLOCK_SIZE),
                        AES_BLOCK_SIZE);
                 ret = wc_InitCmac(cmac, key, keySz, WC_CMAC_AES, NULL);
@@ -12165,6 +12271,8 @@ static WARN_UNUSED_RESULT int S2V(
             if (cmac != NULL) {
                 XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
             }
+        #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+            wc_MemZero_Check(cmac, sizeof(Cmac));
         #endif
         }
         else {

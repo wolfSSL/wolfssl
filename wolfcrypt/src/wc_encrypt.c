@@ -272,6 +272,9 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
         return MEMORY_E;
     }
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
+#endif
 
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
@@ -280,6 +283,8 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
 #endif
         return ret;
     }
@@ -300,6 +305,8 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
 #endif
 
     return ret;
@@ -330,6 +337,9 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
         return MEMORY_E;
     }
 #endif /* WOLFSSL_SMALL_STACK */
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
+#endif
 
     (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
 
@@ -338,6 +348,8 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
 #endif
         return ret;
     }
@@ -358,6 +370,8 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     ForceZero(key, WC_MAX_SYM_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(key, WC_MAX_SYM_KEY_SIZE);
 #endif
 
     return ret;
@@ -475,6 +489,9 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     if (key == NULL)
         return MEMORY_E;
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_CryptKey key", key, PKCS_MAX_KEY_SIZE);
+#endif
 
     switch (version) {
 #ifndef NO_HMAC
@@ -499,6 +516,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             ForceZero(key, PKCS_MAX_KEY_SIZE);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+            wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
         #endif
             return UNICODE_SIZE_E;
         }
@@ -524,6 +543,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
         WOLFSSL_MSG("Unknown/Unsupported PKCS version");
         return ALGO_ID_E;
@@ -533,6 +554,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
         return ret;
     }
@@ -559,6 +582,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
                 return ret;
             }
@@ -587,6 +612,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
                 return ret;
             }
@@ -600,7 +627,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
+                wc_Des3Free(&des);
                 return ret;
             }
             if (enc) {
@@ -609,10 +639,13 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             else {
                 ret = wc_Des3_CbcDecrypt(&des, input, input, length);
             }
+            wc_Des3Free(&des);
             if (ret != 0) {
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
                 return ret;
             }
@@ -674,6 +707,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
                 return ret;
             }
@@ -697,6 +732,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+                wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
                 return ret;
             }
@@ -709,6 +746,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+            wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decryption algorithm");
             return ALGO_ID_E;
@@ -717,6 +756,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     ForceZero(key, PKCS_MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(key, PKCS_MAX_KEY_SIZE);
 #endif
 
     return ret;

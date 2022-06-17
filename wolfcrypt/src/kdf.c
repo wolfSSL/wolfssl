@@ -100,6 +100,12 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     }
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_PRF previous", previous, P_HASH_MAX_SIZE);
+    wc_MemZero_Add("wc_PRF current", current, P_HASH_MAX_SIZE);
+    wc_MemZero_Add("wc_PRF hmac", hmac, sizeof(Hmac));
+#endif
+
     switch (hash) {
     #ifndef NO_MD5
         case md5_mac:
@@ -202,6 +208,10 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
     XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(previous, P_HASH_MAX_SIZE);
+    wc_MemZero_Check(current,  P_HASH_MAX_SIZE);
+    wc_MemZero_Check(hmac,     sizeof(Hmac));
 #endif
 
     return ret;
@@ -263,6 +273,9 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
                                 labLen + seedLen, md5_mac, heap, devId)) == 0) {
         if ((ret = wc_PRF(sha_result, digLen, sha_half, half, labelSeed,
                                 labLen + seedLen, sha_mac, heap, devId)) == 0) {
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wc_PRF_TLSv1 sha_result", sha_result, digLen);
+        #endif
             /* calculate XOR for TLSv1 PRF */
             /* md5 result is placed directly in digest */
             xorbuf(digest, sha_result, digLen);
@@ -272,6 +285,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
@@ -439,6 +454,10 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         XMEMCPY(&data[idx], info, infoLen);
         idx += infoLen;
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_Tls13_HKDF_Expand_Label data", data, idx);
+    #endif
+
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("  PRK");
         WOLFSSL_BUFFER(prk, prkLen);
@@ -455,6 +474,9 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
         ForceZero(data, idx);
 
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(data, MAX_TLS13_HKDF_LABEL_SZ);
+    #endif
         return ret;
     }
 

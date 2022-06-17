@@ -814,6 +814,10 @@ int wc_ed448_init_ex(ed448_key* key, void *heap, int devId)
 
     fe448_init();
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ed448_init_ex key->k", &key->k, sizeof(key->k));
+#endif
+
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     return ed448_hash_init(key, &key->sha);
 #else /* !WOLFSSL_ED448_PERSISTENT_SHA */
@@ -841,6 +845,9 @@ void wc_ed448_free(ed448_key* key)
         ed448_hash_free(key, &key->sha);
 #endif
         ForceZero(key, sizeof(ed448_key));
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(key, sizeof(ed448_key));
+    #endif
     }
 }
 

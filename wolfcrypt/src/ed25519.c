@@ -870,6 +870,10 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
     fe_init();
 #endif
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_ed25519_init_ex key->k", &key->k, sizeof(key->k));
+#endif
+
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     return ed25519_hash_init(key, &key->sha);
 #else /* !WOLFSSL_ED25519_PERSISTENT_SHA */
@@ -897,6 +901,9 @@ void wc_ed25519_free(ed25519_key* key)
 #endif
 
     ForceZero(key, sizeof(ed25519_key));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key, sizeof(ed25519_key));
+#endif
 }
 
 

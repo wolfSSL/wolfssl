@@ -19107,6 +19107,10 @@ static int test_wc_RsaKeyToDer (void)
                 /* Try Public Key. */
                 genKey.type = 0;
                 ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Put back to Private Key */
+                genKey.type = 1;
+            #endif
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -19126,6 +19130,10 @@ static int test_wc_RsaKeyToDer (void)
                 /* Try Public Key. */
                 genKey.type = 0;
                 ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* Put back to Private Key */
+                genKey.type = 1;
+            #endif
             }
             if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;

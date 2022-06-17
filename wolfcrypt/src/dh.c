@@ -1134,6 +1134,10 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         return err;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("GeneratePrivateDh186 cBuf", cBuf, cSz);
+    mp_memzero_add("GeneratePrivateDh186 tmpX", tmpX);
+#endif
     do {
         /* generate N+64 bits (c) from RBG into tmpX, making sure positive.
          * Hash_DRBG uses SHA-256 which matches maximum
@@ -1194,6 +1198,8 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpQ, key->heap, DYNAMIC_TYPE_DH);
     XFREE(tmpX, key->heap, DYNAMIC_TYPE_DH);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    mp_memzero_check(tmpX);
 #endif
 
     return err;
@@ -1721,6 +1727,9 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
     }
 
     if (ret == 0) {
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        mp_memzero_add("wc_DhCheckPrivKey_ex x", x);
+    #endif
         if (prime != NULL) {
             if (mp_read_unsigned_bin(q, prime, primeSz) != MP_OKAY)
                 ret = MP_READ_E;
@@ -1759,6 +1768,8 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(q, key->heap, DYNAMIC_TYPE_DH);
     XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    mp_memzero_check(x);
 #endif
 
     return ret;
@@ -1837,6 +1848,9 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
 
         ret = MP_READ_E;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    mp_memzero_add("_ffc_pairwise_consistency_test privateKey", privateKey);
+#endif
 
     /* Calculate checkKey = g^privateKey mod p */
     if (ret == 0) {
@@ -1892,6 +1906,8 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
     XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
     XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
     XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    mp_memzero_check(privateKey);
 #endif
 
     return ret;
@@ -2096,12 +2112,20 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (ret == 0)
+        mp_memzero_add("wc_DhAgree_Sync x", x);
+#endif
 
     if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
         ret = MP_READ_E;
 
     if (ret == 0 && mp_exptmod(y, x, &key->p, z) != MP_OKAY)
         ret = MP_EXPTMOD_E;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (ret == 0)
+        mp_memzero_add("wc_DhAgree_Sync z", z);
+#endif
 
     /* make sure z is not one (SP800-56A, 5.7.1.1) */
     if (ret == 0 && (mp_cmp_d(z, 1) == MP_EQ))
@@ -2129,6 +2153,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     XFREE(x, key->heap, DYNAMIC_TYPE_DH);
 #endif
     XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    mp_memzero_check(x);
+    mp_memzero_check(z);
 #endif
 
     return ret;
@@ -2242,6 +2269,9 @@ WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst)
         WOLFSSL_MSG("mp_copy error");
         return ret;
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    mp_memzero_add("wc_DhKeyCopy dst->priv", &dst->priv);
+#endif
 
     dst->heap = src->heap;
 
@@ -2282,6 +2312,9 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
             havePriv = 0;
         } else {
             WOLFSSL_MSG("DH Private Key Set");
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            mp_memzero_add("wc_DhImportKeyPair key->priv", &key->priv);
+        #endif
         }
     }
 

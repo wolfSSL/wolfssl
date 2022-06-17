@@ -5597,6 +5597,18 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     key->type = RSA_PRIVATE;
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    mp_memzero_add("Decode RSA key d", &key->d);
+    mp_memzero_add("Decode RSA key p", &key->p);
+    mp_memzero_add("Decode RSA key q", &key->q);
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+    !defined(RSA_LOW_MEM)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    mp_memzero_add("Decode RSA key dP", &key->dP);
+    mp_memzero_add("Decode RSA key dQ", &key->dQ);
+    mp_memzero_add("Decode RSA key u", &key->u);
+#endif
+#endif
+
     if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -6247,6 +6259,9 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
 
             if ((ret = wc_ecc_export_private_only(key_pair, privDer, &privSz))
                                                                          == 0) {
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("wc_CheckPrivateKey privDer", privDer, privSz);
+            #endif
                 wc_ecc_free(key_pair);
                 ret = wc_ecc_init(key_pair);
                 if (ret == 0) {
@@ -6270,6 +6285,8 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(privDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
+    #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(privDer, MAX_ECC_BYTES);
     #endif
     }
     else
@@ -7142,6 +7159,11 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
             ret = 0;
         }
     }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (ret == 0) {
+        wc_MemZero_Add("TraditionalEnc pkcs8Key", pkcs8Key, pkcs8KeySz);
+    }
+#endif
     if (ret == 0) {
         ret = wc_EncryptPKCS8Key(pkcs8Key, pkcs8KeySz, out, outSz, password,
             passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, rng, heap);
@@ -20295,6 +20317,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             info->passwd_userdata);
         if (ret >= 0) {
             passwordSz = ret;
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("PEM password", password, passwordSz);
+        #endif
 
             /* convert and adjust length */
             if (header == BEGIN_ENC_PRIV_KEY) {
@@ -20381,6 +20406,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(password, heap, DYNAMIC_TYPE_STRING);
+    #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(password, NAME_SZ);
     #endif
     }
 #endif /* WOLFSSL_ENCRYPTED_KEYS */

@@ -6279,6 +6279,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 FreeDer(&ssl->buffers.key);
             }
             ssl->buffers.key = der;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("SSL Buffers key", der->buffer, der->length);
+#endif
             ssl->buffers.weOwnKey = 1;
         }
         else if (ctx != NULL) {
@@ -6287,6 +6290,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
             FreeDer(&ctx->privateKey);
             ctx->privateKey = der;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("CTX private key", der->buffer, der->length);
+#endif
         }
     }
     else {
@@ -6323,6 +6329,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 info->passwd_userdata);
             if (ret >= 0) {
                 passwordSz = ret;
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("ProcessBuffer password", password, passwordSz);
+            #endif
 
                 /* PKCS8 decrypt */
                 ret = ToTraditionalEnc(der->buffer, der->length,
@@ -6338,6 +6347,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(password, heap, DYNAMIC_TYPE_STRING);
+        #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+            wc_MemZero_Check(password, NAME_SZ);
         #endif
             ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx,
                 &resetSuites, &keyFormat, heap, devId);
@@ -11705,6 +11716,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
         ssl->buffers.dtlsCookieSecret.buffer = newSecret;
         ssl->buffers.dtlsCookieSecret.length = secretSz;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wolfSSL_DTLS_SetCookieSecret secret",
+            ssl->buffers.dtlsCookieSecret.buffer,
+            ssl->buffers.dtlsCookieSecret.length);
+    #endif
     }
 
     /* If the supplied secret is NULL, randomly generate a new secret. */
@@ -19473,6 +19489,10 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         ret->type = WOLFSSL_SESSION_TYPE_HEAP;
         ret->heap = heap;
         ret->masterSecret = ret->_masterSecret;
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SESSION master secret", ret->masterSecret, SECRET_LEN);
+        wc_MemZero_Add("SESSION id", ret->sessionID, ID_LEN);
+#endif
     #ifndef NO_CLIENT_CACHE
         ret->serverID = ret->_serverID;
     #endif
@@ -36758,6 +36778,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
             XFREE(der, bio->heap, DYNAMIC_TYPE_OPENSSL);
             return NULL;
         }
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wolfSSL_d2i_PKCS8PrivateKey_bio password", password,
+            passwordSz);
+    #endif
 
         ret = ToTraditionalEnc(der, len, password, passwordSz, &algId);
         if (ret < 0) {
@@ -36766,6 +36790,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
         }
 
         ForceZero(password, passwordSz);
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(password, passwordSz);
+    #endif
     }
 
     p = der;
@@ -37802,6 +37829,10 @@ int wolfSSL_RAND_write_file(const char* fname)
         else {
             XFILE f;
 
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Add("wolfSSL_RAND_write_file buf", buf, bytes);
+        #endif
+
             f = XFOPEN(fname, "wb");
             if (f == XBADFILE) {
                 WOLFSSL_MSG("Error opening the file");
@@ -37815,6 +37846,8 @@ int wolfSSL_RAND_write_file(const char* fname)
         ForceZero(buf, bytes);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #elif defined(WOLFSSL_CHECK_MEM_ZERO)
+        wc_MemZero_Check(buf, sizeof(buf));
     #endif
     }
 #endif
@@ -37882,6 +37915,11 @@ int wolfSSL_RAND_egd(const char* nm)
         ret = WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    if (ret == WOLFSSL_SUCCESS) {
+        wc_MemZero_Add("wolfSSL_RAND_egd buf", buf, 256);
+    }
+#endif
     while (ret == WOLFSSL_SUCCESS && bytes < 255 && idx + 2 < 256) {
         buf[idx]     = WOLFSSL_EGD_NBLOCK;
         buf[idx + 1] = 255 - bytes; /* request 255 bytes from server */
@@ -37960,9 +37998,11 @@ int wolfSSL_RAND_egd(const char* nm)
     }
 
     ForceZero(buf, bytes);
-    #ifdef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(buf, 256);
+#endif
     close(fd);
 
     if (ret == WOLFSSL_SUCCESS) {

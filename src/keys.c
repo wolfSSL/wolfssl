@@ -2232,11 +2232,21 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                     (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->chacha == NULL)
             return MEMORY_E;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        if (enc) {
+            wc_MemZero_Add("SSL keys enc chacha", enc->chacha, sizeof(ChaCha));
+        }
+    #endif
         if (dec && dec->chacha == NULL)
             dec->chacha =
                     (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->chacha == NULL)
             return MEMORY_E;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        if (dec) {
+            wc_MemZero_Add("SSL keys dec chacha", dec->chacha, sizeof(ChaCha));
+        }
+    #endif
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
@@ -2822,6 +2832,10 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
                 (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
         if (authentication && authentication->poly1305 == NULL)
             return MEMORY_E;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SSL auth keys poly1305", authentication->poly1305,
+            sizeof(Poly1305));
+    #endif
         if (authentication)
             authentication->setup = 1;
 #endif

@@ -856,6 +856,11 @@ MP_API int  mp_abs(mp_int* a, mp_int* b);
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+void mp_memzero_add(const char* name, mp_int* a);
+void mp_memzero_check(mp_int* a);
+#endif
+
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
    must match, return 1 if a match otherwise 0 */
 #define CheckFastMathSettings() (FP_SIZE == CheckRunTimeFastMath())
