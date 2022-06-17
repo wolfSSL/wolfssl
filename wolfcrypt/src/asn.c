@@ -20927,10 +20927,6 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
-                                           !HAVE_USER_RSA))) */
-
-#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA))
 /* Calculate size of encoded public RSA key in bytes.
  *
  * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
@@ -20950,7 +20946,33 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
     return SetRsaPublicKey(NULL, key, 0, with_header);
 }
 
-#endif /* !NO_RSA && WOLFSSL_CERT_GEN */
+/* Encode public RSA key in DER format.
+ *
+ * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
+ * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
+ *
+ * @param [in]  key     RSA key object.
+ * @param [out] output  Buffer to put encoded data in.
+ * @param [in]  inLen   Size of buffer in bytes.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key or output is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
+{
+    return SetRsaPublicKey(output, key, inLen, 1);
+}
+
+/* Returns public DER version of the RSA key. If with_header is 0 then only a
+ * seq + n + e is returned in ASN.1 DER format */
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+    int with_header)
+{
+    return SetRsaPublicKey(output, key, inLen, with_header);
+}
+
+#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || WOLFSSL_KCAPI_RSA ||
+            ((OPENSSL_EXTRA || WOLFSSL_KEY_GEN) && !HAVE_USER_RSA))) */
 
 #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_KCAPI_RSA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
@@ -21079,31 +21101,6 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #endif
 }
 
-
-/* Encode public RSA key in DER format.
- *
- * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
- * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
- *
- * @param [in]  key     RSA key object.
- * @param [out] output  Buffer to put encoded data in.
- * @param [in]  inLen   Size of buffer in bytes.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key or output is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
-{
-    return SetRsaPublicKey(output, key, inLen, 1);
-}
-
-/* Returns public DER version of the RSA key. If with_header is 0 then only a
- * seq + n + e is returned in ASN.1 DER format */
-int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
-    int with_header)
-{
-    return SetRsaPublicKey(output, key, inLen, with_header);
-}
 #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
 
 
