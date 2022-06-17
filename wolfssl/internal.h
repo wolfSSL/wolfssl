@@ -2810,7 +2810,7 @@ struct WOLFSSL_CTX {
     DerBuffer*  certificate;
     DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
     #ifdef OPENSSL_EXTRA
@@ -4839,7 +4839,7 @@ struct WOLFSSL {
     byte clientFinished_len;
     byte serverFinished_len;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
 #endif
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)

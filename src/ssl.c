@@ -15166,7 +15166,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     void wolfSSL_CTX_set_quiet_shutdown(WOLFSSL_CTX* ctx, int mode)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_quiet_shutdown");
@@ -15181,7 +15181,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (mode)
             ssl->options.quietShutdown = 1;
     }
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
@@ -15236,7 +15236,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
@@ -15258,7 +15258,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     }
 
-    #ifdef OPENSSL_EXTRA
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
@@ -15310,11 +15309,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return ret;
     }
-    #endif /* OPENSSL_EXTRA */
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
             const WOLFSSL_CTX *ctx)
     {
@@ -15456,9 +15451,6 @@ cleanup:
         }
         #endif
     #endif /* !NO_BIO */
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
-
-#ifdef OPENSSL_EXTRA
 
     #ifndef NO_WOLFSSL_STUB
     int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
@@ -15658,7 +15650,7 @@ cleanup:
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
     /* store keys returns WOLFSSL_SUCCESS or -1 on error */
     int wolfSSL_get_keys(WOLFSSL* ssl, unsigned char** ms, unsigned int* msLen,
@@ -15732,7 +15724,7 @@ cleanup:
         }
     }
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
     /* return true if connection established */
     int wolfSSL_is_init_finished(WOLFSSL* ssl)

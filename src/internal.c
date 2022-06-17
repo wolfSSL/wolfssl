@@ -2060,7 +2060,7 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || \
-    defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    defined(WOLFSSL_WPAS_SMALL)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
 {
     if (ssl == NULL)
@@ -2440,7 +2440,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         defined(WOLFSSL_WPAS_SMALL)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
     #endif
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
         wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
         ctx->ca_names = NULL;
     #endif
@@ -7459,7 +7459,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
     #endif
 #endif
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
     ssl->ca_names = NULL;
 #endif
