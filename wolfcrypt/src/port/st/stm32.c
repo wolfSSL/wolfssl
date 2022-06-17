@@ -312,6 +312,8 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
         wc_Stm32_Hash_Data(stmCtx, 4);
         stmCtx->fifoBytes += 4;
 
+        (void)wc_Stm32_Hash_WaitDone(stmCtx);
+
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);
     }
