@@ -1824,7 +1824,7 @@ void wc_Des_SetIV(Des* des, const byte* iv)
 {
     if (des && iv) {
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
-    #ifdef STM32_HAL_V2
+    #if defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY) && defined(STM32_HAL_V2)
         ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
     #endif
     }
@@ -1839,7 +1839,7 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
     }
     if (iv) {
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
-    #ifdef STM32_HAL_V2
+    #if defined(STM32_CRYPTO) && !defined(STM32_CRYPTO_AES_ONLY) && defined(STM32_HAL_V2)
         ByteReverseWords(des->reg, des->reg, DES_BLOCK_SIZE);
     #endif
     }

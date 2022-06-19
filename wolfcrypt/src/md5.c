@@ -551,6 +551,7 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 
     return ret;
 }
+
 #ifdef OPENSSL_EXTRA
 /* Apply MD5 transformation to the data                   */
 /* @param md5  a pointer to wc_MD5 structure              */
@@ -562,9 +563,14 @@ int wc_Md5Transform(wc_Md5* md5, const byte* data)
     if (md5 == NULL || data == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifndef HAVE_MD5_CUST_API
     return Transform(md5, data);
-}
+#else
+    return NOT_COMPILED_IN;
 #endif
+}
+#endif /* OPENSSL_EXTRA */
+
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
 {

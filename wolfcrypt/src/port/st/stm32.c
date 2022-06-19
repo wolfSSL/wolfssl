@@ -205,7 +205,7 @@ static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
     /* wait until hash digest is complete */
     while ((HASH->SR & HASH_SR_BUSY) &&
         #ifdef HASH_IMR_DCIE
-            (HASH->SR & HASH_SR_DCIS) == 0 && 
+            (HASH->SR & HASH_SR_DCIS) == 0 &&
         #endif
         ++timeout < STM32_HASH_TIMEOUT) {
     };
@@ -311,6 +311,8 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
          * context */
         wc_Stm32_Hash_Data(stmCtx, 4);
         stmCtx->fifoBytes += 4;
+
+        (void)wc_Stm32_Hash_WaitDone(stmCtx);
 
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);
@@ -475,18 +477,29 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 #if defined(WOLFSSL_STM32L5)
 #include <stm32l5xx_hal_conf.h>
 #include <stm32l5xx_hal_pka.h>
-#else
+#elif defined(WOLFSSL_STM32U5)
+#include <stm32u5xx_hal_conf.h>
+#include <stm32u5xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32WB)
 #include <stm32wbxx_hal_conf.h>
 #include <stm32wbxx_hal_pka.h>
+#else
+#error Please add the hal_pk.h include
 #endif
 extern PKA_HandleTypeDef hpka;
+
+#if !defined(WOLFSSL_STM32_PKA_V2) && defined(PKA_ECC_SCALAR_MUL_IN_B_COEFF)
+/* PKA hardware like in U5 added coefB and primeOrder */
+#define WOLFSSL_STM32_PKA_V2
+#endif
 
 /* Reverse array in memory (in place) */
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 
 /* convert from mp_int to STM32 PKA HAL integer, as array of bytes of size sz.
- * if mp_int has less bytes than sz, add zero bytes at most significant byte positions.
+ * if mp_int has less bytes than sz, add zero bytes at most significant byte
+ * positions.
  * This is when for example modulus is 32 bytes (P-256 curve)
  * and mp_int has only 31 bytes, we add leading zeros
  * so that result array has 32 bytes, same as modulus (sz).
@@ -521,7 +534,8 @@ static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
     return res;
 }
 
-/* ECC specs in lsbyte at lowest address format for direct use by STM32_PKA PKHA driver functions */
+/* ECC specs in lsbyte at lowest address format for direct use by
+ * STM32_PKA PKHA driver functions */
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
 #define ECC192
 #endif
@@ -552,6 +566,11 @@ static const uint8_t stm32_ecc192_coef[ECC192_KEYSIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
+};
+static const uint8_t stm32_ecc192_coefB[ECC192_KEYSIZE] = {
+    0x64, 0x21, 0x05, 0x19, 0xe5, 0x9c, 0x80, 0xe7,
+    0x0f, 0xa7, 0xe9, 0xab, 0x72, 0x24, 0x30, 0x49,
+    0xfe, 0xb8, 0xde, 0xec, 0xc1, 0x46, 0xb9, 0xb1
 };
 static const uint8_t stm32_ecc192_pointX[ECC192_KEYSIZE] =  {
     0x18, 0x8D, 0xA8, 0x0E,  0xB0, 0x30, 0x90, 0xF6,
@@ -586,6 +605,12 @@ static const uint8_t stm32_ecc224_coef[ECC224_KEYSIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x03
 };
+static const uint8_t stm32_ecc224_coefB[ECC224_KEYSIZE] = {
+    0xb4, 0x05, 0x0a, 0x85, 0x0c, 0x04, 0xb3, 0xab,
+    0xf5, 0x41, 0x32, 0x56, 0x50, 0x44, 0xb0, 0xb7,
+    0xd7, 0xbf, 0xd8, 0xba, 0x27, 0x0b, 0x39, 0x43,
+    0x23, 0x55, 0xff, 0xb4
+};
 static const uint8_t stm32_ecc224_pointX[ECC224_KEYSIZE] =  {
     0xB7, 0x0E, 0x0C, 0xBD, 0x6B, 0xB4, 0xBF, 0x7F,
     0x32, 0x13, 0x90, 0xB9, 0x4A, 0x03, 0xC1, 0xD3,
@@ -599,9 +624,9 @@ static const uint8_t stm32_ecc224_pointY[ECC224_KEYSIZE] = {
     0x85, 0x00, 0x7E, 0x34
 };
 static const uint8_t stm32_ecc224_order[ECC224_KEYSIZE] = {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x16, 0xA2, 
-    0xE0, 0xB8, 0xF0, 0x3E, 0x13, 0xDD, 0x29, 0x45, 
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x16, 0xA2,
+    0xE0, 0xB8, 0xF0, 0x3E, 0x13, 0xDD, 0x29, 0x45,
     0x5C, 0x5C, 0x2A, 0x3D
 };
 #endif /* ECC224 */
@@ -621,6 +646,12 @@ static const uint8_t stm32_ecc256_coef[ECC256_KEYSIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
+};
+static const uint8_t stm32_ecc256_coefB[ECC256_KEYSIZE] = {
+    0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7,
+    0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98, 0x86, 0xbc,
+    0x65, 0x1d, 0x06, 0xb0, 0xcc, 0x53, 0xb0, 0xf6,
+    0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b
 };
 static const uint8_t stm32_ecc256_pointX[ECC256_KEYSIZE] = {
     0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47,
@@ -662,6 +693,14 @@ static const uint8_t stm32_ecc384_coef[ECC384_KEYSIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
 };
+static const uint8_t stm32_ecc384_coefB[ECC384_KEYSIZE] = {
+    0xb3, 0x31, 0x2f, 0xa7, 0xe2, 0x3e, 0xe7, 0xe4,
+    0x98, 0x8e, 0x05, 0x6b, 0xe3, 0xf8, 0x2d, 0x19,
+    0x18, 0x1d, 0x9c, 0x6e, 0xfe, 0x81, 0x41, 0x12,
+    0x03, 0x14, 0x08, 0x8f, 0x50, 0x13, 0x87, 0x5a,
+    0xc6, 0x56, 0x39, 0x8d, 0x8a, 0x2e, 0xd1, 0x9d,
+    0x2a, 0x85, 0xc8, 0xed, 0xd3, 0xec, 0x2a, 0xef
+};
 static const uint8_t stm32_ecc384_pointX[ECC384_KEYSIZE] =  {
     0xAA, 0x87, 0xCA, 0x22, 0xBE, 0x8B, 0x05, 0x37,
     0x8E, 0xB1, 0xC7, 0x1E, 0xF3, 0x20, 0xAD, 0x74,
@@ -689,13 +728,15 @@ static const uint8_t stm32_ecc384_order[ECC384_KEYSIZE] = {
 #endif /* ECC384 */
 
 static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
-    const uint32_t **coef_sign, const uint8_t **GenPointX, const uint8_t **GenPointY,
-    const uint8_t **order, int size)
+    const uint8_t **coefB, const uint32_t **coef_sign,
+    const uint8_t **GenPointX, const uint8_t **GenPointY, const uint8_t **order,
+    int size)
 {
     switch(size) {
     case 32:
         *prime = stm32_ecc256_prime;
         *coef = stm32_ecc256_coef;
+        if (coefB) *coefB = stm32_ecc256_coefB;
         *GenPointX = stm32_ecc256_pointX;
         *GenPointY = stm32_ecc256_pointY;
         *coef_sign = &stm32_ecc256_coef_sign;
@@ -705,6 +746,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
     case 28:
         *prime = stm32_ecc224_prime;
         *coef = stm32_ecc224_coef;
+        if (coefB) *coefB = stm32_ecc224_coefB;
         *GenPointX = stm32_ecc224_pointX;
         *GenPointY = stm32_ecc224_pointY;
         *coef_sign = &stm32_ecc224_coef;
@@ -715,6 +757,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
     case 24:
         *prime = stm32_ecc192_prime;
         *coef = stm32_ecc192_coef;
+        if (coefB) *coefB = stm32_ecc192_coefB;
         *GenPointX = stm32_ecc192_pointX;
         *GenPointY = stm32_ecc192_pointY;
         *coef_sign = &stm32_ecc192_coef;
@@ -725,6 +768,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
     case 48:
         *prime = stm32_ecc384_prime;
         *coef = stm32_ecc384_coef;
+        if (coefB) *coefB = stm32_ecc384_coefB;
         *GenPointX = stm32_ecc384_pointX;
         *GenPointY = stm32_ecc384_pointY;
         *coef_sign = &stm32_ecc384_coef;
@@ -763,7 +807,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     uint8_t kbin[STM32_MAX_ECC_SIZE];
     uint8_t PtXbin[STM32_MAX_ECC_SIZE];
     uint8_t PtYbin[STM32_MAX_ECC_SIZE];
-    const uint8_t *prime, *coef, *gen_x, *gen_y;
+    const uint8_t *prime, *coef, *coefB, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
     (void)a;
     (void)heap;
@@ -790,7 +834,8 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
 
     size = (uint8_t)szModulus;
     /* find STM32_PKA friendly parameters for the selected curve */
-    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, NULL, size)) {
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coefB, &coef_sign,
+            &gen_x, &gen_y, &order, size)) {
         return ECC_BAD_ARG_E;
     }
 
@@ -802,6 +847,13 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     pka_mul.pointY = Gybin;
     pka_mul.scalarMulSize = size;
     pka_mul.scalarMul = kbin;
+#ifdef WOLFSSL_STM32_PKA_V2
+    pka_mul.coefB = coefB;
+    pka_mul.primeOrder = order;
+#else
+    (void)order;
+    (void)coefB;
+#endif
 
     status = HAL_PKA_ECCMul(&hpka, &pka_mul, HAL_MAX_DELAY);
     if (status != HAL_OK) {
@@ -885,10 +937,10 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
     size = (uint8_t)szModulus;
     /* find parameters for the selected curve */
-    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+    if (0 != stm32_get_ecc_specs(&prime, &coef, NULL, &coef_sign,
+            &gen_x, &gen_y, &order, size)) {
         return ECC_BAD_ARG_E;
     }
-
 
     pka_ecc.primeOrderSize =  size;
     pka_ecc.modulusSize =     size;
@@ -931,7 +983,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     uint8_t Rbin[STM32_MAX_ECC_SIZE];
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
     uint8_t Hashbin[STM32_MAX_ECC_SIZE];
-    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint8_t *prime, *coef, *coefB, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
     XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
     XMEMSET(&pka_ecc_out, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
@@ -950,7 +1002,8 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
         return status;
 
     /* find parameters for the selected curve */
-    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coefB, &coef_sign,
+            &gen_x, &gen_y, &order, size)) {
         return ECC_BAD_ARG_E;
     }
 
@@ -966,6 +1019,11 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     pka_ecc.modulusSize =     size;
     pka_ecc.coefSign =        *coef_sign;
     pka_ecc.coef =            coef;
+#ifdef WOLFSSL_STM32_PKA_V2
+    pka_ecc.coefB =           coefB;
+#else
+    (void)coefB;
+#endif
     pka_ecc.modulus =         prime;
     pka_ecc.basePointX =      gen_x;
     pka_ecc.basePointY =      gen_y;

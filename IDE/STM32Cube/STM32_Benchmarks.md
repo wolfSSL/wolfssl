@@ -1,5 +1,13 @@
 # STM Benchmarks
 
+* [STM32H753ZI](#stm32h753zi)
+* [STM32WB55](#stm32wb55)
+* [STM32F437](#stm32f437)
+* [STM32L4A6Z](#stm32l4a6z)
+* [STM32L562E](#stm32l562e)
+* [STM32F777](#stm32f777)
+* [STM32U585](#stm32u585)
+
 ## STM32H753ZI
 
 Supports RNG, AES CBC/GCM and SHA-2 acceleration.
@@ -559,6 +567,144 @@ ECC      256 key gen         1 ops took 1.090 sec, avg 1090.000 ms, 0.917 ops/se
 ECDHE    256 agree           2 ops took 2.180 sec, avg 1090.000 ms, 0.917 ops/sec
 ECDSA    256 sign            2 ops took 2.208 sec, avg 1104.000 ms, 0.906 ops/sec
 ECDSA    256 verify          2 ops took 1.463 sec, avg 731.500 ms, 1.367 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+## STM32U585
+
+Supports RNG, AES CBC/GCM and SHA-1,SHA-2 acceleration.
+
+Board: B-U585I-IOT02A
+CPU: Cortex-M33 at 160 MHz
+IDE: STM32CubeIDE
+RTOS: FreeRTOS
+
+### STM32U585 (STM Symmetric AES/SHA acceleration, STM PKA PKA w/Fast Math)
+
+This test uses `WOLFSSL_SMALL_STACK_CACHE`, which slightly improves the DRBG RNG performance.
+
+Only the ECC sign and verify are currently being accelerated by PKA.
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.3.1
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                575 KB took 1.039 seconds,  553.417 KB/s
+AES-128-CBC-enc      6 MB took 1.000 seconds,    6.274 MB/s
+AES-128-CBC-dec      6 MB took 1.000 seconds,    6.128 MB/s
+AES-256-CBC-enc      6 MB took 1.000 seconds,    6.274 MB/s
+AES-256-CBC-dec      6 MB took 1.000 seconds,    6.152 MB/s
+AES-128-GCM-enc      6 MB took 1.000 seconds,    5.640 MB/s
+AES-128-GCM-dec      6 MB took 1.000 seconds,    5.566 MB/s
+AES-256-GCM-enc      6 MB took 1.000 seconds,    5.615 MB/s
+AES-256-GCM-dec      6 MB took 1.000 seconds,    5.542 MB/s
+GMAC Small          11 MB took 1.000 seconds,   11.499 MB/s
+CHACHA               4 MB took 1.000 seconds,    3.882 MB/s
+CHA-POLY             2 MB took 1.008 seconds,    2.470 MB/s
+3DES               200 KB took 1.071 seconds,  186.741 KB/s
+MD5                  6 MB took 1.000 seconds,    6.299 MB/s
+POLY1305            10 MB took 1.000 seconds,   10.449 MB/s
+SHA                  6 MB took 1.000 seconds,    6.299 MB/s
+SHA-256              6 MB took 1.000 seconds,    6.250 MB/s
+HMAC-MD5             6 MB took 1.000 seconds,    6.177 MB/s
+HMAC-SHA             6 MB took 1.000 seconds,    6.177 MB/s
+HMAC-SHA256          6 MB took 1.000 seconds,    6.104 MB/s
+RSA     2048 public         28 ops took 1.031 sec, avg 36.821 ms, 27.158 ops/sec
+RSA     2048 private         2 ops took 4.310 sec, avg 2155.000 ms, 0.464 ops/sec
+DH      2048 key gen         3 ops took 1.197 sec, avg 399.000 ms, 2.506 ops/sec
+DH      2048 agree           2 ops took 1.525 sec, avg 762.500 ms, 1.311 ops/sec
+ECC   [      SECP256R1]   256 key gen        50 ops took 1.019 sec, avg 20.380 ms, 49.068 ops/sec
+ECDHE [      SECP256R1]   256 agree          52 ops took 1.008 sec, avg 19.385 ms, 51.587 ops/sec
+ECDSA [      SECP256R1]   256 sign           56 ops took 1.000 sec, avg 17.857 ms, 56.000 ops/sec
+ECDSA [      SECP256R1]   256 verify         56 ops took 1.008 sec, avg 18.000 ms, 55.556 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
+### STM32U585 (STM Symmetric AES/SHA acceleration, SP Math ASM Cortex M)
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.3.1
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                250 KB took 1.039 seconds,  240.616 KB/s
+AES-128-CBC-enc      6 MB took 1.000 seconds,    6.152 MB/s
+AES-128-CBC-dec      6 MB took 1.004 seconds,    6.031 MB/s
+AES-256-CBC-enc      6 MB took 1.000 seconds,    6.152 MB/s
+AES-256-CBC-dec      6 MB took 1.000 seconds,    6.055 MB/s
+AES-128-GCM-enc      6 MB took 1.000 seconds,    5.542 MB/s
+AES-128-GCM-dec      5 MB took 1.000 seconds,    5.493 MB/s
+AES-256-GCM-enc      6 MB took 1.000 seconds,    5.518 MB/s
+AES-256-GCM-dec      5 MB took 1.000 seconds,    5.469 MB/s
+GMAC Small          11 MB took 1.000 seconds,   11.182 MB/s
+CHACHA               3 MB took 1.004 seconds,    3.429 MB/s
+CHA-POLY             2 MB took 1.000 seconds,    2.271 MB/s
+3DES               175 KB took 1.000 seconds,  175.000 KB/s
+MD5                  8 MB took 1.000 seconds,    8.008 MB/s
+POLY1305            10 MB took 1.000 seconds,   10.181 MB/s
+SHA                  8 MB took 1.000 seconds,    7.983 MB/s
+SHA-256              8 MB took 1.000 seconds,    7.910 MB/s
+HMAC-MD5             8 MB took 1.000 seconds,    7.812 MB/s
+HMAC-SHA             8 MB took 1.000 seconds,    7.812 MB/s
+HMAC-SHA256          8 MB took 1.000 seconds,    7.642 MB/s
+RSA     2048 public         52 ops took 1.000 sec, avg 19.231 ms, 52.000 ops/sec
+RSA     2048 private         2 ops took 1.381 sec, avg 690.500 ms, 1.448 ops/sec
+DH      2048 key gen         4 ops took 1.263 sec, avg 315.750 ms, 3.167 ops/sec
+DH      2048 agree           4 ops took 1.262 sec, avg 315.500 ms, 3.170 ops/sec
+ECC   [      SECP256R1]   256 key gen       108 ops took 1.016 sec, avg 9.407 ms, 106.299 ops/sec
+ECDHE [      SECP256R1]   256 agree          58 ops took 1.032 sec, avg 17.793 ms, 56.202 ops/sec
+ECDSA [      SECP256R1]   256 sign           64 ops took 1.027 sec, avg 16.047 ms, 62.317 ops/sec
+ECDSA [      SECP256R1]   256 verify         36 ops took 1.019 sec, avg 28.306 ms, 35.329 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+### STM32U585 (No STM HW Crypto, SP Math C32)
+
+```
+------------------------------------------------------------------------------
+ wolfSSL version 5.3.1
+------------------------------------------------------------------------------
+Running wolfCrypt Benchmarks...
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                750 KB took 1.015 seconds,  738.916 KB/s
+AES-128-CBC-enc    900 KB took 1.004 seconds,  896.414 KB/s
+AES-128-CBC-dec    900 KB took 1.012 seconds,  889.328 KB/s
+AES-192-CBC-enc    775 KB took 1.004 seconds,  771.912 KB/s
+AES-192-CBC-dec    775 KB took 1.023 seconds,  757.576 KB/s
+AES-256-CBC-enc    675 KB took 1.000 seconds,  675.000 KB/s
+AES-256-CBC-dec    675 KB took 1.031 seconds,  654.704 KB/s
+AES-128-GCM-enc     50 KB took 1.035 seconds,   48.309 KB/s
+AES-128-GCM-dec     50 KB took 1.036 seconds,   48.263 KB/s
+AES-192-GCM-enc     50 KB took 1.051 seconds,   47.574 KB/s
+AES-192-GCM-dec     50 KB took 1.051 seconds,   47.574 KB/s
+AES-256-GCM-enc     50 KB took 1.067 seconds,   46.860 KB/s
+AES-256-GCM-dec     50 KB took 1.070 seconds,   46.729 KB/s
+GMAC Small          52 KB took 1.004 seconds,   51.793 KB/s
+CHACHA               4 MB took 1.000 seconds,    3.833 MB/s
+CHA-POLY             2 MB took 1.004 seconds,    2.456 MB/s
+3DES               200 KB took 1.074 seconds,  186.220 KB/s
+MD5                  6 MB took 1.000 seconds,    6.274 MB/s
+POLY1305            10 MB took 1.000 seconds,   10.400 MB/s
+SHA                  5 MB took 1.000 seconds,    5.225 MB/s
+SHA-256              2 MB took 1.004 seconds,    1.970 MB/s
+HMAC-MD5             6 MB took 1.000 seconds,    6.201 MB/s
+HMAC-SHA             5 MB took 1.000 seconds,    5.176 MB/s
+HMAC-SHA256          2 MB took 1.000 seconds,    1.953 MB/s
+RSA     2048 public         36 ops took 1.008 sec, avg 28.000 ms, 35.714 ops/sec
+RSA     2048 private         2 ops took 3.216 sec, avg 1608.000 ms, 0.622 ops/sec
+DH      2048 key gen         2 ops took 1.416 sec, avg 708.000 ms, 1.412 ops/sec
+DH      2048 agree           2 ops took 1.419 sec, avg 709.500 ms, 1.409 ops/sec
+ECC   [      SECP256R1]   256 key gen         8 ops took 1.169 sec, avg 146.125 ms, 6.843 ops/sec
+ECDHE [      SECP256R1]   256 agree           8 ops took 1.165 sec, avg 145.625 ms, 6.867 ops/sec
+ECDSA [      SECP256R1]   256 sign            8 ops took 1.314 sec, avg 164.250 ms, 6.088 ops/sec
+ECDSA [      SECP256R1]   256 verify          4 ops took 1.196 sec, avg 299.000 ms, 3.344 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
