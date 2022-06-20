@@ -5947,7 +5947,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     return external;
 }
 
-WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid)
+WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
 {
     WOLFSSL_DH* dh = NULL;
     int err = 0;
