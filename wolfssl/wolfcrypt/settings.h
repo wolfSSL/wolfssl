@@ -1521,6 +1521,8 @@ extern void uITRON4_free(void *p) ;
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
     #define STRING_USER
+    #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
+    #define XSTRCMP(s1,s2) strcmp((s1),(s2))
     #define XSTRLEN(pstr) ((CPU_SIZE_T)Str_Len((CPU_CHAR *)(pstr)))
     #define XSTRNCPY(pstr_dest, pstr_src, len_max) \
                     ((CPU_CHAR *)Str_Copy_N((CPU_CHAR *)(pstr_dest), \
