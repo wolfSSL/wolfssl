@@ -12148,6 +12148,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             /* CLIENT: Fail-safe for Server Authentication. */
             if (!ssl->options.peerAuthGood) {
                 WOLFSSL_MSG("Server authentication did not happen");
+                ssl->error = NO_PEER_VERIFY;
                 return WOLFSSL_FATAL_ERROR;
             }
 

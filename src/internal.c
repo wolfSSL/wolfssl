@@ -14766,6 +14766,24 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 #endif
 
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        switch (type) {
+        case certificate:
+        case server_key_exchange:
+        case certificate_request:
+        case server_hello_done:
+            if (ssl->options.resuming) {
+                /* This can occur when ssl->sessionSecretCb is set. EAP-FAST
+                 * (RFC 4851) allows for detecting server session resumption
+                 * based on the msg received after the ServerHello. */
+                WOLFSSL_MSG("Not resuming as thought");
+                ssl->options.resuming = 0;
+                /* No longer resuming, reset peer authentication state. */
+                ssl->options.peerAuthGood = 0;
+            }
+        }
+    }
+
     switch (type) {
 
     case hello_request:
@@ -14871,12 +14889,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->options.startedETMRead)
                 *inOutIdx += MacSize(ssl);
         #endif
-        }
-        if (ssl->options.resuming) {
-            WOLFSSL_MSG("Not resuming as thought");
-            ssl->options.resuming = 0;
-            /* CLIENT: No longer resuming, reset peer authentication state. */
-            ssl->options.peerAuthGood = 0;
         }
         break;
 
