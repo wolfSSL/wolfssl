@@ -4497,7 +4497,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
      * @param none
      * @return "blake2b512"
      */
-    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512()
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512(void)
     {
         WOLFSSL_ENTER("EVP_blake2b512");
         return EVP_get_digestbyname("BLAKE2b512");
@@ -4510,7 +4510,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
      * @param none
      * @return "blake2s256"
      */
-    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256()
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256(void)
     {
         WOLFSSL_ENTER("EVP_blake2s256");
         return EVP_get_digestbyname("BLAKE2s256");
