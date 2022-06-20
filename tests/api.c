@@ -38614,8 +38614,8 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     BIO_free(output);
     X509_free(x509a);
 
-    /* test CA and basicConstSet values are encoded when 
-     * the cert is a CA */ 
+    /* test CA and basicConstSet values are encoded when
+     * the cert is a CA */
     AssertNotNull(input = BIO_new_file(
             "certs/server-cert.pem", "rb"));
 
@@ -38631,14 +38631,14 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
     AssertIntEQ(x509b->isCa, 1);
     AssertIntEQ(x509b->basicConstSet, 1);
-    
+
     X509_free(x509a);
     X509_free(x509b);
     BIO_free(input);
     BIO_free(output);
 
-    /* test CA and basicConstSet values are encoded when 
-     * the cert is not CA */ 
+    /* test CA and basicConstSet values are encoded when
+     * the cert is not CA */
     AssertNotNull(input = BIO_new_file(
             "certs/client-uri-cert.pem", "rb"));
 
@@ -38654,7 +38654,7 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
     AssertIntEQ(x509b->isCa, 0);
     AssertIntEQ(x509b->basicConstSet, 1);
-    
+
     X509_free(x509a);
     X509_free(x509b);
     BIO_free(input);

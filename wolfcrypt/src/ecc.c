@@ -13825,7 +13825,7 @@ static WC_INLINE void IncrementX963KdfCounter(byte* inOutCtr)
 int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
                 const byte* sinfo, word32 sinfoSz, byte* out, word32 outSz)
 {
-    int ret, i;
+    int ret;
     int digestSz, copySz;
     int remaining = outSz;
     byte* outIdx;
@@ -13869,7 +13869,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     outIdx = out;
     XMEMSET(counter, 0, sizeof(counter));
 
-    for (i = 1; remaining > 0; i++) {
+    while (remaining > 0) {
 
         IncrementX963KdfCounter(counter);
 

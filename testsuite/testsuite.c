@@ -315,7 +315,7 @@ static int test_tls(func_args* server_args)
 }
 
 /* Show cipher suites available. */
-static void show_ciphers()
+static void show_ciphers(void)
 {
     char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
     XMEMSET(ciphers, 0, sizeof(ciphers));
@@ -324,7 +324,7 @@ static void show_ciphers()
 }
 
 /* Cleanup temporary output file. */
-static void cleanup_output()
+static void cleanup_output(void)
 {
     remove(outputName);
 }
@@ -334,7 +334,7 @@ static void cleanup_output()
  * @return  0 on success.
  * @return  1 on failure.
  */
-static int validate_cleanup_output()
+static int validate_cleanup_output(void)
 {
 #ifndef NO_SHA256
     byte input[WC_SHA256_DIGEST_SIZE];

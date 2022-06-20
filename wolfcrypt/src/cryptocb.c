@@ -1268,7 +1268,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #endif
 
 /* returns the default dev id for the current build */
-int wc_CryptoCb_DefaultDevID()
+int wc_CryptoCb_DefaultDevID(void)
 {
     int ret;
 
