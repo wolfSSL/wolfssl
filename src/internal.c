@@ -72,6 +72,9 @@
  *     less). On the other hand, if a valid SessionID is collected, forged
  *     clientHello messages will consume resources on the server.
  *     This define is turned off by default.
+ * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
+ *     Certificates without SAN will get rejected during handshake instead of
+ *     trying to match hostname or IP address with subject common name.
  */
 
 
@@ -10500,7 +10503,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
         ret = 0;
     }
 
-#ifndef ONLY_ALT_NAME_VERIFICATION
+#ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (checkCN == 1) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
                             domainName) == 1) {
@@ -10510,7 +10513,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
             WOLFSSL_MSG("DomainName match on common name failed");
         }
     }
-#endif /* #ifndef ONLY_ALT_NAME_VERIFICATION */
+#endif /* # !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
 
     return ret;
 }
@@ -11335,7 +11338,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     }
                 }
             }
-        #ifndef ONLY_ALT_NAME_VERIFICATION
+        #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
             else {
                 if (args->dCert->subjectCN) {
                     if (MatchDomainName(args->dCert->subjectCN,
@@ -11353,7 +11356,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     ret = DOMAIN_NAME_MISMATCH;
                 }
             }
-        #endif /* #ifndef ONLY_ALT_NAME_VERIFICATION */
+        #endif /* !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
         }
 
         /* perform IP address check on the peer certificate */
