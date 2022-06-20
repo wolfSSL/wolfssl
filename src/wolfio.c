@@ -2182,20 +2182,24 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     NET_SOCK_ADDR_LEN peerSz = sizeof(peer);
     NET_SOCK_RTN_CODE ret;
     NET_ERR err;
-    int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
 
     WOLFSSL_ENTER("MicriumReceiveFrom()");
 
-    if (ssl->options.handShakeDone)
-        dtls_timeout = 0;
+#ifdef WOLFSSL_DTLS
+    {
+        int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+        if (ssl->options.handShakeDone)
+            dtls_timeout = 0;
 
-    if (!wolfSSL_dtls_get_using_nonblock(ssl)) {
-        /* needs timeout in milliseconds */
-        NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
-        if (err != NET_SOCK_ERR_NONE) {
-            WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
+        if (!wolfSSL_dtls_get_using_nonblock(ssl)) {
+            /* needs timeout in milliseconds */
+            NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
+            if (err != NET_SOCK_ERR_NONE) {
+                WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
+            }
         }
     }
+#endif
 
     ret = NetSock_RxDataFrom(sd, buf, sz, ssl->rflags, &peer, &peerSz,
                              0, 0, 0, &err);
