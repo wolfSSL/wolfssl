@@ -1569,6 +1569,11 @@ struct DecodedCert {
     const byte* subjectRaw;          /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
+#if !defined(IGNORE_NAME_CONSTRAINTS) || \
+     defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    char*   subjectEmail;
+    int     subjectEmailLen;
+#endif
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     /* easy access to subject info for other sign */
     char*   subjectSN;
@@ -1610,8 +1615,6 @@ struct DecodedCert {
     char*   subjectPC;
     int     subjectPCLen;
     char    subjectPCEnc;
-    char*   subjectEmail;
-    int     subjectEmailLen;
 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
     char*   issuerCN;
     int     issuerCNLen;

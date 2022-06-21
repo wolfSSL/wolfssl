@@ -11104,14 +11104,14 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
         SetCertNameSubjectLen(cert, id, strLen);
         SetCertNameSubjectEnc(cert, id, tag);
     }
+#endif
+#if !defined(IGNORE_NAME_CONSTRAINTS) || \
+     defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     else if (id == ASN_EMAIL) {
         cert->subjectEmail = (char*)str;
         cert->subjectEmailLen = strLen;
-    #if !defined(IGNORE_NAME_CONSTRAINTS)
-        ret = SetDNSEntry(cert, cert->subjectEmail, strLen, 0,
-                          &cert->altEmailNames);
-    #endif
     }
+#endif
 #ifdef WOLFSSL_CERT_EXT
     /* TODO: consider mapping id to an index and using SetCertNameSubect*(). */
     else if (id == ASN_JURIS_C) {
@@ -11124,7 +11124,6 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
         cert->subjectJSLen = strLen;
         cert->subjectJSEnc = tag;
     }
-#endif
 #endif
 
     return ret;
@@ -11747,7 +11746,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     copy = WOLFSSL_EMAIL_ADDR;
                 }
 
-                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+                #if !defined(IGNORE_NAME_CONSTRAINTS) || \
+                     defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
                     if (nameType == SUBJECT) {
                         cert->subjectEmail = (char*)&input[srcIdx];
                         cert->subjectEmailLen = strLen;
@@ -11764,41 +11764,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         && !defined(WOLFCRYPT_ONLY)
                     nid = NID_emailAddress;
                 #endif /* OPENSSL_EXTRA */
-                #ifndef IGNORE_NAME_CONSTRAINTS
-                    {
-                        DNS_entry* emailName;
-
-                        emailName = AltNameNew(cert->heap);
-                        if (emailName == NULL) {
-                            WOLFSSL_MSG("\tOut of Memory");
-                        #if (defined(OPENSSL_EXTRA) || \
-                                defined(OPENSSL_EXTRA_X509_SMALL)) && \
-                                !defined(WOLFCRYPT_ONLY)
-                            wolfSSL_X509_NAME_free(dName);
-                        #endif /* OPENSSL_EXTRA */
-                            return MEMORY_E;
-                        }
-                        emailName->type = 0;
-                        emailName->name = (char*)XMALLOC(strLen + 1,
-                                              cert->heap, DYNAMIC_TYPE_ALTNAME);
-                        if (emailName->name == NULL) {
-                            WOLFSSL_MSG("\tOut of Memory");
-                            XFREE(emailName, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                        #if (defined(OPENSSL_EXTRA) || \
-                                defined(OPENSSL_EXTRA_X509_SMALL)) && \
-                                !defined(WOLFCRYPT_ONLY)
-                            wolfSSL_X509_NAME_free(dName);
-                        #endif /* OPENSSL_EXTRA */
-                            return MEMORY_E;
-                        }
-                        emailName->len = strLen;
-                        XMEMCPY(emailName->name, &input[srcIdx], strLen);
-                        emailName->name[strLen] = '\0';
-
-                        emailName->next = cert->altEmailNames;
-                        cert->altEmailNames = emailName;
-                    }
-                #endif /* IGNORE_NAME_CONSTRAINTS */
             }
 
             if (pilot) {
@@ -14394,6 +14359,19 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             case ASN_RFC822_TYPE:
                 /* Shouldn't it validade E= in subject as well? */
                 name = cert->altEmailNames;
+                if (cert->subjectEmail != NULL) { /* add subject email to list*/
+                    /* RFC 5280 section 4.2.1.10
+                     * "When constraints are imposed on the rfc822Name name
+                     * form, but the certificate does not include a subject
+                     * alternative name, the rfc822Name constraint MUST be
+                     * applied to the attribute of type emailAddress in the
+                     * subject distinguished name" */
+                    subjectDnsName.next = name;
+                    subjectDnsName.type = ASN_RFC822_TYPE;
+                    subjectDnsName.len = cert->subjectEmailLen;
+                    subjectDnsName.name = (char *)cert->subjectEmail;
+                    name = &subjectDnsName;
+                }
                 break;
             case ASN_DIR_TYPE:
                 if (cert->subjectRaw != NULL) {
