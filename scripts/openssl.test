@@ -10,7 +10,7 @@ CERT_DIR="$PWD/$(dirname "$0")/../certs"
 
 if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
     echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
-    exit 0
+    exit 77
 fi
 
 # if we can, isolate the network namespace to eliminate port collisions.

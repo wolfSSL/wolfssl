@@ -13,7 +13,7 @@ fi
 
 if ! ./examples/client/client -V | grep -q 3; then
     echo 'skipping ocsp-stapling.test because TLS1.2 is not available.' 1>&2
-    exit 0
+    exit 77
 fi
 
 if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
@@ -25,7 +25,7 @@ fi
 if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
     if [[ "$IPV6_SUPPORTED" == "no" ]]; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
-        exit 0
+        exit 77
     fi
     LOCALHOST='[::1]'
     LOCALHOST_FOR_NC='::1'
