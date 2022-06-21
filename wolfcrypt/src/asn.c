@@ -11764,7 +11764,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         && !defined(WOLFCRYPT_ONLY)
                     nid = NID_emailAddress;
                 #endif /* OPENSSL_EXTRA */
-                #ifndef IGNORE_NAME_CONSTRAINTS
+                #if !defined(IGNORE_NAME_CONSTRAINTS) \
+                        && !defined(NO_POLLUTE_SAN)
                     {
                         DNS_entry* emailName;
 
