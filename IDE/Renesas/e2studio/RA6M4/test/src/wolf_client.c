@@ -39,7 +39,13 @@ static const byte ucDNSServerAddress[4]   = { 192, 168, 11, 1 };
 
 #define FR_SOCKET_SUCCESS 0
 
-extern struct User_PKCbInfo guser_PKCbInfo;
+#ifdef TLS_MULTITHREAD_TEST
+     xSemaphoreHandle exit_semaph;
+     extern User_SCEPKCbInfo guser_PKCbInfo_taskA;
+     extern User_SCEPKCbInfo guser_PKCbInfo_taskB;
+#else
+     extern User_SCEPKCbInfo guser_PKCbInfo;
+#endif
 
 int SEGGER_RTT_vprintf(unsigned BufferIndex, const char * sFormat, va_list * pParamList);
 
@@ -76,7 +82,6 @@ void TCPInit( )
 
 void wolfSSL_TLS_client_init()
 {
-
     #ifndef NO_FILESYSTEM
         #ifdef USE_ECC_CERT
         char *cert       = "./certs/ca-ecc-cert.pem";
@@ -96,7 +101,8 @@ void wolfSSL_TLS_client_init()
     wolfSSL_Init();
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
+    if ((client_ctx = wolfSSL_CTX_new(
+                        wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
@@ -111,7 +117,8 @@ void wolfSSL_TLS_client_init()
         return NULL;
     }
     #else
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, 
+                                            SSL_FILETYPE_ASN1) != SSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return;
     }
@@ -123,7 +130,9 @@ void wolfSSL_TLS_client_do(void *pvParam)
 
     int ret;
     int i = 0;
-
+#if defined(TLS_MULTITHREAD_TEST)
+    BaseType_t xStatus;
+#endif
     TestInfo* p = (TestInfo*)pvParam;
     /* FreeRTOS+TCP Objects */
     socklen_t xSize = sizeof(struct freertos_sockaddr);
@@ -157,10 +166,20 @@ void wolfSSL_TLS_client_do(void *pvParam)
      ret = FreeRTOS_connect(xClientSocket,
                                  &xRemoteAddress,
                                  sizeof(xRemoteAddress));
+
      if (ret != FR_SOCKET_SUCCESS) {
-          msg(pcName, i, " Error [%d]: FreeRTOS_connect.\n", ret);
-          goto out;
+         msg(pcName, i, " Error [%d]: FreeRTOS_connect.\n", ret);
+         goto out;
      }
+
+     #if defined(TLS_MULTITHREAD_TEST)
+     msg(pcName, i, " Ready to connect.\n");
+     xStatus = xSemaphoreTake(p->xBinarySemaphore, portMAX_DELAY);
+     if (xStatus != pdTRUE) {
+        msg(pcName, i, " Error : Failed to xSemaphoreTake\n");
+        goto out;
+     }
+     #endif
 
      msg(pcName, i, " Start to connect to the server.\n");
 
@@ -169,44 +188,64 @@ void wolfSSL_TLS_client_do(void *pvParam)
           goto out;
      }
      #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-        /* set callback ctx */
+
+       /* Set callback CTX */
+        #if !defined(TLS_MULTITHREAD_TEST)
+        
         memset(&guser_PKCbInfo, 0, sizeof(User_SCEPKCbInfo));
+        guser_PKCbInfo.devId = 0;
         wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
+        
+        #else
+        if (p->port - DEFAULT_PORT == 0) {
+           memset(&guser_PKCbInfo_taskA, 0, sizeof(User_SCEPKCbInfo));
+           wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskA);
+        }
+        else {
+           memset(&guser_PKCbInfo_taskB, 0, sizeof(User_SCEPKCbInfo));
+           wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo_taskB);
+        }
+        #endif
+        
      #endif
 
      /* Attach wolfSSL to the socket */
      ret = wolfSSL_set_fd(ssl, (int) xClientSocket);
      if (ret != WOLFSSL_SUCCESS) {
-          msg(pcName, i, " Error [%d]: wolfSSL_set_fd.\n",ret);
+         msg(pcName, i, " Error [%d]: wolfSSL_set_fd.\n",ret);
      }
 
-     if(p->cipher)
-         msg(pcName, i, "  Cipher : %s\n", p->cipher);
+     msg(pcName, i, "  Cipher : %s\n", 
+                                    (p->cipher == NULL) ? "NULL" : p->cipher);
      /* use specific cipher */
-     if (p->cipher != NULL && wolfSSL_set_cipher_list(ssl, p->cipher) != WOLFSSL_SUCCESS) {
+     if (p->cipher != NULL && wolfSSL_set_cipher_list(ssl, p->cipher) 
+                                                           != WOLFSSL_SUCCESS) {
           msg(pcName, i, " client can't set cipher list 1");
           goto out;
      }
+
      #ifdef DEBUG_WOLFSSL
-          wolfSSL_Debugging_ON();
-          if (p->log_f != NULL)
-               wolfSSL_SetLoggingCb(p->log_f);
+     wolfSSL_Debugging_ON();
      #endif
+
      if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
-          msg(pcName, i, " ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
-          goto out;
+        msg(pcName, i, " ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
+        goto out;
      }
+
      #ifdef DEBUG_WOLFSSL
-          wolfSSL_Debugging_OFF();
+     wolfSSL_Debugging_OFF();
      #endif
-     if (wolfSSL_write(ssl, sendBuff, (int)strlen(sendBuff)) != (int)strlen(sendBuff)) {
-          msg(pcName, i, " ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
-          goto out;
+
+     if (wolfSSL_write(ssl, sendBuff, (int)strlen(sendBuff)) 
+                                                    != (int)strlen(sendBuff)) {
+        msg(pcName, i, " ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
+        goto out;
      }
 
      if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE)) < 0) {
-          msg(pcName, i, " ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
-          goto out;
+         msg(pcName, i, " ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
+         goto out;
      }
 
      rcvBuff[ret] = '\0' ;
@@ -214,18 +253,24 @@ void wolfSSL_TLS_client_do(void *pvParam)
 
  out:
     if (ssl) {
-         wolfSSL_shutdown(ssl);
-         wolfSSL_free(ssl);
-         ssl = NULL;
-         /* need to reset callback */
-         wc_sce_set_callbacks(client_ctx);
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        /* need to reset callback */
+        wc_sce_set_callbacks(client_ctx);
     }
     /* clean up socket */
-      if (xClientSocket) {
-           FreeRTOS_shutdown(xClientSocket, FREERTOS_SHUT_RDWR);
-           FreeRTOS_closesocket(xClientSocket);
-           xClientSocket = NULL;
-      }
+    if (xClientSocket) {
+        FreeRTOS_shutdown(xClientSocket, FREERTOS_SHUT_RDWR);
+        FreeRTOS_closesocket(xClientSocket);
+        xClientSocket = NULL;
+    }
+
+#ifdef TLS_MULTITHREAD_TEST
+    xSemaphoreGive(exit_semaph);
+    vTaskDelete(NULL);
+#endif
+
 }
 
 void wolfSSL_TLS_cleanup()
@@ -233,5 +278,7 @@ void wolfSSL_TLS_cleanup()
      if (client_ctx) {
           wolfSSL_CTX_free(client_ctx);
      }
+
      wolfSSL_Cleanup();
+
 }

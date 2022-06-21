@@ -120,22 +120,22 @@ typedef wolfssl_TSIP_Hash wc_Sha;
  * structure for ECDH key exchange
  */
 typedef struct TsipUserCtx {
+    /* unique number for each session */
+    int devId;
     
-    uint32_t user_key_id;
-
-#if (WOLFSSL_RENESAS_TSIP_VER >=109)     
+#if (WOLFSSL_RENESAS_TSIP_VER >=109)
     /* out from R_SCE_TLS_ServerKeyExchangeVerify */
     uint32_t encrypted_ephemeral_ecdh_public_key[ENCRYPTED_ECDHE_PUBKEY_SZ];
     
     /* ephemeral ECDH pubkey index 
      * got from R_TSIP_GenerateTlsP256EccKeyIndex.
-     * Input to R_TSIP_TlsGeneratePreMasterSecretWithEccP256Key. 
+     * Input to R_TSIP_TlsGeneratePreMasterSecretWithEccP256Key.
      */
     tsip_tls_p256_ecc_key_index_t ecc_p256_wrapped_key;
 
     /* ephemeral ECDH pub-key Qx(256bit)||Qy(256bit) 
      * got from  R_TSIP_GenerateTlsP256EccKeyIndex.
-     * Should be sent to peer(server) in Client Key Exchange msg. 
+     * Should be sent to peer(server) in Client Key Exchange msg.
      */
     uint8_t ecc_ecdh_public_key[ECCP256_PUBKEY_SZ];
 #endif /* WOLFSSL_RENESAS_TSIP_VER >=109 */

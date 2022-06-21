@@ -27,8 +27,12 @@
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
  #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
-
+#if defined(TLS_MULTITHREAD_TEST)
+ User_SCEPKCbInfo guser_PKCbInfo_taskA;
+ User_SCEPKCbInfo guser_PKCbInfo_taskB;
+#else
  User_SCEPKCbInfo guser_PKCbInfo;
+#endif
 #endif
 
 #include <wolfssl_demo.h>
@@ -39,6 +43,15 @@
 extern "C" {
 void abort(void);
 }
+#endif
+
+#if defined(SCE_CRYPT_UNIT_TEST)
+ int sce_crypt_test();
+ int sce_crypt_sha256_multitest();
+ int sce_crypt_AesCbc_multitest();
+ int sce_crypt_AesGcm_multitest();
+ int sce_crypt_Sha_AesCbcGcm_multitest();
+ void tskSha256_Test1(void *pvParam);
 #endif
 
 void R_BSP_WarmStart(bsp_warm_start_event_t event);
@@ -55,7 +68,7 @@ void R_BSP_WarmStart (bsp_warm_start_event_t event)
     }
 }
 
-#if defined(TLS_CLIENT) || defined(TLS_SERVER) || defined(EXTRA_SCE_TSIP_TEST)
+#if defined(TLS_CLIENT)
 
 extern const st_user_key_block_data_t g_key_block_data;
 
@@ -66,7 +79,7 @@ static int SetScetlsKey()
 {
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
 
-    #if defined(TLS_CLIENT) || defined(EXTRA_SCE_TSIP_TEST)
+    #if defined(TLS_CLIENT)
 
       #if defined(USE_CERT_BUFFERS_256)
         wc_sce_inform_cert_sign((const byte *)ca_ecc_cert_der_sign);
@@ -79,9 +92,6 @@ static int SetScetlsKey()
             (byte*)&g_key_block_data.iv,
             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key,
             encrypted_user_key_type);
-        #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
-            guser_PKCbInfo.user_key_id = 0; /* not use user key id */
-        #endif
 
     #elif defined(TLS_SERVER)
 
@@ -109,12 +119,57 @@ typedef struct func_args {
 void wolfcrypt_test(func_args args);
 int  benchmark_test(void *args);
 
-/* Entry function of SCE test */
+#ifdef TLS_MULTITHREAD_TEST
+static void my_Logging_cb(const int logLevel, const char *const logMessage)
+{
+    (void)logLevel;
+    printf("custom-log: %s\n", logMessage);
+}
+#endif
+
 void sce_test(void)
 {
 
-#if defined(CRYPT_TEST) || defined(BENCHMARK)
-#if defined(CRYPT_TEST)
+#if defined(SCE_CRYPT_UNIT_TEST) && defined(WOLFSSL_RENESAS_SCEPROTECT)
+    int ret = 0;
+    BaseType_t xRet;
+
+    if ((ret = wolfCrypt_Init()) != 0) {
+        printf("wolfCrypt_Init failed %d\n", ret);
+    }
+    printf("Start wolf sce crypt Test\n");
+
+    printf(" \n");
+    printf(" simple crypt test by using SCE\n");
+    sce_crypt_test();
+
+    printf(" \n");
+    printf(" multi sha thread test\n");
+
+    sce_crypt_sha256_multitest();
+
+    printf(" \n");
+    printf(" multi aes cbc thread test\n");
+
+    sce_crypt_AesCbc_multitest();
+
+    printf(" \n");
+    printf(" multi aes gcm thread test\n");
+
+    sce_crypt_AesGcm_multitest();
+
+    printf(" \n");
+    printf(" multi sha aescbc aesgcm thread test\n");
+    sce_crypt_Sha_AesCbcGcm_multitest();
+
+    printf(" \n");
+    printf("End wolf sce crypt Test\n");
+
+    if ((ret = wolfCrypt_Cleanup()) != 0) {
+        printf("wolfCrypt_Cleanup failed %d\n", ret);
+    }
+
+#elif defined(CRYPT_TEST)
     int ret;
     func_args args = { 0 };
 
@@ -129,63 +184,87 @@ void sce_test(void)
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("wolfCrypt_Cleanup failed %d\n", ret);
     }
-#endif
-#if defined(BENCHMARK)
+
+#elif defined(BENCHMARK)
     #include "hal_data.h"
     #include "r_sce.h"
 
     printf("Prepare Installed key\n");
-#if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
-    /* aes 256 */
-    memcpy(guser_PKCbInfo.sce_wrapped_key_aes256.value,
-           (uint32_t *)DIRECT_KEY_ADDRESS_256, HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
-    guser_PKCbInfo.sce_wrapped_key_aes256.type = SCE_KEY_INDEX_TYPE_AES256;
-    guser_PKCbInfo.aes256_installedkey_set = 1;
-    /* aes 128 */
-    memcpy(guser_PKCbInfo.sce_wrapped_key_aes128.value,
-               (uint32_t *)DIRECT_KEY_ADDRESS_128, HW_SCE_AES128_KEY_INDEX_WORD_SIZE*4);
+
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
+
+        /* aes 256 */
+        memcpy(guser_PKCbInfo.sce_wrapped_key_aes256.value,
+               (uint32_t *)DIRECT_KEY_ADDRESS_256, 
+               HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
+        guser_PKCbInfo.sce_wrapped_key_aes256.type = SCE_KEY_INDEX_TYPE_AES256;
+        guser_PKCbInfo.aes256_installedkey_set = 1;
+
+        /* aes 128 */
+        memcpy(guser_PKCbInfo.sce_wrapped_key_aes128.value,
+                   (uint32_t *)DIRECT_KEY_ADDRESS_128, 
+                   HW_SCE_AES128_KEY_INDEX_WORD_SIZE*4);
+
         guser_PKCbInfo.sce_wrapped_key_aes128.type = SCE_KEY_INDEX_TYPE_AES128;
-    guser_PKCbInfo.aes128_installedkey_set = 1;
-#endif
+        guser_PKCbInfo.aes128_installedkey_set = 1;
+
+    #endif
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
-#endif
     
 #elif defined(TLS_CLIENT)
     #include "hal_data.h"
     #include "r_sce.h"
     
-  #if defined(USE_CERT_BUFFERS_256)
-                const char* cipherlist[] = {
-                   NULL, /* not specify cipher suite */
-                #if defined(WOLFSSL_TLS13)
-                   NULL, NULL, NULL,
-                #else
-                   "ECDHE-ECDSA-AES128-GCM-SHA256",
-                   "ECDHE-ECDSA-AES256-SHA", /* SW only */
-                   "ECDHE-ECDSA-AES128-SHA256",
-                #endif
-                };
-                const int cipherlist_sz = 4;
-                TestInfo info[cipherlist_sz];
-  #else
-                const char* cipherlist[] = {
-                   NULL, /* not specify cipher suite */
-                #if defined(WOLFSSL_TLS13)
-                   NULL, NULL, NULL, NULL, NULL,
-                #else
-                   "ECDHE-RSA-AES128-GCM-SHA256",
-                   "ECDHE-RSA-AES256-SHA", /* SW only */
-                   "ECDHE-RSA-AES128-SHA256",
-                   "AES128-SHA256",
-                   "AES256-SHA256",
-                #endif
-                };
-                const int cipherlist_sz = 6;
-                TestInfo info[cipherlist_sz];
-  #endif
+    #if defined(USE_CERT_BUFFERS_256)
+        #if !defined(TLS_MULTITHREAD_TEST)
+        const char* cipherlist[] = {
+           NULL,
+           "ECDHE-ECDSA-AES128-GCM-SHA256",
+           "ECDHE-ECDSA-AES256-SHA", /* sw only */
+           "ECDHE-ECDSA-AES128-SHA256"
+        };
+        const int cipherlist_sz = 3;
+        TestInfo info[cipherlist_sz];
+        #else
+        const char* cipherlist[] = {
+           "ECDHE-ECDSA-AES128-GCM-SHA256",
+           "ECDHE-ECDSA-AES128-SHA256"
+        };
+        const int cipherlist_sz = 2;
+        TestInfo info[cipherlist_sz];
+        #endif
+    #else
+       #if !defined(TLS_MULTITHREAD_TEST)
+        const char* cipherlist[] = {
+           NULL,
+           "ECDHE-RSA-AES128-GCM-SHA256",
+           "ECDHE-RSA-AES256-SHA", /* sw only */
+           "ECDHE-RSA-AES128-SHA256",
+           "AES128-SHA256",
+           "AES256-SHA256",
+        };
+        const int cipherlist_sz = 6;
+        TestInfo info[cipherlist_sz];
+       #else
+        const char* cipherlist[] = {
+           "ECDHE-RSA-AES128-GCM-SHA256",
+           "ECDHE-RSA-AES128-SHA256",
+           "AES128-SHA256",
+           "AES256-SHA256",
+        };
+        const int cipherlist_sz = 4;
+        TestInfo info[cipherlist_sz];
+       #endif
+    #endif
 
+    #ifdef TLS_MULTITHREAD_TEST
+    BaseType_t xReturned;
+    BaseType_t xHigherPriorityTaskWoken;
+    xHigherPriorityTaskWoken = pdFALSE;
+    int j = 0;
+    #endif
     int i = 0;
 
     printf("\n Start Client Example, ");
@@ -195,22 +274,72 @@ void sce_test(void)
 
     TCPInit();
 
+    #ifdef TLS_MULTITHREAD_TEST
+
+    wolfSSL_TLS_client_init();
+
+    exit_semaph = xSemaphoreCreateCounting(cipherlist_sz, 0);
+
+    do {
+
+        for(j = i; j < (i+2); j++) {
+            info[j].port = DEFAULT_PORT + (j%2);
+            info[j].cipher = cipherlist[j];
+            info[j].ctx = client_ctx;
+            info[j].xBinarySemaphore = xSemaphoreCreateBinary();
+            info[j].log_f = my_Logging_cb;
+
+            memset(info[j].name, 0, sizeof(info[j].name));
+            sprintf(info[j].name, "clt_thd_%s", ((j%2) == 0) ? 
+                                                            "taskA" : "taskB");
+
+            printf(" %s connecting to %d port\n", info[j].name, info[j].port);
+
+            xReturned = xTaskCreate(wolfSSL_TLS_client_do, info[j].name, 
+                                    THREAD_STACK_SIZE, &info[j], 2, NULL);
+            if (xReturned != pdPASS) {
+                 printf("Failed to create task\n");
+            }
+        }
+        
+        for(j = i; j < (i+2); j++) {
+            xSemaphoreGiveFromISR(info[j].xBinarySemaphore, 
+                                                &xHigherPriorityTaskWoken);
+        }
+
+        /* check if all tasks are completed */
+        for(j = i; j < (i+2); j++) {
+            if(!xSemaphoreTake(exit_semaph, portMAX_DELAY)) {
+                printf("exit semaphore not released by test task");
+            }
+        }
+
+        i+=2;
+
+    } while (i < cipherlist_sz);
+
+    vSemaphoreDelete(exit_semaph);
+
+    #else
+
     wolfSSL_TLS_client_init();
 
     do {
 
-        info[i].port = DEFAULT_PORT;
-        info[i].cipher = cipherlist[i];
-        info[i].ctx = client_ctx;
-        info[i].id = i;
+          info[i].port = DEFAULT_PORT;
+          info[i].cipher = cipherlist[i];
+          info[i].ctx = client_ctx;
+          info[i].id = i;
 
-        memset(info[i].name, 0, sizeof(info[i].name));
-        sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
+          memset(info[i].name, 0, sizeof(info[i].name));
+          sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
 
-        wolfSSL_TLS_client_do(&info[i]);
+          wolfSSL_TLS_client_do(&info[i]);
 
         i++;
     } while (i < cipherlist_sz);
+
+    #endif /* SCE_MULTITHREAD_TEST */
 
     printf("\n End of Client Example");
 

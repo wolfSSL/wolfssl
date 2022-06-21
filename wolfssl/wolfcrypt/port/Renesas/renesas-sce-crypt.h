@@ -35,7 +35,8 @@ extern "C" {
 #define MAX_SCE_CBINDEX 5
 
 typedef struct tagUser_SCEPKCbInfo {
-    uint32_t user_key_id;
+    /* unique number for each session */
+    int devId;
     
     /* out from R_SCE_TLS_ServerKeyExchangeVerify */
     uint32_t encrypted_ephemeral_ecdh_public_key[SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ];

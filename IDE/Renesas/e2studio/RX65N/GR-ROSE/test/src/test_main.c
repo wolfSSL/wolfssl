@@ -96,9 +96,6 @@ int SetTsiptlsKey()
             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key,
             encrypted_user_key_type);
 
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS) 
-    guser_PKCbInfo.user_key_id = 0;
-    #endif
 
 #elif defined(TLS_SERVER)
 
