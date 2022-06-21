@@ -2152,9 +2152,9 @@ int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             if (wolfSSL_dtls13_use_quick_timeout(ssl) &&
                 IsAtLeastTLSv1_3(ssl->version)) {
                 dtls_timeout = (1000 * dtls_timeout) / 4;
-            }
+            } else
             #endif /* WOLFSSL_DTLS13 */
-
+                dtls_timeout = 1000 * dtls_timeout;
             NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout, &err);
             if (err != NET_SOCK_ERR_NONE) {
                 WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
@@ -2230,9 +2230,9 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             if (wolfSSL_dtls13_use_quick_timeout(ssl) &&
                 IsAtLeastTLSv1_3(ssl->version)) {
                 dtls_timeout = (1000 * dtls_timeout) / 4;
-            }
+            } else
             #endif /* WOLFSSL_DTLS13 */
-
+                dtls_timeout = 1000 * dtls_timeout;
             NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout, &err);
             if (err != NET_SOCK_ERR_NONE) {
                 WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
