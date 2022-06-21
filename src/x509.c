@@ -5526,8 +5526,8 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             WOLFSSL_MSG("Error getting x509 signature type");
             return WOLFSSL_FAILURE;
         }
-        if (wolfSSL_BIO_write(bio, "        Signature Algorithm: ",
-                      (int)XSTRLEN("        Signature Algorithm: ")) <= 0) {
+        if (wolfSSL_BIO_write(bio, "    Signature Algorithm: ",
+                      (int)XSTRLEN("    Signature Algorithm: ")) <= 0) {
             return WOLFSSL_FAILURE;
         }
         sig = GetSigName(oid);
@@ -6089,7 +6089,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         char tmp[100];
 
         XSNPRINTF(tmp, sizeof(tmp),
-                  "            X509v3 Basic Constraints: ");
+                  "\n            X509v3 Basic Constraints: ");
         if (x509->basicConstCrit) {
             XSTRNCAT(tmp, "critical", sizeof(tmp) - XSTRLEN(tmp) - 1);
         }
@@ -6141,7 +6141,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
-        XSNPRINTF(tmp, sizeof(tmp) - 1,"        ");
+        XSNPRINTF(tmp, sizeof(tmp) - 1,"         ");
         tmp[sizeof(tmp) - 1] = '\0';
         for (i = 0; i < sigSz; i++) {
             char val[5];
@@ -6158,7 +6158,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                     return WOLFSSL_FAILURE;
                 }
                 XSNPRINTF(tmp, sizeof(tmp) - 1,
-                        ":\n        ");
+                        ":\n         ");
                 XSNPRINTF(val, valSz - 1, "%02x", sig[i]);
             }
             else {
