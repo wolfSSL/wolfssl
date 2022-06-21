@@ -20,12 +20,12 @@
     <stringAttribute key="com.renesas.cdt.core.secondGDBExe" value="green_dsp-elf-gdb"/>
     <booleanAttribute key="com.renesas.cdt.core.secondGDBSupport" value="false"/>
     <intAttribute key="com.renesas.cdt.core.secondGdbPortNumber" value="61237"/>
-    <stringAttribute key="com.renesas.cdt.core.serverParam" value="-g E1  -t R5F565NE  -uClockSrcHoco= 0 -uInputClock= 12.0000 -uAllowClockSourceInternal= 1 -uUseFine= 1 -uFineBaudRate= 2.00 -w 1 -z 0 -uRegisterSetting= 0 -uModePin= 0 -uChangeStartupBank= 0 -uStartupBank= 0 -uDebugMode= 0 -uExecuteProgram= 0 -uIdCode= FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF -uresetOnReload= 1 -n 0 -uWorkRamAddress= 1000 -uProgReWriteIRom= 0 -uProgReWriteDFlash= 0 -uhookWorkRamAddr= 0x3fdd0 -uhookWorkRamSize= 0x230"/>
+    <stringAttribute key="com.renesas.cdt.core.serverParam" value="-g E1  -t R5F565NE  -uClockSrcHoco= 1 -uAllowClockSourceInternal= 1 -uUseFine= 1 -uFineBaudRate= 2.00 -w 1 -z 0 -uRegisterSetting= 0 -uModePin= 0 -uChangeStartupBank= 0 -uStartupBank= 0 -uDebugMode= 0 -uExecuteProgram= 0 -uIdCode= FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF -uresetOnReload= 1 -n 0 -uWorkRamAddress= 1000 -uverifyOnWritingMemory= 0 -uProgReWriteIRom= 0 -uProgReWriteDFlash= 0 -uhookWorkRamAddr= 0x3fdd0 -uhookWorkRamSize= 0x230"/>
     <booleanAttribute key="com.renesas.cdt.core.startServer" value="true"/>
     <stringAttribute key="com.renesas.cdt.core.targetDevice" value="R5F565NE"/>
     <booleanAttribute key="com.renesas.cdt.core.useRemoteTarget" value="true"/>
     <booleanAttribute key="com.renesas.cdt.core.verboseMode" value="false"/>
-    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:\Users\Taka\.eclipse\com.renesas.platform_1380223289\DebugComp\RX\IoFiles\RX65N.sfrx&quot;/&gt;&#13;&#10;"/>
+    <stringAttribute key="com.renesas.cdt.debug.ioview.dsf.registerSelection0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;selectedRegisterList ioFilePath=&quot;C:\Users\Taka\.eclipse\com.renesas.platform_923020927\DebugComp\RX\IoFiles\RX65N.sfrx&quot;/&gt;&#13;&#10;"/>
     <stringAttribute key="com.renesas.cdt.launch.dsf.IO_MAP" value="${support_area_loc}"/>
     <booleanAttribute key="com.renesas.cdt.launch.dsf.USE_DEFAULT_IO_MAP" value="true"/>
     <listAttribute key="com.renesas.cdt.launch.dsf.downloadImages">
@@ -36,7 +36,7 @@
     <stringAttribute key="com.renesas.cdt.launch.dsf.serverPath" value="${renesas.support.targetLoc:rx-debug}\e2-server-gdb"/>
     <booleanAttribute key="com.renesas.hardwaredebug.e1.allow.change.startup_bank" value="false"/>
     <booleanAttribute key="com.renesas.hardwaredebug.e1.allow.clock.source.internal" value="true"/>
-    <intAttribute key="com.renesas.hardwaredebug.e1.clock_source" value="0"/>
+    <intAttribute key="com.renesas.hardwaredebug.e1.clock_source" value="1"/>
     <stringAttribute key="com.renesas.hardwaredebug.e1.connection.mode" value="0"/>
     <booleanAttribute key="com.renesas.hardwaredebug.e1.e1_pwr" value="true"/>
     <booleanAttribute key="com.renesas.hardwaredebug.e1.enable.hot.plug" value="false"/>
@@ -51,7 +51,7 @@
     <intAttribute key="com.renesas.hardwaredebug.e1.hook_work_ram_Addr" value="261584"/>
     <intAttribute key="com.renesas.hardwaredebug.e1.hook_work_ram_Size" value="560"/>
     <stringAttribute key="com.renesas.hardwaredebug.e1.id_code" value="FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"/>
-    <stringAttribute key="com.renesas.hardwaredebug.e1.inputclock" value="12.0000"/>
+    <stringAttribute key="com.renesas.hardwaredebug.e1.inputclock" value="27.0"/>
     <stringAttribute key="com.renesas.hardwaredebug.e1.jtag.clock.freq" value="16.5"/>
     <stringAttribute key="com.renesas.hardwaredebug.e1.jtag.or.fine" value="1"/>
     <booleanAttribute key="com.renesas.hardwaredebug.e1.le" value="true"/>
@@ -131,6 +131,6 @@
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
         <listEntry value="4"/>
     </listAttribute>
-    <stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;/&gt;"/>
+    <stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;&gt;&lt;gdbmemoryBlockExpression address=&quot;6520&quot; core_thread_id=&quot;1_i1&quot; label=&quot;0x1978&quot;&gt;&lt;memoryRendering id=&quot;org.eclipse.debug.ui.rendering.raw_memory&quot;&gt;&lt;renderingInstance containerId=&quot;org.eclipse.debug.ui.MemoryView.RenderingViewPane.1&quot; viewId=&quot;org.eclipse.debug.ui.MemoryView&quot; viewSecondaryId=&quot;&quot;/&gt;&lt;/memoryRendering&gt;&lt;/gdbmemoryBlockExpression&gt;&lt;gdbmemoryBlockExpression address=&quot;6668&quot; core_thread_id=&quot;1_i1&quot; label=&quot;0x1a0c&quot;&gt;&lt;memoryRendering id=&quot;org.eclipse.debug.ui.rendering.raw_memory&quot;&gt;&lt;renderingInstance containerId=&quot;org.eclipse.debug.ui.MemoryView.RenderingViewPane.1&quot; viewId=&quot;org.eclipse.debug.ui.MemoryView&quot; viewSecondaryId=&quot;&quot;/&gt;&lt;/memoryRendering&gt;&lt;/gdbmemoryBlockExpression&gt;&lt;gdbmemoryBlockExpression address=&quot;6504&quot; core_thread_id=&quot;1_i1&quot; label=&quot;0x1968&quot;&gt;&lt;memoryRendering id=&quot;org.eclipse.debug.ui.rendering.raw_memory&quot;&gt;&lt;renderingInstance containerId=&quot;org.eclipse.debug.ui.MemoryView.RenderingViewPane.1&quot; viewId=&quot;org.eclipse.debug.ui.MemoryView&quot; viewSecondaryId=&quot;&quot;/&gt;&lt;/memoryRendering&gt;&lt;/gdbmemoryBlockExpression&gt;&lt;/memoryBlockExpressionList&gt;"/>
     <stringAttribute key="process_factory_id" value="org.eclipse.cdt.dsf.gdb.GdbProcessFactory"/>
 </launchConfiguration>

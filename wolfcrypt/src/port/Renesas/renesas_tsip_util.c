@@ -52,9 +52,10 @@ extern uint32_t     s_inst1[R_TSIP_SINST_WORD_SIZE];
 
 wolfSSL_Mutex       tsip_mutex;
 static int          tsip_CryptHwMutexInit_ = 0;
-static const byte*  ca_cert_sig;
+static const byte*  ca_cert_sig = NULL;
 static tsip_key_data g_user_key_info;
 
+struct WOLFSSL_HEAP_HINT*  tsip_heap_hint = NULL;
 
 /* tsip only keep one encrypted ca public key */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -411,6 +412,12 @@ WOLFSSL_API void tsip_set_callbacks(struct WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetVerifyMacCb(ctx, (CallbackVerifyMac)Renesas_cmn_VerifyHmac);
 #endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+
+    /* set heap-hint to tsip_heap_hint so that tsip sha funcs can refer it */
+    if (ctx->heap != NULL) {
+        tsip_heap_hint = ctx->heap;
+    }
+
     WOLFSSL_LEAVE("tsip_set_callbacks", 0);
 }
 

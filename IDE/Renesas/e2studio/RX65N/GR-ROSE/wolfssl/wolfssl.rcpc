@@ -87,12 +87,13 @@
         </Category>
       </Category>
     </Files>
-    <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F571MLCxFC</Device>
-    <BuildOptions Name="CC-RX" Version="v3.03.00">
+    <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F565NEHxFP</Device>
+    <BuildOptions Name="CC-RX" Version="v3.04.00">
       <BuildMode Active="True" Name="Debug">
         <GeneralOptions/>
         <CompileOptions>
           <Option>-isa=rxv2</Option>
+          <Option>-fpu</Option>
           <Option>-include="${ProjDirPath}\..\common"</Option>
           <Option>-include="${ProjDirPath}\\..\..\..\..\..\..\"</Option>
           <Option>-include="${ProjDirPath}\..\test\src\smc_gen\"</Option>
@@ -100,8 +101,10 @@
           <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_config"</Option>
           <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_tsip_rx"</Option>
           <Option>-define=WOLFSSL_USER_SETTINGS</Option>
+          <Option>-utf8</Option>
           <Option>-nomessage</Option>
           <Option>-debug</Option>
+          <Option>-outcode=utf8</Option>
           <Option>-optimize=0</Option>
           <Option>-nologo</Option>
           <Option>-lang=c99</Option>
@@ -111,6 +114,8 @@
         </CompileOptions>
         <AssembleOptions>
           <Option>-isa=rxv2</Option>
+          <Option>-fpu</Option>
+          <Option>-utf8</Option>
           <Option>-debug</Option>
           <Option>-nologo</Option>
           <Option>-output=${CONFIGDIR}</Option>

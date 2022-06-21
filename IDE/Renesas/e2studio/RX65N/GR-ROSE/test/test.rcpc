@@ -7,6 +7,19 @@
   </Placeholders>
   <Project Name="test" Type="Application">
     <Files>
+      <Category Name="generate">
+        <Path>generate\dbsct.c</Path>
+        <Path>generate\hwsetup.c</Path>
+        <Path>generate\intprg.c</Path>
+        <Path>generate\iodefine.h</Path>
+        <Path>generate\resetprg.c</Path>
+        <Path>generate\sbrk.c</Path>
+        <Path>generate\sbrk.h</Path>
+        <Path>generate\stacksct.h</Path>
+        <Path>generate\typedefine.h</Path>
+        <Path>generate\vect.h</Path>
+        <Path>generate\vecttbl.c</Path>
+      </Category>
       <Category Name="src">
         <Path>..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.c</Path>
         <Path>..\..\..\..\..\..\wolfcrypt\benchmark\benchmark.h</Path>
@@ -243,21 +256,18 @@
             <Path>src\smc_gen\r_tsip_rx\readme.txt</Path>
             <Category Name="doc">
               <Category Name="en">
-                <Path>src\smc_gen\r_tsip_rx\doc\en\r20an0548ej0114-rx-tsip-security.pdf</Path>
+                <Path>src\smc_gen\r_tsip_rx\doc\en\r20an0548ej0115-rx-tsip-security.pdf</Path>
               </Category>
               <Category Name="ja">
-                <Path>src\smc_gen\r_tsip_rx\doc\ja\r20an0548jj0114-rx-tsip-security.pdf</Path>
+                <Path>src\smc_gen\r_tsip_rx\doc\ja\r20an0548jj0115-rx-tsip-security.pdf</Path>
               </Category>
-            </Category>
-            <Category Name="ref">
-              <Path>src\smc_gen\r_tsip_rx\ref\r_tsip_rx_config_reference.h</Path>
             </Category>
           </Category>
         </Category>
       </Category>
     </Files>
     <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F565NEHxFP</Device>
-    <BuildOptions Name="CC-RX" Version="v3.03.00">
+    <BuildOptions Name="CC-RX" Version="v3.04.00">
       <BuildMode Active="True" Name="HardwareDebug">
         <GeneralOptions/>
         <CompileOptions>
@@ -281,6 +291,7 @@
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\Config_TMR0"</Option>
+          <Option>-include="${ProjDirPath}\generate"</Option>
           <Option>-define=DEBUG_CONSOLE,WOLFSSL_USER_SETTINGS</Option>
           <Option>-utf8</Option>
           <Option>-nomessage</Option>
@@ -316,7 +327,7 @@
           <Option>-library="${ProjDirPath}/../../../../../../../${ProjName}/src/smc_gen/r_t4_rx/lib/ccrx/T4_Library_ether_ccrx_rxv1_little_debug.lib"</Option>
           <Option>-library="${ProjDirPath}/../../../../../../../${ProjName}/src/smc_gen/r_tsip_rx/lib/ccrx/r_tsip_rx65n_little.lib"</Option>
           <Option>-library="${ProjDirPath}/../wolfssl/Debug/wolfssl.lib"</Option>
-          <Option>-start=SU,SI,B_1,R_1,B_2,R_2,B,R/04,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/020000,C_1,C_2,C,C$*,D*,W*,L,P*/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC</Option>
+          <Option>-start=SU,SI,B_1,R_1,B_2,R_2,B,R/04,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/03C000,C_1,C_2,C,C$*,D*,W*,L,P/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC</Option>
           <PreLinker>Auto</PreLinker>
         </LinkOptions>
         <LibraryGenerateOptions>
@@ -374,6 +385,12 @@
           <Path>HardwareDebug\wolfssl_dummy.obj</Path>
           <Path>HardwareDebug\test.lib</Path>
         </LinkOrder>
+        <NoTargetFile Target="generate\dbsct.c"/>
+        <NoTargetFile Target="generate\hwsetup.c"/>
+        <NoTargetFile Target="generate\intprg.c"/>
+        <NoTargetFile Target="generate\resetprg.c"/>
+        <NoTargetFile Target="generate\sbrk.c"/>
+        <NoTargetFile Target="generate\vecttbl.c"/>
         <CommonOptions>
           <IncludePathForC>"${ProjDirPath}\..\common"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\"</IncludePathForC>
@@ -393,6 +410,7 @@
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\Config_TMR0"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\generate"</IncludePathForC>
           <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
           <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
           <MacroForC>DEBUG_CONSOLE</MacroForC>
@@ -421,6 +439,7 @@
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\generate"</Option>
           <Option>-define=DEBUG_CONSOLE</Option>
           <Option>-utf8</Option>
           <Option>-nomessage</Option>
@@ -511,6 +530,12 @@
           <Path>Debug\wolfssl_dummy.obj</Path>
           <Path>Debug\test.lib</Path>
         </LinkOrder>
+        <NoTargetFile Target="generate\dbsct.c"/>
+        <NoTargetFile Target="generate\hwsetup.c"/>
+        <NoTargetFile Target="generate\intprg.c"/>
+        <NoTargetFile Target="generate\resetprg.c"/>
+        <NoTargetFile Target="generate\sbrk.c"/>
+        <NoTargetFile Target="generate\vecttbl.c"/>
         <CommonOptions>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_bsp"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_config"</IncludePathForC>
@@ -529,6 +554,7 @@
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\generate"</IncludePathForC>
           <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
           <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
           <MacroForC>DEBUG_CONSOLE</MacroForC>

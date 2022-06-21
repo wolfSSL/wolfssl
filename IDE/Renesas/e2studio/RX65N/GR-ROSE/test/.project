@@ -32,12 +32,12 @@
 		<link>
 			<name>src/benchmark.c</name>
 			<type>1</type>
-			<locationURI>$%7BPARENT-6-PROJECT_LOC%7D/wolfcrypt/benchmark/benchmark.c</locationURI>
+			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/benchmark/benchmark.c</locationURI>
 		</link>
 		<link>
 			<name>src/benchmark.h</name>
 			<type>1</type>
-			<locationURI>$%7BPARENT-6-PROJECT_LOC%7D/wolfcrypt/benchmark/benchmark.h</locationURI>
+			<locationURI>PARENT-6-PROJECT_LOC/wolfcrypt/benchmark/benchmark.h</locationURI>
 		</link>
 		<link>
 			<name>src/test.c</name>
