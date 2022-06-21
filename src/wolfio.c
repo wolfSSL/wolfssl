@@ -2136,7 +2136,6 @@ int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         byte doDtlsTimeout = ssl->options.handShakeState != HANDSHAKE_DONE;
         #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-            if (
             doDtlsTimeout =
                 doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
                 (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
@@ -2214,7 +2213,6 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-            if (
             doDtlsTimeout =
                 doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
                 (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
