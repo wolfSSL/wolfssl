@@ -2262,7 +2262,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
 
 static void test_wolfSSL_FPKI(void)
 {
-#if defined(WOLFSSL_FPKI)
+#if defined(WOLFSSL_FPKI) && !defined(NO_FILESYSTEM)
     XFILE f;
     const char* fpkiCert = "./certs/fpki-cert.der";
     DecodedCert cert;
@@ -2282,16 +2282,16 @@ static void test_wolfSSL_FPKI(void)
     wc_InitDecodedCert(&cert, buf, bytes, NULL);
     AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
     AssertIntEQ(wc_GetFASCNFromCert(&cert, NULL, &fascnSz), LENGTH_ONLY_E) ;
-    fascn = (byte*)XMALLOC(fascnSz, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    fascn = (byte*)XMALLOC(fascnSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     AssertNotNull(fascn);
     AssertIntEQ(wc_GetFASCNFromCert(&cert, fascn, &fascnSz), 0);
-    XFREE(fascn, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    XFREE(fascn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     AssertIntEQ(wc_GetUUIDFromCert(&cert, NULL, &uuidSz), LENGTH_ONLY_E);
-    uuid = (byte*)XMALLOC(uuidSz, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    uuid = (byte*)XMALLOC(uuidSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     AssertNotNull(uuid);
     AssertIntEQ(wc_GetUUIDFromCert(&cert, uuid, &uuidSz), 0);
-    XFREE(uuid, DYNAMIC_TYPE_TMP_BUFFER, NULL);
+    XFREE(uuid, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeDecodedCert(&cert);
 
     printf(resultFmt, passed);
