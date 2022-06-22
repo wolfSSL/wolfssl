@@ -674,6 +674,10 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
+    ASN_NAME          = 0x2a,   /* name */
+    ASN_GIVEN_NAME    = 0x29,   /* GN */
+    ASN_INITIALS      = 0x2b,   /* initials */
+    ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 
     ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
     ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
@@ -703,6 +707,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_COMMON_NAME      "/CN="
 #define WOLFSSL_LN_COMMON_NAME   "/commonName="
 #define WOLFSSL_SUR_NAME         "/SN="
+#define WOLFSSL_NAME             "/N="
+#define WOLFSSL_INITIALS         "/initials="
+#define WOLFSSL_GIVEN_NAME       "/GN="
+#define WOLFSSL_DNQUALIFIER      "/dnQualifier="
 #define WOLFSSL_SERIAL_NUMBER    "/serialNumber="
 #define WOLFSSL_COUNTRY_NAME     "/C="
 #define WOLFSSL_LN_COUNTRY_NAME  "/countryName="
@@ -791,6 +799,7 @@ enum
     NID_dnQualifier = 174,
     NID_commonName = 14,               /* CN Changed to not conflict
                                         * with PBE_SHA1_DES3 */
+    NID_name = 173,                    /* N */
     NID_surname = 0x04,                /* SN */
     NID_serialNumber = 0x05,           /* serialNumber */
     NID_countryName = 0x06,            /* C  */
@@ -918,8 +927,9 @@ enum Misc_ASN {
 #ifdef WOLFSSL_CERT_GEN
     #ifdef WOLFSSL_CERT_REQ
                           /* Max encoded cert req attributes length */
-        MAX_ATTRIB_SZ   = MAX_SEQ_SZ * 3 + (11 + MAX_SEQ_SZ) * 2 +
-                          MAX_PRSTR_SZ + CTC_NAME_SIZE, /* 11 is the OID size */
+        MAX_ATTRIB_SZ   = MAX_SEQ_SZ * 4 + (11 + MAX_SEQ_SZ) * 3 +
+                          MAX_PRSTR_SZ * 2 + CTC_NAME_SIZE * 2,
+                          /* 11 is the OID size */
     #endif
     #if defined(WOLFSSL_ALT_NAMES) || defined(WOLFSSL_CERT_EXT)
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,
@@ -1237,6 +1247,7 @@ enum CsrAttrType {
     DNQUALIFIER_OID = 135,
     INITIALS_OID = 132,
     SURNAME_OID = 93,
+    NAME_OID = 130,
     GIVEN_NAME_OID = 131,
 };
 #endif
@@ -1647,6 +1658,18 @@ struct DecodedCert {
     char*   subjectSN;
     int     subjectSNLen;
     char    subjectSNEnc;
+    char*   subjectN;
+    int     subjectNLen;
+    char    subjectNEnc;
+    char*   subjectI;
+    int     subjectILen;
+    char    subjectIEnc;
+    char*   subjectGN;
+    int     subjectGNLen;
+    char    subjectGNEnc;
+    char*   subjectDNQ;
+    int     subjectDNQLen;
+    char    subjectDNQEnc;
     char*   subjectC;
     int     subjectCLen;
     char    subjectCEnc;

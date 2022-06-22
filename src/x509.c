@@ -8610,6 +8610,10 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         }
 
         if (ret == WOLFSSL_SUCCESS) {
+        #if defined(OPENSSL_ALL)
+            int idx;
+        #endif
+
             cert->version = req->version;
             cert->isCA = req->isCa;
             cert->basicConstSet = req->basicConstSet;
@@ -8625,6 +8629,34 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 
             XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
             cert->challengePwPrintableString = req->challengePw[0] != 0;
+
+        #if defined(OPENSSL_ALL)
+            idx = wolfSSL_X509_REQ_get_attr_by_NID(req,
+                    NID_pkcs9_unstructuredName, -1);
+            if (idx != WOLFSSL_FATAL_ERROR) {
+                WOLFSSL_X509_ATTRIBUTE *attr;
+                attr = wolfSSL_X509_REQ_get_attr(req, idx);
+                if (attr != NULL) {
+                    const unsigned char *attrData;
+                    int attrDataSz;
+
+                    attrData = wolfSSL_ASN1_STRING_get0_data(
+                            attr->value->value.asn1_string);
+                    attrDataSz = wolfSSL_ASN1_STRING_length(
+                            attr->value->value.asn1_string);
+
+                    /* +1 to make sure is terminated string */
+                    if (attrDataSz + 1 > CTC_NAME_SIZE) {
+                        WOLFSSL_MSG("attribute size was too large to copy");
+                        ret = REQ_ATTRIBUTE_E;
+                    }
+                    else {
+                        XMEMCPY(cert->unstructuredName, attrData, attrDataSz);
+                        cert->unstructuredName[attrDataSz] = '\0';
+                    }
+                }
+            }
+        #endif /* OPENSSL_ALL */
 
     #ifdef WOLFSSL_ALT_NAMES
             cert->altNamesSz = FlattenAltNames(cert->altNames,
@@ -9371,6 +9403,10 @@ static int ConvertNIDToWolfSSL(int nid)
 {
     switch (nid) {
         case NID_commonName : return ASN_COMMON_NAME;
+        case NID_name :       return ASN_NAME;
+        case NID_givenName:   return ASN_GIVEN_NAME;
+        case NID_dnQualifier :   return ASN_DNQUALIFIER;
+        case NID_initials:   return ASN_INITIALS;
         case NID_surname :    return ASN_SUR_NAME;
         case NID_countryName: return ASN_COUNTRY_NAME;
         case NID_localityName: return ASN_LOCALITY_NAME;
@@ -11463,6 +11499,26 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_emailAddress:
             str = "emailAddress";
             len = 12;
+            break;
+        case NID_surname:
+            str = "SN";
+            len = 2;
+            break;
+        case NID_givenName:
+            str = "GN";
+            len = 2;
+            break;
+        case NID_dnQualifier:
+            str = "dnQualifier";
+            len = 11;
+            break;
+        case NID_name:
+            str = "name";
+            len = 4;
+            break;
+        case NID_initials:
+            str = "initials";
+            len = 8;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");

@@ -25650,6 +25650,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         oidCsrAttrType, "contentType", "contentType" },
     { NID_pkcs9_unstructuredName, UNSTRUCTURED_NAME_OID,
         oidCsrAttrType, "unstructuredName", "unstructuredName" },
+    { NID_name, NAME_OID, oidCsrAttrType, "name", "name" },
     { NID_surname, SURNAME_OID,
         oidCsrAttrType, "surname", "surname" },
     { NID_givenName, GIVEN_NAME_OID,
