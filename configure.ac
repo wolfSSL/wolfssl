@@ -2418,13 +2418,12 @@ AC_ARG_ENABLE([sha3],
 if test "$ENABLED_SHA3" = "small"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3_SMALL"
-    ENABLED_SHA3="yes"
 fi
 
 # SHAKE256
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
-    [ ENABLED_SHAKE256=$enableval ]
+    [ ENABLED_SHAKE256=$enableval ],
     [ ENABLED_SHAKE256=no ]
     )
 
@@ -2846,7 +2845,10 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
 
     # EdDSA448 requires SHAKE256 which requires SHA-3
-    ENABLED_SHA3=yes
+    if test "$ENABLED_SHA3" = "no"
+    then
+        ENABLED_SHA3=yes
+    fi
     ENABLED_SHAKE256=yes
 
     ENABLED_CERTS=yes
@@ -3832,7 +3834,6 @@ AS_CASE([$FIPS_VERSION],
         ENABLED_SHA224="yes"
         ENABLED_DES3="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         ENABLED_SHAKE256=no
         # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
@@ -3912,23 +3913,25 @@ AS_CASE([$SELFTEST_VERSION],
     ])
 
 
-# Set SHA-3 and SHAKE256 flags
-if test "$ENABLED_SHA3" = "yes" && test "$ENABLED_32BIT" = "no"
+# Set SHA-3 flags
+if test "$ENABLED_SHA3" != "no" && test "$ENABLED_32BIT" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
 fi
+
+# Set SHAKE256 flags
+# FIPS does not support SHAKE 256
 AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256="no"])
 
-if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
+if test "$ENABLED_SHAKE256" != "no" && test "$ENABLED_32BIT" = "no"
 then
-    if test "$ENABLED_32BIT" = "no"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
+    if test "$ENABLED_SHA3" = "no"
     then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
-        if test "$ENABLED_SHA3" = "no"
-        then
-            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
-        fi
+        AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
     fi
+else
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
 fi
 
 # set POLY1305 default
@@ -7791,7 +7794,7 @@ AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENA
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
