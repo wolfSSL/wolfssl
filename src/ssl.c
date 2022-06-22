@@ -8469,158 +8469,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
 }
 #endif
 
-#ifdef OPENSSL_EXTRA
-
-WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
-    WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf, long keyLen)
-{
-    WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
-#ifdef WOLFSSL_PEM_TO_DER
-    int ret;
-    DerBuffer* der = NULL;
-
-    if (keyBuf == NULL || *keyBuf == NULL || keyLen <= 0) {
-        WOLFSSL_MSG("Bad key PEM/DER args");
-        return NULL;
-    }
-
-    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &der, NULL, NULL, NULL);
-    if (ret < 0) {
-        WOLFSSL_MSG("Not PEM format");
-        ret = AllocDer(&der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
-        if (ret == 0) {
-            XMEMCPY(der->buffer, *keyBuf, keyLen);
-        }
-    }
-
-    if (ret == 0) {
-        /* Verify this is PKCS8 Key */
-        word32 inOutIdx = 0;
-        word32 algId;
-        ret = ToTraditionalInline_ex(der->buffer, &inOutIdx, der->length, &algId);
-        if (ret >= 0) {
-            ret = 0; /* good DER */
-        }
-    }
-
-    if (ret == 0) {
-        pkcs8 = wolfSSL_EVP_PKEY_new();
-        if (pkcs8 == NULL)
-            ret = MEMORY_E;
-    }
-    if (ret == 0) {
-        pkcs8->pkey.ptr = (char*)XMALLOC(der->length, NULL,
-            DYNAMIC_TYPE_PUBLIC_KEY);
-        if (pkcs8->pkey.ptr == NULL)
-            ret = MEMORY_E;
-    }
-    if (ret == 0) {
-        XMEMCPY(pkcs8->pkey.ptr, der->buffer, der->length);
-        pkcs8->pkey_sz = der->length;
-    }
-
-    FreeDer(&der);
-    if (ret != 0) {
-        wolfSSL_EVP_PKEY_free(pkcs8);
-        pkcs8 = NULL;
-    }
-    if (pkey != NULL) {
-        *pkey = pkcs8;
-    }
-
-#else
-    (void)bio;
-    (void)pkey;
-#endif /* WOLFSSL_PEM_TO_DER */
-
-    return pkcs8;
-}
-
-
-#ifndef NO_BIO
-/* put SSL type in extra for now, not very common */
-
-/* Converts a DER format key read from "bio" to a PKCS8 structure.
- *
- * bio  input bio to read DER from
- * pkey If not NULL then this pointer will be overwritten with a new PKCS8
- *      structure.
- *
- * returns a WOLFSSL_PKCS8_PRIV_KEY_INFO pointer on success and NULL in fail
- *         case.
- */
-WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
-        WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey)
-{
-    WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
-#ifdef WOLFSSL_PEM_TO_DER
-    unsigned char* mem = NULL;
-    int memSz;
-
-    WOLFSSL_ENTER("wolfSSL_d2i_PKCS8_PKEY_bio");
-
-    if (bio == NULL) {
-        return NULL;
-    }
-
-    if ((memSz = wolfSSL_BIO_get_mem_data(bio, &mem)) < 0) {
-        return NULL;
-    }
-
-    pkcs8 = wolfSSL_d2i_PKCS8_PKEY(pkey, (const unsigned char**)&mem, memSz);
-#else
-    (void)bio;
-    (void)pkey;
-#endif /* WOLFSSL_PEM_TO_DER */
-
-    return pkcs8;
-}
-
-
-/* expecting DER format public key
- *
- * bio  input bio to read DER from
- * out  If not NULL then this pointer will be overwritten with a new
- * WOLFSSL_EVP_PKEY pointer
- *
- * returns a WOLFSSL_EVP_PKEY pointer on success and NULL in fail case.
- */
-WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
-                                         WOLFSSL_EVP_PKEY** out)
-{
-    unsigned char* mem;
-    long memSz;
-    WOLFSSL_EVP_PKEY* pkey = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_d2i_PUBKEY_bio()");
-
-    if (bio == NULL) {
-        return NULL;
-    }
-    (void)out;
-
-    memSz = wolfSSL_BIO_get_len(bio);
-    if (memSz <= 0) {
-        return NULL;
-    }
-
-    mem = (unsigned char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (mem == NULL) {
-        return NULL;
-    }
-
-    if (wolfSSL_BIO_read(bio, mem, (int)memSz) == memSz) {
-        pkey = wolfSSL_d2i_PUBKEY(NULL, (const unsigned char**)&mem, memSz);
-        if (out != NULL && pkey != NULL) {
-            *out = pkey;
-        }
-    }
-
-    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return pkey;
-}
-
-#endif /* !NO_BIO */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
                                  const unsigned char** in, long inSz, int priv)
@@ -8704,7 +8553,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     }
     #endif /* NO_RSA */
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
     {
         word32  keyIdx = 0;
         int     isEccKey;
@@ -8767,7 +8616,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
             }
         }
     }
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ECC && OPENSSL_EXTRA */
 
     #if !defined(NO_DSA)
     {
@@ -9043,6 +8892,160 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     return pkey;
 
 }
+#endif /* OPENSSL_EXTRA || WPA_SMALL */
+
+#ifdef OPENSSL_EXTRA
+
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
+    WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf, long keyLen)
+{
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
+#ifdef WOLFSSL_PEM_TO_DER
+    int ret;
+    DerBuffer* der = NULL;
+
+    if (keyBuf == NULL || *keyBuf == NULL || keyLen <= 0) {
+        WOLFSSL_MSG("Bad key PEM/DER args");
+        return NULL;
+    }
+
+    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &der, NULL, NULL, NULL);
+    if (ret < 0) {
+        WOLFSSL_MSG("Not PEM format");
+        ret = AllocDer(&der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
+        if (ret == 0) {
+            XMEMCPY(der->buffer, *keyBuf, keyLen);
+        }
+    }
+
+    if (ret == 0) {
+        /* Verify this is PKCS8 Key */
+        word32 inOutIdx = 0;
+        word32 algId;
+        ret = ToTraditionalInline_ex(der->buffer, &inOutIdx, der->length, &algId);
+        if (ret >= 0) {
+            ret = 0; /* good DER */
+        }
+    }
+
+    if (ret == 0) {
+        pkcs8 = wolfSSL_EVP_PKEY_new();
+        if (pkcs8 == NULL)
+            ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        pkcs8->pkey.ptr = (char*)XMALLOC(der->length, NULL,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pkcs8->pkey.ptr == NULL)
+            ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        XMEMCPY(pkcs8->pkey.ptr, der->buffer, der->length);
+        pkcs8->pkey_sz = der->length;
+    }
+
+    FreeDer(&der);
+    if (ret != 0) {
+        wolfSSL_EVP_PKEY_free(pkcs8);
+        pkcs8 = NULL;
+    }
+    if (pkey != NULL) {
+        *pkey = pkcs8;
+    }
+
+#else
+    (void)bio;
+    (void)pkey;
+#endif /* WOLFSSL_PEM_TO_DER */
+
+    return pkcs8;
+}
+
+
+#ifndef NO_BIO
+/* put SSL type in extra for now, not very common */
+
+/* Converts a DER format key read from "bio" to a PKCS8 structure.
+ *
+ * bio  input bio to read DER from
+ * pkey If not NULL then this pointer will be overwritten with a new PKCS8
+ *      structure.
+ *
+ * returns a WOLFSSL_PKCS8_PRIV_KEY_INFO pointer on success and NULL in fail
+ *         case.
+ */
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
+        WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey)
+{
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
+#ifdef WOLFSSL_PEM_TO_DER
+    unsigned char* mem = NULL;
+    int memSz;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS8_PKEY_bio");
+
+    if (bio == NULL) {
+        return NULL;
+    }
+
+    if ((memSz = wolfSSL_BIO_get_mem_data(bio, &mem)) < 0) {
+        return NULL;
+    }
+
+    pkcs8 = wolfSSL_d2i_PKCS8_PKEY(pkey, (const unsigned char**)&mem, memSz);
+#else
+    (void)bio;
+    (void)pkey;
+#endif /* WOLFSSL_PEM_TO_DER */
+
+    return pkcs8;
+}
+
+
+/* expecting DER format public key
+ *
+ * bio  input bio to read DER from
+ * out  If not NULL then this pointer will be overwritten with a new
+ * WOLFSSL_EVP_PKEY pointer
+ *
+ * returns a WOLFSSL_EVP_PKEY pointer on success and NULL in fail case.
+ */
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
+                                         WOLFSSL_EVP_PKEY** out)
+{
+    unsigned char* mem;
+    long memSz;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PUBKEY_bio()");
+
+    if (bio == NULL) {
+        return NULL;
+    }
+    (void)out;
+
+    memSz = wolfSSL_BIO_get_len(bio);
+    if (memSz <= 0) {
+        return NULL;
+    }
+
+    mem = (unsigned char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mem == NULL) {
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_read(bio, mem, (int)memSz) == memSz) {
+        pkey = wolfSSL_d2i_PUBKEY(NULL, (const unsigned char**)&mem, memSz);
+        if (out != NULL && pkey != NULL) {
+            *out = pkey;
+        }
+    }
+
+    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return pkey;
+}
+
+#endif /* !NO_BIO */
 
 
 /* Converts a DER encoded public key to a WOLFSSL_EVP_PKEY structure.
@@ -15975,7 +15978,7 @@ cleanup:
 
     int wolfSSL_set1_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
     {
-        WOLFSSL_ENTER("wolfSSL_set0_verify_cert_store");
+        WOLFSSL_ENTER("wolfSSL_set1_verify_cert_store");
 
         if (ssl == NULL || str == NULL) {
             WOLFSSL_MSG("Bad parameter");
@@ -24555,7 +24558,11 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509_NAME_ENTRY:
             return (void*)sk->data.name_entry;
         case STACK_TYPE_CONF_VALUE:
+    #ifdef OPENSSL_EXTRA
             return (void*)sk->data.conf;
+    #else
+            return NULL;
+    #endif
         case STACK_TYPE_X509_INFO:
             return (void*)sk->data.info;
         case STACK_TYPE_BY_DIR_entry:
@@ -24708,9 +24715,6 @@ void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
 {
     wolfSSL_sk_free(sk);
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
-
-#ifdef OPENSSL_EXTRA
 
 /* Free all nodes in a stack including the pushed objects */
 void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
@@ -24751,17 +24755,19 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
                 func = (wolfSSL_sk_freefunc)wolfSSL_ASN1_OBJECT_free;
                 break;
             case STACK_TYPE_DIST_POINT:
+            #ifdef OPENSSL_EXTRA
                 func = (wolfSSL_sk_freefunc)wolfSSL_DIST_POINT_free;
+            #endif
                 break;
             case STACK_TYPE_GEN_NAME:
                 func = (wolfSSL_sk_freefunc)wolfSSL_GENERAL_NAME_free;
                 break;
+            case STACK_TYPE_STRING:
             #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
                 defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-            case STACK_TYPE_STRING:
                 func = (wolfSSL_sk_freefunc)wolfSSL_WOLFSSL_STRING_free;
-                break;
             #endif
+                break;
             case STACK_TYPE_X509_NAME:
             #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                 && !defined(WOLFCRYPT_ONLY)
@@ -24786,7 +24792,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             #endif
                 break;
             case STACK_TYPE_CONF_VALUE:
-            #ifdef OPENSSL_ALL
+            #if defined(OPENSSL_ALL)
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509V3_conf_free;
             #endif
                 break;
@@ -24796,7 +24802,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             #endif
                 break;
             case STACK_TYPE_BIO:
-#if !defined(NO_BIO)
+#if !defined(NO_BIO) && defined(OPENSSL_EXTRA)
                 func = (wolfSSL_sk_freefunc)wolfSSL_BIO_vfree;
 #endif
                 break;
@@ -24833,9 +24839,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
         sk = next;
     }
 }
-#endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 {
@@ -29273,8 +29277,29 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
     defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
-    defined(WOLFSSL_HAPROXY)
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS_SMALL)
+    /* Returns the long name that corresponds with an ASN1_OBJECT nid value.
+     *  n : NID value of ASN1_OBJECT to search */
+    const char* wolfSSL_OBJ_nid2ln(int n)
+    {
+        const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+        size_t i;
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
+        for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++, obj_info++) {
+            if (obj_info->nid == n) {
+                return obj_info->lName;
+            }
+        }
+        WOLFSSL_MSG("NID not found in table");
+        return NULL;
+    }
+#endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
+          WOLFSSL_NGINX, HAVE_POCO_LIB, WOLFSSL_HAPROXY, WOLFSSL_WPAS_SMALL */
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY)
     char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     {
         int ret;
@@ -29630,22 +29655,6 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         }
 
         return oid2nid(oid, o->grp);
-    }
-
-    /* Returns the long name that corresponds with an ASN1_OBJECT nid value.
-     *  n : NID value of ASN1_OBJECT to search */
-    const char* wolfSSL_OBJ_nid2ln(int n)
-    {
-        const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
-        size_t i;
-        WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
-        for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++, obj_info++) {
-            if (obj_info->nid == n) {
-                return obj_info->lName;
-            }
-        }
-        WOLFSSL_MSG("NID not found in table");
-        return NULL;
     }
 
     /* Return the corresponding NID for the long name <ln>

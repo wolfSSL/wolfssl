@@ -4987,7 +4987,7 @@ static const byte server[SIZEOF_SENDER+1] = { 0x53, 0x52, 0x56, 0x52, 0x00 }; /*
 static const byte tls_client[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 typedef struct {
     int name_len;
     const char *name;
@@ -5002,7 +5002,7 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 #else
 #define kNistCurves_MAX_NAME_LEN 7
 #endif
-#endif
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL* ssl);
@@ -5060,7 +5060,7 @@ WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
 WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_ECC)
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif

@@ -118,7 +118,9 @@ static int pk_bn_field_print_fp(XFILE fp, int indent, const char* field,
 }
 #endif /* !NO_CERTS && XFPRINTF && !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM &&
         * (!NO_DSA || !NO_RSA || HAVE_ECC) */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#if defined(OPENSSL_EXTRA)
 #if defined(XSNPRINTF) && !defined(NO_BIO) && !defined(NO_RSA) && \
     !defined(HAVE_FAST_RSA)
 /* snprintf() must be available */
@@ -7602,7 +7604,7 @@ void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
 
 #ifdef HAVE_ECC
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA)
 
 #ifndef NO_CERTS
 
@@ -8808,42 +8810,6 @@ void wolfSSL_EC_GROUP_set_asn1_flag(WOLFSSL_EC_GROUP *group, int flag)
 }
 #endif
 
-WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
-{
-    WOLFSSL_EC_GROUP *g;
-    int x, eccEnum;
-
-    WOLFSSL_ENTER("wolfSSL_EC_GROUP_new_by_curve_name");
-
-    /* curve group */
-    g = (WOLFSSL_EC_GROUP*)XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
-                                    DYNAMIC_TYPE_ECC);
-    if (g == NULL) {
-        WOLFSSL_MSG("wolfSSL_EC_GROUP_new_by_curve_name malloc failure");
-        return NULL;
-    }
-    XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
-
-    /* set the nid of the curve */
-    g->curve_nid = nid;
-    g->curve_idx = -1;
-
-    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    eccEnum = NIDToEccEnum(nid);
-    if (eccEnum != -1) {
-        /* search and set the corresponding internal curve idx */
-        for (x = 0; ecc_sets[x].size != 0; x++) {
-            if (ecc_sets[x].id == eccEnum) {
-                g->curve_idx = x;
-                g->curve_oid = ecc_sets[x].oidSum;
-                break;
-            }
-        }
-    }
-
-    return g;
-}
-
 /* return code compliant with OpenSSL :
  *   the curve nid if success, 0 if error
  */
@@ -8926,6 +8892,44 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
             return 0;
     }
 }
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
+{
+    WOLFSSL_EC_GROUP *g;
+    int x, eccEnum;
+
+    WOLFSSL_ENTER("wolfSSL_EC_GROUP_new_by_curve_name");
+
+    /* curve group */
+    g = (WOLFSSL_EC_GROUP*)XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
+                                    DYNAMIC_TYPE_ECC);
+    if (g == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_GROUP_new_by_curve_name malloc failure");
+        return NULL;
+    }
+    XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
+
+    /* set the nid of the curve */
+    g->curve_nid = nid;
+    g->curve_idx = -1;
+
+    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
+    eccEnum = NIDToEccEnum(nid);
+    if (eccEnum != -1) {
+        /* search and set the corresponding internal curve idx */
+        for (x = 0; ecc_sets[x].size != 0; x++) {
+            if (ecc_sets[x].id == eccEnum) {
+                g->curve_idx = x;
+                g->curve_oid = ecc_sets[x].oidSum;
+                break;
+            }
+        }
+    }
+
+    return g;
+}
 
 /* Converts OpenSSL NID value of ECC curves to the associated enum values in
    ecc_curve_id, used by ecc_sets[].*/
@@ -8994,6 +8998,30 @@ int NIDToEccEnum(int n)
     }
 }
 
+int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
+{
+    int ret;
+    mp_int order;
+
+    if (group == NULL || group->curve_idx < 0) {
+        WOLFSSL_MSG("wolfSSL_EC_GROUP_order_bits NULL error");
+        return 0;
+    }
+
+    ret = mp_init(&order);
+    if (ret == 0) {
+        ret = mp_read_radix(&order, ecc_sets[group->curve_idx].order,
+            MP_RADIX_HEX);
+        if (ret == 0)
+            ret = mp_count_bits(&order);
+        mp_clear(&order);
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#if defined(OPENSSL_EXTRA)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -9020,28 +9048,6 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
     }
 
     return 1;
-}
-
-int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
-{
-    int ret;
-    mp_int order;
-
-    if (group == NULL || group->curve_idx < 0) {
-        WOLFSSL_MSG("wolfSSL_EC_GROUP_order_bits NULL error");
-        return 0;
-    }
-
-    ret = mp_init(&order);
-    if (ret == 0) {
-        ret = mp_read_radix(&order, ecc_sets[group->curve_idx].order,
-            MP_RADIX_HEX);
-        if (ret == 0)
-            ret = mp_count_bits(&order);
-        mp_clear(&order);
-    }
-
-    return ret;
 }
 
 /* End EC_GROUP */
@@ -11045,7 +11051,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     return 1;
 }
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL*/
 
 #endif /* HAVE_ECC */
 

@@ -1803,7 +1803,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_GENERAL_NAME* gn = NULL;
+#ifdef OPENSSL_EXTRA
     WOLFSSL_DIST_POINT* dp = NULL;
+#endif
     WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_d2i");
@@ -1930,6 +1932,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
         }
 
         case CRL_DIST_OID:
+    #if defined(OPENSSL_EXTRA)
             if (x509->CRLdistSet && x509->CRLInfo != NULL) {
                 if (c != NULL) {
                     *c = x509->CRLdistCrit;
@@ -1986,7 +1989,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             else {
                 WOLFSSL_MSG("No CRL dist set");
             }
-
+    #endif /* OPENSSL_EXTRA */
             break;
 
         case AUTH_INFO_OID:
@@ -2250,9 +2253,11 @@ err:
     if (gn) {
         wolfSSL_GENERAL_NAME_free(gn);
     }
+    #ifdef OPENSSL_EXTRA
     if (dp) {
         wolfSSL_DIST_POINT_free(dp);
     }
+    #endif
     if (sk) {
         wolfSSL_sk_free(sk);
     }
@@ -3968,7 +3973,6 @@ void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk)
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
-
 static void wolfSSL_DIST_POINT_NAME_free(WOLFSSL_DIST_POINT_NAME* dpn)
 {
     if (dpn != NULL) {
@@ -4222,7 +4226,7 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL*/
 
 #ifdef OPENSSL_EXTRA
 void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
@@ -4922,7 +4926,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
                 key->ecc->inSet = 1;
             }
-            #endif /* HAVE_ECC */
+            #endif /* HAVE_ECC && OPENSSL_EXTRA */
 
             #ifndef NO_DSA
             if (key->type == EVP_PKEY_DSA) {
@@ -9125,7 +9129,8 @@ cleanup:
 #endif /* WOLFSSL_CERT_GEN */
 
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
 /* Converts from NID_* value to wolfSSL value if needed.
  *
  * @param [in] nid  Numeric Id of a domain name component.
@@ -9154,7 +9159,10 @@ static int ConvertNIDToWolfSSL(int nid)
             return -1;
     }
 }
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA ||
+          OPENSSL_EXTRA_X509_SMALL || WOLFSSL_WPAS_SMALL*/
 
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* This is to convert the x509 name structure into canonical DER format     */
 /*  , which has the following rules:                                        */
 /*   convert to UTF8                                                        */
@@ -9271,7 +9279,7 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
     }
     return totalBytes;
 }
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef WOLFSSL_CERT_GEN
 /* Guarded by either
@@ -9415,7 +9423,8 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 #endif /* WOLFSSL_CERT_GEN */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined (WOLFSSL_WPAS_SMALL)
 
     WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
                                              unsigned char **in, long length)
@@ -9473,7 +9482,10 @@ cleanup:
     #endif
         return tmp;
     }
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_WPAS_SMALL */
 
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
     /* Compares the two X509 names. If the size of x is larger then y then a
      * positive value is returned if x is smaller a negative value is returned.
