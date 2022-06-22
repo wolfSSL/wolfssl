@@ -3641,6 +3641,28 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_CLIENT)
+static int Dtls13DoDowngrade(WOLFSSL* ssl)
+{
+    int ret;
+    if (ssl->dtls13ClientHello == NULL)
+        return BAD_STATE_E;
+
+    /* v1.3 and v1.2 hash messages to compute the transcript hash. When we are
+     * using DTLSv1.3 we hash the first clientHello following v1.3 but the
+     * server can negotiate a lower version. So we need to re-hash the
+     * clientHello to adhere to DTLS <= v1.2 rules. */
+    ret = InitHandshakeHashes(ssl);
+    if (ret != 0)
+        return ret;
+    ret = HashRaw(ssl, ssl->dtls13ClientHello, ssl->dtls13ClientHelloSz);
+    XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+    ssl->dtls13ClientHello = NULL;
+    ssl->dtls13ClientHelloSz = 0;
+    return ret;
+}
+#endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT*/
+
 /* handle processing of TLS 1.3 server_hello (2) and hello_retry_request (6) */
 /* Handle the ServerHello message from the server.
  * Only a client will receive this message.
@@ -3762,6 +3784,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->options.dtls) {
                 ssl->chVersion.minor = DTLSv1_2_MINOR;
                 ssl->version.minor = DTLSv1_2_MINOR;
+                ret = Dtls13DoDowngrade(ssl);
+                if (ret != 0)
+                    return ret;
             }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -3839,6 +3864,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             ssl->chVersion.minor = DTLSv1_2_MINOR;
             ssl->version.minor = DTLSv1_2_MINOR;
+            ret = Dtls13DoDowngrade(ssl);
+            if (ret != 0)
+                return ret;
         }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -3893,8 +3921,27 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
 
             ssl->version.minor = args->pv.minor;
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                ret = Dtls13DoDowngrade(ssl);
+                if (ret != 0)
+                    return ret;
+            }
+#endif /* WOLFSSL_DTLS13 */
         }
     }
+
+#ifdef WOLFSSL_DTLS13
+    /* we are sure that version is >= v1.3 now, we can get rid of buffered
+     * ClientHello that was buffered to re-compute the hash in case of
+     * downgrade */
+    if (ssl->options.dtls && ssl->dtls13ClientHello != NULL) {
+        XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+        ssl->dtls13ClientHello = NULL;
+        ssl->dtls13ClientHelloSz = 0;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_BUILD;

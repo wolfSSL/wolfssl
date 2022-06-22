@@ -7284,6 +7284,15 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->dtls13ClientHello != NULL) {
+        XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+        ssl->dtls13ClientHello = NULL;
+        ssl->dtls13ClientHelloSz = 0;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
@@ -7503,12 +7512,21 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     WOLFSSL_ENTER("FreeHandshakeResources");
 
 #ifdef WOLFSSL_DTLS
-    /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
-    if (ssl->options.dtls && !IsAtLeastTLSv1_3(ssl->version)) {
-        DtlsMsgPoolReset(ssl);
-        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
-        ssl->dtls_rx_msg_list = NULL;
-        ssl->dtls_rx_msg_list_sz = 0;
+    if (ssl->options.dtls) {
+        /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
+        if(!IsAtLeastTLSv1_3(ssl->version)) {
+            DtlsMsgPoolReset(ssl);
+            DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+            ssl->dtls_rx_msg_list = NULL;
+            ssl->dtls_rx_msg_list_sz = 0;
+        }
+#ifdef WOLFSSL_DTLS13
+        if (ssl->dtls13ClientHello != NULL) {
+            XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+            ssl->dtls13ClientHello = NULL;
+            ssl->dtls13ClientHelloSz = 0;
+        }
+#endif /* WOLFSSL_DTLS13 */
     }
 #endif
 

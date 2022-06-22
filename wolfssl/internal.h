@@ -4659,6 +4659,8 @@ struct WOLFSSL {
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
     Dtls13Rtx dtls13Rtx;
+    byte *dtls13ClientHello;
+    word16 dtls13ClientHelloSz;
 
 #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
