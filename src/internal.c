@@ -147,8 +147,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef NO_WOLFSSL_CLIENT
-    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input,
-                                    word32* inOutIdx, word32 size);
     static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                    word32* inOutIdx, word32 size);
     #ifndef NO_CERTS
@@ -24562,8 +24560,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
 
     /* handle processing of DTLS hello_verify_request (3) */
-    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input,
-                                    word32* inOutIdx, word32 size)
+    int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+        word32 size)
     {
         ProtocolVersion pv;
         byte            cookieSz;
@@ -24605,7 +24603,18 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             *inOutIdx += cookieSz;
         }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+        if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.dtls) {
+            /* we sent a TLSv1.3 ClientHello but received a
+             * HELLO_VERIFY_REQUEST */
+            if (!ssl->options.downgrade ||
+                    ssl->options.minDowngrade < pv.minor)
+                return VERSION_ERROR;
+        }
+#endif /* defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) */
+
         ssl->options.serverState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
+
         return 0;
     }
 

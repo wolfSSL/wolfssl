@@ -3411,9 +3411,14 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif
 
 #ifdef WOLFSSL_DTLS13
-    /* legacy_cookie_id (always 0 length) */
-    if (ssl->options.dtls)
-        args->length += OPAQUE8_LEN;
+    if (ssl->options.dtls) {
+        /* legacy_cookie_id len */
+        args->length += ENUM_LEN;
+
+        /* server sent us an HelloVerifyRequest and we allow downgrade  */
+        if (ssl->arrays->cookieSz > 0 && ssl->options.downgrade)
+            args->length += ssl->arrays->cookieSz;
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     /* Advance state and proceed */
@@ -3519,9 +3524,19 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_DTLS13
-    /* legacy_cookie_id. always 0 length vector */
-    if (ssl->options.dtls)
-        args->output[args->idx++] = 0;
+    if (ssl->options.dtls) {
+        args->output[args->idx++] = ssl->arrays->cookieSz;
+
+        if (ssl->arrays->cookieSz > 0) {
+            /* We have a cookie saved, so the server sent us an
+             * HelloVerifyRequest, it means it is a v1.2 server */
+            if (!ssl->options.downgrade)
+                return VERSION_ERROR;
+            XMEMCPY(args->output + args->idx, ssl->arrays->cookie,
+                ssl->arrays->cookieSz);
+            args->idx += ssl->arrays->cookieSz;
+        }
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     /* Cipher suites */
@@ -9111,6 +9126,40 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             }
             /* Multiple KeyUpdates can be sent. */
             break;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+        case hello_verify_request:
+            if (!ssl->options.dtls) {
+                WOLFSSL_MSG("HelloVerifyRequest when not in DTLS");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_hello_verify_request) {
+                WOLFSSL_MSG("Duplicate HelloVerifyRequest received");
+                return DUPLICATE_MSG_E;
+            }
+            ssl->msgsReceived.got_hello_verify_request = 1;
+            if (ssl->msgsReceived.got_hello_retry_request) {
+                WOLFSSL_MSG(
+                    "Both HelloVerifyRequest and HelloRetryRequest received");
+                return DUPLICATE_MSG_E;
+            }
+            if (ssl->options.serverState >=
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE ||
+                ssl->options.connectState != CLIENT_HELLO_SENT) {
+                WOLFSSL_MSG("HelloVerifyRequest received out of order");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("HelloVerifyRequest recevied on the server");
+                return SIDE_ERROR;
+            }
+            if (!ssl->options.downgrade ||
+                ssl->options.minDowngrade < DTLSv1_2_MINOR) {
+                WOLFSSL_MSG(
+                    "HelloVerifyRequest recevied but not DTLSv1.2 allowed");
+                return VERSION_ERROR;
+            }
+            break;
+#endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_TLS12*/
 
         default:
             WOLFSSL_MSG("Unknown message type");
@@ -9171,7 +9220,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
                ssl->options.serverState == NULL_STATE &&
-               type != server_hello && type != hello_retry_request) {
+               type != server_hello && type != hello_retry_request
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+        && (!ssl->options.dtls || type != hello_verify_request)
+#endif /* defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12) */
+        ) {
         WOLFSSL_MSG("First server message not server hello");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
@@ -9265,6 +9318,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+    case hello_verify_request:
+        WOLFSSL_MSG("processing hello verify request");
+        ret = DoHelloVerifyRequest(ssl, input, inOutIdx, size);
+        break;
+#endif
     default:
         WOLFSSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;

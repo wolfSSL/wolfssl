@@ -5175,6 +5175,8 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+        word32 size);
     #ifdef WOLFSSL_TLS13
     WOLFSSL_LOCAL int SendTls13ClientHello(WOLFSSL* ssl);
     #endif
