@@ -4478,6 +4478,11 @@ struct WOLFSSL {
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
+#ifdef WOLFSSL_DTLS
+    ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
+                                        *  ClientHello */
+    void*             chGoodCtx;       /*  user ClientHello cb context  */
+#endif
 #ifndef NO_HANDSHAKE_DONE_CB
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
     void*           hsDoneCtx;         /*  user handshake cb context  */

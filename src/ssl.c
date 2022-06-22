@@ -1183,6 +1183,14 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
+    if (peer == NULL || peerSz == 0) {
+        if (ssl->buffers.dtlsCtx.peer.sa != NULL)
+            XFREE(ssl->buffers.dtlsCtx.peer.sa,ssl->heap,DYNAMIC_TYPE_SOCKADDR);
+        ssl->buffers.dtlsCtx.peer.sa = NULL;
+        ssl->buffers.dtlsCtx.peer.sz = 0;
+        return WOLFSSL_SUCCESS;
+    }
+
     sa = (void*)XMALLOC(peerSz, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     if (sa != NULL) {
         if (ssl->buffers.dtlsCtx.peer.sa != NULL) {
@@ -12527,6 +12535,18 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return wolfSSL_accept_TLSv13(ssl);
             }
 #endif
+
+#ifdef WOLFSSL_DTLS
+            if (ssl->chGoodCb != NULL && !IsSCR(ssl)) {
+                int cbret = ssl->chGoodCb(ssl, ssl->chGoodCtx);
+                if (cbret < 0) {
+                    ssl->error = cbret;
+                    WOLFSSL_MSG("ClientHello Good Cb don't continue error");
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif
+
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
             FALL_THROUGH;
@@ -12748,6 +12768,20 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #endif /* NO_WOLFSSL_SERVER */
 
+#ifdef WOLFSSL_DTLS
+int wolfSSL_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_SetChGoodCb");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->chGoodCb  = cb;
+    ssl->chGoodCtx = user_ctx;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
 
 #ifndef NO_HANDSHAKE_DONE_CB
 
