@@ -926,7 +926,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
             value = idx;
             /* Find end of value */
             idx = maxIdx-1;
-            while (idx >= value && (*idx == ' ' || *idx == '\t'))
+            while (idx >= value && (*idx == ' ' || *idx == '\t' || *idx == '\r'))
                 idx--;
             valueLen = (int)(idx - value + 1);
 
