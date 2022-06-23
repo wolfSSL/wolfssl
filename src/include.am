@@ -560,7 +560,7 @@ if BUILD_FASTMATH
 src_libwolfssl_la_SOURCES += wolfcrypt/src/tfm.c
 endif
 
-if BUILD_SLOWMATH
+if BUILD_HEAPMATH
 src_libwolfssl_la_SOURCES += wolfcrypt/src/integer.c
 endif
 

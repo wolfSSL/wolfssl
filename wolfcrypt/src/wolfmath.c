@@ -344,7 +344,7 @@ void wc_bigint_free(WC_BIGINT* a)
 
 /* sz: make sure the buffer is at least that size and zero padded.
  *     A `sz == 0` will use the size of `src`.
- *     The calculates sz is stored into dst->len in `wc_bigint_alloc`.
+ *     The calculated sz is stored into dst->len in `wc_bigint_alloc`.
  */
 int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 {
@@ -361,8 +361,7 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 
     /* make sure destination is allocated and large enough */
     err = wc_bigint_alloc(dst, sz);
-    if (err == MP_OKAY) {
-
+    if (err == MP_OKAY && sz > 0) {
         /* leading zero pad */
         y = sz - x;
         XMEMSET(dst->buf, 0, y);

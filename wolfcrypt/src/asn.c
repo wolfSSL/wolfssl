@@ -1184,6 +1184,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 return ASN_GETINT_E;
             }
         #endif /* HAVE_WOLF_BIGINT */
+
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
             /* Don't always read as positive. */
             if ((data->dataType == ASN_DATA_TYPE_MP_POS_NEG) && (!zeroPadded) &&
                 (input[idx] & 0x80)) {
@@ -1203,6 +1205,9 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                     return ASN_GETINT_E;
                 #endif
             }
+        #else
+            (void)zeroPadded;
+        #endif
             break;
 
         case ASN_DATA_TYPE_CHOICE:

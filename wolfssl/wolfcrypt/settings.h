@@ -1883,6 +1883,53 @@ extern void uITRON4_free(void *p) ;
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
 #endif
 
+
+
+/* ---------------------------------------------------------------------------
+ * Math Library Selection (in order of preference)
+ * ---------------------------------------------------------------------------*/
+/* Only evaluate this if:
+ *  A) Not fips
+ *  B) FIPS 140-3 (v5 or greater) */
+#if !defined(HAVE_FIPS_VERSION) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5))
+    /*  1) SP Math: wolfSSL proprietary math implementation (sp_int.c).
+     *      Constant time: Always
+     *      Enable:        WOLFSSL_SP_MATH_ALL
+     *
+     *  2) Fast Math: Stack based (tfm.c)
+     *      Constant time: Only with TFM_TIMING_RESISTANT
+     *      Enable:        USE_FAST_MATH
+     *
+     *  3) Integer Heap Math:  Heap based (integer.c)
+     *      Constant time: Not supported
+     *      Enable:        USE_INTEGER_HEAP_MATH
+     */
+    #if defined(WOLFSSL_SP_MATH_ALL) || \
+        (!defined(USE_FAST_MATH) && !defined(USE_INTEGER_HEAP_MATH))
+        /* 1) Using wolfSSL SP Math (sp_int.c) */
+        #ifndef WOLFSSL_SP_MATH_ALL
+            #define WOLFSSL_SP_MATH_ALL
+        #endif
+    #elif defined(USE_FAST_MATH)
+        /* 2) Using fast math (tfm.c) - USE_FAST_MATH */
+    #else
+        /* 3) Using heap math (integer.c) - USE_INTEGER_HEAP_MATH */
+    #endif
+#else
+    /* FIPS 140-2 or older */
+    /* Default to fast math (tfm.c), but allow heap math (integer.c) */
+    #if !defined(USE_INTEGER_HEAP_MATH)
+        #undef  USE_FAST_MATH
+        #define USE_FAST_MATH
+        #define FP_MAX_BITS 8192
+    #endif
+#endif
+/*----------------------------------------------------------------------------*/
+
+
+
+
 /* user can specify what curves they want with ECC_USER_CURVES otherwise
  * all curves are on by default for now */
 #ifndef ECC_USER_CURVES
@@ -1892,7 +1939,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* The minimum allowed ECC key size */
-/* Note: 224-bits is equivelant to 2048-bit RSA */
+/* Note: 224-bits is equivalent to 2048-bit RSA */
 #ifndef ECC_MIN_KEY_SZ
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
@@ -2225,9 +2272,9 @@ extern void uITRON4_free(void *p) ;
     #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
          #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
     #endif
-    #if !defined(WOLFSSL_SP_NO_MALLOC) && \
-        !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
-         #error The static memory option is only supported for fast math or SP with no malloc
+    #if !defined(WOLFSSL_SP_MATH_ALL) && !defined(USE_FAST_MATH) && \
+        !defined(NO_BIG_INT)
+         #error The static memory option is only supported for fast math or SP Math
     #endif
     #ifdef WOLFSSL_SMALL_STACK
         #error static memory does not support small stack please undefine
