@@ -14359,7 +14359,13 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             case ASN_RFC822_TYPE:
                 /* Shouldn't it validade E= in subject as well? */
                 name = cert->altEmailNames;
-                if (cert->subjectEmail != NULL) { /* add subject email to list*/
+
+                /* Add subject email to temporary list for checking.
+                 * In the case of no subject alt. names, the list will be a
+                 * single node having the subject name email address. The node
+                 * subjectDnsName is not needed after done being compared with
+                 * in this function */
+                if (cert->subjectEmail != NULL) {
                     /* RFC 5280 section 4.2.1.10
                      * "When constraints are imposed on the rfc822Name name
                      * form, but the certificate does not include a subject
