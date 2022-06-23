@@ -1290,7 +1290,7 @@ struct DNS_entry {
     char*      ipString; /* human readable form of IP address */
 #endif
 #ifdef WOLFSSL_FPKI
-    int        oidSum; /* provid oid sum for verification */
+    int        oidSum; /* provide oid sum for verification */
 #endif
 };
 

@@ -83,6 +83,7 @@ ASN Options:
  * WOLFSSL_SUBJ_DIR_ATTR: Enable support for SubjectDirectoryAttributes
     extension.
  * WOLFSSL_SUBJ_INFO_ACC: Enable support for SubjectInfoAccess extension.
+ * WOLFSSL_FPKI: Enable support for FPKI (Federal PKI) extensions.
 */
 
 #ifndef NO_ASN
@@ -14953,13 +14954,18 @@ static int DecodeSepHwAltName(DecodedCert* cert, const byte* input,
     idx += strLen;
 
     ret = GetOctetString(input, &idx, &strLen, sz);
-    if (ret < 0)
+    if (ret < 0) {
+        XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+        cert->hwType = NULL;
         return ret;
+    }
 
     cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap,
                                        DYNAMIC_TYPE_X509_EXT);
     if (cert->hwSerialNum == NULL) {
         WOLFSSL_MSG("\tOut of Memory");
+        XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+        cert->hwType = NULL;
         return MEMORY_E;
     }
 
@@ -21281,7 +21287,7 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
  * otherwise the search starts from the node after 'current' alt name.
  * Returns 0 on success
  */
-static DNS_entry* wc_GetAltName(struct DecodedCert* cert, int nameType,
+static DNS_entry* FindAltName(struct DecodedCert* cert, int nameType,
     DNS_entry* current)
 {
     DNS_entry* entry;
@@ -21312,7 +21318,7 @@ int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
     DNS_entry* id = NULL;
 
     do {
-        id = wc_GetAltName(cert, ASN_URI_TYPE, id);
+        id = FindAltName(cert, ASN_URI_TYPE, id);
         if (id != NULL) {
             /* check if URI string matches expected format for UUID */
             if (id->len != DEFAULT_UUID_SZ) {
@@ -21349,7 +21355,7 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
     DNS_entry* id = NULL;
 
     do {
-        id = wc_GetAltName(cert, ASN_OTHER_TYPE, id);
+        id = FindAltName(cert, ASN_OTHER_TYPE, id);
         if (id != NULL && id->oidSum == FASCN_OID) {
             if (fascn == NULL) {
                 *fascnSz = id->len;
