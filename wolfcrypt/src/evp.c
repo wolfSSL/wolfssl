@@ -7410,15 +7410,21 @@ void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 }
 int wolfSSL_EVP_PKEY_assign_EC_KEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
 {
+    int ret;
+
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
-    pkey->type = EVP_PKEY_EC;
-    pkey->ecc = key;
-    pkey->ownEcc = 1;
-
     /* try and populate public pkey_sz and pkey.ptr */
-    return ECC_populate_EVP_PKEY(pkey, key);
+    ret = ECC_populate_EVP_PKEY(pkey, key);
+    if (ret == WOLFSSL_SUCCESS) { /* take ownership of key if can be used */
+        clearEVPPkeyKeys(pkey); /* clear out any previous keys */
+
+        pkey->type = EVP_PKEY_EC;
+        pkey->ecc = key;
+        pkey->ownEcc = 1;
+    }
+    return ret;
 }
 #endif /* HAVE_ECC */
 
@@ -7905,6 +7911,7 @@ int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
+    clearEVPPkeyKeys(pkey);
     pkey->type = EVP_PKEY_RSA;
     pkey->rsa = key;
     pkey->ownRsa = 1;
@@ -7940,6 +7947,7 @@ int wolfSSL_EVP_PKEY_assign_DSA(EVP_PKEY* pkey, WOLFSSL_DSA* key)
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
+    clearEVPPkeyKeys(pkey);
     pkey->type = EVP_PKEY_DSA;
     pkey->dsa = key;
     pkey->ownDsa = 1;
@@ -7954,6 +7962,7 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
 
+    clearEVPPkeyKeys(pkey);
     pkey->type = EVP_PKEY_DH;
     pkey->dh = key;
     pkey->ownDh = 1;
