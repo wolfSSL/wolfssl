@@ -47303,7 +47303,7 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
 }
 static void test_wolfSSL_EVP_PKEY_sign_verify(void)
 {
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA)
 #if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
     WOLFSSL_DSA* dsa = NULL;
 #endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
@@ -47498,7 +47498,7 @@ static void test_wolfSSL_EVP_PKEY_sign_verify(void)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigVerify, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* OPENSSL_EXTRA */
 }
 
 static void test_EVP_PKEY_rsa(void)
