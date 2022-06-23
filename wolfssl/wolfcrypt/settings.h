@@ -1886,8 +1886,9 @@ extern void uITRON4_free(void *p) ;
 /* ---------------------------------------------------------------------------
  * Math Library Selection (in order of preference)
  * ---------------------------------------------------------------------------*/
-/* Only evaluate this if it is A) not fips or B) only 140-3 FIPS
- * (v5 or greater) */
+/* Only evaluate this if:
+ *  A) Not fips
+ *  B) FIPS 140-3 (v5 or greater) */
 #if !defined(HAVE_FIPS_VERSION) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5))
     /*  1) SP Math: wolfSSL proprietary math implementation (sp_int.c).
@@ -1911,7 +1912,15 @@ extern void uITRON4_free(void *p) ;
     #elif defined(USE_FAST_MATH)
         /* 2) Using fast math (tfm.c) - USE_FAST_MATH */
     #else
-        /* 3) Using heap based (integer.c) math - USE_INTEGER_HEAP_MATH */
+        /* 3) Using heap math (integer.c) - USE_INTEGER_HEAP_MATH */
+    #endif
+#else
+    /* FIPS 140-2 or older */
+    /* Default to fast math (tfm.c), but allow heap math (integer.c) */
+    #if !defined(USE_INTEGER_HEAP_MATH)
+        #undef  USE_FAST_MATH
+        #define USE_FAST_MATH
+        #define FP_MAX_BITS 8192
     #endif
 #endif
 /*----------------------------------------------------------------------------*/

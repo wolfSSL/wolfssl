@@ -361,8 +361,7 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 
     /* make sure destination is allocated and large enough */
     err = wc_bigint_alloc(dst, sz);
-    if (err == MP_OKAY) {
-
+    if (err == MP_OKAY && sz > 0) {
         /* leading zero pad */
         y = sz - x;
         XMEMSET(dst->buf, 0, y);
