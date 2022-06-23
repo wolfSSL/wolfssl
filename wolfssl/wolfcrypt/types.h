@@ -1141,7 +1141,8 @@ typedef struct w64wrapper {
 
     #ifdef WOLFSSL_USE_ALIGN
         #if !defined(ALIGN16)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
+                defined(__llvm__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -1153,7 +1154,8 @@ typedef struct w64wrapper {
         #endif /* !ALIGN16 */
 
         #if !defined (ALIGN32)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
+                defined(__llvm__)
                 #define ALIGN32 __attribute__ ( (aligned (32)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -1165,7 +1167,8 @@ typedef struct w64wrapper {
         #endif /* !ALIGN32 */
 
         #if !defined(ALIGN64)
-            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
+                defined(__llvm__)
                 #define ALIGN64 __attribute__ ( (aligned (64)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -1176,7 +1179,8 @@ typedef struct w64wrapper {
             #endif
         #endif /* !ALIGN64 */
 
-        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || \
+            defined(__llvm__)
             #define ALIGN128 __attribute__ ( (aligned (128)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
@@ -1186,7 +1190,8 @@ typedef struct w64wrapper {
             #define ALIGN128
         #endif
 
-        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)  || \
+            defined(__llvm__)
             #define ALIGN256 __attribute__ ( (aligned (256)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
