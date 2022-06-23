@@ -828,12 +828,12 @@ static const char* server_usage_msg[][64] = {
         "-d          Disable client cert check\n",                      /* 12 */
         "-b          Bind to any interface instead of localhost only\n",/* 13 */
         "-s          Use pre Shared keys\n",                            /* 14 */
-        "-u          Use UDP DTLS,"
 #ifndef WOLFSSL_DTLS13
-                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n", /* 21 */
+        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default)\n",                                             /* 15 */
 #else
-                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default), -v 4 for "
-                 "DTLSv1.3\n",                                          /* 21 */
+        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default), -v 4 for DTLSv1.3\n",                          /* 15 */
 #endif /* !WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_SCTP
         "-G          Use SCTP DTLS,"
