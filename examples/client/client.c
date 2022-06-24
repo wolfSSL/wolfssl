@@ -1165,12 +1165,12 @@ static const char* client_usage_msg[][70] = {
         "-D          Override Date Errors example\n",                   /* 18 */
         "-e          List Every cipher suite available, \n",            /* 19 */
         "-g          Send server HTTP GET\n",                           /* 20 */
-        "-u          Use UDP DTLS,"
 #ifndef WOLFSSL_DTLS13
-                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n", /* 21 */
+        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default)\n",                                             /* 21 */
 #else
-                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default), -v 4 for "
-                 "DTLSv1.3\n",                                          /* 21 */
+        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default), -v 4 for DTLSv1.3\n",                          /* 21 */
 #endif /* !WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_SCTP
         "-G          Use SCTP DTLS,"

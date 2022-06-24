@@ -128,7 +128,6 @@ AC_TYPE_SIZE_T
 AC_TYPE_UINT8_T
 AC_TYPE_UINTPTR_T
 AM_PROG_AS
-LT_LIB_M
 
 OPTIMIZE_CFLAGS="-Os"
 OPTIMIZE_FAST_CFLAGS="-O2"
@@ -871,6 +870,15 @@ then
 
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
+
+    # Enable DH Extra
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
+
+    # Enable deterministic ECC signing API with variant
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
+
+    # Store issuer name components when parsing certificates.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
 fi
 
 
@@ -3417,7 +3425,7 @@ AC_ARG_ENABLE([dh],
     [ ENABLED_DH=yes ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" && test "$ENABLED_DH" = "no"
 then
     ENABLED_DH="yes"
 fi
@@ -3434,7 +3442,12 @@ else
     fi
 fi
 
-if test "x$ENABLED_SNIFFER" = "xyes" && test "x$ENABLED_DH" = "xyes"
+if test "$ENABLED_DH" = "const"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST"
+fi
+
+if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_DH" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
 fi
@@ -3454,7 +3467,7 @@ then
 fi
 if test "x$ENABLED_ANON" = "xyes"
 then
-    if test "x$ENABLED_DH" != "xyes"
+    if test "$ENABLED_DH" = "no"
     then
         AC_MSG_ERROR([Anonymous suite requires DH.])
     fi
@@ -4539,7 +4552,7 @@ then
 fi
 
 # Diffie-Hellman
-if test "$ENABLED_DH" = "yes"
+if test "$ENABLED_DH" != "no"
 then
     if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_SUPPORTED_CURVES" = "yes"
     then
@@ -4578,7 +4591,7 @@ then
     ENABLED_TLS13=no
 fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
-    test "x$ENABLED_DH" = "xyes")
+    test "$ENABLED_DH" != "no")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
@@ -6326,7 +6339,7 @@ if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_RSA"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_RSA"
 fi
-if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
+if test "$ENABLED_DH" != "no" && test "$ENABLED_SP_DH" = "yes"; then
     ENABLED_SP=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_DH"
@@ -6411,7 +6424,7 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
         AC_MSG_ERROR([Cannot use RSA single precision only math and RSA])
     fi
-    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
+    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" != "no"; then
         AC_MSG_ERROR([Cannot use DH single precision only math and DH])
     fi
 fi
@@ -7624,6 +7637,12 @@ then
 fi
 
 
+# Link with the math library iff needed.
+if test "$ENABLED_DH" != "no" && test "$ENABLED_DH" != "const"; then
+   LT_LIB_M
+fi
+
+
 ################################################################################
 
 # USER SETTINGS
@@ -7826,7 +7845,7 @@ AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AES],[test "x$ENABLED_AES" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CODING],[test "x$ENABLED_CODING" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
