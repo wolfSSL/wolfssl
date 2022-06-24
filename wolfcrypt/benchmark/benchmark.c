@@ -1022,12 +1022,13 @@ static const char* bench_desc_words[][14] = {
 
 /* determine benchmark buffer to use (if NO_FILESYSTEM) */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-    !defined(USE_CERT_BUFFERS_3072)
+    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     #define USE_CERT_BUFFERS_2048 /* default to 2048 */
 #endif
 
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) || \
-    defined(USE_CERT_BUFFERS_3072) || !defined(NO_DH)
+    defined(USE_CERT_BUFFERS_3072) || defined(USE_CERT_BUFFERS_4096) || \
+    !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #include <wolfssl/certs_test.h>
 #endif
@@ -5472,7 +5473,7 @@ void bench_rsaKeyGen_size(int useDeviceID, int keySz)
 #endif /* WOLFSSL_KEY_GEN */
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-    !defined(USE_CERT_BUFFERS_3072)
+    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     #if defined(WOLFSSL_MDK_SHELL)
         static char *certRSAname = "certs/rsa2048.der";
         /* set by shell command */
@@ -5800,6 +5801,10 @@ void bench_rsa(int useDeviceID)
     tmp = rsa_key_der_3072;
     bytes = (size_t)sizeof_rsa_key_der_3072;
     rsaKeySz = 3072;
+#elif defined(USE_CERT_BUFFERS_4096)
+    tmp = client_key_der_4096;
+    bytes = (size_t)sizeof_client_key_der_4096;
+    rsaKeySz = 4096;
 #else
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
@@ -5930,7 +5935,7 @@ exit_bench_rsa_key:
 #ifndef NO_DH
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-    !defined(USE_CERT_BUFFERS_3072)
+    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     #if defined(WOLFSSL_MDK_SHELL)
         static char *certDHname = "certs/dh2048.der";
         /* set by shell command */
@@ -6012,6 +6017,10 @@ void bench_dh(int useDeviceID)
         tmp = dh_key_der_3072;
         bytes = (size_t)sizeof_dh_key_der_3072;
         dhKeySz = 3072;
+#elif defined(USE_CERT_BUFFERS_4096)
+        tmp = dh_key_der_4096;
+        bytes = (size_t)sizeof_dh_key_der_4096;
+        dhKeySz = 4096;
 #else
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
