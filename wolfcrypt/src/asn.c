@@ -14594,6 +14594,12 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
  * X.509: RFC 5280, 4.2.1.6 - OtherName (without implicit outer SEQUENCE).
  * HW Name: RFC 4108, 5 - Hardware Module Name
  * Only support HW Name where the type is a HW serial number.
+ *
+ * Other Names handled for FPKI (Federal PKI) use:
+ * UPN (Universal Principal Name), a non-standard Other Name
+ *  (RFC3280 sec 4.2.1.7). Often used with FIPS 201 smartcard login.
+ * FASC-N (Federal Agency Smart Credential Number), defined in the document
+ *  fpki-x509-cert-policy-common.pdf. Used for a smart card ID.
  */
 static const ASNItem otherNameASN[] = {
 /* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
