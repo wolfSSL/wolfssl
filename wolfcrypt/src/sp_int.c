@@ -7277,7 +7277,7 @@ static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
     #endif
         for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
             i = k - (b->used - 1);
-            i &= ~(i >> (sizeof(i) * 8 - 1));
+            i &= ~((unsigned int)i >> (sizeof(i) * 8 - 1));
             j = k - i;
             for (; (i < a->used) && (j >= 0); i++, j--) {
                 w = (sp_int_word)a->dp[i] * b->dp[j];
