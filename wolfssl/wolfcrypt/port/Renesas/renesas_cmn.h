@@ -25,6 +25,16 @@
 #include <wolfssl/internal.h>
 
 /* Common Callbacks */
+WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
+                                const unsigned char* in, unsigned int inSz,
+                                unsigned char* out, word32* outSz,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx);
+WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
+                                const unsigned char* in, unsigned int inSz,
+                                unsigned char* out, word32* outSz,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_genMasterSecret(WOLFSSL* ssl, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_generatePremasterSecret(WOLFSSL* ssl, 
                                 byte *premaster, word32 preSz, void* ctx);
@@ -55,5 +65,6 @@ void wc_CryptoCb_CleanupRenesasCmn(int* id);
 int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, 
         word32 key_n_start, word32 key_n_len, word32 key_e_start, 
         word32 key_e_len, word32 cm_row);
+WOLFSSL_LOCAL int Renesas_cmn_Cleanup(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte Renesas_cmn_checkCA(word32 cmIdx);
 #endif /* __RENESAS_CMN_H__ */

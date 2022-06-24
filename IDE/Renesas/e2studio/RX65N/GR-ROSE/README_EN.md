@@ -31,7 +31,7 @@ This sample program uses the following hardware and software libraries. If a new
 |Device|R5F565NEHxFP|
 |IDE| Renesas e2Studio Version:2022-01 |
 |Emulator| E1, E2 Emulator Lite |
-|Toolchain|CCRX v3.03.00|
+|Toolchain|CCRX v3.04.00|
 |TSIP| TSIP v1.15|
 <br>
 
@@ -58,7 +58,7 @@ Note) As of April 2022, TIPS v1.15 does not seem to be able to be added as a FIT
 
 There is no need to create a new sample program. Since the project file is already prepared, please import the project from the IDE by following the steps below. 
 
-+ e2studio "File" menu> "Open project from file system ..."> "Directory (R) ..." Click the import source button and select the folder from which the project will be imported. Select the folder (Renesas/e2studio/\<MCU>/\<borad-name-folder\>/)) where this README file exists. 
++ e2studio "File" menu> "Open project from file system ..."> "Directory (R) ..." Click the import source button and select the folder from which the project will be imported. Select the folder (Renesas/e2studio/{MCU}/{board-name-folder}) where this README file exists. 
 + Four projects that can be imported are listed, but check only the three projects "smc", "test" and "wolfssl" and click the "Finish" button. 
 
 You should see the **smc**, **test**, and **wolfssl** 3 projects you imported into the project explorer. 
@@ -71,7 +71,7 @@ You will need to get the required FIT modules yourself. Follow the steps below t
 
 1. Open the smc project in Project Explorer and double-click the **smc.scfg** file to open the Smart Configurator Perspective. 
 
-2. Select the "Components" tab on the software component settings pane. Then click the "Add Component" button at the top right of the pane. The software component selection dialog will pop up. Click "Download the latest version of FIT driver and middleware" at the bottom of the dialog to get the modules. You can check the dowmload destination folder by pressing "Basic settings...".
+2. Select the "Components" tab on the software component settings pane. Then click the "Add Component" button at the top right of the pane. The software component selection dialog will pop up. Click "Download the latest version of FIT driver and middleware" at the bottom of the dialog to get the modules. You can check the download destination folder by pressing "Basic settings...".
 
 3. The latest version of the TSIP component may not be automatically obtained due to the delay in Renesas' support by the method in step 2 above. In that case, you can download it manually from the Renesas website. Unzip the downloaded component and store the files contained in the FIT Modules folder in the download destination folder of step 2.
 
@@ -135,10 +135,83 @@ Now that the test application is ready to build.
 ## 8. Running test application as TLS_Client
 -----
 <br>
-### 8.1 Generate a server application 
 
+### 8.1 TLS version supported by the test application 
+
+<br>
+If you use TSIP v1.15 or later, you can use the TLS1.3 protocol in addition to the existing TLS1.2. The following macro is defined to {board-name-folder}/common/user_settings.h.
+<br><br>
+
+```
+#define WOLFSSL_TLS13
+```
+
+This definition sets it to use the TLS 1.3 protocol. If you use TLS1.2, comment out this macro definition and rebuild your test application.
+
+<br>
+
+### 8.2 Type of certificates to use
+
+<br>
+
+The test and server applications allow you to select the type of certificate (RootCA certificate, server certificate, client certificate) to use for TLS communication. You can select either an RSA certificate whose public key included in the certificate is an RSA public key or an ECDSA certificate containing an ECC public key. By default, the ECDSA certificate is used.
+<br>
+
+The following macro is defined to {board-name-folder}/common/user_settings.h by default. If you want to use the RSA certificates, comment out the above definition and rebuild the test application.
+
+<br>
+
+```
+#define USE_ECC_CERT
+```
+<br>
+
+### 8.3 Cipher suites
+
+<br>
+
+In the test application, the TLS version and certificate type determine the cipher suites used by the test application. The table below shows the cipher suites that can be used.
+<br>
+
+|Tls version |Certificate type|Cipher suites|
+|:--|:--|:--|
+|TLS1.3|RSA/ECDSA certificate|  |
+|||TLS_AES_128_GCM_SHA256|
+|||TLS_AES_128_CCM_SHA256| 
+|TLS1.2|RSA certificate|
+|||TLS_RSA_WITH_AES_128_CBC_SHA|
+|||TLS_RSA_WITH_AES_256_CBC_SHA|
+|||TLS_RSA_WITH_AES_128_CBC_SHA256|
+|||TLS_RSA_WITH_AES_256_CBC_SHA256|
+|||TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256|
+|||TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256|
+||ECDSA certificate||
+|||TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256|
+|||TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256|
+
+
+<br>
+
+### 8.4 Build and run a server application
+
+<br>
 To operate as TLS_Client, an opposite application for TLS communication is required. A wolfSSL package provides a server sample application that you can use for this purpose. This program is generated by building wolfssl. You can build wolfSSL on Linux (including MacOS and WSL) with gcc installed or build using Visual Studio. The following introduces the build on WSL.
 <br><br>
+
+Configuration options need to be changed depending on the certificate type used.
+
+#### 8.4.1 Configuration when using ECDSA certificates 
+
+<br>
+
+```
+$ cd {wolfssl-folder}
+$ ./autogen.sh
+$ ./configure --enable-ecc --enable-dsa --enable-aesccm CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC -DHAVE_DSA -DHAVE_ALL_CURVES -DHAVE_ECC -DNO_RSA"
+$ make
+```
+Note: Do not forget to specify "-DNO_RSA"
+
 
 ```
 $ cd <wolfssl-folder>
@@ -158,20 +231,45 @@ $ examples/server/server -b -d -i
 ```
 <br>
 
-For the test application, specify the IP address assigned to the server application.
+#### 8.4.2 Configuration when using RSA certificates
 
-Open wolf_client.c to specify ip address of the server in "#define SIMPLE_TLSSEVER_IP" like as:
 <br>
 
 ```
--- <board-name-folder>/test/src/wolf_client.c --
+$ cd {wolfssl-folder}
+$ ./autogen.sh
+$ ./configure --enable-ecc --enable-dsa --enable-aesccm CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC -DHAVE_DSA -DHAVE_ALL_CURVES -DHAVE_ECC"
+$ make
+```
 
+<br>
+
+#### 8.4.3 Run the server application
+
+<br>
+
+With the above build, {wolfssl-folder}/examples/server/server
+is generated. This executable program acts as a server application. If you execute it with the following options, it will be in the standby state for connection from the test application. Specify "-v4" when using TLS1.3 as the TLS version to be used, and specify "-v3" when using TLS1.2.
+<br> <br>
+
+```
+$ examples / server / server -b -v4 -i
+```
+
+<br>
+For the test application, specify the IP address assigned to the server application.
+
+Open {board-name-folder}/test/src/wolf_client.c to specify ip address of the server.
+
+<br>
+
+```
 ...
 #define SIMPLE_TLSSEVER_IP  192.168.53.9
 ...
 ```
 <br>
-Save the file and rebuild the test application. When you run the test application, it makes a TLS connection with the opposite application, then exchanges a simple string and displays the following on the standard output. 
+Save the file and rebuild the test application. When you run the test application, it makes a TLS connection with the server application, then exchanges a simple string and displays the following on the standard output. The cipher suites displayed depends on the combination of TLS version and certificate type.
 <br><br>
 
 ```
@@ -195,41 +293,7 @@ Received: I hear you fa shizzle!
 ```
 <br>
 
-### 8.2 Change server certificate (change authentication method) 
-<br>
-The above is an execution example when the server certificate presented by the server application contains the RSA public key (RSA authentication). TSIP can also handle cases where the server certificate contains an ECC public key (ECDSA authentication). 
 
-<br>
-If you want to use a cipher suite that includes ECDSA, you will need to change the settings of the test application and rebuild. Open common/ user_settings.h, enable the USE_ECC_CERT definition and rebuild.
-<br><br>
-
-```
--- <board-name-folder>/common/user_settings.h --
-
-#define USE_ECC_CERT
-```
-<br>
-This definition causes the test application to use a RootCA certificate that can validate the server certificate containing the ECC public key presented by the server. 
-
-<br> 
-In addition, the opposite server application also needs to specify the server certificate and private key file containing the ECC public key as an option, and then execute it as shown below.
-<br><br>
-
-```
-$ ./examples/server/server -b -d -i -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem
-```
-<br>
-The following is displayed as the execution result.
-<br> <br> 
-
-```
-cipher : ECDHE-ECDSA-AES128-SHA256
-Received: I hear you fa shizzle!
-
-cipher : ECDHE-ECDSA-AES128-GCM-SHA256
-Received: I hear you fa shizzle!
-```
-<br>
 
 ## 9. What you need to do to use the RootCA certificate prepared by the user
 ----
@@ -241,3 +305,23 @@ If you want to use it for purposes beyond functional evaluation, you need to pre
   3. The signature generated by the RootCA certificate with the private key in 2 above.
 
 will become necessary. Please refer to the manual provided by Renesas for how to generate them. 
+<br>
+
+## 10. Limitations
+----
+<br>
+wolfSSL, which supports TSIPv1.15, has the following functional restrictions.
+<br><br>
+
+1. Handshake message packets exchanged with the server during the TLS handshake are stored in plaintext in memory. This is used to calculate the hash of handshake messages. The content will be deleted at the end of the session.
+
+1. TLS1.2 does not support the client authentication function using TSIP.
+Use wolfSSL_CTX_use_certificate_buffer or wolfSSL_CTX_use_certificate_chain_buffer_format to load the client certificate and wolfSSL_CTX_use_PrivateKey_buffer to load the private key. It is processed by software.
+
+1. In TLS 1.3, the client authentication function using TSIP is supported only for ECDSA client certificates. In the case of RSA certificates, it will be processed by software.
+
+1. In TLS1.3, among the server authentication functions using TSIP, "Certificate Verify" message is processed by software.
+
+1. Session resumption and early data using TSIP are not supported.
+
+The above limitations 1 through 4 are expected to be improved by TSIP from the next version onwards.

@@ -165,7 +165,7 @@ static void Tls_client_init(const char* cipherlist)
 
     /* Create and initialize WOLFSSL_CTX */
     if ((client_ctx = 
-        wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
+        wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
@@ -174,24 +174,71 @@ static void Tls_client_init(const char* cipherlist)
     tsip_set_callbacks(client_ctx);
     #endif
 
+    /* load Root CA certificate */
     #if defined(NO_FILESYSTEM)
-    
     if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, 
                             SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
            printf("ERROR: can't load certificate data\n");
        return;
     }
-    
     #else
-    
     if (wolfSSL_CTX_load_verify_locations(client_ctx, cert, 0) != SSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
         return NULL;
     }
-    
     #endif
 
+    /* load client certificate */
+#ifdef USE_ECC_CERT
+    if (wolfSSL_CTX_use_certificate_chain_buffer_format(client_ctx,
+                                cliecc_cert_der_256,
+                                sizeof_cliecc_cert_der_256,
+                                WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        printf("ERROR: can't load client-certificate\n");
+        return;
+    }
+#else
+    if (wolfSSL_CTX_use_certificate_chain_buffer_format(client_ctx,
+                                client_cert_der_2048,
+                                sizeof_client_cert_der_2048,
+                                WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        printf("ERROR: can't load client-certificate\n");
+        return;
+    }
+#endif /* USE_ECC_CERT */
 
+    /* load client private key */
+
+#ifdef USE_ECC_CERT
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && 
+        (WOLFSSL_RENESAS_TSIP_VER >= 115 )
+    if (tsip_set_clientPrivateKeyEnc(
+                        g_key_block_data.encrypted_user_ecc256_private_key,
+                                                        TSIP_ECCP256) != 0) {
+        printf("ERROR: can't load client-private key\n");
+        return;
+    }
+    #else
+    if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
+                                ecc_clikey_der_256,
+                                sizeof_ecc_clikey_der_256,
+                                SSL_FILETYPE_ASN1)      != WOLFSSL_SUCCESS) {
+        printf("ERROR: can't load private-key data.\n");
+        return;
+    }
+    #endif /* WOLFSSL_TLS13 */
+#else
+    if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
+                                client_key_der_2048,
+                                sizeof_client_key_der_2048,
+                                SSL_FILETYPE_ASN1)
+                                                        != WOLFSSL_SUCCESS) {
+        printf("ERROR: can't load private-key data.\n");
+        return;
+    }
+
+#endif /* USE_ECC_CERT */
+    
     /* use specific cipher */
     if (cipherlist != NULL && 
         wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != 
@@ -199,6 +246,18 @@ static void Tls_client_init(const char* cipherlist)
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set cipher list");
     }
+
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) &&
+    (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+    if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
+                                                         != WOLFSSL_SUCCESS) {
+        wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
+        printf("client can't set use supported curves\n");
+        return;
+    }
+    #endif
+
 }
 
 static void Tls_client()
@@ -314,13 +373,26 @@ static void Tls_client_demo(void)
 
     #ifdef USE_ECC_CERT
     const char* cipherlist[] = {
+    #if defined(WOLFSSL_TLS13)
+        "TLS13-AES128-GCM-SHA256",
+        "TLS13-AES128-CCM-SHA256",
+    #endif
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-ECDSA-AES128-SHA256"
     };
-    const int cipherlist_sz = 2;
+    int cipherlist_sz;
+    #if defined(WOLFSSL_TLS13)
+        cipherlist_sz = 2;
+    #else
+        cipherlist_sz = 2;
+    #endif
 
     #else
     const char* cipherlist[] = {
+    #if defined(WOLFSSL_TLS13)
+        "TLS13-AES128-GCM-SHA256",
+        "TLS13-AES128-CCM-SHA256",
+    #endif
         "ECDHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-SHA256",
         "AES128-SHA",
@@ -328,7 +400,12 @@ static void Tls_client_demo(void)
         "AES256-SHA",
         "AES256-SHA256"
     };
-    const int cipherlist_sz = 6;
+    int cipherlist_sz;
+    #if defined(WOLFSSL_TLS13)
+        cipherlist_sz = 2;
+    #else
+        cipherlist_sz = 6;
+    #endif
 
     #endif
 

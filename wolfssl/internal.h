@@ -4525,6 +4525,7 @@ struct WOLFSSL {
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    void*           RenesasUserCtx;
     byte*           peerSceTsipEncRsaKeyIndex;
 #endif
     byte            peerRsaKeyPresent;

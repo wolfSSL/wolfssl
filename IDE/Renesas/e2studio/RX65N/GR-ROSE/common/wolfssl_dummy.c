@@ -1,6 +1,6 @@
 /* wolfssl_dummy.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,15 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-typedef unsigned long time_t;
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 #define YEAR 2022
-#define MON  5
+#define MON  6
 
 static int tick = 0;
 
 time_t time(time_t *t)
 {
+    (void)t;
     return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
 }
 

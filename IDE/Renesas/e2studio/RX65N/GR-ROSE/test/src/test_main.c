@@ -1,6 +1,6 @@
 /* test_main.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -198,13 +198,26 @@ void main(void)
     defined(TLS_CLIENT)
     #ifdef USE_ECC_CERT
     const char* cipherlist[] = {
+    #if defined(WOLFSSL_TLS13)
+        "TLS13-AES128-GCM-SHA256",
+        "TLS13-AES128-CCM-SHA256",
+    #endif
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-ECDSA-AES128-SHA256"
     };
-    const int cipherlist_sz = 2;
+    int cipherlist_sz;
+    #if defined(WOLFSSL_TLS13)
+        cipherlist_sz = 2;
+    #else
+        cipherlist_sz = 2;
+    #endif
 
     #else
     const char* cipherlist[] = {
+    #if defined(WOLFSSL_TLS13)
+        "TLS13-AES128-GCM-SHA256",
+        "TLS13-AES128-CCM-SHA256",
+    #endif
         "ECDHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-SHA256",
         "AES128-SHA",
@@ -212,7 +225,12 @@ void main(void)
         "AES256-SHA",
         "AES256-SHA256"
     };
-    const int cipherlist_sz = 6;
+    int cipherlist_sz;
+    #if defined(WOLFSSL_TLS13)
+        cipherlist_sz = 2;
+    #else
+        cipherlist_sz = 6;
+    #endif /* WOLFSSL_TLS13 */
 
     #endif
 #endif
