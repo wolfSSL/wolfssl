@@ -73,8 +73,9 @@
  *     clientHello messages will consume resources on the server.
  *     This define is turned off by default.
  * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
- *     Certificates without SAN will get rejected during handshake instead of
- *     trying to match hostname or IP address with subject common name.
+ *     Verify hostname/ip address using alternate name (SAN) only and do not
+ *     use the common name. Forces use of the alternate name, so certificates
+ *     missing SAN will be rejected during the handshake
  */
 
 
@@ -10513,7 +10514,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
             WOLFSSL_MSG("DomainName match on common name failed");
         }
     }
-#endif /* # !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
+#endif /* !WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY */
 
     return ret;
 }
@@ -11350,7 +11351,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     }
                 }
             }
-        #else /* #ifndef ONLY_ALT_NAME_VERIFICATION */
+        #else
             else {
                 if (ret == 0) {
                     ret = DOMAIN_NAME_MISMATCH;
