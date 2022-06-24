@@ -14668,9 +14668,9 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
 static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
 {
     DNS_entry* entry = NULL;
-    int ret;
-    word32 bufLen;
-    const char* buf;
+    int ret = 0;
+    word32 bufLen   = 0;
+    const char* buf = NULL;
 
     switch (oid) {
         case FASCN_OID:
@@ -14681,12 +14681,16 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
             bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
             break;
+        default:
+            ret = ASN_UNKNOWN_OID_E;
     }
 
-    ret = SetDNSEntry(cert, buf, bufLen, ASN_OTHER_TYPE, &entry);
     if (ret == 0) {
-        entry->oidSum = oid;
-        AddDNSEntryToList(&cert->altNames, entry);
+        ret = SetDNSEntry(cert, buf, bufLen, ASN_OTHER_TYPE, &entry);
+        if (ret == 0) {
+            entry->oidSum = oid;
+            AddDNSEntryToList(&cert->altNames, entry);
+        }
     }
     return ret;
 }
