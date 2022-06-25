@@ -315,7 +315,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
+        DEF_FAST_MATH="no"
     ],
     [v5-RC8],[
         FIPS_VERSION="v5-RC8"
@@ -370,8 +370,7 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
+        # for v5-dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
@@ -478,6 +477,8 @@ then
     if test "$ENABLED_FIPS" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OLD_PRIME_CHECK"
     fi
+    DEF_SP_MATH="yes"
+    DEF_FAST_MATH="no"
 fi
 
 AC_ARG_WITH([linux-source],
@@ -1411,7 +1412,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWC_RSA_BLINDING"
     fi
 else
-    AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN"
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN -DWC_NO_CACHE_RESISTANT"
 fi
 
 
@@ -1455,6 +1456,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_KEYING_MATERIAL"
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
+
+    if test "$ENABLED_OPENSSLEXTRA" = "no"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
@@ -3524,12 +3531,15 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
-# No Big Int (ASN, RSA, DH and ECC need bigint)
-if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
+# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = no && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
 then
     ENABLED_SP_MATH_ALL=no
     ENABLED_FASTMATH=no
     ENABLED_HEAPMATH=no
+    ENABLED_BIGNUM=no
+else
+    ENABLED_BIGNUM=yes
 fi
 
 
@@ -7779,7 +7789,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no"; then
+    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no" && test "$ENABLED_BIGNUM" != "no"; then
         AC_MSG_ERROR([--enable-sp-math or --enable-sp-math-all is required for --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" != "no"; then
@@ -8164,6 +8174,8 @@ echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
+echo "   * Side-channel Hardening:     $ENABLED_HARDEN"
+
 echo "   * Single Precision Math:      $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
 then
