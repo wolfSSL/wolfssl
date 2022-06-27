@@ -26465,6 +26465,21 @@ static int test_wc_EccPrivateKeyToDer (void)
         if (ret == 0) {
             ret = wc_EccPrivateKeyToDer(&eccKey, output, inLen);
             if (ret > 0) {
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_ALL_CURVES)
+                /* test importing private only into a PKEY struct */
+                EC_KEY*   ec;
+                EVP_PKEY* pkey;
+                const unsigned char* der = output;
+
+                pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &der, ret);
+                AssertNotNull(pkey);
+
+                der = output;
+                ec  = d2i_ECPrivateKey(NULL, &der, ret);
+                AssertNotNull(ec);
+                AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, ec), SSL_SUCCESS);
+                EVP_PKEY_free(pkey); /* EC_KEY should be free'd by free'ing pkey */
+        #endif
                 ret = 0;
             }
         }
