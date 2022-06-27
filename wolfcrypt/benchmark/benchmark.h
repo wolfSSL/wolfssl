@@ -28,6 +28,8 @@
     extern "C" {
 #endif
 
+#include <wolfssl/wolfcrypt/types.h> /* Needed for 'byte' typedef */
+
 /* run all benchmark entry */
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args);

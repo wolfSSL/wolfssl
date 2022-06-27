@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 #include <stdio.h>
+#include "hw.h" /* Needed for 'delay_us' prototype */
 
 typedef struct func_args {
     int    argc;
