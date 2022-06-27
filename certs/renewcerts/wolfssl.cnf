@@ -335,3 +335,40 @@ clock_precision_digits  = 0                                     # (optional)
 ordering                = yes                                   # timestamps?
 tsa_name                = yes                                   # include?
 ess_cert_id_chain       = no                                    # include chain?
+
+
+[fpki_ext]
+basicConstraints = CA:FALSE,pathlen:0
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, clientAuth, 1.3.6.1.4.1.311.20.2.2, 1.3.6.1.5.2.3.4, 1.3.6.1.5.5.7.3.21
+subjectAltName = @FASC_UUID_altname
+certificatePolicies = 2.16.840.1.101.3.2.1.3.13, 2.16.840.1.101.3.2.1.3.40, 2.16.840.1.101.3.2.1.3.41, 2.16.840.1.101.3.2.1.3.45
+subjectDirectoryAttributes = ASN1:SEQUENCE:SubjDirAttr
+policyConstraints = requireExplicitPolicy:0
+2.16.840.1.101.3.6.10.1 = ASN1:SEQUENCE:PIVCertExt
+
+# using example UUID from RFC4122
+[FASC_UUID_altname]
+otherName.1 = 1.3.6.1.4.1.311.20.2.3;UTF8:facts@wolfssl.com
+otherName.2 = 2.16.840.1.101.3.6.6;FORMAT:HEX,OCT:D1:38:10:D8:28:AF:2C:10:84:35:15:A1:68:58:28:AF:02:10:86:A2:84:E7:39:C3:EB
+URI = urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+
+[SubjDirAttr]
+attribute = SEQUENCE:SDA_attr
+
+[SDA_attr]
+type = OID:1.3.6.1.5.5.7.9.4
+values = SET:SDA_coc
+
+[SDA_coc]
+value = PRINTABLESTRING:US
+
+[PIVCertExt]
+attribute = SEQUENCE:PCE_attr
+
+[PCE_attr]
+type = OID:2.16.840.1.101.3.6.9.1
+value = BOOLEAN:true
+

@@ -27,6 +27,7 @@
 #                       client-relative-uri.pem
 #                       client-crl-dist.pem
 #                       entity-no-ca-bool-cert.pem
+#                       fpki-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -341,6 +342,20 @@ run_renewcerts(){
     openssl x509 -in ./1024/ca-cert.pem -text > ./1024/tmp.pem
     check_result $? "Step 3"
     mv ./1024/tmp.pem ./1024/ca-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
+    ########## update and sign fpki-cert.der ################
+    ###########################################################
+    echo "Updating fpki-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nFPKI\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > fpki-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in fpki-req.pem -extfile wolfssl.cnf -extensions fpki_ext -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 -out fpki-cert.der -outform DER
+    check_result $? "Step 2"
+    rm fpki-req.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################

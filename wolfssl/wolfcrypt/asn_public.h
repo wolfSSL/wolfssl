@@ -830,6 +830,12 @@ WOLFSSL_API int  wc_ParseCert(
 WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
                                         byte* derKey, word32* derKeySz);
 
+#ifdef WOLFSSL_FPKI
+WOLFSSL_API int wc_GetUUIDFromCert(struct DecodedCert* cert,
+                                    byte* uuid, word32* uuidSz);
+WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
+                                    byte* fascn, word32* fascnSz);
+#endif /* WOLFSSL_FPKI */
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
