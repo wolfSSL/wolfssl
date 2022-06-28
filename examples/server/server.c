@@ -975,7 +975,7 @@ static const char* server_usage_msg[][64] = {
         " wolfSSL ホーム・ディレクトリからの相対です。\n",               /* 0 */
         "-? <num>    ヘルプ, 使い方を表示\n"
         "            0: 英語、 1: 日本語\n"
-        "--ヘルプ     使い方を表示, 日本語で\n",                         /* 1 */
+        "--ヘルプ    日本語で使い方を表示\n",                            /* 1 */
         "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 2 */
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
@@ -1003,8 +1003,16 @@ static const char* server_usage_msg[][64] = {
         "-b          ローカルホスト以外のインターフェースへも"
                                                 "バインドする\n",       /* 13 */
         "-s          事前共有鍵を使用する\n",                           /* 14 */
-        "-u          UDP DTLSを使用する。-v 2 を追加指定すると"
-             " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",      /* 15 */
+        "-u          UDP DTLSを使用する。\n"
+
+#ifndef WOLFSSL_DTLS13
+        "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値)\n",        /* 15 */
+#else
+        "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
+        "           -v 4 を追加指定すると DTLSv1.3\n",                  /* 15 */
+#endif /* !WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_SCTP
         "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
               " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",     /* 16 */
@@ -1065,13 +1073,16 @@ static const char* server_usage_msg[][64] = {
         "-T          セッションチケットを生成しない\n",                 /* 44 */
 #else
         "-T [aon]    セッションチケットを生成しない\n",                 /* 44 */
-        "            No option affects TLS 1.3 only, 'a' affects all"
-            " protocol versions,\n",                                    /* 45 */
-        "            'o' affects TLS 1.2 and below only\n",             /* 46 */
-        "            'n' affects TLS 1.3 only\n",                       /* 47 */
+        "            オプション指定なしの場合、TLS 1.3 にだけ有効\n"
+        "           'a' を指定した場合、"
+                    "全てのプロトコルバージョンに有効\n"                /* 45 */
+        "           'o' を指定した場合、TLS 1.2 及び"
+                               "それ以下のプロトコルバージョンに有効\n" /* 46 */
+        "           'n' を指定した場合、TLS 1.3 にのみ有効\n",          /* 47 */
+
 #endif
 #ifdef WOLFSSL_TLS13
-        "-F          Send alert if no mutual authentication\n",         /* 48 */
+        "-F          相互認証が無い場合にalert を送信\n",               /* 48 */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          クライアントのポストハンドシェイクから"
                                               "証明書を要求する\n",     /* 49 */
@@ -1092,10 +1103,11 @@ static const char* server_usage_msg[][64] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 54 */
 #endif
-        "-6          Simulate WANT_WRITE errors on every other IO send\n",
+        "-6          交互の IO 送信で WANT_WRITE エラー"
+                                           "をシュミレート\n",
                                                                         /* 55 */
 #ifdef HAVE_CURVE448
-        "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
+        "-8          Curve448のみを使用して鍵共有を事前生成する\n",     /* 56 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
@@ -1129,15 +1141,17 @@ static const char* server_usage_msg[][64] = {
         "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 61 */
+        "--srtp <profile> (デフォルトはSRTP_AES128_CM_SHA1_80)\n",       /* 61 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        "--send-ticket    Send a new session ticket during application data\n",
+        "--send-ticket    Application data 中に新しい"
+                                             "セッションチケットを送信します\n",
                                                                         /* 62 */
 #endif
         "\n"
-        "For simpler wolfSSL TLS server examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 63 */
+        "より簡単なwolfSSL TSL クライアントの例については"
+                                          "下記にアクセスしてください\n"
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
         NULL,
     },
 #endif
