@@ -2342,16 +2342,18 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (minVersion != SERVER_INVALID_VERSION) {
 #ifdef WOLFSSL_DTLS13
-        switch (minVersion) {
-        case 4:
-            minVersion = WOLFSSL_DTLSV1_3;
-            break;
-        case 3:
-            minVersion = WOLFSSL_DTLSV1_2;
-            break;
-        case 2:
-            minVersion = WOLFSSL_DTLSV1;
-            break;
+        if (wolfSSL_dtls(ssl)) {
+            switch (minVersion) {
+            case 4:
+                minVersion = WOLFSSL_DTLSV1_3;
+                break;
+            case 3:
+                minVersion = WOLFSSL_DTLSV1_2;
+                break;
+            case 2:
+                minVersion = WOLFSSL_DTLSV1;
+                break;
+            }
         }
 #endif /* WOLFSSL_DTLS13 */
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
