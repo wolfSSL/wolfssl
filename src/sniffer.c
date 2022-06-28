@@ -5718,7 +5718,7 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
     if (session->sslServer->error == WC_PENDING_E &&
         session->pendSeq != tcpInfo->sequence) {
         /* this stream is processing, queue packet */
-        return WC_HW_WAIT_E;
+        return WC_PENDING_E;
     }
 #endif
 

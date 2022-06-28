@@ -867,9 +867,9 @@ int main(int argc, char** argv)
             ret = ssl_DecodePacketAsync(chain, chainSz, isChain, &data, err,
                 &sslInfo, NULL);
 
-            /* WC_PENDING_E: Hardware is processing */
-            /* WC_HW_WAIT_E: Hardware is already processing stream */
-            if (ret == WC_PENDING_E || ret == WC_HW_WAIT_E) {
+            /* WC_PENDING_E: Hardware is processing or stream is blocked
+             *               (waiting on WC_PENDING_E) */
+            if (ret == WC_PENDING_E) {
                 /* add to queue, for later processing */
             #ifdef DEBUG_SNIFFER
                 printf("Steam is pending, queue packet %d\n", packetNumber);
