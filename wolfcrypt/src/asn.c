@@ -634,7 +634,7 @@ static void SizeASN_CalcDataLength(const ASNItem* asn, ASNSetData *data,
  * Call SetASN_Items() to write encoding to a buffer.
  *
  * @param [in]      asn    ASN.1 items to encode.
- * @param [in, out] data   Data to place in each item. Lengths set were not
+ * @param [in, out] data   Data to place in each item. Lengths set where not
  *                         known.
  * @param [in]      count  Count of items to encode.
  * @param [out]     encSz  Length of the DER encoding.
@@ -13287,7 +13287,6 @@ word32 SetExplicit(byte number, word32 len, byte* output)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
-#ifndef WOLFSSL_ASN_TEMPLATE
 static int SetCurve(ecc_key* key, byte* output)
 {
 #ifdef HAVE_OID_ENCODING
@@ -13329,7 +13328,6 @@ static int SetCurve(ecc_key* key, byte* output)
 
     return idx;
 }
-#endif /* !WOLFSSL_ASN_TEMPLATE */
 
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
@@ -22156,6 +22154,8 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     word32 pubSz = 0;
     int sz = 0;
     int ret = 0;
+    int curveIdSz;
+    byte* curveOid = NULL;
 
     /* Check key validity. */
     if ((key == NULL) || (key->dp == NULL)) {
@@ -22178,19 +22178,27 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
         CALLOC_ASNSETDATA(dataASN, eccPublicKeyASN_Length, ret, key->heap);
 
-        /* Set the key type OID. */
-        SetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], ECDSAk,
-                oidKeyType);
-        /* Set the curve OID. */
-        SetASN_Buffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID],
-                (const byte *)key->dp->oid, key->dp->oidSz);
-        /* Don't try to write out explicit parameters. */
-        dataASN[ECCPUBLICKEYASN_IDX_ALGOID_PARAMS].noOut = 1;
-        /* Set size of public point to ensure space is made for it. */
-        SetASN_Buffer(&dataASN[ECCPUBLICKEYASN_IDX_PUBKEY], NULL, pubSz);
-        /* Calculate size of ECC public key. */
-        ret = SizeASN_Items(eccPublicKeyASN, dataASN,
-                            eccPublicKeyASN_Length, &sz);
+        /* Get the length of the named curve OID to put into the encoding. */
+        curveIdSz = SetCurve(key, NULL);
+        if (curveIdSz < 0) {
+            ret = curveIdSz;
+        }
+
+        if (ret == 0) {
+            /* Set the key type OID. */
+            SetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], ECDSAk,
+                    oidKeyType);
+            /* Set the curve OID. */
+            SetASN_ReplaceBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID],
+                NULL, curveIdSz);
+            /* Don't try to write out explicit parameters. */
+            dataASN[ECCPUBLICKEYASN_IDX_ALGOID_PARAMS].noOut = 1;
+            /* Set size of public point to ensure space is made for it. */
+            SetASN_Buffer(&dataASN[ECCPUBLICKEYASN_IDX_PUBKEY], NULL, pubSz);
+            /* Calculate size of ECC public key. */
+            ret = SizeASN_Items(eccPublicKeyASN, dataASN,
+                                eccPublicKeyASN_Length, &sz);
+        }
 
         /* Check buffer, if passed in, is big enough for encoded data. */
         if ((ret == 0) && (output != NULL) && (sz > outLen)) {
@@ -22202,6 +22210,9 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
                          output);
             /* Skip to where public point is to be encoded. */
             output += sz - pubSz;
+            /* Cache the location to place the name curve OID. */
+            curveOid = (byte*)
+                dataASN[ECCPUBLICKEYASN_IDX_ALGOID_CURVEID].data.buffer.data;
         }
 
         FREE_ASNSETDATA(dataASN, key->heap);
@@ -22214,6 +22225,13 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
         sz = pubSz;
     }
 
+    if ((ret == 0) && (output != NULL)) {
+        /* Put named curve OID data into encoding. */
+        curveIdSz = SetCurve(key, curveOid);
+        if (curveIdSz < 0) {
+            ret = curveIdSz;
+        }
+    }
     if ((ret == 0) && (output != NULL)) {
         /* Encode public point. */
         PRIVATE_KEY_UNLOCK();
@@ -26482,8 +26500,8 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         if (cert->challengePw[0] != '\0') {
             /* Add challenge password attribute. */
             /* Set challenge password OID. */
-            SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_CPW_OID], attrChallengePasswordOid,
-                sizeof(attrChallengePasswordOid));
+            SetASN_Buffer(&dataASN[CERTREQBODYASN_IDX_ATTRS_CPW_OID],
+                attrChallengePasswordOid, sizeof(attrChallengePasswordOid));
             /* Enable the ASN template item with the appropriate tag. */
             if (cert->challengePwPrintableString) {
                 /* PRINTABLE_STRING - set buffer */
@@ -29285,6 +29303,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     word32 privSz, pubSz;
     int sz = 0;
     int ret = 0;
+    int curveIdSz;
 
     /* Check validity of parameters. */
     if ((key == NULL) || ((output == NULL) && (inLen == NULL))) {
@@ -29316,9 +29335,14 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         /* Leave space for private key. */
         SetASN_Buffer(&dataASN[ECCKEYASN_IDX_PKEY], NULL, privSz);
         if (curveIn) {
+            /* Get length of the named curve OID to put into the encoding. */
+            curveIdSz = SetCurve(key, NULL);
+            if (curveIdSz < 0) {
+                ret = curveIdSz;
+            }
             /* Curve OID */
-            SetASN_Buffer(&dataASN[ECCKEYASN_IDX_CURVEID],
-                          (const byte *)key->dp->oid, key->dp->oidSz);
+            SetASN_ReplaceBuffer(&dataASN[ECCKEYASN_IDX_CURVEID], NULL,
+                curveIdSz);
             /* TODO: add support for SpecifiedECDomain curve. */
             dataASN[ECCKEYASN_IDX_CURVEPARAMS].noOut = 1;
         }
@@ -29351,9 +29375,19 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         /* Encode the private key. */
         SetASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, output);
 
-        /* Export the private value into the buffer. */
-        ret = wc_ecc_export_private_only(key,
+        if (curveIn) {
+            /* Put named curve OID data into encoding. */
+            curveIdSz = SetCurve(key,
+                (byte*)dataASN[ECCKEYASN_IDX_CURVEID].data.buffer.data);
+            if (curveIdSz < 0) {
+                ret = curveIdSz;
+            }
+        }
+        if (ret == 0) {
+            /* Export the private value into the buffer. */
+            ret = wc_ecc_export_private_only(key,
                 (byte*)dataASN[ECCKEYASN_IDX_PKEY].data.buffer.data, &privSz);
+        }
         if ((ret == 0) && pubIn) {
             /* Export the public point into the buffer. */
             PRIVATE_KEY_UNLOCK();
