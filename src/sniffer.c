@@ -3994,12 +3994,14 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             }
             /* cache key share data till server_hello */
             session->cliKeyShareSz = ksLen;
-            session->cliKeyShare = (byte*)XMALLOC(ksLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (session->cliKeyShare == NULL) {
-                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
-                break;
+            if (ksLen > 0) {
+                session->cliKeyShare = (byte*)XMALLOC(ksLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (session->cliKeyShare == NULL) {
+                    SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                    break;
+                }
+                XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             }
-            XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             break;
         }
         #ifdef HAVE_SESSION_TICKET
