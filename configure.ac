@@ -291,8 +291,6 @@ AS_CASE([$ENABLED_FIPS],
     [disabled],[
         FIPS_VERSION="disabled"
         ENABLED_FIPS="no"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
     ],
     [v1|yes|cert2425],[
         FIPS_VERSION="v1"
@@ -6480,7 +6478,12 @@ do
   esac
 done
 
-if test "$ENABLED_SP_MATH_ALL" = "yes"; then
+AC_ARG_WITH([arm-target],
+    [AS_HELP_STRING([--with-arm-target=x],[x can be "thumb" or "cortex"])],
+    [ARM_TARGET="$withval"],
+    [ARM_TARGET=''])
+
+if test "$ENABLED_SP_MATH_ALL" = "yes" && test "$ENABLED_ASM" != "no"; then
 
   ENABLED_FASTMATH="no"
   ENABLED_SLOWMATH="no"
@@ -6498,10 +6501,10 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64 -DWOLFSSL_AARCH64_BUILD"
     ;;
   *arm*)
-    if test $host_alias = "thumb"; then
+    if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB"
     else
-      if test $host_alias = "cortex"; then
+      if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M"
       else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32"
@@ -6554,12 +6557,12 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     ENABLED_SP_ARM64_ASM=yes
     ;;
   *arm*)
-    if test $host_alias = "thumb"; then
+    if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
-      if test $host_alias = "cortex"; then
+      if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         ENABLED_SP_ARM_CORTEX_ASM=yes
@@ -7128,10 +7131,10 @@ AM_CFLAGS=$NEW_AM_CFLAGS])
 
 case $host_cpu in
   *arm*)
-    if test $host_alias = "thumb"; then
+    if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -mthumb -march=armv6"
     else
-      if test $host_alias = "cortex"; then
+      if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
         AM_CFLAGS="$AM_CFLAGS -mcpu=cortex-r5"
       fi
     fi
