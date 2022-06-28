@@ -795,7 +795,7 @@ extern void uITRON4_free(void *p) ;
     #include "FreeRTOS.h"
 
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
-        !defined(WOLFSSL_STATIC_MEMORY)
+        !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_TRACK_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
         /* FreeRTOS pvPortRealloc() implementation can be found here:
