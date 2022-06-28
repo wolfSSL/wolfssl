@@ -9522,7 +9522,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         /* compute x^3 */
         if (err == MP_OKAY)
-            err = mp_sqr(key->pubkey.x, t1);
+            err = mp_sqrmod(key->pubkey.x, curve->prime, t1);
         if (err == MP_OKAY)
             err = mp_mulmod(t1, key->pubkey.x, curve->prime, t1);
 
