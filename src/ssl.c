@@ -24082,10 +24082,13 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     }
 
     aes = (Aes*)key;
-    if (wc_AesSetIV(aes, (const byte*)iv) != 0) {
-        WOLFSSL_MSG("Error with setting iv");
-        return;
-    }
+
+    /*
+     * We copy the IV directly into reg here because using wc_AesSetIV will
+     * clear the leftover bytes field "left", and this function relies on the
+     * leftover bytes being preserved between calls.
+     */
+    XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
 
     if (enc == AES_ENCRYPT) {
         if (wc_AesCfbEncrypt(aes, out, in, (word32)len) != 0) {
