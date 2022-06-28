@@ -4398,7 +4398,11 @@ static int DoHandShake(const byte* input, int* sslBytes,
 #endif
 
 #ifdef WOLFSSL_TLS13
-    if (type != client_hello && type != server_hello) {
+    if (type != client_hello && type != server_hello
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        && session->sslServer->error != WC_PENDING_E
+    #endif
+    ) {
         /* For resumption the hash is before / after client_hello PSK binder */
         /* hash the packet including header */
         /* TLS v1.3 requires the hash for the handshake and transfer key derivation */

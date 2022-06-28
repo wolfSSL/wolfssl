@@ -827,7 +827,7 @@ int main(int argc, char** argv)
             /* grab next pcap packet */
             packetNumber++;
             packet = pcap_next(pcap, &header);
-        #ifdef QAT_DEBUG
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(DEBUG_SNIFFER)
             printf("Packet Number: %d\n", packetNumber);
         #endif
         }
