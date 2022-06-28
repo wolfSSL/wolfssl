@@ -1329,7 +1329,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
     word32 endIdx[GET_ASN_MAX_DEPTH] = { length, length, length, length, length,
                                          length, length };
     /* Set choices to -1 to indicate they haven't been seen or found. */
-    char   choiceMet[GET_ASN_MAX_CHOICES] = { -1, -1 };
+    signed char   choiceMet[GET_ASN_MAX_CHOICES] = { -1, -1 };
     /* Not matching a choice right now. */
     int    choice = 0;
     /* Current depth of ASN.1 item. */
@@ -4728,6 +4728,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case AIA_CA_REPO_OID:
                     oid = extAuthInfoCaRespOid;
                     *oidSz = sizeof(extAuthInfoCaRespOid);
+                    break;
                 #endif /* WOLFSSL_SUBJ_INFO_ACC */
                 default:
                     break;
@@ -17300,7 +17301,7 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
      */
 
     while (idx < (word32)sz) {
-        word32 oid;
+        word32 oid = 0;
         byte b;
 
         /* Unwrap an AccessDescription */
