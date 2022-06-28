@@ -6531,7 +6531,7 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
     ;;
   esac
 
-  if test "$ENABLED_FIPS=" != "no" || test "$SELFTEST_VERSION=" != "no"; then
+  if test "$ENABLED_FIPS" != "no" || test "$SELFTEST_VERSION" != "none"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_NEGATIVE"
   fi
 fi
