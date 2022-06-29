@@ -6231,6 +6231,10 @@ int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509 *x509)
 int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
         const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig)
 {
+    int length = 0;
+    word32 idx = 0;
+    int i;
+
     (void)sig;
 
     WOLFSSL_ENTER("wolfSSL_X509_signature_print");
@@ -6240,15 +6244,36 @@ int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_BIO_puts(bp, "    Signature Algorithm: ") <= 0) {
+    if ((sigalg->algorithm->obj == NULL) || (sigalg->algorithm->obj[idx++] != ASN_OBJECT_ID)) {
+        WOLFSSL_MSG("Bad ASN1 Object");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (GetLength((const byte*)sigalg->algorithm->obj, &idx, &length,
+                  sigalg->algorithm->objSz) < 0 || length < 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_puts(bp, "    Raw Signature Algorithm:") <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_puts error");
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_i2a_ASN1_OBJECT(bp, sigalg->algorithm) <= 0) {
-        WOLFSSL_MSG("wolfSSL_i2a_ASN1_OBJECT error");
-        return WOLFSSL_FAILURE;
+    for (i = 0; i < length; ++i) {
+        char hex_digits[4];
+#ifdef XSNPRINTF
+        XSNPRINTF(hex_digits, sizeof hex_digits, "%c%02X", i>0 ? ':' : ' ',
+                  (unsigned int)sigalg->algorithm->obj[idx+i]);
+#else
+        XSPRINTF(hex_digits, "%c%02X", i>0 ? ':' : ' ',
+                 (unsigned int)sigalg->algorithm->obj[idx+i]);
+#endif
+        if (wolfSSL_BIO_puts(bp, hex_digits) <= 0)
+            return WOLFSSL_FAILURE;
     }
+
+    if (wolfSSL_BIO_puts(bp, "\n") <= 0)
+        return WOLFSSL_FAILURE;
 
     return WOLFSSL_SUCCESS;
 }
@@ -11386,7 +11411,11 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         }
         else {
             XSNPRINTF(tmp, tmpSz, "%s=%s", buf, nameStr);
-            tmpSz = len + nameStrSz + 2; /* 2 for '=', '\0' */
+            tmpSz = len + nameStrSz + 1; /* 1 for '=' */
+            if (bio->type != WOLFSSL_BIO_FILE)
+                ++tmpSz; /* include the terminating null when not writing to a
+                          * file.
+                          */
         }
 
         if (wolfSSL_BIO_write(bio, tmp, tmpSz) != tmpSz) {
