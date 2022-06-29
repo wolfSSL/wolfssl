@@ -267,8 +267,8 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
     for (i = 0; (ret == 1) && (i < rawLen); i++) {
         /* Check for a complete line. */
         if (li >= PRINT_NUM_MAX_DIGIT_LINE) {
-            /* More bytes coming so append carriage return. */
-            line[li++] = '\n';
+            /* More bytes coming so change the trailing ':' to a line break. */
+            line[li-1] = '\n';
             /* Write out the line. */
             if (wolfSSL_BIO_write(bio, line, li) <= 0) {
                 ret = 0;
