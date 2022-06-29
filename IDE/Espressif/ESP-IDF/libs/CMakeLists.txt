@@ -38,10 +38,14 @@ if(IS_DIRECTORY ${IDF_PATH}/components/cryptoauthlib)
 endif()
 
 set(COMPONENT_SRCEXCLUDE
-    "wolfcrypt/src/aes_asm.S"
-    "wolfcrypt/src/evp.c"
-    "wolfcrypt/src/misc.c"
-    "src/bio.c"
+    "./src/bio.c"
+    "./src/conf.c"
+    "./src/misc.c"
+    "./src/pk.c"
+    "./src/x509.c"
+    "./src/x509_str.c"
+    "./wolfcrypt/src/evp.c"
+    "./wolfcrypt/src/misc.c"
     )
 
 register_component()
