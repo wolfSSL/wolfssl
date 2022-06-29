@@ -158,7 +158,7 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 
     *hashLen = hashSz;
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-     wc_MemZero_Add("TLS hasndshake hash", hash, hashSz);
+     wc_MemZero_Add("TLS handshake hash", hash, hashSz);
 #endif
 
     if (ret != 0)

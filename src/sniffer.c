@@ -3994,12 +3994,14 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             }
             /* cache key share data till server_hello */
             session->cliKeyShareSz = ksLen;
-            session->cliKeyShare = (byte*)XMALLOC(ksLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (session->cliKeyShare == NULL) {
-                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
-                break;
+            if (ksLen > 0) {
+                session->cliKeyShare = (byte*)XMALLOC(ksLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (session->cliKeyShare == NULL) {
+                    SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                    break;
+                }
+                XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             }
-            XMEMCPY(session->cliKeyShare, &input[2], ksLen);
             break;
         }
         #ifdef HAVE_SESSION_TICKET
@@ -4396,7 +4398,11 @@ static int DoHandShake(const byte* input, int* sslBytes,
 #endif
 
 #ifdef WOLFSSL_TLS13
-    if (type != client_hello && type != server_hello) {
+    if (type != client_hello && type != server_hello
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        && session->sslServer->error != WC_PENDING_E
+    #endif
+    ) {
         /* For resumption the hash is before / after client_hello PSK binder */
         /* hash the packet including header */
         /* TLS v1.3 requires the hash for the handshake and transfer key derivation */
@@ -5718,7 +5724,7 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
     if (session->sslServer->error == WC_PENDING_E &&
         session->pendSeq != tcpInfo->sequence) {
         /* this stream is processing, queue packet */
-        return WC_HW_WAIT_E;
+        return WC_PENDING_E;
     }
 #endif
 
