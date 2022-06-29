@@ -29351,17 +29351,19 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
             SetASNItem_NoOutNode(dataASN, eccKeyASN, ECCKEYASN_IDX_PARAMS,
                     eccKeyASN_Length);
         }
-        if (pubIn) {
-            /* Leave space for public key. */
-            SetASN_Buffer(&dataASN[ECCKEYASN_IDX_PUBKEY_VAL], NULL, pubSz);
+        if (ret == 0) {
+            if (pubIn) {
+                /* Leave space for public key. */
+                SetASN_Buffer(&dataASN[ECCKEYASN_IDX_PUBKEY_VAL], NULL, pubSz);
+            }
+            else {
+                /* Don't write out public key. */
+                SetASNItem_NoOutNode(dataASN, eccKeyASN, ECCKEYASN_IDX_PUBKEY,
+                                     eccKeyASN_Length);
+            }
+            /* Calculate size of the private key encoding. */
+            ret = SizeASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, &sz);
         }
-        else {
-            /* Don't write out public key. */
-            SetASNItem_NoOutNode(dataASN, eccKeyASN, ECCKEYASN_IDX_PUBKEY,
-                    eccKeyASN_Length);
-        }
-        /* Calculate size of the private key encoding. */
-        ret = SizeASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, &sz);
     }
     /* Return the size if no buffer. */
     if ((ret == 0) && (output == NULL)) {
