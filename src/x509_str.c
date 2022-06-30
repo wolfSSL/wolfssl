@@ -1071,7 +1071,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         }
 
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
+            XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
     }
 

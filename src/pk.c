@@ -1565,7 +1565,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpBuf == NULL) {
             WOLFSSL_MSG("Extending DER buffer failed");
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             ret = 0;
         }
         else {
@@ -1616,7 +1616,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
 
     XFREE(tmp, NULL, DYNAMIC_TYPE_KEY);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
-    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_DER);
+    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -5151,7 +5151,7 @@ int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
     derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, derBuf, der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         wolfSSL_EVP_PKEY_free(pkey);
         return 0;
     }
@@ -10765,7 +10765,7 @@ int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
     derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_EccKeyToDer failed");
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         wolfSSL_EVP_PKEY_free(pkey);
         return 0;
     }
