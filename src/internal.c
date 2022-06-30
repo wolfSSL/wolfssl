@@ -24208,6 +24208,66 @@ exit_dpk:
     }
 #endif /* WOLFSSL_TLS13 */
 
+#ifndef WOLFSSL_NO_TLS12
+#if (!defined(NO_WOLFSSL_CLIENT) && (!defined(NO_DH) || defined(HAVE_ECC) || \
+      defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))) || \
+    (!defined(NO_WOLFSSL_SERVER) && (defined(HAVE_ECC) || \
+      ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+       (defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_RSA)))) || \
+     (!defined(NO_DH) && (!defined(NO_RSA) || defined(HAVE_ANON))))
+static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
+    const byte* data, int sz, byte sigAlgo)
+{
+    int ret = 0;
+    int digest_sz = wc_HashGetDigestSize(hashType);
+
+    if (digest_sz <= 0) {
+        ret = BUFFER_ERROR;
+    }
+
+    if (ret == 0) {
+        /* buffer for signature */
+        ssl->buffers.sig.buffer = (byte*)XMALLOC(SEED_LEN + sz, ssl->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
+        if (ssl->buffers.sig.buffer == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret == 0) {
+        ssl->buffers.sig.length = SEED_LEN + sz;
+
+        /* build message to hash */
+        XMEMCPY(ssl->buffers.sig.buffer, ssl->arrays->clientRandom, RAN_LEN);
+        XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN], ssl->arrays->serverRandom,
+            RAN_LEN);
+        /* message */
+        XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN * 2], data, sz);
+    }
+    if (ret == 0 && sigAlgo != ed25519_sa_algo && sigAlgo != ed448_sa_algo) {
+         ssl->buffers.digest.length = (unsigned int)digest_sz;
+
+        /* buffer for hash */
+        ssl->buffers.digest.buffer = (byte*)XMALLOC(ssl->buffers.digest.length,
+            ssl->heap, DYNAMIC_TYPE_DIGEST);
+        if (ssl->buffers.digest.buffer == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret == 0 && sigAlgo != ed25519_sa_algo && sigAlgo != ed448_sa_algo) {
+        /* Perform hash. Only wc_Hash supports MD5_SHA1. */
+        ret = wc_Hash(hashType, ssl->buffers.sig.buffer,
+                                ssl->buffers.sig.length,
+                                ssl->buffers.digest.buffer,
+                                ssl->buffers.digest.length);
+        XFREE(ssl->buffers.sig.buffer, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+        ssl->buffers.sig.buffer = NULL;
+    }
+
+    return ret;
+}
+#endif
+#endif /* !WOLFSSL_NO_TLS12 */
+
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -26116,45 +26176,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
                     }
 
-                    /* buffer for signature */
-                    ssl->buffers.sig.buffer = (byte*)XMALLOC(SEED_LEN + verifySz,
-                                            ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                    if (ssl->buffers.sig.buffer == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_dske);
-                    }
-                    ssl->buffers.sig.length = SEED_LEN + verifySz;
-
-                    /* build message to hash */
-                    XMEMCPY(ssl->buffers.sig.buffer,
-                        ssl->arrays->clientRandom, RAN_LEN);
-                    XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN],
-                        ssl->arrays->serverRandom, RAN_LEN);
-                    XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN * 2],
-                        input + args->begin, verifySz); /* message */
-
-                    if (args->sigAlgo != ed25519_sa_algo) {
-                        int digest_sz = wc_HashGetDigestSize(hashType);
-                        if (digest_sz <= 0) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dske);
-                        }
-                        ssl->buffers.digest.length = (unsigned int)digest_sz;
-
-                        /* buffer for hash */
-                        ssl->buffers.digest.buffer = (byte*)XMALLOC(
-                            ssl->buffers.digest.length, ssl->heap,
-                            DYNAMIC_TYPE_DIGEST);
-                        if (ssl->buffers.digest.buffer == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_dske);
-                        }
-
-                        /* Perform hash */
-                        ret = wc_Hash(hashType, ssl->buffers.sig.buffer,
-                                                    ssl->buffers.sig.length,
-                                                    ssl->buffers.digest.buffer,
-                                                    ssl->buffers.digest.length);
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
+                    ret = HashSkeData(ssl, hashType, input + args->begin,
+                        verifySz, args->sigAlgo);
+                    if (ret != 0) {
+                        goto exit_dske;
                     }
 
                     switch (args->sigAlgo)
@@ -28809,10 +28834,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     typedef struct SskeArgs {
         byte*  output; /* not allocated */
-    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-                                                                !defined(NO_RSA)
-        byte*  sigDataBuf;
-    #endif
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         byte*  exportBuf;
     #endif
@@ -28845,13 +28866,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (args->exportBuf) {
             XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
             args->exportBuf = NULL;
-        }
-    #endif
-    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-                                           (!defined(NO_DH) && !defined(NO_RSA))
-        if (args->sigDataBuf) {
-            XFREE(args->sigDataBuf, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-            args->sigDataBuf = NULL;
         }
     #endif
     #ifndef NO_RSA
@@ -29714,42 +29728,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                     #endif
 
-                        /* Assemble buffer to hash for signature */
-                        args->sigDataSz = RAN_LEN + RAN_LEN + preSigSz;
-                        args->sigDataBuf = (byte*)XMALLOC(args->sigDataSz,
-                                            ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                        if (args->sigDataBuf == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-                        XMEMCPY(args->sigDataBuf, ssl->arrays->clientRandom,
-                                                                       RAN_LEN);
-                        XMEMCPY(args->sigDataBuf+RAN_LEN,
-                                            ssl->arrays->serverRandom, RAN_LEN);
-                        XMEMCPY(args->sigDataBuf+RAN_LEN+RAN_LEN,
-                                args->output + preSigIdx, preSigSz);
-
-                        if (ssl->suites->sigAlgo != ed25519_sa_algo &&
-                                        ssl->suites->sigAlgo != ed448_sa_algo) {
-                            ssl->buffers.sig.length =
-                                                 wc_HashGetDigestSize(hashType);
-                            if ((int)ssl->buffers.sig.length < 0) {
-                                ERROR_OUT(HASH_TYPE_E, exit_sske);
-                            }
-                            ssl->buffers.sig.buffer = (byte*)XMALLOC(
-                                            ssl->buffers.sig.length,
-                                            ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                            if (ssl->buffers.sig.buffer == NULL) {
-                                ERROR_OUT(MEMORY_E, exit_sske);
-                            }
-
-                            /* Perform hash */
-                            ret = wc_Hash(hashType, args->sigDataBuf,
-                                                       args->sigDataSz,
-                                                       ssl->buffers.sig.buffer,
-                                                       ssl->buffers.sig.length);
-                            if (ret != 0) {
-                                goto exit_sske;
-                            }
+                        ret = HashSkeData(ssl, hashType,
+                            args->output + preSigIdx, preSigSz,
+                            ssl->suites->sigAlgo);
+                        if (ret != 0) {
+                            goto exit_sske;
                         }
 
                         args->sigSz = args->tmpSigSz;
@@ -29764,21 +29747,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 if (IsAtLeastTLSv1_2(ssl)) {
                                     byte* encodedSig = (byte*)XMALLOC(
                                                   MAX_ENCODED_SIG_SZ, ssl->heap,
-                                                       DYNAMIC_TYPE_SIGNATURE);
+                                                           DYNAMIC_TYPE_DIGEST);
                                     if (encodedSig == NULL) {
                                         ERROR_OUT(MEMORY_E, exit_sske);
                                     }
 
-                                    ssl->buffers.sig.length =
+                                    ssl->buffers.digest.length =
                                         wc_EncodeSignature(encodedSig,
-                                            ssl->buffers.sig.buffer,
-                                            ssl->buffers.sig.length,
+                                            ssl->buffers.digest.buffer,
+                                            ssl->buffers.digest.length,
                                             TypeHash(ssl->suites->hashAlgo));
 
                                     /* Replace sig buffer with new one */
-                                    XFREE(ssl->buffers.sig.buffer, ssl->heap,
-                                                       DYNAMIC_TYPE_SIGNATURE);
-                                    ssl->buffers.sig.buffer = encodedSig;
+                                    XFREE(ssl->buffers.digest.buffer, ssl->heap,
+                                                           DYNAMIC_TYPE_DIGEST);
+                                    ssl->buffers.digest.buffer = encodedSig;
                                 }
 
                                 /* write sig size here */
@@ -29963,39 +29946,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         c16toa((word16)args->tmpSigSz, args->output + args->idx);
                         args->idx += LENGTH_SZ;
 
-                        /* Assemble buffer to hash for signature */
-                        args->sigDataSz = RAN_LEN + RAN_LEN + preSigSz;
-                        args->sigDataBuf = (byte*)XMALLOC(args->sigDataSz,
-                                            ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                        if (args->sigDataBuf == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-                        XMEMCPY(args->sigDataBuf, ssl->arrays->clientRandom,
-                                                                    RAN_LEN);
-                        XMEMCPY(args->sigDataBuf+RAN_LEN,
-                                        ssl->arrays->serverRandom, RAN_LEN);
-                        XMEMCPY(args->sigDataBuf+RAN_LEN+RAN_LEN,
-                            args->output + preSigIdx, preSigSz);
-
-                        if (ssl->suites->sigAlgo != ed25519_sa_algo &&
-                                        ssl->suites->sigAlgo != ed448_sa_algo) {
-                            ssl->buffers.sig.length =
-                                                 wc_HashGetDigestSize(hashType);
-                            ssl->buffers.sig.buffer = (byte*)XMALLOC(
-                                             ssl->buffers.sig.length, ssl->heap,
-                                                       DYNAMIC_TYPE_SIGNATURE);
-                            if (ssl->buffers.sig.buffer == NULL) {
-                                ERROR_OUT(MEMORY_E, exit_sske);
-                            }
-
-                            /* Perform hash */
-                            ret = wc_Hash(hashType, args->sigDataBuf,
-                                                       args->sigDataSz,
-                                                       ssl->buffers.sig.buffer,
-                                                       ssl->buffers.sig.length);
-                            if (ret != 0) {
-                                goto exit_sske;
-                            }
+                        ret = HashSkeData(ssl, hashType,
+                            args->output + preSigIdx, preSigSz,
+                            ssl->suites->sigAlgo);
+                        if (ret != 0) {
+                            goto exit_sske;
                         }
 
                         args->sigSz = args->tmpSigSz;
@@ -30010,21 +29965,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 if (IsAtLeastTLSv1_2(ssl)) {
                                     byte* encodedSig = (byte*)XMALLOC(
                                                   MAX_ENCODED_SIG_SZ, ssl->heap,
-                                                       DYNAMIC_TYPE_SIGNATURE);
+                                                           DYNAMIC_TYPE_DIGEST);
                                     if (encodedSig == NULL) {
                                         ERROR_OUT(MEMORY_E, exit_sske);
                                     }
 
-                                    ssl->buffers.sig.length =
+                                    ssl->buffers.digest.length =
                                         wc_EncodeSignature(encodedSig,
-                                            ssl->buffers.sig.buffer,
-                                            ssl->buffers.sig.length,
+                                            ssl->buffers.digest.buffer,
+                                            ssl->buffers.digest.length,
                                             TypeHash(ssl->suites->hashAlgo));
 
                                     /* Replace sig buffer with new one */
-                                    XFREE(ssl->buffers.sig.buffer, ssl->heap,
-                                                       DYNAMIC_TYPE_SIGNATURE);
-                                    ssl->buffers.sig.buffer = encodedSig;
+                                    XFREE(ssl->buffers.digest.buffer, ssl->heap,
+                                                           DYNAMIC_TYPE_DIGEST);
+                                    ssl->buffers.digest.buffer = encodedSig;
                                 }
                                 break;
                             }
@@ -30088,8 +30043,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 RsaKey* key = (RsaKey*)ssl->hsKey;
 
                                 ret = RsaSign(ssl,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
                                     args->output + args->idx,
                                     &args->sigSz,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
@@ -30105,8 +30060,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ecc_key* key = (ecc_key*)ssl->hsKey;
 
                                 ret = EccSign(ssl,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
                                     args->output + LENGTH_SZ + args->idx,
                                     &args->sigSz,
                                     key,
@@ -30125,7 +30080,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ed25519_key* key = (ed25519_key*)ssl->hsKey;
 
                                 ret = Ed25519Sign(ssl,
-                                    args->sigDataBuf, args->sigDataSz,
+                                    ssl->buffers.sig.buffer,
+                                    ssl->buffers.sig.length,
                                     args->output + LENGTH_SZ + args->idx,
                                     &args->sigSz,
                                     key,
@@ -30144,7 +30100,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ed448_key* key = (ed448_key*)ssl->hsKey;
 
                                 ret = Ed448Sign(ssl,
-                                    args->sigDataBuf, args->sigDataSz,
+                                    ssl->buffers.sig.buffer,
+                                    ssl->buffers.sig.length,
                                     args->output + LENGTH_SZ + args->idx,
                                     &args->sigSz,
                                     key,
@@ -30182,8 +30139,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 }
 
                                 ret = RsaSign(ssl,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
                                     args->output + args->idx,
                                     &args->sigSz,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
@@ -30271,8 +30228,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 /* check for signature faults */
                                 ret = VerifyRsaSign(ssl,
                                     args->verifySig, args->sigSz,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
                                     key, ssl->buffers.key
                                 );
@@ -30336,8 +30293,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 /* check for signature faults */
                                 ret = VerifyRsaSign(ssl,
                                     args->verifySig, args->sigSz,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
                                     key, ssl->buffers.key
                                 );

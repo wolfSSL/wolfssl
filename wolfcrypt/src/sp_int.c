@@ -7096,20 +7096,49 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     }
 
     if (!done) {
+#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+    !defined(WOLFSSL_SP_NO_MALLOC)
+        int cnt = 4;
+        if ((rem != NULL) && (rem != d)) {
+            cnt--;
+        }
+        if ((r != NULL) && (r != d)) {
+            cnt--;
+        }
         /* Macro always has code associated with it and checks err first. */
+        ALLOC_SP_INT_ARRAY(td, a->used + 1, cnt, err, NULL);
+#else
         ALLOC_SP_INT_ARRAY(td, a->used + 1, 4, err, NULL);
+#endif
     }
 
     if ((!done) && (err == MP_OKAY)) {
-        sa    = td[0];
-        sd    = td[1];
-        tr    = td[2];
-        trial = td[3];
+        sd    = td[0];
+        trial = td[1];
+        i = 2;
+#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+    !defined(WOLFSSL_SP_NO_MALLOC)
+        sa    = ((rem != NULL) && (rem != d)) ? rem : td[i++];
+        tr    = ((r != NULL) && (r != d))     ? r   : td[i];
+#else
+        sa    = td[2];
+        tr    = td[3];
+#endif
 
-        sp_init_size(sa, a->used + 1);
         sp_init_size(sd, d->used + 1);
-        sp_init_size(tr, a->used - d->used + 2);
         sp_init_size(trial, a->used + 1);
+#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+    !defined(WOLFSSL_SP_NO_MALLOC)
+        if ((rem == NULL) || (rem == d)) {
+            sp_init_size(sa, a->used + 1);
+        }
+        if ((r == NULL) || (r == d)) {
+            sp_init_size(tr, a->used - d->used + 2);
+        }
+#else
+        sp_init_size(sa, a->used + 1);
+        sp_init_size(tr, a->used - d->used + 2);
+#endif
 
         s = sp_count_bits(d);
         s = SP_WORD_SIZE - (s & SP_WORD_MASK);
@@ -10362,7 +10391,6 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
 int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    DECL_SP_INT(t, ((a == NULL) || (b == NULL)) ? 1 : a->used + b->used);
 
     if ((a == NULL) || (b == NULL) || (m == NULL) || (r == NULL)) {
         err = MP_VAL;
@@ -10371,18 +10399,29 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    ALLOC_SP_INT(t, a->used + b->used, err, NULL);
-    if (err == MP_OKAY) {
-        err = sp_init_size(t, a->used + b->used);
-    }
-    if (err == MP_OKAY) {
-        err = sp_mul(a, b, t);
-    }
-    if (err == MP_OKAY) {
-        err = sp_mod(t, m, r);
-    }
+    if ((r == m) || (r->size < a->used + b->used)) {
+        DECL_SP_INT(t, ((a == NULL) || (b == NULL)) ? 1 : a->used + b->used);
+        ALLOC_SP_INT(t, a->used + b->used, err, NULL);
+        if (err == MP_OKAY) {
+            err = sp_init_size(t, a->used + b->used);
+        }
+        if (err == MP_OKAY) {
+            err = sp_mul(a, b, t);
+        }
+        if (err == MP_OKAY) {
+            err = sp_mod(t, m, r);
+        }
 
-    FREE_SP_INT(t, NULL);
+        FREE_SP_INT(t, NULL);
+    }
+    else {
+        if (err == MP_OKAY) {
+            err = sp_mul(a, b, r);
+        }
+        if (err == MP_OKAY) {
+            err = sp_mod(r, m, r);
+        }
+    }
     return err;
 }
 #endif
@@ -16058,20 +16097,22 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
     if ((err == MP_OKAY) && (!haveRes)) {
         int bits = sp_count_bits(a);
         word32 baseSz = (bits + 7) / 8;
-        DECL_SP_INT_ARRAY(d, a->used * 2 + 1, 5);
+        DECL_SP_INT_ARRAY(ds, a->used + 1, 3);
+        DECL_SP_INT_ARRAY(d, a->used * 2 + 1, 2);
 
-        ALLOC_SP_INT_ARRAY(d, a->used * 2 + 1, 5, err, NULL);
+        ALLOC_SP_INT_ARRAY(ds, a->used + 1, 3, err, NULL);
+        ALLOC_SP_INT_ARRAY(d, a->used * 2 + 1, 2, err, NULL);
         if (err == MP_OKAY) {
-            b  = d[0];
-            c  = d[1];
-            n1 = d[2];
-            y  = d[3];
-            r  = d[4];
+            b  = ds[0];
+            c  = ds[1];
+            n1 = ds[2];
+            y  = d[0];
+            r  = d[1];
 
             /* Only 'y' needs to be twice as big. */
-            sp_init_size(b , a->used * 2 + 1);
-            sp_init_size(c , a->used * 2 + 1);
-            sp_init_size(n1, a->used * 2 + 1);
+            sp_init_size(b , a->used + 1);
+            sp_init_size(c , a->used + 1);
+            sp_init_size(n1, a->used + 1);
             sp_init_size(y , a->used * 2 + 1);
             sp_init_size(r , a->used * 2 + 1);
 
@@ -16119,6 +16160,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
         }
 
         FREE_SP_INT_ARRAY(d, NULL);
+        FREE_SP_INT_ARRAY(ds, NULL);
     }
 #else
     (void)t;
