@@ -1598,6 +1598,43 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 int  wolfSSL_set_fd (WOLFSSL* ssl, int fd);
 
 /*!
+    \ingroup Setup
+
+    \brief This function assigns a file descriptor (fd) as the
+    input/output facility for the SSL connection. Typically this will be
+    a socket file descriptor. This is a DTLS specific API because it marks that
+    the socket is connected. recvfrom and sendto calls on this fd will have the
+    addr and addr_len parameters set to NULL.
+
+    \return SSL_SUCCESS upon success.
+    \return Bad_FUNC_ARG upon failure.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+    \param fd file descriptor to use with SSL/TLS connection.
+
+    _Example_
+    \code
+    int sockfd;
+    WOLFSSL* ssl = 0;
+    ...
+    if (connect(sockfd, peer_addr, peer_addr_len) != 0) {
+        // handle connect error
+    }
+    ...
+    ret = wolfSSL_set_dtls_fd_connected(ssl, sockfd);
+    if (ret != SSL_SUCCESS) {
+        // failed to set SSL file descriptor
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SetIOReadCtx
+    \sa wolfSSL_SetIOWriteCtx
+*/
+int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
+
+/*!
     \ingroup IO
 
     \brief Get the name of cipher at priority level passed in.
@@ -3521,9 +3558,11 @@ int  wolfSSL_dtls(WOLFSSL* ssl);
     \return SSL_NOT_IMPLEMENTED will be returned if wolfSSL was not compiled
     with DTLS support.
 
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param peer pointer to peer’s sockaddr_in structure.
-    \param peerSz size of the sockaddr_in structure pointed to by peer.
+    \param ssl    a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param peer   pointer to peer’s sockaddr_in structure. If NULL then the peer
+                  information in ssl is cleared.
+    \param peerSz size of the sockaddr_in structure pointed to by peer. If 0
+                  then the peer information in ssl is cleared.
 
     _Example_
     \code
