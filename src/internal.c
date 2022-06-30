@@ -7255,6 +7255,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     XFREE(ssl->peerSceTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);
+    Renesas_cmn_Cleanup(ssl);
 #endif
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
@@ -8794,6 +8795,13 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
     if (ssl->hsHashes == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_StoreMessage(ssl, data, sz);
+    if (ret != 0 && ret != CRYPTOCB_UNAVAILABLE) {
+        return ret;
+    }
+#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA

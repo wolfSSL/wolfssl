@@ -509,6 +509,13 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_Ver >= 115)
+    (void)key;
+    ret = tsip_DeriveClientHandshakeSecret(ssl);
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        return ret;
+    }
+#endif
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -911,6 +918,11 @@ int DeriveEarlySecret(WOLFSSL* ssl)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13DeriveEarlySecret(ssl);
+    if (ret != CRYPTOCB_UNAVAILABLE)
+        return ret;
+#endif
     PRIVATE_KEY_UNLOCK();
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ret = Tls13_HKDF_Extract(ssl, ssl->arrays->secret, NULL, 0,
@@ -942,6 +954,12 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13DeriveHandshakeSecret(ssl);
+    if (ret != CRYPTOCB_UNAVAILABLE)
+        return ret;
+#endif
+
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -970,6 +988,13 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13DeriveMasterSecret(ssl);
+    if (ret != CRYPTOCB_UNAVAILABLE)
+        return ret;
+#endif
+
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -1164,6 +1189,14 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     byte  key_dig[MAX_PRF_DIG];
 #endif
     int   provision;
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13DeriveKeys(ssl, secret, side);
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        return ret;
+    }
+    ret = BAD_FUNC_ARG; /* Assume failure */
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
@@ -1925,6 +1958,16 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         ssl->error = 0; /* clear async */
     }
 #endif
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13AesEncrypt(ssl, output, input, dataSz);
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        if (ret > 0) {
+            ret = 0; /* tsip_Tls13AesEncrypt returns output size */
+        } 
+        return ret;
+    }
+    ret = 0;
+#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
     switch (ssl->encrypt.state) {
         case CIPHER_STATE_BEGIN:
@@ -2247,6 +2290,24 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
     word32 nonceSz = 0;
 
     WOLFSSL_ENTER("DecryptTls13");
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13AesDecrypt(ssl, output, input, sz);
+
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        #ifndef WOLFSSL_EARLY_DATA
+        if (ret < 0) {
+            if (doAlert) {
+                SendAlert(ssl, alert_fatal, bad_record_mac);
+            }
+            ret = VERIFY_MAC_ERROR;
+        }
+        #else
+            (void)doAlert;
+        #endif
+        return ret;
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
@@ -6622,6 +6683,14 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_SEND);
     WOLFSSL_ENTER("SendTls13CertificateVerify");
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13SendCertVerify(ssl);
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        goto exit_scv;
+    }
+    ret = 0;
+#endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
 #ifdef WOLFSSL_DTLS13
     /* can be negative */
     if (ssl->options.dtls)
@@ -7152,6 +7221,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_DO);
     WOLFSSL_ENTER("DoTls13CertificateVerify");
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13CertificateVerify(ssl, input, inOutIdx, totalSz);
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        goto exit_dcv;
+    }
+    ret = 0;
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->async == NULL) {
         ssl->async = (struct WOLFSSL_ASYNC*)
@@ -7596,6 +7673,23 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (*inOutIdx + size > totalSz)
         return BUFFER_E;
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_Tls13HandleFinished(ssl, input, inOutIdx, size, totalSz);
+    if (ret == 0) {
+        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+        return ret;
+    }
+    if (ret == VERIFY_FINISHED_ERROR) {
+        SendAlert(ssl, alert_fatal, decrypt_error);
+        return ret;
+    }
+    if (ret != CRYPTOCB_UNAVAILABLE) {
+        /* other errors */
+        return ret;
+    }
+    ret = 0;
+#endif /* WOLFSSL_RENESAS_TSIP_TLS &&  WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
     if (ssl->options.handShakeDone) {
         ret = DeriveFinishedSecret(ssl, ssl->clientSecret,
                                    ssl->keys.client_write_MAC_secret);
@@ -7747,6 +7841,16 @@ static int SendTls13Finished(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
     AddTls13HandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        ret = tsip_Tls13SendFinished(ssl, output, outputSz, input, 1);
+        if (ret != CRYPTOCB_UNAVAILABLE) {
+            return ret;
+        }
+        ret = 0;
+    }
+#endif /* WOLFSSL_RENESAS_TSIP_TLS &&  WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
     /* make finished hashes */
     if (ssl->options.handShakeDone) {

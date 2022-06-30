@@ -1,6 +1,6 @@
 /* renesas_tsip_aes.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,7 +38,12 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
-
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #define TSIP_AES_GCM_AUTH_TAG_SIZE  16
 
@@ -54,6 +59,405 @@ typedef e_tsip_err_t (*aesGcmDecUpdateFn)
         (tsip_gcm_handle_t*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t);
 typedef e_tsip_err_t (*aesGcmDecFinalFn)
         (tsip_gcm_handle_t*, uint8_t*, uint32_t*, uint8_t*, uint32_t);
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+
+/* function pointer type defs for TLSv13 handshake AES-GCM/CCM encryption */
+typedef e_tsip_err_t (*Tls13AesEncInitFn)
+        (tsip_tls13_handle_t*, e_tsip_tls13_phase_t, e_tsip_tls13_mode_t,
+         e_tsip_tls13_cipher_suite_t, tsip_aes_key_index_t*, uint32_t);
+typedef e_tsip_err_t (*Tls13AesEncUpdateFn)
+        (tsip_tls13_handle_t*, uint8_t*, uint8_t*, uint32_t);
+typedef e_tsip_err_t (*Tls13AesEncFinalFn)
+        (tsip_tls13_handle_t*, uint8_t*, uint32_t*);
+
+/* function pointer type defs for TLSv13 handshake AES-GCM/CCM decryption */
+typedef e_tsip_err_t (*Tls13AesDecInitFn)
+        (tsip_tls13_handle_t*, e_tsip_tls13_phase_t, e_tsip_tls13_mode_t,
+         e_tsip_tls13_cipher_suite_t, tsip_aes_key_index_t*, uint32_t);
+typedef e_tsip_err_t (*Tls13AesDecUpdateFn)
+        (tsip_tls13_handle_t*, uint8_t*, uint8_t*, uint32_t);
+typedef e_tsip_err_t (*Tls13AesDecFinalFn)
+        (tsip_tls13_handle_t*, uint8_t*, uint32_t*);
+
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+/*  encrypt plain data.
+ *  
+ *  return cipher data size on success, negative value on failure.
+ *         CRYPTOCB_UNAVAILABLE may be returned.   
+ */
+WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
+                            struct WOLFSSL* ssl,
+                            byte* output,
+                            const byte* input,
+                            word16 sz)
+{
+    int ret = 0;
+    e_tsip_err_t    err = TSIP_SUCCESS;
+    TsipUserCtx*    tuc = NULL;
+    e_tsip_tls13_cipher_suite_t cs;
+    word32  cipher[(AES_BLOCK_SIZE + TSIP_AES_GCM_AUTH_TAG_SIZE) /
+                                                             sizeof(word32)];
+    word32  plain[AES_BLOCK_SIZE / sizeof(word32)];
+    int             idxIn,idxOut;
+    uint32_t        remain;
+    uint32_t        dataSz, finalSz;
+    e_tsip_tls13_phase_t phase;
+    tsip_aes_key_index_t* key = NULL;
+
+    WOLFSSL_ENTER("tsip_Tls13AesEncrypt");
+    
+    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0)) {
+        return BAD_FUNC_ARG;
+    } 
+
+    if (ssl->options.side != WOLFSSL_CLIENT_END) {
+        return CRYPTOCB_UNAVAILABLE;   /* expecting to fallback to S/W */
+    }
+
+    /* get user context for TSIP */
+    tuc = ssl->RenesasUserCtx;    
+    if (tuc == NULL) {
+        WOLFSSL_MSG("TsipUserCtx hasn't been set to ssl.");
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    /* select the appropriate encryption key and phase */
+    if (ssl->options.handShakeDone) {
+        if (!tuc->ClientWriteTrafficKey_set) {
+            WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
+            return CRYPTOCB_UNAVAILABLE;
+        }
+
+        key = &(tuc->clientAppWriteKey13Idx);
+        phase = TSIP_TLS13_PHASE_APPLICATION;
+    }
+    else {
+        if (!tuc->HandshakeClientTrafficKey_set) {
+            WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
+            return CRYPTOCB_UNAVAILABLE;
+        }
+
+        key = &(tuc->clientWriteKey13Idx);
+        phase = TSIP_TLS13_PHASE_HANDSHAKE;
+    }
+
+    /* select AES mode */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
+        cs = TSIP_TLS13_CIPHER_SUITE_AES_128_GCM_SHA256;
+    else if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm)
+        cs = TSIP_TLS13_CIPHER_SUITE_AES_128_CCM_SHA256;
+    else
+        return CRYPTOCB_UNAVAILABLE;
+
+    remain  = sz;
+    finalSz = 0;
+
+    if ((ret = tsip_hw_lock()) == 0) {
+
+        err = R_TSIP_Tls13EncryptInit(
+                                    &(tuc->handle13),
+                                    phase,
+                                    TSIP_TLS13_MODE_FULL_HANDSHAKE,
+                                    cs,
+                                    key,
+                                    sz);
+        
+        if (err != TSIP_SUCCESS) {
+            WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
+            ret = WC_HW_E;
+        }
+
+        idxIn  = 0;
+        idxOut = 0;
+
+        while (err == TSIP_SUCCESS && remain > 0) {
+
+            dataSz = min(remain, AES_BLOCK_SIZE);
+            ForceZero(plain, sizeof(plain));
+            ForceZero(cipher, sizeof(cipher));
+            XMEMCPY(plain, input + idxIn, dataSz); 
+
+
+            err = R_TSIP_Tls13EncryptUpdate(
+                                    &(tuc->handle13),
+                                    (uint8_t*)plain,
+                                    (uint8_t*)cipher,
+                                    dataSz);
+            
+            if (err == TSIP_SUCCESS) {
+                if (dataSz >= AES_BLOCK_SIZE) {
+                    XMEMCPY(output + idxOut, cipher, dataSz);
+                    idxOut += dataSz;
+                }
+                idxIn  += dataSz;   
+                remain -= dataSz;
+            }
+            else {
+                WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
+                ret = WC_HW_E;
+            }
+        }
+
+        if (err == TSIP_SUCCESS) {
+
+            ForceZero(cipher, sizeof(cipher));
+            /* R_TSIP_Tls13EncryptFinal outputs encrypted content and auth-data
+             * to the buffer.
+             */
+            err = R_TSIP_Tls13EncryptFinal(
+                                    &(tuc->handle13),
+                                    (uint8_t*)cipher,
+                                    &finalSz);          /* total output size */
+
+            if (err == TSIP_SUCCESS) {
+                XMEMCPY(output + idxOut, cipher, finalSz - idxOut);
+                ret = finalSz;
+            }
+            else {
+                WOLFSSL_MSG("R_TSIP_Tls13EncryptFinal error");
+                ret = WC_HW_E;
+            }
+        }
+        tsip_hw_unlock();
+    }
+
+    WOLFSSL_LEAVE("tsip_Tls13AesEncrypt", ret);
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+/* decrypt encrypted handshake data for TLSv1.3
+ * AES-GCM or AES-CCM can be used
+ * return 0 on success, otherwise on error.
+ */ 
+WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
+                            struct WOLFSSL* ssl,
+                            byte* output,
+                            const byte* input,
+                            word16 sz)
+{
+    int ret = 0;
+    e_tsip_err_t    err = TSIP_SUCCESS;
+    TsipUserCtx*    tuc = NULL;
+    e_tsip_tls13_cipher_suite_t cs;
+    word32          cipher[AES_BLOCK_SIZE / sizeof(word32)];
+    word32          plain[AES_BLOCK_SIZE / sizeof(word32)];
+    int             idxIn,idxOut;
+    int             blocks;
+    uint32_t        remain,conRemain;
+    uint32_t        dataSz, finalSz;
+    e_tsip_tls13_phase_t     phase;
+    tsip_aes_key_index_t* key = NULL;
+
+    WOLFSSL_ENTER("tsip_Tls13AesDecrypt");
+
+    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0)) {
+        return BAD_FUNC_ARG;
+    } 
+
+    if (ssl->options.side != WOLFSSL_CLIENT_END) {
+        return CRYPTOCB_UNAVAILABLE;   /* expecting to fallback to S/W */
+    }
+
+    /* get user context for TSIP */
+    tuc = ssl->RenesasUserCtx;    
+    if (tuc == NULL) {
+        WOLFSSL_MSG("TsipUserCtx hasn't been set to ssl.");
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    /* select the appropriate encryption key and phase */
+    if (ssl->options.handShakeDone) {
+        if (!tuc->ServerWriteTrafficKey_set) {
+            WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
+            return CRYPTOCB_UNAVAILABLE;
+        }
+
+        key = &(tuc->serverAppWriteKey13Idx);
+        phase = TSIP_TLS13_PHASE_APPLICATION;
+    }
+    else {
+        if (!tuc->HandshakeServerTrafficKey_set) {
+            WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
+            return CRYPTOCB_UNAVAILABLE;
+        }
+
+        key = &(tuc->serverWriteKey13Idx);
+        phase = TSIP_TLS13_PHASE_HANDSHAKE;
+    }
+
+    /* select AES mode */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
+        cs = TSIP_TLS13_CIPHER_SUITE_AES_128_GCM_SHA256;
+    else if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm)
+        cs = TSIP_TLS13_CIPHER_SUITE_AES_128_CCM_SHA256;
+    else
+        return CRYPTOCB_UNAVAILABLE;
+
+
+    blocks    = sz / AES_BLOCK_SIZE;
+    remain    = sz;
+    conRemain = sz - TSIP_AES_GCM_AUTH_TAG_SIZE;
+    
+    if ((ret = tsip_hw_lock()) == 0) {
+
+        err = R_TSIP_Tls13DecryptInit(
+                                    &(tuc->handle13),
+                                    phase,
+                                    TSIP_TLS13_MODE_FULL_HANDSHAKE,
+                                    cs,
+                                    key,
+                                    sz);
+        
+        if (err != TSIP_SUCCESS) {
+            WOLFSSL_MSG("R_TSIP_Tls13DecryptInit error");
+            ret = WC_HW_E;
+        }
+
+        idxIn  = 0;
+        idxOut = 0;
+
+        while (err == TSIP_SUCCESS && (blocks--) >= 0) {
+
+            dataSz = min(remain, AES_BLOCK_SIZE);
+            XMEMCPY(cipher, input + idxIn, dataSz);
+            ForceZero(plain, AES_BLOCK_SIZE);
+
+            err = R_TSIP_Tls13DecryptUpdate(
+                                    &(tuc->handle13),
+                                    (uint8_t*)cipher,
+                                    (uint8_t*)plain,
+                                    dataSz);
+            
+            if (err == TSIP_SUCCESS) {
+                if (dataSz >= AES_BLOCK_SIZE && conRemain >= AES_BLOCK_SIZE) {
+                    XMEMCPY(output + idxOut, plain, dataSz);
+                    idxOut += dataSz;
+                    conRemain -= min(conRemain, dataSz);
+                }
+                idxIn  += dataSz;   
+                remain -= dataSz;
+            }
+            else {
+                WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
+                ret = WC_HW_E;
+            }
+        }
+
+        if (err == TSIP_SUCCESS) {
+            err = R_TSIP_Tls13DecryptFinal(
+                                    &(tuc->handle13),
+                                    (uint8_t*)plain,
+                                    &finalSz); /* total size will be returned */
+
+            if (err == TSIP_SUCCESS) {
+                XMEMCPY(output + idxOut, plain, conRemain);
+            }
+            else if (err== TSIP_ERR_AUTHENTICATION) {
+                WOLFSSL_MSG("tsip_Tls13AesDecrypt authentication error");
+                ret = AES_GCM_AUTH_E;
+            }
+            else {
+                WOLFSSL_MSG("R_TSIP_Tls13DecryptFinal error");
+                ret = WC_HW_E;
+            }
+        }
+        tsip_hw_unlock();
+    }
+
+    WOLFSSL_LEAVE("tsip_Tls13AesDecrypt", ret);
+    return ret;
+}
+
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 109)
+#ifdef WOLF_CRYPTO_CB
+
+WOLFSSL_LOCAL int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, 
+                                                                    void* ctx)
+{
+    int ret = NOT_COMPILED_IN;
+    TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
+
+    WOLFSSL_ENTER("wc_tsip_AesCipher");
+
+    if (info == NULL || ctx == NULL)
+        return BAD_FUNC_ARG;
+    
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+
+#if !defined(NO_AES) || !defined(NO_DES3)
+#ifdef HAVE_AESGCM
+        if (info->cipher.type == WC_CIPHER_AES_GCM &&
+            cbInfo->session_key_set == 1) {
+
+            if (info->cipher.enc) {
+                ret = wc_tsip_AesGcmEncrypt(
+                        info->cipher.aesgcm_enc.aes,
+                        (byte*)info->cipher.aesgcm_enc.out,
+                        (byte*)info->cipher.aesgcm_enc.in,
+                        info->cipher.aesgcm_enc.sz,
+                        (byte*)info->cipher.aesgcm_enc.iv,
+                        info->cipher.aesgcm_enc.ivSz,
+                        (byte*)info->cipher.aesgcm_enc.authTag,
+                        info->cipher.aesgcm_enc.authTagSz,
+                        (byte*)info->cipher.aesgcm_enc.authIn,
+                        info->cipher.aesgcm_enc.authInSz,
+                        (void*)ctx);
+
+            }
+            else {
+                ret = wc_tsip_AesGcmDecrypt(
+                        info->cipher.aesgcm_dec.aes,
+                        (byte*)info->cipher.aesgcm_dec.out,
+                        (byte*)info->cipher.aesgcm_dec.in,
+                        info->cipher.aesgcm_dec.sz,
+                        (byte*)info->cipher.aesgcm_dec.iv,
+                        info->cipher.aesgcm_dec.ivSz,
+                        (byte*)info->cipher.aesgcm_dec.authTag,
+                        info->cipher.aesgcm_dec.authTagSz,
+                        (byte*)info->cipher.aesgcm_dec.authIn,
+                        info->cipher.aesgcm_dec.authInSz,
+                        (void*)ctx);
+            }
+        }
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AES_CBC
+        if (info->cipher.type == WC_CIPHER_AES_CBC &&
+            cbInfo->session_key_set == 1) {
+
+            if (info->cipher.enc) {
+                ret = wc_tsip_AesCbcEncrypt(
+                    info->cipher.aescbc.aes,
+                    (byte*)info->cipher.aescbc.out,
+                    (byte*)info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+
+            }
+            else {
+                ret = wc_tsip_AesCbcDecrypt(
+                    info->cipher.aescbc.aes,
+                    (byte*)info->cipher.aescbc.out,
+                    (byte*)info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+            }
+        }
+    #endif /* HAVE_AES_CBC */
+    #endif /* !NO_AES || !NO_DES3 */
+
+    }
+    WOLFSSL_LEAVE("wc_tsip_AesCipher", ret);
+    return ret;
+}
+#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 109 */
 
 
 
@@ -271,8 +675,8 @@ int wc_tsip_AesGcmEncrypt(
 
         if (ret == 0) {
             XMEMCPY(plainBuf, in, sz);
-            XMEMSET(cipherBuf, 0, cipherBufSz);
-            XMEMSET(authTag,   0, authTagSz);
+            ForceZero(cipherBuf, cipherBufSz);
+            ForceZero(authTag, authTagSz);
             XMEMCPY(aadBuf, authIn, min(authInSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
         }
 
@@ -447,9 +851,9 @@ int wc_tsip_AesGcmDecrypt(
         }
 
         if (ret == 0) {
-            XMEMSET(plainBuf,  0, plainBufSz);
+            ForceZero(plainBuf, plainBufSz);
             XMEMCPY(cipherBuf, in, sz);
-            XMEMSET(aTagBuf, 0, TSIP_AES_GCM_AUTH_TAG_SIZE);
+            ForceZero(aTagBuf, TSIP_AES_GCM_AUTH_TAG_SIZE);
             XMEMCPY(aTagBuf,authTag,min(authTagSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
             XMEMCPY(aadBuf, authIn, authInSz);
         }

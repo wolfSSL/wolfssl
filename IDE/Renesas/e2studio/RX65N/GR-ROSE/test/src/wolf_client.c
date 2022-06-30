@@ -1,6 +1,6 @@
 /* wolf_client.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -128,7 +128,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
 
 #if defined(WOLFSSL_STATIC_MEMORY)
 
-    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_client_method_ex(heapHint),
+    if ((client_ctx = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heapHint),
                                                       heapHint)) == NULL) {
         printf("ERROR: faild to create WOLFSSL_CTX\n");
         return;                                                
@@ -144,7 +144,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
 
     /* Create and initialize WOLFSSL_CTX */
     if ((client_ctx = 
-        wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
+        wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
@@ -165,7 +165,67 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
            printf("ERROR: can't load certificate data\n");
        return;
     }
+
+
+    /* load client certificate */
+#ifdef USE_ECC_CERT
+    if (wolfSSL_CTX_use_certificate_chain_buffer_format(client_ctx,
+                                cliecc_cert_der_256,
+                                sizeof_cliecc_cert_der_256,
+                                WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        printf("ERROR: can't load client-certificate\n");
+        return;
+    }
+
+    /* set client private key data */
+    #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_RENESAS_TSIP_TLS
+    if (tsip_set_clientPrivateKeyEnc(
+                        g_key_block_data.encrypted_user_ecc256_private_key,
+                                                        TSIP_ECCP256) != 0) {
+        printf("ERROR: can't load client-private key\n");
+        return;
+    }
+    #endif /* WOLFSSL_RENESAS_TSIP_TLS */
+    #else
+    if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
+                                ecc_clikey_der_256,
+                                sizeof_ecc_clikey_der_256,
+                                SSL_FILETYPE_ASN1)      != WOLFSSL_SUCCESS) {
+        printf("ERROR: can't load private-key data.\n");
+        return;
+    }
+    #endif /* WOLFSSL_TLS13 */
+
+#else
+    if (wolfSSL_CTX_use_certificate_chain_buffer_format(client_ctx,
+                                client_cert_der_2048,
+                                sizeof_client_cert_der_2048,
+                                WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        printf("ERROR: can't load client-certificate\n");
+        return;
+    }
+
+    /* set client private key data */
+    #ifdef WOLFSSL_RENESAS_TSIP_TLS
+    if (tsip_set_clientPrivateKeyEnc(
+                        g_key_block_data.encrypted_user_rsa2048_private_key,
+                                            TSIP_RSA2048) != 0) {
+        printf("ERROR: can't load client-private key\n");
+        return;
+    }
     #endif
+
+    if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, client_key_der_2048,
+            sizeof_client_key_der_2048, SSL_FILETYPE_ASN1)
+                != WOLFSSL_SUCCESS) {
+        printf("ERROR: can't load private-key data.\n");
+        return;
+    }
+
+
+#endif /* USE_ECC_CERT */
+#endif /* !NO_FILESYSTEM */
 
     /* Register callbacks */
     wolfSSL_SetIORecv(client_ctx, my_IORecv);
@@ -176,7 +236,17 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set cipher list");
+        return;
     }
+    
+#if defined(WOLFSSL_TLS13) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1) 
+                                                        != WOLFSSL_SUCCESS) {
+        wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
+        printf("client can't set use supported curves\n");
+        return;
+    }
+#endif
 }
 
 void wolfSSL_TLS_client( )

@@ -1,6 +1,6 @@
 /* renesas_tsip_sha.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,7 +25,13 @@
     #include <config.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
-
+#include <wolfssl/internal.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 #if !defined(NO_SHA) || !defined(NO_SHA256)
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -36,11 +42,247 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
-
 #if !defined(NO_SHA) && !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 #include <wolfssl/wolfcrypt/sha.h>
 
 extern struct WOLFSSL_HEAP_HINT* tsip_heap_hint;
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+/*  get hmac from handshake messages exchanged with server.
+ *
+ */
+WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
+{
+    int ret     = 0;
+    int isTLS13 = 0;
+    TsipUserCtx* tuc = NULL;
+    e_tsip_err_t err = TSIP_SUCCESS;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+    int     hmacSz = 0;
+
+    WOLFSSL_ENTER("tsip_Tls13GetHmacMessages");
+
+    if (ssl == NULL)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+        if (ssl->version.major == SSLv3_MAJOR && 
+            ssl->version.minor == TLSv1_3_MINOR)
+            isTLS13 = 1;
+
+        /* TSIP works only in TLS13 client side */
+        if (!isTLS13 || ssl->options.side != WOLFSSL_CLIENT_END) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* get user context for TSIP */
+    if (ret == 0) {
+        tuc = ssl->RenesasUserCtx;
+        if (tuc == NULL) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+        else if (!tuc->HandshakeClientTrafficKey_set) {
+            WOLFSSL_MSG("Client handshake traffic keys aren't created by TSIP");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* get transcript hash */
+    if (ret == 0) {
+        ForceZero(hash, sizeof(hash));
+        ret = tsip_GetMessageSha256(ssl, hash, (int*)&hmacSz);
+    }
+
+    if (ret == 0) {
+        if ((ret = tsip_hw_lock()) == 0) {
+
+            err = R_TSIP_Sha256HmacGenerateInit(&(tuc->hmacFinished13Handle),
+                                                &(tuc->clientFinished13Idx));
+
+            if (err != TSIP_SUCCESS) {
+                WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateInit failed");
+                ret = WC_HW_E;
+            }
+
+            if (ret == 0) {
+
+                err = R_TSIP_Sha256HmacGenerateUpdate(
+                                                &(tuc->hmacFinished13Handle),
+                                                (uint8_t*)hash,
+                                                WC_SHA256_DIGEST_SIZE);
+
+                if (err != TSIP_SUCCESS) {
+                    WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateUpdate failed");
+                    ret = WC_HW_E;
+                }
+            }
+
+            if (ret == 0) {
+                err = R_TSIP_Sha256HmacGenerateFinal(
+                                            &(tuc->hmacFinished13Handle), mac);
+                if (err != TSIP_SUCCESS) {
+                    WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateFinal failed");
+                    ret = WC_HW_E;
+                }
+            }
+            tsip_hw_unlock();
+        }
+        else {
+            WOLFSSL_MSG("mutex locking error");
+        }
+    }
+    WOLFSSL_LEAVE("tsipTls13GetHmacMessages", ret);
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+/* store handshake message for later hash or hmac operation. 
+ * 
+ */
+WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
+                                                                int sz)
+{
+    int     ret = 0;
+    int     isTLS13 = 0;
+    word32  messageSz;
+    MsgBag* bag = NULL;
+    TsipUserCtx* tuc = NULL;
+
+    WOLFSSL_ENTER("tsip_StoreMessage");
+
+    if (ssl == NULL)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+        if (ssl->version.major == SSLv3_MAJOR && 
+            ssl->version.minor == TLSv1_3_MINOR)
+            isTLS13 = 1;
+
+        /* TSIP works only in TLS13 client side */
+        if (!isTLS13 || ssl->options.side != WOLFSSL_CLIENT_END) {
+            WOLFSSL_MSG("Not in tls1.3 or not in client end");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+    /* should work until handshake is done */ 
+    if (ret == 0) {
+        if (ssl->options.handShakeDone) {
+            WOLFSSL_MSG("handshake is done.");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* get user context for TSIP */
+    if (ret == 0) {
+        tuc = ssl->RenesasUserCtx;
+        if (tuc == NULL) {
+            WOLFSSL_MSG("RenesasUserCtx is not set in ssl.");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* check if TSIP is used for this session */
+    if (ret == 0) {
+        if (!tuc->Dhe_key_set) {
+            WOLFSSL_MSG("DH key not set.");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+
+    /* copy raw handshake message into MsgBag for later sha256 operations. */
+    if (ret == 0) {
+        c24to32(&data[1], &messageSz);
+
+        bag = &(tuc->messageBag);
+
+        if (bag->msgIdx +1 > MAX_MSGBAG_MESSAGES || 
+            bag->buffIdx + sz > MSGBAG_SIZE) {
+            WOLFSSL_MSG("Capacity over error in tsip_StoreMessage");
+            ret = MEMORY_E;
+        }
+    
+        XMEMCPY(bag->buff + bag->buffIdx, data, sz);
+        bag->msgTypes[bag->msgIdx++] = *data;   /* store message type */
+        bag->buffIdx += sz;
+    }
+
+    WOLFSSL_LEAVE("tsip_StoreMessage", ret);
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+#if (WOLFSSL_RENESAS_TSIP_VER >= 115)
+WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
+                                                                int* sz)
+{
+    int     ret = 0;
+    int     isTLS13 = 0;
+    MsgBag* bag = NULL;
+    TsipUserCtx* tuc = NULL;
+    tsip_sha_md5_handle_t handle;
+    e_tsip_err_t err = TSIP_SUCCESS;
+    uint32_t hashSz = 0;
+
+    WOLFSSL_ENTER("tsip_GetMessageSha256");
+
+    if (ssl == NULL)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+        if (ssl->version.major == SSLv3_MAJOR && 
+            ssl->version.minor == TLSv1_3_MINOR)
+            isTLS13 = 1;
+
+        /* TSIP works only in TLS13 client side */
+        if (!isTLS13 || ssl->options.side != WOLFSSL_CLIENT_END) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+    /* get user context for TSIP */
+    if (ret == 0) {
+        tuc = ssl->RenesasUserCtx;
+        if (tuc == NULL) {
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+        bag = &(tuc->messageBag);
+    }
+    
+    if (ret == 0) {
+        if ((ret = tsip_hw_lock()) == 0) {
+
+            err = R_TSIP_Sha256Init(&handle);
+
+            if (err == TSIP_SUCCESS) {
+                err = R_TSIP_Sha256Update(&handle, (uint8_t*)bag->buff, 
+                                                                bag->buffIdx);
+            }
+            if (err == TSIP_SUCCESS) {
+                err = R_TSIP_Sha256Final(&handle, hash, &hashSz);
+            }
+            if (err == TSIP_SUCCESS) {
+                if (sz != NULL) {
+                    *sz = hashSz;
+                }
+            }
+            else {
+                ret = WC_HW_E;
+            }
+            tsip_hw_unlock();
+        }
+        else {
+            WOLFSSL_MSG("mutex locking error");
+        }
+    }
+    WOLFSSL_LEAVE("tsip_GetMessageSha256", ret);
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_VER >= 115 */
+
+
+
+
 
 static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
 {
@@ -61,7 +303,7 @@ static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
     }
 
     (void)devId;
-    XMEMSET(hash, 0, sizeof(wolfssl_TSIP_Hash));
+    ForceZero(hash, sizeof(wolfssl_TSIP_Hash));
 
     if (heap == NULL && tsip_heap_hint != NULL) {
         hash->heap = (struct wolfSSL_HEAP_HINT*)tsip_heap_hint;

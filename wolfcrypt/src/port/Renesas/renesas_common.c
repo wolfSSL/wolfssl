@@ -44,6 +44,47 @@ static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
+WOLFSSL_LOCAL int Renesas_cmn_Cleanup(WOLFSSL* ssl)
+{
+    int ret = 0;
+    WOLFSSL_ENTER("Renesas_cmn_Cleanup");
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    ret = tsip_TlsCleanup(ssl);
+#endif
+    
+    WOLFSSL_LEAVE("Renesas_cmn_Cleanup", ret);
+    return ret;
+}
+WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
+                                const unsigned char* in, unsigned int inSz,
+                                unsigned char* out, word32* outSz,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx)
+{
+    int ret = NOT_COMPILED_IN;
+    WOLFSSL_ENTER("Renesas_cmn_RsaSignCb");
+
+    /* This is just a stub function that provides no logic */
+
+    WOLFSSL_LEAVE("Renesas_cmn_RsaSignCb", ret);
+    return ret;
+}
+
+WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
+                                const unsigned char* in, unsigned int inSz,
+                                unsigned char* out, word32* outSz,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx)
+{
+    int ret = NOT_COMPILED_IN;
+    WOLFSSL_ENTER("Renesas_cmn_EccSignCb");
+
+    /* This is just a stub function that provides no logic */
+    
+    WOLFSSL_LEAVE("Renesas_cmn_EccSignCb", ret);
+    return ret;
+}
 /* Renesas Security Library Common Callback
  * For Crypto Callbacks
  *
@@ -414,7 +455,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, unsigned char* sig,
     }
     else {
         WOLFSSL_MSG("failed wc_tsip_RsaVerify");
-        wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+        wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, NULL);
         wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
     }
 
@@ -428,7 +469,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, unsigned char* sig,
     }
     else {
         WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
-        wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+        wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, NULL);
         wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
     }
 #endif
@@ -466,7 +507,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
     }
     else {
         WOLFSSL_MSG("failed wc_tsip_EccVerify");
-        wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+        wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, NULL);
         wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
     }
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
@@ -479,7 +520,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
     }
     else {
         WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
-        wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+        wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, NULL);
         wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
     }
 #endif
