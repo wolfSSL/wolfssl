@@ -384,6 +384,8 @@ typedef struct Cert {
     int      selfSigned;                /* self signed flag */
     CertName subject;                   /* subject info */
     int      isCA;                      /* is this going to be a CA */
+    char     pathLen;                   /* max depth of valid certification
+                                         * paths that include this cert */
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
     int      keyType;                   /* public key type of subject */

@@ -22749,6 +22749,31 @@ static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 }
 
 
+/* encode CA basic constraints true with path length
+ * return total bytes written */
+static int SetCaWithPathLen(byte* out, word32 outSz, char pathLen)
+{
+    /* ASN1->DER sequence for Basic Constraints True and path length */
+    byte caPathLenBasicConstASN1[] = {
+        0x30, 0x0F, 0x06, 0x03, 0x55, 0x1D, 0x13, 0x04,
+        0x08, 0x30, 0x06, 0x01, 0x01, 0xFF, 0x02, 0x01,
+        0x00
+    };
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz < sizeof(caPathLenBasicConstASN1))
+        return BUFFER_E;
+
+    caPathLenBasicConstASN1[16U] = pathLen;
+
+    XMEMCPY(out, caPathLenBasicConstASN1, sizeof(caPathLenBasicConstASN1));
+
+    return (int)sizeof(caPathLenBasicConstASN1);
+}
+
+
 /* encode CA basic constraints true
  * return total bytes written */
 static int SetCa(byte* out, word32 outSz)
@@ -24911,8 +24936,21 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
+    /* RFC 5280 : 4.2.1.9. Basic Constraints
+     * The pathLenConstraint field is meaningful only if the cA boolean is
+     * asserted and the key usage extension, if present, asserts the
+     * keyCertSign bit */
+    /* Set CA and path length */
+    if ((cert->isCA) && (cert->pathLen) &&
+        ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))) {
+        der->caSz = SetCaWithPathLen(der->ca, sizeof(der->ca), cert->pathLen);
+        if (der->caSz <= 0)
+            return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
     /* Set CA */
-    if (cert->isCA) {
+    else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
@@ -26082,8 +26120,21 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
+    /* RFC 5280 : 4.2.1.9. Basic Constraints
+     * The pathLenConstraint field is meaningful only if the cA boolean is
+     * asserted and the key usage extension, if present, asserts the
+     * keyCertSign bit */
+    /* Set CA and path length */
+    if ((cert->isCA) && (cert->pathLen) &&
+        ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))) {
+        der->caSz = SetCaWithPathLen(der->ca, sizeof(der->ca), cert->pathLen);
+        if (der->caSz <= 0)
+            return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
     /* Set CA */
-    if (cert->isCA) {
+    else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
