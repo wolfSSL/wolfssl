@@ -6169,9 +6169,10 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
     if (extension == NULL) {
 #ifdef WOLFSSL_DTLS13
-        if (ssl->options.dtls)
-            /* TODO: Should we allow a ClientHello with a valid cookie even if
-             *       the cookie wasn't sent by this WOLFSSL object? */
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
+            /* Allow a cookie extension with DTLS 1.3 because it is possible
+             * that a different SSL instance sent the cookie but we are now
+             * receiving it. */
             return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0);
         else
 #endif

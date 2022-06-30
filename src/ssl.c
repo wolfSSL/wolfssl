@@ -12793,7 +12793,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #endif /* NO_WOLFSSL_SERVER */
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 int wolfSSL_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
 {
     WOLFSSL_ENTER("wolfSSL_SetChGoodCb");
