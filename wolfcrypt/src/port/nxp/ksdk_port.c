@@ -2051,11 +2051,15 @@ status_t LTC_PKHA_SignatureForVerify(uint8_t *rcheck, const unsigned char *a,
     if (status == kStatus_Success) {
         status = LTC_PKHA_WeierstrassToEd25519(&ltc0, &ltc0);
     }
-    if (((uint32_t)ltc0.X[0]) & 0x01u) {
-        ltc0.Y[ED25519_KEY_SIZE - 1] |= 0x80u;
+
+    if (status == kStatus_Success) {
+        if (((uint32_t)ltc0.X[0]) & 0x01u) {
+            ltc0.Y[ED25519_KEY_SIZE - 1] |= 0x80u;
+        }
+
+        XMEMCPY(rcheck, ltc0.Y, ED25519_KEY_SIZE);
     }
 
-    XMEMCPY(rcheck, ltc0.Y, ED25519_KEY_SIZE);
     return status;
 }
 

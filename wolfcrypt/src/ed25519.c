@@ -655,8 +655,12 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
         return ret;
 
 #ifdef FREESCALE_LTC_ECC
-    LTC_PKHA_sc_reduce(h);
-    LTC_PKHA_SignatureForVerify(rcheck, h, sig + (ED25519_SIG_SIZE/2), key);
+    ret = LTC_PKHA_sc_reduce(h);
+    if (ret != kStatus_Success)
+        return ret;
+    ret = LTC_PKHA_SignatureForVerify(rcheck, h, sig + (ED25519_SIG_SIZE/2), key);
+    if (ret != kStatus_Success)
+        return ret;
 #else
     sc_reduce(h);
 
