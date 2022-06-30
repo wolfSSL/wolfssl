@@ -6129,6 +6129,10 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
             return;
         }
 
+    #ifndef SINGLE_THREADED
+        wc_FreeMutex(&dh->refMutex);
+    #endif
+
         if (dh->internal) {
             wc_FreeDhKey((DhKey*)dh->internal);
             XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
@@ -8294,6 +8298,10 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
         if (doFree == 0) {
             return;
         }
+
+    #ifndef SINGLE_THREADED
+        wc_FreeMutex(&key->refMutex);
+    #endif
 
         if (key->internal != NULL) {
             wc_ecc_free((ecc_key*)key->internal);

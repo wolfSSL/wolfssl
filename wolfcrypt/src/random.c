@@ -2051,6 +2051,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
         }
 
+        HAL_RNG_DeInit(&hrng);
+
         wolfSSL_CryptHwMutexUnLock();
 
         return 0;

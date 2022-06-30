@@ -823,13 +823,13 @@ typedef struct w64wrapper {
         #endif
     #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
-        #ifndef CTYPE_USER
-            #ifndef WOLFSSL_LINUXKM
-                #include <ctype.h>
-            #endif
-            #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
-            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
-            defined(OPENSSL_EXTRA)
+    #ifndef CTYPE_USER
+        #ifndef WOLFSSL_LINUXKM
+            #include <ctype.h>
+        #endif
+        #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
+        defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
+        defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
         #endif
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
