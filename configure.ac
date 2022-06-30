@@ -519,6 +519,7 @@ then
 fi
 
 
+# MATH LIBRARY SELECTION
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
@@ -575,6 +576,78 @@ AC_ARG_ENABLE([sp-asm],
     [ ENABLED_SP_ASM=$enableval ],
     [ ENABLED_SP_ASM=$SP_ASM_DEFAULT ],
     )
+
+
+# fastmath
+AC_ARG_ENABLE([fastmath],
+    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
+    [ ENABLED_FASTMATH=$enableval ],
+    [ ENABLED_FASTMATH=$DEF_FAST_MATH ]
+    )
+
+# fast HUGE math
+AC_ARG_ENABLE([fasthugemath],
+    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
+    [ ENABLED_FASTHUGEMATH=$enableval ],
+    [ ENABLED_FASTHUGEMATH=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_FASTHUGEMATH="yes"
+fi
+
+if test "$ENABLED_FASTHUGEMATH" = "yes"
+then
+    ENABLED_FASTMATH="yes"
+fi
+
+# if sp-math-all is not set, then enable fast math
+if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = ""
+then
+    # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
+    then
+        if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
+        then
+            ENABLED_FASTMATH="no"
+        else
+            AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+            ENABLED_HEAPMATH="no"
+        fi
+    else
+        AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+        ENABLED_HEAPMATH="no"
+        ENABLED_SP_MATH_ALL="no"
+    fi
+    if test "$host_cpu" = "x86_64"
+    then
+        # Have settings.h set FP_MAX_BITS higher if user didn't set directly
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
+    fi
+    AS_IF([test "x$host_cpu" = "xaarch64"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AARCH64_BUILD"])
+
+    if test "$ENABLED_SAKKE" = "yes" && test "$ENABLED_SAKKE_SMALL" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -funroll-loops -DTFM_SMALL_SET"
+    fi
+fi
+
+
+# heap based integer.c math (not timing resistant)
+AC_ARG_ENABLE([heapmath],
+    [AS_HELP_STRING([--enable-heapmath],[Enable heap based integer.c math ops (default: disabled)])],
+    [ ENABLED_HEAPMATH=$enableval ],
+    [ ENABLED_HEAPMATH=no]
+    )
+if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno")
+then
+    AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
+    ENABLED_HEAPMATH="yes"
+    ENABLED_SP="no"
+    ENABLED_SP_MATH_ALL="no"
+fi
+
 
 
 # ALL FEATURES
@@ -905,6 +978,14 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
 
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED" ])
 
+# wolfCrypt Only Build
+AC_ARG_ENABLE([cryptonly],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [ENABLED_CRYPTONLY=$enableval],
+    [ENABLED_CRYPTONLY=no])
+
+AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
+
 
 # DTLS
 # DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
@@ -944,7 +1025,8 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=yes ]
     )
 if test "x$FIPS_VERSION" = "xv1" ||
-        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 )
+        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 ) ||
+        test "$ENABLED_CRYPTONLY" = "yes"
 then
     ENABLED_TLS13="no"
 fi
@@ -1476,8 +1558,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 fi
-
-ENABLED_HEAPMATH="yes"
 
 # lean psk build
 AC_ARG_ENABLE([leanpsk],
@@ -3059,6 +3139,10 @@ AC_ARG_ENABLE([oldtls],
     [ ENABLED_OLD_TLS=yes ]
     )
 
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_OLD_TLS=no
+fi
 if test "$ENABLED_OLD_TLS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
@@ -3079,6 +3163,10 @@ AC_ARG_ENABLE([tlsv12],
     [ ENABLED_TLSV12=yes ]
     )
 
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_TLSV12=no
+fi
 if test "$ENABLED_TLSV12" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
@@ -3092,6 +3180,10 @@ AC_ARG_ENABLE([tlsv10],
     [ ENABLED_TLSV10=no ]
     )
 
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_TLSV12=no
+fi
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
@@ -3108,6 +3200,10 @@ AC_ARG_ENABLE([sslv3],
 if test "x$ENABLED_HAPROXY" = "xyes" && test "x$ENABLED_ALL" = "xno"
 then
     ENABLED_SSLV3="yes"
+fi
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_SSLV3=no
 fi
 
 if test "$ENABLED_SSLV3" = "yes"
@@ -3522,7 +3618,8 @@ else
     fi
 fi
 
-if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && test "$ENABLED_ASN" = "no"
+if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && \
+   test "$ENABLED_ASN" = "no"
 then
     AC_MSG_ERROR([please disable rsa if disabling asn.])
 fi
@@ -3533,14 +3630,16 @@ then
 fi
 
 # No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
-if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = no && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = no && \
+   test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
+   test "$ENABLED_RSA" = "no"
 then
-    ENABLED_SP_MATH_ALL=no
-    ENABLED_FASTMATH=no
-    ENABLED_HEAPMATH=no
-    ENABLED_BIGNUM=no
+    ENABLED_SP_MATH_ALL="no"
+    ENABLED_FASTMATH="no"
+    ENABLED_HEAPMATH="no"
+    ENABLED_BIGNUM="no"
 else
-    ENABLED_BIGNUM=yes
+    ENABLED_BIGNUM="yes"
 fi
 
 
@@ -4636,6 +4735,10 @@ AC_ARG_ENABLE([extended-master],
     [ ENABLED_EXTENDED_MASTER=yes ]
     )
 
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_EXTENDED_MASTER=no
+fi
 if test "x$ENABLED_EXTENDED_MASTER" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXTENDED_MASTER"
@@ -5763,13 +5866,6 @@ fi
 
 
 # wolfCrypt Only Build
-AC_ARG_ENABLE([cryptonly],
-    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
-    [ENABLED_CRYPTONLY=$enableval],
-    [ENABLED_CRYPTONLY=no])
-
-AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
-
 if test "$ENABLED_CRYPTONLY" = "yes"
 then
     if test "$ENABLED_OPENSSLALL" = "yes"
@@ -5802,75 +5898,6 @@ then
         # for TLS connections the intermediate hash needs to store buffer
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HASH_KEEP"
     fi
-fi
-
-
-# fastmath
-AC_ARG_ENABLE([fastmath],
-    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
-    [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=$DEF_FAST_MATH ]
-    )
-
-# fast HUGE math
-AC_ARG_ENABLE([fasthugemath],
-    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
-    [ ENABLED_FASTHUGEMATH=$enableval ],
-    [ ENABLED_FASTHUGEMATH=no ]
-    )
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    ENABLED_FASTHUGEMATH="yes"
-fi
-
-if test "$ENABLED_FASTHUGEMATH" = "yes"
-then
-    ENABLED_FASTMATH="yes"
-fi
-
-# if sp-math-all is not set, then enable fast math
-if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = ""
-then
-    # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
-    then
-        if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
-        then
-            ENABLED_FASTMATH="no"
-        else
-            AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-            ENABLED_HEAPMATH="no"
-        fi
-    else
-        AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-        ENABLED_HEAPMATH="no"
-        ENABLED_SP_MATH_ALL="no"
-    fi
-    if test "$host_cpu" = "x86_64"
-    then
-        # Have settings.h set FP_MAX_BITS higher if user didn't set directly
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
-    fi
-    AS_IF([test "x$host_cpu" = "xaarch64"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AARCH64_BUILD"])
-
-    if test "$ENABLED_SAKKE" = "yes" && test "$ENABLED_SAKKE_SMALL" != "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -funroll-loops -DTFM_SMALL_SET"
-    fi
-fi
-
-# heap based integer.c math (not timing resistant)
-AC_ARG_ENABLE([heapmath],
-    [AS_HELP_STRING([--enable-heapmath],[Enable heap based integer.c math ops (default: disabled)])],
-    [ ENABLED_HEAPMATH=$enableval ],
-    [ ENABLED_HEAPMATH=no]
-    )
-if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno")
-then
-    AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
-    ENABLED_HEAPMATH=yes
-    ENABLED_SP_MATH_ALL=no
 fi
 
 
