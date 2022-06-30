@@ -6494,13 +6494,13 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 
     ALLOC_SP_INT_ARRAY(t, used, 2, err, NULL);
     if (err == MP_OKAY) {
-        if (_sp_cmp(a, m) == MP_GT) {
+        if (_sp_cmp(a, m) != MP_LT) {
             err = sp_mod(a, m, t[0]);
             a = t[0];
         }
     }
     if (err == MP_OKAY) {
-        if (_sp_cmp(b, m) == MP_GT) {
+        if (_sp_cmp(b, m) != MP_LT) {
             err = sp_mod(b, m, t[1]);
             b = t[1];
         }
@@ -6508,13 +6508,11 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     if (err == MP_OKAY) {
         if (_sp_cmp(a, b) == MP_LT) {
             err = sp_add(a, m, t[0]);
-            if (err == MP_OKAY) {
-                err = sp_sub(t[0], b, r);
-            }
+            a = t[0];
         }
-        else {
-            err = sp_sub(a, b, r);
-        }
+    }
+    if (err == MP_OKAY) {
+        err = sp_sub(a, b, r);
     }
 
 #if 0
