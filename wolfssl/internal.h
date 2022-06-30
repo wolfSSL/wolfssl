@@ -2219,6 +2219,7 @@ WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 /* wolfSSL Sock Addr */
 struct WOLFSSL_SOCKADDR {
     unsigned int sz; /* sockaddr size */
+    unsigned int bufSz; /* sockaddr size */
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
@@ -2226,6 +2227,8 @@ typedef struct WOLFSSL_DTLS_CTX {
     WOLFSSL_SOCKADDR peer;
     int rfd;
     int wfd;
+    byte userSet:1;
+    byte connected:1; /* Set when the rfd and wfd are connected sockets */
 } WOLFSSL_DTLS_CTX;
 
 

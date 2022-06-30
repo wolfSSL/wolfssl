@@ -382,10 +382,34 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     byte doDtlsTimeout;
-    SOCKADDR_S peer;
-    XSOCKLENT peerSz = sizeof(peer);
+    SOCKADDR_S lclPeer;
+    SOCKADDR_S* peer;
+    XSOCKLENT peerSz;
 
     WOLFSSL_ENTER("EmbedReceiveFrom()");
+
+    if (dtlsCtx->connected) {
+        peer = NULL;
+    }
+    else if (dtlsCtx->userSet) {
+        peer = &lclPeer;
+        XMEMSET(&lclPeer, 0, sizeof(lclPeer));
+        peerSz = sizeof(lclPeer);
+    }
+    else {
+        /* Store the peer address. It is used to calculate the DTLS cookie. */
+        if (dtlsCtx->peer.sa == NULL) {
+            dtlsCtx->peer.sa = (void*)XMALLOC(sizeof(SOCKADDR_S),
+                    ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+            dtlsCtx->peer.sz = 0;
+            if (dtlsCtx->peer.sa != NULL)
+                dtlsCtx->peer.bufSz = sizeof(SOCKADDR_S);
+            else
+                dtlsCtx->peer.bufSz = 0;
+        }
+        peer = dtlsCtx->peer.sa;
+        peerSz = dtlsCtx->peer.bufSz;
+    }
 
     /* Don't use ssl->options.handShakeDone since it is true even if
      * we are in the process of renegotiation */
@@ -443,10 +467,8 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 #endif /* !NO_ASN_TIME */
 
-    XMEMSET(&peer, 0, sizeof(peer));
-
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
-                                  (SOCKADDR*)&peer, &peerSz);
+                      (SOCKADDR*)peer, peer != NULL ? &peerSz : NULL);
 
     recvd = TranslateReturnCode(recvd, sd);
 
@@ -459,14 +481,22 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         return recvd;
     }
-    else {
+    else if (dtlsCtx->connected) {
+        /* Nothing to do */
+    }
+    else if (dtlsCtx->userSet) {
+        /* Check we received the packet from the correct peer */
         if (dtlsCtx->peer.sz > 0 &&
             (peerSz != (XSOCKLENT)dtlsCtx->peer.sz ||
-                !sockAddrEqual(&peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
+                !sockAddrEqual(peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
                     dtlsCtx->peer.sz))) {
             WOLFSSL_MSG("    Ignored packet from invalid peer");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
+    }
+    else {
+        /* Store size of saved address */
+        dtlsCtx->peer.sz = peerSz;
     }
 #ifndef NO_ASN_TIME
     ssl->dtls_start_timeout = 0;

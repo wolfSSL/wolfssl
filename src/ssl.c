@@ -890,6 +890,25 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
     return ret;
 }
 
+#ifdef WOLFSSL_DTLS
+int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
+{
+    int ret;
+
+    WOLFSSL_ENTER("SSL_set_dtls_fd_connected");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_set_fd(ssl, fd);
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->buffers.dtlsCtx.connected = 1;
+
+    return ret;
+}
+#endif
+
 
 int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd)
 {
@@ -903,6 +922,7 @@ int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd)
     ssl->IOCB_ReadCtx  = &ssl->rfd;
 
     #ifdef WOLFSSL_DTLS
+        ssl->buffers.dtlsCtx.connected = 0;
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.rfd = fd;
@@ -926,6 +946,7 @@ int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd)
     ssl->IOCB_WriteCtx  = &ssl->wfd;
 
     #ifdef WOLFSSL_DTLS
+        ssl->buffers.dtlsCtx.connected = 0;
         if (ssl->options.dtls) {
             ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
             ssl->buffers.dtlsCtx.wfd = fd;
@@ -1188,6 +1209,8 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
             XFREE(ssl->buffers.dtlsCtx.peer.sa,ssl->heap,DYNAMIC_TYPE_SOCKADDR);
         ssl->buffers.dtlsCtx.peer.sa = NULL;
         ssl->buffers.dtlsCtx.peer.sz = 0;
+        ssl->buffers.dtlsCtx.peer.bufSz = 0;
+        ssl->buffers.dtlsCtx.userSet = 0;
         return WOLFSSL_SUCCESS;
     }
 
@@ -1200,6 +1223,8 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
         XMEMCPY(sa, peer, peerSz);
         ssl->buffers.dtlsCtx.peer.sa = sa;
         ssl->buffers.dtlsCtx.peer.sz = peerSz;
+        ssl->buffers.dtlsCtx.peer.bufSz = peerSz;
+        ssl->buffers.dtlsCtx.userSet = 1;
         return WOLFSSL_SUCCESS;
     }
     return WOLFSSL_FAILURE;

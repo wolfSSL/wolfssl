@@ -1045,6 +1045,7 @@ WOLFSSL_API int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx, WOLFSSL_X509_VERIFY_PAR
 WOLFSSL_API int  wolfSSL_is_server(WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
+WOLFSSL_API int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
 WOLFSSL_API int  wolfSSL_set_write_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
