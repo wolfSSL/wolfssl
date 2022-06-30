@@ -6244,10 +6244,12 @@ int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
         return WOLFSSL_FAILURE;
     }
 
-    if ((sigalg->algorithm->obj == NULL) || (sigalg->algorithm->obj[idx++] != ASN_OBJECT_ID)) {
+    if ((sigalg->algorithm->obj == NULL) ||
+        (sigalg->algorithm->obj[idx] != ASN_OBJECT_ID)) {
         WOLFSSL_MSG("Bad ASN1 Object");
         return WOLFSSL_FAILURE;
     }
+    idx++; /* skip object id */
 
     if (GetLength((const byte*)sigalg->algorithm->obj, &idx, &length,
                   sigalg->algorithm->objSz) < 0 || length < 0) {
@@ -6262,7 +6264,7 @@ int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
     for (i = 0; i < length; ++i) {
         char hex_digits[4];
 #ifdef XSNPRINTF
-        XSNPRINTF(hex_digits, sizeof hex_digits, "%c%02X", i>0 ? ':' : ' ',
+        XSNPRINTF(hex_digits, sizeof(hex_digits), "%c%02X", i>0 ? ':' : ' ',
                   (unsigned int)sigalg->algorithm->obj[idx+i]);
 #else
         XSPRINTF(hex_digits, "%c%02X", i>0 ? ':' : ' ',

@@ -155,7 +155,8 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
         if (len_wanted >= lineLen) {
             WOLFSSL_MSG("Buffer overflow formatting indentation");
             ret = 0;
-        } else {
+        }
+        else {
             /* Write indents string to BIO */
             if (wolfSSL_BIO_write(bio, line, len_wanted) <= 0) {
                 ret = 0;
@@ -261,7 +262,8 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
         if (li >= (int)sizeof(line)) {
             WOLFSSL_MSG("Buffer overflow formatting name");
             ret = 0;
-        } else {
+        }
+        else {
             if (wolfSSL_BIO_write(bio, line, li) <= 0) {
                 ret = 0;
             }
@@ -306,8 +308,10 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
             /* Put the leading spaces on new line. */
             XSTRNCPY(line, PRINT_NUM_INDENT, PRINT_NUM_INDENT_CNT + 1);
             li = PRINT_NUM_INDENT_CNT;
-        } else
+        }
+        else {
             li += len_wanted;
+        }
     }
 
     if (ret == 1) {
@@ -1922,7 +1926,8 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
         if (len >= (int)sizeof(line)) {
             WOLFSSL_MSG("Buffer overflow while formatting key preamble");
             ret = 0;
-        } else {
+        }
+        else {
             if (wolfSSL_BIO_write(bio, line, len) <= 0) {
                 ret = 0;
             }
