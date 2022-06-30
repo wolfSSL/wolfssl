@@ -11806,13 +11806,13 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
         if (x509 == NULL) {
-            XFREE(store, heap, DYNAMIC_TYPE_X509);
+            XFREE(store, heap, DYNAMIC_TYPE_X509_STORE);
             return MEMORY_E;
         }
         #endif
         domain = (char*)XMALLOC(ASN_NAME_MAX, heap, DYNAMIC_TYPE_STRING);
         if (domain == NULL) {
-            XFREE(store, heap, DYNAMIC_TYPE_X509);
+            XFREE(store, heap, DYNAMIC_TYPE_X509_STORE);
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
             XFREE(x509, heap, DYNAMIC_TYPE_X509);
             #endif

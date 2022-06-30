@@ -143,9 +143,9 @@ static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
         tmp = next;
     }
     if (crle->signature != NULL)
-        XFREE(crle->signature, heap, DYNAMIC_TYPE_REVOKED);
+        XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
     if (crle->toBeSigned != NULL)
-        XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_REVOKED);
+        XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
 
     (void)heap;
 }

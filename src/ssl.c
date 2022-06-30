@@ -19512,7 +19512,7 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         if (wolfSSL_SESSION_set_ex_data(ret, 0, (void *)(-1))
                 != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error setting up ex data for stunnel");
-            XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(ret, NULL, DYNAMIC_TYPE_SESSION);
             return NULL;
         }
 #endif
@@ -35512,7 +35512,7 @@ char *wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM *bn)
     }
 
     if (mp_todecimal((mp_int*)bn->internal, buf) != MP_OKAY) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
 
