@@ -2832,6 +2832,13 @@ static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
         return ret;
     if ((ret = wc_HmacUpdate(&cookieHmac, hash, hashSz)) != 0)
         return ret;
+#ifdef WOLFSSL_DTLS13
+    /* Tie cookie to peer address */
+    if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0 &&
+            (ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
+                    ssl->buffers.dtlsCtx.peer.sz)) != 0)
+        return ret;
+#endif
     if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
         return ret;
 
@@ -4775,6 +4782,13 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
         return ret;
     if ((ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz)) != 0)
         return ret;
+#ifdef WOLFSSL_DTLS13
+    /* Tie cookie to peer address */
+    if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0 &&
+            (ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
+                    ssl->buffers.dtlsCtx.peer.sz)) != 0)
+        return ret;
+#endif
     if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
         return ret;
 
