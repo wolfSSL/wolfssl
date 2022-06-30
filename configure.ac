@@ -3026,7 +3026,7 @@ fi
 
 # ECC encrypt
 AC_ARG_ENABLE([eccencrypt],
-    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled). yes = SEC1 standard, iso18033 = ISO 18033 standard, old = original wolfSSL algorithm])],
+    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled). yes = SEC1 standard, geniv = Generate IV, iso18033 = ISO 18033 standard, old = original wolfSSL algorithm])],
     [ ENABLED_ECC_ENCRYPT=$enableval ],
     [ ENABLED_ECC_ENCRYPT=no ]
     )
@@ -3049,6 +3049,10 @@ then
     if test "$ENABLED_ECC_ENCRYPT" = "iso18033"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_ISO18033"
+    fi
+    if test "$ENABLED_ECC_ENCRYPT" = "geniv"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_GEN_IV"
     fi
 fi
 

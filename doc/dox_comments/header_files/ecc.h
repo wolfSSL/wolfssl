@@ -1664,6 +1664,7 @@ int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
 
     \sa wc_ecc_ctx_new
     \sa wc_ecc_ctx_set_peer_salt
+    \sa wc_ecc_ctx_set_kdf_salt
 */
 
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
@@ -1702,9 +1703,45 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
     \endcode
 
     \sa wc_ecc_ctx_get_own_salt
+    \sa wc_ecc_ctx_set_kdf_salt
 */
 
 int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
+
+/*!
+    \ingroup ECC
+
+    \brief This function sets the salt pointer and length to use with KDF
+    into the ecEncCtx object.
+
+    \return 0 Returned upon successfully setting the salt for the
+    ecEncCtx object.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is NULL
+    or if the given salt is NULL and length is not NULL.
+
+    \param ctx pointer to the ecEncCtx for which to set the salt
+    \param salt pointer to salt buffer
+    \param len length salt in bytes
+
+    _Example_
+    \code
+    ecEncCtx* srvCtx;
+    WC_WC_RNG rng;
+    byte cliSalt[] = { fixed salt data };
+    word32 cliSaltLen = (word32)sizeof(cliSalt);
+    int ret;
+
+    wc_InitRng(&rng);
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+
+    ret = wc_ecc_ctx_set_kdf_salt(&cliCtx, cliSalt, cliSaltLen);
+    \endcode
+
+    \sa wc_ecc_ctx_get_own_salt
+    \sa wc_ecc_ctx_get_peer_salt
+*/
+
+int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len);
 
 /*!
     \ingroup ECC
