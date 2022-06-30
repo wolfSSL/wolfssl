@@ -1963,7 +1963,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     if (ret != CRYPTOCB_UNAVAILABLE) {
         if (ret > 0) {
             ret = 0; /* tsip_Tls13AesEncrypt returns output size */
-        } 
+        }
         return ret;
     }
     ret = 0;
