@@ -1054,6 +1054,11 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
     key->privKeySet = 1;
 
+    if (key->pubKeySet) {
+        /* Validate loaded public key */
+        return wc_ed25519_check_key(key);
+    }
+
     return 0;
 }
 

@@ -997,6 +997,11 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
         key->privKeySet = 1;
     }
 
+    if ((ret == 0) && key->pubKeySet) {
+        /* Validate loaded public key */
+        ret = wc_ed448_check_key(key);
+    }
+
     return ret;
 }
 
