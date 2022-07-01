@@ -13910,8 +13910,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
                     sigCtx->key.rsa = (RsaKey*)XMALLOC(sizeof(RsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_RSA);
-                    sigCtx->sigCpy = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
-                                         sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
+                    sigCtx->sigCpy = (byte*)XMALLOC(sigSz, sigCtx->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
                     if (sigCtx->key.rsa == NULL || sigCtx->sigCpy == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }

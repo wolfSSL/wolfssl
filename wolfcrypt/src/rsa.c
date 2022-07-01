@@ -921,17 +921,21 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     hash = (wc_HashAlg*)XMALLOC(sizeof(*hash), heap, DYNAMIC_TYPE_DIGEST);
     if (hash == NULL) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (tmpF) {
             XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         }
+    #endif
         return MEMORY_E;
     }
     ret = wc_HashInit_ex(hash, hType, heap, INVALID_DEVID);
     if (ret != 0) {
         XFREE(hash, heap, DYNAMIC_TYPE_DIGEST);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (tmpF) {
             XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         }
+    #endif
         return ret;
     }
 #endif

@@ -1166,6 +1166,33 @@ enum {
     #error RSA maximum bit size must be multiple of 8
 #endif
 
+/* MySQL wants to be able to use 8192-bit numbers. */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+        (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && \
+         FP_MAX_BITS >= 16384) || \
+        ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH)) && \
+         SP_INT_MAX_BITS >= 16384)
+     /* Maximum supported number length is 8192-bit. */
+     #define ENCRYPT_BASE_BITS  8192
+#elif defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
+     /* Use the FP size down to a min of 1024-bit. */
+     #if FP_MAX_BITS > 2048
+         #define ENCRYPT_BASE_BITS  (FP_MAX_BITS / 2)
+     #else
+         #define ENCRYPT_BASE_BITS  1024
+     #endif
+#elif defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH)
+    /* Use the SP math size down to a min of 1024-bit. */
+    #if SP_INT_MAX_BITS > 2048
+        #define ENCRYPT_BASE_BITS  (SP_INT_MAX_BITS / 2)
+    #else
+        #define ENCRYPT_BASE_BITS  1024
+    #endif
+#else
+    /* Integer/heap maths - support 4096-bit. */
+    #define ENCRYPT_BASE_BITS  4096
+#endif
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -1204,21 +1231,12 @@ enum Misc {
 #endif
 #endif
 #ifdef HAVE_PQC
-    ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
-#else
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
-#if !defined(NO_PSK) && defined(USE_FAST_MATH)
-    ENCRYPT_LEN     = (FP_MAX_BITS / 2 / 8) + MAX_PSK_ID_LEN + 2,
-#else
-    ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
-#endif
+    ENCRYPT_LEN     = 1500,     /* allow 1500 byte static buffer for falcon */
 #else
 #ifndef NO_PSK
-    ENCRYPT_LEN     = 512 + MAX_PSK_ID_LEN + 2,    /* 4096 bit static buffer */
+    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + MAX_PSK_ID_LEN + 2,
 #else
-    ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
-#endif
+    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8),
 #endif
 #endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
