@@ -2219,7 +2219,7 @@ WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 /* wolfSSL Sock Addr */
 struct WOLFSSL_SOCKADDR {
     unsigned int sz; /* sockaddr size */
-    unsigned int bufSz; /* sockaddr size */
+    unsigned int bufSz; /* size of allocated buffer */
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
@@ -4481,7 +4481,7 @@ struct WOLFSSL {
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
                                         *  ClientHello */
     void*             chGoodCtx;       /*  user ClientHello cb context  */

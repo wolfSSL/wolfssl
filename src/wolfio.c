@@ -407,7 +407,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             else
                 dtlsCtx->peer.bufSz = 0;
         }
-        peer = dtlsCtx->peer.sa;
+        peer = (SOCKADDR_S*)dtlsCtx->peer.sa;
         peerSz = dtlsCtx->peer.bufSz;
     }
 
@@ -518,8 +518,8 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_ENTER("EmbedSendTo()");
 
     sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
-                                (const SOCKADDR*)dtlsCtx->peer.sa,
-                                dtlsCtx->peer.sz);
+                !dtlsCtx->connected ? (const SOCKADDR*)dtlsCtx->peer.sa : NULL,
+                !dtlsCtx->connected ? dtlsCtx->peer.sz                  : 0);
 
     sent = TranslateReturnCode(sent, sd);
 
