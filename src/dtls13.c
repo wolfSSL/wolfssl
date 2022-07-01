@@ -331,6 +331,8 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
        message */
     if (ssl->options.side == WOLFSSL_SERVER_END && (hs == finished))
         return 1;
+#else
+    (void)ssl;
 #endif /* NO_WOLFSSL_SERVER */
 
     if (hs == session_ticket || hs == key_update)

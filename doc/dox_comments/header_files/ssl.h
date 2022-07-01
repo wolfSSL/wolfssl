@@ -1595,7 +1595,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
 */
-int  wolfSSL_set_fd (WOLFSSL* ssl, int fd);
+int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
 
 /*!
     \ingroup Setup
@@ -1631,8 +1631,39 @@ int  wolfSSL_set_fd (WOLFSSL* ssl, int fd);
     \sa wolfSSL_CTX_SetIORecv
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
+    \sa wolfDTLS_SetChGoodCb
 */
 int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
+
+/*!
+    \ingroup Setup
+
+    \brief Allows setting a callback for DTLS client hello "good".
+
+    \return SSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG upon failure.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+    \param fd file descriptor to use with SSL/TLS connection.
+
+    _Example_
+    \code
+
+    // Called when we have verified a connection
+    static int chGoodCb(WOLFSSL* ssl, void* arg)
+    {
+        // setup peer and file descriptors
+
+    }
+
+    if (wolfDTLS_SetChGoodCb(ssl, chGoodCb, NULL) != WOLFSSL_SUCCESS) {
+         // error setting callback
+    }
+    \endcode
+
+    \sa wolfSSL_set_dtls_fd_connected
+*/
+int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
 
 /*!
     \ingroup IO

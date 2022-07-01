@@ -2228,7 +2228,10 @@ typedef struct WOLFSSL_DTLS_CTX {
     int rfd;
     int wfd;
     byte userSet:1;
-    byte connected:1; /* Set when the rfd and wfd are connected sockets */
+    byte connected:1; /* When set indicates rfd and wfd sockets are
+                       * connected (connect() and bind() both called).
+                       * This means that sendto and recvfrom do not need to
+                       * specify and store the peer address. */
 } WOLFSSL_DTLS_CTX;
 
 

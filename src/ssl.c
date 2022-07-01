@@ -12794,9 +12794,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* NO_WOLFSSL_SERVER */
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
-int wolfSSL_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
+int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
 {
-    WOLFSSL_ENTER("wolfSSL_SetChGoodCb");
+    WOLFSSL_ENTER("wolfDTLS_SetChGoodCb");
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;

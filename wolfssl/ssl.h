@@ -3943,10 +3943,13 @@ WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 /* notify user we parsed a verified ClientHello is done. This only has an effect
  * on the server end. */
 typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
-WOLFSSL_API int wolfSSL_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
+WOLFSSL_API int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
+#endif
+
 /* notify user the handshake is done */
 typedef int (*HandShakeDoneCb)(WOLFSSL* ssl, void*);
 WOLFSSL_API int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx);
