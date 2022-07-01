@@ -152,7 +152,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #endif /* STM32_CRYPTO */
 
 #if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     struct sp_int;
     #define MATH_INT_T struct sp_int
 #elif defined(USE_FAST_MATH)

@@ -21002,7 +21002,7 @@ const char resMasterLabel[] = "res master";
 const char derivedLabel[] = "derived";
 
 
-int tls13_kdf_test(void)
+WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 {
     int ret = 0;
     word32 i;
