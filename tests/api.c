@@ -21230,7 +21230,7 @@ static int test_wc_ed25519_import_public (void)
     printf(testingFmt, "wc_ed25519_import_public()");
 
     if (ret == 0) {
-        ret = wc_ed25519_import_public(in, inlen, &pubKey);
+        ret = wc_ed25519_import_public_ex(in, inlen, &pubKey, 1);
 
         if (ret == 0 && XMEMCMP(in, pubKey.p, inlen) == 0) {
             ret = 0;
@@ -21300,8 +21300,8 @@ static int test_wc_ed25519_import_private_key (void)
     printf(testingFmt, "wc_ed25519_import_private_key()");
 
     if (ret == 0) {
-        ret = wc_ed25519_import_private_key(privKey, privKeySz, pubKey,
-                                                            pubKeySz, &key);
+        ret = wc_ed25519_import_private_key_ex(privKey, privKeySz, pubKey,
+                                                             pubKeySz, &key, 1);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
                                 || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
             ret = WOLFSSL_FATAL_ERROR;
@@ -21313,7 +21313,8 @@ static int test_wc_ed25519_import_private_key (void)
         ret = wc_ed25519_export_private(&key, bothKeys, &bothKeysSz);
 
     if (ret == 0) {
-        ret = wc_ed25519_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
+        ret = wc_ed25519_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
+            &key, 1);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
                                 || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
             ret = WOLFSSL_FATAL_ERROR;
@@ -23051,7 +23052,7 @@ static int test_wc_ed448_import_public (void)
     printf(testingFmt, "wc_ed448_import_public()");
 
     if (ret == 0) {
-        ret = wc_ed448_import_public(in, inlen, &pubKey);
+        ret = wc_ed448_import_public_ex(in, inlen, &pubKey, 1);
 
         if (ret == 0 && XMEMCMP(in, pubKey.p, inlen) == 0) {
             ret = 0;
@@ -23123,8 +23124,8 @@ static int test_wc_ed448_import_private_key (void)
     printf(testingFmt, "wc_ed448_import_private_key()");
 
     if (ret == 0) {
-        ret = wc_ed448_import_private_key(privKey, privKeySz, pubKey, pubKeySz,
-                                                                          &key);
+        ret = wc_ed448_import_private_key_ex(privKey, privKeySz, pubKey,
+                                                             pubKeySz, &key, 1);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0 ||
                                       XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
             ret = WOLFSSL_FATAL_ERROR;
@@ -23136,7 +23137,8 @@ static int test_wc_ed448_import_private_key (void)
         ret = wc_ed448_export_private(&key, bothKeys, &bothKeysSz);
 
     if (ret == 0) {
-        ret = wc_ed448_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
+        ret = wc_ed448_import_private_key_ex(bothKeys, bothKeysSz, NULL, 0,
+                                                                       &key, 1);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0 ||
                                       XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
             ret = WOLFSSL_FATAL_ERROR;

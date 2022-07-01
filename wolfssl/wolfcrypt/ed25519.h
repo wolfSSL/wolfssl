@@ -96,6 +96,7 @@ struct ed25519_key {
     int keyId;
     word32 flags;
 #endif
+    word16 privKeySet:1;
     word16 pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
@@ -181,11 +182,17 @@ void wc_ed25519_free(ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
 WOLFSSL_API
+int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
+                                int trusted);
+WOLFSSL_API
 int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
                                                               ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed25519_key* key);
+WOLFSSL_API
+int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz, ed25519_key* key, int trusted);
 #endif /* HAVE_ED25519_KEY_IMPORT */
 
 #ifdef HAVE_ED25519_KEY_EXPORT
