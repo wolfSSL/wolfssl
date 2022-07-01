@@ -22133,7 +22133,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
         idx += algoSz;
         /* curve */
         if (output)
-            (void)SetCurve(key, output + idx, outLen - idx);
+            (void)SetCurve(key, output + idx, curveSz);
         idx += curveSz;
         /* bit string */
         if (output)
@@ -22157,7 +22157,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     word32 pubSz = 0;
     int sz = 0;
     int ret = 0;
-    int curveIdSz;
+    int curveIdSz = 0;
     byte* curveOid = NULL;
 
     /* Check key validity. */
@@ -29306,7 +29306,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     word32 privSz, pubSz;
     int sz = 0;
     int ret = 0;
-    int curveIdSz;
+    int curveIdSz = 0;
 
     /* Check validity of parameters. */
     if ((key == NULL) || ((output == NULL) && (inLen == NULL))) {
