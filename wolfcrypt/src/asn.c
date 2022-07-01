@@ -13288,7 +13288,7 @@ word32 SetExplicit(byte number, word32 len, byte* output)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
-static int SetCurve(ecc_key* key, byte* output)
+static int SetCurve(ecc_key* key, byte* output, size_t outSz)
 {
 #ifdef HAVE_OID_ENCODING
     int ret;
@@ -13323,6 +13323,8 @@ static int SetCurve(ecc_key* key, byte* output)
         return ret;
     }
 #else
+    if (oidSz > outSz)
+        return BUFFER_E;
     XMEMCPY(output+idx, key->dp->oid, oidSz);
 #endif
     idx += oidSz;
@@ -22108,7 +22110,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     /* headers */
     if (with_header) {
-        curveSz = SetCurve(key, NULL);
+        curveSz = SetCurve(key, NULL, 0);
         if (curveSz <= 0) {
             return curveSz;
         }
@@ -22131,7 +22133,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
         idx += algoSz;
         /* curve */
         if (output)
-            (void)SetCurve(key, output + idx);
+            (void)SetCurve(key, output + idx, outLen - idx);
         idx += curveSz;
         /* bit string */
         if (output)
@@ -22180,7 +22182,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
         CALLOC_ASNSETDATA(dataASN, eccPublicKeyASN_Length, ret, key->heap);
 
         /* Get the length of the named curve OID to put into the encoding. */
-        curveIdSz = SetCurve(key, NULL);
+        curveIdSz = SetCurve(key, NULL, 0);
         if (curveIdSz < 0) {
             ret = curveIdSz;
         }
@@ -22228,7 +22230,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     if ((ret == 0) && (output != NULL)) {
         /* Put named curve OID data into encoding. */
-        curveIdSz = SetCurve(key, curveOid);
+        curveIdSz = SetCurve(key, curveOid, curveIdSz);
         if (curveIdSz < 0) {
             ret = curveIdSz;
         }
@@ -29154,7 +29156,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         /* curve */
         curve[curveidx++] = ECC_PREFIX_0;
         curveidx++ /* to put the size after computation */;
-        curveSz = SetCurve(key, curve+curveidx);
+        curveSz = SetCurve(key, curve+curveidx, MAX_ALGO_SZ);
         if (curveSz < 0)
             return curveSz;
         /* set computed size */
@@ -29337,7 +29339,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         SetASN_Buffer(&dataASN[ECCKEYASN_IDX_PKEY], NULL, privSz);
         if (curveIn) {
             /* Get length of the named curve OID to put into the encoding. */
-            curveIdSz = SetCurve(key, NULL);
+            curveIdSz = SetCurve(key, NULL, 0);
             if (curveIdSz < 0) {
                 ret = curveIdSz;
             }
@@ -29381,7 +29383,8 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
         if (curveIn) {
             /* Put named curve OID data into encoding. */
             curveIdSz = SetCurve(key,
-                (byte*)dataASN[ECCKEYASN_IDX_CURVEID].data.buffer.data);
+                (byte*)dataASN[ECCKEYASN_IDX_CURVEID].data.buffer.data,
+                curveIdSz);
             if (curveIdSz < 0) {
                 ret = curveIdSz;
             }
