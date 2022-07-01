@@ -151,10 +151,16 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
 
     if (indent > 0) {
         /* Print indent spaces. */
-        lineLen = (int)XSNPRINTF(line, lineLen - 1, "%*s", indent, " ");
-        /* Write indents string to BIO */
-        if (wolfSSL_BIO_write(bio, line, lineLen) <= 0) {
+        int len_wanted = XSNPRINTF(line, lineLen, "%*s", indent, " ");
+        if (len_wanted >= lineLen) {
+            WOLFSSL_MSG("Buffer overflow formatting indentation");
             ret = 0;
+        }
+        else {
+            /* Write indents string to BIO */
+            if (wolfSSL_BIO_write(bio, line, len_wanted) <= 0) {
+                ret = 0;
+            }
         }
     }
 
@@ -193,11 +199,16 @@ static int wolfssl_print_value(WOLFSSL_BIO* bio, mp_int* value,
         /* Get 32-bits of value. */
         v = (word32)value->dp[0];
         /* Print the line to the string. */
-        len = (int)XSNPRINTF(line, sizeof(line) - 1, "%s %u (0x%x)\n", name, v,
+        len = (int)XSNPRINTF(line, sizeof(line), "%s %u (0x%x)\n", name, v,
             v);
-        /* Write string to BIO */
-        if (wolfSSL_BIO_write(bio, line, len) <= 0) {
+        if (len >= (int)sizeof(line)) {
+            WOLFSSL_MSG("Buffer overflow while formatting value");
             ret = 0;
+        } else {
+            /* Write string to BIO */
+            if (wolfSSL_BIO_write(bio, line, len) <= 0) {
+                ret = 0;
+            }
         }
     }
 
@@ -247,9 +258,15 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
     }
     if (ret == 1) {
         /* Print header string line to string. */
-        li = XSNPRINTF(line, sizeof(line) - 1, "%s\n", name);
-        if (wolfSSL_BIO_write(bio, line, li) <= 0) {
+        li = XSNPRINTF(line, sizeof(line), "%s\n", name);
+        if (li >= (int)sizeof(line)) {
+            WOLFSSL_MSG("Buffer overflow formatting name");
             ret = 0;
+        }
+        else {
+            if (wolfSSL_BIO_write(bio, line, li) <= 0) {
+                ret = 0;
+            }
         }
     }
     if (ret == 1) {
@@ -259,15 +276,26 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
     if (ret == 1) {
         /* Start first digit line with spaces.
          * Writing out zeros ensures number is a positive value. */
-        li = XSNPRINTF(line, sizeof(line) - 1, PRINT_NUM_INDENT "%s",
+        li = XSNPRINTF(line, sizeof(line), PRINT_NUM_INDENT "%s",
             mp_leading_bit(num) ?  "00:" : "");
+        if (li >= (int)sizeof(line)) {
+            WOLFSSL_MSG("Buffer overflow formatting spaces");
+            ret = 0;
+        }
     }
 
     /* Put out each line of numbers. */
     for (i = 0; (ret == 1) && (i < rawLen); i++) {
-        /* Check for a complete line. */
-        if (li >= PRINT_NUM_MAX_DIGIT_LINE) {
-            /* More bytes coming so append carriage return. */
+        /* Encode another byte as 2 hex digits and append colon. */
+        int len_wanted = XSNPRINTF(line + li, sizeof(line) - li, "%02x:",
+                                   rawKey[i]);
+        /* Check if there was room -- if not, print the current line, not
+         * including the newest octet.
+         */
+        if (len_wanted >= (int)sizeof(line) - li) {
+            /* bump current octet to the next line. */
+            --i;
+            /* More bytes coming so add a line break. */
             line[li++] = '\n';
             /* Write out the line. */
             if (wolfSSL_BIO_write(bio, line, li) <= 0) {
@@ -281,8 +309,9 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
             XSTRNCPY(line, PRINT_NUM_INDENT, PRINT_NUM_INDENT_CNT + 1);
             li = PRINT_NUM_INDENT_CNT;
         }
-        /* Encode another byte as 2 hex digits and append colon. */
-        li += XSNPRINTF(line + li, sizeof(line) - 1 - li, "%02x:", rawKey[i]);
+        else {
+            li += len_wanted;
+        }
     }
 
     if (ret == 1) {
@@ -1892,10 +1921,16 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
     }
     if (ret == 1) {
         /* Print header line. */
-        len = XSNPRINTF(line, sizeof(line) - 1, "\nRSA %s: (%d bit)\n",
+        len = XSNPRINTF(line, sizeof(line), "\nRSA %s: (%d bit)\n",
             (!mp_iszero(&key->d)) ? "Private-Key" : "Public-Key", sz);
-        if (wolfSSL_BIO_write(bio, line, len) <= 0) {
+        if (len >= (int)sizeof(line)) {
+            WOLFSSL_MSG("Buffer overflow while formatting key preamble");
             ret = 0;
+        }
+        else {
+            if (wolfSSL_BIO_write(bio, line, len) <= 0) {
+                ret = 0;
+            }
         }
     }
 
