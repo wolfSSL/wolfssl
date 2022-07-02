@@ -118,7 +118,7 @@ WOLFSSL_LOCAL void se050_aes_free(struct Aes* aes);
 
 struct ecc_key;
 struct WC_RNG;
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     struct sp_int;
     #define MATH_INT_T struct sp_int
 #elif defined(USE_FAST_MATH)

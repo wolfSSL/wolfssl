@@ -240,7 +240,7 @@ linuxv5)
   ;;
 linuxv5-ready|fips-ready|fips-v5-ready)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="WCv5.0-RC12"
+  FIPS_VERSION="master"
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
