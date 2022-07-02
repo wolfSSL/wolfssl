@@ -413,7 +413,9 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
 static int  hkdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
+#ifdef WOLFSSL_TLS13
 WOLFSSL_TEST_SUBROUTINE int  tls13_kdf_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 #ifdef WC_RC2
