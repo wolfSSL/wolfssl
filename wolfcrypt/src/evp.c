@@ -1593,7 +1593,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new_id(int id, WOLFSSL_ENGINE *e)
         ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
         /* wolfSSL_EVP_PKEY_CTX_new calls wolfSSL_EVP_PKEY_up_ref so we need
          * to always call wolfSSL_EVP_PKEY_free (either to free it if an
-         * error occured in the previous function or to decrease the reference
+         * error occurred in the previous function or to decrease the reference
          * count so that pkey is actually free'd when wolfSSL_EVP_PKEY_CTX_free
          * is called) */
         wolfSSL_EVP_PKEY_free(pkey);
@@ -5686,7 +5686,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_CFB) || \
-    defined(WOLFSSSL_AES_OFB)
+    defined(WOLFSSL_AES_OFB)
     #define AES_SET_KEY
 #endif
 
@@ -8817,7 +8817,7 @@ static int Indent(WOLFSSL_BIO* out, int indents)
  * four spaces, then hex coded 15 byte data with separator ":" follow.
  * Each line looks like:
  * "    00:e6:ab: --- 9f:ef:"
- * Parmeters:
+ * Parameters:
  * out     bio to output dump data
  * input   buffer holding data to dump
  * inlen   input data size
@@ -9923,7 +9923,7 @@ struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
     }
     return NULL;
 }
-/*  wolfSSL_EVP_ENCODE_CTX_free frees specified WOLFSSL_EVP_ENCODE_CTX struc.
+/*  wolfSSL_EVP_ENCODE_CTX_free frees specified WOLFSSL_EVP_ENCODE_CTX struct.
  */
 void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
