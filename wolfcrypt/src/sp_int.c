@@ -7113,9 +7113,9 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     if ((!done) && (err == MP_OKAY)) {
         sd    = td[0];
         trial = td[1];
-        i = 2;
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
     !defined(WOLFSSL_SP_NO_MALLOC)
+        i = 2;
         sa    = ((rem != NULL) && (rem != d)) ? rem : td[i++];
         tr    = ((r != NULL) && (r != d))     ? r   : td[i];
 #else
