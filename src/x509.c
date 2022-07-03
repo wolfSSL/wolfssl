@@ -6552,9 +6552,9 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 #else
     (void)ctx;
     (void)argc;
+    (void)argl;
     return WOLFSSL_NOT_IMPLEMENTED;
 #endif
-    (void)argl;
 }
 
 /* set additional data to X509_LOOKUP                                   */
