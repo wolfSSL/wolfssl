@@ -1638,7 +1638,19 @@ int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd)
 /*!
     \ingroup Setup
 
-    \brief Allows setting a callback for DTLS client hello "good".
+    \brief Allows setting a callback for a correctly processed and verified DTLS
+           client hello. When using a cookie exchange mechanism (either the
+           HelloVerifyRequest in DTLS 1.2 or the HelloRetryRequest with a cookie
+           extension in DTLS 1.3) this callback is called after the cookie
+           exchange has succeeded. This is useful to use one WOLFSSL object as
+           the listener for new connections and being able to isolate the
+           WOLFSSL object once the ClientHello is verified (either through a
+           cookie exchange or just checking if the ClientHello had the correct
+           format).
+           DTLS 1.2:
+           https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1
+           DTLS 1.3:
+           https://www.rfc-editor.org/rfc/rfc8446#section-4.2.2
 
     \return SSL_SUCCESS upon success.
     \return BAD_FUNC_ARG upon failure.
