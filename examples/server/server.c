@@ -2342,7 +2342,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (minVersion != SERVER_INVALID_VERSION) {
 #ifdef WOLFSSL_DTLS13
-        if (wolfSSL_dtls(ssl)) {
+        if (doDTLS) {
             switch (minVersion) {
             case 4:
                 minVersion = WOLFSSL_DTLSV1_3;
