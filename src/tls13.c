@@ -2823,23 +2823,29 @@ static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
     cookieType = WC_SHA256;
     macSz = WC_SHA256_DIGEST_SIZE;
 #endif /* NO_SHA256 */
-    XMEMSET(&cookieHmac, 0, sizeof(Hmac));
 
-    ret = wc_HmacSetKey(&cookieHmac, cookieType,
-                        ssl->buffers.tls13CookieSecret.buffer,
-                        ssl->buffers.tls13CookieSecret.length);
-    if (ret != 0)
-        return ret;
-    if ((ret = wc_HmacUpdate(&cookieHmac, hash, hashSz)) != 0)
-        return ret;
+    ret = wc_HmacInit(&cookieHmac, ssl->heap, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(&cookieHmac, cookieType,
+                            ssl->buffers.tls13CookieSecret.buffer,
+                            ssl->buffers.tls13CookieSecret.length);
+    }
+    if (ret == 0)
+        ret = wc_HmacUpdate(&cookieHmac, hash, hashSz);
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
-    if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0 &&
-            (ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
-                    ssl->buffers.dtlsCtx.peer.sz)) != 0)
-        return ret;
+    if (ret == 0) {
+        if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
+            ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
+                                    ssl->buffers.dtlsCtx.peer.sz);
+        }
+    }
 #endif
-    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
+    if (ret == 0)
+        ret = wc_HmacFinal(&cookieHmac, mac);
+
+    wc_HmacFree(&cookieHmac);
+    if (ret != 0)
         return ret;
 
     /* The cookie data is the hash and the integrity check. */
@@ -4773,23 +4779,29 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
     if (cookieSz < ssl->specs.hash_size + macSz)
         return HRR_COOKIE_ERROR;
     cookieSz -= macSz;
-    XMEMSET(&cookieHmac, 0, sizeof(Hmac));
 
-    ret = wc_HmacSetKey(&cookieHmac, cookieType,
-                        ssl->buffers.tls13CookieSecret.buffer,
-                        ssl->buffers.tls13CookieSecret.length);
-    if (ret != 0)
-        return ret;
-    if ((ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz)) != 0)
-        return ret;
+    ret = wc_HmacInit(&cookieHmac, ssl->heap, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(&cookieHmac, cookieType,
+                            ssl->buffers.tls13CookieSecret.buffer,
+                            ssl->buffers.tls13CookieSecret.length);
+    }
+    if (ret == 0)
+        ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz);
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
-    if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0 &&
-            (ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
-                    ssl->buffers.dtlsCtx.peer.sz)) != 0)
-        return ret;
+    if (ret == 0) {
+        if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
+            ret = wc_HmacUpdate(&cookieHmac, ssl->buffers.dtlsCtx.peer.sa,
+                                ssl->buffers.dtlsCtx.peer.sz);
+        }
+    }
 #endif
-    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
+    if (ret == 0)
+        ret = wc_HmacFinal(&cookieHmac, mac);
+
+    wc_HmacFree(&cookieHmac);
+    if (ret != 0)
         return ret;
 
     if (ConstantCompare(cookie + cookieSz, mac, macSz) != 0)
