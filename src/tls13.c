@@ -10834,6 +10834,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     ssl->keys.dtls_handshake_number = 0;
 
                     ssl->msgsReceived.got_client_hello = 0;
+                    /* Remove cookie so that it will get computed again */
+                    TLSX_Remove(&ssl->extensions, TLSX_COOKIE, ssl->heap);
 
                     /* Reset states */
                     ssl->options.serverState = NULL_STATE;
