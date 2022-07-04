@@ -950,7 +950,7 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen)
 int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     int trusted)
 {
-    int    ret;
+    int ret = 0;
 
     /* sanity check on arguments */
     if (in == NULL || key == NULL)
@@ -961,7 +961,7 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
 
     /* compressed prefix according to draft
        http://www.ietf.org/id/draft-koch-eddsa-for-openpgp-02.txt */
-    if (in[0] == 0x40 && inLen > ED25519_PUB_KEY_SIZE) {
+    if (in[0] == 0x40 && inLen == ED25519_PUB_KEY_SIZE + 1) {
         /* key is stored in compressed format so just copy in */
         XMEMCPY(key->p, (in + 1), ED25519_PUB_KEY_SIZE);
 #ifdef FREESCALE_LTC_ECC
@@ -971,16 +971,9 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
-        key->pubKeySet = 1;
-
-        if (key->privKeySet && (!trusted)) {
-            return wc_ed25519_check_key(key);
-        }
-        return 0;
     }
-
     /* importing uncompressed public key */
-    if (in[0] == 0x04 && inLen > 2*ED25519_PUB_KEY_SIZE) {
+    else if (in[0] == 0x04 && inLen > 2*ED25519_PUB_KEY_SIZE) {
 #ifdef FREESCALE_LTC_ECC
         /* reverse bytes for little endian byte order */
         for (int i = 0; i < ED25519_KEY_SIZE; i++)
@@ -989,24 +982,15 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
             key->pointY[i] = *(in + 2*ED25519_KEY_SIZE - i);
         }
         XMEMCPY(key->p, key->pointY, ED25519_KEY_SIZE);
-        key->pubKeySet = 1;
-        ret = 0;
 #else
         /* pass in (x,y) and store compressed key */
         ret = ge_compress_key(key->p, in+1,
                               in+1+ED25519_PUB_KEY_SIZE, ED25519_PUB_KEY_SIZE);
-        if (ret == 0)
-            key->pubKeySet = 1;
 #endif /* FREESCALE_LTC_ECC */
-        if ((ret == 0) && key->privKeySet && (!trusted)) {
-            return wc_ed25519_check_key(key);
-        }
-        return ret;
     }
-
     /* if not specified compressed or uncompressed check key size
        if key size is equal to compressed key size copy in key */
-    if (inLen == ED25519_PUB_KEY_SIZE) {
+    else if (inLen == ED25519_PUB_KEY_SIZE) {
         XMEMCPY(key->p, in, ED25519_PUB_KEY_SIZE);
 #ifdef FREESCALE_LTC_ECC
         /* recover X coordinate */
@@ -1015,15 +999,23 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
         key->pubKeySet = 1;
         if (key->privKeySet && (!trusted)) {
-            return wc_ed25519_check_key(key);
+            ret = wc_ed25519_check_key(key);
         }
-        return 0;
+    }
+    if (ret != 0) {
+        key->pubKeySet = 0;
     }
 
     /* bad public key format */
-    return BAD_FUNC_ARG;
+    return ret;
 }
 
 /*
@@ -1043,12 +1035,14 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
 int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
                                                                ed25519_key* key)
 {
+    int ret = 0;
+
     /* sanity check on arguments */
     if (priv == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     /* key size check */
-    if (privSz < ED25519_KEY_SIZE)
+    if (privSz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
 
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
@@ -1056,10 +1050,13 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
 
     if (key->pubKeySet) {
         /* Validate loaded public key */
-        return wc_ed25519_check_key(key);
+        ret = wc_ed25519_check_key(key);
+    }
+    if (ret != 0) {
+        key->privKeySet = 0;
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -1081,24 +1078,25 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
 int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
     const byte* pub, word32 pubSz, ed25519_key* key, int trusted)
 {
-    int    ret;
+    int ret;
 
     /* sanity check on arguments */
     if (priv == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     /* key size check */
-    if (privSz < ED25519_KEY_SIZE)
+    if (privSz != ED25519_KEY_SIZE && privSz != ED25519_PRV_KEY_SIZE)
         return BAD_FUNC_ARG;
 
     if (pub == NULL) {
         if (pubSz != 0)
             return BAD_FUNC_ARG;
-        if (privSz < ED25519_PRV_KEY_SIZE)
+        if (privSz != ED25519_PRV_KEY_SIZE)
             return BAD_FUNC_ARG;
         pub = priv + ED25519_KEY_SIZE;
         pubSz = ED25519_PUB_KEY_SIZE;
-    } else if (pubSz < ED25519_PUB_KEY_SIZE) {
+    }
+    else if (pubSz < ED25519_PUB_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
 

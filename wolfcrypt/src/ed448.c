@@ -913,7 +913,7 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
         ret = BAD_FUNC_ARG;
     }
 
-    if  (inLen < ED448_PUB_KEY_SIZE) {
+    if (inLen != ED448_PUB_KEY_SIZE) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -923,20 +923,16 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
         if (in[0] == 0x40 && inLen > ED448_PUB_KEY_SIZE) {
             /* key is stored in compressed format so just copy in */
             XMEMCPY(key->p, (in + 1), ED448_PUB_KEY_SIZE);
-            key->pubKeySet = 1;
         }
         /* importing uncompressed public key */
         else if (in[0] == 0x04 && inLen > 2*ED448_PUB_KEY_SIZE) {
             /* pass in (x,y) and store compressed key */
             ret = ge448_compress_key(key->p, in+1, in+1+ED448_PUB_KEY_SIZE);
-            if (ret == 0)
-                key->pubKeySet = 1;
         }
         else if (inLen == ED448_PUB_KEY_SIZE) {
             /* if not specified compressed or uncompressed check key size
              * if key size is equal to compressed key size copy in key */
             XMEMCPY(key->p, in, ED448_PUB_KEY_SIZE);
-            key->pubKeySet = 1;
         }
         else {
             /* bad public key format */
@@ -944,9 +940,17 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
         }
     }
 
-    if ((ret == 0) && key->privKeySet && (!trusted)) {
-        /* Check untrusted public key data matches private key. */
-        ret = wc_ed448_check_key(key);
+    if (ret == 0) {
+        key->pubKeySet = 1;
+        if (key->privKeySet && (!trusted)) {
+            /* Check untrusted public key data matches private key. */
+            ret = wc_ed448_check_key(key);
+        }
+    }
+
+    if ((ret != 0) && (key != NULL)) {
+        /* No public key set on failure. */
+        key->pubKeySet = 0;
     }
 
     return ret;
@@ -988,7 +992,7 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
     }
 
     /* key size check */
-    if ((ret == 0) && (privSz < ED448_KEY_SIZE)) {
+    if ((ret == 0) && (privSz != ED448_KEY_SIZE)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1000,6 +1004,11 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
     if ((ret == 0) && key->pubKeySet) {
         /* Validate loaded public key */
         ret = wc_ed448_check_key(key);
+    }
+
+    if ((ret != 0) && (key != NULL)) {
+        /* No private key set on error. */
+        key->privKeySet = 0;
     }
 
     return ret;
@@ -1030,17 +1039,18 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
         return BAD_FUNC_ARG;
 
     /* key size check */
-    if (privSz < ED448_KEY_SIZE)
+    if (privSz != ED448_KEY_SIZE && privSz != ED448_PRV_KEY_SIZE)
         return BAD_FUNC_ARG;
 
     if (pub == NULL) {
         if (pubSz != 0)
             return BAD_FUNC_ARG;
-        if (privSz < ED448_PRV_KEY_SIZE)
+        if (privSz != ED448_PRV_KEY_SIZE)
             return BAD_FUNC_ARG;
         pub = priv + ED448_KEY_SIZE;
         pubSz = ED448_PUB_KEY_SIZE;
-    } else if (pubSz < ED448_PUB_KEY_SIZE) {
+    }
+    else if (pubSz < ED448_PUB_KEY_SIZE) {
         return BAD_FUNC_ARG;
     }
 
