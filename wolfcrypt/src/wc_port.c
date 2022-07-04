@@ -2270,7 +2270,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     int wc_LockMutex(wolfSSL_Mutex* m)
     {
-        OS_MUTEX_Lock((OS_MUTEX*) m);
+        OS_MUTEX_LockBlocked((OS_MUTEX*) m);
         return 0;
     }
 
