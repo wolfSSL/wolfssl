@@ -3659,6 +3659,10 @@ static int Dtls13DoDowngrade(WOLFSSL* ssl)
     XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
     ssl->dtls13ClientHello = NULL;
     ssl->dtls13ClientHelloSz = 0;
+    ssl->keys.dtls_sequence_number_hi =
+        w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+    ssl->keys.dtls_sequence_number_lo =
+        w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     return ret;
 }
 #endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT*/
@@ -3761,6 +3765,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Protocol version */
     XMEMCPY(&args->pv, input + args->idx, OPAQUE16_LEN);
     args->idx += OPAQUE16_LEN;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls &&
+        (args->pv.major != DTLS_MAJOR || args->pv.minor == DTLS_BOGUS_MINOR))
+        return VERSION_ERROR;
+#endif /* WOLFSSL_DTLS */
 
 #ifndef WOLFSSL_NO_TLS12
     {

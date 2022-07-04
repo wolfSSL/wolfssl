@@ -1205,6 +1205,7 @@ enum Misc {
 
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
+    DTLS_BOGUS_MINOR = 0xfe,    /* DTLS 0xfe was skipped, see RFC6347 Sec. 1 */
     DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
     DTLSv1_3_MINOR  = 0xfc,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */

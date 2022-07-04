@@ -4516,17 +4516,19 @@ static int SetMinVersionHelper(byte* minVersion, int version)
             break;
     #endif
 
-#ifdef WOLFSSL_DTLS13
+#ifdef WOLFSSL_DTLS
         case WOLFSSL_DTLSV1:
             *minVersion = DTLS_MINOR;
             break;
         case WOLFSSL_DTLSV1_2:
             *minVersion = DTLSv1_2_MINOR;
             break;
+#ifdef WOLFSSL_DTLS13
         case WOLFSSL_DTLSV1_3:
             *minVersion = DTLSv1_3_MINOR;
             break;
 #endif /* WOLFSSL_DTLS13 */
+#endif /* WOLFSSL_DTLS */
 
         default:
             WOLFSSL_MSG("Bad function argument");
