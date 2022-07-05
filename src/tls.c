@@ -60,7 +60,7 @@
 #endif
 #endif
 
-#if defined(WOLFSSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
