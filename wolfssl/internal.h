@@ -2219,6 +2219,7 @@ WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
 /* wolfSSL Sock Addr */
 struct WOLFSSL_SOCKADDR {
     unsigned int sz; /* sockaddr size */
+    unsigned int bufSz; /* size of allocated buffer */
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
@@ -2226,6 +2227,11 @@ typedef struct WOLFSSL_DTLS_CTX {
     WOLFSSL_SOCKADDR peer;
     int rfd;
     int wfd;
+    byte userSet:1;
+    byte connected:1; /* When set indicates rfd and wfd sockets are
+                       * connected (connect() and bind() both called).
+                       * This means that sendto and recvfrom do not need to
+                       * specify and store the peer address. */
 } WOLFSSL_DTLS_CTX;
 
 
@@ -4477,6 +4483,11 @@ struct WOLFSSL {
     CallbackIOSend  CBIOSend;
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
+#endif
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+    ClientHelloGoodCb chGoodCb;        /*  notify user we parsed a verified
+                                        *  ClientHello */
+    void*             chGoodCtx;       /*  user ClientHello cb context  */
 #endif
 #ifndef NO_HANDSHAKE_DONE_CB
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */

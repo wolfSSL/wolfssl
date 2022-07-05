@@ -331,6 +331,8 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
        message */
     if (ssl->options.side == WOLFSSL_SERVER_END && (hs == finished))
         return 1;
+#else
+    (void)ssl;
 #endif /* NO_WOLFSSL_SERVER */
 
     if (hs == session_ticket || hs == key_update)
@@ -1387,6 +1389,18 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     if (frag_off + frag_length > message_length)
         return BUFFER_ERROR;
+
+    if (handshake_type == client_hello &&
+            /* Only when receiving an unverified ClientHello */
+            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+        /* To be able to operate in stateless mode, we assume the ClientHello
+         * is in order and we use its Handshake Message number and Sequence
+         * Number for our Tx. */
+        ssl->keys.dtls_expected_peer_handshake_number =
+                ssl->keys.dtls_handshake_number =
+                        ssl->keys.dtls_peer_handshake_number;
+        ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+    }
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshake_type, frag_off);
     if (ret != 0)

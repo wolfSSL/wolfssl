@@ -554,7 +554,7 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 #endif
 }
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) && !defined(NO_WOLFSSL_SERVER)
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
  * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
@@ -566,7 +566,7 @@ static WC_INLINE int IsDtlsNotSrtpMode(WOLFSSL* ssl)
     return ssl->options.dtls;
 #endif
 }
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 && !NO_WOLFSSL_SERVER */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -8788,6 +8788,14 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
 int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
 {
     int ret = 0;
+#ifdef WOLFSSL_DEBUG_TLS
+    byte digest[WC_MAX_DIGEST_SIZE];
+
+    WOLFSSL_MSG("HashRaw:");
+    WOLFSSL_MSG("Data:");
+    WOLFSSL_BUFFER(data, sz);
+    WOLFSSL_MSG("Hashes:");
+#endif
 
     (void)data;
     (void)sz;
@@ -8817,16 +8825,31 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, data, sz);
         if (ret != 0)
             return ret;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Sha256");
+        wc_Sha256GetHash(&ssl->hsHashes->hashSha256, digest);
+        WOLFSSL_BUFFER(digest, WC_SHA224_DIGEST_SIZE);
+    #endif
     #endif
     #ifdef WOLFSSL_SHA384
         ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, data, sz);
         if (ret != 0)
             return ret;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Sha384");
+        wc_Sha384GetHash(&ssl->hsHashes->hashSha384, digest);
+        WOLFSSL_BUFFER(digest, WC_SHA384_DIGEST_SIZE);
+    #endif
     #endif
     #ifdef WOLFSSL_SHA512
         ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, data, sz);
         if (ret != 0)
             return ret;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Sha512");
+        wc_Sha512GetHash(&ssl->hsHashes->hashSha512, digest);
+        WOLFSSL_BUFFER(digest, WC_SHA512_DIGEST_SIZE);
+    #endif
     #endif
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \

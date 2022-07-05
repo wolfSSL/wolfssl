@@ -1045,6 +1045,9 @@ WOLFSSL_API int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx, WOLFSSL_X509_VERIFY_PAR
 WOLFSSL_API int  wolfSSL_is_server(WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_set_fd(WOLFSSL* ssl, int fd);
+#ifdef WOLFSSL_DTLS
+WOLFSSL_API int wolfSSL_set_dtls_fd_connected(WOLFSSL* ssl, int fd);
+#endif
 WOLFSSL_API int  wolfSSL_set_write_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL* ssl, int fd);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
@@ -3939,6 +3942,13 @@ WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
+
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+/* notify user we parsed a verified ClientHello is done. This only has an effect
+ * on the server end. */
+typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
+WOLFSSL_API int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx);
+#endif
 
 /* notify user the handshake is done */
 typedef int (*HandShakeDoneCb)(WOLFSSL* ssl, void*);

@@ -6167,8 +6167,17 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     /* client_hello */
     extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
-    if (extension == NULL)
-        return HRR_COOKIE_ERROR;
+    if (extension == NULL) {
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
+            /* Allow a cookie extension with DTLS 1.3 because it is possible
+             * that a different SSL instance sent the cookie but we are now
+             * receiving it. */
+            return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0);
+        else
+#endif
+            return HRR_COOKIE_ERROR;
+    }
 
     cookie = (Cookie*)extension->data;
     if (cookie->len != len || XMEMCMP(&cookie->data, input + idx, len) != 0)
