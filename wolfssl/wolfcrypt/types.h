@@ -44,8 +44,8 @@ decouple library dependencies with standard string, memory and so on.
 
     /*
      * This struct is used multiple time by other structs and
-     * needs to be defined somwhere that all structs can import
-     * (with minimal depencencies).
+     * needs to be defined somewhere that all structs can import
+     * (with minimal dependencies).
      */
     #ifdef HAVE_EX_DATA
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -208,14 +208,14 @@ decouple library dependencies with standard string, memory and so on.
 #elif defined(WC_16BIT_CPU)
         #undef WORD64_AVAILABLE
         typedef word16 wolfssl_word;
-        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
-                             mp_digit, no 64 bit type so make mp_digit 16 bit */
+        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
+                           * mp_digit, no 64 bit type so make mp_digit 16 bit */
 
 #else
         #undef WORD64_AVAILABLE
         typedef word32 wolfssl_word;
-        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
-                             mp_digit, no 64 bit type so make mp_digit 16 bit */
+        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
+                           * mp_digit, no 64 bit type so make mp_digit 16 bit */
 #endif
 
 typedef struct w64wrapper {

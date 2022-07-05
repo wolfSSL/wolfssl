@@ -86,6 +86,7 @@ struct ed448_key {
     byte pointX[ED448_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED448_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
 #endif
+    word16 privKeySet:1;
     word16 pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
@@ -163,11 +164,17 @@ void wc_ed448_free(ed448_key* key);
 WOLFSSL_API
 int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
 WOLFSSL_API
+int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
+                              int trusted);
+WOLFSSL_API
 int wc_ed448_import_private_only(const byte* priv, word32 privSz,
                                  ed448_key* key);
 WOLFSSL_API
 int wc_ed448_import_private_key(const byte* priv, word32 privSz,
                                 const byte* pub, word32 pubSz, ed448_key* key);
+WOLFSSL_API
+int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz, ed448_key* key, int trusted);
 #endif /* HAVE_ED448_KEY_IMPORT */
 
 #ifdef HAVE_ED448_KEY_EXPORT

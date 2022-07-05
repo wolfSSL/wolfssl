@@ -27352,7 +27352,7 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
         if (wc_ed25519_export_public(&key, exportPKey, &exportPSz) != 0)
             return -11051 - i;
 
-        if (wc_ed25519_import_public(exportPKey, exportPSz, &key2) != 0)
+        if (wc_ed25519_import_public_ex(exportPKey, exportPSz, &key2, 1) != 0)
             return -11061 - i;
 
         if (wc_ed25519_export_private_only(&key, exportSKey, &exportSSz) != 0)
@@ -28815,7 +28815,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
                     break;
                 }
 
-                if (wc_ed448_import_public(exportPKey, exportPSz, key2) != 0) {
+                if (wc_ed448_import_public_ex(exportPKey, exportPSz, key2, 1) != 0) {
                     ret = -11761 - i;
                     break;
                 }

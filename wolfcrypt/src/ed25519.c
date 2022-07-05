@@ -242,6 +242,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
 
+    key->privKeySet = 1;
     key->pubKeySet = 1;
 
     return ret;
@@ -941,13 +942,15 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen)
 #ifdef HAVE_ED25519_KEY_IMPORT
 /*
     Imports a compressed/uncompressed public key.
-    in    the byte array containing the public key
-    inLen the length of the byte array being passed in
-    key   ed25519 key struct to put the public key in
+    in       the byte array containing the public key
+    inLen    the length of the byte array being passed in
+    key      ed25519 key struct to put the public key in
+    trusted  whether the public key is trusted to match private key if set
  */
-int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
+int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
+    int trusted)
 {
-    int    ret;
+    int ret = 0;
 
     /* sanity check on arguments */
     if (in == NULL || key == NULL)
@@ -958,7 +961,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
 
     /* compressed prefix according to draft
        http://www.ietf.org/id/draft-koch-eddsa-for-openpgp-02.txt */
-    if (in[0] == 0x40 && inLen > ED25519_PUB_KEY_SIZE) {
+    if (in[0] == 0x40 && inLen == ED25519_PUB_KEY_SIZE + 1) {
         /* key is stored in compressed format so just copy in */
         XMEMCPY(key->p, (in + 1), ED25519_PUB_KEY_SIZE);
 #ifdef FREESCALE_LTC_ECC
@@ -968,12 +971,9 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
-        key->pubKeySet = 1;
-        return 0;
     }
-
     /* importing uncompressed public key */
-    if (in[0] == 0x04 && inLen > 2*ED25519_PUB_KEY_SIZE) {
+    else if (in[0] == 0x04 && inLen > 2*ED25519_PUB_KEY_SIZE) {
 #ifdef FREESCALE_LTC_ECC
         /* reverse bytes for little endian byte order */
         for (int i = 0; i < ED25519_KEY_SIZE; i++)
@@ -982,21 +982,15 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
             key->pointY[i] = *(in + 2*ED25519_KEY_SIZE - i);
         }
         XMEMCPY(key->p, key->pointY, ED25519_KEY_SIZE);
-        key->pubKeySet = 1;
-        ret = 0;
 #else
         /* pass in (x,y) and store compressed key */
         ret = ge_compress_key(key->p, in+1,
                               in+1+ED25519_PUB_KEY_SIZE, ED25519_PUB_KEY_SIZE);
-        if (ret == 0)
-            key->pubKeySet = 1;
 #endif /* FREESCALE_LTC_ECC */
-        return ret;
     }
-
     /* if not specified compressed or uncompressed check key size
        if key size is equal to compressed key size copy in key */
-    if (inLen == ED25519_PUB_KEY_SIZE) {
+    else if (inLen == ED25519_PUB_KEY_SIZE) {
         XMEMCPY(key->p, in, ED25519_PUB_KEY_SIZE);
 #ifdef FREESCALE_LTC_ECC
         /* recover X coordinate */
@@ -1005,14 +999,35 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
         key->pubKeySet = 1;
-        return 0;
+        if (key->privKeySet && (!trusted)) {
+            ret = wc_ed25519_check_key(key);
+        }
+    }
+    if (ret != 0) {
+        key->pubKeySet = 0;
     }
 
     /* bad public key format */
-    return BAD_FUNC_ARG;
+    return ret;
 }
 
+/*
+    Imports a compressed/uncompressed public key.
+    in    the byte array containing the public key
+    inLen the length of the byte array being passed in
+    key   ed25519 key struct to put the public key in
+ */
+int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
+{
+    return wc_ed25519_import_public_ex(in, inLen, key, 0);
+}
 
 /*
     For importing a private key.
@@ -1020,19 +1035,88 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
 int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
                                                                ed25519_key* key)
 {
+    int ret = 0;
+
     /* sanity check on arguments */
     if (priv == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     /* key size check */
-    if (privSz < ED25519_KEY_SIZE)
+    if (privSz != ED25519_KEY_SIZE)
         return BAD_FUNC_ARG;
 
     XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
+    key->privKeySet = 1;
 
-    return 0;
+    if (key->pubKeySet) {
+        /* Validate loaded public key */
+        ret = wc_ed25519_check_key(key);
+    }
+    if (ret != 0) {
+        key->privKeySet = 0;
+        ForceZero(key->k, ED25519_KEY_SIZE);
+    }
+
+    return ret;
 }
 
+
+/* Import an ed25519 private and public keys from byte array(s).
+ *
+ * priv     [in]  Array holding private key from
+ *                wc_ed25519_export_private_only(), or private+public keys from
+ *                wc_ed25519_export_private().
+ * privSz   [in]  Number of bytes of data in private key array.
+ * pub      [in]  Array holding public key (or NULL).
+ * pubSz    [in]  Number of bytes of data in public key array (or 0).
+ * key      [in]  Ed25519 private/public key.
+ * trusted  [in]  Indicates whether the public key data is trusted.
+ *                When 0, checks public key matches private key.
+ *                When 1, doesn't check public key matches private key.
+ * returns BAD_FUNC_ARG when a required parameter is NULL or an invalid
+ *         combination of keys/lengths is supplied, 0 otherwise.
+ */
+int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz, ed25519_key* key, int trusted)
+{
+    int ret;
+
+    /* sanity check on arguments */
+    if (priv == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* key size check */
+    if (privSz != ED25519_KEY_SIZE && privSz != ED25519_PRV_KEY_SIZE)
+        return BAD_FUNC_ARG;
+
+    if (pub == NULL) {
+        if (pubSz != 0)
+            return BAD_FUNC_ARG;
+        if (privSz != ED25519_PRV_KEY_SIZE)
+            return BAD_FUNC_ARG;
+        pub = priv + ED25519_KEY_SIZE;
+        pubSz = ED25519_PUB_KEY_SIZE;
+    }
+    else if (pubSz < ED25519_PUB_KEY_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
+    key->privKeySet = 1;
+
+    /* import public key */
+    ret = wc_ed25519_import_public_ex(pub, pubSz, key, trusted);
+    if (ret != 0) {
+        key->privKeySet = 0;
+        ForceZero(key->k, ED25519_KEY_SIZE);
+        return ret;
+    }
+
+    /* make the private key (priv + pub) */
+    XMEMCPY(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
+
+    return ret;
+}
 
 /* Import an ed25519 private and public keys from byte array(s).
  *
@@ -1046,41 +1130,10 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
  *         combination of keys/lengths is supplied, 0 otherwise.
  */
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
-                                const byte* pub, word32 pubSz, ed25519_key* key)
+    const byte* pub, word32 pubSz, ed25519_key* key)
 {
-    int    ret;
-
-    /* sanity check on arguments */
-    if (priv == NULL || key == NULL)
-        return BAD_FUNC_ARG;
-
-    /* key size check */
-    if (privSz < ED25519_KEY_SIZE)
-        return BAD_FUNC_ARG;
-
-    if (pub == NULL) {
-        if (pubSz != 0)
-            return BAD_FUNC_ARG;
-        if (privSz < ED25519_PRV_KEY_SIZE)
-            return BAD_FUNC_ARG;
-        pub = priv + ED25519_KEY_SIZE;
-        pubSz = ED25519_PUB_KEY_SIZE;
-    } else if (pubSz < ED25519_PUB_KEY_SIZE) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* import public key */
-    ret = wc_ed25519_import_public(pub, pubSz, key);
-    if (ret != 0)
-        return ret;
-
-    /* make the private key (priv + pub) */
-    XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
-    XMEMCPY(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
-
-    return ret;
+    return wc_ed25519_import_private_key_ex(priv, privSz, pub, pubSz, key, 0);
 }
-
 #endif /* HAVE_ED25519_KEY_IMPORT */
 
 
