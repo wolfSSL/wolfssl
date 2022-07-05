@@ -1009,6 +1009,7 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
     if ((ret != 0) && (key != NULL)) {
         /* No private key set on error. */
         key->privKeySet = 0;
+        ForceZero(key->k, ED448_KEY_SIZE);
     }
 
     return ret;
@@ -1059,8 +1060,11 @@ int wc_ed448_import_private_key_ex(const byte* priv, word32 privSz,
 
     /* import public key */
     ret = wc_ed448_import_public_ex(pub, pubSz, key, trusted);
-    if (ret != 0)
+    if (ret != 0) {
+        key->privKeySet = 0;
+        ForceZero(key->k, ED448_KEY_SIZE);
         return ret;
+    }
 
     /* make the private key (priv + pub) */
     XMEMCPY(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
