@@ -14333,6 +14333,68 @@ static int MatchBaseName(int type, const char* name, int nameSz,
 }
 
 
+/* Search through the list to find if the name is permitted.
+ * name     The DNS name to search for
+ * dnsList  The list to search through
+ * nameType Type of DNS name to currently searching
+ * return 1 if found in list or if not needed
+ * return 0 if not found in the list but is needed
+ */
+static int PermittedListOk(DNS_entry* name, Base_entry* dnsList, byte nameType)
+{
+    Base_entry* current = dnsList;
+    int match = 0;
+    int need  = 0;
+    int ret   = 1; /* is ok unless needed and no match found */
+
+    while (current != NULL) {
+        if (current->type == nameType) {
+            need = 1; /* restriction on permitted names is set for this type */
+            if (name->len >= current->nameSz &&
+                MatchBaseName(nameType, name->name, name->len,
+                              current->name, current->nameSz)) {
+                match = 1; /* found the current name in the permitted list*/
+                break;
+            }
+        }
+        current = current->next;
+    }
+
+    /* check if permitted name restriction was set and no matching name found */
+    if (need && !match)
+        ret = 0;
+
+    return ret;
+}
+
+
+/* Search through the list to find if the name is excluded.
+ * name     The DNS name to search for
+ * dnsList  The list to search through
+ * nameType Type of DNS name to currently searching
+ * return 1 if found in list and 0 if not found in the list
+ */
+static int IsInExcludedList(DNS_entry* name, Base_entry* dnsList, byte nameType)
+{
+    int ret = 0; /* default of not found in the list */
+    Base_entry* current = dnsList;
+
+    while (current != NULL) {
+        if (current->type == nameType) {
+            if (name->len >= current->nameSz &&
+                MatchBaseName(nameType, name->name, name->len,
+                              current->name, current->nameSz)) {
+                ret = 1;
+                break;
+            }
+        }
+        current = current->next;
+    }
+
+    return ret;
+}
+
+
 static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 {
     const byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE};
@@ -14347,9 +14409,9 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
     for (i=0; i < (int)sizeof(nameTypes); i++) {
         byte nameType = nameTypes[i];
         DNS_entry* name = NULL;
-        DNS_entry  subjectDnsName;
-        Base_entry* base;
+        DNS_entry  subjectDnsName; /* temporary node used for subject name */
 
+        XMEMSET(&subjectDnsName, 0, sizeof(DNS_entry));
         switch (nameType) {
             case ASN_DNS_TYPE:
                 /* Should it also consider CN in subject? It could use
@@ -14360,11 +14422,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 /* Shouldn't it validade E= in subject as well? */
                 name = cert->altEmailNames;
 
-                /* Add subject email to temporary list for checking.
-                 * In the case of no subject alt. names, the list will be a
-                 * single node having the subject name email address. The node
-                 * subjectDnsName is not needed after done being compared with
-                 * in this function */
+                /* Add subject email for checking. */
                 if (cert->subjectEmail != NULL) {
                     /* RFC 5280 section 4.2.1.10
                      * "When constraints are imposed on the rfc822Name name
@@ -14372,34 +14430,29 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                      * alternative name, the rfc822Name constraint MUST be
                      * applied to the attribute of type emailAddress in the
                      * subject distinguished name" */
-                    subjectDnsName.next = name;
+                    subjectDnsName.next = NULL;
                     subjectDnsName.type = ASN_RFC822_TYPE;
-                    subjectDnsName.len = cert->subjectEmailLen;
+                    subjectDnsName.len  = cert->subjectEmailLen;
                     subjectDnsName.name = (char *)cert->subjectEmail;
-                    name = &subjectDnsName;
                 }
                 break;
             case ASN_DIR_TYPE:
-                if (cert->subjectRaw != NULL) {
-                    subjectDnsName.next = NULL;
-                    subjectDnsName.type = ASN_DIR_TYPE;
-                    subjectDnsName.len = cert->subjectRawLen;
-                    subjectDnsName.name = (char *)cert->subjectRaw;
-                    name = &subjectDnsName;
-                }
+                name = cert->altDirNames;
 
-                #ifndef WOLFSSL_NO_ASN_STRICT
+            #ifndef WOLFSSL_NO_ASN_STRICT
                 /* RFC 5280 section 4.2.1.10
                     "Restrictions of the form directoryName MUST be
                     applied to the subject field .... and to any names
                     of type directoryName in the subjectAltName
                     extension"
                 */
-                if (name != NULL)
-                    name->next = cert->altDirNames;
-                else
-                    name = cert->altDirNames;
-                #endif
+                if (cert->subjectRaw != NULL) {
+                    subjectDnsName.next = NULL;
+                    subjectDnsName.type = ASN_DIR_TYPE;
+                    subjectDnsName.len = cert->subjectRawLen;
+                    subjectDnsName.name = (char *)cert->subjectRaw;
+                }
+            #endif
                 break;
             default:
                 /* Other types of names are ignored for now.
@@ -14409,43 +14462,34 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         }
 
         while (name != NULL) {
-            int match = 0;
-            int need = 0;
-
-            base = signer->excludedNames;
-            /* Check against the excluded list */
-            while (base != NULL) {
-                if (base->type == nameType) {
-                    if (name->len >= base->nameSz &&
-                        MatchBaseName(nameType,
-                                      name->name, name->len,
-                                      base->name, base->nameSz)) {
-                            return 0;
-                    }
-                }
-                base = base->next;
+            if (IsInExcludedList(name, signer->excludedNames, nameType) == 1) {
+                WOLFSSL_MSG("Excluded name was found!");
+                return 0;
             }
 
             /* Check against the permitted list */
-            base = signer->permittedNames;
-            while (base != NULL) {
-                if (base->type == nameType) {
-                    need = 1;
-                    if (name->len >= base->nameSz &&
-                        MatchBaseName(nameType,
-                                      name->name, name->len,
-                                      base->name, base->nameSz)) {
-                            match = 1;
-                            break;
-                    }
-                }
-                base = base->next;
+            if (PermittedListOk(name, signer->permittedNames, nameType) != 1) {
+                WOLFSSL_MSG("Permitted name was not found!");
+                return 0;
             }
 
-            if (need && !match)
-                return 0;
-
             name = name->next;
+        }
+
+        /* handle comparing against subject name too */
+        if (subjectDnsName.len > 0 && subjectDnsName.name != NULL) {
+            if (IsInExcludedList(&subjectDnsName, signer->excludedNames,
+                        nameType) == 1) {
+                WOLFSSL_MSG("Excluded name was found!");
+                return 0;
+            }
+
+            /* Check against the permitted list */
+            if (PermittedListOk(&subjectDnsName, signer->permittedNames,
+                        nameType) != 1) {
+                WOLFSSL_MSG("Permitted name was not found!");
+                return 0;
+            }
         }
     }
 
