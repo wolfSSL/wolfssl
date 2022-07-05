@@ -566,13 +566,13 @@ fi
 SP_ASM_DEFAULT=no
 if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_LINUXKM_DEFAULTS" = "no"
 then
-    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
     then
         SP_ASM_DEFAULT=yes
     fi
 fi
 AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: enabled on x86_64/aarch64)])],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: enabled on x86_64/aarch64/amd64)])],
     [ ENABLED_SP_ASM=$enableval ],
     [ ENABLED_SP_ASM=$SP_ASM_DEFAULT ],
     )
@@ -620,7 +620,7 @@ then
         ENABLED_HEAPMATH="no"
         ENABLED_SP_MATH_ALL="no"
     fi
-    if test "$host_cpu" = "x86_64"
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
     then
         # Have settings.h set FP_MAX_BITS higher if user didn't set directly
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
@@ -2515,7 +2515,7 @@ fi
 
 # set sha224 default
 SHA224_DEFAULT=no
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
 then
     if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" &&
         ( test "x$ENABLED_FIPS" = "xno" ||
@@ -2527,7 +2527,7 @@ fi
 
 # SHA224
 AC_ARG_ENABLE([sha224],
-    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64/aarch64)])],
+    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64/amd64/aarch64)])],
     [ ENABLED_SHA224=$enableval ],
     [ ENABLED_SHA224=$SHA224_DEFAULT ]
     )
@@ -2540,7 +2540,7 @@ fi
 
 # set sha3 default
 SHA3_DEFAULT=no
-if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64") && test "$ENABLED_32BIT" = "no"
+if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64") && test "$ENABLED_32BIT" = "no"
 then
     if test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" -ge 2
     then
@@ -2550,7 +2550,7 @@ fi
 
 # SHA3
 AC_ARG_ENABLE([sha3],
-    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64/aarch64)])],
+    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64/amd64/aarch64)])],
     [ ENABLED_SHA3=$enableval ],
     [ ENABLED_SHA3=$SHA3_DEFAULT ]
     )
@@ -2829,7 +2829,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH"
 
         # If fastmath enabled and on x86 use speedups
-        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64"
+        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64" -o "$host_cpu" = "amd64"
         then
             AM_CFLAGS="$AM_CFLAGS -DTFM_ECC192 -DTFM_ECC224 -DTFM_ECC256 -DTFM_ECC384 -DTFM_ECC521"
         fi
@@ -3723,12 +3723,12 @@ fi
 
 # Base64 Encode
 BASE64ENCODE_DEFAULT=no
-if test "$host_cpu" = "x86_64"
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
 then
 BASE64ENCODE_DEFAULT=yes
 fi
 AC_ARG_ENABLE([base64encode],
-    [AS_HELP_STRING([--enable-base64encode],[Enable Base64 encoding (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-base64encode],[Enable Base64 encoding (default: enabled on x86_64/amd64)])],
     [ ENABLED_BASE64ENCODE=$enableval ],
     [ ENABLED_BASE64ENCODE=$BASE64ENCODE_DEFAULT ]
     )
@@ -6210,7 +6210,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes
@@ -6225,7 +6225,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes
@@ -6240,7 +6240,7 @@ do
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
-    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"; then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
       ENABLED_SP_EC_521=yes
@@ -6397,7 +6397,7 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
     fi
 
     case $host_cpu in
-    *x86_64* | *aarch64*)
+    *x86_64* | *aarch64* | *amd64*)
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
       ;;
     *)
@@ -6518,7 +6518,7 @@ if test "$ENABLED_SP_MATH_ALL" = "yes" && test "$ENABLED_ASM" != "no"; then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH_ALL"
 
   case $host_cpu in
-  *x86_64*)
+  *x86_64* | *amd64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64 -DWOLFSSL_X86_64_BUILD"
     ;;
   *x86*)
@@ -6600,7 +6600,7 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
       fi
     fi
     ;;
-  *x86_64*|*amd64*)
+  *x86_64* | *amd64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
