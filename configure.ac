@@ -1144,6 +1144,7 @@ AC_ARG_ENABLE([mcast],
 # krb (--enable-krb) WOLFSSL_KRB
 # FFmpeg (--enable-ffmpeg) WOLFSSL_FFMPEG
 # strongSwan (--enable-strongswan)
+# OpenLDAP (--enable-openldap)
 
 # Bind DNS compatibility Build
 AC_ARG_ENABLE([bind],
@@ -1199,6 +1200,13 @@ if test "$ENABLED_OPENRESTY" = "yes"
 then
     ENABLED_NGINX="yes"
 fi
+
+# OpenLDAP support
+AC_ARG_ENABLE([openldap],
+    [AS_HELP_STRING([--enable-openldap],[Enable OpenLDAP support (default: disabled)])],
+    [ ENABLED_OPENLDAP=$enableval ],
+    [ ENABLED_OPENLDAP=no ]
+    )
 
 # lighty Support
 AC_ARG_ENABLE([lighty],
@@ -1450,7 +1458,8 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
    test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
    test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
-   test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
+   test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes" || \
+   test "$ENABLED_OPENLDAP" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -2665,7 +2674,8 @@ AC_ARG_ENABLE([certgen],
     )
 if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
    test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
-   test "$ENABLED_CHRONY" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
+   test "$ENABLED_CHRONY" = "yes" || test "$ENABLED_STRONGSWAN" = "yes" || \
+   test "$ENABLED_OPENLDAP" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi
@@ -7255,7 +7265,8 @@ if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
    test "$ENABLED_OPENSSLALL" = "yes" || \
    test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
    test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
-   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"
+   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" = "yes" || \
+   test "$ENABLED_OPENLDAP" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -7411,6 +7422,8 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes"],
 
 AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"])
+
+AS_IF([test "x$ENABLED_OPENLDAP" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"])
 
 if test "$ENABLED_ED25519_STREAM" != "no"
 then
@@ -8316,6 +8329,7 @@ echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * chrony:                     $ENABLED_CHRONY"
 echo "   * strongSwan:                 $ENABLED_STRONGSWAN"
+echo "   * OpenLDAP:                   $ENABLED_OPENLDAP"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * DTLS v1.3:                  $ENABLED_DTLS13"

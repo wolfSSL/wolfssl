@@ -1550,6 +1550,18 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             WOLFSSL_MSG("cRLDistributionPoints not supported yet");
             return NULL;
 
+        case NID_subject_alt_name:
+            if (ext->ext_sk == NULL) {
+                WOLFSSL_MSG("Subject alt name stack NULL");
+                return NULL;
+            }
+            sk = wolfSSL_sk_dup(ext->ext_sk);
+            if (sk == NULL) {
+                WOLFSSL_MSG("Failed to duplicate subject alt names stack.");
+                return NULL;
+            }
+            return sk;
+
         /* authorityInfoAccess */
         case (NID_info_access):
             WOLFSSL_MSG("AuthorityInfoAccess");
@@ -3858,6 +3870,7 @@ WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
         WOLFSSL_MSG("Unrecognized or unsupported GENERAL_NAME type");
         goto error;
     }
+    dupl->type = gn->type;
 
     return dupl;
 error:
@@ -3897,6 +3910,7 @@ int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,
     XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
 
     /* push new obj onto head of stack */
+    node->type    = STACK_TYPE_GEN_NAME;
     node->data.gn = sk->data.gn;
     node->next    = sk->next;
     sk->next      = node;
