@@ -4823,7 +4823,7 @@ AC_ARG_ENABLE([pkcs7],
     [ ENABLED_PKCS7=$enableval ],
     [ ENABLED_PKCS7=no ]
     )
-    
+
 if test "x$ENABLED_WPAS_DPP" = "xyes"
 then
     ENABLED_PKCS7=yes

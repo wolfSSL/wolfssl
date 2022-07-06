@@ -1455,6 +1455,50 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 /*!
     \ingroup ASN
 
+    \brief This function converts the ECC public key to DER format. It
+    returns the size of buffer used. The public ECC key in DER format is stored
+    in output buffer. with_AlgCurve is a flag for when to include a header that
+    has the Algorithm and Curve information. The comp parameter
+
+    \return >0 Success, size of buffer used
+    \return BAD_FUNC_ARG Returned if output or key is null.
+    \return LENGTH_ONLY_E Error in getting ECC public key size.
+    \return BUFFER_E Returned when output buffer is too small.
+
+    \param key Pointer to ECC key
+    \param output Pointer to output buffer to write to.
+    \param inLen Size of buffer.
+    \param with_AlgCurve a flag for when to include a header that has the
+    Algorithm and Curve information.
+    \param comp Boolean value. If true the ECC public key will be written in
+    compressed form. If false it will be written in an uncompressed format.
+
+    _Example_
+    \code
+    ecc_key key;
+    wc_ecc_init(&key);
+    WC_WC_RNG rng;
+    wc_InitRng(&rng);
+    wc_ecc_make_key(&rng, 24, &key);
+    int derSz = // Some appropriate size for der;
+    byte der[derSz];
+
+    // Write out a compressed ECC key
+    if(wc_EccPublicKeyToDer_ex(&key, der, derSz, 1, 1) < 0)
+    {
+        // Error converting ECC public key to der
+    }
+    \endcode
+
+    \sa wc_EccKeyToDer
+    \sa wc_EccPublicKeyDecode
+*/
+int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
+                                     word32 inLen, int with_AlgCurve, int comp);
+
+/*!
+    \ingroup ASN
+
     \brief This function encodes a digital signature into the output buffer,
     and returns the size of the encoded signature created.
 
