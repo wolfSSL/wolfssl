@@ -1425,24 +1425,9 @@ endif()
 #       - wolfCrypt only
 
 # fastmath
-set(FASTMATH_DEFAULT "no")
-
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
-    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-    set(FASTMATH_DEFAULT "yes")
-endif()
-
-if(WOLFSSL_LINUXKM_DEFAULTS)
-    set(FASTMATH_DEFAULT "no")
-endif()
-
-if(WOLFSSL_SP_MATH)
-    set(FASTMATH_DEFAULT "no")
-endif()
-
 add_option("WOLFSSL_FAST_MATH"
-    "Enable fast math ops (default: enabled on x86_64/aarch64)"
-    ${FASTMATH_DEFAULT} "yes;no")
+    "Enable fast math ops (default: disabled)"
+    "no" "yes;no")
 
 if(WOLFSSL_FAST_MATH)
     # turn off fastmath if leanpsk on or asn off (w/o DH and ECC)
@@ -1467,6 +1452,11 @@ if(WOLFSSL_FAST_MATH)
 endif()
 
 # TODO: - Fast huge math
+
+# SP math all
+add_option("WOLFSSL_SP_MATH_ALL"
+    "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
+    "yes" "yes;no")
 
 # Enable examples, used to disable examples
 if(WOLFSSL_LINUX_KM)
