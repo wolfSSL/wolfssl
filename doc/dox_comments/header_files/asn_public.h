@@ -1416,8 +1416,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
     \brief This function converts the ECC public key to DER format. It
     returns the size of buffer used. The public ECC key in DER format is stored
-    in output buffer. with_AlgCurve is a flag for when to include a header that
-    has the Algorithm and Curve information.
+    in output buffer. The with_AlgCurve flag will include a header that
+    has the Algorithm and Curve information
 
     \return >0 Success, size of buffer used
     \return BAD_FUNC_ARG Returned if output or key is null.
@@ -1436,7 +1436,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     wc_ecc_init(&key);
     WC_WC_RNG rng;
     wc_InitRng(&rng);
-    wc_ecc_make_key(&rng, 24, &key);
+    wc_ecc_make_key(&rng, 32, &key);
     int derSz = // Some appropriate size for der;
     byte der[derSz];
 
@@ -1457,8 +1457,9 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 
     \brief This function converts the ECC public key to DER format. It
     returns the size of buffer used. The public ECC key in DER format is stored
-    in output buffer. with_AlgCurve is a flag for when to include a header that
-    has the Algorithm and Curve information. The comp parameter
+    in output buffer. The with_AlgCurve flag will include a header that
+    has the Algorithm and Curve information. The comp parameter determines if
+    the public key will be exported as compressed.
 
     \return >0 Success, size of buffer used
     \return BAD_FUNC_ARG Returned if output or key is null.
@@ -1470,8 +1471,8 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
     \param inLen Size of buffer.
     \param with_AlgCurve a flag for when to include a header that has the
     Algorithm and Curve information.
-    \param comp Boolean value. If true the ECC public key will be written in
-    compressed form. If false it will be written in an uncompressed format.
+    \param comp If 1 (non-zero) the ECC public key will be written in
+    compressed form. If 0 it will be written in an uncompressed format.
 
     _Example_
     \code
@@ -1479,7 +1480,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
     wc_ecc_init(&key);
     WC_WC_RNG rng;
     wc_InitRng(&rng);
-    wc_ecc_make_key(&rng, 24, &key);
+    wc_ecc_make_key(&rng, 32, &key);
     int derSz = // Some appropriate size for der;
     byte der[derSz];
 
