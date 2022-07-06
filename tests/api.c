@@ -47011,6 +47011,11 @@ static void test_wc_ParseCert(void)
 
     wc_InitDecodedCert(&decodedCert, rawCert, rawCertSize, NULL);
     AssertIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* check that the subjects emailAddress was not put in the alt name list */
+    AssertNotNull(decodedCert.subjectEmail);
+    AssertNull(decodedCert.altEmailNames);
+#endif
     wc_FreeDecodedCert(&decodedCert);
 
     printf(resultFmt, passed);
