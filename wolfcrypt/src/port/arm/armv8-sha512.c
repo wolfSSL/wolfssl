@@ -472,7 +472,25 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
     if (blocksLen > 0) {
         /* Byte reversal performed in function if required. */
-        Transform_Sha512_Len(sha512, data, blocksLen);
+    #ifndef WOLFSSL_ARMASM_NO_NEON
+        /* Data must be 64-bit aligned to be passed to Transform_Sha512_Len().
+         * 64 bits is 8 bytes.
+         */
+        if (((size_t)data & 0x7) != 0) {
+            word32 i;
+
+            for (i = 0; i < blocksLen; i += WC_SHA512_BLOCK_SIZE) {
+                word64 buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64)];
+                XMEMCPY(buffer, data + i, WC_SHA512_BLOCK_SIZE);
+                Transform_Sha512_Len(sha512, (const byte*)buffer,
+                                                          WC_SHA512_BLOCK_SIZE);
+            }
+        }
+        else
+    #endif
+        {
+            Transform_Sha512_Len(sha512, data, blocksLen);
+        }
         data += blocksLen;
         len  -= blocksLen;
     }
