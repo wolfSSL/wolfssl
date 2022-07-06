@@ -1509,7 +1509,38 @@ if(NOT WOLFSSL_PWDBASED)
 endif()
 
 # TODO: - SCRYPT
-#       - wolfCrypt only
+
+add_option("WOLFSSL_CRYPT_ONLY"
+    "Enable wolfCrypt Only build (default: disabled)"
+    "no" "yes;no")
+	
+# TODO: Need to test for FIPS version
+if(WOLFSSL_CRYPT_ONLY)
+    if (WOLFSSL_OPENSSLALL)
+        message( FATAL_ERROR "cryptonly and opensslall are mutually incompatible.")
+	endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_ONLY")
+endif()
+
+if (NOT WOLFSSL_CRYPT_ONLY)
+    if (NOT WOLFSSL_PSK AND NOT WOLFSSL_ASN)
+        message( FATAL_ERROR "please enable psk if disabling asn.")
+    endif()
+
+    if(NOT WOLFSSL_ECC AND NOT WOLFSSL_ASN)
+        message( FATAL_ERROR "please disable ecc if disabling asn.")
+    endif()
+
+    if(WOLFSSL_AFALG)
+        # for TLS connections the intermediate hash needs to store buffer
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AFALG_HASH_KEEP")
+    endif()
+
+    if(WOLFSSL_DEVCRYPTO)
+        # for TLS connections the intermediate hash needs to store buffer
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DEVCRYPTO_HASH_KEEP")
+    endif()
+endif()
 
 # fastmath
 add_option("WOLFSSL_FAST_MATH"
