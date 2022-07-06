@@ -1969,7 +1969,7 @@ int Dtls13SetRecordNumberKeys(WOLFSSL* ssl, enum encrypt_side side)
 {
     RecordNumberCiphers* enc = NULL;
     RecordNumberCiphers* dec = NULL;
-    byte *encKey, *decKey;
+    byte *encKey = NULL, *decKey = NULL;
     int ret;
 
     if (ssl == NULL) {
