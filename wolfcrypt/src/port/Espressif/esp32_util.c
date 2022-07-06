@@ -1,6 +1,6 @@
 /* esp32_util.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,21 +26,57 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
+#include <wolfssl/wolfcrypt/logging.h>
+/*
+ * initialize our mutex used to lock hardware access
+ *
+ * returns:
+ *   0 upon success,
+ *   BAD_MUTEX_E for null mutex
+ *   other value from wc_InitMutex()
+ *
+ */
 int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
+    if (mutex == NULL) {
+        return BAD_MUTEX_E;
+    }
+
     return wc_InitMutex(mutex);
 }
 
+/*
+ * call the ESP-IDF mutex lock; xSemaphoreTake
+ *
+ */
 int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t xBlockTime) {
+    if (mutex == NULL) {
+        WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
+        return BAD_MUTEX_E;
+    }
+
 #ifdef SINGLE_THREADED
-    return wc_LockMutex(mutex);
+    return wc_LockMutex(mutex); /* xSemaphoreTake take with portMAX_DELAY */
 #else
     return ((xSemaphoreTake( *mutex, xBlockTime ) == pdTRUE) ? 0 : BAD_MUTEX_E);
 #endif
 }
 
+/*
+ * call the ESP-IDF mutex UNlock; xSemaphoreGive
+ *
+ */
 int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+    if (mutex == NULL) {
+        WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
+        return BAD_MUTEX_E;
+    }
+
+#ifdef SINGLE_THREADED
     return wc_UnLockMutex(mutex);
+#else
+    xSemaphoreGive(*mutex);
+    return 0;
+#endif
 }
 
 #endif

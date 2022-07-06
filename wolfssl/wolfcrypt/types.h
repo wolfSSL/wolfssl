@@ -1,6 +1,6 @@
 /* types.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -714,7 +714,7 @@ typedef struct w64wrapper {
                     /* In cases when truncation is expected the caller needs*/
                     /* to check the return value from the function so that  */
                     /* compiler doesn't complain.                           */
-                    /* xtensa-esp32-elf v8.2.0 warns trancation at          */
+                    /* xtensa-esp32-elf v8.2.0 warns truncation at          */
                     /* GetAsnTimeString()                                   */
                     static WC_INLINE
                     int _xsnprintf_(char *s, size_t n, const char *format, ...)

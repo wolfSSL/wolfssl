@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -311,14 +311,15 @@
         sha->ctx.isfirstblock = 1;
         sha->ctx.sha_type = SHA1;
         if(sha->ctx.mode == ESP32_SHA_HW){
+            sha->ctx.lockDepth = 0;
             /* release hw engine */
-            esp_sha_hw_unlock();
+            esp_sha_hw_unlock(&(sha->ctx));
         }
         /* always set mode as INIT
         *  whether using HW or SW is determined at first call of update()
         */
         sha->ctx.mode = ESP32_SHA_INIT;
-
+        sha->ctx.lockDepth = 0;
         return ret;
     }
 
@@ -538,6 +539,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     sha->ctx.mode = ESP32_SHA_INIT;
     sha->ctx.isfirstblock = 1;
+    sha->ctx.lockDepth = 0; /* keep track of how many times lock is called */
 #endif
     ret = InitSha(sha);
     if (ret != 0)
@@ -616,7 +618,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             }
             if (sha->ctx.mode == ESP32_SHA_SW) {
                 ret = XTRANSFORM(sha, (const byte*)local);
-            } else {
+            }
+            else {
                 esp_sha_process(sha, (const byte*)local);
             }
         #else
@@ -670,7 +673,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         }
         if (sha->ctx.mode == ESP32_SHA_SW){
             ret = XTRANSFORM(sha, (const byte*)local32);
-        } else {
+        }
+        else {
             esp_sha_process(sha, (const byte*)local32);
         }
     #else
@@ -753,7 +757,8 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         }
         if (sha->ctx.mode == ESP32_SHA_SW) {
             ret = XTRANSFORM(sha, (const byte*)local);
-        } else {
+        }
+        else {
             ret = esp_sha_process(sha, (const byte*)local);
         }
     #else
@@ -793,7 +798,8 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     }
     if (sha->ctx.mode == ESP32_SHA_SW) {
         ret = XTRANSFORM(sha, (const byte*)local);
-    } else {
+    }
+    else {
         ret = esp_sha_digest_process(sha, 1);
     }
 #else
@@ -886,13 +892,16 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     if(sha->ctx.mode == ESP32_SHA_INIT){
         esp_sha_try_hw_lock(&sha->ctx);
     }
-    if(sha->ctx.mode != ESP32_SHA_SW)
+    if (sha->ctx.mode != ESP32_SHA_SW) {
+        /* TODO check SW/HW logic */
         esp_sha_digest_process(sha, 0);
+    }
 #endif
 
     ret = wc_ShaCopy(sha, &tmpSha);
     if (ret == 0) {
-       ret = wc_ShaFinal(&tmpSha, hash);
+        /* if HW failed, use SW */
+        ret = wc_ShaFinal(&tmpSha, hash);
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
         sha->ctx.mode = ESP32_SHA_SW;
