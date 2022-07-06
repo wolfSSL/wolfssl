@@ -28276,8 +28276,8 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
         ret = ASN_ECC_KEY_E;
     }
 
-    return ret;
 #endif
+    return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 #endif
