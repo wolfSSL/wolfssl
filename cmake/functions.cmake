@@ -302,6 +302,7 @@ function(generate_build_flags)
         set(BUILD_DEBUG "yes" PARENT_SCOPE)
     endif()
     set(BUILD_RC2 ${WOLFSSL_RC2} PARENT_SCOPE)
+    set(BUILD_ERROR_STRINGS ${WOLFSSL_ERROR_STRINGS} PARENT_SCOPE)
 
     set(BUILD_FLAGS_GENERATED "yes" PARENT_SCOPE)
 endfunction()
@@ -607,8 +608,11 @@ function(generate_lib_src_list LIB_SOURCES)
 
     list(APPEND LIB_SOURCES
          wolfcrypt/src/logging.c
-         wolfcrypt/src/wc_port.c
-         wolfcrypt/src/error.c)
+         wolfcrypt/src/wc_port.c)
+         
+    if(BUILD_ERROR_STRINGS)
+        list(APPEND LIB_SOURCES wolfcrypt/src/error.c)
+    endif()
 
 
     if(NOT BUILD_FIPS_RAND)
