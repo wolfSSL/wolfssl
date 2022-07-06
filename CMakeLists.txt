@@ -438,8 +438,7 @@ if (WOLFSSL_OQS)
     endif()
 endif()
 
-# TODO: - Lean PSK
-#       - Lean TLS
+# TODO: - Lean TLS
 #       - Low resource
 #       - Titan cache
 #       - Huge cache
@@ -451,6 +450,21 @@ endif()
 #       - Atomic user record layer
 #       - Public key callbacks
 #       - Microchip/Atmel CryptoAuthLib
+
+# Lean-PSK
+add_option("WOLFSSL_LEAN_PSK"
+    "Enable Lean PSK build (default: disabled)"
+    "no" "yes;no")
+
+if(${WOLFSSL_LEAN_PSK})
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA")
+    if(WOLFSSL_SLOW_MATH)
+        override_cache(WOLFSSL_SLOW_MATH "no")
+    endif()
+    if(WOLFSSL_SINGLE_THREADED)
+        override_cache(WOLFSSL_SINGLE_THREADED "yes")
+    endif()
+endif()
 
 # AES-CBC
 add_option("WOLFSSL_AESCBC"
