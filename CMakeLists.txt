@@ -481,7 +481,7 @@ add_option("WOLFSSL_AESGCM"
     "yes" "yes;no;table;small;word32;4bit")
 
 # leanpsk and leantls don't need gcm
-if(WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
+if(BUILD_FIPS_RAND OR WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
 endif()
 
