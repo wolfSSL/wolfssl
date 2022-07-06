@@ -11995,7 +11995,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
         static const char* certDerFile = CERT_WRITE_TEMP_DIR "cert.der";
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
         static const char* certPemFile = CERT_WRITE_TEMP_DIR "cert.pem";
-        #if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        #if defined(WOLFSSL_CERT_REQ) && !defined(WOLFSSL_NO_MALLOC)
             static const char* certReqDerFile = CERT_WRITE_TEMP_DIR "certreq.der";
             static const char* certReqPemFile = CERT_WRITE_TEMP_DIR "certreq.pem";
         #endif
@@ -15559,10 +15559,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_CERT_REQ) && !defined(WOLFSSL_NO_MALLOC)
     {
         Cert        *req;
         int         derSz;
+#ifndef WOLFSSL_SMALL_STACK
+        byte*  der = NULL;
+#endif
 
         req = (Cert *)XMALLOC(sizeof *req, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (! req)
@@ -15654,6 +15657,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         derSz = wc_MakeCertReq_ex(req, der, FOURK_BUF, RSA_TYPE, key);
         if (derSz < 0) {
             ERROR_OUT(-7974, exit_rsa);
+        }
+
+        /* Test getting the size of the buffer without providing the buffer.
+         * derSz is set to the "largest buffer" we are willing to allocate. */
+        derSz = wc_MakeCertReq(req, NULL, 10000, key, NULL);
+        if (derSz < 0) {
+            ERROR_OUT(-7975, exit_rsa);
         }
 
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -22560,6 +22570,17 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     if (derSz == 0) {
         ERROR_OUT(-9890, done);
     }
+
+#ifdef HAVE_COMP_KEY
+    /* test export of compressed public key */
+    derSz = wc_EccPublicKeyToDer_ex(userA, der, ECC_BUFSIZE, 1, 1);
+    if (derSz < 0) {
+        ERROR_OUT(derSz, done);
+    }
+    if (derSz == 0) {
+        ERROR_OUT(-9890, done);
+    }
+#endif
 
     ret = SaveDerAndPem(der, derSz, eccPubKeyDerFile, NULL, 0, -8348);
     if (ret != 0) {

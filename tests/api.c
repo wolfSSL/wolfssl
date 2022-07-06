@@ -24715,7 +24715,7 @@ static int test_wc_ecc_export_x963_ex (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_export_x963_ex(&key, out, &badOutLen, COMP);
         }
-        if (ret == BUFFER_E) {
+        if (ret == LENGTH_ONLY_E) {
             key.idx = -4;
             ret = wc_ecc_export_x963_ex(&key, out, &outlen, COMP);
         }
@@ -30578,7 +30578,7 @@ static void test_wc_GetPubKeyDerFromCert(void)
         XFCLOSE(fp);
 
         wc_InitDecodedCert(&decoded, certBuf, certBufSz, NULL);
-        ret = wc_ParseCert(&decoded, CERTREQ_TYPE, NO_VERIFY, NULL);
+        ret = wc_ParseCert(&decoded, CERTREQ_TYPE, VERIFY, NULL);
         AssertIntEQ(ret, 0);
 
         /* good test case - RSA DER certificate request */

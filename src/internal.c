@@ -14781,6 +14781,32 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     }
 
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        switch (type) {
+        case certificate:
+        case server_key_exchange:
+        case certificate_request:
+        case server_hello_done:
+            if (ssl->options.resuming) {
+#ifdef WOLFSSL_WPAS
+                /* This can occur when ssl->sessionSecretCb is set. EAP-FAST
+                 * (RFC 4851) allows for detecting server session resumption
+                 * based on the msg received after the ServerHello. */
+                WOLFSSL_MSG("Not resuming as thought");
+                ssl->options.resuming = 0;
+                /* No longer resuming, reset peer authentication state. */
+                ssl->options.peerAuthGood = 0;
+#else
+                /* Fatal error. Only try to send an alert. RFC 5246 does not
+                 * allow for reverting back to a full handshake after the
+                 * server has indicated the intention to do a resumption. */
+                (void)SendAlert(ssl, alert_fatal, unexpected_message);
+                return OUT_OF_ORDER_E;
+#endif
+            }
+        }
+    }
+
 #ifdef OPENSSL_EXTRA
     if (ssl->CBIS != NULL){
         ssl->cbmode = SSL_CB_MODE_READ;
@@ -14894,12 +14920,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->options.startedETMRead)
                 *inOutIdx += MacSize(ssl);
         #endif
-        }
-        if (ssl->options.resuming) {
-            WOLFSSL_MSG("Not resuming as thought");
-            ssl->options.resuming = 0;
-            /* CLIENT: No longer resuming, reset peer authentication state. */
-            ssl->options.peerAuthGood = 0;
         }
         break;
 
@@ -24639,8 +24659,12 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
 #ifdef HAVE_SECRET_CALLBACK
         /* If a session secret callback exists, we are using that
-         * key instead of the saved session key. */
-        ret = ret || (ssl->sessionSecretCb != NULL);
+         * key instead of the saved session key. Requires a ticket. */
+        ret = ret || (ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                );
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -24987,7 +25011,11 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         }
 
 #ifdef HAVE_SECRET_CALLBACK
-        if (ssl->sessionSecretCb != NULL) {
+        if (ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) {
             int secretSz = SECRET_LEN;
             ret = ssl->sessionSecretCb(ssl, ssl->session->masterSecret,
                                               &secretSz, ssl->sessionSecretCtx);

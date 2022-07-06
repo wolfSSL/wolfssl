@@ -13715,7 +13715,7 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
    word32 numlen;
    int    ret = MP_OKAY;
 
-   if (key == NULL || out == NULL || outLen == NULL)
+   if (key == NULL || outLen == NULL)
        return BAD_FUNC_ARG;
 
    if (key->type == ECC_PRIVATEKEY_ONLY)
@@ -13729,8 +13729,11 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
    if (*outLen < (1 + numlen)) {
       *outLen = 1 + numlen;
-      return BUFFER_E;
+      return LENGTH_ONLY_E;
    }
+
+   if (out == NULL)
+       return BAD_FUNC_ARG;
 
    /* store first byte */
    out[0] = mp_isodd(key->pubkey.y) == MP_YES ? ECC_POINT_COMP_ODD : ECC_POINT_COMP_EVEN;

@@ -10509,9 +10509,11 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
 
     ssl->sessionSecretCb = cb;
     ssl->sessionSecretCtx = ctx;
-    /* If using a pre-set key, assume session resumption. */
-    ssl->session->sessionIDSz = 0;
-    ssl->options.resuming = 1;
+    if (cb != NULL) {
+        /* If using a pre-set key, assume session resumption. */
+        ssl->session->sessionIDSz = 0;
+        ssl->options.resuming = 1;
+    }
 
     return WOLFSSL_SUCCESS;
 }
@@ -12181,6 +12183,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             /* CLIENT: Fail-safe for Server Authentication. */
             if (!ssl->options.peerAuthGood) {
                 WOLFSSL_MSG("Server authentication did not happen");
+                ssl->error = NO_PEER_VERIFY;
                 return WOLFSSL_FATAL_ERROR;
             }
 

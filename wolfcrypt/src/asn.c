@@ -13055,9 +13055,16 @@ int DecodeToKey(DecodedCert* cert, int verify)
         return ret;
 
     /* Determine if self signed */
-    cert->selfSigned = XMEMCMP(cert->issuerHash,
-                               cert->subjectHash,
-                               KEYID_SIZE) == 0 ? 1 : 0;
+#ifdef WOLFSSL_CERT_REQ
+    if (cert->isCSR)
+        cert->selfSigned = 1;
+    else
+#endif
+    {
+        cert->selfSigned = XMEMCMP(cert->issuerHash,
+                                   cert->subjectHash,
+                                   KEYID_SIZE) == 0 ? 1 : 0;
+    }
 
     ret = GetCertKey(cert, cert->source, &cert->srcIdx, cert->maxIdx);
     if (ret != 0)
@@ -18120,8 +18127,15 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     }
     if (ret == 0) {
         /* Determine if self signed by comparing issuer and subject hashes. */
-        cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
-                                   KEYID_SIZE) == 0 ? 1 : 0;
+    #ifdef WOLFSSL_CERT_REQ
+        if (cert->isCSR)
+            cert->selfSigned = 1;
+        else
+    #endif
+        {
+            cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
+                                       KEYID_SIZE) == 0 ? 1 : 0;
+        }
 
         if (stopAtPubKey) {
             /* Return any bad date error through badDateRet and return offset of
@@ -19783,6 +19797,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         #endif /* IGNORE_NAME_CONSTRAINTS */
         }
+#ifdef WOLFSSL_CERT_REQ
+        else if (type == CERTREQ_TYPE) {
+            if ((ret = ConfirmSignature(&cert->sigCtx,
+                    cert->source + cert->certBegin,
+                    cert->sigIndex - cert->certBegin,
+                    cert->publicKey, cert->pubKeySize,
+                    cert->keyOID, cert->signature,
+                    cert->sigLength, cert->signatureOID,
+                    sce_tsip_encRsaKeyIdx)) != 0) {
+                if (ret != WC_PENDING_E) {
+                    WOLFSSL_MSG("Confirm signature failed");
+                }
+                return ret;
+            }
+        }
+#endif
         else {
             /* no signer */
             WOLFSSL_MSG("No CA signer to verify with");
@@ -22119,7 +22149,7 @@ enum {
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
 static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
-                           int with_header)
+                           int with_header, int comp)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret, idx = 0, algoSz, curveSz, bitStringSz;
@@ -22129,7 +22159,10 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     /* public size */
     pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
-    pubSz = 1 + 2 * pubSz;
+    if (comp)
+        pubSz = 1 + pubSz;
+    else
+        pubSz = 1 + 2 * pubSz;
 
     /* check for buffer overflow */
     if (output != NULL && pubSz > (word32)outLen) {
@@ -22172,7 +22205,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     /* pub */
     if (output) {
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, output + idx, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, output + idx, &pubSz, comp);
         PRIVATE_KEY_LOCK();
         if (ret != 0) {
             return ret;
@@ -22196,7 +22229,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if (ret == 0) {
         /* Calculate the size of the encoded public point. */
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, NULL, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
         PRIVATE_KEY_LOCK();
         /* LENGTH_ONLY_E on success. */
         if (ret == LENGTH_ONLY_E) {
@@ -22266,7 +22299,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if ((ret == 0) && (output != NULL)) {
         /* Encode public point. */
         PRIVATE_KEY_UNLOCK();
-        ret = wc_ecc_export_x963(key, output, &pubSz);
+        ret = wc_ecc_export_x963_ex(key, output, &pubSz, comp);
         PRIVATE_KEY_LOCK();
     }
     if (ret == 0) {
@@ -22294,12 +22327,18 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {
-    return SetEccPublicKey(output, key, inLen, with_AlgCurve);
+    return SetEccPublicKey(output, key, inLen, with_AlgCurve, 0);
+}
+
+int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output, word32 inLen,
+                                                    int with_AlgCurve, int comp)
+{
+    return SetEccPublicKey(output, key, inLen, with_AlgCurve, comp);
 }
 
 int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 {
-    return SetEccPublicKey(NULL, key, 0, with_AlgCurve);
+    return SetEccPublicKey(NULL, key, 0, with_AlgCurve, 0);
 }
 
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
@@ -24159,7 +24198,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif
     #ifdef HAVE_ECC
         case ECC_KEY:
-            ret = SetEccPublicKey(output, eccKey, outLen, 1);
+            ret = SetEccPublicKey(output, eccKey, outLen, 1, 0);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -24839,7 +24878,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (eccKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey,
-                                           sizeof(der->publicKey), 1);
+                                           sizeof(der->publicKey), 1, 0);
     }
 #endif
 
@@ -26094,7 +26133,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
         if (eccKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey,
-                                           sizeof(der->publicKey), 1);
+                                           sizeof(der->publicKey), 1, 0);
     }
 #endif
 
@@ -26577,7 +26616,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if ((ret == 0) && (sz > (int)derSz)) {
         ret = BUFFER_E;
     }
-    if (ret == 0) {
+    if (ret == 0 && derBuffer != NULL) {
         /* Encode certificate request body into buffer. */
         SetASN_Items(certReqBodyASN, dataASN, certReqBodyASN_Length, derBuffer);
 
@@ -26593,14 +26632,15 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 &cert->subject, cert->heap);
         }
     }
-    if (ret >= 0) {
+    if (ret >= 0 && derBuffer != NULL) {
         /* Encode public key into space in buffer. */
         ret = EncodePublicKey(cert->keyType,
             (byte*)dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
             dataASN[CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
-    if ((ret >= 0) && (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
+    if ((ret >= 0 && derBuffer != NULL) &&
+            (!dataASN[CERTREQBODYASN_IDX_EXT_BODY].noOut)) {
         /* Encode extensions into space in buffer. */
         ret = EncodeExtensions(cert,
                 (byte*)dataASN[CERTREQBODYASN_IDX_EXT_BODY].data.buffer.data,
@@ -26826,7 +26866,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifdef HAVE_ECC
     /* ECC public key */
     if (eckey != NULL)
-        bufferSz = SetEccPublicKey(buf, eckey, MAX_PUBLIC_KEY_SZ, 0);
+        bufferSz = SetEccPublicKey(buf, eckey, MAX_PUBLIC_KEY_SZ, 0, 0);
 #endif
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     /* ED25519 public key */
