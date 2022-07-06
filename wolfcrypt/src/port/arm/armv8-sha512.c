@@ -797,6 +797,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SHA512
 
+#if !defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256)
+
 static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
                                             enum wc_HashType type )
 {
@@ -832,6 +834,8 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
     }
     return ret;
 }
+
+#endif /* !WOLFSSL_NOSHA512_224 || !WOLFSSL_NOSHA512_256 */
 
 int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
 {
