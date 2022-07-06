@@ -1000,10 +1000,12 @@ endif()
 
 # DH and ECC need bigint
 if(NOT WOLFSSL_ASN AND
-   NOT WOLFSSL_DH AND
-   NOT WOLFSSL_ECC AND
-   NOT WOLFSSL_RSA)
-    override_cache(WOLFSSL_FAST_MATH "no")
+    NOT WOLFSSL_DH AND
+    NOT WOLFSSL_ECC AND
+    NOT WOLFSSL_RSA)
+    if(WOLFSSL_FAST_MATH)
+        override_cache(WOLFSSL_FAST_MATH "no")
+    endif()
     set(WOLFSSL_SLOWMATH "no")
 endif()
 
