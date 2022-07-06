@@ -24715,7 +24715,12 @@ static int test_wc_ecc_export_x963_ex (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_export_x963_ex(&key, out, &badOutLen, COMP);
         }
-        if (ret == LENGTH_ONLY_E) {
+#if defined(HAVE_FIPS) && (!defined(FIPS_VERSION_LT) || FIPS_VERSION_LT(5,3))
+        if (ret == BUFFER_E)
+#else
+        if (ret == LENGTH_ONLY_E)
+#endif
+        {
             key.idx = -4;
             ret = wc_ecc_export_x963_ex(&key, out, &outlen, COMP);
         }

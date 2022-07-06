@@ -2879,10 +2879,6 @@ if test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_COMPKEY=yes
 fi
-if test "$ENABLED_COMPKEY" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
-fi
 
 
 # for using memory optimization setting on both curve25519 and ed25519
@@ -3946,6 +3942,9 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
+
+        AS_IF([test "$ENABLED_COMPKEY" = "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_compkey" != "yes")],
+            [ENABLED_COMPKEY="no"])
 
         AS_IF([test "$ENABLED_SHA224" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
             [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
@@ -7701,8 +7700,13 @@ if test "x$ENABLED_SECURE_RENEGOTIATION_INFO" = "xyes"; then
 fi
 
 
+if test "$ENABLED_COMPKEY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
+fi
 
-# Depricated Algorithm Handling
+
+# Deprecated Algorithm Handling
 if test "$ENABLED_ARC4" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
