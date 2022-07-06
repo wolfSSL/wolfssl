@@ -971,7 +971,7 @@ add_option("WOLFSSL_ASN"
     "yes" "yes;no")
 
 if(NOT WOLFSSL_ASN)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_ASN" "-DNO_CERTS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_ASN" "-DNO_ASN_CRYPT")
 
     if(NOT WOLFSSL_DH AND NOT WOLFSSL_ECC)
         # DH and ECC need bigint
@@ -982,7 +982,6 @@ else()
     if(WOLFSSL_LEAN_PSK)
         list(APPEND WOLFSSL_DEFINITIONS
             "-DNO_ASN"
-            "-DNO_CERTS"
             "-DNO_BIG_INT")
         override_cache(WOLFSSL_ASN "no")
     else()
