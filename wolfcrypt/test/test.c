@@ -38195,7 +38195,10 @@ static int mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
                                0x1f, 0x13d,  0x45, 0x615
 #endif
                             };
-    int bits[] = { 256, 384, 2048,
+    int bits[] = { 256, 384,
+#if defined(SP_INT_MAX_BITS) && SP_INT_MAX_BITS > 4096
+                   2048,
+#endif
 #if defined(SP_INT_MAX_BITS) && SP_INT_MAX_BITS > 6144
                    3072
 #endif
