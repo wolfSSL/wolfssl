@@ -147,8 +147,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef NO_WOLFSSL_CLIENT
-    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input,
-                                    word32* inOutIdx, word32 size);
     static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                    word32* inOutIdx, word32 size);
     #ifndef NO_CERTS
@@ -7286,6 +7284,15 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->dtls13ClientHello != NULL) {
+        XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+        ssl->dtls13ClientHello = NULL;
+        ssl->dtls13ClientHelloSz = 0;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
@@ -7505,12 +7512,21 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     WOLFSSL_ENTER("FreeHandshakeResources");
 
 #ifdef WOLFSSL_DTLS
-    /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
-    if (ssl->options.dtls && !IsAtLeastTLSv1_3(ssl->version)) {
-        DtlsMsgPoolReset(ssl);
-        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
-        ssl->dtls_rx_msg_list = NULL;
-        ssl->dtls_rx_msg_list_sz = 0;
+    if (ssl->options.dtls) {
+        /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
+        if(!IsAtLeastTLSv1_3(ssl->version)) {
+            DtlsMsgPoolReset(ssl);
+            DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+            ssl->dtls_rx_msg_list = NULL;
+            ssl->dtls_rx_msg_list_sz = 0;
+        }
+#ifdef WOLFSSL_DTLS13
+        if (ssl->dtls13ClientHello != NULL) {
+            XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+            ssl->dtls13ClientHello = NULL;
+            ssl->dtls13ClientHelloSz = 0;
+        }
+#endif /* WOLFSSL_DTLS13 */
     }
 #endif
 
@@ -10022,7 +10038,7 @@ int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
         (!IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != ssl->version.minor) ||
         (IsAtLeastTLSv1_3(ssl->version) && ssl->curRL.pvMinor != DTLSv1_2_MINOR)
         ) {
-        if (*type != client_hello && *type != hello_verify_request) {
+        if (*type != client_hello && *type != hello_verify_request && *type != server_hello) {
             WOLFSSL_ERROR(VERSION_ERROR);
             return VERSION_ERROR;
         }
@@ -24605,8 +24621,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
 
     /* handle processing of DTLS hello_verify_request (3) */
-    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input,
-                                    word32* inOutIdx, word32 size)
+    int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+        word32 size)
     {
         ProtocolVersion pv;
         byte            cookieSz;
@@ -24648,7 +24664,18 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             *inOutIdx += cookieSz;
         }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13)
+        if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.dtls) {
+            /* we sent a TLSv1.3 ClientHello but received a
+             * HELLO_VERIFY_REQUEST */
+            if (!ssl->options.downgrade ||
+                    ssl->options.minDowngrade < pv.minor)
+                return VERSION_ERROR;
+        }
+#endif /* defined(WOLFSSL_DTLS13) && defined(WOLFSSL_TLS13) */
+
         ssl->options.serverState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
+
         return 0;
     }
 
@@ -24689,6 +24716,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
      */
     int CheckVersion(WOLFSSL *ssl, ProtocolVersion pv)
     {
+        byte lowerVersion, higherVersion;
     #ifdef WOLFSSL_TLS13_DRAFT
         if (pv.major == TLS_DRAFT_MAJOR) {
             pv.major = SSLv3_MAJOR;
@@ -24702,11 +24730,24 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         }
         #endif
 
-        if (pv.minor > ssl->version.minor) {
+        if (ssl->options.dtls) {
+            if (pv.major != DTLS_MAJOR || pv.minor == DTLS_BOGUS_MINOR)
+                return VERSION_ERROR;
+            lowerVersion = pv.minor > ssl->version.minor;
+            higherVersion = pv.minor < ssl->version.minor;
+        }
+        else {
+            if (pv.major != SSLv3_MAJOR)
+                return VERSION_ERROR;
+            lowerVersion = pv.minor < ssl->version.minor;
+            higherVersion = pv.minor > ssl->version.minor;
+        }
+
+        if (higherVersion) {
             WOLFSSL_MSG("Server using higher version, fatal error");
             return VERSION_ERROR;
         }
-        if (pv.minor < ssl->version.minor) {
+        if (lowerVersion) {
             WOLFSSL_MSG("server using lower version");
 
             /* Check for downgrade attack. */
@@ -24714,7 +24755,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 WOLFSSL_MSG("\tno downgrade allowed, fatal error");
                 return VERSION_ERROR;
             }
-            if (pv.minor < ssl->options.minDowngrade) {
+            if ((!ssl->options.dtls && pv.minor < ssl->options.minDowngrade) ||
+                (ssl->options.dtls && pv.minor > ssl->options.minDowngrade)) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
@@ -24729,27 +24771,35 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             #endif
 
             /* Checks made - OK to downgrade. */
-            if (pv.minor == SSLv3_MINOR) {
-                /* turn off tls */
-                WOLFSSL_MSG("\tdowngrading to SSLv3");
-                ssl->options.tls    = 0;
-                ssl->options.tls1_1 = 0;
-                ssl->version.minor  = SSLv3_MINOR;
-            }
-            else if (pv.minor == TLSv1_MINOR) {
-                /* turn off tls 1.1+ */
-                WOLFSSL_MSG("\tdowngrading to TLSv1");
-                ssl->options.tls1_1 = 0;
-                ssl->version.minor  = TLSv1_MINOR;
-            }
-            else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
-                ssl->version.minor  = TLSv1_1_MINOR;
-            }
-            else if (pv.minor == TLSv1_2_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.2");
-                ssl->version.minor  = TLSv1_2_MINOR;
-            }
+                ssl->version.minor = pv.minor;
+                switch(pv.minor) {
+                case SSLv3_MINOR:
+                    /* turn off tls */
+                    WOLFSSL_MSG("\tdowngrading to SSLv3");
+                    ssl->options.tls    = 0;
+                    ssl->options.tls1_1 = 0;
+                    break;
+                case TLSv1_MINOR:
+                    /* turn off tls 1.1+ */
+                    WOLFSSL_MSG("\tdowngrading to TLSv1");
+                    ssl->options.tls1_1 = 0;
+                    break;
+                case TLSv1_1_MINOR:
+                    WOLFSSL_MSG("\tdowngrading to TLSv1.1");
+                    break;
+                case DTLS_MINOR:
+                    WOLFSSL_MSG("\tdowngrading to DTLSv1.1");
+                    break;
+                case TLSv1_2_MINOR:
+                    WOLFSSL_MSG("\tdowngrading to TLSv1.2");
+                    break;
+                case DTLSv1_2_MINOR:
+                    WOLFSSL_MSG("\tdowngrading to DTLSv1.2");
+                    break;
+                default:
+                    WOLFSSL_MSG("\tbad minor version");
+                    return VERSION_ERROR;
+                }
         }
 
 #ifdef OPENSSL_EXTRA

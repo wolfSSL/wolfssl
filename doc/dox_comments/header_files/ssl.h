@@ -475,7 +475,163 @@ WOLFSSL_METHOD *wolfDTLSv1_client_method(void);
     \sa wolfSSL_CTX_new
 */
 WOLFSSL_METHOD *wolfDTLSv1_server_method(void);
+/*!
+    \ingroup Setup
 
+    \brief The wolfDTLSv1_3_server_method() function is used to indicate that
+    the application is a server and will only support the DTLS 1.3
+    protocol. This function allocates memory for and initializes a new
+    wolfSSL_METHOD structure to be used when creating the SSL/TLS context with
+    wolfSSL_CTX_new(). This function is only available when wolfSSL has been
+    compiled with DTLSv1.3 support (--enable-dtls13, or by defining
+    wolfSSL_DTLS13).
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return FAIL If memory allocation fails when calling XMALLOC, the failure
+    value of the underlying malloc() implementation will be returned
+    (typically NULL with errno will be set to ENOMEM).
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLSv1_3_server_method();
+    if (method == NULL) {
+	    // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+
+    \sa wolfDTLSv1_3_client_method
+*/
+
+WOLFSSL_METHOD *wolfDTLSv1_3_server_method(void);
+/*!
+    \ingroup Setup
+
+    \brief The wolfDTLSv1_3_client_method() function is used to indicate that
+    the application is a client and will only support the DTLS 1.3
+    protocol. This function allocates memory for and initializes a new
+    wolfSSL_METHOD structure to be used when creating the SSL/TLS context with
+    wolfSSL_CTX_new(). This function is only available when wolfSSL has been
+    compiled with DTLSv1.3 support (--enable-dtls13, or by defining
+    wolfSSL_DTLS13).
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return FAIL If memory allocation fails when calling XMALLOC, the failure
+    value of the underlying malloc() implementation will be returned
+    (typically NULL with errno will be set to ENOMEM).
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLSv1_3_client_method();
+    if (method == NULL) {
+	    // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+
+    \sa wolfDTLSv1_3_server_method
+*/
+WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void);
+/*!
+    \ingroup Setup
+
+    \brief The wolfDTLS_server_method() function is used to indicate that the
+    application is a server and will support the highest version of DTLS
+    available and all the version up to the minimum version allowed.  The
+    default minimum version allowed is based on the define
+    WOLFSSL_MIN_DTLS_DOWNGRADE and can be changed at runtime using
+    wolfSSL_SetMinVersion(). This function allocates memory for and initializes
+    a new wolfSSL_METHOD structure to be used when creating the SSL/TLS context
+    with wolfSSL_CTX_new(). This function is only available when wolfSSL has
+    been compiled with DTLS support (--enable-dtls, or by defining
+    wolfSSL_DTLS).
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return FAIL If memory allocation fails when calling XMALLOC, the failure
+    value of the underlying malloc() implementation will be returned
+    (typically NULL with errno will be set to ENOMEM).
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLS_server_method();
+    if (method == NULL) {
+	    // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+
+    \sa wolfDTLS_client_method
+    \sa wolfSSL_SetMinVersion
+*/
+WOLFSSL_METHOD *wolfDTLS_server_method(void);
+/*!
+    \ingroup Setup
+
+    \brief The wolfDTLS_client_method() function is used to indicate that the
+    application is a client and will support the highest version of DTLS
+    available and all the version up to the minimum version allowed.  The
+    default minimum version allowed is based on the define
+    WOLFSSL_MIN_DTLS_DOWNGRADE and can be changed at runtime using
+    wolfSSL_SetMinVersion(). This function allocates memory for and initializes
+    a new wolfSSL_METHOD structure to be used when creating the SSL/TLS context
+    with wolfSSL_CTX_new(). This function is only available when wolfSSL has
+    been compiled with DTLS support (--enable-dtls, or by defining
+    wolfSSL_DTLS).
+
+    \return * If successful, the call will return a pointer to the newly
+    created WOLFSSL_METHOD structure.
+    \return FAIL If memory allocation fails when calling XMALLOC, the failure
+    value of the underlying malloc() implementation will be returned
+    (typically NULL with errno will be set to ENOMEM).
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx;
+
+    method = wolfDTLS_client_method();
+    if (method == NULL) {
+	    // unable to get method
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    ...
+    \endcode
+
+
+    \sa wolfDTLS_server_method
+    \sa wolfSSL_SetMinVersion
+*/
+WOLFSSL_METHOD *wolfDTLS_client_method(void);
 /*!
     \brief This function creates and initializes a WOLFSSL_METHOD for the
     server side.

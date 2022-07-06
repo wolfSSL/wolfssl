@@ -1205,6 +1205,7 @@ enum Misc {
 
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
+    DTLS_BOGUS_MINOR = 0xfe,    /* DTLS 0xfe was skipped, see RFC6347 Sec. 1 */
     DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
     DTLSv1_3_MINOR  = 0xfc,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
@@ -4670,6 +4671,8 @@ struct WOLFSSL {
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
     Dtls13Rtx dtls13Rtx;
+    byte *dtls13ClientHello;
+    word16 dtls13ClientHelloSz;
 
 #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
@@ -5186,6 +5189,8 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+        word32 size);
     #ifdef WOLFSSL_TLS13
     WOLFSSL_LOCAL int SendTls13ClientHello(WOLFSSL* ssl);
     #endif

@@ -30,6 +30,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \
               tests/test-dtls.conf \
+              tests/test-dtls-downgrade.conf \
               tests/test-dtls-fails.conf \
               tests/test-dtls-fails-cipher.conf \
               tests/test-dtls-group.conf \

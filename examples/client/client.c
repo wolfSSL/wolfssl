@@ -2802,7 +2802,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("Bad DTLS version");
 #endif /* WOLFSSL_DTLS13 */
             }
-            else
+            else if (version == 2)
                 version = -1;
         }
     }
@@ -2859,7 +2859,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
 
         case CLIENT_DOWNGRADE_VERSION:
-            method = wolfSSLv23_client_method_ex;
+            if (!doDTLS) {
+                method = wolfSSLv23_client_method_ex;
+            }
+            else {
+#ifdef WOLFSSL_DTLS
+                method = wolfDTLS_client_method_ex;
+#else
+                err_sys("version not supported");
+#endif /* WOLFSSL_DTLS */
+            }
             break;
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case EITHER_DOWNGRADE_VERSION:
@@ -2934,7 +2943,28 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
     if (minVersion != CLIENT_INVALID_VERSION) {
-        wolfSSL_CTX_SetMinVersion(ctx, minVersion);
+#ifdef WOLFSSL_DTLS
+        if (doDTLS) {
+            switch (minVersion) {
+            case 4:
+#ifdef WOLFSSL_DTLS13
+                minVersion = WOLFSSL_DTLSV1_3;
+                break;
+#else
+                err_sys("invalid minimum downgrade version");
+                break;
+#endif /* WOLFSSL_DTLS13 */
+            case 3:
+                minVersion = WOLFSSL_DTLSV1_2;
+                break;
+            case 2:
+                minVersion = WOLFSSL_DTLSV1;
+                break;
+            }
+        }
+#endif /* WOLFSSL_DTLS */
+        if (wolfSSL_CTX_SetMinVersion(ctx, minVersion) != WOLFSSL_SUCCESS)
+            err_sys("can't set minimum downgrade version");
     }
     if (simulateWantWrite) {
     #ifdef USE_WOLFSSL_IO

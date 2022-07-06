@@ -1023,6 +1023,17 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+
+    /* Add dtls downgrade test */
+    XSTRLCPY(argv0[1], "tests/test-dtls-downgrade.conf", sizeof(argv0[1]));
+    printf("starting dtls downgrade tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     XSTRLCPY(argv0[1], "tests/test-dtls-sha2.conf", sizeof(argv0[1]));

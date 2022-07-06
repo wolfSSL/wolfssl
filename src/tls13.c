@@ -3424,9 +3424,14 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif
 
 #ifdef WOLFSSL_DTLS13
-    /* legacy_cookie_id (always 0 length) */
-    if (ssl->options.dtls)
-        args->length += OPAQUE8_LEN;
+    if (ssl->options.dtls) {
+        /* legacy_cookie_id len */
+        args->length += ENUM_LEN;
+
+        /* server sent us an HelloVerifyRequest and we allow downgrade  */
+        if (ssl->arrays->cookieSz > 0 && ssl->options.downgrade)
+            args->length += ssl->arrays->cookieSz;
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     /* Advance state and proceed */
@@ -3532,9 +3537,19 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_DTLS13
-    /* legacy_cookie_id. always 0 length vector */
-    if (ssl->options.dtls)
-        args->output[args->idx++] = 0;
+    if (ssl->options.dtls) {
+        args->output[args->idx++] = ssl->arrays->cookieSz;
+
+        if (ssl->arrays->cookieSz > 0) {
+            /* We have a cookie saved, so the server sent us an
+             * HelloVerifyRequest, it means it is a v1.2 server */
+            if (!ssl->options.downgrade)
+                return VERSION_ERROR;
+            XMEMCPY(args->output + args->idx, ssl->arrays->cookie,
+                ssl->arrays->cookieSz);
+            args->idx += ssl->arrays->cookieSz;
+        }
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     /* Cipher suites */
@@ -3639,6 +3654,32 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_CLIENT)
+static int Dtls13DoDowngrade(WOLFSSL* ssl)
+{
+    int ret;
+    if (ssl->dtls13ClientHello == NULL)
+        return BAD_STATE_E;
+
+    /* v1.3 and v1.2 hash messages to compute the transcript hash. When we are
+     * using DTLSv1.3 we hash the first clientHello following v1.3 but the
+     * server can negotiate a lower version. So we need to re-hash the
+     * clientHello to adhere to DTLS <= v1.2 rules. */
+    ret = InitHandshakeHashes(ssl);
+    if (ret != 0)
+        return ret;
+    ret = HashRaw(ssl, ssl->dtls13ClientHello, ssl->dtls13ClientHelloSz);
+    XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+    ssl->dtls13ClientHello = NULL;
+    ssl->dtls13ClientHelloSz = 0;
+    ssl->keys.dtls_sequence_number_hi =
+        w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+    ssl->keys.dtls_sequence_number_lo =
+        w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+    return ret;
+}
+#endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT*/
+
 /* handle processing of TLS 1.3 server_hello (2) and hello_retry_request (6) */
 /* Handle the ServerHello message from the server.
  * Only a client will receive this message.
@@ -3738,6 +3779,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     XMEMCPY(&args->pv, input + args->idx, OPAQUE16_LEN);
     args->idx += OPAQUE16_LEN;
 
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls &&
+        (args->pv.major != DTLS_MAJOR || args->pv.minor == DTLS_BOGUS_MINOR))
+        return VERSION_ERROR;
+#endif /* WOLFSSL_DTLS */
+
 #ifndef WOLFSSL_NO_TLS12
     {
         byte wantDowngrade;
@@ -3760,6 +3807,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->options.dtls) {
                 ssl->chVersion.minor = DTLSv1_2_MINOR;
                 ssl->version.minor = DTLSv1_2_MINOR;
+                ret = Dtls13DoDowngrade(ssl);
+                if (ret != 0)
+                    return ret;
             }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -3837,6 +3887,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             ssl->chVersion.minor = DTLSv1_2_MINOR;
             ssl->version.minor = DTLSv1_2_MINOR;
+            ret = Dtls13DoDowngrade(ssl);
+            if (ret != 0)
+                return ret;
         }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -3891,8 +3944,27 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
 
             ssl->version.minor = args->pv.minor;
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                ret = Dtls13DoDowngrade(ssl);
+                if (ret != 0)
+                    return ret;
+            }
+#endif /* WOLFSSL_DTLS13 */
         }
     }
+
+#ifdef WOLFSSL_DTLS13
+    /* we are sure that version is >= v1.3 now, we can get rid of buffered
+     * ClientHello that was buffered to re-compute the hash in case of
+     * downgrade */
+    if (ssl->options.dtls && ssl->dtls13ClientHello != NULL) {
+        XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
+        ssl->dtls13ClientHello = NULL;
+        ssl->dtls13ClientHelloSz = 0;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_BUILD;
@@ -9178,6 +9250,40 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             }
             /* Multiple KeyUpdates can be sent. */
             break;
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+        case hello_verify_request:
+            if (!ssl->options.dtls) {
+                WOLFSSL_MSG("HelloVerifyRequest when not in DTLS");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_hello_verify_request) {
+                WOLFSSL_MSG("Duplicate HelloVerifyRequest received");
+                return DUPLICATE_MSG_E;
+            }
+            ssl->msgsReceived.got_hello_verify_request = 1;
+            if (ssl->msgsReceived.got_hello_retry_request) {
+                WOLFSSL_MSG(
+                    "Both HelloVerifyRequest and HelloRetryRequest received");
+                return DUPLICATE_MSG_E;
+            }
+            if (ssl->options.serverState >=
+                    SERVER_HELLO_RETRY_REQUEST_COMPLETE ||
+                ssl->options.connectState != CLIENT_HELLO_SENT) {
+                WOLFSSL_MSG("HelloVerifyRequest received out of order");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("HelloVerifyRequest recevied on the server");
+                return SIDE_ERROR;
+            }
+            if (!ssl->options.downgrade ||
+                ssl->options.minDowngrade < DTLSv1_2_MINOR) {
+                WOLFSSL_MSG(
+                    "HelloVerifyRequest recevied but not DTLSv1.2 allowed");
+                return VERSION_ERROR;
+            }
+            break;
+#endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_TLS12*/
 
         default:
             WOLFSSL_MSG("Unknown message type");
@@ -9238,7 +9344,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
                ssl->options.serverState == NULL_STATE &&
-               type != server_hello && type != hello_retry_request) {
+               type != server_hello && type != hello_retry_request
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+        && (!ssl->options.dtls || type != hello_verify_request)
+#endif /* defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12) */
+        ) {
         WOLFSSL_MSG("First server message not server hello");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
@@ -9332,6 +9442,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+    case hello_verify_request:
+        WOLFSSL_MSG("processing hello verify request");
+        ret = DoHelloVerifyRequest(ssl, input, inOutIdx, size);
+        break;
+#endif
     default:
         WOLFSSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;
