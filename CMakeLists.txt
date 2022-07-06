@@ -689,6 +689,8 @@ add_option("WOLFSSL_DSA"
 
 if(NOT WOLFSSL_DSA AND NOT WOLFSSL_OPENSSH)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DSA")
+else()
+    set(WOLFSSL_CERTS "yes")
 endif()
 
 # ECC Shamir
@@ -722,6 +724,8 @@ if(WOLFSSL_ECC)
     if("${WOLFSSL_ECC}" STREQUAL "nonblock")
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_ECC_NONBLOCK")
     endif()
+    
+    set(WOLFSSL_CERTS "yes")
 endif()
 
 # TODO: - ECC custom curves
@@ -778,6 +782,7 @@ if(WOLFSSL_ED25519 AND NOT WOLFSSL_32BIT)
 
     set(WOLFSSL_FEMATH "yes")
     set(WOLFSSL_GEMATH "yes")
+    set(WOLFSSL_CERTS "yes")
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ED25519")
 endif()
 
@@ -824,6 +829,8 @@ if(WOLFSSL_ED448 AND NOT WOLFSSL_32BIT)
 
     # EdDSA448 requires SHAKE256 which requires SHA-3
     override_cache(WOLFSSL_SHAKE256 "yes")
+    
+    set(WOLFSSL_CERTS "yes")
 endif()
 
 # Error strings
@@ -908,9 +915,12 @@ add_option("WOLFSSL_RSA"
 if(NOT WOLFSSL_RSA)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_RSA")
 else()
+    # turn off RSA if leanpsk or leantls on
     if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
         list(APPEND WOLFSSL_DEFINITIONS "-DNO_RSA")
         override_cache(WOLFSSL_RSA "no")
+    else()
+        set(WOLFSSL_CERTS "yes")
     endif()
 endif()
 
@@ -1819,6 +1829,11 @@ if (WOLFSSL_TLSX)
     if (WOLFSSL_ECC OR WOLFSSL_CURVE25519 OR WOLFSSL_CURVE448 OR WOLFSSL_TLS13)
        list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_SUPPORTED_CURVES")
     endif()
+endif()
+
+if(NOT "${WOLFSSL_CERTS}" OR "${WOLFSSL_LEAN_PSK}" OR NOT "${WOLFSSL_ASN}")
+   list(APPEND WOLFSSL_DEFINITIONS "-DNO_ASN -DNO_CERTS")
+   override_cache(WOLFSSL_ASN "no")
 endif()
 
 
