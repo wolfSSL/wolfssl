@@ -1657,8 +1657,34 @@ add_option("WOLFSSL_CRYPT_TESTS_HELP"
     "no" "yes;no")
 
 # TODO: - LIBZ
-#       - PKCS#11
-#       - Cavium
+
+# PKCS#11
+add_option("WOLFSSL_PKCS11"
+    "Enable pkcs11 access (default: disabled)"
+    "no" "yes;no;static")
+
+if(WOLFSSL_PKCS11)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_PKCS11"
+        "-DHAVE_WOLF_BIGINT")
+    if(WOLFSSL_PKCS11 STREQUAL "static")
+        list(APPEND WOLFSSL_LINK_LIBS dl)
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PKCS11_STATIC")
+        override_cache(WOLFSSL_PKCS11 "yes")
+    endif()
+endif()
+
+# PKCS#8
+add_option("WOLFSSL_PKCS8"
+    "Enable PKCS #8 key packages (default: enabled)"
+    "yes" "yes;no;static")
+
+if(NOT ENABLED_PKCS8)
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_PKCS8")
+endif()
+
+# TODO: - Cavium
 #       - Cavium V
 #       - Cavium Octeon
 #       - Intel QuickAssist
