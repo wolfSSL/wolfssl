@@ -10125,6 +10125,9 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             WOLFSSL_MSG("Invalid Qx");
             err = BAD_FUNC_ARG;
         }
+        if (mp_unsigned_bin_size(key->pubkey.y) > key->dp->size) {
+            err = BAD_FUNC_ARG;
+        }
     }
 
     /* read Qy */
@@ -10137,6 +10140,9 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
         if (mp_isneg(key->pubkey.y)) {
             WOLFSSL_MSG("Invalid Qy");
+            err = BAD_FUNC_ARG;
+        }
+        if (mp_unsigned_bin_size(key->pubkey.y) > key->dp->size) {
             err = BAD_FUNC_ARG;
         }
     }
@@ -13734,6 +13740,9 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
    if (out == NULL)
        return BAD_FUNC_ARG;
+
+   if (mp_unsigned_bin_size(key->pubkey.x) > (int)numlen)
+       return ECC_BAD_ARG_E;
 
    /* store first byte */
    out[0] = mp_isodd(key->pubkey.y) == MP_YES ? ECC_POINT_COMP_ODD : ECC_POINT_COMP_EVEN;
