@@ -2142,21 +2142,19 @@ then
     if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
-        if test "$GCC" = "yes"
+        if test "$CC" != "icc"
         then
-            # clang needs these flags
-            if test "$CC" = "clang"
-            then
-                AM_CFLAGS="$AM_CFLAGS -maes -mpclmul"
-            else
-                # GCC needs these flags, icc doesn't
-                # opt levels greater than 2 may cause problems on systems w/o
-                # aesni
-                if test "$CC" != "icc"
-                then
-                    AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
-                fi
-            fi
+            case $host_os in
+            mingw*)
+                # Windows uses intrinsics for GCM which uses SSE4 instructions.
+                # MSVC has own build files.
+                AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                ;;
+            *)
+                # Intrinsics used in AES_set_decrypt_key (TODO: rework)
+                AM_CFLAGS="$AM_CFLAGS -maes"
+                ;;
+            esac
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
     fi
