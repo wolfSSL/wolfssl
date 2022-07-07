@@ -2952,7 +2952,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 #else
                 err_sys("invalid minimum downgrade version");
-                break;
 #endif /* WOLFSSL_DTLS13 */
             case 3:
                 minVersion = WOLFSSL_DTLSV1_2;
