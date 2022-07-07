@@ -24,7 +24,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/visibility.h>
-#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -39,7 +38,7 @@
 #include "fsl_sss_api.h"
 #endif
 
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     /* NXP SE050 - Disable SHA512 224/256 support */
     #ifndef WOLFSSL_NOSHA512_224
     #define WOLFSSL_NOSHA512_224
@@ -105,7 +104,7 @@ WOLFSSL_LOCAL int se050_hash_init(SE050_HASH_Context* se050Ctx, void* heap);
 WOLFSSL_LOCAL int se050_hash_update(SE050_HASH_Context* se050Ctx,
     const byte* data, word32 len);
 WOLFSSL_LOCAL int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash,
-    size_t digestLen, word32 algo);
+    size_t digestLen, sss_algorithm_t algo);
 WOLFSSL_LOCAL void se050_hash_free(SE050_HASH_Context* se050Ctx);
 
 struct Aes;

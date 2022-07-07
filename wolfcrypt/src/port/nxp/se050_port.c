@@ -258,7 +258,8 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
 
 void se050_hash_free(SE050_HASH_Context* se050Ctx)
 {
-    (void)se050Ctx;
+    XFREE(se050Ctx->msg, se050Ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    se050Ctx->msg = NULL;
 }
 
 #ifndef NO_AES
@@ -511,6 +512,9 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     sss_algorithm_t     algorithm;
     int                 keySize;
     int                 keySizeBits;
+    int                 keyCreated = 0;
+    int                 keyId;
+    sss_cipher_type_t   curveType;
 
 #ifdef SE050_DEBUG
     printf("se050_ecc_sign_hash_ex: key %p, in %p (%d), out %p (%d), keyId %d\n",
@@ -525,7 +529,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     }
 
     keySize = key->dp->size;
-    ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, NULL);
+    ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, &curveType);
     if (ret != 0) {
         return ret;
     }
@@ -557,9 +561,38 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
+    /* this is run when a key was not generated and was instead passed in */
     if (status == kStatus_SSS_Success) {
-        status = sss_key_object_get_handle(&newKey, key->keyId);
+        keyId = key->keyId;
+        if (keyId <= 0) {
+            byte derBuf[SE050_ECC_DER_MAX];
+            word32 derSz;
+
+            ret = wc_EccKeyToDer(key, derBuf, (word32)sizeof(derBuf));
+            if (ret >= 0) {
+                derSz = ret;
+                ret = 0;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                keyId = se050_allocate_key(SE050_ECC_KEY);
+                status = sss_key_object_allocate_handle(&newKey, keyId,
+                    kSSS_KeyPart_Pair, curveType, keySize,
+                    kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
+                                                derSz, keySizeBits, NULL, 0);
+            }
+        }
+        else {
+            status = sss_key_object_get_handle(&newKey, keyId);
+        }
     }
+
     if (status == kStatus_SSS_Success) {
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
             &newKey, algorithm, kMode_SSS_Sign);
@@ -583,9 +616,14 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     }
 
     if (status == kStatus_SSS_Success) {
+        key->keyId = keyId;
         ret = 0;
     }
     else {
+        if (keyCreated) {
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
         if (ret == 0)
             ret = WC_HW_E;
     }
