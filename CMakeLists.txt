@@ -1733,7 +1733,8 @@ if(NOT WOLFSSL_OLD_NAMES AND NOT WOLFSSL_OPENSSL_COEXIST)
         "-DNO_OLD_RNGNAME"
         "-DNO_OLD_WC_NAMES"
         "-DNO_OLD_SSL_NAMES"
-        "-DNO_OLD_SHA_NAMES")
+        "-DNO_OLD_SHA_NAMES"
+        "-DNO_OLD_MD5_NAME")
 endif()
 
 # TODO: - Memory tests
