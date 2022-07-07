@@ -908,8 +908,17 @@ if(NOT WOLFSSL_TLSV12)
         "-DNO_OLD_TLS")
 endif()
 
-# TODO: - TLSv1.0
-#       - SSLv3
+
+# TLSv1.0
+add_option("WOLFSSL_TLSV10"
+    "Enable old TLS versions 1.0 (default: disabled)"
+    "no" "yes;no")
+
+if(ENABLED_TLSV10)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_TLSV10")
+endif()
+
+# TODO: - SSLv3
 #       - Stack size
 #       - Stack size verbose
 
