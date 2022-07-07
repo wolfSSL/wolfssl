@@ -11983,7 +11983,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             && ssl->error != WC_PENDING_E
         #endif
         ) {
-            if ( (ssl->error = SendBuffered(ssl)) == 0) {
+            ret = SendBuffered(ssl);
+            if (ret == 0) {
                 if (ssl->fragOffset == 0 && !ssl->options.buildingMsg) {
                     if (advanceState) {
                         ssl->options.connectState++;
@@ -12501,7 +12502,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             && ssl->error != WC_PENDING_E
         #endif
         ) {
-            if ( (ret = SendBuffered(ssl)) == 0) {
+            ret = SendBuffered(ssl);
+            if (ret == 0) {
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
                  * advanced. */
