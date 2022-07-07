@@ -1358,8 +1358,52 @@ endif()
 #       - ALPN
 #       - Trusted CA indication
 #       - Truncated HMAC
-#       - Renegotiation indication
-#       - Secure renegotiation
+
+# Renegotiation Indication - (FAKE Secure Renegotiation)
+# Client will send TLS_EMPTY_RENEGOTIATION_INFO_SCSV, not supported
+# with enabling secure renegotiation
+add_option("WOLFSSL_RENEGOTIATION_INDICATION"
+    "Enable Renegotiation Indication for client via empty cipher  (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_RENEGOTIATION_INDICATION)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_RENEGOTIATION_INDICATION")
+endif()
+
+# Secure Renegotiation
+add_option("WOLFSSL_SECURE_RENEGOTIATION"
+    "Enable Secure Renegotiation (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_HAPROXY)
+    override_cache(WOLFSSL_SECURE_RENEGOTIATION "yes")
+endif()
+
+if(WOLFSSL_SECURE_RENEGOTIATION)
+    if(WOLFSSL_RENEGOTIATION_INDICATION)
+        message(FATAL_ERROR "cannot enable renegotiation-indication and secure-renegotiation.")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS"
+        "-DHAVE_SECURE_RENEGOTIATION"
+        "-DHAVE_SERVER_RENEGOTIATION_INFO")
+endif()
+
+# Secure Renegotiation Info
+add_option("WOLFSSL_SECURE_RENEGOTIATION_INFO"
+    "Enable Secure Renegotiation info extension (default: enabled)"
+    "yes" "yes;no")
+
+# only allow secure renegotiation info with TLSV12 and ASN
+if(NOT WOLFSSL_ASN OR NOT WOLFSSL_TLSV12 OR WOLFSSL_RENEGOTIATION_INDICATION)
+    override_cache(WOLFSSL_SECURE_RENEGOTIATION_INFO "no")
+endif()
+
+if(WOLFSSL_SECURE_RENEGOTIATION_INFO)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_SERVER_RENEGOTIATION_INFO")
+endif()
+
+# TODO:
 #       - Fallback SCSV
 
 add_option(WOLFSSL_OCSP "Enable OCSP (default: disabled)" "no" "yes;no")
