@@ -55621,10 +55621,16 @@ static void test_wolfSSL_DtlsUpdateWindow(void)
     DUW_TEST(2, 29, next_hi, next_lo, window, 2, 30, 0, 0x64000015);
     DUW_TEST(2, 33, next_hi, next_lo, window, 2, 34, 6, 0x40000151);
     DUW_TEST(2, 60, next_hi, next_lo, window, 2, 61, 0x3200000A, 0x88000001);
+    DUW_TEST(1, 0xFFFFFFF0, next_hi, next_lo, window, 2, 61, 0x3200000A, 0x88000001);
     DUW_TEST(2, 0xFFFFFFFD, next_hi, next_lo, window, 2, 0xFFFFFFFE, 0, 0x01);
     DUW_TEST(3, 1, next_hi, next_lo, window, 3, 2, 0, 0x11);
     DUW_TEST(99, 66, next_hi, next_lo, window, 99, 67, 0, 0x01);
+    DUW_TEST(50, 66, next_hi, next_lo, window, 99, 67, 0, 0x01);
     DUW_TEST(100, 68, next_hi, next_lo, window, 100, 69, 0, 0x01);
+    DUW_TEST(99, 50, next_hi, next_lo, window, 100, 69, 0, 0x01);
+    DUW_TEST(99, 0xFFFFFFFF, next_hi, next_lo, window, 100, 69, 0, 0x01);
+    DUW_TEST(150, 0xFFFFFFFF, next_hi, next_lo, window, 151, 0, 0, 0x01);
+    DUW_TEST(152, 0xFFFFFFFF, next_hi, next_lo, window, 153, 0, 0, 0x01);
 
     printf(resultFmt, passed);
 }

@@ -15414,23 +15414,24 @@ int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         else {
             curLT = cur_hi < *next_hi;
             if (curLT) {
-                if (cur_lo > (word32)(0 - DTLS_SEQ_BITS) &&
-                        *next_lo < DTLS_SEQ_BITS) {
-                    diff = *next_lo - cur_lo;
+                if (*next_lo < DTLS_SEQ_BITS &&
+                        cur_lo >= (((word32)0xFFFFFFFF) - DTLS_SEQ_BITS)) {
+                    /* diff here can still result in a difference that can not
+                     * be stored in the window. The index is checked against
+                     * WOLFSSL_DTLS_WINDOW_WORDS later. */
+                    diff = *next_lo + ((word32)0xFFFFFFFF - cur_lo) + 1;
                 }
                 else {
-                    _DtlsUpdateWindowGTSeq(0, window);
-                    *next_lo = cur_lo + 1;
-                    if (*next_lo == 0)
-                        *next_hi = cur_hi + 1;
-                    else
-                        *next_hi = cur_hi;
+                    /* Too far back to update */
                     return 1;
                 }
             }
             else {
-                if (*next_lo > (word32)(0 - DTLS_SEQ_BITS) &&
+                if (*next_lo >= (((word32)0xFFFFFFFF) - DTLS_SEQ_BITS) &&
                         cur_lo < DTLS_SEQ_BITS) {
+                    /* diff here can still result in a difference that can not
+                     * be stored in the window. The index is checked against
+                     * WOLFSSL_DTLS_WINDOW_WORDS later. */
                     diff = cur_lo - *next_lo;
                 }
                 else {
