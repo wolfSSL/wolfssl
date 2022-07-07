@@ -1024,11 +1024,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     sp_int_digit r = 0;
 
     __asm__ __volatile__ (
-        "lsrs	r5, %[d], #24\n\t"
-	"it	eq\n\t"
-        "moveq	r5, #8\n\t"
-	"it	ne\n\t"
-        "movne	r5, #0\n\t"
+        /* Shift d so that top bit is set. */
+        "clz	r5, %[d]\n\t"
         "rsb	r6, r5, #31\n\t"
         "lsl	%[d], %[d], r5\n\t"
         "lsl	%[hi], %[hi], r5\n\t"
@@ -1060,8 +1057,11 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "subs	r9, r9, r8\n\t"
         "subs	r4, r4, #1\n\t"
         "bpl	1b\n\t"
+
         "add	%[r], %[r], %[r]\n\t"
         "add	%[r], %[r], #1\n\t"
+
+        /* Handle difference has hi word > 0. */
         "umull	r4, r5, %[r], %[d]\n\t"
         "subs	r4, %[lo], r4\n\t"
         "sbc	r5, %[hi], r5\n\t"
@@ -1070,11 +1070,14 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "subs	r4, %[lo], r4\n\t"
         "sbc	r5, %[hi], r5\n\t"
         "add	%[r], %[r], r5\n\t"
-        "umull	r4, r5, %[r], %[d]\n\t"
+
+        /* Add 1 to result if bottom half of difference is >= d. */
+        "mul	r4, %[r], %[d]\n\t"
         "subs	r4, %[lo], r4\n\t"
-        "sbc	r5, %[hi], r5\n\t"
-        "add	%[r], %[r], r5\n\t"
-        "subs	r8, %[d], r4\n\t"
+        "subs	r9, %[d], r4\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        "subs	r9, r9, #1\n\t"
         "sbc	r8, r8, r8\n\t"
         "sub	%[r], %[r], r8\n\t"
         : [r] "+r" (r), [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
@@ -10397,27 +10400,28 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    if ((r == m) || (r->size < a->used + b->used)) {
-        DECL_SP_INT(t, ((a == NULL) || (b == NULL)) ? 1 : a->used + b->used);
-        ALLOC_SP_INT(t, a->used + b->used, err, NULL);
-        if (err == MP_OKAY) {
-            err = sp_init_size(t, a->used + b->used);
-        }
-        if (err == MP_OKAY) {
-            err = sp_mul(a, b, t);
-        }
-        if (err == MP_OKAY) {
-            err = sp_mod(t, m, r);
-        }
+    if (err == MP_OKAY) {
+        if ((r == m) || (r->size < a->used + b->used)) {
+            DECL_SP_INT(t, ((a == NULL) || (b == NULL)) ? 1 :
+                a->used + b->used);
+            ALLOC_SP_INT(t, a->used + b->used, err, NULL);
+            if (err == MP_OKAY) {
+                err = sp_init_size(t, a->used + b->used);
+            }
+            if (err == MP_OKAY) {
+                err = sp_mul(a, b, t);
+            }
+            if (err == MP_OKAY) {
+                err = sp_mod(t, m, r);
+            }
 
-        FREE_SP_INT(t, NULL);
-    }
-    else {
-        if (err == MP_OKAY) {
-            err = sp_mul(a, b, r);
+            FREE_SP_INT(t, NULL);
         }
-        if (err == MP_OKAY) {
-            err = sp_mod(r, m, r);
+        else {
+            err = sp_mul(a, b, r);
+            if (err == MP_OKAY) {
+                err = sp_mod(r, m, r);
+            }
         }
     }
     return err;
