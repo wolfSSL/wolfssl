@@ -228,6 +228,17 @@ if(WOLFSSL_16BIT)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_16BIT_CPU")
 endif()
 
+# Support for enabling DO-178
+add_option("WOLFSSL_DO178"
+    "Enable DO-178, Will NOT work w/o DO178 license (default: disabled)"
+    "no" "yes;no")
+    
+if(ENABLED_DO178)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_DO178")
+else()
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_DO178")
+endif()
+
 # Support for disabling all ASM
 add_option("WOLFSSL_ASM"
     "Enables option for assembly (default: enabled)"
