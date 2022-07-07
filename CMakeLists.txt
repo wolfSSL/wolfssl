@@ -937,8 +937,23 @@ else()
     endif()
 endif()
 
-# TODO: - Track memory
-#       - Memory log
+# MEMORY SIZE info
+add_option("WOLFSSL_TRACK_MEMORY"
+    "Enable memory use info on wolfCrypt and wolfSSL cleanup (default: disabled)"
+    "no" "yes;no;verbose")
+
+if(WOLFSSL_TRACK_MEMORY)
+    if(BUILD_MEMORY)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TRACK_MEMORY")
+    else()
+        message(FATAL_ERROR "trackmemory requires using wolfSSL memory (-D WOLFSSL_MEMORY=yes).")
+    endif()
+    if("${WOLFSSL_TRACK_MEMORY}" STREQUAL "verbose")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TRACK_MEMORY_VERBOSE")
+    endif()
+endif()
+
+# TODO: - Memory log
 #       - Stack log
 
 # RSA
