@@ -1129,7 +1129,18 @@ if(WOLFSSL_BASE64_ENCODE)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BASE64_ENCODE")
 endif()
 
-# TODO: - Base16
+# Base16
+add_option("WOLFSSL_BASE16_ENCODE"
+    "Enable Base16 encoding/decoding (default: disabled)"
+    "no" "yes;no")
+
+if(BUILD_QNXCAAM)
+    override_cache(WOLFSSL_BASE16_ENCODE "yes")
+endif()
+
+if(WOLFSSL_BASE16_ENCODE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BASE16")
+endif()
 
 # DES3
 set(WOLFSSL_DES3_HELP_STRING "Enable DES3 (default: disabled)")
