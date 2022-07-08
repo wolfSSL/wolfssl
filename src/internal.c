@@ -15380,7 +15380,10 @@ static void _DtlsUpdateWindowGTSeq(word32 diff, word32* window)
             else {
                 temp |= (oldWindow[i-idx] << diff);
                 window[i] = temp;
-                temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - diff);
+                if (diff > 0)
+                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - diff);
+                else
+                    temp = 0;
             }
         }
     }
