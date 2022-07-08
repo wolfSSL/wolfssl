@@ -1501,7 +1501,9 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_HASHDRBG
 
     #define HAVE_ECC
-    #define ALT_ECC_SIZE
+    #if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_NO_MALLOC)
+        #define ALT_ECC_SIZE
+    #endif
     #define TFM_ECC192
     #define TFM_ECC224
     #define TFM_ECC256
