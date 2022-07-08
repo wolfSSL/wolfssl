@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.33
-%{_libdir}/libwolfssl.so.33.0.0
+%{_libdir}/libwolfssl.so.34
+%{_libdir}/libwolfssl.so.34.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -299,6 +299,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
 %{_includedir}/wolfssl/wolfcrypt/siphash.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
+%{_includedir}/wolfssl/wolfcrypt/sp_int.h
 %{_includedir}/wolfssl/wolfcrypt/srp.h
 %{_includedir}/wolfssl/wolfcrypt/tfm.h
 %{_includedir}/wolfssl/wolfcrypt/types.h
@@ -311,6 +312,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri July 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add missing sp_int.h file
 * Mon May 2 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing kdf.h file
 * Wed Feb 16 2022 John Safranek <john@wolfssl.com>
