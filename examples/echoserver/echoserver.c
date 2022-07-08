@@ -98,6 +98,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
     char   buffer[CYASSL_MAX_ERROR_SZ];
+#ifdef HAVE_TEST_SESSION_TICKET
+    MyTicketCtx myTicketCtx;
+#endif
 
 #ifdef ECHO_OUT
     FILE* fout = stdout;
@@ -168,11 +171,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
+#ifdef HAVE_TEST_SESSION_TICKET
     if (TicketInit() != 0)
         err_sys("unable to setup Session Ticket Key context");
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+    XMEMSET(&myTicketCtx, 0, sizeof(myTicketCtx));
+    wolfSSL_CTX_set_TicketEncCtx(ctx, &myTicketCtx);
 #endif
 
 #ifndef NO_FILESYSTEM
@@ -512,8 +516,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     fdCloseSession(Task_self());
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
+#ifdef HAVE_TEST_SESSION_TICKET
     TicketCleanup();
 #endif
 

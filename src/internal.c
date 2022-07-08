@@ -32540,6 +32540,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen, ssl->ctx->ticketEncCtx);
             if (ret != WOLFSSL_TICKET_RET_OK) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret == WC_PENDING_E) {
+                    return ret;
+                }
+            #endif
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 /* Internal ticket data wasn't encrypted maybe. */
                 wc_MemZero_Add("Create Ticket enc_ticket", et->enc_ticket,
@@ -32779,7 +32784,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (ssl->options.createTicket) {
             ret = CreateTicket(ssl);
-            if (ret != 0) return ret;
+            if (ret != 0)
+                return ret;
         }
 
         length += ssl->session->ticketLen;
