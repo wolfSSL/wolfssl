@@ -514,12 +514,24 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
+    const SOCKADDR_S* peer = NULL;
+    XSOCKLENT peerSz = 0;
+    int type;
+    XSOCKLENT length = sizeof( XSOCKLENT );
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
+    if (getsockopt(sd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
+            type != SOCK_DGRAM) {
+        /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
+    }
+    else if (!dtlsCtx->connected) {
+        peer = dtlsCtx->peer.sa;
+        peerSz = dtlsCtx->peer.sz;
+    }
+
     sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
-                !dtlsCtx->connected ? (const SOCKADDR*)dtlsCtx->peer.sa : NULL,
-                !dtlsCtx->connected ? dtlsCtx->peer.sz                  : 0);
+            (const SOCKADDR*)peer, peerSz);
 
     sent = TranslateReturnCode(sent, sd);
 
