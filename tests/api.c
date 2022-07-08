@@ -55588,8 +55588,8 @@ static void DUW_TEST_print_window_binary(word32 h, word32 l, word32* w) {
     DUW_TEST_print_window_binary((a), (b), (e)); \
     AssertIntEQ((c), (f)); \
     AssertIntEQ((d), (g)); \
-    AssertIntEQ((e[1]), (h)); \
-    AssertIntEQ((e[0]), (i)); \
+    AssertIntEQ((e)[1], (h)); \
+    AssertIntEQ((e)[0], (i)); \
 } while (0)
 
 static void test_wolfSSL_DtlsUpdateWindow(void)
