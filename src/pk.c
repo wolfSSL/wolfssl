@@ -10375,7 +10375,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
             }
         }
         else {
-            WOLFSSL_MSG("wc_ecc_sign_hash_ex failed");
+            WOLFSSL_MSG("wc_ecc_sign_hash failed");
         }
     }
 

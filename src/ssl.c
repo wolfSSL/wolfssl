@@ -13548,32 +13548,43 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
             clientRow = HashSession(sessionID,
                     ID_LEN, &error) % CLIENT_SESSION_ROWS;
         }
-        else
+        else {
             error = -1;
+        }
         if (error == 0 && wc_LockMutex(&clisession_mutex) == 0) {
-            clientIdx = ClientCache[clientRow].nextIdx++;
-            ClientCache[clientRow].Clients[clientIdx].serverRow =
-                                                            (word16)row;
-            ClientCache[clientRow].Clients[clientIdx].serverIdx =
-                                                            (word16)idx;
-            if (sessionID != NULL) {
-                sessionIDHash = HashSession(sessionID, ID_LEN, &error);
-                if (error == 0) {
-                    ClientCache[clientRow].Clients[clientIdx].sessionIDHash
-                        = sessionIDHash;
+            clientIdx = ClientCache[clientRow].nextIdx;
+            if (clientIdx < CLIENT_SESSIONS_PER_ROW) {
+                ClientCache[clientRow].Clients[clientIdx].serverRow =
+                                                                (word16)row;
+                ClientCache[clientRow].Clients[clientIdx].serverIdx =
+                                                                (word16)idx;
+                if (sessionID != NULL) {
+                    sessionIDHash = HashSession(sessionID, ID_LEN, &error);
+                    if (error == 0) {
+                        ClientCache[clientRow].Clients[clientIdx].sessionIDHash
+                            = sessionIDHash;
+                    }
                 }
+            }
+            else {
+                error = -1;
+                ClientCache[clientRow].nextIdx = 0; /* reset index as saftey */
+                WOLFSSL_MSG("Invalid client cache index! "
+                            "Possible corrupted memory");
             }
             if (error == 0) {
                 WOLFSSL_MSG("Adding client cache entry");
                 if (ClientCache[clientRow].totalCount < CLIENT_SESSIONS_PER_ROW)
                     ClientCache[clientRow].totalCount++;
+                ClientCache[clientRow].nextIdx++;
                 ClientCache[clientRow].nextIdx %= CLIENT_SESSIONS_PER_ROW;
             }
 
             wc_UnLockMutex(&clisession_mutex);
         }
         else {
-            WOLFSSL_MSG("Hash session failed");
+            WOLFSSL_MSG("Hash session or lock failed");
+            error = -1;
         }
     }
     else {

@@ -4308,8 +4308,6 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #endif
 #endif
 
-    WOLFSSL_ENTER("wc_ecc_shared_secret_gen_sync");
-
 #ifdef HAVE_ECC_CDH
     /* if cofactor flag has been set */
     if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
@@ -4463,8 +4461,6 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 #endif
-
-    WOLFSSL_LEAVE("wc_ecc_shared_secret_gen_sync", err);
 
     return err;
 }
@@ -4649,8 +4645,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     } /* switch */
 
     RESTORE_VECTOR_REGISTERS();
-
-    WOLFSSL_LEAVE("wc_ecc_shared_secret_ex", err);
 
     /* if async pending then return and skip done cleanup below */
     if (err == WC_PENDING_E) {
