@@ -5216,7 +5216,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
  * @param [in]      in     Byte array containing OID.
  * @param [in]      inSz   Size of OID in bytes.
  * @param [in]      out    Array to hold dotted form of OID.
- * @param [in, out] outSz  On in, number of elemnts in array.
+ * @param [in, out] outSz  On in, number of elements in array.
  *                         On out, count of numbers in dotted form.
  * @return  0 on success
  * @return  BAD_FUNC_ARG when in or outSz is NULL.
@@ -13289,14 +13289,16 @@ static int SetCurve(ecc_key* key, byte* output, size_t outSz)
         return idx + oidSz;
     }
 
+    /* verify output buffer has room */
+    if (oidSz > outSz)
+        return BUFFER_E;
+
 #ifdef HAVE_OID_ENCODING
     ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, output+idx, &oidSz);
     if (ret != 0) {
         return ret;
     }
 #else
-    if (oidSz > outSz)
-        return BUFFER_E;
     XMEMCPY(output+idx, key->dp->oid, oidSz);
 #endif
     idx += oidSz;

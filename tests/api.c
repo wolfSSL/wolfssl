@@ -26322,7 +26322,7 @@ static int test_wc_ecc_get_curve_id_from_oid (void)
     /* Good Case */
     if (ret == 0) {
         ret = wc_ecc_get_curve_id_from_oid(oid, len);
-        if (ret == 7) {
+        if (ret == ECC_SECP256R1) {
             ret = 0;
         }
     }
