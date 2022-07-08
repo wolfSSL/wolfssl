@@ -526,7 +526,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
     }
     else if (!dtlsCtx->connected) {
-        peer = dtlsCtx->peer.sa;
+        peer   = (const SOCKADDR_S*)dtlsCtx->peer.sa;
         peerSz = dtlsCtx->peer.sz;
     }
 
