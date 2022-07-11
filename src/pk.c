@@ -741,7 +741,7 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
     }
 
     /* Dispose of any allocated DER buffer. */
-    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_ASN1);
+    XFREE(derBuf, rsa ? rsa->heap : NULL, DYNAMIC_TYPE_ASN1);
     if (err) {
         /* Disposes of any created RSA key - on error. */
         wolfSSL_RSA_free(ret);
@@ -1052,7 +1052,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         key = NULL;
     }
     /* Dispose of allocated data. */
-    XFREE(der, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, bio ? bio->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return key;
 }
 #endif /* defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) &&
@@ -1381,7 +1381,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
     /* Dispose of DER buffer. */
-    XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(derBuf, bio ? bio->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (pkey != NULL) {
         pkey->pkey.ptr = NULL;
         pkey->pkey_sz = 0;
@@ -1645,7 +1645,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
 
     XFREE(tmp, NULL, DYNAMIC_TYPE_KEY);
     XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
-    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(derBuf, rsa ? rsa->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -5077,7 +5077,7 @@ WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     }
 
     if (ret < 0 && preAllocated == 0) {
-        XFREE(*out, key->heap, DYNAMIC_TYPE_OPENSSL);
+        XFREE(*out, key ? key->heap : NULL, DYNAMIC_TYPE_OPENSSL);
     }
 
     WOLFSSL_LEAVE("wolfSSL_i2d_DSAparams", ret);

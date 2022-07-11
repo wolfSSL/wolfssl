@@ -52764,7 +52764,7 @@ static void test_wolfSSL_RSA_To_Der(void)
     AssertIntEQ(wolfSSL_RSA_To_Der(rsa, &outDer, 0, HEAP_HINT), privDerSz);
     AssertNotNull(outDer);
     AssertIntEQ(XMEMCMP(outDer, privDer, privDerSz), 0);
-    XFREE(outDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER.);
+    XFREE(outDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     AssertIntEQ(wolfSSL_RSA_To_Der(rsa, NULL, 1, HEAP_HINT), pubDerSz);
     outDer = out;
