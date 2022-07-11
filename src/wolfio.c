@@ -517,7 +517,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     const SOCKADDR_S* peer = NULL;
     XSOCKLENT peerSz = 0;
     int type;
-    XSOCKLENT length = sizeof( XSOCKLENT );
+    XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
