@@ -156,6 +156,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\dtls13.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\internal.c"
 				>
 			</File>
