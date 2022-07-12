@@ -204,6 +204,11 @@
         #undef  printf
         #define printf XPRINTF
     #elif !defined(printf)
+        /* arrange for printf() to flush after every message -- this assures
+         * redirected output (to a log file) records progress right up to the
+         * moment of a crash/abort(); otherwise anything queued in stdout would
+         * be lost.
+         */
         #define printf(...) ( printf(__VA_ARGS__), fflush(stdout) )
     #endif
 #endif

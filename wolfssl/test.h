@@ -303,13 +303,93 @@
 #endif
 
 
-#ifdef TEST_IPV6
-    typedef struct sockaddr_in6 SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET6
-#else
-    typedef struct sockaddr_in  SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET
+#ifndef MY_EX_USAGE
+#define MY_EX_USAGE 2
 #endif
+
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE 1
+#endif
+
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+    #ifndef EXIT_SUCCESS
+        #define EXIT_SUCCESS   0
+    #endif
+    #define XEXIT(rc)   return rc
+    #define XEXIT_T(rc) return (THREAD_RETURN)rc
+#else
+    #define XEXIT(rc)   exit((int)(rc))
+    #define XEXIT_T(rc) exit((int)(rc))
+#endif
+
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys(const char* msg)
+{
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
+    }
+    XEXIT_T(EXIT_FAILURE);
+}
+
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys_with_errno(const char* msg)
+{
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
+        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
+#else
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
+#endif
+    }
+    XEXIT_T(EXIT_FAILURE);
+}
+
+#define LIBCALL_CHECK_RET(...) do {                                  \
+        int _libcall_ret = (__VA_ARGS__);                            \
+        if (_libcall_ret < 0) {                                      \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
+                    __FILE__, __LINE__, errno, #__VA_ARGS__);        \
+            err_sys("library/system call failed");                   \
+        }                                                            \
+    } while(0)
+
+#define PTHREAD_CHECK_RET(...) do {                                  \
+        int _pthread_ret = (__VA_ARGS__);                            \
+        if (_pthread_ret != 0) {                                     \
+            errno = _pthread_ret;                                    \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
+                    __FILE__, __LINE__, _pthread_ret, #__VA_ARGS__); \
+            err_sys("pthread call failed");                          \
+        }                                                            \
+    } while(0)
 
 
 #ifndef WOLFSSL_NO_TLS12
@@ -459,6 +539,15 @@
 #endif
 #endif
 
+
+#ifdef TEST_IPV6
+    typedef struct sockaddr_in6 SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET6
+#else
+    typedef struct sockaddr_in  SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET
+#endif
+
 typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
@@ -471,33 +560,6 @@ typedef struct tcp_ready {
     TX_MUTEX mutex;
 #endif
 } tcp_ready;
-
-static WC_INLINE
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-THREAD_RETURN
-#else
-WC_NORETURN void
-#endif
-    err_sys(const char* msg);
-
-#define LIBCALL_CHECK_RET(...) do {                                  \
-        int _libcall_ret = (__VA_ARGS__);                            \
-        if (_libcall_ret < 0) {                                      \
-            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
-                    __FILE__, __LINE__, errno, #__VA_ARGS__);        \
-            err_sys("library/system call failed");                   \
-        }                                                            \
-    } while(0)
-
-#define PTHREAD_CHECK_RET(...) do {                                  \
-        int _pthread_ret = (__VA_ARGS__);                            \
-        if (_pthread_ret != 0) {                                     \
-            errno = _pthread_ret;                                    \
-            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
-                    __FILE__, __LINE__, _pthread_ret, #__VA_ARGS__); \
-            err_sys("pthread call failed");                          \
-        }                                                            \
-    } while(0)
 
 static WC_INLINE void InitTcpReady(tcp_ready* ready)
 {
@@ -601,78 +663,6 @@ void join_thread(THREAD_TYPE thread);
     static const char* const wolfSSLIP   = "::1";
 #endif
 static const word16      wolfSSLPort = 11111;
-
-
-
-#ifndef MY_EX_USAGE
-#define MY_EX_USAGE 2
-#endif
-
-#ifndef EXIT_FAILURE
-#define EXIT_FAILURE 1
-#endif
-
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-    #ifndef EXIT_SUCCESS
-        #define EXIT_SUCCESS   0
-    #endif
-    #define XEXIT(rc)   return rc
-    #define XEXIT_T(rc) return (THREAD_RETURN)rc
-#else
-    #define XEXIT(rc)   exit((int)(rc))
-    #define XEXIT_T(rc) exit((int)(rc))
-#endif
-
-
-static WC_INLINE
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-THREAD_RETURN
-#else
-WC_NORETURN void
-#endif
-err_sys(const char* msg)
-{
-#if !defined(__GNUC__)
-    /* scan-build (which pretends to be gnuc) can get confused and think the
-     * msg pointer can be null even when hardcoded and then it won't exit,
-     * making null pointer checks above the err_sys() call useless.
-     * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with
-     * WC_NORETURN. */
-    if (msg)
-#endif
-    {
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
-    }
-    XEXIT_T(EXIT_FAILURE);
-}
-
-static WC_INLINE
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-THREAD_RETURN
-#else
-WC_NORETURN void
-#endif
-err_sys_with_errno(const char* msg)
-{
-#if !defined(__GNUC__)
-    /* scan-build (which pretends to be gnuc) can get confused and think the
-     * msg pointer can be null even when hardcoded and then it won't exit,
-     * making null pointer checks above the err_sys() call useless.
-     * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with
-     * WC_NORETURN. */
-    if (msg)
-#endif
-    {
-#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
-        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
-#else
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
-#endif
-    }
-    XEXIT_T(EXIT_FAILURE);
-}
 
 
 extern int   myoptind;
