@@ -226,7 +226,7 @@ typedef struct w64wrapper {
 #endif /* WORD64_AVAILABLE && WOLFSSL_W64_WRAPPER_TEST */
 } w64wrapper;
 
-#ifdef WC_PTR_TYPE /* Allow user suppied type */
+#ifdef WC_PTR_TYPE /* Allow user supplied type */
     typedef WC_PTR_TYPE wc_ptr_t;
 #elif defined(HAVE_UINTPTR_T)
     #include <stdint.h>
