@@ -38,7 +38,11 @@
 
 #ifdef HAVE_PTHREAD
     #include <pthread.h>
+#endif
+#if defined(HAVE_PTHREAD) || \
+        (!defined(NO_STDIO_FILESYSTEM) && !defined(NO_ERROR_STRINGS))
     #include <errno.h>
+    #include <unistd.h>
 #endif
 
 /* Macro to disable benchmark */
