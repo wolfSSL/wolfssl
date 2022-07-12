@@ -268,7 +268,7 @@ extern "C" {
     typedef  sp_uint64  sp_int_digit;
     typedef   sp_int64 sp_sint_digit;
 #if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
-    !defined(_WIN64)
+    !defined(_WIN64) && defined(WOLFSSL_UINT128_T_DEFINED)
     typedef sp_uint128  sp_int_word;
     typedef  sp_int128  sp_int_sword;
 #endif
