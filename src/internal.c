@@ -12196,8 +12196,15 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 
         for (; suffix < MAX_SUFFIX; suffix++) {
             /* /folder-path/<hash>.(r)N[0..9] */
-            XSNPRINTF(filename, len, "%s/%08lx.%s%d", entry->dir_name,
-                                                       hash, post, suffix);
+            if (XSNPRINTF(filename, len, "%s/%08lx.%s%d", entry->dir_name,
+                                                       hash, post, suffix)
+                >= len)
+            {
+                WOLFSSL_MSG("buffer overrun in LoadCertByIssuer");
+                ret = BUFFER_E;
+                break;
+            }
+
             if(wc_FileExists(filename) == 0/*0 file exists */) {
 
                 if (type == X509_LU_X509) {

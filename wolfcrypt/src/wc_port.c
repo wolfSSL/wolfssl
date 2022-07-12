@@ -854,7 +854,8 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
     }
 #else
     if (ctx->dir) {
-        closedir(ctx->dir);
+        if (closedir(ctx->dir) < 0)
+            WOLFSSL_MSG("closedir() failed");
         ctx->dir = NULL;
     }
 #endif

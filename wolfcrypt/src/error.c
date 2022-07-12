@@ -567,6 +567,12 @@ const char* wc_GetErrorString(int error)
     case NO_VALID_DEVID:
         return "No valid device ID set";
 
+    case IO_FAILED_E:
+        return "Input/output failure";
+
+    case SYSLIB_FAILED_E:
+        return "System/library call failed";
+
     default:
         return "unknown error number";
 

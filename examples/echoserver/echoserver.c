@@ -71,11 +71,11 @@ static void SignalReady(void* args, word16 port)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;
-    pthread_mutex_lock(&ready->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
     ready->ready = 1;
     ready->port = port;
-    pthread_cond_signal(&ready->cond);
-    pthread_mutex_unlock(&ready->mutex);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
 #endif
     (void)args;
     (void)port;
@@ -456,7 +456,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             command[echoSz] = 0;
 
         #ifdef ECHO_OUT
-            fputs(command, fout);
+            LIBCALL_CHECK_RET(fputs(command, fout));
         #endif
 
             do {
