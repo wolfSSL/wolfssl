@@ -72,6 +72,10 @@ This library defines the interface APIs for X509 certificates.
     typedef struct falcon_key falcon_key;
     #define WC_FALCONKEY_TYPE_DEFINED
 #endif
+#ifndef WC_DILITHIUMKEY_TYPE_DEFINED
+    typedef struct dilithium_key dilithium_key;
+    #define WC_DILITHIUMKEY_TYPE_DEFINED
+#endif
 
 enum Ecc_Sum {
     ECC_SECP112R1_OID = 182,
@@ -137,6 +141,12 @@ enum CertType {
     X942_PARAM_TYPE,
     FALCON_LEVEL1_TYPE,
     FALCON_LEVEL5_TYPE,
+    DILITHIUM_LEVEL2_TYPE,
+    DILITHIUM_LEVEL3_TYPE,
+    DILITHIUM_LEVEL5_TYPE,
+    DILITHIUM_AES_LEVEL2_TYPE,
+    DILITHIUM_AES_LEVEL3_TYPE,
+    DILITHIUM_AES_LEVEL5_TYPE,
 };
 
 
@@ -173,7 +183,14 @@ enum Ctc_SigType {
     CTC_ED448        = 257,
 
     CTC_FALCON_LEVEL1 = 268,
-    CTC_FALCON_LEVEL5 = 271
+    CTC_FALCON_LEVEL5 = 271,
+
+    CTC_DILITHIUM_LEVEL2     = 213,
+    CTC_DILITHIUM_LEVEL3     = 216,
+    CTC_DILITHIUM_LEVEL5     = 220,
+    CTC_DILITHIUM_AES_LEVEL2 = 217,
+    CTC_DILITHIUM_AES_LEVEL3 = 221,
+    CTC_DILITHIUM_AES_LEVEL5 = 224,
 };
 
 enum Ctc_Encoding {
@@ -688,7 +705,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_PQC) && defined(HAVE_FALCON)))
+     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -751,14 +768,28 @@ WOLFSSL_API int wc_Ed448PublicKeyToDer(
 
 #ifdef HAVE_PQC
 WOLFSSL_API int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                     falcon_key* key, word32 inSz);
+                                           falcon_key* key, word32 inSz);
 WOLFSSL_API int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
-                                    falcon_key* key, word32 inSz);
-WOLFSSL_API int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen);
+                                          falcon_key* key, word32 inSz);
+WOLFSSL_API int wc_Falcon_KeyToDer(falcon_key* key, byte* output,
+                                   word32 inLen);
 WOLFSSL_API int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output,
                                           word32 inLen);
 WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output,
                                          word32 inLen, int withAlg);
+
+WOLFSSL_API int wc_Dilithium_PrivateKeyDecode(const byte* input,
+                                              word32* inOutIdx,
+                                              dilithium_key* key, word32 inSz);
+WOLFSSL_API int wc_Dilithium_PublicKeyDecode(const byte* input,
+                                             word32* inOutIdx,
+                                             dilithium_key* key, word32 inSz);
+WOLFSSL_API int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output,
+                                      word32 inLen);
+WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
+                                             word32 inLen);
+WOLFSSL_API int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output,
+                                            word32 inLen, int withAlg);
 #endif /* HAVE_PQC */
 
 #ifdef HAVE_CURVE448

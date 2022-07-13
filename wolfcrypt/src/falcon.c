@@ -30,7 +30,7 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 
-#ifdef HAVE_PQC
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
@@ -114,6 +114,8 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
     }
+#else
+    ret = NOT_COMPILED_IN;
 #endif
     return ret;
 }
@@ -171,6 +173,8 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
     }
+#else
+    ret = NOT_COMPILED_IN;
 #endif
 
     return ret;
@@ -251,7 +255,7 @@ void wc_falcon_free(falcon_key* key)
  * outLen  [in/out]  On in, the number of bytes in array.
  *                   On out, the number bytes put into array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than FALCON_LEVEL1_PUB_KEY_SIZE,
+ *         BUFFER_E when outLen is less than FALCON_LEVEL1_PUB_KEY_SIZE,
  *         0 otherwise.
  */
 int wc_falcon_export_public(falcon_key* key,
@@ -471,7 +475,7 @@ int wc_falcon_import_private_key(const byte* priv, word32 privSz,
  * outLen  [in/out]  On in, the number of bytes in array.
  *                   On out, the number bytes put into array.
  * returns BAD_FUNC_ARG when a parameter is NULL,
- *         ECC_BAD_ARG_E when outLen is less than FALCON_LEVEL1_KEY_SIZE,
+ *         BUFFER_E when outLen is less than FALCON_LEVEL1_KEY_SIZE,
  *         0 otherwise.
  */
 int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen)
@@ -687,4 +691,154 @@ int wc_falcon_sig_size(falcon_key* key)
 
     return BAD_FUNC_ARG;
 }
-#endif /* HAVE_PQC */
+
+int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                     falcon_key* key, word32 inSz)
+{
+    int ret = 0;
+    byte privKey[FALCON_MAX_KEY_SIZE], pubKey[FALCON_MAX_PUB_KEY_SIZE];
+    word32 privKeyLen = (word32)sizeof(privKey);
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+    int keytype = 0;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
+    }
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
+                        pubKey, &pubKeyLen, keytype);
+    if (ret == 0) {
+        if (pubKeyLen == 0) {
+            ret = wc_falcon_import_private_only(input, inSz, key);
+        }
+        else {
+            ret = wc_falcon_import_private_key(privKey, privKeyLen,
+                                               pubKey, pubKeyLen, key);
+        }
+    }
+    return ret;
+}
+
+int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                    falcon_key* key, word32 inSz)
+{
+    int ret = 0;
+    byte pubKey[FALCON_MAX_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+    int keytype = 0;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
+    }
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz, pubKey, &pubKeyLen,
+                              keytype);
+    if (ret == 0) {
+        ret = wc_falcon_import_public(pubKey, pubKeyLen, key);
+    }
+    return ret;
+}
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+/* Encode the public part of an Falcon key in DER.
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  key       Falcon key object.
+ * @param [out] output    Buffer to put encoded data in.
+ * @param [in]  outLen    Size of buffer in bytes.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
+ * @return  Size of encoded data in bytes on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ */
+int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
+                             int withAlg)
+{
+    int    ret;
+    byte   pubKey[FALCON_MAX_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+    int    keytype = 0;
+
+    if (key == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
+    }
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_falcon_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen, keytype,
+                                  withAlg);
+    }
+
+    return ret;
+}
+#endif
+
+int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, key->p,
+                             FALCON_LEVEL1_KEY_SIZE, output, inLen,
+                             FALCON_LEVEL1k);
+    }
+    else if (key->level == 5) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, key->p,
+                             FALCON_LEVEL5_KEY_SIZE, output, inLen,
+                             FALCON_LEVEL5k);
+    }
+
+    return BAD_FUNC_ARG;
+}
+
+int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, NULL, 0, output,
+                             inLen, FALCON_LEVEL1k);
+    }
+    else if (key->level == 5) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, NULL, 0, output,
+                             inLen, FALCON_LEVEL5k);
+    }
+
+    return BAD_FUNC_ARG;
+}
+#endif /* HAVE_PQC && HAVE_FALCON */

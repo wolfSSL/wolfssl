@@ -652,6 +652,7 @@ endif
 
 if BUILD_LIBOQS
 src_libwolfssl_la_SOURCES += wolfcrypt/src/falcon.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/dilithium.c
 endif
 
 if BUILD_LIBZ

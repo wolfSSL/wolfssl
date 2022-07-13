@@ -22,6 +22,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/curve448.h \
                          wolfssl/wolfcrypt/ed448.h \
                          wolfssl/wolfcrypt/falcon.h \
+                         wolfssl/wolfcrypt/dilithium.h \
                          wolfssl/wolfcrypt/fe_448.h \
                          wolfssl/wolfcrypt/ge_448.h \
                          wolfssl/wolfcrypt/eccsi.h \

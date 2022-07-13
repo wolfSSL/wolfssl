@@ -266,6 +266,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed448.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/falcon.h
+%{_includedir}/wolfssl/wolfcrypt/dilithium.h
 %{_includedir}/wolfssl/wolfcrypt/fe_448.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
@@ -313,6 +314,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
+- Add a new header dilithium.h.
 * Fri July 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing sp_int.h file
 * Mon May 2 2022 Jacob Barthelmeh <jacob@wolfssl.com>

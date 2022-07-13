@@ -118,8 +118,13 @@
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
     #if defined(HAVE_PQC)
+    #if defined(HAVE_FALCON)
         #include <wolfssl/wolfcrypt/falcon.h>
-    #endif
+    #endif /* HAVE_FALCON */
+    #if defined(HAVE_DILITHIUM)
+        #include <wolfssl/wolfcrypt/dilithium.h>
+    #endif /* HAVE_DILITHIUM */
+    #endif /* HAVE_PQC */
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #ifdef HAVE_OCSP
             #include <wolfssl/openssl/ocsp.h>
@@ -2171,8 +2176,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-                   ssl->options.side);
+                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                   ssl->options.haveAnon, TRUE, ssl->options.side);
     }
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
@@ -4198,8 +4203,13 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
             cm->minEccKeySz = MIN_ECCKEY_SZ;
         #endif
         #ifdef HAVE_PQC
+        #ifdef HAVE_FALCON
             cm->minFalconKeySz = MIN_FALCONKEY_SZ;
-        #endif
+        #endif /* HAVE_FALCON */
+        #ifdef HAVE_DILITHIUM
+            cm->minDilithiumKeySz = MIN_DILITHIUMKEY_SZ;
+        #endif /* HAVE_DILITHIUM */
+        #endif /* HAVE_PQC */
 
             cm->heap = heap;
     }
@@ -4715,9 +4725,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-               ssl->options.side);
-
+               ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+               ssl->options.haveAnon, TRUE, ssl->options.side);
     return WOLFSSL_SUCCESS;
 }
 #endif /* !leanpsk */
@@ -5152,7 +5161,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ED448 */
-            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            #if defined(HAVE_PQC)
+            #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
                 if (cm->minFalconKeySz < 0 ||
                           FALCON_LEVEL1_KEY_SIZE < (word16)cm->minFalconKeySz) {
@@ -5167,7 +5177,34 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                     WOLFSSL_MSG("\tCA Falcon level 5 key size error");
                 }
                 break;
-            #endif /* HAVE_PQC && HAVE_FALCON */
+            #endif /* HAVE_FALCON */
+            #if defined(HAVE_DILITHIUM)
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_AES_LEVEL2k:
+                if (cm->minDilithiumKeySz < 0 ||
+                    DILITHIUM_LEVEL2_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
+                    ret = DILITHIUM_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA Dilithium level 2 key size error");
+                }
+                break;
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_AES_LEVEL3k:
+                if (cm->minDilithiumKeySz < 0 ||
+                    DILITHIUM_LEVEL3_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
+                    ret = DILITHIUM_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA Dilithium level 3 key size error");
+                }
+                break;
+            case DILITHIUM_LEVEL5k:
+            case DILITHIUM_AES_LEVEL5k:
+                if (cm->minDilithiumKeySz < 0 ||
+                    DILITHIUM_LEVEL5_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
+                    ret = DILITHIUM_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA Dilithium level 5 key size error");
+                }
+                break;
+            #endif /* HAVE_DILITHIUM */
+            #endif /* HAVE_PQC */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");
@@ -6076,7 +6113,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             return ret;
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+#if defined(HAVE_PQC)
+#if defined(HAVE_FALCON)
     if (((*keyFormat == 0) || (*keyFormat == FALCON_LEVEL1k) ||
          (*keyFormat == FALCON_LEVEL5k))) {
         /* make sure Falcon key can be used */
@@ -6142,7 +6180,119 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         if (ret != 0)
             return ret;
     }
-#endif /* HAVE_PQC && HAVE_FALCON */
+#endif /* HAVE_FALCON */
+#if defined(HAVE_DILITHIUM)
+    if ((*keyFormat == 0) ||
+        (*keyFormat == DILITHIUM_LEVEL2k) ||
+        (*keyFormat == DILITHIUM_LEVEL3k) ||
+        (*keyFormat == DILITHIUM_LEVEL5k) ||
+        (*keyFormat == DILITHIUM_AES_LEVEL2k) ||
+        (*keyFormat == DILITHIUM_AES_LEVEL3k) ||
+        (*keyFormat == DILITHIUM_AES_LEVEL5k)) {
+        /* make sure Dilithium key can be used */
+        dilithium_key* key = (dilithium_key*)XMALLOC(sizeof(dilithium_key),
+                                                     heap,
+                                                     DYNAMIC_TYPE_DILITHIUM);
+        if (key == NULL) {
+            return MEMORY_E;
+        }
+        ret = wc_dilithium_init(key);
+        if (ret == 0) {
+            if (*keyFormat == DILITHIUM_LEVEL2k) {
+                ret = wc_dilithium_set_level_and_sym(key, 2, SHAKE_VARIANT);
+            }
+            else if (*keyFormat == DILITHIUM_LEVEL3k) {
+                ret = wc_dilithium_set_level_and_sym(key, 3, SHAKE_VARIANT);
+            }
+            else if (*keyFormat == DILITHIUM_LEVEL5k) {
+                ret = wc_dilithium_set_level_and_sym(key, 5, SHAKE_VARIANT);
+            }
+            else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
+                ret = wc_dilithium_set_level_and_sym(key, 2, AES_VARIANT);
+            }
+            else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
+                ret = wc_dilithium_set_level_and_sym(key, 3, AES_VARIANT);
+            }
+            else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
+                ret = wc_dilithium_set_level_and_sym(key, 5, AES_VARIANT);
+            }
+            else {
+                /* What if *keyformat is 0? We might want to do something more
+                 * graceful here. */
+                wc_dilithium_free(key);
+                ret = ALGO_ID_E;
+            }
+        }
+
+        if (ret == 0) {
+            *idx = 0;
+            ret = wc_dilithium_import_private_only(der->buffer, der->length,
+                                                   key);
+            if (ret == 0) {
+                /* check for minimum key size and then free */
+                int minKeySz = ssl ? ssl->options.minDilithiumKeySz :
+                                     ctx->minDilithiumKeySz;
+                *keySz = DILITHIUM_MAX_KEY_SIZE;
+                if (*keySz < minKeySz) {
+                    WOLFSSL_MSG("Dilithium private key too small");
+                    ret = DILITHIUM_KEY_SIZE_E;
+                }
+                if (ssl) {
+                    if (*keyFormat == DILITHIUM_LEVEL2k) {
+                        ssl->buffers.keyType = dilithium_level2_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_LEVEL3k) {
+                        ssl->buffers.keyType = dilithium_level3_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_LEVEL5k) {
+                        ssl->buffers.keyType = dilithium_level5_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
+                        ssl->buffers.keyType = dilithium_aes_level2_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
+                        ssl->buffers.keyType = dilithium_aes_level3_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
+                        ssl->buffers.keyType = dilithium_aes_level5_sa_algo;
+                    }
+                    ssl->buffers.keySz = *keySz;
+                }
+                else {
+                    if (*keyFormat == DILITHIUM_LEVEL2k) {
+                        ctx->privateKeyType = dilithium_level2_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_LEVEL3k) {
+                        ctx->privateKeyType = dilithium_level3_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_LEVEL5k) {
+                        ctx->privateKeyType = dilithium_level5_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
+                        ctx->privateKeyType = dilithium_aes_level2_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
+                        ctx->privateKeyType = dilithium_aes_level3_sa_algo;
+                    }
+                    else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
+                        ctx->privateKeyType = dilithium_aes_level5_sa_algo;
+                    }
+                    ctx->privateKeySz = *keySz;
+                }
+
+                if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                    *resetSuites = 1;
+                }
+            }
+            wc_dilithium_free(key);
+        }
+        XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+#endif /* HAVE_DILITHIUM */
+#endif /* HAVE_PQC */
     return ret;
 }
 
@@ -6502,6 +6652,18 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 else if (ctx)
                     ctx->haveFalconSig = 1;
                 break;
+            case CTC_DILITHIUM_LEVEL2:
+            case CTC_DILITHIUM_LEVEL3:
+            case CTC_DILITHIUM_LEVEL5:
+            case CTC_DILITHIUM_AES_LEVEL2:
+            case CTC_DILITHIUM_AES_LEVEL3:
+            case CTC_DILITHIUM_AES_LEVEL5:
+                WOLFSSL_MSG("Dilithium cert signature");
+                if (ssl)
+                    ssl->options.haveDilithiumSig = 1;
+                else if (ctx)
+                    ctx->haveDilithiumSig = 1;
+                break;
             default:
                 WOLFSSL_MSG("Not ECDSA cert signature");
                 break;
@@ -6539,11 +6701,23 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
             #endif
             #ifdef HAVE_PQC
+            #ifdef HAVE_FALCON
                 else if (cert->keyOID == FALCON_LEVEL1k ||
                          cert->keyOID == FALCON_LEVEL5k) {
                     ssl->options.haveFalconSig = 1;
                 }
-            #endif
+            #endif /* HAVE_FALCON */
+            #ifdef HAVE_DILITHIUM
+                else if (cert->keyOID == DILITHIUM_LEVEL2k ||
+                         cert->keyOID == DILITHIUM_LEVEL3k ||
+                         cert->keyOID == DILITHIUM_LEVEL5k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL2k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL3k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL5k) {
+                    ssl->options.haveDilithiumSig = 1;
+                }
+            #endif /* HAVE_DILITHIUM */
+            #endif /* HAVE_PQC */
         #else
             ssl->options.haveECC = ssl->options.haveECDSAsig;
         #endif
@@ -6577,11 +6751,23 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
             #endif
             #ifdef HAVE_PQC
+            #ifdef HAVE_FALCON
                 else if (cert->keyOID == FALCON_LEVEL1k ||
                          cert->keyOID == FALCON_LEVEL5k) {
                     ctx->haveFalconSig = 1;
                 }
-            #endif
+            #endif /* HAVE_FALCON */
+            #ifdef HAVE_DILITHIUM
+                else if (cert->keyOID == DILITHIUM_LEVEL2k ||
+                         cert->keyOID == DILITHIUM_LEVEL3k ||
+                         cert->keyOID == DILITHIUM_LEVEL5k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL2k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL3k ||
+                         cert->keyOID == DILITHIUM_AES_LEVEL5k) {
+                    ctx->haveDilithiumSig = 1;
+                }
+            #endif /* HAVE_DILITHIUM */
+            #endif /* HAVE_PQC */
         #else
             ctx->haveECC = ctx->haveECDSAsig;
         #endif
@@ -6692,7 +6878,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 break;
         #endif /* HAVE_ED448 */
-        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        #if defined(HAVE_PQC)
+        #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 /* Falcon is fixed key size */
@@ -6712,7 +6899,33 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                 }
                 break;
-        #endif /* HAVE_PQC && HAVE_FALCON */
+        #endif /* HAVE_FALCON */
+        #if defined(HAVE_DILITHIUM)
+            case DILITHIUM_LEVEL2k:
+            case DILITHIUM_LEVEL3k:
+            case DILITHIUM_LEVEL5k:
+            case DILITHIUM_AES_LEVEL2k:
+            case DILITHIUM_AES_LEVEL3k:
+            case DILITHIUM_AES_LEVEL5k:
+                /* Dilithium is fixed key size */
+                keySz = DILITHIUM_MAX_KEY_SIZE;
+                if (ssl && !ssl->options.verifyNone) {
+                    if (ssl->options.minDilithiumKeySz < 0 ||
+                          keySz < (int)ssl->options.minDilithiumKeySz) {
+                        ret = DILITHIUM_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate Dilithium key size error");
+                    }
+                }
+                else if (ctx && !ctx->verifyNone) {
+                    if (ctx->minDilithiumKeySz < 0 ||
+                                  keySz < (int)ctx->minDilithiumKeySz) {
+                        ret = DILITHIUM_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate Dilithium key size error");
+                    }
+                }
+                break;
+        #endif /* HAVE_DILITHIUM */
+        #endif /* HAVE_PQC */
 
             default:
                 WOLFSSL_MSG("No key size check done on certificate");
@@ -6775,8 +6988,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-                   ssl->options.side);
+                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                   ssl->options.haveAnon, TRUE, ssl->options.side);
     }
 
     return WOLFSSL_SUCCESS;
@@ -8920,10 +9133,11 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
     #ifdef HAVE_PQC
+    #ifdef HAVE_FALCON
     {
         int isFalcon = 0;
     #ifdef WOLFSSL_SMALL_STACK
-        falcon_key *falcon = (falcon_key *)MALLOC(sizeof(falcon_key), NULL,
+        falcon_key *falcon = (falcon_key *)XMALLOC(sizeof(falcon_key), NULL,
                                                   DYNAMIC_TYPE_FALCON);
         if (falcon == NULL) {
             return NULL;
@@ -8979,6 +9193,115 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
         }
 
     }
+    #endif /* HAVE_FALCON */
+    #ifdef HAVE_DILITHIUM
+    {
+        int isDilithium = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        dilithium_key *dilithium = (dilithium_key *)
+            XMALLOC(sizeof(dilithium_key), NULL, DYNAMIC_TYPE_DILITHIUM);
+        if (dilithium == NULL) {
+            return NULL;
+        }
+    #else
+        dilithium_key dilithium[1];
+    #endif
+
+        if (wc_dilithium_init(dilithium) == 0) {
+            /* Test if Dilithium key. Try all levels for both SHAKE and AES */
+            if (priv) {
+                isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
+                                  SHAKE_VARIANT) == 0 &&
+                              wc_dilithium_import_private_only(mem,
+                                  (word32)memSz, dilithium) == 0;
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
+                                      SHAKE_VARIANT) == 0 &&
+                                  wc_dilithium_import_private_only(mem,
+                                      (word32)memSz, dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
+                                      SHAKE_VARIANT) == 0 &&
+                                  wc_dilithium_import_private_only(mem,
+                                      (word32)memSz, dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_private_only(mem,
+                                      (word32)memSz, dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_private_only(mem,
+                                      (word32)memSz, dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_private_only(mem,
+                                      (word32)memSz, dilithium) == 0;
+                }
+            } else {
+                isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
+                                  SHAKE_VARIANT) == 0 &&
+                              wc_dilithium_import_public(mem, (word32)memSz,
+                                  dilithium) == 0;
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
+                                      SHAKE_VARIANT) == 0 &&
+                                  wc_dilithium_import_public(mem, (word32)memSz,
+                                      dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
+                                      SHAKE_VARIANT) == 0 &&
+                                  wc_dilithium_import_public(mem, (word32)memSz,
+                                      dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_public(mem, (word32)memSz,
+                                      dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_public(mem, (word32)memSz,
+                                      dilithium) == 0;
+                }
+                if (!isDilithium) {
+                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
+                                      AES_VARIANT) == 0 &&
+                                  wc_dilithium_import_public(mem, (word32)memSz,
+                                      dilithium) == 0;
+                }
+            }
+            wc_dilithium_free(dilithium);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
+    #endif
+        if (isDilithium) {
+            /* Create a fake Dilithium EVP_PKEY. In the future, we might
+             * integrate Dilithium into the compatibility layer. */
+            pkey = wolfSSL_EVP_PKEY_new();
+            if (pkey == NULL) {
+                WOLFSSL_MSG("Dilithium wolfSSL_EVP_PKEY_new error");
+                return NULL;
+            }
+            pkey->type = EVP_PKEY_DILITHIUM;
+            pkey->pkey.ptr = NULL;
+            pkey->pkey_sz = 0;
+            return pkey;
+        }
+
+    }
+    #endif /* HAVE_DILITHIUM */
     #endif /* HAVE_PQC */
 
     if (pkey == NULL) {
@@ -14597,8 +14920,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-                   ssl->options.side);
+                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                   ssl->options.haveAnon, TRUE, ssl->options.side);
     }
     #ifdef OPENSSL_EXTRA
     /**
@@ -14650,8 +14973,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-                   ssl->options.side);
+                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                   ssl->options.haveAnon, TRUE, ssl->options.side);
     }
 
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
@@ -22698,8 +23021,8 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
-                   ssl->options.side);
+                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                   ssl->options.haveAnon, TRUE, ssl->options.side);
 
     return ssl->options.mask;
 }
@@ -25865,11 +26188,27 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { NID_ED25519, ED25519k,  oidKeyType, "ED25519", "ED25519"},
     #endif
     #ifdef HAVE_PQC
+    #ifdef HAVE_FALCON
         { CTC_FALCON_LEVEL1, FALCON_LEVEL1k,  oidKeyType, "Falcon Level 1",
                                                           "Falcon Level 1"},
         { CTC_FALCON_LEVEL5, FALCON_LEVEL5k,  oidKeyType, "Falcon Level 5",
                                                           "Falcon Level 5"},
-    #endif
+    #endif /* HAVE_FALCON */
+    #ifdef HAVE_DILITHIUM
+        { CTC_DILITHIUM_LEVEL2, DILITHIUM_LEVEL2k,  oidKeyType,
+          "Dilithium Level 2", "Dilithium Level 2"},
+        { CTC_DILITHIUM_LEVEL3, DILITHIUM_LEVEL3k,  oidKeyType,
+          "Dilithium Level 3", "Dilithium Level 3"},
+        { CTC_DILITHIUM_LEVEL5, DILITHIUM_LEVEL5k,  oidKeyType,
+          "Dilithium Level 5", "Dilithium Level 5"},
+        { CTC_DILITHIUM_AES_LEVEL2, DILITHIUM_AES_LEVEL2k,  oidKeyType,
+          "Dilithium AES Level 2", "Dilithium AES Level 2"},
+        { CTC_DILITHIUM_AES_LEVEL3, DILITHIUM_AES_LEVEL3k,  oidKeyType,
+          "Dilithium AES Level 3", "Dilithium AES Level 3"},
+        { CTC_DILITHIUM_AES_LEVEL5, DILITHIUM_AES_LEVEL5k,  oidKeyType,
+          "Dilithium AES Level 5", "Dilithium AES Level 5"},
+    #endif /* HAVE_DILITHIUM */
+    #endif /* HAVE_PQC */
 
         /* oidCurveType */
     #ifdef HAVE_ECC
@@ -27537,9 +27876,19 @@ struct WOLFSSL_HashSigInfo {
     { no_mac, ed448_sa_algo, CTC_ED448 },
 #endif
 #ifdef HAVE_PQC
+#ifdef HAVE_FALCON
     { no_mac, falcon_level1_sa_algo, CTC_FALCON_LEVEL1 },
     { no_mac, falcon_level5_sa_algo, CTC_FALCON_LEVEL5 },
-#endif
+#endif /* HAVE_FALCON */
+#ifdef HAVE_DILITHIUM
+    { no_mac, dilithium_level2_sa_algo, CTC_DILITHIUM_LEVEL2 },
+    { no_mac, dilithium_level3_sa_algo, CTC_DILITHIUM_LEVEL3 },
+    { no_mac, dilithium_level5_sa_algo, CTC_DILITHIUM_LEVEL5 },
+    { no_mac, dilithium_aes_level2_sa_algo, CTC_DILITHIUM_AES_LEVEL2 },
+    { no_mac, dilithium_aes_level3_sa_algo, CTC_DILITHIUM_AES_LEVEL3 },
+    { no_mac, dilithium_aes_level5_sa_algo, CTC_DILITHIUM_AES_LEVEL5 },
+#endif /* HAVE_DILITHIUM */
+#endif /* HAVE_PQC */
 #ifndef NO_DSA
     #ifndef NO_SHA
         { sha_mac,    dsa_sa_algo, CTC_SHAwDSA },
