@@ -26647,18 +26647,19 @@ static int test_wc_Ed25519KeyToDer (void)
             }
         }
         if (ret == 0) {
-            ret = wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen);
-            if (ret == BAD_FUNC_ARG) {
-                ret = 0;
-            }
-        }
-        if (ret == 0) {
             ret = wc_Ed25519KeyToDer(&ed25519Key, output, 0);
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
-        /* Good Case */
+        /* Good Cases */
+        if (ret == 0) {
+            /* length only */
+            ret = wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
         if (ret == 0) {
             ret = wc_Ed25519KeyToDer(&ed25519Key, output, inLen);
             if (ret > 0) {
@@ -26714,18 +26715,19 @@ static int test_wc_Ed25519PrivateKeyToDer (void)
             }
         }
         if (ret == 0) {
-            ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, inLen);
-            if (ret == BAD_FUNC_ARG) {
-                ret = 0;
-            }
-        }
-        if (ret == 0) {
             ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, 0);
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
-        /* Good Case */
+        /* Good Cases */
+        if (ret == 0) {
+            /* length only */
+            ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
         if (ret == 0) {
             ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, inLen);
             if (ret > 0) {
@@ -26780,18 +26782,19 @@ static int test_wc_Ed448KeyToDer (void)
             }
         }
         if (ret == 0) {
-            ret = wc_Ed448KeyToDer(&ed448Key, NULL, inLen);
-            if (ret == BAD_FUNC_ARG) {
-                ret = 0;
-            }
-        }
-        if (ret == 0) {
             ret = wc_Ed448KeyToDer(&ed448Key, output, 0);
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
-        /* Good Case */
+        /* Good Cases */
+        if (ret == 0) {
+            /* length only */
+            ret = wc_Ed448KeyToDer(&ed448Key, NULL, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
         if (ret == 0) {
             ret = wc_Ed448KeyToDer(&ed448Key, output, inLen);
             if (ret > 0) {
@@ -26846,18 +26849,19 @@ static int test_wc_Ed448PrivateKeyToDer (void)
             }
         }
         if (ret == 0) {
-            ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, inLen);
-            if (ret == BAD_FUNC_ARG) {
-                ret = 0;
-            }
-        }
-        if (ret == 0) {
             ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, 0);
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
-        /* Good case */
+        /* Good cases */
+        if (ret == 0) {
+            /* length only */
+            ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
         if (ret == 0) {
             ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, inLen);
             if (ret > 0) {
