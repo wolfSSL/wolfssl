@@ -796,7 +796,8 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
         Dtls13RtxRemoveCurAck(ssl);
     }
 
-    if (ssl->options.dtls13SendMoreAcks && Dtls13DetectDisruption(ssl, fragOffset)) {
+    if (ssl->options.dtls13SendMoreAcks &&
+        Dtls13DetectDisruption(ssl, fragOffset)) {
         WOLFSSL_MSG("Disruption detected");
         ssl->dtls13Rtx.sendAcks = 1;
     }
@@ -1416,40 +1417,40 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
 static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     word32* processedSize)
 {
-    word32 frag_off, frag_length;
+    word32 fragOff, fragLength;
     byte isComplete, isFirst;
-    word32 message_length;
-    byte handshake_type;
+    word32 messageLength;
+    byte handshakeType;
     word32 idx;
     int ret;
 
     idx = 0;
-    ret = GetDtlsHandShakeHeader(ssl, input, &idx, &handshake_type,
-        &message_length, &frag_off, &frag_length, size);
+    ret = GetDtlsHandShakeHeader(ssl, input, &idx, &handshakeType,
+        &messageLength, &fragOff, &fragLength, size);
     if (ret != 0)
         return PARSE_ERROR;
 
-    if (idx + frag_length > size) {
+    if (idx + fragLength > size) {
         WOLFSSL_ERROR(INCOMPLETE_DATA);
         return INCOMPLETE_DATA;
     }
 
-    if (frag_off + frag_length > message_length)
+    if (fragOff + fragLength > messageLength)
         return BUFFER_ERROR;
 
-    if (handshake_type == client_hello &&
-            /* Only when receiving an unverified ClientHello */
-            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+    if (handshakeType == client_hello &&
+        /* Only when receiving an unverified ClientHello */
+        ssl->options.serverState < SERVER_HELLO_COMPLETE) {
         /* To be able to operate in stateless mode, we assume the ClientHello
          * is in order and we use its Handshake Message number and Sequence
          * Number for our Tx. */
         ssl->keys.dtls_expected_peer_handshake_number =
-                ssl->keys.dtls_handshake_number =
-                        ssl->keys.dtls_peer_handshake_number;
+            ssl->keys.dtls_handshake_number =
+                ssl->keys.dtls_peer_handshake_number;
         ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
     }
 
-    ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshake_type, frag_off);
+    ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff);
     if (ret != 0)
         return ret;
 
@@ -1462,40 +1463,34 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 #endif /* WOLFSSL_DEBUG_TLS */
 
         /* ignore the message */
-        *processedSize = idx + frag_length;
-
-        *processedSize += ssl->keys.padSz;
+        *processedSize = idx + fragLength + ssl->keys.padSz;
 
         return 0;
     }
 
-    isFirst = frag_off == 0;
-    isComplete = isFirst && frag_length == message_length;
+    isFirst = fragOff == 0;
+    isComplete = isFirst && fragLength == messageLength;
 
     if (!isComplete || ssl->keys.dtls_peer_handshake_number >
                            ssl->keys.dtls_expected_peer_handshake_number) {
         DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
             ssl->keys.dtls_peer_handshake_number,
-            input + DTLS_HANDSHAKE_HEADER_SZ, message_length, handshake_type,
-            frag_off, frag_length, ssl->heap);
+            input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
+            fragOff, fragLength, ssl->heap);
 
-        *processedSize = idx + frag_length;
-
-        *processedSize += ssl->keys.padSz;
-
+        *processedSize = idx + fragLength + ssl->keys.padSz;
         if (Dtls13NextMessageComplete(ssl))
             return Dtls13ProcessBufferedMessages(ssl);
 
         return 0;
     }
 
-    ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshake_type,
-        message_length, size);
+    ret = DoTls13HandShakeMsgType(ssl, input, &idx, handshakeType,
+        messageLength, size);
     if (ret != 0)
         return ret;
 
-    Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshake_type);
-
+    Dtls13MsgWasProcessed(ssl, (enum HandShakeType)handshakeType);
     *processedSize = idx;
 
     /* check if we have buffered some message */
