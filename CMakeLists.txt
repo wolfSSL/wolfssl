@@ -2058,6 +2058,96 @@ if(NOT WOLFSSL_NULL_CIPHER AND WOLFSSL_MCAST)
     override_cache(WOLFSSL_NULL_CIPHER "yes")
 endif()
 
+################################################################################
+# Check for build-type conflicts                                               #
+################################################################################
+
+if(WOLFSSL_MAX_STRENGTH AND WOLFSSL_LEAN_PSK)
+    message(FATAL_ERROR "Cannot use Max Strength and Lean PSK at the same time.")
+endif()
+
+if(WOLFSSL_OCSP AND NOT WOLFSSL_ASN)
+    message(FATAL_ERROR "please enable asn if enabling ocsp.")
+endif()
+
+if(WOLFSSL_SMIME AND NOT WOLFSSL_ASN)
+    message(FATAL_ERROR "please enable asn if enabling S/MIME.")
+endif()
+
+if(WOLFSSL_OCSP AND NOT WOLFSSL_RSA AND NOT WOLFSSL_ECC)
+    message(FATAL_ERROR "please enable rsa or ecc if enabling ocsp.")
+endif()
+
+# Sync Intel QA and Sync Cavium Octeon require the crypto callback
+if(WOLFSSL_INTEL_QA_SYNC AND WOLFSSL_OCTEON_SYNC AND NOT WOLFSSL_CRYPTOCB)
+    message(FATAL_ERROR "please enable the crypto callback support using -D WOLFSSL_CRYPTOCB=yes")
+endif()
+
+# checks for pkcs7 needed enables
+if(WOLFSSL_PKCS7 AND NOT WOLFSSL_RSA AND NOT WOLFSSL_ECC)
+    message(FATAL_ERROR "please enable ecc or rsa if enabling pkcs7.")
+endif()
+
+if(WOLFSSL_PKCS7 AND NOT WOLFSSL_SHA)
+    message(FATAL_ERROR "please enable sha if enabling pkcs7.")
+endif()
+
+if(WOLFSSL_PKCS7 AND NOT WOLFSSL_AES AND NOT WOLFSSL_DES3)
+    message(FATAL_ERROR "please enable either AES or 3DES if enabling pkcs7.")
+endif()
+
+if(WOLFSSL_WOLFSCEP AND NOT WOLFSSL_AES AND NOT WOLFSSL_DES3)
+    message(FATAL_ERROR "please enable either AES or 3DES if enabling scep.")
+endif()
+
+if(WOLFSSL_LEAN_TLS AND NOT WOLFSSL_ECC)
+    message(FATAL_ERROR "please enable ecc if enabling leantls.")
+endif()
+
+if(WOLFSSL_SNIFFER AND NOT WOLFSSL_RSA AND NOT WOLFSSL_ECC AND NOT WOLFSSL_CURVE25519)
+    message(FATAL_ERROR "please enable ecc, rsa or curve25519 if enabling sniffer.")
+endif()
+
+# Lean TLS forces off prereqs of SCEP.
+if(WOLFSSL_SCEP AND WOLFSSL_LEAN_TLS)
+    message(FATAL_ERROR "Cannot use SCEP and Lean TLS at the same time.")
+endif()
+
+# CMAC currently requires AES.
+if(WOLFSSL_CMAC AND NOT WOLFSSL_AES)
+    message(FATAL_ERROR "cannot use CMAC without AES.")
+endif()
+
+# certreq requires certgen
+if(WOLFSSL_CERT_REQ AND NOT WOLFSSL_CERT_GEN)
+    message(FATAL_ERROR "cannot use certreq without certgen.")
+endif()
+
+# ed25519 requires sha512
+if(WOLFSSL_ED25519 AND NOT WOLFSSL_SHA512 AND NOT WOLFSSL_32BIT)
+    message(FATAL_ERROR "cannot enable ed25519 without enabling sha512.")
+endif()
+
+# ed25519 stream requires ed25519
+if(WOLFSSL_ED25519_STREAM AND NOT WOLFSSL_ED25519)
+    message(FATAL_ERROR "ED25519 verify streaming enabled but ED25519 is disabled")
+endif()
+
+# Ensure only one size is enabled
+if(WOLFSSL_64BIT AND WOLFSSL_32BIT)
+    message(FATAL_ERROR "cannot specify 64-bit build and 32-bit build.")
+endif()
+if(WOLFSSL_64BIT AND WOLFSSL_16BIT)
+    message(FATAL_ERROR "cannot specify 64-bit build and 16-bit build.")
+endif()
+if(WOLFSSL_32BIT AND WOLFSSL_16BIT)
+    message(FATAL_ERROR "cannot specify 32-bit build and 16-bit build.")
+endif()
+
+# 16-bit build not supported with SP
+if(WOLFSSL_16BIT AND WOLFSSL_SP)
+    message(FATAL_ERROR "16-bit build not available with SP.")
+endif()
 
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
