@@ -250,7 +250,10 @@ enum {
     AES_SIV_AUTH_E = -289, /* AES-SIV authentication failed */
     NO_VALID_DEVID = -290, /* no valid device ID */
 
-    WC_LAST_E           = -290,  /* Update this to indicate last error */
+    IO_FAILED_E = -291,          /* Input/output failure */
+    SYSLIB_FAILED_E = -292,      /* System/library call failed */
+
+    WC_LAST_E           = -292,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

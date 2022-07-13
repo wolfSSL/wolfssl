@@ -494,7 +494,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         if (cliArgs.argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to client\n");
         else {
-            snprintf(portNumber, sizeof(portNumber), "%d", (int)ready.port);
+            (void)snprintf(portNumber, sizeof(portNumber), "%d",
+                           (int)ready.port);
             cli_argv[cliArgs.argc++] = portFlag;
             cli_argv[cliArgs.argc++] = portNumber;
         }
@@ -633,15 +634,20 @@ static void test_harness(void* vargs)
         args->return_code = 1;
         return;
     }
-    fseek(file, 0, SEEK_END);
+    if (fseek(file, 0, SEEK_END) < 0) {
+        fprintf(stderr, "error %d fseeking %s\n", errno, fname);
+        fclose(file);
+        args->return_code = 1;
+        return;
+    }
     sz = ftell(file);
-    rewind(file);
     if (sz <= 0) {
         fprintf(stderr, "%s is empty\n", fname);
         fclose(file);
         args->return_code = 1;
         return;
     }
+    rewind(file);
 
     script = (char*)malloc(sz+1);
     if (script == 0) {

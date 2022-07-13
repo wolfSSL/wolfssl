@@ -203,6 +203,13 @@
     #ifdef XPRINTF
         #undef  printf
         #define printf XPRINTF
+    #elif !defined(printf)
+        /* arrange for printf() to flush after every message -- this assures
+         * redirected output (to a log file) records progress right up to the
+         * moment of a crash/abort(); otherwise anything queued in stdout would
+         * be lost.
+         */
+        #define printf(...) ( printf(__VA_ARGS__), fflush(stdout) )
     #endif
 #endif
 
@@ -35028,7 +35035,7 @@ static int pkcs7signed_run_vectors(
                 #if defined(WOLF_C89)
                     XSPRINTF((char*)&transId[k], "%02x", digest[j]);
                 #else
-                    XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
+                    (void)XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
                 #endif
             }
         }

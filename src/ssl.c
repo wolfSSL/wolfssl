@@ -4426,7 +4426,8 @@ void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 
     WOLFSSL_ENTER("wolfSSL_ERR_print_errors_fp");
     SetErrorString(err, data);
-    XFPRINTF(fp, "%s", data);
+    if (XFPRINTF(fp, "%s", data) < 0)
+        WOLFSSL_MSG("fprintf failed in wolfSSL_ERR_print_errors_fp");
 }
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -16215,8 +16216,13 @@ cleanup:
         ret = wc_PeekErrorNode(0, &file, &reason, &line);
         if (ret >= 0) {
             const char* r = wolfSSL_ERR_reason_error_string(0 - ret);
-            XSNPRINTF(buf, sizeof(buf), "error:%d:wolfSSL library:%s:%s:%d\n",
-                    ret, r, file, line);
+            if (XSNPRINTF(buf, sizeof(buf),
+                          "error:%d:wolfSSL library:%s:%s:%d\n",
+                          ret, r, file, line)
+                >= (int)sizeof(buf))
+            {
+                WOLFSSL_MSG("Buffer overrun formatting error message");
+            }
             wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf));
             wc_RemoveErrorNode(0);
         }
@@ -19464,10 +19470,23 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
     XMEMSET(tmp, 0, tmpSz);
 
     for (i = 0; i < tmpSz && i < (s->length - 1); i++) {
-        XSNPRINTF(val, valSz - 1, "%02X:", str[i]);
+        if (XSNPRINTF(val, valSz, "%02X:", str[i])
+            >= valSz)
+        {
+            WOLFSSL_MSG("Buffer overrun");
+            XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return NULL;
+        }
         XSTRNCAT(tmp, val, valSz);
     }
-    XSNPRINTF(val, valSz - 1, "%02X", str[i]);
+    if (XSNPRINTF(val, valSz, "%02X", str[i])
+        >= valSz)
+    {
+        WOLFSSL_MSG("Buffer overrun");
+        XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
     XSTRNCAT(tmp, val, valSz);
     XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -36001,6 +36020,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 {
     char *buf;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_BN_print_fp");
 
@@ -36015,10 +36035,14 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
         return WOLFSSL_FAILURE;
     }
 
-    XFPRINTF(fp, "%s", buf);
+    if (XFPRINTF(fp, "%s", buf) < 0)
+        ret = WOLFSSL_FAILURE;
+    else
+        ret = WOLFSSL_SUCCESS;
+
     XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 #endif /* !NO_FILESYSTEM */
 
@@ -36191,7 +36215,12 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
             return WOLFSSL_FAILURE;
         }
         XMEMSET(typebuf, 0, type_len);
-        XSNPRINTF((char*)typebuf, (size_t)type_len , "%s:", tag);
+        if (XSNPRINTF((char*)typebuf, (size_t)type_len , "%s:", tag)
+            >= (int)type_len)
+        {
+            WOLFSSL_MSG("Buffer overrun.");
+            return WOLFSSL_FAILURE;
+        }
         type_len--;
     }
 
@@ -37928,7 +37957,8 @@ int wolfSSL_RAND_write_file(const char* fname)
                 bytes = 0;
             }
             else {
-                XFWRITE(buf, 1, bytes, f);
+                size_t bytes_written = XFWRITE(buf, 1, bytes, f);
+                bytes = (int)bytes_written;
                 XFCLOSE(f);
             }
         }

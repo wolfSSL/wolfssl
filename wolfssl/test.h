@@ -174,7 +174,8 @@
 
     #define XSELECT_WAIT(x,y) do { \
         struct timeval tv = {((x) + ((y) / 1000000)),((y) % 1000000)}; \
-        select(0, NULL, NULL, NULL, &tv); \
+        if ((select(0, NULL, NULL, NULL, &tv) < 0) && (errno != EINTR)) \
+            err_sys("select for XSELECT_WAIT failed."); \
     } while (0)
     #define XSLEEP_US(u) XSELECT_WAIT(0,u)
     #define XSLEEP_MS(m) XSELECT_WAIT(0,(m)*1000)
@@ -302,13 +303,93 @@
 #endif
 
 
-#ifdef TEST_IPV6
-    typedef struct sockaddr_in6 SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET6
-#else
-    typedef struct sockaddr_in  SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET
+#ifndef MY_EX_USAGE
+#define MY_EX_USAGE 2
 #endif
+
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE 1
+#endif
+
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+    #ifndef EXIT_SUCCESS
+        #define EXIT_SUCCESS   0
+    #endif
+    #define XEXIT(rc)   return rc
+    #define XEXIT_T(rc) return (THREAD_RETURN)rc
+#else
+    #define XEXIT(rc)   exit((int)(rc))
+    #define XEXIT_T(rc) exit((int)(rc))
+#endif
+
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys(const char* msg)
+{
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
+    }
+    XEXIT_T(EXIT_FAILURE);
+}
+
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys_with_errno(const char* msg)
+{
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
+        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
+#else
+        fprintf(stderr, "wolfSSL error: %s\n", msg);
+#endif
+    }
+    XEXIT_T(EXIT_FAILURE);
+}
+
+#define LIBCALL_CHECK_RET(...) do {                                  \
+        int _libcall_ret = (__VA_ARGS__);                            \
+        if (_libcall_ret < 0) {                                      \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
+                    __FILE__, __LINE__, errno, #__VA_ARGS__);        \
+            err_sys("library/system call failed");                   \
+        }                                                            \
+    } while(0)
+
+#define PTHREAD_CHECK_RET(...) do {                                  \
+        int _pthread_ret = (__VA_ARGS__);                            \
+        if (_pthread_ret != 0) {                                     \
+            errno = _pthread_ret;                                    \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
+                    __FILE__, __LINE__, _pthread_ret, #__VA_ARGS__); \
+            err_sys("pthread call failed");                          \
+        }                                                            \
+    } while(0)
 
 
 #ifndef WOLFSSL_NO_TLS12
@@ -458,6 +539,15 @@
 #endif
 #endif
 
+
+#ifdef TEST_IPV6
+    typedef struct sockaddr_in6 SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET6
+#else
+    typedef struct sockaddr_in  SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET
+#endif
+
 typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
@@ -471,7 +561,6 @@ typedef struct tcp_ready {
 #endif
 } tcp_ready;
 
-
 static WC_INLINE void InitTcpReady(tcp_ready* ready)
 {
     ready->ready = 0;
@@ -479,8 +568,8 @@ static WC_INLINE void InitTcpReady(tcp_ready* ready)
     ready->srfName = NULL;
 #ifdef SINGLE_THREADED
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_init(&ready->mutex, 0);
-    pthread_cond_init(&ready->cond, 0);
+    PTHREAD_CHECK_RET(pthread_mutex_init(&ready->mutex, 0));
+    PTHREAD_CHECK_RET(pthread_cond_init(&ready->cond, 0));
 #elif defined(NETOS)
     tx_mutex_create(&ready->mutex, "wolfSSL Lock", TX_INHERIT);
 #endif
@@ -495,8 +584,8 @@ static WC_INLINE void FreeTcpReady(tcp_ready* ready)
 #ifdef SINGLE_THREADED
     (void)ready;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_destroy(&ready->mutex);
-    pthread_cond_destroy(&ready->cond);
+    PTHREAD_CHECK_RET(pthread_mutex_destroy(&ready->mutex));
+    PTHREAD_CHECK_RET(pthread_cond_destroy(&ready->cond));
 #elif defined(NETOS)
     tx_mutex_delete(&ready->mutex);
 #else
@@ -576,78 +665,6 @@ void join_thread(THREAD_TYPE thread);
 static const word16      wolfSSLPort = 11111;
 
 
-
-#ifndef MY_EX_USAGE
-#define MY_EX_USAGE 2
-#endif
-
-#ifndef EXIT_FAILURE
-#define EXIT_FAILURE 1
-#endif
-
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-    #ifndef EXIT_SUCCESS
-        #define EXIT_SUCCESS   0
-    #endif
-    #define XEXIT(rc)   return rc
-    #define XEXIT_T(rc) return (THREAD_RETURN)rc
-#else
-    #define XEXIT(rc)   exit((int)(rc))
-    #define XEXIT_T(rc) exit((int)(rc))
-#endif
-
-
-static WC_INLINE
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-THREAD_RETURN
-#else
-WC_NORETURN void
-#endif
-err_sys(const char* msg)
-{
-#if !defined(__GNUC__)
-    /* scan-build (which pretends to be gnuc) can get confused and think the
-     * msg pointer can be null even when hardcoded and then it won't exit,
-     * making null pointer checks above the err_sys() call useless.
-     * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with
-     * WC_NORETURN. */
-    if (msg)
-#endif
-    {
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
-    }
-    XEXIT_T(EXIT_FAILURE);
-}
-
-static WC_INLINE
-#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
-THREAD_RETURN
-#else
-WC_NORETURN void
-#endif
-err_sys_with_errno(const char* msg)
-{
-#if !defined(__GNUC__)
-    /* scan-build (which pretends to be gnuc) can get confused and think the
-     * msg pointer can be null even when hardcoded and then it won't exit,
-     * making null pointer checks above the err_sys() call useless.
-     * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with
-     * WC_NORETURN. */
-    if (msg)
-#endif
-    {
-#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
-        fprintf(stderr, "wolfSSL error: %s: %s\n", msg, strerror(errno));
-#else
-        fprintf(stderr, "wolfSSL error: %s\n", msg);
-#endif
-    }
-    XEXIT_T(EXIT_FAILURE);
-}
-
-
 extern int   myoptind;
 extern char* myoptarg;
 
@@ -658,8 +675,8 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
     srtp->server_srtp_ekm_size = 0;
     srtp->server_srtp_ekm = NULL;
 
-    pthread_mutex_init(&srtp->mutex, 0);
-    pthread_cond_init(&srtp->cond, 0);
+    PTHREAD_CHECK_RET(pthread_mutex_init(&srtp->mutex, 0));
+    PTHREAD_CHECK_RET(pthread_cond_init(&srtp->cond, 0));
 }
 
 /**
@@ -674,10 +691,10 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-    pthread_mutex_lock(&srtp->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&srtp->mutex));
 
     if (srtp->server_srtp_ekm == NULL)
-        pthread_cond_wait(&srtp->cond, &srtp->mutex);
+        PTHREAD_CHECK_RET(pthread_cond_wait(&srtp->cond, &srtp->mutex));
 
     *ekm = srtp->server_srtp_ekm;
     *size = srtp->server_srtp_ekm_size;
@@ -686,7 +703,7 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
     srtp->server_srtp_ekm = NULL;
     srtp->server_srtp_ekm_size = 0;
 
-    pthread_mutex_unlock(&srtp->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&srtp->mutex));
 }
 
 /**
@@ -703,19 +720,19 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
 static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
-    pthread_mutex_lock(&srtp->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&srtp->mutex));
 
     srtp->server_srtp_ekm_size = size;
     srtp->server_srtp_ekm = ekm;
-    pthread_cond_signal(&srtp->cond);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&srtp->cond));
 
-    pthread_mutex_unlock(&srtp->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&srtp->mutex));
 }
 
 static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
 {
-    pthread_mutex_destroy(&srtp->mutex);
-    pthread_cond_destroy(&srtp->cond);
+    PTHREAD_CHECK_RET(pthread_mutex_destroy(&srtp->mutex));
+    PTHREAD_CHECK_RET(pthread_cond_destroy(&srtp->cond));
 }
 
 #endif /* WOLFSSL_SRTP && !SINGLE_THREADED && POSIX_THREADS */
@@ -1345,7 +1362,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
                 hints.ai_protocol = IPPROTO_TCP;
             }
 
-            SNPRINTF(strPort, sizeof(strPort), "%d", port);
+            (void)SNPRINTF(strPort, sizeof(strPort), "%d", port);
             strPort[79] = '\0';
 
             ret = getaddrinfo(peer, strPort, &hints, &answer);
@@ -2080,11 +2097,11 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
-    pthread_mutex_lock(&ready->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
     ready->ready = 1;
     ready->port = port;
-    pthread_cond_signal(&ready->cond);
-    pthread_mutex_unlock(&ready->mutex);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
     }
 #elif defined (WOLFSSL_TIRTOS)
     /* Need mutex? */
@@ -2128,11 +2145,11 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         if (args)
             ready = args->signal;
         if (ready) {
-            pthread_mutex_lock(&ready->mutex);
+            PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
             ready->ready = 1;
             ready->port = port;
-            pthread_cond_signal(&ready->cond);
-            pthread_mutex_unlock(&ready->mutex);
+            PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
+            PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
         }
     #elif defined (WOLFSSL_TIRTOS)
         /* Need mutex? */
@@ -2170,7 +2187,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                        -p 0 to server on supported platforms with -R ready_file
                        client can then wait for existence of ready_file and see
                        which port the server is listening on. */
-                    fprintf(srf, "%d\n", (int)port);
+                    LIBCALL_CHECK_RET(fprintf(srf, "%d\n", (int)port));
                     fclose(srf);
                 }
             }
@@ -2490,7 +2507,8 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
     static WC_INLINE double current_time(int reset)
     {
         struct timeval tv;
-        gettimeofday(&tv, NULL);
+        if (gettimeofday(&tv, NULL) < 0)
+            err_sys_with_errno("gettimeofday");
         (void)reset;
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
@@ -2562,7 +2580,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
             return BAD_PATH_ERROR;
         }
 
-        fseek(lFile, 0, SEEK_END);
+        LIBCALL_CHECK_RET(fseek(lFile, 0, SEEK_END));
         fileSz = (int)ftell(lFile);
         rewind(lFile);
         if (fileSz  > 0) {

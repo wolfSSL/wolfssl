@@ -39,6 +39,11 @@
 #ifdef HAVE_PTHREAD
     #include <pthread.h>
 #endif
+#if defined(HAVE_PTHREAD) || \
+        (!defined(NO_STDIO_FILESYSTEM) && !defined(NO_ERROR_STRINGS))
+    #include <errno.h>
+    #include <unistd.h>
+#endif
 
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
@@ -313,6 +318,31 @@
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
 #endif
+
+#undef LIBCALL_CHECK_RET
+#if defined(NO_STDIO_FILESYSTEM) || defined(NO_ERROR_STRINGS)
+#define LIBCALL_CHECK_RET(...) __VA_ARGS__
+#else
+#define LIBCALL_CHECK_RET(...) do {                           \
+        int _libcall_ret = (__VA_ARGS__);                     \
+        if (_libcall_ret < 0) {                               \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",   \
+                    __FILE__, __LINE__, errno, #__VA_ARGS__); \
+            _exit(1);                                         \
+        }                                                     \
+    } while(0)
+#endif
+
+#undef PTHREAD_CHECK_RET
+#define PTHREAD_CHECK_RET(...) do {                                  \
+        int _pthread_ret = (__VA_ARGS__);                            \
+        if (_pthread_ret != 0) {                                     \
+            errno = _pthread_ret;                                    \
+            fprintf(stderr, "%s L%d error %d for \"%s\"\n",          \
+                    __FILE__, __LINE__, _pthread_ret, #__VA_ARGS__); \
+            _exit(1);                                                \
+        }                                                            \
+    } while(0)
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
@@ -854,11 +884,11 @@ static const char* bench_desc_words[][14] = {
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
     #define SHOW_INTEL_CYCLES(b, n, s) \
-        XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), " %s = %6.2f\n", \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), " %s = %6.2f\n", \
             bench_result_words1[lng_index][2], \
             count == 0 ? 0 : (float)total_cycles / ((word64)count*(s)))
     #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), "%.2f,\n", \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), "%.2f,\n", \
             count == 0 ? 0 : (float)total_cycles / ((word64)count*(s)))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
@@ -884,11 +914,11 @@ static const char* bench_desc_words[][14] = {
 
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
     #define SHOW_INTEL_CYCLES(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
         bench_result_words1[lng_index][2], \
             (float)total_cycles / (count*s))
     #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
             (float)total_cycles / (count*s))
 
 #elif defined(SYNERGY_CYCLE_COUNT)
@@ -902,11 +932,11 @@ static const char* bench_desc_words[][14] = {
 
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
     #define SHOW_INTEL_CYCLES(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
         bench_result_words1[lng_index][2], \
             (float)total_cycles / (count*s))
     #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
             (float)total_cycles / (count*s))
 
 #else
@@ -1305,7 +1335,7 @@ typedef enum bench_stat_type {
         bench_stats_t* bstat = NULL;
 
         /* protect bench_stats_head and bench_stats_tail access */
-        pthread_mutex_lock(&bench_lock);
+        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
 
         if (algo != NULL) {
             /* locate existing in list */
@@ -1352,7 +1382,7 @@ typedef enum bench_stat_type {
             if (bstat->lastRet > ret)
                 bstat->lastRet = ret; /* track last error */
         }
-        pthread_mutex_unlock(&bench_lock);
+        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
 
         return bstat;
     }
@@ -1362,7 +1392,7 @@ typedef enum bench_stat_type {
         bench_stats_t* bstat;
 
         /* protect bench_stats_head and bench_stats_tail access */
-        pthread_mutex_lock(&bench_lock);
+        PTHREAD_CHECK_RET(pthread_mutex_lock(&bench_lock));
 
         for (bstat = bench_stats_head; bstat != NULL; ) {
             if (bstat->type == BENCH_STAT_SYM) {
@@ -1379,7 +1409,7 @@ typedef enum bench_stat_type {
             bstat = bstat->next;
         }
 
-        pthread_mutex_unlock(&bench_lock);
+        PTHREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
     }
 
 #else /* !WC_ENABLE_BENCH_THREADING */
@@ -1513,12 +1543,12 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
 
     /* format and print to terminal */
     if (csv_format == 1) {
-        XSNPRINTF(msg, sizeof(msg), "%s,%.3f,", desc, persec);
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%.3f,", desc, persec);
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     } else {
-        XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
-        desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType, word[0],
-            total, word[1], persec, blockType);
+        (void)XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
+                 desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType, word[0],
+                 total, word[1], persec, blockType);
         SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
     }
     printf("%s", msg);
@@ -1564,9 +1594,9 @@ static void bench_stats_asym_finish(const char* algo, int strength,
             printf("Algorithm,avg ms,ops/sec,\n");
             csv_header_count++;
         }
-        XSNPRINTF(msg, sizeof(msg), "%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
+        (void)XSNPRINTF(msg, sizeof(msg), "%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
     } else {
-        XSNPRINTF(msg, sizeof(msg), "%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
+        (void)XSNPRINTF(msg, sizeof(msg), "%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
         " %.3f %s\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(useDeviceID),
         count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
     }
@@ -1610,9 +1640,9 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID, int co
             printf("Algorithm,avg ms,ops/sec,\n");
             csv_header_count++;
         }
-        XSNPRINTF(msg, sizeof(msg), "%s %.3f,%.3f,\n", algo, milliEach, opsSec);
+        (void)XSNPRINTF(msg, sizeof(msg), "%s %.3f,%.3f,\n", algo, milliEach, opsSec);
     } else {
-         XSNPRINTF(msg, sizeof(msg), "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
+         (void)XSNPRINTF(msg, sizeof(msg), "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
          " %.3f %s\n", algo, BENCH_ASYNC_GET_NAME(useDeviceID),
          count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
     }
@@ -2490,11 +2520,11 @@ static int benchmark_test_threaded(void* args)
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        pthread_create(&g_threadData[i].thread_id, NULL, run_bench, args);
+        PTHREAD_CHECK_RET(pthread_create(&g_threadData[i].thread_id, NULL, run_bench, args));
     }
 
     for (i = 0; i < g_threadCount; i++) {
-        pthread_join(g_threadData[i].thread_id, 0);
+        PTHREAD_CHECK_RET(pthread_join(g_threadData[i].thread_id, 0));
     }
 
     printf("\n");
@@ -5890,7 +5920,7 @@ void bench_eccMakeKey(int useDeviceID, int curveId)
         count += times;
     } while (bench_stats_sym_check(start));
 exit:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
             wc_ecc_get_name(curveId));
     bench_stats_asym_finish(name, keySize * 8, desc[2], useDeviceID, count, start,
             ret);
@@ -6010,7 +6040,7 @@ void bench_ecc(int useDeviceID, int curveId)
     } while (bench_stats_sym_check(start));
     PRIVATE_KEY_UNLOCK();
 exit_ecdhe:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(curveId));
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[3], useDeviceID, count, start,
             ret);
@@ -6054,7 +6084,7 @@ exit_ecdhe:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_sign:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[4], useDeviceID, count, start,
             ret);
@@ -6090,7 +6120,7 @@ exit_ecdsa_sign:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_verify:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[5], useDeviceID, count, start,
             ret);
@@ -6197,7 +6227,7 @@ void bench_eccEncrypt(int curveId)
         count += i;
     } while (bench_stats_sym_check(start));
 exit_enc:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]", wc_ecc_get_name(curveId));
+    (void)XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]", wc_ecc_get_name(curveId));
     bench_stats_asym_finish(name, keySize * 8, desc[6], 0, count, start, ret);
 
     bench_stats_start(&count, &start);
@@ -7477,7 +7507,7 @@ void bench_falconKeySign(byte level)
 
         (void)reset;
 
-        gettimeofday(&tv, 0);
+        LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
