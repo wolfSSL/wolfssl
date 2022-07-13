@@ -22751,10 +22751,10 @@ static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 
 /* encode CA basic constraints true with path length
  * return total bytes written */
-static int SetCaWithPathLen(byte* out, word32 outSz, char pathLen)
+static int SetCaWithPathLen(byte* out, word32 outSz, byte pathLen)
 {
     /* ASN1->DER sequence for Basic Constraints True and path length */
-    byte caPathLenBasicConstASN1[] = {
+    const byte caPathLenBasicConstASN1[] = {
         0x30, 0x0F, 0x06, 0x03, 0x55, 0x1D, 0x13, 0x04,
         0x08, 0x30, 0x06, 0x01, 0x01, 0xFF, 0x02, 0x01,
         0x00
@@ -22766,9 +22766,9 @@ static int SetCaWithPathLen(byte* out, word32 outSz, char pathLen)
     if (outSz < sizeof(caPathLenBasicConstASN1))
         return BUFFER_E;
 
-    caPathLenBasicConstASN1[16U] = pathLen;
-
     XMEMCPY(out, caPathLenBasicConstASN1, sizeof(caPathLenBasicConstASN1));
+
+    out[sizeof(caPathLenBasicConstASN1)-1] = pathLen;
 
     return (int)sizeof(caPathLenBasicConstASN1);
 }
