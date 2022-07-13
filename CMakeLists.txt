@@ -283,17 +283,25 @@ else()
     endif()
 endif()
 
-
 # DTLS
+# DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
+# without DTLS will also enable DTLS.
 add_option("WOLFSSL_DTLS"
-    "Enables wolfSSL DTLS (default: disabled)"
+    "Enable wolfSSL DTLS (default: disabled)"
     "no" "yes;no")
-
 if(WOLFSSL_DTLS)
-    list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_DTLS")
+	list(APPEND WOLFSSL_DEFINITIONS
+		"-DWOLFSSL_DTLS")
 endif()
 
+# DTLS change MTU
+add_option("WOLFSSL_DTLS_MTU"
+    "Enable setting the MTU size for wolfSSL DTLS (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_DTLS_MTU)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_DTLS_MTU")
+endif()
 
 # TLS v1.3
 add_option("WOLFSSL_TLS13"
@@ -379,9 +387,42 @@ if(NOT WOLFSSL_RNG)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_RNG")
 endif()
 
-# TODO: - DTLS-SCTP
-#       - DTLS multicast
-#       - OpenSSH
+# DTLS-SCTP
+add_option("WOLFSSL_SCTP"
+    "Enable wolfSSL DTLS-SCTP support (default: disabled)])"
+    "no" "yes;no")
+if(WOLFSSL_SCTP)
+    if(NOT HAVE_SYS_SOCKET_H OR NOT HAVE_ARPA_INET_H OR NOT HAVE_SOCKET)
+        message(FATAL_ERROR "SCTP not available, disable DTLS-SCTP")
+        override_cache(WOLFSSL_SCTP "no")
+    endif()
+endif()
+
+if(WOLFSSL_SCTP)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SCTP")
+endif()
+
+# DTLS-SRTP
+add_option("WOLFSSL_DTLS_SRTP"
+    "Enable wolfSSL DTLS-SRTP support (default: disabled)])"
+    "no" "yes;no")
+if(WOLFSSL_DTLS_SRTP)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_SRTP")
+endif()
+
+# DTLS-MULTICAST
+add_option("WOLFSSL_MCAST"
+    "Enable wolfSSL DTLS multicast support (default: disabled)])"
+    "no" "yes;no")
+    
+if(WOLFSSL_MCAST)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_MCAST")
+endif()
+
+# TODO: - OpenSSH
 #       - OpenVPN
 #       - Nginx
 #       - HAProxy
@@ -570,8 +611,22 @@ add_option("WOLFSSL_AESOFB"
 #       - Linux dev crpyto calls
 #       - Camellia
 #       - MD2
-#       - NULL cipher
-#       - RIPEMD
+
+# NULL CIPHER
+add_option("WOLFSSL_NULL_CIPHER"
+    "Enable wolfSSL NULL cipher support (default: disabled)])"
+    "no" "yes;no")
+    
+if(WOLFSSL_OPENSSH)
+    override_cache(WOLFSSL_NULL_CIPHER "yes")
+endif()
+
+if(WOLFSSL_NULL_CIPHER)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_NULL_CIPHER")
+endif()
+
+# TODO: - RIPEMD
 #       - BLAKE2
 
 add_option("WOLFSSL_AESCFB"
@@ -1965,6 +2020,20 @@ endif()
 if(NOT "${WOLFSSL_CERTS}" OR "${WOLFSSL_LEAN_PSK}" OR NOT "${WOLFSSL_ASN}")
    list(APPEND WOLFSSL_DEFINITIONS "-DNO_ASN -DNO_CERTS")
    override_cache(WOLFSSL_ASN "no")
+endif()
+
+# SCTP and Multicast require DTLS
+if(NOT WOLFSSL_DTLS AND (WOLFSSL_SCTP OR WOLFSSL_MCAST OR WOLFSSL_DTLS_SRTP))
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_DTLS")
+    override_cache(WOLFSSL_DTLS "yes")
+endif()
+
+# Multicast requires the null cipher
+if(NOT WOLFSSL_NULL_CIPHER AND WOLFSSL_MCAST)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_NULL_CIPHER")
+    override_cache(WOLFSSL_NULL_CIPHER "yes")
 endif()
 
 
