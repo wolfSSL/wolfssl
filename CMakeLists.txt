@@ -490,9 +490,7 @@ if (WOLFSSL_OQS)
     endif()
 endif()
 
-# TODO: - Lean TLS
-#       - Low resource
-#       - Titan cache
+# TODO: - Titan cache
 #       - Huge cache
 #       - Big cache
 #       - Small cache
@@ -503,7 +501,7 @@ endif()
 #       - Public key callbacks
 #       - Microchip/Atmel CryptoAuthLib
 
-# Lean-PSK
+# lean psk build
 add_option("WOLFSSL_LEAN_PSK"
     "Enable Lean PSK build (default: disabled)"
     "no" "yes;no")
@@ -511,11 +509,30 @@ add_option("WOLFSSL_LEAN_PSK"
 if(${WOLFSSL_LEAN_PSK})
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA")
     if(WOLFSSL_SLOW_MATH)
-        override_cache(WOLFSSL_SLOW_MATH "no")
+        set(WOLFSSL_SLOW_MATH "no")
     endif()
     if(WOLFSSL_SINGLE_THREADED)
         override_cache(WOLFSSL_SINGLE_THREADED "yes")
     endif()
+endif()
+
+# lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
+add_option("WOLFSSL_LEAN_TLS"
+    "Enable Lean TLS build (default: disabled)"
+    "no" "yes;no")
+
+if(${WOLFSSL_LEAN_TLS})
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY")
+endif()
+
+# low resource options to reduce flash and memory use
+add_option("WOLFSSL_LOW_RESOURCE"
+    "Enable low resource options for memory/flash (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_LOW_RESOURCE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY")
+    list(APPEND WOLFSSL_DEFINITIONS "-DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512")
 endif()
 
 # AES-CBC
@@ -804,6 +821,10 @@ if(WOLFSSL_ECC)
     if("${WOLFSSL_ECC}" STREQUAL "nonblock")
         list(APPEND WOLFSSL_DEFINITIONS "-DWC_ECC_NONBLOCK")
     endif()
+
+    if(WOLFSSL_LOW_RESOURCE AND WOLFSSL_FAST_MATH)
+        list(APPEND WOLFSSL_DEFINITIONS "-DALT_ECC_SIZE")
+    endif()
     
     set(WOLFSSL_CERTS "yes")
 endif()
@@ -1069,6 +1090,7 @@ endif()
 if(NOT WOLFSSL_DH)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
 else()
+    # turn off DH if leanpsk or leantls on
     if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
       list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
       override_cache(WOLFSSL_DH "no")
