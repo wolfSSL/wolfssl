@@ -351,7 +351,7 @@ static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
     ssl->dtls13Rtx.sendAcks = Dtls13RtxMsgNeedsAck(ssl, hs);
 }
 
-static int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
+int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 {
     DtlsMsg* msg = ssl->dtls_rx_msg_list;
     word32 idx = 0;
@@ -1419,6 +1419,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 {
     word32 fragOff, fragLength;
     byte isComplete, isFirst;
+    byte usingAsyncCrypto;
     word32 messageLength;
     byte handshakeType;
     word32 idx;
@@ -1470,9 +1471,17 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     isFirst = fragOff == 0;
     isComplete = isFirst && fragLength == messageLength;
+    usingAsyncCrypto = ssl->devId != INVALID_DEVID;
 
-    if (!isComplete || ssl->keys.dtls_peer_handshake_number >
-                           ssl->keys.dtls_expected_peer_handshake_number) {
+    /* store the message if any of the following: (a) incomplete message, (b)
+     * out of order message or (c) if using async crypto. In (c) the processing
+     * of the message can return WC_PENDING_E, it's easier to handle this error
+     * if the message is stored in the buffer.
+     */
+    if (!isComplete ||
+        ssl->keys.dtls_peer_handshake_number >
+            ssl->keys.dtls_expected_peer_handshake_number ||
+        usingAsyncCrypto) {
         DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
             ssl->keys.dtls_peer_handshake_number,
             input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,

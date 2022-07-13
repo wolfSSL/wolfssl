@@ -9475,8 +9475,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO)
     /* if async, offset index so this msg will be processed again */
-    /* NOTE: check this now before other calls can overwirte ret */
+    /* NOTE: check this now before other calls can overwrite ret */
     if ((ret == WC_PENDING_E || ret == OCSP_WANT_READ) && *inOutIdx > 0) {
+        /* DTLS always stores a message in a buffer when async is enable, so we
+         * don't need to adjust for the extra bytes here (*inOutIdx is always
+         * == 0) */
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
 #endif
