@@ -523,7 +523,7 @@ static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
 static void Dtls13FreeFragmentsBuffer(WOLFSSL* ssl)
 {
     XFREE(ssl->dtls13FragmentsBuffer.buffer, ssl->heap,
-        DYNAMIC_TYPE_TEMP_BUFFER);
+        DYNAMIC_TYPE_TMP_BUFFER);
     ssl->dtls13FragmentsBuffer.buffer = NULL;
     ssl->dtls13SendingFragments = 0;
     ssl->dtls13MessageLength = ssl->dtls13FragOffset = 0;
@@ -664,7 +664,7 @@ static void Dtls13RtxFlushAcks(WOLFSSL* ssl)
     while (list != NULL) {
         rn = list;
         list = rn->next;
-        XFREE(rn, ssl->heap, DYNAMIC_TYEP_DTLS_MSG);
+        XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 
     ssl->dtls13Rtx.seenRecords = NULL;
@@ -710,7 +710,7 @@ static void Dtls13RtxRemoveCurAck(WOLFSSL* ssl)
         if (w64Equal(rn->epoch, ssl->keys.curEpoch64) &&
             w64Equal(rn->seq, ssl->keys.curSeq)) {
             *prevNext = rn->next;
-            XFREE(rn, ssl->heap, DYNAMIC_TYEP_DTLS_MSG);
+            XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
             return;
         }
 
