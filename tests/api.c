@@ -35483,90 +35483,112 @@ static void test_generate_cookie(void)
 
 static void test_wolfSSL_set_options(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    SSL*     ssl;
-    SSL_CTX* ctx;
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     char appData[] = "extra msg";
-
+#endif
+#ifdef OPENSSL_EXTRA
     unsigned char protos[] = {
         7, 't', 'l', 's', '/', '1', '.', '2',
         8, 'h', 't', 't', 'p', '/', '1', '.', '1'
     };
     unsigned int len = sizeof(protos);
-
     void *arg = (void *)TEST_ARG;
+#endif
 
     printf(testingFmt, "wolfSSL_set_options()");
 
 #ifndef NO_WOLFSSL_SERVER
-    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #else
-    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
 
-    AssertTrue(SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
-    AssertTrue(SSL_CTX_get_options(ctx) == SSL_OP_NO_TLSv1);
+    AssertTrue(wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1)
+               == WOLFSSL_OP_NO_TLSv1);
+    AssertTrue(wolfSSL_CTX_get_options(ctx) == WOLFSSL_OP_NO_TLSv1);
 
-    AssertIntGT((int)SSL_CTX_set_options(ctx, (SSL_OP_COOKIE_EXCHANGE |
-                                                              SSL_OP_NO_SSLv2)), 0);
-    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_COOKIE_EXCHANGE) &
-                                 SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE);
-    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2) &
-                                           SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
-    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION) &
-                                   SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
-    AssertNull((SSL_CTX_clear_options(ctx, SSL_OP_NO_COMPRESSION) &
-                                               SSL_OP_NO_COMPRESSION));
+    AssertIntGT((int)wolfSSL_CTX_set_options(ctx, (WOLFSSL_OP_COOKIE_EXCHANGE |
+                WOLFSSL_OP_NO_SSLv2)), 0);
+    AssertTrue((wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_COOKIE_EXCHANGE) &
+                WOLFSSL_OP_COOKIE_EXCHANGE) == WOLFSSL_OP_COOKIE_EXCHANGE);
+    AssertTrue((wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_2) &
+                WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2);
+    AssertTrue((wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_COMPRESSION) &
+                WOLFSSL_OP_NO_COMPRESSION) == WOLFSSL_OP_NO_COMPRESSION);
+#ifdef OPENSSL_EXTRA
+    AssertFalse((wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_NO_COMPRESSION) &
+                                           WOLFSSL_OP_NO_COMPRESSION));
+#endif
 
-    SSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 
 #ifndef NO_WOLFSSL_SERVER
-    ctx = SSL_CTX_new(wolfSSLv23_server_method());
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertNotNull(ctx);
 #else
-    ctx = SSL_CTX_new(wolfSSLv23_client_method());
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     AssertNotNull(ctx);
 #endif
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_set_msg_callback(ctx, msg_cb) == SSL_SUCCESS);
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+#ifdef OPENSSL_EXTRA
+    AssertTrue(wolfSSL_CTX_set_msg_callback(ctx, msg_cb) == WOLFSSL_SUCCESS);
+#endif
 
-    AssertNotNull(ssl = SSL_new(ctx));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
-    AssertIntEQ(SSL_set_app_data(ssl, (void*)appData), SSL_SUCCESS);
-    AssertNotNull(SSL_get_app_data((const WOLFSSL*)ssl));
+    AssertIntEQ(wolfSSL_set_app_data(ssl, (void*)appData), WOLFSSL_SUCCESS);
+    AssertNotNull(wolfSSL_get_app_data((const WOLFSSL*)ssl));
     if (ssl) {
-        AssertIntEQ(XMEMCMP(SSL_get_app_data((const WOLFSSL*)ssl),
+        AssertIntEQ(XMEMCMP(wolfSSL_get_app_data((const WOLFSSL*)ssl),
                     appData, sizeof(appData)), 0);
     }
 #else
-    AssertIntEQ(SSL_set_app_data(ssl, (void*)appData), SSL_FAILURE);
-    AssertNull(SSL_get_app_data((const WOLFSSL*)ssl));
+    AssertIntEQ(wolfSSL_set_app_data(ssl, (void*)appData), WOLFSSL_FAILURE);
+    AssertNull(wolfSSL_get_app_data((const WOLFSSL*)ssl));
+#endif
 #endif
 
-    AssertTrue(SSL_set_options(ssl, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
-    AssertTrue(SSL_get_options(ssl) == SSL_OP_NO_TLSv1);
+    AssertTrue(wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1) ==
+                                   WOLFSSL_OP_NO_TLSv1);
 
-    AssertIntGT((int)SSL_set_options(ssl, (SSL_OP_COOKIE_EXCHANGE |
-                                                          WOLFSSL_OP_NO_SSLv2)), 0);
-    AssertTrue((SSL_set_options(ssl, SSL_OP_COOKIE_EXCHANGE) &
-                             SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE);
-    AssertTrue((SSL_set_options(ssl, SSL_OP_NO_TLSv1_2) &
-                                       SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
-    AssertTrue((SSL_set_options(ssl, SSL_OP_NO_COMPRESSION) &
-                               SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
-    AssertNull((SSL_clear_options(ssl, SSL_OP_NO_COMPRESSION) &
-                                       SSL_OP_NO_COMPRESSION));
+    AssertTrue(wolfSSL_get_options(ssl) == WOLFSSL_OP_NO_TLSv1);
 
-    AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
-    SSL_set_msg_callback_arg(ssl, arg);
+    AssertIntGT((int)wolfSSL_set_options(ssl, (WOLFSSL_OP_COOKIE_EXCHANGE |
+                                         WOLFSSL_OP_NO_SSLv2)), 0);
+
+    AssertTrue((wolfSSL_set_options(ssl, WOLFSSL_OP_COOKIE_EXCHANGE) &
+                WOLFSSL_OP_COOKIE_EXCHANGE) == WOLFSSL_OP_COOKIE_EXCHANGE);
+
+    AssertTrue((wolfSSL_set_options(ssl, WOLFSSL_OP_NO_TLSv1_2) &
+                WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2);
+
+    AssertTrue((wolfSSL_set_options(ssl, WOLFSSL_OP_NO_COMPRESSION) &
+               WOLFSSL_OP_NO_COMPRESSION) == WOLFSSL_OP_NO_COMPRESSION);
+
+#ifdef OPENSSL_EXTRA
+    AssertNull((wolfSSL_clear_options(ssl, WOLFSSL_OP_NO_COMPRESSION) &
+                                      WOLFSSL_OP_NO_COMPRESSION));
+#endif
+
+#ifdef OPENSSL_EXTRA
+    AssertTrue(wolfSSL_set_msg_callback(ssl, msg_cb) == WOLFSSL_SUCCESS);
+    wolfSSL_set_msg_callback_arg(ssl, arg);
 #ifdef WOLFSSL_ERROR_CODE_OPENSSL
-    AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == 0);
+    AssertTrue(wolfSSL_CTX_set_alpn_protos(ctx, protos, len) == 0);
 #else
-    AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
+    AssertTrue(wolfSSL_CTX_set_alpn_protos(ctx, protos, len) == WOLFSSL_SUCCESS);
+#endif
 #endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
@@ -35576,20 +35598,19 @@ static void test_wolfSSL_set_options(void)
 #if defined(HAVE_ALPN) && !defined(NO_BIO)
 
 #ifdef WOLFSSL_ERROR_CODE_OPENSSL
-    AssertTrue(SSL_set_alpn_protos(ssl, protos, len) == 0);
+    AssertTrue(wolfSSL_set_alpn_protos(ssl, protos, len) == 0);
 #else
-    AssertTrue(SSL_set_alpn_protos(ssl, protos, len) == SSL_SUCCESS);
+    AssertTrue(wolfSSL_set_alpn_protos(ssl, protos, len) == WOLFSSL_SUCCESS);
 #endif
 
 #endif /* HAVE_ALPN && !NO_BIO */
 #endif
 
-    SSL_free(ssl);
-    SSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-         !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+#endif /* !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
 static void test_wolfSSL_sk_SSL_CIPHER(void)
