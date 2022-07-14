@@ -10702,6 +10702,10 @@ int wc_OBJ_sn2nid(const char *sn)
         {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
         {WOLFSSL_ORG_NAME, NID_organizationName},
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+        {WOLFSSL_NAME, NID_name},
+        {WOLFSSL_INITIALS, NID_initials},
+        {WOLFSSL_GIVEN_NAME, NID_givenName},
+        {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
         {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
         {"SHA1", NID_sha1},
         {NULL, -1}};
@@ -10868,54 +10872,6 @@ static const CertNameData certNameSubject[] = {
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_commonName
-#endif
-    },
-    /* Given Name */
-    {
-        "/GN=", 4,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        OFFSETOF(DecodedCert, subjectGN),
-        OFFSETOF(DecodedCert, subjectGNLen),
-        OFFSETOF(DecodedCert, subjectGNEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_givenName
-#endif
-    },
-    /* initials */
-    {
-        "/initials=", 10,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        OFFSETOF(DecodedCert, subjectI),
-        OFFSETOF(DecodedCert, subjectILen),
-        OFFSETOF(DecodedCert, subjectIEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_initials
-#endif
-    },
-    /* DN Qualifier Name */
-    {
-        "/dnQualifier=", 13,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        OFFSETOF(DecodedCert, subjectDNQ),
-        OFFSETOF(DecodedCert, subjectDNQLen),
-        OFFSETOF(DecodedCert, subjectDNQEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_dnQualifier
-#endif
-    },
-    /* Name */
-    {
-        "/N=", 3,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-        OFFSETOF(DecodedCert, subjectN),
-        OFFSETOF(DecodedCert, subjectNLen),
-        OFFSETOF(DecodedCert, subjectNEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_name
 #endif
     },
     /* Surname */
@@ -11096,6 +11052,54 @@ static const CertNameData certNameSubject[] = {
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_userId
+#endif
+    },
+    /* Name, id 41 */
+    {
+        "/N=", 3,
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectN),
+        OFFSETOF(DecodedCert, subjectNLen),
+        OFFSETOF(DecodedCert, subjectNEnc),
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_name
+#endif
+    },
+    /* Given Name, id 42 */
+    {
+        "/GN=", 4,
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectGN),
+        OFFSETOF(DecodedCert, subjectGNLen),
+        OFFSETOF(DecodedCert, subjectGNEnc),
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_givenName
+#endif
+    },
+    /* initials, id 43 */
+    {
+        "/initials=", 10,
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectI),
+        OFFSETOF(DecodedCert, subjectILen),
+        OFFSETOF(DecodedCert, subjectIEnc),
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_initials
+#endif
+    },
+    /* DN Qualifier Name, id 46 */
+    {
+        "/dnQualifier=", 13,
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectDNQ),
+        OFFSETOF(DecodedCert, subjectDNQLen),
+        OFFSETOF(DecodedCert, subjectDNQEnc),
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_dnQualifier
 #endif
     },
 };

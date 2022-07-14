@@ -772,8 +772,8 @@ enum
     NID_id_pkix_OCSP_basic = 74,
     NID_any_policy = 75,
     NID_anyExtendedKeyUsage = 76,
-    NID_givenName = 99,
-    NID_initials = 101,
+    NID_givenName = 99, /* 2.5.4.42 */
+    NID_initials = 101, /* 2.5.4.43 */
     NID_title = 106,
     NID_description = 107,
     NID_basic_constraints = 133,
@@ -796,10 +796,10 @@ enum
     NID_buildingName = 1494,
 
 
-    NID_dnQualifier = 174,
+    NID_dnQualifier = 174,             /* 2.5.4.46 */
     NID_commonName = 14,               /* CN Changed to not conflict
                                         * with PBE_SHA1_DES3 */
-    NID_name = 173,                    /* N */
+    NID_name = 173,                    /* N , OID = 2.5.4.41 */
     NID_surname = 0x04,                /* SN */
     NID_serialNumber = 0x05,           /* serialNumber */
     NID_countryName = 0x06,            /* C  */
