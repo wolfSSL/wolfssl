@@ -15848,7 +15848,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* In async mode always store the message and process it with
          * DtlsMsgDrain because in case of a WC_PENDING_E it will be
          * easier this way. */
-        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+        if (ssl->devId != INVALID_DEVID &&
+            ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
