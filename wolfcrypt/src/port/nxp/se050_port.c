@@ -524,9 +524,6 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-    if (key->keyId <= 0) {
-        return BAD_FUNC_ARG;
-    }
 
     keySize = key->dp->size;
     ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, &curveType);
