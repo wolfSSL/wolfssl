@@ -343,8 +343,8 @@ typedef struct CertName {
     char initialsEnc;
     char dnQualifier[CTC_NAME_SIZE];
     char dnQualifierEnc;
-    char name[CTC_NAME_SIZE];
-    char nameEnc;
+    char dnName[CTC_NAME_SIZE];
+    char dnNameEnc;
     char org[CTC_NAME_SIZE];
     char orgEnc;
     char unit[CTC_NAME_SIZE];

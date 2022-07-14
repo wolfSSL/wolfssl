@@ -22845,7 +22845,7 @@ const char* GetOneCertName(CertName* name, int idx)
     case ASN_LOCALITY_NAME:
        return name->locality;
     case ASN_NAME:
-       return name->name;
+       return name->dnName;
     case ASN_GIVEN_NAME:
        return name->givenName;
     case ASN_INITIALS:
@@ -22896,7 +22896,7 @@ static char GetNameType(CertName* name, int idx)
     case ASN_LOCALITY_NAME:
        return name->localityEnc;
     case ASN_NAME:
-       return name->nameEnc;
+       return name->dnNameEnc;
     case ASN_GIVEN_NAME:
        return name->givenNameEnc;
     case ASN_INITIALS:
@@ -27645,9 +27645,9 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
     if (decoded->subjectN) {
         sz = (decoded->subjectNLen < CTC_NAME_SIZE) ? decoded->subjectNLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->name, decoded->subjectN, sz);
-        cn->name[sz] = '\0';
-        cn->nameEnc = decoded->subjectNEnc;
+        XSTRNCPY(cn->dnName, decoded->subjectN, sz);
+        cn->dnName[sz] = '\0';
+        cn->dnNameEnc = decoded->subjectNEnc;
     }
     if (decoded->subjectSN) {
         sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
