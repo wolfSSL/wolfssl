@@ -551,9 +551,6 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
         return BAD_MUTEX_E;
     }
 
-    /* mark that key was used for signing */
-    key->flags |= WC_ECC_FLAG_DEC_SIGN;
-
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
@@ -590,6 +587,9 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
+
+            /* mark that key was used for signing, don't free */
+            key->flags |= WC_ECC_FLAG_DEC_SIGN;
         }
     }
 
@@ -1163,6 +1163,9 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t    ctx_asymm;
     sss_key_store_t     host_keystore;
     sss_object_t        newKey;
+    int                 keySize = ED25519_KEY_SIZE;
+    int                 keyCreated = 0;
+    int                 keyId;
 
 #ifdef SE050_DEBUG
     printf("se050_ed25519_sign_msg: key %p, in %p (%d), out %p (%d), keyId %d\n",
@@ -1172,16 +1175,10 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-    if (key->keyId <= 0) {
-        return BAD_FUNC_ARG;
-    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
-
-    /* mark that key was used for signing */
-    key->flags |= WC_ED25519_FLAG_DEC_SIGN;
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
@@ -1190,8 +1187,39 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
+    /* this is run when a key was not generated and was instead passed in */
     if (status == kStatus_SSS_Success) {
-        status = sss_key_object_get_handle(&newKey, key->keyId);
+        keyId = key->keyId;
+        if (keyId <= 0) {
+            byte derBuf[SE050_ECC_DER_MAX];
+            word32 derSz;
+
+            ret = wc_Ed25519KeyToDer(key, derBuf, (word32)sizeof(derBuf));
+            if (ret >= 0) {
+                derSz = ret;
+                ret = 0;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                keyId = se050_allocate_key(SE050_ED25519_KEY);
+                status = sss_key_object_allocate_handle(&newKey, keyId,
+                    kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keySize,
+                    kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
+                                                derSz, keySize * 8, NULL, 0);
+            }
+        }
+        else {
+            status = sss_key_object_get_handle(&newKey, keyId);
+
+            /* mark that key was used for signing, don't free */
+            key->flags |= WC_ED25519_FLAG_DEC_SIGN;
+        }
     }
     if (status == kStatus_SSS_Success) {
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
@@ -1207,7 +1235,13 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     }
 
     if (status != kStatus_SSS_Success) {
+        if (keyCreated) {
+            sss_key_store_erase_key(&host_keystore, &newKey);
+            sss_key_object_free(&newKey);
+        }
         ret = WC_HW_E;
+    } else {
+        key->keyId = keyId;
     }
 
     wolfSSL_CryptHwMutexUnLock();
@@ -1521,8 +1555,8 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &public_key);
-            sss_key_object_free(&public_key);
+            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            sss_key_object_free(&ref_public_key);
         }
         if (ret == 0)
             ret = WC_HW_E;
