@@ -64,6 +64,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
+#ifndef NO_TLS
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static int TLSX_KeyShare_IsSupported(int namedGroup);
 static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
@@ -72,8 +74,6 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 #ifdef HAVE_SUPPORTED_CURVES
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
-
-#ifndef NO_TLS
 
 /* Digest enable checks */
 #ifdef NO_OLD_TLS /* TLS 1.2 only */

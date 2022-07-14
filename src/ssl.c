@@ -16918,6 +16918,7 @@ WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
  * returns WOLFSSL_FATAL_ERROR on no match */
 static int GetMaxProtoVersion(long options)
 {
+#ifndef NO_TLS
 #ifdef WOLFSSL_TLS13
     if (!(options & WOLFSSL_OP_NO_TLSv1_3))
         return TLS1_3_VERSION;
@@ -16938,7 +16939,9 @@ static int GetMaxProtoVersion(long options)
         return SSL3_VERSION;
     #endif
 #endif
-
+#else
+    (void)options;
+#endif /* NO_TLS */
     return WOLFSSL_FATAL_ERROR;
 }
 
