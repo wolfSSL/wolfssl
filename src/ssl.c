@@ -5479,12 +5479,14 @@ int wolfSSL_Init(void)
         }
 
 #ifdef HAVE_GLOBAL_RNG
-        if ((ret == WOLFSSL_SUCCESS) && (wc_InitMutex(&globalRNGMutex) != 0)) {
-            WOLFSSL_MSG("Bad Init Mutex rng");
-            ret = BAD_MUTEX_E;
-        }
-        else {
-            globalRNGMutex_valid = 1;
+        if (ret == WOLFSSL_SUCCESS) {
+            if (wc_InitMutex(&globalRNGMutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex rng");
+                ret = BAD_MUTEX_E;
+            }
+            else {
+                globalRNGMutex_valid = 1;
+            }
         }
 #endif
 
@@ -5520,31 +5522,36 @@ int wolfSSL_Init(void)
             }
         }
     #else
-        if ((ret == WOLFSSL_SUCCESS) && (wc_InitMutex(&session_mutex) != 0)) {
-            WOLFSSL_MSG("Bad Init Mutex session");
-            ret = BAD_MUTEX_E;
-        }
-        else {
-            session_mutex_valid = 1;
+        if (ret == WOLFSSL_SUCCESS) {
+            if (wc_InitMutex(&session_mutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex session");
+                ret = BAD_MUTEX_E;
+            }
+            else {
+                session_mutex_valid = 1;
+            }
         }
     #endif
     #ifndef NO_CLIENT_CACHE
-        if ((ret == WOLFSSL_SUCCESS) &&
-            (wc_InitMutex(&clisession_mutex) != 0)) {
-            WOLFSSL_MSG("Bad Init Mutex session");
-            ret = BAD_MUTEX_E;
-        }
-        else {
-            clisession_mutex_valid = 1;
+        if (ret == WOLFSSL_SUCCESS) {
+            if (wc_InitMutex(&clisession_mutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex session");
+                ret = BAD_MUTEX_E;
+            }
+            else {
+                clisession_mutex_valid = 1;
+            }
         }
     #endif
 #endif
-        if ((ret == WOLFSSL_SUCCESS) && (wc_InitMutex(&count_mutex) != 0)) {
-            WOLFSSL_MSG("Bad Init Mutex count");
-            ret = BAD_MUTEX_E;
-        }
-        else {
-            count_mutex_valid = 1;
+        if (ret == WOLFSSL_SUCCESS) {
+            if (wc_InitMutex(&count_mutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex count");
+                ret = BAD_MUTEX_E;
+            }
+            else {
+                count_mutex_valid = 1;
+            }
         }
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
@@ -5556,13 +5563,15 @@ int wolfSSL_Init(void)
 #endif
     }
 
-    if ((ret == WOLFSSL_SUCCESS) && (wc_LockMutex(&count_mutex) != 0)) {
-        WOLFSSL_MSG("Bad Lock Mutex count");
-        ret = BAD_MUTEX_E;
-    }
-    else {
-        initRefCount++;
-        wc_UnLockMutex(&count_mutex);
+    if (ret == WOLFSSL_SUCCESS) {
+        if (wc_LockMutex(&count_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex count");
+            ret = BAD_MUTEX_E;
+        }
+        else {
+            initRefCount++;
+            wc_UnLockMutex(&count_mutex);
+        }
     }
 
     if (ret != WOLFSSL_SUCCESS) {
