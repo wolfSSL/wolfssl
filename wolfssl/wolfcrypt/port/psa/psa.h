@@ -67,6 +67,13 @@
 #include <wolfssl/ssl.h>
 #endif
 
+#ifndef PSA_ALG_NONE
+    #define PSA_ALG_NONE ((psa_algorithm_t)0)
+#endif
+#ifndef PSA_KEY_ID_NULL
+    #define PSA_KEY_ID_NULL ((psa_key_id_t)0)
+#endif
+
 #if defined(WOLFSSL_PSA_GLOBAL_LOCK)
 void PSA_LOCK(void);
 void PSA_UNLOCK(void);
