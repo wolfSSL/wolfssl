@@ -1610,6 +1610,14 @@ end:
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
     }
+#elif defined(WOLFSSL_ZEPHYR)
+    word32 TimeNowInMilliseconds(void)
+    {
+    #if defined(CONFIG_ARCH_POSIX)
+        k_cpu_idle();
+    #endif
+        return (word32)k_uptime_get() / 1000;
+    }
 
 #else
     /* The time in milliseconds.
