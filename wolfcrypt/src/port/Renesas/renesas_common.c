@@ -360,7 +360,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
 {
     (void)ssl;
     (void)ctx;
-     
+
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)

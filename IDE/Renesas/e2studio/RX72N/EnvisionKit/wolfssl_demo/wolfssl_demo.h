@@ -60,7 +60,8 @@
 /* use multi-thread example */
 /* #define TLS_MULTITHREAD_TEST */
 #if defined(TLS_MULTITHREAD_TEST) && defined(WOLFSSL_TLS13)
-    #error "MULTITHREAD_TEST is only available when not set WOLFSSL_TLS13"
+    #error "MULTITHREAD_TEST is only available when not set WOLFSSL_TLS13 \
+           because it is not verified yet."
 #endif
 
 #if defined(TLS_MULTITHREAD_TEST)

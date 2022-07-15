@@ -133,7 +133,8 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
         ret = -1;
 
 #ifdef HAVE_AES_DECRYPT
-    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret == 0)
+        ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
         ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
         XMEMCPY(&aes->ctx.tsip_keyIdx, aes_key,

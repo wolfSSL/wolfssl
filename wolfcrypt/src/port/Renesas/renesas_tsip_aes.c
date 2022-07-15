@@ -719,8 +719,9 @@ int wc_tsip_AesGcmEncrypt(
 
         if (ret == 0) {
 
-            /* since generated session key is coupled to iv, no need to pass
+            /* Since generated session key is coupled to iv, no need to pass
              * iv init func.
+             * It expects to pass iv when users create their own key.
              */
             err = initFn(&hdl, &key_client_aes, iv_l, ivSz_l);
 
@@ -913,6 +914,8 @@ int wc_tsip_AesGcmDecrypt(
         if (ret == 0) {
             /* since key_index has iv and ivSz in it, no need to pass them init
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.
+             *
+             * It expects to pass iv when users create their own key.
              */
             err = initFn(&hdl, &key_server_aes, iv_l, ivSz_l);
 

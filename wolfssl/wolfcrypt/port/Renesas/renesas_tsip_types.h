@@ -1,5 +1,5 @@
 
-/* renesas-tsip-crypt-types.h
+/* renesas_tsip_types.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -20,8 +20,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
  
-#ifndef __RENESAS_TSIP_CRYPT_TYPES_H__
-#define __RENESAS_TSIP_CRYPT_TYPES_H__
+#ifndef __RENESAS_TSIP_TYPES_H__
+#define __RENESAS_TSIP_TYPES_H__
 
 
 #include <wolfssl/wolfcrypt/settings.h>
@@ -74,4 +74,4 @@ typedef struct {
 
 #endif
 
-#endif /* __RENESAS_TSIP_CRYPT_TYPES_H__ */
+#endif /* __RENESAS_TSIP_TYPES_H__ */

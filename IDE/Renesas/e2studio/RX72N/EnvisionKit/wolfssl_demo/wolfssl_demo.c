@@ -369,19 +369,19 @@ static void Tls_client(void *pvParam)
 
     if (ret == 0) {
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-         #if !defined(TLS_MULTITHREAD_TEST)
-          memset(&userContext, 0, sizeof(TsipUserCtx));
-          tsip_set_callback_ctx(ssl, &userContext);
-         #else
-          if (p->port - TLSSERVER_PORT == 0) {
-             memset(&userContext_taskA, 0, sizeof(TsipUserCtx));
-             tsip_set_callback_ctx(ssl, (void*)&userContext_taskA);
-          }
-          else {
-             memset(&userContext_taskB, 0, sizeof(TsipUserCtx));
-             tsip_set_callback_ctx(ssl, (void*)&userContext_taskB);
-          }
-         #endif
+            #if !defined(TLS_MULTITHREAD_TEST)
+            memset(&userContext, 0, sizeof(TsipUserCtx));
+            tsip_set_callback_ctx(ssl, &userContext);
+            #else
+            if (p->port - TLSSERVER_PORT == 0) {
+                memset(&userContext_taskA, 0, sizeof(TsipUserCtx));
+                tsip_set_callback_ctx(ssl, (void*)&userContext_taskA);
+            }
+            else {
+                memset(&userContext_taskB, 0, sizeof(TsipUserCtx));
+                tsip_set_callback_ctx(ssl, (void*)&userContext_taskB);
+            }
+            #endif
         #endif
     }
 
