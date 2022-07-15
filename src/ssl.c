@@ -15844,7 +15844,6 @@ cleanup:
     }
 
 #ifdef OPENSSL_EXTRA
-
     void wolfSSL_CTX_set_tmp_rsa_callback(WOLFSSL_CTX* ctx,
                                       WOLFSSL_RSA*(*f)(WOLFSSL*, int, int))
     {
@@ -15865,7 +15864,7 @@ cleanup:
         ssl->options.sentNotify =  (opt&WOLFSSL_SENT_SHUTDOWN) > 0;
         ssl->options.closeNotify = (opt&WOLFSSL_RECEIVED_SHUTDOWN) > 0;
     }
-
+#endif
 
     long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx)
     {
@@ -15875,8 +15874,6 @@ cleanup:
             return BAD_FUNC_ARG;
         return ctx->mask;
     }
-
-#endif
 
     static long wolf_set_options(long old_op, long op);
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
@@ -22584,7 +22581,6 @@ static long wolf_set_options(long old_op, long op)
     return old_op | op;
 }
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
@@ -22599,29 +22595,28 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     ssl->options.mask = wolf_set_options(ssl->options.mask, op);
 
-#ifdef SSL_OP_NO_TLSv1_3
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
         if (ssl->version.minor == TLSv1_3_MINOR)
             ssl->version.minor = TLSv1_2_MINOR;
     }
-#endif
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
         if (ssl->version.minor == TLSv1_2_MINOR)
             ssl->version.minor = TLSv1_1_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
         if (ssl->version.minor == TLSv1_1_MINOR)
             ssl->version.minor = TLSv1_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
         if (ssl->version.minor == TLSv1_MINOR)
             ssl->version.minor = SSLv3_MINOR;
     }
 
-    if ((ssl->options.mask & WOLFSSL_OP_NO_COMPRESSION) == WOLFSSL_OP_NO_COMPRESSION) {
+    if ((ssl->options.mask & WOLFSSL_OP_NO_COMPRESSION)
+        == WOLFSSL_OP_NO_COMPRESSION) {
     #ifdef HAVE_LIBZ
         ssl->options.usingCompression = 0;
     #endif
@@ -22656,8 +22651,6 @@ long wolfSSL_get_options(const WOLFSSL* ssl)
         return WOLFSSL_FAILURE;
     return ssl->options.mask;
 }
-
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
