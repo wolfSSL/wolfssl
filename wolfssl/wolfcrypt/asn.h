@@ -2144,6 +2144,11 @@ WOLFSSL_API int EccEnumToNID(int n);
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
+WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
+    byte* output, word32 outLen, int keyType, int withHeader);
+WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
+    byte* pubKey, word32* pubKeyLen, int keyType);
+
 #ifndef NO_CERTS
 
 WOLFSSL_LOCAL int wc_EncryptedInfoParse(EncryptedInfo* info,

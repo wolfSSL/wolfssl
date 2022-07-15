@@ -22403,7 +22403,7 @@ enum {
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
+int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader)
 {
     int ret = 0;
@@ -29825,7 +29825,7 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
+int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     byte* pubKey, word32* pubKeyLen, int keyType)
 {
     int ret = 0;
@@ -30187,7 +30187,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
                              int withAlg)
 {
     int    ret;
-    byte   pubKey[CURVE25519_KEYSIZE];
+    byte   pubKey[CURVE25519_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (key == NULL || output == NULL) {

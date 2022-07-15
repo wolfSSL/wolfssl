@@ -437,7 +437,7 @@ static int se050_map_curve(int curve_id, int keySize,
     sss_cipher_type_t curve_type;
     *keySizeBits = keySize * 8; /* set default */
     switch (curve_id) {
-        case ECC_SECP160K1:            
+        case ECC_SECP160K1:
         case ECC_SECP192K1:
         case ECC_SECP224K1:
         case ECC_SECP256K1:
@@ -1009,8 +1009,8 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             size_t outlenSz = (size_t)*outlen;
             size_t outlenSzBits = outlenSz * 8;
             /* derived key export */
-            status = sss_key_store_get_key(&host_keystore, &deriveKey, out,
-                &outlenSz, &outlenSzBits);
+            status = sss_key_store_get_key(&host_keystore, &deriveKey,
+                out, &outlenSz, &outlenSzBits);
             *outlen = (word32)outlenSz;
             (void)outlenSzBits; /* not used */
         }
@@ -1028,8 +1028,8 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &public_key);
-            sss_key_object_free(&public_key);
+            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            sss_key_object_free(&ref_public_key);
         }
         if (ret == 0)
             ret = WC_HW_E;
@@ -1287,7 +1287,7 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
         if (keyId <= 0) {
             byte derBuf[ED25519_PUB_KEY_SIZE + 12]; /* seq + algo + bitstring */
             word32 derSz = 0;
-            
+
             ret = wc_Ed25519PublicKeyToDer(key, derBuf, (word32)sizeof(derBuf), 1);
             if (ret >= 0) {
                 derSz = ret;
@@ -1402,11 +1402,16 @@ int se050_curve25519_create_key(curve25519_key* key, int keySize)
     }
     if (status == kStatus_SSS_Success) {
         word32 idx = 0;
-        ret = wc_Curve25519PublicKeyDecode(derBuf, &idx, key, (word32)derSz);
+        byte   pubKey[CURVE25519_KEYSIZE];
+        word32 pubKeyLen = (word32)sizeof(pubKey);
+
+        ret = DecodeAsymKeyPublic(derBuf, &idx, (word32)derSz,
+            pubKey, &pubKeyLen, X25519k);
         if (ret == 0) {
-            key->p.point[CURVE25519_KEYSIZE-1] &= ~0x80; /* clear MSB */
+            ret = wc_curve25519_import_public_ex(pubKey, pubKeyLen, key,
+                EC25519_LITTLE_ENDIAN);
         }
-        else {
+        if (ret != 0) {
             status = kStatus_SSS_Fail;
         }
     }
@@ -1480,16 +1485,22 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (keyId <= 0) {
-            byte derBuf[CURVE25519_PUB_KEY_SIZE + 12]; /* seq + algo + bitstring */
+            byte   derBuf[CURVE25519_PUB_KEY_SIZE + 12]; /* seq + algo + bitstring */
             word32 derSz;
+            byte   pubKey[CURVE25519_PUB_KEY_SIZE];
+            word32 pubKeyLen = (word32)sizeof(pubKey);
 
-            ret = wc_Curve25519PublicKeyToDer(public_key, derBuf,
-                (word32)sizeof(derBuf), 1);
-            if (ret >= 0) {
-                derSz = ret;
-                ret = 0;
+            ret = wc_curve25519_export_public_ex(public_key, pubKey, &pubKeyLen,
+                EC25519_LITTLE_ENDIAN);
+            if (ret == 0) {
+                ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, derBuf,
+                    (word32)sizeof(derBuf), X25519k, 1);
+                if (ret >= 0) {
+                    derSz = ret;
+                    ret = 0;
+                }
             }
-            else {
+            if (ret != 0) {
                 status = kStatus_SSS_Fail;
             }
             if (status == kStatus_SSS_Success) {
