@@ -4222,7 +4222,7 @@ static void wc_ecc_free_async(ecc_key* key)
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen)
 {
-   int err;
+   int err = 0;
 
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
    !defined(WOLFSSL_ATECC608A)
