@@ -233,7 +233,7 @@ add_option("WOLFSSL_DO178"
     "Enable DO-178, Will NOT work w/o DO178 license (default: disabled)"
     "no" "yes;no")
     
-if(ENABLED_DO178)
+if(WOLFSSL_DO178)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_DO178")
 else()
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DO178")
@@ -269,9 +269,7 @@ add_option("WOLFSSL_SINGLE_THREADED"
     "no" "yes;no")
 
 # TODO: Logic here isn't complete, yet (see AX_PTHREAD)
-if(WOLFSSL_SINGLE_THREADED)
-    list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
-else()
+if(NOT WOLFSSL_SINGLE_THREADED)
     if(CMAKE_USE_PTHREADS_INIT)
         list(APPEND WOLFSSL_LINK_LIBS Threads::Threads)
         set(HAVE_PTHREAD 1)
@@ -283,6 +281,10 @@ else()
     endif()
 endif()
 
+if(WOLFSSL_SINGLE_THREADED)
+    list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
+endif()
+
 # DTLS
 # DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
 # without DTLS will also enable DTLS.
@@ -290,8 +292,8 @@ add_option("WOLFSSL_DTLS"
     "Enable wolfSSL DTLS (default: disabled)"
     "no" "yes;no")
 if(WOLFSSL_DTLS)
-	list(APPEND WOLFSSL_DEFINITIONS
-		"-DWOLFSSL_DTLS")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_DTLS")
 endif()
 
 # DTLS change MTU
@@ -389,12 +391,11 @@ endif()
 
 # DTLS-SCTP
 add_option("WOLFSSL_SCTP"
-    "Enable wolfSSL DTLS-SCTP support (default: disabled)])"
+    "Enable wolfSSL DTLS-SCTP support (default: disabled))"
     "no" "yes;no")
 if(WOLFSSL_SCTP)
     if(NOT HAVE_SYS_SOCKET_H OR NOT HAVE_ARPA_INET_H OR NOT HAVE_SOCKET)
-        message(FATAL_ERROR "SCTP not available, disable DTLS-SCTP")
-        override_cache(WOLFSSL_SCTP "no")
+        message(FATAL_ERROR "SCTP not available, remove enable-sctp from configure")
     endif()
 endif()
 
@@ -404,22 +405,22 @@ if(WOLFSSL_SCTP)
 endif()
 
 # DTLS-SRTP
-add_option("WOLFSSL_DTLS_SRTP"
-    "Enable wolfSSL DTLS-SRTP support (default: disabled)])"
+add_option("WOLFSSL_SRTP"
+    "Enable wolfSSL DTLS-SRTP support (default: disabled))"
     "no" "yes;no")
-if(WOLFSSL_DTLS_SRTP)
+if(WOLFSSL_SRTP)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_SRTP")
 endif()
 
 # DTLS-MULTICAST
-add_option("WOLFSSL_MCAST"
-    "Enable wolfSSL DTLS multicast support (default: disabled)])"
+add_option("WOLFSSL_MULTICAST"
+    "Enable wolfSSL DTLS multicast support (default: disabled))"
     "no" "yes;no")
     
-if(WOLFSSL_MCAST)
+if(WOLFSSL_MULTICAST)
     list(APPEND WOLFSSL_DEFINITIONS
-        "-DWOLFSSL_MCAST")
+        "-DWOLFSSL_MULTICAST")
 endif()
 
 # TODO: - OpenSSH
@@ -506,7 +507,7 @@ add_option("WOLFSSL_LEAN_PSK"
     "Enable Lean PSK build (default: disabled)"
     "no" "yes;no")
 
-if(${WOLFSSL_LEAN_PSK})
+if(WOLFSSL_LEAN_PSK)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA")
     if(WOLFSSL_SLOW_MATH)
         override_cache(WOLFSSL_SLOW_MATH "no")
@@ -521,7 +522,7 @@ add_option("WOLFSSL_LEAN_TLS"
     "Enable Lean TLS build (default: disabled)"
     "no" "yes;no")
 
-if(${WOLFSSL_LEAN_TLS})
+if(WOLFSSL_LEAN_TLS)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY")
 endif()
 
@@ -531,7 +532,10 @@ add_option("WOLFSSL_LOW_RESOURCE"
     "no" "yes;no")
 
 if(WOLFSSL_LOW_RESOURCE)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY")
+    # low memory / flash flags
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY" "-DWOLFSSL_NO_ASYNC_IO")
+
+    # low flash flags
     list(APPEND WOLFSSL_DEFINITIONS "-DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512")
 endif()
 
@@ -550,7 +554,7 @@ add_option("WOLFSSL_AESGCM"
     "yes" "yes;no;table;small;word32;4bit")
 
 # leanpsk and leantls don't need gcm
-if(BUILD_FIPS_RAND OR WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
+if("${FIPS_VERSION}" STREQUAL "rand" OR WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
 endif()
 
@@ -631,7 +635,7 @@ add_option("WOLFSSL_AESOFB"
 
 # NULL CIPHER
 add_option("WOLFSSL_NULL_CIPHER"
-    "Enable wolfSSL NULL cipher support (default: disabled)])"
+    "Enable wolfSSL NULL cipher support (default: disabled))"
     "no" "yes;no")
     
 if(WOLFSSL_OPENSSH)
@@ -747,7 +751,7 @@ endif()
 #       - SEP
 
 add_option("WOLFSSL_KEYGEN"
-    "Enable key generation (default: disabled)])"
+    "Enable key generation (default: disabled))"
     "no" "yes;no")
 
 add_option("WOLFSSL_CERTGEN"
@@ -990,7 +994,7 @@ add_option("WOLFSSL_TLSV10"
     "Enable old TLS versions 1.0 (default: disabled)"
     "no" "yes;no")
 
-if(ENABLED_TLSV10)
+if(WOLFSSL_TLSV10)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_TLSV10")
 endif()
 
@@ -1019,7 +1023,7 @@ add_option("WOLFSSL_TRACK_MEMORY"
     "no" "yes;no;verbose")
 
 if(WOLFSSL_TRACK_MEMORY)
-    if(BUILD_MEMORY)
+    if(WOLFSSL_MEMORY)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_TRACK_MEMORY")
     else()
         message(FATAL_ERROR "trackmemory requires using wolfSSL memory (-D WOLFSSL_MEMORY=yes).")
@@ -1137,11 +1141,12 @@ if(WOLFSSL_DSA AND NOT WOLFSSL_ASN)
     message(FATAL_ERROR "please disable dsa if disabling asn.")
 endif()
 
-# DH and ECC need bigint
+# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
 if(NOT WOLFSSL_ASN AND
-    NOT WOLFSSL_DH AND
-    NOT WOLFSSL_ECC AND
-    NOT WOLFSSL_RSA)
+   NOT WOLFSSL_DSA AND
+   NOT WOLFSSL_DH AND
+   NOT WOLFSSL_ECC AND
+   NOT WOLFSSL_RSA)
     if(WOLFSSL_FAST_MATH)
         override_cache(WOLFSSL_FAST_MATH "no")
     endif()
@@ -1207,15 +1212,15 @@ if(WOLFSSL_BASE64_ENCODE)
 endif()
 
 # Base16
-add_option("WOLFSSL_BASE16_ENCODE"
+add_option("WOLFSSL_BASE16"
     "Enable Base16 encoding/decoding (default: disabled)"
     "no" "yes;no")
 
-if(BUILD_QNXCAAM)
-    override_cache(WOLFSSL_BASE16_ENCODE "yes")
+if(WOLFSSL_CAAM)
+    override_cache(WOLFSSL_BASE16 "yes")
 endif()
 
-if(WOLFSSL_BASE16_ENCODE)
+if(WOLFSSL_BASE16)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BASE16")
 endif()
 
@@ -1477,7 +1482,9 @@ if(NOT WOLFSSL_ASN OR NOT WOLFSSL_TLSV12 OR WOLFSSL_RENEGOTIATION_INDICATION)
 endif()
 
 if(WOLFSSL_SECURE_RENEGOTIATION_INFO)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_SERVER_RENEGOTIATION_INFO")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS"
+        "-DHAVE_SERVER_RENEGOTIATION_INFO")
 endif()
 
 # TODO:
@@ -1709,22 +1716,22 @@ endif()
 add_option("WOLFSSL_CRYPT_ONLY"
     "Enable wolfCrypt Only build (default: disabled)"
     "no" "yes;no")
-	
+    
 # TODO: Need to test for FIPS version
 if(WOLFSSL_CRYPT_ONLY)
     if (WOLFSSL_OPENSSLALL)
-        message( FATAL_ERROR "cryptonly and opensslall are mutually incompatible.")
-	endif()
+        message(FATAL_ERROR "cryptonly and opensslall are mutually incompatible.")
+    endif()
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFCRYPT_ONLY")
 endif()
 
 if (NOT WOLFSSL_CRYPT_ONLY)
     if (NOT WOLFSSL_PSK AND NOT WOLFSSL_ASN)
-        message( FATAL_ERROR "please enable psk if disabling asn.")
+        message(FATAL_ERROR "please enable psk if disabling asn.")
     endif()
 
-    if(NOT WOLFSSL_ECC AND NOT WOLFSSL_ASN)
-        message( FATAL_ERROR "please disable ecc if disabling asn.")
+    if(WOLFSSL_ECC AND NOT WOLFSSL_ASN)
+        message(FATAL_ERROR "please disable ecc if disabling asn.")
     endif()
 
     if(WOLFSSL_AFALG)
@@ -1823,7 +1830,7 @@ if(WOLFSSL_PKCS11)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DHAVE_PKCS11"
         "-DHAVE_WOLF_BIGINT")
-    if(WOLFSSL_PKCS11 STREQUAL "static")
+    if(NOT WOLFSSL_PKCS11 STREQUAL "static")
         list(APPEND WOLFSSL_LINK_LIBS dl)
     else()
         list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PKCS11_STATIC")
@@ -1834,10 +1841,10 @@ endif()
 # PKCS#8
 add_option("WOLFSSL_PKCS8"
     "Enable PKCS #8 key packages (default: enabled)"
-    "yes" "yes;no;static")
+    "yes" "yes;no")
 
 if(NOT ENABLED_PKCS8)
-        list(APPEND WOLFSSL_DEFINITIONS "-DNO_PKCS8")
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_PKCS8")
 endif()
 
 # TODO: - Cavium
@@ -2039,20 +2046,20 @@ if (WOLFSSL_TLSX)
     endif()
 endif()
 
-if(NOT "${WOLFSSL_CERTS}" OR "${WOLFSSL_LEAN_PSK}" OR NOT "${WOLFSSL_ASN}")
+if(NOT WOLFSSL_CERTS OR WOLFSSL_LEAN_PSK OR NOT WOLFSSL_ASN)
    list(APPEND WOLFSSL_DEFINITIONS "-DNO_ASN -DNO_CERTS")
    override_cache(WOLFSSL_ASN "no")
 endif()
 
 # SCTP and Multicast require DTLS
-if(NOT WOLFSSL_DTLS AND (WOLFSSL_SCTP OR WOLFSSL_MCAST OR WOLFSSL_DTLS_SRTP))
+if(NOT WOLFSSL_DTLS AND (WOLFSSL_SCTP OR WOLFSSL_MULTICAST OR WOLFSSL_SRTP))
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_DTLS")
     override_cache(WOLFSSL_DTLS "yes")
 endif()
 
 # Multicast requires the null cipher
-if(NOT WOLFSSL_NULL_CIPHER AND WOLFSSL_MCAST)
+if(NOT WOLFSSL_NULL_CIPHER AND WOLFSSL_MULTICAST)
     list(APPEND WOLFSSL_DEFINITIONS
         "-DHAVE_NULL_CIPHER")
     override_cache(WOLFSSL_NULL_CIPHER "yes")
@@ -2079,7 +2086,7 @@ if(WOLFSSL_OCSP AND NOT WOLFSSL_RSA AND NOT WOLFSSL_ECC)
 endif()
 
 # Sync Intel QA and Sync Cavium Octeon require the crypto callback
-if(WOLFSSL_INTEL_QA_SYNC AND WOLFSSL_OCTEON_SYNC AND NOT WOLFSSL_CRYPTOCB)
+if(WOLFSSL_INTEL_QA_SYNC OR WOLFSSL_OCTEON_SYNC)
     message(FATAL_ERROR "please enable the crypto callback support using -D WOLFSSL_CRYPTOCB=yes")
 endif()
 
@@ -2200,7 +2207,7 @@ endif()
 add_option("WOLFSSL_BUILD_OUT_OF_TREE"
     "Don't generate files in the source tree (default: ${WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT})"
     "${WOLFSSL_BUILD_OUT_OF_TREE_DEFAULT}" "yes;no")
-if (${WOLFSSL_BUILD_OUT_OF_TREE})
+if (WOLFSSL_BUILD_OUT_OF_TREE)
    set(WOLFSSL_OUTPUT_BASE ${CMAKE_CURRENT_BINARY_DIR})
 else()
    set(WOLFSSL_OUTPUT_BASE ${CMAKE_CURRENT_SOURCE_DIR})
