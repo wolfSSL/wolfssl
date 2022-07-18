@@ -281,10 +281,6 @@ if(NOT WOLFSSL_SINGLE_THREADED)
     endif()
 endif()
 
-if(WOLFSSL_SINGLE_THREADED)
-    list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
-endif()
-
 # DTLS
 # DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
 # without DTLS will also enable DTLS.
@@ -508,13 +504,13 @@ add_option("WOLFSSL_LEAN_PSK"
     "no" "yes;no")
 
 if(WOLFSSL_LEAN_PSK)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA")
-    if(WOLFSSL_SLOW_MATH)
-        override_cache(WOLFSSL_SLOW_MATH "no")
-    endif()
-    if(WOLFSSL_SINGLE_THREADED)
-        override_cache(WOLFSSL_SINGLE_THREADED "yes")
-    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA")
+    set(WOLFSSL_SLOW_MATH "no")
+    override_cache(WOLFSSL_SINGLE_THREADED "yes")
+endif()
+
+if(WOLFSSL_SINGLE_THREADED)
+    list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
 endif()
 
 # lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
@@ -813,24 +809,6 @@ if(WOLFSSL_OPENSSH OR
    WOLFSSL_NGINX OR
    WOLFSSL_SIGNAL)
     override_cache(WOLFSSL_ECC "yes")
-endif()
-
-if(WOLFSSL_ECC)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC" "-DTFM_ECC256")
-
-    if(WOLFSSL_ECCSHAMIR AND NOT WOLFSSL_LOW_RESOURCE)
-        list(APPEND WOLFSSL_DEFINITIONS "-DECC_SHAMIR")
-    endif()
-
-    if("${WOLFSSL_ECC}" STREQUAL "nonblock")
-        list(APPEND WOLFSSL_DEFINITIONS "-DWC_ECC_NONBLOCK")
-    endif()
-
-    if(WOLFSSL_LOW_RESOURCE AND WOLFSSL_FAST_MATH)
-        list(APPEND WOLFSSL_DEFINITIONS "-DALT_ECC_SIZE")
-    endif()
-    
-    set(WOLFSSL_CERTS "yes")
 endif()
 
 # TODO: - ECC custom curves
@@ -1139,18 +1117,6 @@ endif()
 
 if(WOLFSSL_DSA AND NOT WOLFSSL_ASN)
     message(FATAL_ERROR "please disable dsa if disabling asn.")
-endif()
-
-# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
-if(NOT WOLFSSL_ASN AND
-   NOT WOLFSSL_DSA AND
-   NOT WOLFSSL_DH AND
-   NOT WOLFSSL_ECC AND
-   NOT WOLFSSL_RSA)
-    if(WOLFSSL_FAST_MATH)
-        override_cache(WOLFSSL_FAST_MATH "no")
-    endif()
-    set(WOLFSSL_SLOWMATH "no")
 endif()
 
 # AES
@@ -1749,6 +1715,34 @@ endif()
 add_option("WOLFSSL_FAST_MATH"
     "Enable fast math ops (default: disabled)"
     "no" "yes;no")
+
+if(WOLFSSL_ECC)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC" "-DTFM_ECC256")
+
+    if(WOLFSSL_ECCSHAMIR AND NOT WOLFSSL_LOW_RESOURCE)
+        list(APPEND WOLFSSL_DEFINITIONS "-DECC_SHAMIR")
+    endif()
+
+    if("${WOLFSSL_ECC}" STREQUAL "nonblock")
+        list(APPEND WOLFSSL_DEFINITIONS "-DWC_ECC_NONBLOCK")
+    endif()
+
+    if(WOLFSSL_LOW_RESOURCE AND WOLFSSL_FAST_MATH)
+        list(APPEND WOLFSSL_DEFINITIONS "-DALT_ECC_SIZE")
+    endif()
+    
+    set(WOLFSSL_CERTS "yes")
+endif()
+
+# No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
+if(NOT WOLFSSL_ASN AND
+   NOT WOLFSSL_DSA AND
+   NOT WOLFSSL_DH AND
+   NOT WOLFSSL_ECC AND
+   NOT WOLFSSL_RSA)
+    override_cache(WOLFSSL_FAST_MATH "no")
+    set(WOLFSSL_SLOWMATH "no")
+endif()
 
 if(WOLFSSL_FAST_MATH)
     # turn off fastmath if leanpsk on or asn off (w/o DH and ECC)
