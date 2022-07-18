@@ -3676,7 +3676,7 @@ then
     then
         AC_MSG_ERROR([cannot enable eccencrypt and hkdf without aes.])
     fi
-    if test "$ENABLED_AESGCM" = "yes"
+    if test "$ENABLED_AESGCM" != "no"
     then
         AC_MSG_ERROR([AESGCM requires AES.])
     fi
