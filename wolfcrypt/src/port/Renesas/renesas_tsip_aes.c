@@ -618,18 +618,18 @@ int wc_tsip_AesGcmEncrypt(
     uint8_t* cipherBuf = NULL;
     uint8_t* aTagBuf   = NULL;
     uint8_t* aadBuf    = NULL;
-
+    const uint8_t* iv_l = NULL;
+    uint32_t ivSz_l = 0;
+    
     tsip_aes_key_index_t key_client_aes;
     TsipUserCtx *userCtx;
 
     WOLFSSL_ENTER("wc_tsip_AesGcmEncrypt");
 
-    if (aes == NULL || ctx == NULL ||
-       (sz != 0       && (in == NULL || out == NULL)) ||
+    if (aes == NULL || ctx == NULL || (ivSz == 0)   ||
+       (sz != 0       && (in == NULL  || out == NULL)) ||
        (ivSz != 0     &&  iv == NULL) ||
-       (ivSz < AESGCM_NONCE_SZ && iv != NULL) ||  /* Requires 12 bytes of iv */
-       (authInSz != 0 && authIn == NULL) ||
-       (authTagSz < AES_BLOCK_SIZE)) {
+       (authInSz != 0 && authIn == NULL)) {
         WOLFSSL_LEAVE("wc_tsip_AesGcmEncrypt", BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
@@ -665,7 +665,7 @@ int wc_tsip_AesGcmEncrypt(
         cipherBuf = XMALLOC(cipherBufSz, aes->heap, DYNAMIC_TYPE_AES);
         aTagBuf   = XMALLOC(TSIP_AES_GCM_AUTH_TAG_SIZE, aes->heap,
                                                         DYNAMIC_TYPE_AES);
-        aadBuf    = XMALLOC(authTagSz, aes->heap, DYNAMIC_TYPE_AES);
+        aadBuf    = XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_AES);
 
         if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL ||
                                                       aadBuf == NULL ) {
@@ -677,10 +677,11 @@ int wc_tsip_AesGcmEncrypt(
             XMEMCPY(plainBuf, in, sz);
             ForceZero(cipherBuf, cipherBufSz);
             ForceZero(authTag, authTagSz);
-            XMEMCPY(aadBuf, authIn, min(authInSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
+            XMEMCPY(aadBuf, authIn, authInSz);
         }
 
-        if (ret == 0) {
+        if (ret == 0 && 
+            userCtx->session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -700,18 +701,32 @@ int wc_tsip_AesGcmEncrypt(
                 WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed");
                 ret = -1;
             }
+        } else if (userCtx->user_aes128_key_set == 1 || 
+                   userCtx->user_aes256_key_set == 1) {
+            if (aes->ctx.keySize == 32) {
+                XMEMCPY(&key_client_aes, &userCtx->user_aes256_key_index,
+                        sizeof(tsip_aes_key_index_t));
+            }
+            else {
+                 XMEMCPY(&key_client_aes, &userCtx->user_aes128_key_index,
+                        sizeof(tsip_aes_key_index_t));
+            }
+            
+            iv_l = iv;
+            ivSz_l = ivSz;
+            
         }
 
         if (ret == 0) {
 
-            /* since generated session key is coupled to iv, no need to pass
+            /* Since generated session key is coupled to iv, no need to pass
              * iv init func.
+             * It expects to pass iv when users create their own key.
              */
-            err = initFn(&hdl, &key_client_aes, NULL, 0UL);
+            err = initFn(&hdl, &key_client_aes, iv_l, ivSz_l);
 
             if (err == TSIP_SUCCESS) {
-                err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf,
-                                    min(authInSz, TSIP_AES_GCM_AUTH_TAG_SIZE));
+            	err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf, authInSz);
             }
             if (err == TSIP_SUCCESS) {
                 err = updateFn(&hdl, plainBuf, cipherBuf, sz, NULL, 0UL);
@@ -786,7 +801,7 @@ int wc_tsip_AesGcmDecrypt(
     e_tsip_err_t        err;
     tsip_gcm_handle_t   hdl;
 
-    uint32_t            dataLen = sz;
+    uint32_t            dataLen;
     uint32_t            plainBufSz;
 
     aesGcmDecInitFn     initFn;
@@ -797,14 +812,16 @@ int wc_tsip_AesGcmDecrypt(
     uint8_t* plainBuf  = NULL;
     uint8_t* aTagBuf   = NULL;
     uint8_t* aadBuf    = NULL;
-
+    const uint8_t* iv_l = NULL;
+    uint32_t ivSz_l = 0;
+    
     tsip_aes_key_index_t key_server_aes;
     TsipUserCtx *userCtx;
 
     WOLFSSL_ENTER("wc_tsip_AesGcmDecrypt");
 
     if (aes == NULL || in == NULL || out == NULL || sz == 0 || ctx == NULL ||
-        (ivSz < AESGCM_NONCE_SZ && iv != NULL) ||  /* Requires 12 bytes of iv */
+        iv == 0 || 
         (authInSz != 0 && authIn == NULL) ||
         (authInSz == 0 && authIn != NULL) ||
         (authTagSz != 0 && authTag == NULL) ||
@@ -858,7 +875,8 @@ int wc_tsip_AesGcmDecrypt(
             XMEMCPY(aadBuf, authIn, authInSz);
         }
 
-        if (ret == 0) {
+        if (ret == 0 && 
+            userCtx->session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -877,13 +895,29 @@ int wc_tsip_AesGcmDecrypt(
                 WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed");
                 ret = -1;
             }
+        } else if (userCtx->user_aes128_key_set == 1 || 
+                   userCtx->user_aes256_key_set == 1) {
+            if (aes->ctx.keySize == 32) {
+                XMEMCPY(&key_server_aes, &userCtx->user_aes256_key_index,
+                        sizeof(tsip_aes_key_index_t));
+            }
+            else {
+                 XMEMCPY(&key_server_aes, &userCtx->user_aes128_key_index,
+                        sizeof(tsip_aes_key_index_t));
+            }
+            
+            iv_l = iv;
+            ivSz_l = ivSz;
+            
         }
 
         if (ret == 0) {
             /* since key_index has iv and ivSz in it, no need to pass them init
              * func. Pass NULL and 0 as 3rd and 4th parameter respectively.
+             *
+             * It expects to pass iv when users create their own key.
              */
-            err = initFn(&hdl, &key_server_aes, NULL, 0UL);
+            err = initFn(&hdl, &key_server_aes, iv_l, ivSz_l);
 
             if (err == TSIP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */

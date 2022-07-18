@@ -47,10 +47,8 @@
 #include "logging_stack.h"
 
 
-
-
 /* Enable wolfcrypt test demo */
-/*#define CRYPT_TEST*/
+/*#define CRYPT_TEST */
 
 /* Enable benchmark demo      */
 /*#define BENCHMARK*/
@@ -58,6 +56,30 @@
 /* Enable TLS client demo     */
 /* cannot enable with other definition */
 #define TLS_CLIENT
+
+/* use multi-thread example */
+/* #define TLS_MULTITHREAD_TEST */
+#if defined(TLS_MULTITHREAD_TEST) && defined(WOLFSSL_TLS13)
+    #error "MULTITHREAD_TEST is only available when not set WOLFSSL_TLS13 \
+           because it is not verified yet."
+#endif
+
+#if defined(TLS_MULTITHREAD_TEST)
+ #define THREAD_STACK_SIZE (5 * 1024)
+#endif
+
+typedef struct tagTestInfo
+{
+     int  id;
+     int  port;
+     char name[32];
+     const char* cipher;
+     WOLFSSL_CTX* ctx;
+     wolfSSL_Logging_cb log_f;
+#if defined(TLS_MULTITHREAD_TEST)
+     SemaphoreHandle_t xBinarySemaphore;
+#endif
+} TestInfo;
 
 
 #endif /* WOLFSSL_DEMO_H_ */

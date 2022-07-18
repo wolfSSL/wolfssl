@@ -2120,7 +2120,7 @@ int wc_tsip_EccVerify(
  *  output 64 bytes premaster secret to "out" buffer.
  */
 int wc_tsip_EccSharedSecret(
-    struct WOLFSSL* ssl,
+    WOLFSSL* ssl,
     ecc_key* otherKey,
     unsigned char* pubKeyDer,   unsigned int* pubKeySz,
     unsigned char* out,         unsigned int* outlen,
@@ -2177,7 +2177,7 @@ int wc_tsip_EccSharedSecret(
 }
 
 
-WOLFSSL_API void tsip_set_callbacks(struct WOLFSSL_CTX* ctx)
+WOLFSSL_API void tsip_set_callbacks(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_ENTER("tsip_set_callbacks");
     wolfSSL_CTX_SetEccVerifyCb(ctx, (CallbackEccVerify)Renesas_cmn_EccVerify);
@@ -2210,7 +2210,7 @@ WOLFSSL_API void tsip_set_callbacks(struct WOLFSSL_CTX* ctx)
     WOLFSSL_LEAVE("tsip_set_callbacks", 0);
 }
 
-WOLFSSL_API int tsip_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx)
+WOLFSSL_API int tsip_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 {
     WOLFSSL_ENTER("tsip_set_callback_ctx");
 
@@ -2302,7 +2302,7 @@ WOLFSSL_LOCAL void tsip_hw_unlock(void)
 
 /* check if tsip tls functions can be used for the cipher      */
 /* return  :1 when tsip can be used , 0 not be used.           */
-int tsip_usable(const struct WOLFSSL *ssl, uint8_t session_key_generated)
+int tsip_usable(const WOLFSSL *ssl, uint8_t session_key_generated)
 {
     byte cipher0 = ssl->options.cipherSuite0;
     byte cipher  = ssl->options.cipherSuite;
@@ -2582,7 +2582,7 @@ void tsip_inform_user_keys(
 
 /* Sha1Hmac */
 int wc_tsip_Sha1HmacGenerate(
-        const struct WOLFSSL *ssl,
+        const WOLFSSL *ssl,
         const byte* myInner,
         word32      innerSz,
         const byte* in,
@@ -2639,7 +2639,7 @@ int wc_tsip_Sha1HmacGenerate(
 
 /* Sha256Hmac */
 int wc_tsip_Sha256HmacGenerate(
-        const struct WOLFSSL *ssl,
+        const WOLFSSL *ssl,
         const byte* myInner,
         word32      innerSz,
         const byte* in,
@@ -2708,7 +2708,7 @@ int wc_tsip_Sha256HmacGenerate(
  *  Perform SHA1 and SHA256 Hmac verification
  */
 int wc_tsip_ShaXHmacVerify(
-        const struct WOLFSSL *ssl,
+        const WOLFSSL *ssl,
         const byte* message,
         word32      messageSz,
         word32      macSz,
@@ -2756,7 +2756,7 @@ int wc_tsip_ShaXHmacVerify(
         return ret;
     }
 
-    wolfSSL_SetTlsHmacInner((struct WOLFSSL*)ssl, (byte*)myInner,
+    wolfSSL_SetTlsHmacInner((WOLFSSL*)ssl, (byte*)myInner,
                                                      messageSz, content, 1);
 
     ret = initFn(&handle, &wrapped_key);
@@ -2818,7 +2818,7 @@ int wc_tsip_generateVerifyData(
 
 /* generate keys for TLS communication */
 int wc_tsip_generateSessionKey(
-    struct WOLFSSL *ssl,
+    WOLFSSL *ssl,
     TsipUserCtx*    ctx,
     int             devId)
 {
@@ -3051,7 +3051,7 @@ int wc_tsip_generateMasterSecret(
 /*  store elements for session key generation into ssl->keys.
  *  return 0 on success, negative value on failure
  */
-int wc_tsip_storeKeyCtx(struct  WOLFSSL* ssl, TsipUserCtx* userCtx)
+int wc_tsip_storeKeyCtx(WOLFSSL* ssl, TsipUserCtx* userCtx)
 {
     int ret = 0;
 
