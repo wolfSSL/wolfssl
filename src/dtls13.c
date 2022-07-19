@@ -1190,6 +1190,26 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
     return SEQUENCE_ERROR;
 }
 
+int Dtls13GetUnifiedHeaderSize(const byte input, word16* size)
+{
+    if (size == NULL)
+        return BAD_FUNC_ARG;
+
+    if (input & DTLS13_CID_BIT) {
+        WOLFSSL_MSG("DTLS1.3 header with connection ID. Not supported");
+        return WOLFSSL_NOT_IMPLEMENTED;
+    }
+
+    /* flags (1) + seq 8bit (1) */
+    *size = OPAQUE8_LEN + OPAQUE8_LEN;
+    if (input & DTLS13_SEQ_LEN_BIT)
+        *size += OPAQUE8_LEN;
+    if (input & DTLS13_LEN_BIT)
+        *size += OPAQUE16_LEN;
+
+    return 0;
+}
+
 /**
  * Dtls13ParseUnifiedRecordLayer() - parse DTLS unified header
  * @ssl: [in] ssl object
@@ -1236,10 +1256,6 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
 
         ato16(input + idx, &hdrInfo->recordLength);
         idx += DTLS13_LEN_SIZE;
-
-        /* DTLS message must fit inside a datagram  */
-        if (inputSize < idx + hdrInfo->recordLength)
-            return LENGTH_ERROR;
     }
     else {
         /* length not present. The size of the record is the all the remaining
@@ -1258,8 +1274,6 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         DEPROTECT);
     if (ret != 0)
         return ret;
-
-    hdrInfo->headerLength = idx;
 
     if (seqLen == DTLS13_SEQ_16_LEN) {
         hdrInfo->seqHiPresent = 1;

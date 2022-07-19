@@ -9675,6 +9675,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 }
 
 #ifdef WOLFSSL_DTLS13
+static int GetInputData(WOLFSSL *ssl, word32 size);
 static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
     word32* inOutIdx, RecordLayerHeader* rh, word16* size)
 {
@@ -9686,6 +9687,9 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
     int ret;
 
     readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    if (readSize < DTLS_UNIFIED_HEADER_MIN_SZ)
+        return BUFFER_ERROR;
 
     epochBits = *input & EE_MASK;
     ret = Dtls13ReconstructEpochNumber(ssl, epochBits, &epochNumber);
@@ -9718,6 +9722,20 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
             return SEQUENCE_ERROR;
     }
 
+    ret = Dtls13GetUnifiedHeaderSize(
+        *(input+*inOutIdx), &ssl->dtls13CurRlLength);
+    if (ret != 0)
+        return ret;
+
+    if (readSize < ssl->dtls13CurRlLength) {
+        /* when using DTLS over a medium that does not guarantee that a full
+         * message is received in a single read, we may end up without the full
+         * header */
+        ret = GetInputData(ssl, ssl->dtls13CurRlLength - readSize);
+        if (ret != 0)
+            return ret;
+    }
+
     ret = Dtls13ParseUnifiedRecordLayer(ssl, input + *inOutIdx, readSize,
         &hdrInfo);
 
@@ -9745,8 +9763,8 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
                    ssl->keys.curSeq);
 #endif /* WOLFSSL_DEBUG_TLS */
 
-    *inOutIdx += hdrInfo.headerLength;
-    ssl->dtls13CurRlLength = hdrInfo.headerLength;
+    XMEMCPY(ssl->dtls13CurRL, input + *inOutIdx, ssl->dtls13CurRlLength);
+    *inOutIdx += ssl->dtls13CurRlLength;
 
     return 0;
 }
@@ -9793,10 +9811,12 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, const byte* input,
     }
 
     /* not a unified header, check that we have at least
-       DTLS_RECORD_HEADER_SZ */
-    if (read_size < DTLS_RECORD_HEADER_SZ)
-        return LENGTH_ERROR;
-
+     * DTLS_RECORD_HEADER_SZ */
+    if (read_size < DTLS_RECORD_HEADER_SZ) {
+        ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ - read_size);
+        if (ret != 0)
+            return LENGTH_ERROR;
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     /* type and version in same spot */
@@ -18466,8 +18486,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #ifdef WOLFSSL_DTLS13
                         if (ssl->options.dtls) {
                             /* aad now points to the record header */
-                            aad = in->buffer +
-                                in->idx - ssl->dtls13CurRlLength;
+                            aad = ssl->dtls13CurRL;
                             aad_size = ssl->dtls13CurRlLength;
                         }
 #endif /* WOLFSSL_DTLS13 */
