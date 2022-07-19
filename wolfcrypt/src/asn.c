@@ -26137,8 +26137,11 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
      * asserted and the key usage extension, if present, asserts the
      * keyCertSign bit */
     /* Set CA and path length */
-    if ((cert->isCA) && (cert->pathLen) &&
-        ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))) {
+    if ((cert->isCA) && (cert->pathLen)
+#ifdef WOLFSSL_CERT_EXT
+        && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
+#endif
+        ) {
         der->caSz = SetCaWithPathLen(der->ca, sizeof(der->ca), cert->pathLen);
         if (der->caSz <= 0)
             return CA_TRUE_E;
