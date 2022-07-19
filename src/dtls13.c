@@ -426,7 +426,7 @@ static int Dtls13SendFragFromBuffer(WOLFSSL* ssl, byte* output, word16 length)
 
 static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
 {
-    if (!ssl->options.groupMessages)
+    if (!ssl->options.groupMessages || ssl->dtls13SendingFragments)
         return 1;
 
     if (handshakeType == client_hello || handshakeType == hello_retry_request ||
