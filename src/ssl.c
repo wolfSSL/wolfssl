@@ -16159,36 +16159,35 @@ cleanup:
 
     unsigned long wolfSSL_ERR_get_error(void)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        {
-            unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
-                                                                 NULL, NULL);
-            wc_RemoveErrorNode(-1);
-            return ret;
-        }
-#else
-        {
-            int ret = wc_PullErrorNode(NULL, NULL, NULL);
-
-            if (ret < 0) {
-                if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+        ret = wc_PullErrorNode(NULL, NULL, NULL);
+        if (ret < 0) {
+            if (ret == BAD_STATE_E) {
+                ret = 0; /* no errors in queue */
+            }
+            else {
                 WOLFSSL_MSG("Error with pulling error node!");
                 WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
                 ret = 0 - ret; /* return absolute value of error */
-
                 /* panic and try to clear out nodes */
                 wc_ClearErrorNodes();
             }
-
-            return (unsigned long)ret;
         }
-#endif
+        else {
+            wc_RemoveErrorNode(0);
+        }
+
+        return ret;
 #else
+
+        (void)ret;
+
         return (unsigned long)(0 - NOT_COMPILED_IN);
-#endif
+#endif /* WOLFSSL_HAVE_ERROR_QUEUE */
     }
 
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
@@ -18545,7 +18544,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif /* DEBUG_WOLFSSL */
 
 
-    /* @TODO when having an error queue this needs to push to the queue */
     void wolfSSL_ERR_put_error(int lib, int fun, int err, const char* file,
             int line)
     {
@@ -32345,7 +32343,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         int ret = 0;
 
         while (1) {
-            ret = wc_PeekErrorNode(-1, file, NULL, line);
+            ret = wc_PeekErrorNode(0, file, NULL, line);
             if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
                 WOLFSSL_MSG("Issue peeking at error node in queue");
                 return 0;
@@ -32372,7 +32370,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                     ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
                 break;
 
-            wc_RemoveErrorNode(-1);
+            wc_RemoveErrorNode(0);
         }
 
         return (unsigned long)ret;
