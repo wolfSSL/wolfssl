@@ -372,15 +372,21 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 
         ret = DoTls13HandShakeMsgType(ssl, msg->msg, &idx, msg->type, msg->sz,
             msg->sz);
+
+        /* processing certificate_request triggers a connect. The error came
+         * from there, the message can be considered processed successfully */
+        if (ret == 0 || (msg->type == certificate_request &&
+                         ssl->options.handShakeDone && ret == WC_PENDING_E)) {
+            Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
+
+            ssl->dtls_rx_msg_list = msg->next;
+            DtlsMsgDelete(msg, ssl->heap);
+            msg = ssl->dtls_rx_msg_list;
+            ssl->dtls_rx_msg_list_sz--;
+        }
+
         if (ret != 0)
             break;
-
-        Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
-
-        ssl->dtls_rx_msg_list = msg->next;
-        DtlsMsgDelete(msg, ssl->heap);
-        msg = ssl->dtls_rx_msg_list;
-        ssl->dtls_rx_msg_list_sz--;
     }
 
     WOLFSSL_LEAVE("dtls13_process_buffered_messages()", ret);
