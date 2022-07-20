@@ -432,7 +432,9 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
 
     if (handshakeType == client_hello || handshakeType == hello_retry_request ||
         handshakeType == finished || handshakeType == session_ticket ||
-        handshakeType == session_ticket || handshakeType == key_update)
+        handshakeType == session_ticket || handshakeType == key_update ||
+        (handshakeType == certificate_request &&
+            ssl->options.handShakeState == HANDSHAKE_DONE))
         return 1;
 
     return 0;
