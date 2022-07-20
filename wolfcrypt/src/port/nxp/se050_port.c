@@ -65,6 +65,10 @@ struct ecc_key;
 #define SE050_ECC_DER_MAX 256
 #endif
 
+#ifndef SE050_KEYID_START
+#define SE050_KEYID_START 100
+#endif
+
 /* enable for debugging */
 /* #define SE050_DEBUG*/
 /* enable to factory erase chip */
@@ -122,7 +126,7 @@ int wc_se050_init(const char* portName)
 int se050_allocate_key(int keyType)
 {
     int keyId = -1;
-    static int keyId_allocator = 100;
+    static int keyId_allocator = SE050_KEYID_START;
     switch (keyType) {
         case SE050_AES_KEY:
         case SE050_ECC_KEY:
@@ -504,7 +508,7 @@ static sss_algorithm_t se050_map_hash_alg(int hashLen)
 int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
                                  word32 eccDerSize)
 {
-    int               ret;
+    int               ret = 0;
     struct ecc_key    key;
     sss_object_t      newKey;
     sss_key_store_t   host_keystore;
@@ -519,7 +523,7 @@ int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
     }
 
     /* Avoid key ID conflicts with temporary key storage */
-    if (keyId >= 100) {
+    if (keyId >= SE050_KEYID_START) {
         return BAD_FUNC_ARG;
     }
 
@@ -556,10 +560,8 @@ int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
     }
     wolfSSL_CryptHwMutexUnLock();
 
-    if (status == kStatus_SSS_Success) {
-        ret = 0;
-    }
-    else {
+    wc_ecc_free(&key);
+    if (status != kStatus_SSS_Success) {
         if (ret == 0)
             ret = WC_HW_E;
     }
