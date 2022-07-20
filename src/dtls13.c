@@ -269,14 +269,15 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
     else
         c = &ssl->dtlsRecordNumberDecrypt;
 
-#ifdef HAVE_AESGCM
-    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+        ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm) {
 
         if (c->aes == NULL)
             return BAD_STATE_E;
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
     }
-#endif /* HAVE_AESGCM */
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 #ifdef HAVE_CHACHA
     if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
