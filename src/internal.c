@@ -6542,7 +6542,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifndef WOLFSSL_AEAD_ONLY
     #ifndef NO_OLD_TLS
         ssl->hmac = SSL_hmac; /* default to SSLv3 */
-    #elif !defined(WOLFSSL_NO_TLS12)
+    #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
       #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
           !defined(WOLFSSL_RENESAS_TSIP_TLS)
         ssl->hmac = TLS_hmac;
@@ -10207,6 +10207,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ssl->options.tls) {
         ret = BuildTlsFinished(ssl, hashes, sender);
     }
+#else
+    (void)hashes;
+    (void)sender;
 #endif
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
@@ -17307,6 +17310,8 @@ static WC_INLINE int GetRounds(int pLen, int padLen, int t)
     return ret;
 }
 #else
+
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
 /* check all length bytes for the pad value, return 0 on success */
 static int PadCheck(const byte* a, byte pad, int length)
 {
@@ -17444,9 +17449,9 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 
     return ret;
 }
-#endif
-#endif
-
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
+#endif /* WOLSSL_OLD_TIMINGPADVERIFY */
+#endif /* WOLFSSL_AEAD_ONLY */
 
 int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 {
@@ -18478,6 +18483,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
                     }
+                    (void)in;
                 }
 
             #ifdef WOLFSSL_ASYNC_CRYPT
@@ -19548,6 +19554,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
     (void)epochOrder;
 
+#ifndef NO_TLS
 #ifdef WOLFSSL_NO_TLS12
     return BuildTls13Message(ssl, output, outSz, input, inSz, type,
                                                hashOutput, sizeOnly, asyncOkay);
@@ -19995,6 +20002,15 @@ exit_buildmsg:
 
     return ret;
 #endif /* !WOLFSSL_NO_TLS12 */
+#else
+    (void)outSz;
+    (void)inSz;
+    (void)type;
+    (void)hashOutput;
+    (void)asyncOkay;
+    return NOT_COMPILED_IN;
+#endif /* NO_TLS */
+
 }
 
 #ifndef WOLFSSL_NO_TLS12

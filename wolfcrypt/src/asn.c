@@ -11142,6 +11142,8 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         entry->ipString[nameSz] = '\0';
     }
 
+    (void)heap;
+
     return ret;
 }
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
