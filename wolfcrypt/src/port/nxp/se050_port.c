@@ -554,8 +554,8 @@ int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
             kKeyObject_Mode_Persistent);
     }
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_set_key(&host_keystore, &newKey, ecc_key_der_256,
-                                       sizeof_ecc_key_der_256, keySizeBits,
+        status = sss_key_store_set_key(&host_keystore, &newKey, eccDer,
+                                       eccDerSize, keySizeBits,
                                        NULL, 0);
     }
     wolfSSL_CryptHwMutexUnLock();
