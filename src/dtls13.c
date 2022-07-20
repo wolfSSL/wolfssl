@@ -234,12 +234,12 @@ static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
     case hello_request:
     case hello_verify_request:
     case client_hello:
+    case hello_retry_request:
     case server_hello:
         break;
     case encrypted_extensions:
     case session_ticket:
     case end_of_early_data:
-    case hello_retry_request:
     case certificate:
     case server_key_exchange:
     case certificate_request:
