@@ -234,12 +234,12 @@ static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
     case hello_request:
     case hello_verify_request:
     case client_hello:
+    case hello_retry_request:
     case server_hello:
         break;
     case encrypted_extensions:
     case session_ticket:
     case end_of_early_data:
-    case hello_retry_request:
     case certificate:
     case server_key_exchange:
     case certificate_request:
@@ -269,14 +269,15 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
     else
         c = &ssl->dtlsRecordNumberDecrypt;
 
-#ifdef HAVE_AESGCM
-    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+        ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm) {
 
         if (c->aes == NULL)
             return BAD_STATE_E;
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
     }
-#endif /* HAVE_AESGCM */
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 #ifdef HAVE_CHACHA
     if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
@@ -426,7 +427,7 @@ static int Dtls13SendFragFromBuffer(WOLFSSL* ssl, byte* output, word16 length)
 
 static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
 {
-    if (!ssl->options.groupMessages)
+    if (!ssl->options.groupMessages || ssl->dtls13SendingFragments)
         return 1;
 
     if (handshakeType == client_hello || handshakeType == hello_retry_request ||
@@ -1190,6 +1191,26 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
     return SEQUENCE_ERROR;
 }
 
+int Dtls13GetUnifiedHeaderSize(const byte input, word16* size)
+{
+    if (size == NULL)
+        return BAD_FUNC_ARG;
+
+    if (input & DTLS13_CID_BIT) {
+        WOLFSSL_MSG("DTLS1.3 header with connection ID. Not supported");
+        return WOLFSSL_NOT_IMPLEMENTED;
+    }
+
+    /* flags (1) + seq 8bit (1) */
+    *size = OPAQUE8_LEN + OPAQUE8_LEN;
+    if (input & DTLS13_SEQ_LEN_BIT)
+        *size += OPAQUE8_LEN;
+    if (input & DTLS13_LEN_BIT)
+        *size += OPAQUE16_LEN;
+
+    return 0;
+}
+
 /**
  * Dtls13ParseUnifiedRecordLayer() - parse DTLS unified header
  * @ssl: [in] ssl object
@@ -1236,10 +1257,6 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
 
         ato16(input + idx, &hdrInfo->recordLength);
         idx += DTLS13_LEN_SIZE;
-
-        /* DTLS message must fit inside a datagram  */
-        if (inputSize < idx + hdrInfo->recordLength)
-            return LENGTH_ERROR;
     }
     else {
         /* length not present. The size of the record is the all the remaining
@@ -1258,8 +1275,6 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         DEPROTECT);
     if (ret != 0)
         return ret;
-
-    hdrInfo->headerLength = idx;
 
     if (seqLen == DTLS13_SEQ_16_LEN) {
         hdrInfo->seqHiPresent = 1;
