@@ -13379,7 +13379,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         (args->dCert->extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
                         ret = KEYUSE_ENCIPHER_E;
                     }
-                    if ((ssl->specs.sig_algo == rsa_sa_algo ||
+                    if ((ssl->specs.kea != rsa_kea) &&
+                        (ssl->specs.sig_algo == rsa_sa_algo ||
                             (ssl->specs.sig_algo == ecc_dsa_sa_algo &&
                                  !ssl->specs.static_ecdh)) &&
                         (args->dCert->extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
