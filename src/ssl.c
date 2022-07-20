@@ -15896,8 +15896,6 @@ cleanup:
         return ctx->mask;
     }
 
-#ifdef OPENSSL_EXTRA
-
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
     {
         WOLFSSL_ENTER("SSL_CTX_clear_options");
@@ -15906,6 +15904,8 @@ cleanup:
         ctx->mask &= ~opt;
         return ctx->mask;
     }
+
+#ifdef OPENSSL_EXTRA
 
     int wolfSSL_set_rfd(WOLFSSL* ssl, int rfd)
     {

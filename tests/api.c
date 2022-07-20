@@ -35525,10 +35525,8 @@ static void test_wolfSSL_set_options(void)
                 WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2);
     AssertTrue((wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_COMPRESSION) &
                 WOLFSSL_OP_NO_COMPRESSION) == WOLFSSL_OP_NO_COMPRESSION);
-#ifdef OPENSSL_EXTRA
     AssertFalse((wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_NO_COMPRESSION) &
                                            WOLFSSL_OP_NO_COMPRESSION));
-#endif
 
     wolfSSL_CTX_free(ctx);
 
