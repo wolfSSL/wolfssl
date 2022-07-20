@@ -95,6 +95,8 @@ WOLFSSL_API int wc_se050_set_config(sss_session_t *pSession,
 #ifdef WOLFSSL_SE050_INIT
 WOLFSSL_API int wc_se050_init(const char* portName);
 #endif
+WOLFSSL_API int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
+    word32 eccDerSize);
 
 /* Private Functions */
 WOLFSSL_LOCAL int se050_allocate_key(int keyType);
@@ -138,6 +140,7 @@ WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int ke
 WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
     struct ecc_key* public_key, byte* out, word32* outlen);
 WOLFSSL_LOCAL void se050_ecc_free_key(struct ecc_key* key);
+
 
 struct ed25519_key;
 WOLFSSL_LOCAL int se050_ed25519_create_key(struct ed25519_key* key);
