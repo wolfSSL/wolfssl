@@ -47073,8 +47073,7 @@ static void test_wc_ParseCert(void)
 
 static void test_MakeCertWithPathLen(void)
 {
-#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_KEY_GEN) && defined(HAVE_ECC)
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
     const byte expectedPathLen = 7;
     Cert cert;
     DecodedCert decodedCert;
@@ -47090,13 +47089,13 @@ static void test_MakeCertWithPathLen(void)
     AssertIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
     AssertIntEQ(wc_InitCert(&cert), 0);
 
-    (void)strncpy(cert.subject.country, "US", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.state, "state", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.org, "yourOrgNameHere", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.unit, "yourUnitNameHere", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.commonName, "www.yourDomain.com", CTC_NAME_SIZE);
-    (void)strncpy(cert.subject.email, "yourEmail@yourDomain.com", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "state", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "yourOrgNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "yourUnitNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "www.yourDomain.com", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "yourEmail@yourDomain.com", CTC_NAME_SIZE);
 
     cert.selfSigned = 1;
     cert.isCA       = 1;

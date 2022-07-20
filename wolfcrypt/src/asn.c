@@ -24946,7 +24946,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     der->extensionsSz = 0;
 
     /* RFC 5280 : 4.2.1.9. Basic Constraints
-     * The pathLenConstraint field is meaningful only if the cA boolean is
+     * The pathLenConstraint field is meaningful only if the CA boolean is
      * asserted and the key usage extension, if present, asserts the
      * keyCertSign bit */
     /* Set CA and path length */
@@ -26133,7 +26133,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     der->extensionsSz = 0;
 
     /* RFC 5280 : 4.2.1.9. Basic Constraints
-     * The pathLenConstraint field is meaningful only if the cA boolean is
+     * The pathLenConstraint field is meaningful only if the CA boolean is
      * asserted and the key usage extension, if present, asserts the
      * keyCertSign bit */
     /* Set CA and path length */
