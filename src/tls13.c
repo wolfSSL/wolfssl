@@ -9481,9 +9481,6 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                            type != key_update) {
         ret = HashInput(ssl, input + inIdx, size);
     }
-    if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag) {
-        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
-    }
 
     if (ret == BUFFER_ERROR || ret == MISSING_HANDSHAKE_DATA)
         SendAlert(ssl, alert_fatal, decode_error);

@@ -9355,11 +9355,15 @@ void ShrinkOutputBuffer(WOLFSSL* ssl)
 
 /* Switch dynamic input buffer back to static, keep any remaining input */
 /* forced free means cleaning up */
+/* Be *CAREFUL* where this function is called. ProcessReply relies on
+ * inputBuffer.idx *NOT* changing inside the ProcessReply function. ProcessReply
+ * calls ShrinkInputBuffer itself when it is safe to do so. Don't overuse it. */
 void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 {
     int usedLength = ssl->buffers.inputBuffer.length -
                      ssl->buffers.inputBuffer.idx;
-    if (!forcedFree && usedLength > STATIC_BUFFER_LEN)
+    if (!forcedFree && (usedLength > STATIC_BUFFER_LEN ||
+            ssl->buffers.clearOutputBuffer.length > 0))
         return;
 
     WOLFSSL_MSG("Shrinking input buffer");
@@ -15042,32 +15046,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DECODE_E;
     }
 
-    if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
-        /* do not shrink input for async or non-block */
-        && ssl->error != WC_PENDING_E && ssl->error != OCSP_WANT_READ
-    #endif
-    ) {
-        if (IsEncryptionOn(ssl, 0)) {
-            word32 extra = ssl->keys.padSz;
-
-        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-            if (ssl->options.startedETMRead)
-                extra += MacSize(ssl);
-        #endif
-
-            if (extra > ssl->buffers.inputBuffer.idx)
-                return BUFFER_E;
-
-            ssl->buffers.inputBuffer.idx -= extra;
-            ShrinkInputBuffer(ssl, NO_FORCED_FREE);
-            ssl->buffers.inputBuffer.idx += extra;
-        }
-        else {
-            ShrinkInputBuffer(ssl, NO_FORCED_FREE);
-        }
-    }
-
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
     /* if async, offset index so this msg will be processed again */
     if ((ret == WC_PENDING_E || ret == OCSP_WANT_READ) && *inOutIdx > 0) {
@@ -19076,9 +19054,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                  * dropping any app data. */
                 || (ssl->options.dtls && ssl->curRL.type == application_data)
 #endif
-                )
+                ) {
+                /* Shrink input buffer when we successfully finish record
+                 * processing */
+                if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag)
+                    ShrinkInputBuffer(ssl, NO_FORCED_FREE);
                 return ret;
-
+            }
             /* more messages per record */
             else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
                 WOLFSSL_MSG("More messages in record");
@@ -19124,6 +19106,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             if (ret != 0)
                 return ret;
 #endif
+            /* It is safe to shrink the input buffer here now. local vars will
+             * be reset to the new starting value. */
+            if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag)
+                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
             continue;
         default:
             WOLFSSL_MSG("Bad process input state, programming error");
@@ -21587,8 +21573,7 @@ startScr:
         ssl->buffers.clearOutputBuffer.buffer += size;
     }
 
-    if (ssl->buffers.clearOutputBuffer.length == 0 &&
-                                           ssl->buffers.inputBuffer.dynamicFlag)
+    if (ssl->buffers.inputBuffer.dynamicFlag)
        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
 
     WOLFSSL_LEAVE("ReceiveData()", size);
