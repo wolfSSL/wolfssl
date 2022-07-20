@@ -501,6 +501,72 @@ static sss_algorithm_t se050_map_hash_alg(int hashLen)
     return algorithm;
 }
 
+int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
+                                 word32 eccDerSize)
+{
+    int               ret;
+    struct ecc_key    key;
+    sss_object_t      newKey;
+    sss_key_store_t   host_keystore;
+    sss_status_t      status = kStatus_SSS_Success;
+    int               keySizeBits;
+    int               keySize;
+    word32            idx = 0;
+    sss_cipher_type_t curveType;
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    /* Avoid key ID conflicts with temporary key storage */
+    if (keyId >= 100) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_ecc_init(&key);
+    if (ret != 0) {
+        status = kStatus_SSS_Fail;
+    } else {
+        ret = wc_EccPrivateKeyDecode(eccDer, &idx, &key, eccDerSize);
+        if (ret != 0) {
+            status = kStatus_SSS_Fail;
+        }
+    }
+
+    if (status == kStatus_SSS_Success) {
+        keySize = key.dp->size;
+        ret = se050_map_curve(key.dp->id, keySize, &keySizeBits, &curveType);
+        if (ret != 0) {
+            status = kStatus_SSS_Fail;
+        }
+    }
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&newKey, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_allocate_handle(&newKey, keyId,
+            kSSS_KeyPart_Pair, curveType, MAX_ECC_BYTES,
+            kKeyObject_Mode_Persistent);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_set_key(&host_keystore, &newKey, ecc_key_der_256,
+                                       sizeof_ecc_key_der_256, keySizeBits,
+                                       NULL, 0);
+    }
+    wolfSSL_CryptHwMutexUnLock();
+
+    if (status == kStatus_SSS_Success) {
+        ret = 0;
+    }
+    else {
+        if (ret == 0)
+            ret = WC_HW_E;
+    }
+
+    return ret;
+}
+
 int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
                          word32 *outLen, struct ecc_key* key)
 {

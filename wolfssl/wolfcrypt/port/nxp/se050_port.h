@@ -138,6 +138,8 @@ WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int ke
 WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
     struct ecc_key* public_key, byte* out, word32* outlen);
 WOLFSSL_LOCAL void se050_ecc_free_key(struct ecc_key* key);
+WOLFSSL_LOCAL int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
+    word32 eccDerSize);
 
 struct ed25519_key;
 WOLFSSL_LOCAL int se050_ed25519_create_key(struct ed25519_key* key);
