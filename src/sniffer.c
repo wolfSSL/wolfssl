@@ -3362,6 +3362,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         if (session->sslServer->arrays) {
             XMEMCPY(session->sslServer->arrays->sessionID,
                 input + len - ID_LEN, ID_LEN);
+            session->sslServer->arrays->sessionIDSz = ID_LEN;
         }
     }
 
@@ -3386,6 +3387,11 @@ static int DoResume(SnifferSession* session, char* error)
     else
 #endif
     {
+    #ifdef HAVE_SESSION_TICKET
+        /* make sure "useTicket" is not set, otherwise the session will not be
+         * properly retrieved */
+        session->sslServer->options.useTicket = 0;
+    #endif
         resume = wolfSSL_GetSession(session->sslServer,
                                     session->sslServer->arrays->masterSecret, 0);
         if (resume == NULL) {
@@ -3698,6 +3704,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     if (session->ticketID && doResume) {
         /* use ticketID to retrieve from session, prefer over sessionID */
         XMEMCPY(session->sslServer->arrays->sessionID,session->ticketID,ID_LEN);
+        session->sslServer->arrays->sessionIDSz = ID_LEN;
         session->sslServer->options.haveSessionId = 1;  /* may not have
                                                            actual sessionID */
     }
@@ -4085,8 +4092,10 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                         return -1;
                     }
                 }
+
             #ifdef HAVE_SESSION_TICKET
-                ssl->options.useTicket = 1;
+                /* do not set "ssl->options.useTicket", since the sniffer uses
+                 * the cache differently for retaining the master secret only */
             #endif
                 XMEMCPY(session->ticketID, input + extLen - ID_LEN, ID_LEN);
             }

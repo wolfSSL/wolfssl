@@ -30963,14 +30963,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.haveSessionId = 1;
         /* DoClientHello uses same resume code */
         if (ssl->options.resuming) {  /* let's try */
-            WOLFSSL_SESSION* session = wolfSSL_GetSession(ssl,
-                                                  ssl->arrays->masterSecret, 1);
-            #ifdef HAVE_SESSION_TICKET
-                if (ssl->options.useTicket == 1) {
-                    session = ssl->session;
-                }
-            #endif
-
+            WOLFSSL_SESSION* session;
+        #ifdef HAVE_SESSION_TICKET
+            if (ssl->options.useTicket == 1) {
+                session = ssl->session;
+            }
+            else
+        #endif
+            {
+                session = wolfSSL_GetSession(ssl, ssl->arrays->masterSecret, 1);
+            }
             if (!session) {
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
@@ -31028,10 +31030,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket == 1) {
             session = ssl->session;
-        } else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
+        }
+        else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
             WOLFSSL_MSG("Bogus session ID without session ticket");
             return BUFFER_ERROR;
-        } else
+        }
+        else
     #endif
         {
             session = wolfSSL_GetSession(ssl, ssl->arrays->masterSecret, 1);
