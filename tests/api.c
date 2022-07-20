@@ -25573,6 +25573,9 @@ static int test_wc_ecc_encryptDecrypt (void)
     word32      msgSz = (word32)XSTRLEN("EccBlock Size 16");
 #ifdef WOLFSSL_ECIES_OLD
     byte        out[(sizeof("EccBlock Size 16") - 1) + WC_SHA256_DIGEST_SIZE];
+#elif defined(WOLFSSL_ECIES_GEN_IV)
+    byte        out[KEY20 * 2 + 1 + AES_BLOCK_SIZE +
+                    (sizeof("EccBlock Size 16") - 1) + WC_SHA256_DIGEST_SIZE];
 #else
     byte        out[KEY20 * 2 + 1 + (sizeof("EccBlock Size 16") - 1) + WC_SHA256_DIGEST_SIZE];
 #endif
