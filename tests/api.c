@@ -47194,6 +47194,58 @@ static void test_wc_ParseCert(void)
 #endif
 }
 
+static void test_MakeCertWithPathLen(void)
+{
+#if defined(WOLFSSL_CERT_REQ) && defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC)
+    const byte expectedPathLen = 7;
+    Cert cert;
+    DecodedCert decodedCert;
+    byte der[FOURK_BUF];
+    int derSize = 0;
+    WC_RNG rng;
+    ecc_key key;
+
+    printf(testingFmt, "test_MakeCertWithPathLen");
+
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    AssertIntEQ(wc_ecc_init(&key), 0);
+    AssertIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    AssertIntEQ(wc_InitCert(&cert), 0);
+
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "state", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "yourOrgNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "yourUnitNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "www.yourDomain.com", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "yourEmail@yourDomain.com", CTC_NAME_SIZE);
+
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.pathLen    = expectedPathLen;
+    cert.sigType    = CTC_SHA256wECDSA;
+
+#ifdef WOLFSSL_CERT_EXT
+    cert.keyUsage |= KEYUSE_KEY_CERT_SIGN;
+#endif
+
+    AssertIntGE(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
+    derSize = wc_SignCert(cert.bodySz, cert.sigType, der, FOURK_BUF, NULL,
+                          &key, &rng);
+    AssertIntGE(derSize, 0);
+
+    wc_InitDecodedCert(&decodedCert, der, derSize, NULL);
+    AssertIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    AssertIntEQ(decodedCert.pathLength, expectedPathLen);
+
+    wc_FreeDecodedCert(&decodedCert);
+    AssertIntEQ(wc_ecc_free(&key), 0);
+    AssertIntEQ(wc_FreeRng(&rng), 0);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ECC
  *----------------------------------------------------------------------------*/
@@ -56291,6 +56343,7 @@ void ApiTest(void)
     test_wc_SetSubject();
     test_CheckCertSignature();
     test_wc_ParseCert();
+    test_MakeCertWithPathLen();
 
     /* wolfCrypt ECC tests */
     test_wc_ecc_get_curve_size_from_name();

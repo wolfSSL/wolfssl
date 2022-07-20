@@ -22854,6 +22854,31 @@ static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 }
 
 
+/* encode CA basic constraints true with path length
+ * return total bytes written */
+static int SetCaWithPathLen(byte* out, word32 outSz, byte pathLen)
+{
+    /* ASN1->DER sequence for Basic Constraints True and path length */
+    const byte caPathLenBasicConstASN1[] = {
+        0x30, 0x0F, 0x06, 0x03, 0x55, 0x1D, 0x13, 0x04,
+        0x08, 0x30, 0x06, 0x01, 0x01, 0xFF, 0x02, 0x01,
+        0x00
+    };
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz < sizeof(caPathLenBasicConstASN1))
+        return BUFFER_E;
+
+    XMEMCPY(out, caPathLenBasicConstASN1, sizeof(caPathLenBasicConstASN1));
+
+    out[sizeof(caPathLenBasicConstASN1)-1] = pathLen;
+
+    return (int)sizeof(caPathLenBasicConstASN1);
+}
+
+
 /* encode CA basic constraints true
  * return total bytes written */
 static int SetCa(byte* out, word32 outSz)
@@ -24424,8 +24449,17 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* Set Basic Constraints to be a Certificate Authority. */
             SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_BC_CA], 1);
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
-            /* TODO: consider adding path length field in Cert. */
-            dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
+            if (cert->pathLen
+            #ifdef WOLFSSL_CERT_EXT
+                && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
+            #endif
+            ) {
+                SetASN_Int8Bit(&dataASN[CERTEXTSASN_IDX_BC_PATHLEN],
+                        cert->pathLen);
+            }
+            else {
+                dataASN[CERTEXTSASN_IDX_BC_PATHLEN].noOut = 1;
+            }
         }
         else if (cert->basicConstSet) {
             /* Set Basic Constraints to be a non Certificate Authority. */
@@ -25016,8 +25050,24 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
+    /* RFC 5280 : 4.2.1.9. Basic Constraints
+     * The pathLenConstraint field is meaningful only if the CA boolean is
+     * asserted and the key usage extension, if present, asserts the
+     * keyCertSign bit */
+    /* Set CA and path length */
+    if ((cert->isCA) && (cert->pathLen)
+#ifdef WOLFSSL_CERT_EXT
+        && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
+#endif
+        ) {
+        der->caSz = SetCaWithPathLen(der->ca, sizeof(der->ca), cert->pathLen);
+        if (der->caSz <= 0)
+            return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
     /* Set CA */
-    if (cert->isCA) {
+    else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
@@ -26187,8 +26237,24 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* set the extensions */
     der->extensionsSz = 0;
 
+    /* RFC 5280 : 4.2.1.9. Basic Constraints
+     * The pathLenConstraint field is meaningful only if the CA boolean is
+     * asserted and the key usage extension, if present, asserts the
+     * keyCertSign bit */
+    /* Set CA and path length */
+    if ((cert->isCA) && (cert->pathLen)
+#ifdef WOLFSSL_CERT_EXT
+        && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
+#endif
+        ) {
+        der->caSz = SetCaWithPathLen(der->ca, sizeof(der->ca), cert->pathLen);
+        if (der->caSz <= 0)
+            return CA_TRUE_E;
+
+        der->extensionsSz += der->caSz;
+    }
     /* Set CA */
-    if (cert->isCA) {
+    else if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz <= 0)
             return CA_TRUE_E;
