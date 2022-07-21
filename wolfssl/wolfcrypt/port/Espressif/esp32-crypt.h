@@ -22,9 +22,7 @@
 
 #define __ESP32_CRYPT_H__
 
-#ifdef WOLFSSL_USER_SETTINGS
-    #include "user_settings.h"
-#endif
+#include "wolfssl/wolfcrypt/settings.h"
 
 #include "esp_idf_version.h"
 #include "esp_types.h"
