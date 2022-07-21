@@ -702,7 +702,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     int ret = 0;
     WOLFSSL_CTX* ctx;
     ...
-    ret = wolfSSL_CTX_load_verify_locations_ex(ctx, NUULL, “./certs/external",
+    ret = wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, “./certs/external",
         WOLFSSL_LOAD_FLAG_PEM_CA_ONLY);
     if (ret != WOLFSSL_SUCCESS) {
         // error loading CA certs
