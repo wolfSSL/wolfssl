@@ -25,8 +25,12 @@
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+  #define cmn_hw_lock    wc_sce_hw_lock
+  #define cmn_hw_unlock  wc_sce_hw_unlock
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS)
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+  #define cmn_hw_lock    tsip_hw_lock
+  #define cmn_hw_unlock  tsip_hw_unlock
 #endif
 
 #include <wolfssl/wolfcrypt/wc_port.h>
@@ -371,9 +375,9 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
         return INVALID_DEVID;
     }
     /* need exclusive control because of static variable */
-    if ((tsip_hw_lock()) == 0) {
+    if ((cmn_hw_lock()) == 0) {
         cbInfo->devId = gdevId++;
-        tsip_hw_unlock();
+        cmn_hw_unlock();
     }
     else {
         WOLFSSL_MSG("Failed to lock tsip hw");
@@ -669,7 +673,7 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, cbInfo->devId);
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-        ret = wc_sce_generateSessionKey(ssl, ctx, devId);
+        ret = wc_sce_generateSessionKey(ssl, ctx, cbInfo->devId);
 #endif
     } 
     else {

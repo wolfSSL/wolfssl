@@ -267,7 +267,6 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
 {
     int ret = WOLFSSL_FAILURE;
     uint8_t *sigforSCE;
-    uint8_t *pSig;
     const byte rs_size = HW_SCE_ECDSA_DATA_BYTE_SIZE/2;
     byte offset = 0x3;
     (void) sigSz;
@@ -277,7 +276,6 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
     (void) keySz;
 
     sigforSCE = NULL;
-    pSig = NULL;
 
     WOLFSSL_PKMSG("SCE ECC Verify: ssl->options.serverState = %d sigSz %d, hashSz %d, keySz %d\n",
                     ssl->options.serverState, sigSz, hashSz, keySz);
@@ -321,9 +319,10 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
         }
     }
 
-    pSig = sigforSCE;
+    ret = SCE_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
 
-    ret = SCE_ServerKeyExVerify(2, ssl, pSig, 64, ctx);
+    if (sigforSCE)
+        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
 
     if (ret == WOLFSSL_SUCCESS) {
         *result = 1;
