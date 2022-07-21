@@ -17858,7 +17858,13 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     if (*type == close_notify) {
         ssl->options.closeNotify = 1;
     }
-    WOLFSSL_ERROR(*type);
+    else {
+        /*
+         * A close_notify alert doesn't mean there's been an error, so we only
+         * add other types of alerts to the error queue
+         */
+        WOLFSSL_ERROR(*type);
+    }
 
     if (IsEncryptionOn(ssl, 0)) {
         *inOutIdx += ssl->keys.padSz;
@@ -21508,7 +21514,6 @@ startScr:
 
     while (ssl->buffers.clearOutputBuffer.length == 0) {
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
-            WOLFSSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 WOLFSSL_MSG("Zero return, no more data coming");
                 return 0; /* no more data coming */
@@ -21521,6 +21526,7 @@ startScr:
                     return 0; /* peer reset or closed */
                 }
             }
+            WOLFSSL_ERROR(ssl->error);
             return ssl->error;
         }
 

@@ -38086,6 +38086,29 @@ static void test_wolfSSL_ERR_put_error(void)
     #endif
 }
 
+/*
+ * This is a regression test for a bug where the peek/get error functions were
+ * drawing from the end of the queue rather than the front.
+ */
+static void test_wolfSSL_ERR_get_error_order(void)
+{
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    printf(testingFmt, "test_wolfSSL_ERR_get_error_order");
+
+    /* Empty the queue. */
+    wolfSSL_ERR_clear_error();
+
+    wolfSSL_ERR_put_error(0, 0, ASN_NO_SIGNER_E, "test", 0);
+    wolfSSL_ERR_put_error(0, 0, ASN_SELF_SIGNED_E, "test", 0);
+
+    AssertIntEQ(wolfSSL_ERR_peek_error(), -ASN_NO_SIGNER_E);
+    AssertIntEQ(wolfSSL_ERR_get_error(), -ASN_NO_SIGNER_E);
+    AssertIntEQ(wolfSSL_ERR_peek_error(), -ASN_SELF_SIGNED_E);
+    AssertIntEQ(wolfSSL_ERR_get_error(), -ASN_SELF_SIGNED_E);
+
+    printf(resultFmt, passed);
+#endif /* WOLFSSL_HAVE_ERROR_QUEUE */
+}
 
 #ifndef NO_BIO
 
@@ -56069,6 +56092,7 @@ void ApiTest(void)
     test_wolfSSL_PKCS8_d2i();
     test_error_queue_per_thread();
     test_wolfSSL_ERR_put_error();
+    test_wolfSSL_ERR_get_error_order();
 #ifndef NO_BIO
     test_wolfSSL_ERR_print_errors();
 #endif
