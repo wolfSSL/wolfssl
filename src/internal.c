@@ -15848,7 +15848,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* In async mode always store the message and process it with
          * DtlsMsgDrain because in case of a WC_PENDING_E it will be
          * easier this way. */
-        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+        if (ssl->devId != INVALID_DEVID &&
+            ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
             DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
@@ -18113,11 +18114,25 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
     /* process any pending DTLS messages - this flow can happen with async */
     if (ssl->dtls_rx_msg_list != NULL) {
-        ret = DtlsMsgDrain(ssl);
+        word32 pendingMsg = ssl->dtls_rx_msg_list_sz;
+        if(IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_DTLS13
+            ret = Dtls13ProcessBufferedMessages(ssl);
+#elif
+            ret = NOT_COMPILED_IN;
+#endif /* WOLFSSL_DTLS13 */
+        }
+        else {
+            ret = DtlsMsgDrain(ssl);
+        }
         if (ret != 0) {
             WOLFSSL_ERROR(ret);
             return ret;
         }
+        /* we processed some messages, return so connect/accept can make
+           progress */
+        if (ssl->dtls_rx_msg_list_sz != pendingMsg)
+            return ret;
     }
 #endif
 
