@@ -12740,13 +12740,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_FINISHED_DONE :
-            if (ssl->options.resuming)
-                while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
+            if (ssl->options.resuming) {
+                while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
                     if ( (ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
-
+                }
+            }
             ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
             FALL_THROUGH;

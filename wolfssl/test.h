@@ -5139,6 +5139,8 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
       defined(HAVE_AESGCM))
 
+#define HAVE_TEST_SESSION_TICKET
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
     #define WOLFSSL_TICKET_KEY_SZ CHACHA20_POLY1305_AEAD_KEYSIZE
@@ -5148,130 +5150,183 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
     #define WOLFSSL_TICKET_KEY_SZ AES_256_KEY_SIZE
 #endif
 
-    typedef struct key_ctx {
-        byte name[WOLFSSL_TICKET_NAME_SZ]; /* name for this context */
-        byte key[WOLFSSL_TICKET_KEY_SZ];   /* cipher key */
-    } key_ctx;
+typedef struct key_ctx {
+    byte name[WOLFSSL_TICKET_NAME_SZ]; /* name for this context */
+    byte key[WOLFSSL_TICKET_KEY_SZ];   /* cipher key */
+} key_ctx;
 
-    static THREAD_LS_T key_ctx myKey_ctx;
-    static THREAD_LS_T WC_RNG myKey_rng;
+static THREAD_LS_T key_ctx myKey_ctx;
+static THREAD_LS_T WC_RNG myKey_rng;
 
-    static WC_INLINE int TicketInit(void)
-    {
-        int ret = wc_InitRng(&myKey_rng);
-        if (ret != 0) return ret;
+static WC_INLINE int TicketInit(void)
+{
+    int ret = wc_InitRng(&myKey_rng);
+    if (ret == 0) {
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.key,
+            sizeof(myKey_ctx.key));
+    }
+    if (ret == 0) {
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.name,
+            sizeof(myKey_ctx.name));
+    }
+    return ret;
+}
 
-        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.key, sizeof(myKey_ctx.key));
-        if (ret != 0) return ret;
+static WC_INLINE void TicketCleanup(void)
+{
+    wc_FreeRng(&myKey_rng);
+}
 
-        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.name,sizeof(myKey_ctx.name));
-        if (ret != 0) return ret;
+typedef enum MyTicketState {
+    MY_TICKET_STATE_NONE,
+    MY_TICKET_STATE_INIT,
+    MY_TICKET_STATE_RNG,
+    MY_TICKET_STATE_CIPHER_SETUP,
+    MY_TICKET_STATE_CIPHER,
+    MY_TICKET_STATE_FINAL
+} MyTicketState;
+typedef struct MyTicketCtx {
+    MyTicketState state;
+    byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* chahca20/poly1305 */
+#elif defined(HAVE_AESGCM)
+    Aes aes;
+#endif
+} MyTicketCtx;
 
-        return 0;
+static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
+                            byte key_name[WOLFSSL_TICKET_NAME_SZ],
+                            byte iv[WOLFSSL_TICKET_IV_SZ],
+                            byte mac[WOLFSSL_TICKET_MAC_SZ],
+                            int enc, byte* ticket, int inLen, int* outLen,
+                            void* userCtx)
+{
+    int ret = 0;
+    MyTicketCtx tickCtx_lcl;
+    MyTicketCtx* tickCtx = (MyTicketCtx*)userCtx;
+
+    (void)ssl;
+
+    if (tickCtx == NULL) {
+        /* for test cases where userCtx is not set use local stack for context */
+        XMEMSET(&tickCtx_lcl, 0, sizeof(tickCtx_lcl));
+        tickCtx = &tickCtx_lcl;
     }
 
-    static WC_INLINE void TicketCleanup(void)
+    switch (tickCtx->state) {
+    case MY_TICKET_STATE_NONE:
+    case MY_TICKET_STATE_INIT:
     {
-        wc_FreeRng(&myKey_rng);
-    }
-
-    static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
-                             byte key_name[WOLFSSL_TICKET_NAME_SZ],
-                             byte iv[WOLFSSL_TICKET_IV_SZ],
-                             byte mac[WOLFSSL_TICKET_MAC_SZ],
-                             int enc, byte* ticket, int inLen, int* outLen,
-                             void* userCtx)
-    {
-        int ret;
-        word16 sLen = XHTONS(inLen);
-        byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
-        int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
-        byte* tmp = aad;
-    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        /* chahca20/poly1305 */
-    #elif defined(HAVE_AESGCM)
-        Aes aes;
-    #endif
-
-        (void)ssl;
-        (void)userCtx;
-
         /* encrypt */
         if (enc) {
             XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
-
+        }
+        else {
+            /* see if we know this key */
+            if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0) {
+                printf("client presented unknown ticket key name %s\n", key_name);
+                return WOLFSSL_TICKET_RET_FATAL;
+            }
+        }
+        tickCtx->state = MY_TICKET_STATE_RNG;
+    }
+    FALL_THROUGH;
+    case MY_TICKET_STATE_RNG:
+    {
+        if (enc) {
             ret = wc_RNG_GenerateBlock(&myKey_rng, iv, WOLFSSL_TICKET_IV_SZ);
-            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+            if (ret != 0)
+                break;
+        }
+        tickCtx->state = MY_TICKET_STATE_CIPHER_SETUP;
+    }
+    FALL_THROUGH;
+    case MY_TICKET_STATE_CIPHER_SETUP:
+    {
+        byte* tmp = tickCtx->aad;
+        word16 sLen = XHTONS(inLen);
 
-            /* build aad from key name, iv, and length */
-            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
-            tmp += WOLFSSL_TICKET_NAME_SZ;
-            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
-            tmp += WOLFSSL_TICKET_IV_SZ;
-            XMEMCPY(tmp, &sLen, sizeof(sLen));
+        /* build aad from key name, iv, and length */
+        XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
+        tmp += WOLFSSL_TICKET_NAME_SZ;
+        XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
+        tmp += WOLFSSL_TICKET_IV_SZ;
+        XMEMCPY(tmp, &sLen, sizeof(sLen));
 
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #elif defined(HAVE_AESGCM)
+        ret = wc_AesInit(&tickCtx->aes, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_AesGcmSetKey(&tickCtx->aes, myKey_ctx.key,
+                sizeof(myKey_ctx.key));
+        }
+        if (ret != 0)
+            break;
+    #endif
+        tickCtx->state = MY_TICKET_STATE_CIPHER;
+    }
+    FALL_THROUGH;
+    case MY_TICKET_STATE_CIPHER:
+    {
+        int aadSz = (int)sizeof(tickCtx->aad);
+
+        /* encrypt */
+        if (enc) {
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             ret = wc_ChaCha20Poly1305_Encrypt(myKey_ctx.key, iv,
-                                              aad, aadSz,
+                                              tickCtx->aad, aadSz,
                                               ticket, inLen,
                                               ticket,
                                               mac);
         #elif defined(HAVE_AESGCM)
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-
-            ret = wc_AesGcmSetKey(&aes, myKey_ctx.key, sizeof(myKey_ctx.key));
-            if (ret == 0) {
-                ret = wc_AesGcmEncrypt(&aes, ticket, ticket, inLen,
-                                       iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
-                                       aad, aadSz);
-            }
-            wc_AesFree(&aes);
+            ret = wc_AesGcmEncrypt(&tickCtx->aes, ticket, ticket, inLen,
+                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   tickCtx->aad, aadSz);
         #endif
-
-            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-            *outLen = inLen;  /* no padding in this mode */
         }
         /* decrypt */
         else {
-            /* see if we know this key */
-            if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
-                printf("client presented unknown ticket key name %s\n", key_name);
-                return WOLFSSL_TICKET_RET_FATAL;
-            }
-
-            /* build aad from key name, iv, and length */
-            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
-            tmp += WOLFSSL_TICKET_NAME_SZ;
-            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
-            tmp += WOLFSSL_TICKET_IV_SZ;
-            XMEMCPY(tmp, &sLen, sizeof(sLen));
-
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             ret = wc_ChaCha20Poly1305_Decrypt(myKey_ctx.key, iv,
-                                              aad, aadSz,
+                                              tickCtx->aad, aadSz,
                                               ticket, inLen,
                                               mac,
                                               ticket);
         #elif defined(HAVE_AESGCM)
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-
-            ret = wc_AesGcmSetKey(&aes, myKey_ctx.key, sizeof(myKey_ctx.key));
-            if (ret == 0) {
-                ret = wc_AesGcmDecrypt(&aes, ticket, ticket, inLen,
-                                        iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
-                                        aad, aadSz);
-            }
-            wc_AesFree(&aes);
+            ret = wc_AesGcmDecrypt(&tickCtx->aes, ticket, ticket, inLen,
+                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   tickCtx->aad, aadSz);
         #endif
-
-            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-            *outLen = inLen;  /* no padding in this mode */
         }
-
-        return WOLFSSL_TICKET_RET_OK;
+        if (ret != 0) {
+            break;
+        }
+        tickCtx->state = MY_TICKET_STATE_FINAL;
     }
+    FALL_THROUGH;
+    case MY_TICKET_STATE_FINAL:
+        *outLen = inLen;  /* no padding in this mode */
+        break;
+    } /* switch */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_PENDING_E) {
+        return ret;
+    }
+#endif
+
+    /* cleanup */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+#elif defined(HAVE_AESGCM)
+    wc_AesFree(&tickCtx->aes);
+#endif
+
+    /* reset context */
+    XMEMSET(tickCtx, 0, sizeof(MyTicketCtx));
+
+    return (ret == 0) ? WOLFSSL_TICKET_RET_OK : WOLFSSL_TICKET_RET_REJECT;
+}
 
 #endif /* HAVE_SESSION_TICKET && ((HAVE_CHACHA && HAVE_POLY1305) || HAVE_AESGCM) */
 
