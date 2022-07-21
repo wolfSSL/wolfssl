@@ -84,6 +84,7 @@ on the specific device platform.
 #endif
 
 /* determine if we are using Espressif SHA hardware acceleration */
+#undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     /* define a single keyword for simplicity & readability
@@ -93,7 +94,7 @@ on the specific device platform.
      */
     #define WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #else
-    #undef USE_ESP32WROOM32_CRYPT_HASH
+    #undef WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW
 #endif
 
 /* fips wrapper calls, user can call direct */
@@ -1733,6 +1734,23 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPSha256Free(sha256);
+#endif
+/* Espressif embedded hardware acceleration specific: */
+#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
+    if (sha256->ctx.lockDepth > 0) {
+        /* probably due to unclean shutdown, error, or other problem.
+         *
+         * if you find yourself here, code needs to be cleaned up to
+         * properly release hardware. this init is only for handling
+         * the unexpected. by the time free is called, the hardware
+         * should have already been released (lockDepth = 0)
+         */
+        InitSha256(sha256); /* unlock mutex, set mode to ESP32_SHA_INIT */
+        ESP_LOGE("sha256", "ERROR: hardware unlock needed in wc_Sha256Free");
+    }
+    else {
+        ESP_LOGV("sha256", "hardware unlock not needed in wc_Sha256Free");
+    }
 #endif
 }
 
