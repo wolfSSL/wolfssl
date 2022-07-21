@@ -113,6 +113,7 @@ CVE-2020-12966 https://www.amd.com/en/corporate/product-security/bulletin/amd-sb
 * Add TLS 1.2 ciphersuite ECDHE_PSK_WITH_AES_128_GCM_SHA256 from RFC 8442
 * Expand CAAM support with QNX to include i.MX8 boards and add AES-CTR support
 * Enhanced glitching protection by hardening the TLS encrypt operations
+* The TLS Extension for PSK Key Exchange Modes is now always included in a ClientHello (with PSK enabled) to improve inter-op.
 
 ## Math and Performance
 
