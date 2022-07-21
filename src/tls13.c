@@ -9473,6 +9473,14 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO)
+    /* if async, offset index so this msg will be processed again */
+    /* NOTE: check this now before other calls can overwirte ret */
+    if ((ret == WC_PENDING_E || ret == OCSP_WANT_READ) && *inOutIdx > 0) {
+        *inOutIdx -= HANDSHAKE_HEADER_SZ;
+    }
+#endif
+
     /* reset error */
     if (ret == 0 && ssl->error == WC_PENDING_E)
         ssl->error = 0;
@@ -9592,13 +9600,6 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
 #endif /* NO_WOLFSSL_SERVER */
     }
-
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_ASYNC_IO)
-    /* if async, offset index so this msg will be processed again */
-    if ((ret == WC_PENDING_E || ret == OCSP_WANT_READ) && *inOutIdx > 0) {
-        *inOutIdx -= HANDSHAKE_HEADER_SZ;
-    }
-#endif
 
     WOLFSSL_LEAVE("DoTls13HandShakeMsgType()", ret);
     return ret;
