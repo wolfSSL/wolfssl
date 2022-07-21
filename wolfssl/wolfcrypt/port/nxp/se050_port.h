@@ -1,6 +1,6 @@
 /* se050_port.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,7 +24,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/visibility.h>
-#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -39,7 +38,7 @@
 #include "fsl_sss_api.h"
 #endif
 
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     /* NXP SE050 - Disable SHA512 224/256 support */
     #ifndef WOLFSSL_NOSHA512_224
     #define WOLFSSL_NOSHA512_224
@@ -96,6 +95,8 @@ WOLFSSL_API int wc_se050_set_config(sss_session_t *pSession,
 #ifdef WOLFSSL_SE050_INIT
 WOLFSSL_API int wc_se050_init(const char* portName);
 #endif
+WOLFSSL_API int se050_ecc_insert_private_key(int keyId, const byte* eccDer,
+    word32 eccDerSize);
 
 /* Private Functions */
 WOLFSSL_LOCAL int se050_allocate_key(int keyType);
@@ -105,7 +106,7 @@ WOLFSSL_LOCAL int se050_hash_init(SE050_HASH_Context* se050Ctx, void* heap);
 WOLFSSL_LOCAL int se050_hash_update(SE050_HASH_Context* se050Ctx,
     const byte* data, word32 len);
 WOLFSSL_LOCAL int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash,
-    size_t digestLen, word32 algo);
+    size_t digestLen, sss_algorithm_t algo);
 WOLFSSL_LOCAL void se050_hash_free(SE050_HASH_Context* se050Ctx);
 
 struct Aes;
@@ -139,6 +140,7 @@ WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int ke
 WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
     struct ecc_key* public_key, byte* out, word32* outlen);
 WOLFSSL_LOCAL void se050_ecc_free_key(struct ecc_key* key);
+
 
 struct ed25519_key;
 WOLFSSL_LOCAL int se050_ed25519_create_key(struct ed25519_key* key);

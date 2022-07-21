@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.4.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -38,7 +38,7 @@ LT_INIT([disable-static win32-dll])
 AC_ARG_VAR(EXTRA_CFLAGS, [Extra CFLAGS to add to autoconf-computed arg list.  Can also supply directly to make.])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=33:0:0
+WOLFSSL_LIBRARY_VERSION=34:0:0
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -603,7 +603,7 @@ then
 fi
 
 # if sp-math-all is not set, then enable fast math
-if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = ""
+if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
 then
     # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
@@ -640,7 +640,7 @@ AC_ARG_ENABLE([heapmath],
     [ ENABLED_HEAPMATH=$enableval ],
     [ ENABLED_HEAPMATH=no]
     )
-if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno")
+if test "x$ENABLED_HEAPMATH" = "xyes" || (test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" && test "x$ENABLED_SP_MATH" = "xno")
 then
     AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
     ENABLED_HEAPMATH="yes"
@@ -1242,17 +1242,17 @@ AC_ARG_ENABLE([wpas-dpp],
     [ ENABLED_WPAS_DPP=no ]
     )
 
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_WPAS="yes"
+fi
+
 # ntp support
 AC_ARG_ENABLE([ntp],
     [AS_HELP_STRING([--enable-ntp],[Enable ntp support (default: disabled)])],
     [ ENABLED_NTP=$enableval ],
     [ ENABLED_NTP=no ]
     )
-
-if test "$ENABLED_WPAS_DPP" = "yes"
-then
-    ENABLED_WPAS="yes"
-fi
 
 # Fortress build
 AC_ARG_ENABLE([fortress],
@@ -1548,6 +1548,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_KEYING_MATERIAL"
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    AM_CFLAGS="$AM_CFLAGS -DWC_CTC_NAME_SIZE=128"
 
     if test "$ENABLED_OPENSSLEXTRA" = "no"
     then
@@ -2140,21 +2142,19 @@ then
     if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
-        if test "$GCC" = "yes"
+        if test "$CC" != "icc"
         then
-            # clang needs these flags
-            if test "$CC" = "clang"
-            then
-                AM_CFLAGS="$AM_CFLAGS -maes -mpclmul"
-            else
-                # GCC needs these flags, icc doesn't
-                # opt levels greater than 2 may cause problems on systems w/o
-                # aesni
-                if test "$CC" != "icc"
-                then
-                    AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
-                fi
-            fi
+            case $host_os in
+            mingw*)
+                # Windows uses intrinsics for GCM which uses SSE4 instructions.
+                # MSVC has own build files.
+                AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                ;;
+            *)
+                # Intrinsics used in AES_set_decrypt_key (TODO: rework)
+                AM_CFLAGS="$AM_CFLAGS -maes"
+                ;;
+            esac
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
     fi
@@ -2687,6 +2687,10 @@ AC_ARG_ENABLE([certreq],
     [ ENABLED_CERTREQ=no ]
     )
 
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_CERTREQ="yes"
+fi
 
 # CERT REQUEST EXTENSION
 AC_ARG_ENABLE([certext],
@@ -2825,6 +2829,11 @@ AC_ARG_ENABLE([ecccustcurves],
     [ ENABLED_ECCCUSTCURVES=no ]
     )
 
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_ECCCUSTCURVES="all"
+fi
+
 if test "$ENABLED_ECCCUSTCURVES" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
@@ -2867,10 +2876,6 @@ AC_ARG_ENABLE([compkey],
 if test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_COMPKEY=yes
-fi
-if test "$ENABLED_COMPKEY" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
 fi
 
 
@@ -3036,7 +3041,7 @@ fi
 
 # ECC encrypt
 AC_ARG_ENABLE([eccencrypt],
-    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled). yes = SEC1 standard, iso18033 = ISO 18033 standard, old = original wolfSSL algorithm])],
+    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled). yes = SEC1 standard, geniv = Generate IV, iso18033 = ISO 18033 standard, old = original wolfSSL algorithm])],
     [ ENABLED_ECC_ENCRYPT=$enableval ],
     [ ENABLED_ECC_ENCRYPT=no ]
     )
@@ -3059,6 +3064,10 @@ then
     if test "$ENABLED_ECC_ENCRYPT" = "iso18033"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_ISO18033"
+    fi
+    if test "$ENABLED_ECC_ENCRYPT" = "geniv"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_GEN_IV"
     fi
 fi
 
@@ -3671,7 +3680,7 @@ then
     then
         AC_MSG_ERROR([cannot enable eccencrypt and hkdf without aes.])
     fi
-    if test "$ENABLED_AESGCM" = "yes"
+    if test "$ENABLED_AESGCM" != "no"
     then
         AC_MSG_ERROR([AESGCM requires AES.])
     fi
@@ -3935,6 +3944,9 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
+
+        AS_IF([test "$ENABLED_COMPKEY" = "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_compkey" != "yes")],
+            [ENABLED_COMPKEY="no"])
 
         AS_IF([test "$ENABLED_SHA224" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
             [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
@@ -4822,6 +4834,11 @@ AC_ARG_ENABLE([pkcs7],
     [ ENABLED_PKCS7=$enableval ],
     [ ENABLED_PKCS7=no ]
     )
+
+if test "x$ENABLED_WPAS_DPP" = "xyes"
+then
+    ENABLED_PKCS7=yes
+fi
 
 # wolfSSH Options
 AC_ARG_ENABLE([wolfssh],
@@ -6460,7 +6477,7 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
         AC_MSG_ERROR([Must have SP enabled with SP math: --enable-sp])
     fi
-    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
+    if test "$ENABLED_ECCCUSTCURVES" != "no"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])
     fi
     if test "$ENABLED_DSA" = "yes"; then
@@ -7685,8 +7702,13 @@ if test "x$ENABLED_SECURE_RENEGOTIATION_INFO" = "xyes"; then
 fi
 
 
+if test "$ENABLED_COMPKEY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
+fi
 
-# Depricated Algorithm Handling
+
+# Deprecated Algorithm Handling
 if test "$ENABLED_ARC4" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
@@ -7790,8 +7812,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
     AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
-    if test "$ENABLED_OPENSSLEXTRA" != "no"; then
-        AC_MSG_ERROR([--enable-opensslextra is incompatible with --enable-linuxkm.])
+    if test "$ENABLED_OPENSSLEXTRA" != "no" && test "$ENABLED_CRYPTONLY" = "no"; then
+        AC_MSG_ERROR([--enable-opensslextra without --enable-cryptonly is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_FILESYSTEM" = "yes"; then
         AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])

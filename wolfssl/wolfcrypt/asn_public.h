@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -384,6 +384,8 @@ typedef struct Cert {
     int      selfSigned;                /* self signed flag */
     CertName subject;                   /* subject info */
     int      isCA;                      /* is this going to be a CA */
+    byte     pathLen;                   /* max depth of valid certification
+                                         * paths that include this cert */
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
     int      keyType;                   /* public key type of subject */
@@ -657,6 +659,9 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
                           ecc_key* key, word32 inSz);
     WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
                                          word32 inLen, int with_AlgCurve);
+    WOLFSSL_API int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
+                                         word32 inLen, int with_AlgCurve,
+                                         int comp);
     WOLFSSL_API int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
 #endif
 

@@ -55,10 +55,13 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
     extern const st_key_block_data_t g_key_block_data;
-    user_PKCbInfo                    guser_PKCbInfo;
     uint32_t                         g_encrypted_root_public_key[140];
-    static   TsipUserCtx             userContext;
-
+   #if defined(TLS_MULTITHREAD_TEST)
+    static TsipUserCtx userContext_taskA;
+    static TsipUserCtx userContext_taskB;
+   #else
+    static TsipUserCtx userContext;
+   #endif
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
     static WOLFSSL_CTX* client_ctx;
@@ -69,9 +72,60 @@
 #define YEAR 2022
 #define MON  3
 #define FREQ 10000 /* Hz */
+#define MAX_MSGSTR  80
 
 static long         tick;
 static int          tmTick;
+
+
+#if defined(TSIP_CRYPT_UNIT_TEST)
+ int tsip_crypt_test();
+ int tsip_crypt_sha_multitest();
+ int tsip_crypt_AesCbc_multitest();
+ int tsip_crypt_AesGcm_multitest();
+ int tsip_crypt_Sha_AesCbcGcm_multitest();
+#endif
+
+#if defined(TLS_MULTITHREAD_TEST)
+xSemaphoreHandle exit_semaph;
+static xSemaphoreHandle Mutex;
+#endif
+
+static int msg(const char* pname, int l,
+                         const char * sFormat, ...)
+{
+    int ret = 0;
+    char buf[MAX_MSGSTR] = {0};
+
+    va_list ParamList;
+
+#if defined(TLS_MULTITHREAD_TEST)
+    xSemaphoreTake(Mutex, portMAX_DELAY);
+#endif
+    va_start(ParamList, sFormat);
+
+    printf("[%s][%02d] ", pname, l);
+    ret = vsnprintf(buf, sizeof(buf), sFormat, ParamList);
+    printf(buf);
+
+    va_end(ParamList);
+
+#if defined(TLS_MULTITHREAD_TEST)
+    xSemaphoreGive(Mutex);
+#endif
+
+    return ret;
+}
+
+
+#if defined(TLS_MULTITHREAD_TEST)
+static void my_Logging_cb(const int logLevel, const char *const logMessage)
+{
+    (void)logLevel;
+    msg("custom-log", logLevel, "%s\n", logMessage);
+}
+#endif
+
 /* time
  * returns seconds from EPOCH
  */
@@ -97,10 +151,6 @@ double current_time(int reset)
       if(reset) tick = 0 ;
       return ((double)tick/FREQ) ;
 }
-
-
-
-
 
 /* --------------------------------------------------------*/
 /*  Benchmark_demo                                         */
@@ -141,7 +191,7 @@ static void CryptTest_demo(void)
 /*  Tls_client_demo                                        */
 /* --------------------------------------------------------*/
 #if defined(TLS_CLIENT)
-static void Tls_client_init(const char* cipherlist)
+static void Tls_client_init()
 {
 
     #ifndef NO_FILESYSTEM
@@ -164,10 +214,6 @@ static void Tls_client_init(const char* cipherlist)
     client_ctx = NULL;
 
     wolfSSL_Init();
-
-    #ifdef DEBUG_WOLFSSL
-        wolfSSL_Debugging_ON();
-    #endif
 
     /* Create and initialize WOLFSSL_CTX */
     if ((client_ctx = 
@@ -254,33 +300,32 @@ static void Tls_client_init(const char* cipherlist)
         return;
     }
     #endif
-
-
-    /* use specific cipher */
-    if (cipherlist != NULL && 
-        wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != 
-                                                            WOLFSSL_SUCCESS) {
-        wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
-        printf("client can't set cipher list");
-    }
 }
 
-static void Tls_client()
+static void Tls_client(void *pvParam)
 {
     #define BUFF_SIZE 256
     #define ADDR_SIZE 16
     int             ret;
+#if defined(TLS_MULTITHREAD_TEST)
+    BaseType_t xStatus;
+#endif
+    TestInfo* p = (TestInfo*)pvParam;
     WOLFSSL_CTX*    ctx = (WOLFSSL_CTX *)client_ctx;
-    WOLFSSL*        ssl;
+    WOLFSSL*        ssl = NULL;
     Socket_t        socket;
     socklen_t       socksize = sizeof(struct freertos_sockaddr);
     struct freertos_sockaddr    PeerAddr;
     char    addrBuff[ADDR_SIZE] = {0};
-  
-    static const char sendBuff[]= "Hello Server\n" ;    
+    const char* pcName = p->name;
+
+    static const char sendBuff[]= "Hello Server\n" ;
     char    rcvBuff[BUFF_SIZE] = {0};
 
-
+    if (!p) {
+        printf("Unexpected error. Thread parameter is null\n");
+        return;
+    }
     /* create TCP socket */
 
     socket = FreeRTOS_socket(FREERTOS_AF_INET,
@@ -294,78 +339,126 @@ static void Tls_client()
     /* attempt to connect TLS server */
 
     PeerAddr.sin_addr = FreeRTOS_inet_addr(TLSSERVER_IP);
-    PeerAddr.sin_port = FreeRTOS_htons(TLSSERVER_PORT);
+    PeerAddr.sin_port = FreeRTOS_htons(p->port);
 
     ret = FreeRTOS_connect(socket, &PeerAddr, sizeof(PeerAddr));
 
     if (ret != 0) {
-        printf("ERROR FreeRTOS_connect: %d\n",ret);
+        msg(pcName, p->id, "ERROR FreeRTOS_connect: %d\n",ret);
+        ret = -1;
     }
+
+   #if defined(TLS_MULTITHREAD_TEST)
+    msg(pcName, p->id, " Ready to connect.\n");
+    xStatus = xSemaphoreTake(p->xBinarySemaphore, portMAX_DELAY);
+    if (xStatus != pdTRUE) {
+        msg(pcName, p->id, " Error : Failed to xSemaphoreTake\n");
+        goto out;
+    }
+   #endif
 
     /* create WOLFSSL object */
     if (ret == 0) {
         ssl = wolfSSL_new(ctx);
         if (ssl == NULL) {
-            printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
+            msg(pcName, p->id, "ERROR wolfSSL_new: %d\n", 
+                                        wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
     }
+
     if (ret == 0) {
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-        tsip_set_callback_ctx(ssl, &userContext);
+            #if !defined(TLS_MULTITHREAD_TEST)
+            memset(&userContext, 0, sizeof(TsipUserCtx));
+            tsip_set_callback_ctx(ssl, &userContext);
+            #else
+            if (p->port - TLSSERVER_PORT == 0) {
+                memset(&userContext_taskA, 0, sizeof(TsipUserCtx));
+                tsip_set_callback_ctx(ssl, (void*)&userContext_taskA);
+            }
+            else {
+                memset(&userContext_taskB, 0, sizeof(TsipUserCtx));
+                tsip_set_callback_ctx(ssl, (void*)&userContext_taskB);
+            }
+            #endif
         #endif
+    }
+
+    msg(pcName, p->id, "  Cipher : %s\n", p->cipher);
+    /* use specific cipher */
+    if (p->cipher != NULL &&
+        wolfSSL_set_cipher_list(ssl, p->cipher) != WOLFSSL_SUCCESS) {
+        ret = -1;
     }
 
     if (ret == 0) {
         /* associate socket with ssl object */
         if (wolfSSL_set_fd(ssl, (int)socket) != WOLFSSL_SUCCESS) {
-            printf("ERROR wolfSSL_set_fd: %d\n", wolfSSL_get_error(ssl, 0));
+            msg(pcName, p->id, "ERROR wolfSSL_set_fd: %d\n", 
+                                                    wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
     }
-
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_Debugging_ON();
+#endif
     if (ret == 0) {
         if (wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
-            printf("ERROR wolfSSL_connect: %d\n", wolfSSL_get_error(ssl, 0));
+            msg(pcName, p->id, "ERROR wolfSSL_connect: %d\n", 
+                                                    wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
     }
-
+#ifdef DEBUG_WOLFSSL
+   wolfSSL_Debugging_OFF();
+#endif
     if (ret == 0) {
         if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != 
                                                             strlen(sendBuff)) {
-            printf("ERROR wolfSSL_write: %d\n", wolfSSL_get_error(ssl, 0));
+            msg(pcName, p->id, "ERROR wolfSSL_write: %d\n", 
+                                                    wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
     }
 
     if (ret == 0) {
         if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE -1)) < 0) {
-            printf("ERROR wolfSSL_read: %d\n", wolfSSL_get_error(ssl, 0));
+            msg(pcName, p->id, "ERROR wolfSSL_read: %d\n", 
+                                                    wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
         else {
             rcvBuff[ret] = '\0';
-            printf("Received: %s\n\n", rcvBuff);
+            msg(pcName, p->id, "Received: %s\n\n", rcvBuff);
             ret = 0;
         }
     }
-
     
-    wolfSSL_shutdown(ssl);
-
-    FreeRTOS_shutdown(socket, FREERTOS_SHUT_RDWR);
-    while(FreeRTOS_recv(socket, rcvBuff, BUFF_SIZE -1, 0) >=0) {
-    	vTaskDelay(250);
+out:
+    if (ssl) {
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        /* reset call backs */
+    #ifdef WOLFSSL_RENESAS_TSIP_TLS
+        tsip_set_callbacks(client_ctx);
+    #endif
     }
 
-    FreeRTOS_closesocket(socket);
+    if (socket) {
+        FreeRTOS_shutdown(socket, FREERTOS_SHUT_RDWR);
+        while (FreeRTOS_recv(socket, rcvBuff, BUFF_SIZE -1, 0) >=0) {
+            vTaskDelay(250);
+        }
+        FreeRTOS_closesocket(socket);
+        socket = NULL;
+    }
 
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-    wolfSSL_Cleanup();
-
+#ifdef TLS_MULTITHREAD_TEST
+    xSemaphoreGive(exit_semaph);
+    vTaskDelete(NULL);
+#endif
     return;
 }
 
@@ -376,24 +469,23 @@ static void Tls_client_demo(void)
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
 
-    #ifdef USE_ECC_CERT
+  #ifdef USE_ECC_CERT
     const char* cipherlist[] = {
     #if defined(WOLFSSL_TLS13)
         "TLS13-AES128-GCM-SHA256",
         "TLS13-AES128-CCM-SHA256",
     #endif
+    	"ECDHE-ECDSA-AES128-SHA256",
         "ECDHE-ECDSA-AES128-GCM-SHA256",
-        "ECDHE-ECDSA-AES128-SHA256"
     };
-    int cipherlist_sz;
     #if defined(WOLFSSL_TLS13)
-        cipherlist_sz = 2;
+        #define cipherlist_sz 2
     #else
-        cipherlist_sz = 2;
+        #define cipherlist_sz 2
     #endif
-
-    #else
-    const char* cipherlist[] = {
+    TestInfo info[cipherlist_sz];
+  #else
+        const char* cipherlist[] = {
     #if defined(WOLFSSL_TLS13)
         "TLS13-AES128-GCM-SHA256",
         "TLS13-AES128-CCM-SHA256",
@@ -404,23 +496,29 @@ static void Tls_client_demo(void)
         "AES128-SHA256",
         "AES256-SHA",
         "AES256-SHA256"
-    };
-    int cipherlist_sz;
-    #if defined(WOLFSSL_TLS13)
-        cipherlist_sz = 2;
-    #else
-        cipherlist_sz = 6;
+        };
+        #if defined(WOLFSSL_TLS13)
+            #define cipherlist_sz 2
+        #else
+            #define cipherlist_sz 6
+        #endif
+        TestInfo info[cipherlist_sz];
     #endif
-
-    #endif
-
 #else
     const char* cipherlist[] = { NULL };
-    const int cipherlist_sz = 0;
-
+    #define cipherlist_sz 1
+    TestInfo info[cipherlist_sz];
 #endif
 
     int i = 0;
+#ifdef TLS_MULTITHREAD_TEST
+    int j = 0;
+    BaseType_t xReturned;
+    BaseType_t xHigherPriorityTaskWoken;
+    xHigherPriorityTaskWoken = pdFALSE;
+
+    Mutex = xSemaphoreCreateMutex();
+#endif
 
     printf("/*------------------------------------------------*/\n");
     printf("    TLS_Client demo\n");
@@ -455,15 +553,81 @@ static void Tls_client_demo(void)
 
 #endif /* WOLFSSL_RENESAS_TSIP_TLS && (WOLFSSL_RENESAS_TSIP_VER >=109) */
 
+    Tls_client_init();
+
+#ifdef TLS_MULTITHREAD_TEST
+
+    exit_semaph = xSemaphoreCreateCounting(cipherlist_sz, 0);
+
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_SetLoggingCb(my_Logging_cb);
+#endif
+
     do {
-        if(cipherlist_sz > 0 ) printf("cipher : %s\n", cipherlist[i]);
+        for (j = i; j < (i+2); j++) {
+            info[j].id = j;
+            info[j].port = TLSSERVER_PORT + (j%2);
+            info[j].cipher = cipherlist[j];
+            info[j].ctx = client_ctx;
+            info[j].xBinarySemaphore = xSemaphoreCreateBinary();
+            info[j].log_f = my_Logging_cb;
 
-        Tls_client_init(cipherlist[i]);
+            memset(info[j].name, 0, sizeof(info[j].name));
+            sprintf(info[j].name, "clt_thd_%s", ((j%2) == 0) ?
+                                                            "taskA" : "taskB");
 
-        Tls_client();
+            printf(" %s connecting to %d port\n", info[j].name, info[j].port);
+
+            xReturned = xTaskCreate(Tls_client, info[j].name, 
+                                        THREAD_STACK_SIZE, &info[j], 3, NULL);
+            if (xReturned != pdPASS) {
+                printf("Failed to create task\n");
+            }
+        }
+
+        for (j = i; j < (i+2); j++) {
+            xSemaphoreGiveFromISR(info[j].xBinarySemaphore, 
+                                                    &xHigherPriorityTaskWoken);
+        }
+
+        /* check if all tasks are completed */
+        for (j = i; j < (i+2); j++) {
+            if(!xSemaphoreTake(exit_semaph, portMAX_DELAY)) {
+                printf("a semaphore was not given by a test task.");
+            }
+        }
+
+        i += 2;
+
+    } while (i < cipherlist_sz);
+
+    vSemaphoreDelete(exit_semaph);
+    vSemaphoreDelete(Mutex);
+
+#else
+
+    do {
+
+        info[i].port = TLSSERVER_PORT;
+        info[i].cipher = cipherlist[i];
+        info[i].ctx = client_ctx;
+        info[i].id = i;
+
+        memset(info[i].name, 0, sizeof(info[i].name));
+        sprintf(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
+
+        Tls_client(&info[i]);
 
         i++;
     } while (i < cipherlist_sz);
+
+    if (client_ctx) {
+         wolfSSL_CTX_free(client_ctx);
+    }
+
+#endif
+
+    wolfSSL_Cleanup();
 
     printf("End of TLS_Client demo.\n");
 }
@@ -494,6 +658,44 @@ void wolfSSL_demo_task(bool         awsIotMqttMode,
 #elif defined(BENCHMARK)
 
     Benchmark_demo();
+
+#elif defined(TSIP_CRYPT_UNIT_TEST)
+    int ret = 0;
+
+    if ((ret = wolfCrypt_Init()) != 0) {
+        printf("wolfCrypt_Init failed %d\n", ret);
+    }
+
+    printf("Start wolf tsip crypt Test\n");
+
+    printf(" \n");
+    printf(" simple crypt test by using TSIP\n");
+    tsip_crypt_test();
+
+    printf(" \n");
+    printf(" multi sha thread test\n");
+    tsip_crypt_sha_multitest();
+
+    printf(" \n");
+    printf(" multi aes cbc thread test\n");
+
+    tsip_crypt_AesCbc_multitest();
+
+    printf(" \n");
+    printf(" multi aes gcm thread test\n");
+
+    tsip_crypt_AesGcm_multitest();
+
+    printf(" \n");
+    printf(" multi sha aescbc aesgcm thread test\n");
+    tsip_crypt_Sha_AesCbcGcm_multitest();
+
+    printf(" \n");
+    printf("End wolf tsip crypt Test\n");
+
+    if ((ret = wolfCrypt_Cleanup()) != 0) {
+        printf("wolfCrypt_Cleanup failed %d\n", ret);
+    }
 
 #elif defined(TLS_CLIENT)
 

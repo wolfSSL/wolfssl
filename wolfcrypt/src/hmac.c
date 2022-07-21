@@ -1,6 +1,6 @@
 /* hmac.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -57,6 +57,7 @@
 #ifdef WOLFSSL_KCAPI_HMAC
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h>
 
+    /* map the _Software calls used by kcapi_hmac.c */
     #define wc_HmacSetKey  wc_HmacSetKey_Software
     #define wc_HmacUpdate  wc_HmacUpdate_Software
     #define wc_HmacFinal   wc_HmacFinal_Software
@@ -993,6 +994,11 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 
 #ifdef WOLFSSL_KCAPI_HMAC
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hmac.c */
+
+    /* unmap the _Software calls used by kcapi_hmac.c */
+    #undef wc_HmacSetKey
+    #undef wc_HmacUpdate
+    #undef wc_HmacFinal
 
 #else
 /* Initialize Hmac for use with async device */

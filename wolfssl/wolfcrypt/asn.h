@@ -1,6 +1,6 @@
 /* asn.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -929,7 +929,8 @@ enum Misc_ASN {
                                    /* Max total extensions, id + len + others */
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
-        defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL)
+        defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_OID_DECODING) || defined(HAVE_OID_ENCODING)
     MAX_OID_SZ          = 32,      /* Max DER length of OID*/
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
@@ -1636,6 +1637,11 @@ struct DecodedCert {
     const byte* subjectRaw;          /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
+#if !defined(IGNORE_NAME_CONSTRAINTS) || \
+     defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    char*   subjectEmail;
+    int     subjectEmailLen;
+#endif
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     /* easy access to subject info for other sign */
     char*   subjectSN;
@@ -1677,8 +1683,6 @@ struct DecodedCert {
     char*   subjectPC;
     int     subjectPCLen;
     char    subjectPCEnc;
-    char*   subjectEmail;
-    int     subjectEmailLen;
 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
     char*   issuerCN;
     int     issuerCNLen;
@@ -2139,6 +2143,11 @@ WOLFSSL_API int EccEnumToNID(int n);
 
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
+
+WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
+    byte* output, word32 outLen, int keyType, int withHeader);
+WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
+    byte* pubKey, word32* pubKeyLen, int keyType);
 
 #ifndef NO_CERTS
 

@@ -1,6 +1,6 @@
 /* snifftest.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -330,7 +330,7 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
 
 /* try and load as both static ephemeral and private key */
 /* only fail if no key is loaded */
-/* Allow comma seperated list of files */
+/* Allow comma separated list of files */
 static int load_key(const char* name, const char* server, int port,
     const char* keyFiles, const char* passwd, char* err)
 {

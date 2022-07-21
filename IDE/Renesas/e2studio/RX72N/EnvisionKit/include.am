@@ -15,3 +15,4 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/key_data.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/user_settings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_tsip_unit_test.c

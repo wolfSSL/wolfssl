@@ -1,6 +1,6 @@
 /* testsuite.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -402,7 +402,7 @@ static void simple_test(func_args* args)
 #ifndef USE_WINDOWS_API
     cliArgs.argc = NUMARGS;
     XSTRLCPY(argvc[1], "-p", sizeof(argvc[1]));
-    snprintf(argvc[2], sizeof(argvc[2]), "%d", (int)svrArgs.signal->port);
+    (void)snprintf(argvc[2], sizeof(argvc[2]), "%d", (int)svrArgs.signal->port);
 #else
     cliArgs.argc = 1;
 #endif
@@ -432,13 +432,14 @@ static void simple_test(func_args* args)
 void wait_tcp_ready(func_args* args)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_lock(&args->signal->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&args->signal->mutex));
 
     if (!args->signal->ready)
-        pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+        PTHREAD_CHECK_RET(pthread_cond_wait(&args->signal->cond,
+                                            &args->signal->mutex));
     args->signal->ready = 0; /* reset */
 
-    pthread_mutex_unlock(&args->signal->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&args->signal->mutex));
 #elif defined(NETOS)
     (void)tx_mutex_get(&args->signal->mutex, TX_WAIT_FOREVER);
 
@@ -464,7 +465,7 @@ void wait_tcp_ready(func_args* args)
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_create(thread, 0, fun, args);
+    PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
     return;
 #elif defined(WOLFSSL_TIRTOS)
     /* Initialize the defaults and set the parameters. */
@@ -533,7 +534,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 void join_thread(THREAD_TYPE thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_join(thread, 0);
+    PTHREAD_CHECK_RET(pthread_join(thread, 0));
 #elif defined(WOLFSSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {

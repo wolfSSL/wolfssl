@@ -68,3 +68,16 @@ Additionally one may enable:
  * WOLFSSL_KEY_GEN
 
 These settings are defined in IDE/WIN/user_settings.h.
+
+# Notes on enabling DTLS including DTLS version 1.3
+
+The file IDE/WIN/user_settings_dtls.h contains the needed build options for 
+enabling DTLS and DTLS version 1.3.
+
+To incorporate the build options:
+
+ * Rename IDE/WIN/user_settings.h to IDE/WIN/user_settings.h.bak
+ * Rename IDE/WIN/user_settings_dtls.h to IDE/WIN/user_settings.h
+ 
+Alternatively, copy the DTLS labeled section from IDE/WIN/user_settings_dtls.h
+in to IDE/WIN/user_settings.h.

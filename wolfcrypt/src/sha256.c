@@ -641,7 +641,6 @@ static int InitSha256(wc_Sha256* sha256)
         int ret = 0;
         ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA256);
-        (void)wc_InitSha256(sha256);
         return ret;
     }
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
@@ -649,7 +648,6 @@ static int InitSha256(wc_Sha256* sha256)
         int ret = 0;
         ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA256);
-        (void)wc_InitSha256(sha256);
         return ret;
     }
 
@@ -1726,6 +1724,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
         XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha256->msg = NULL;
     }
+#endif
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    se050_hash_free(&sha256->se050Ctx);
 #endif
 #if defined(WOLFSSL_KCAPI_HASH)
     KcapiHashFree(&sha256->kcapi);

@@ -1,6 +1,6 @@
 /* sha512.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -232,7 +232,6 @@
     #endif
         ret = se050_hash_final(&sha512->se050Ctx, hash, WC_SHA512_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA512);
-        (void)wc_InitSha512_ex(sha512, sha512->heap, devId);
         return ret;
     }
     int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
@@ -247,12 +246,11 @@
     #endif
         ret = se050_hash_final(&sha512->se050Ctx, hash, WC_SHA512_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA512);
-        (void)wc_InitSha512_ex(sha512, sha512->heap, devId);
         return ret;
     }
     void wc_Sha512Free(wc_Sha512* sha512)
     {
-        (void)sha512;
+        se050_hash_free(&sha512->se050Ctx);
     }
 
 #else
@@ -1264,7 +1262,6 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
         int ret = 0;
         ret = se050_hash_final(&sha384->se050Ctx, hash, WC_SHA384_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA384);
-        (void)wc_InitSha384(sha384);
         return ret;
     }
     int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
@@ -1272,7 +1269,6 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
         int ret = 0;
         ret = se050_hash_final(&sha384->se050Ctx, hash, WC_SHA384_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA384);
-        (void)wc_InitSha384(sha384);
         return ret;
     }
 
@@ -1480,6 +1476,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
         XFREE(sha384->msg, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha384->msg = NULL;
     }
+#endif
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    se050_hash_free(&sha384->se050Ctx);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)

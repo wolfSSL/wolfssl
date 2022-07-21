@@ -1,6 +1,6 @@
 /* suites.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -494,7 +494,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         if (cliArgs.argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to client\n");
         else {
-            snprintf(portNumber, sizeof(portNumber), "%d", (int)ready.port);
+            (void)snprintf(portNumber, sizeof(portNumber), "%d",
+                           (int)ready.port);
             cli_argv[cliArgs.argc++] = portFlag;
             cli_argv[cliArgs.argc++] = portNumber;
         }
@@ -633,15 +634,20 @@ static void test_harness(void* vargs)
         args->return_code = 1;
         return;
     }
-    fseek(file, 0, SEEK_END);
+    if (fseek(file, 0, SEEK_END) < 0) {
+        fprintf(stderr, "error %d fseeking %s\n", errno, fname);
+        fclose(file);
+        args->return_code = 1;
+        return;
+    }
     sz = ftell(file);
-    rewind(file);
     if (sz <= 0) {
         fprintf(stderr, "%s is empty\n", fname);
         fclose(file);
         args->return_code = 1;
         return;
     }
+    rewind(file);
 
     script = (char*)malloc(sz+1);
     if (script == 0) {
@@ -1023,6 +1029,17 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+
+    /* Add dtls downgrade test */
+    XSTRLCPY(argv0[1], "tests/test-dtls-downgrade.conf", sizeof(argv0[1]));
+    printf("starting dtls downgrade tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     XSTRLCPY(argv0[1], "tests/test-dtls-sha2.conf", sizeof(argv0[1]));

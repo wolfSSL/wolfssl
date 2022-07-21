@@ -1,6 +1,6 @@
 /* memory.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1283,12 +1283,12 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
         p32[0] = (word32)n;
         newp = (void*)(p32 + 4);
 
-        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", newp, (word32)n,
-                                                        type, func, file, line);
         if (p != NULL) {
             fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%u\n", p, oldLen,
                                                         type, func, file, line);
         }
+        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", newp, (word32)n,
+                                                        type, func, file, line);
     }
 
     (void)heap;

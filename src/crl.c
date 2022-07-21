@@ -1,6 +1,6 @@
 /* crl.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -174,13 +174,20 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 #ifdef HAVE_CRL_MONITOR
     if (crl->tid != 0) {
         WOLFSSL_MSG("stopping monitor thread");
-        if (StopMonitor(crl->mfd) == 0)
-            pthread_join(crl->tid, NULL);
+        if (StopMonitor(crl->mfd) == 0) {
+            int _pthread_ret = pthread_join(crl->tid, NULL);
+            if (_pthread_ret != 0)
+                WOLFSSL_MSG("stop monitor failed in pthread_join");
+        }
         else {
             WOLFSSL_MSG("stop monitor failed");
         }
     }
-    pthread_cond_destroy(&crl->cond);
+    {
+        int _pthread_ret = pthread_cond_destroy(&crl->cond);
+        if (_pthread_ret != 0)
+            WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL()");
+    }
 #endif
     wc_FreeMutex(&crl->crlLock);
     if (dynamic)   /* free self */
@@ -1116,8 +1123,10 @@ static void* DoMonitor(void* arg)
             XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
 
-        if (wd > 0)
-            inotify_rm_watch(notifyFd, wd);
+        if (wd > 0) {
+            if (inotify_rm_watch(notifyFd, wd) < 0)
+                WOLFSSL_MSG("inotify_rm_watch #1 failed in DoMonitor");
+        }
         (void)close(crl->mfd);
         (void)close(notifyFd);
         return NULL;
@@ -1171,8 +1180,10 @@ static void* DoMonitor(void* arg)
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    if (wd > 0)
-        inotify_rm_watch(notifyFd, wd);
+    if (wd > 0) {
+        if (inotify_rm_watch(notifyFd, wd) < 0)
+            WOLFSSL_MSG("inotify_rm_watch #2 failed in DoMonitor");
+    }
     (void)close(crl->mfd);
     (void)close(notifyFd);
 

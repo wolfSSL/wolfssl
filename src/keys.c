@@ -1,6 +1,6 @@
 /* keys.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -3510,7 +3510,7 @@ int MakeMasterSecret(WOLFSSL* ssl)
 #ifndef NO_OLD_TLS
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
     return MakeSslMasterSecret(ssl);
-#elif !defined(WOLFSSL_NO_TLS12)
+#elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)
     return MakeTlsMasterSecret(ssl);
 #else
     (void)ssl;

@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,15 +35,17 @@
 #ifndef WOLFSSL_PASSTHRU_ERR
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
-    printf("\n    expected: "); printf description;                            \
-    printf("\n    result:   "); printf result; printf("\n\n");                 \
+    fputs("\n    expected: ", stdout); printf description;                     \
+    fputs("\n    result:   ", stdout); printf result; fputs("\n\n", stdout);   \
+    fflush(stdout);                                                            \
     XABORT();                                                                  \
 } while(0)
 #else
-#define Fail(description, result) do {                               \
-    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__); \
-    printf("\n    expected: ");printf description;                   \
-    printf("\n    result:   "); printf result; printf("\n\n");       \
+#define Fail(description, result) do {                                         \
+    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
+    fputs("\n    expected: ", stdout); printf description;                     \
+    fputs("\n    result:   ", stdout); printf result; fputs("\n\n", stdout);   \
+    fflush(stdout);                                                            \
 } while (0)
 #endif
 
@@ -90,9 +92,17 @@
 #define AssertStrLE(x, y) AssertStr(x, y, <=,  >)
 
 #define AssertPtr(x, y, op, er) do {                                           \
+    PRAGMA_GCC_DIAG_PUSH;                                                      \
+      /* remarkably, without this inhibition, */                               \
+      /* the _Pragma()s make the declarations warn. */                         \
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wdeclaration-after-statement\"");    \
+      /* inhibit "ISO C forbids conversion of function pointer */              \
+      /* to object pointer type [-Werror=pedantic]" */                         \
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wpedantic\"");                       \
     void* _x = (void*)(x);                                                     \
     void* _y = (void*)(y);                                                     \
     Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%p " #er " %p", _x, _y));    \
+    PRAGMA_GCC_DIAG_POP;                                                       \
 } while(0)
 
 #define AssertPtrEq(x, y) AssertPtr(x, y, ==, !=)

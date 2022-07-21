@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -54,12 +54,13 @@ int unit_test(int argc, char** argv)
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (argc > 1) {
         int memFailCount = atoi(argv[1]);
-        printf("\n--- SET RNG MALLOC FAIL AT %d---\n", memFailCount);
+        fprintf(stderr, "\n--- SET RNG MALLOC FAIL AT %d---\n", memFailCount);
         wolfSSL_SetMemFailCount(memFailCount);
     }
 #endif
 
     printf("starting unit tests...\n");
+    fflush(stdout);
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
@@ -160,13 +161,13 @@ int unit_test(int argc, char** argv)
         ApiTest();
 
         if ( (ret = HashTest()) != 0){
-            printf("hash test failed with %d\n", ret);
+            fprintf(stderr, "hash test failed with %d\n", ret);
             goto exit;
         }
 
 #ifdef WOLFSSL_W64_WRAPPER
         if ((ret = w64wrapper_test()) != 0) {
-            printf("w64wrapper test failed with %d\n", ret);
+            fprintf(stderr, "w64wrapper test failed with %d\n", ret);
             goto exit;
         }
 #endif /* WOLFSSL_W64_WRAPPER */
@@ -177,7 +178,7 @@ int unit_test(int argc, char** argv)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest(argc, argv)) != 0){
-        printf("suite test failed with %d\n", ret);
+        fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;
     }
 #endif
@@ -192,6 +193,11 @@ exit:
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
+    if (ret == 0) {
+        puts("\nunit_test: Success for all configured tests.");
+        fflush(stdout);
+    }
+
     return ret;
 }
 
@@ -202,13 +208,14 @@ void wait_tcp_ready(func_args* args)
 #ifdef SINGLE_THREADED
     (void)args;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_lock(&args->signal->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&args->signal->mutex));
 
     if (!args->signal->ready)
-        pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+        PTHREAD_CHECK_RET(pthread_cond_wait(&args->signal->cond,
+                                            &args->signal->mutex));
     args->signal->ready = 0; /* reset */
 
-    pthread_mutex_unlock(&args->signal->mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&args->signal->mutex));
 #else
     (void)args;
 #endif
@@ -222,7 +229,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     (void)args;
     (void)thread;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_create(thread, 0, fun, args);
+    PTHREAD_CHECK_RET(pthread_create(thread, 0, fun, args));
     return;
 #elif defined (WOLFSSL_TIRTOS)
     /* Initialize the defaults and set the parameters. */
@@ -232,7 +239,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
     taskParams.stackSize = 65535;
     *thread = Task_create((Task_FuncPtr)fun, &taskParams, NULL);
     if (*thread == NULL) {
-        printf("Failed to create new Task\n");
+        fprintf(stderr, "Failed to create new Task\n");
     }
     Task_yield();
 #else
@@ -246,7 +253,7 @@ void join_thread(THREAD_TYPE thread)
 #ifdef SINGLE_THREADED
     (void)thread;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_join(thread, 0);
+    PTHREAD_CHECK_RET(pthread_join(thread, 0));
 #elif defined (WOLFSSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {

@@ -370,9 +370,16 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
     if (cbInfo == NULL || ssl == NULL) {
         return INVALID_DEVID;
     }
-
-    cbInfo->devId = gdevId++;
-
+    /* need exclusive control because of static variable */
+    if ((tsip_hw_lock()) == 0) {
+        cbInfo->devId = gdevId++;
+        tsip_hw_unlock();
+    }
+    else {
+        WOLFSSL_MSG("Failed to lock tsip hw");
+        return INVALID_DEVID;
+    }
+    
     if (wc_CryptoCb_RegisterDevice(cbInfo->devId, 
                             Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
         /* undo devId number */
@@ -584,18 +591,17 @@ WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
 
     WOLFSSL_ENTER("Renesas_cmn_TlsFinished");
 
-
+    if (Renesas_cmn_usable(ssl, 1)) {
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-    ret = wc_tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
+        ret = wc_tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
                             side, handshake_hash, hashes);
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    if (Renesas_cmn_usable(ssl, 1)) {
          ret = wc_sce_generateVerifyData(ssl->arrays->sce_masterSecret,
                    side, handshake_hash, hashes);
+ #endif
     }
      else
          ret = PROTOCOLCB_UNAVAILABLE;
- #endif
 
     return ret;
 }
@@ -659,14 +665,17 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
     (void)ctx;
  
     WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
+    if (Renesas_cmn_usable(ssl, 0)) {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, cbInfo->devId);
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    if (Renesas_cmn_usable(ssl, 0)) {
-         ret = wc_sce_generateSessionKey(ssl, ctx, cbInfo->devId);
-    } else
-         ret = PROTOCOLCB_UNAVAILABLE;
+        ret = wc_sce_generateSessionKey(ssl, ctx, devId);
 #endif
+    } 
+    else {
+         ret = PROTOCOLCB_UNAVAILABLE;
+    }
+    
     if (ret == 0) {
         wolfSSL_CTX_SetEncryptKeysCb(ssl->ctx, Renesas_cmn_EncryptKeys);
         wolfSSL_SetEncryptKeysCtx(ssl, ctx);

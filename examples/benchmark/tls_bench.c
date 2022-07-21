@@ -1,6 +1,6 @@
 /* tls_bench.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -393,7 +393,7 @@ int DoneHandShake = 0;
 static double gettime_secs(int reset)
 {
     struct timeval tv;
-    gettimeofday(&tv, 0);
+    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
     (void)reset;
 
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
@@ -404,12 +404,12 @@ static double gettime_secs(int reset)
 /* server send callback */
 static int ServerMemSend(info_t* info, char* buf, int sz)
 {
-    pthread_mutex_lock(&info->to_client.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_client.mutex));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
-        pthread_mutex_unlock(&info->to_client.mutex);
+        PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
         fprintf(stderr, "ServerMemSend overflow\n");
         return -1;
     }
@@ -423,8 +423,8 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
 
-    pthread_cond_signal(&info->to_client.cond);
-    pthread_mutex_unlock(&info->to_client.mutex);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_client.cond));
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -437,12 +437,13 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
 /* server recv callback */
 static int ServerMemRecv(info_t* info, char* buf, int sz)
 {
-    pthread_mutex_lock(&info->to_server.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_server.mutex));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz &&
             !info->to_client.done) {
-        pthread_cond_wait(&info->to_server.cond, &info->to_server.mutex);
+        PTHREAD_CHECK_RET(pthread_cond_wait(&info->to_server.cond,
+                                            &info->to_server.mutex));
     }
 #else
     if (info->to_server.write_idx - info->to_server.read_idx < sz) {
@@ -460,7 +461,7 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
         info->to_server.write_bytes = info->to_server.write_idx = 0;
     }
 
-    pthread_mutex_unlock(&info->to_server.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
 
     if (info->to_client.done != 0) {
         return -1;
@@ -477,14 +478,14 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
 /* client send callback */
 static int ClientMemSend(info_t* info, char* buf, int sz)
 {
-    pthread_mutex_lock(&info->to_server.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_server.mutex));
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_server.write_idx + sz > MEM_BUFFER_SZ) {
         fprintf(stderr, "ClientMemSend overflow %d %d %d\n",
             info->to_server.write_idx, sz, MEM_BUFFER_SZ);
-        pthread_mutex_unlock(&info->to_server.mutex);
+        PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
         return -1;
     }
 #else
@@ -497,8 +498,8 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
 
-    pthread_cond_signal(&info->to_server.cond);
-    pthread_mutex_unlock(&info->to_server.mutex);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_server.cond));
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_server.mutex));
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0) {
@@ -511,12 +512,13 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
 /* client recv callback */
 static int ClientMemRecv(info_t* info, char* buf, int sz)
 {
-    pthread_mutex_lock(&info->to_client.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_lock(&info->to_client.mutex));
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz &&
             !info->to_server.done) {
-        pthread_cond_wait(&info->to_client.cond, &info->to_client.mutex);
+        PTHREAD_CHECK_RET(pthread_cond_wait(&info->to_client.cond,
+                                            &info->to_client.mutex));
     }
 #else
     if (info->to_client.write_idx - info->to_client.read_idx < sz) {
@@ -534,7 +536,7 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
         info->to_client.write_bytes = info->to_client.write_idx = 0;
     }
 
-    pthread_mutex_unlock(&info->to_client.mutex);
+    PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->to_client.mutex));
 
     if (info->to_server.done != 0) {
         return -1;
@@ -1056,13 +1058,14 @@ static int bench_tls_client(info_t* info)
 #if defined(HAVE_PTHREAD) && defined(WOLFSSL_DTLS)
         /* synchronize with server */
         if (info->doDTLS && !info->clientOrserverOnly) {
-            pthread_mutex_lock(&info->dtls_mutex);
+            PTHREAD_CHECK_RET(pthread_mutex_lock(&info->dtls_mutex));
             if (info->serverReady != 1) {
-                pthread_cond_wait(&info->dtls_cond, &info->dtls_mutex);
+                PTHREAD_CHECK_RET(pthread_cond_wait(&info->dtls_cond,
+                                                    &info->dtls_mutex));
             }
             /* for next loop */
             info->serverReady = 0;
-            pthread_mutex_unlock(&info->dtls_mutex);
+            PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->dtls_mutex));
         }
 #endif
         /* perform connect */
@@ -1204,7 +1207,7 @@ static void* client_thread(void* args)
 
     ret = bench_tls_client(info);
 
-    pthread_cond_signal(&info->to_server.cond);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_server.cond));
     info->to_client.done = 1;
     info->client.ret = ret;
 
@@ -1294,10 +1297,10 @@ static int SocketWaitClient(info_t* info)
     if (info->doDTLS) {
 #ifdef HAVE_PTHREAD
         if (!info->clientOrserverOnly) {
-            pthread_mutex_lock(&info->dtls_mutex);
+            PTHREAD_CHECK_RET(pthread_mutex_lock(&info->dtls_mutex));
             info->serverReady = 1;
-            pthread_cond_signal(&info->dtls_cond);
-            pthread_mutex_unlock(&info->dtls_mutex);
+            PTHREAD_CHECK_RET(pthread_cond_signal(&info->dtls_cond));
+            PTHREAD_CHECK_RET(pthread_mutex_unlock(&info->dtls_mutex));
         }
 #endif
         connd = (int)recvfrom(info->listenFd, (char *)msg, sizeof(msg),
@@ -1664,7 +1667,7 @@ static void* server_thread(void* args)
         }
     }
 
-    pthread_cond_signal(&info->to_client.cond);
+    PTHREAD_CHECK_RET(pthread_cond_signal(&info->to_client.cond));
     info->to_server.done = 1;
     info->server.ret = ret;
 
@@ -2126,23 +2129,31 @@ int bench_tls(void* args)
                 else {
             #ifdef HAVE_PTHREAD
                     info->useLocalMem = argLocalMem;
-                    pthread_mutex_init(&info->to_server.mutex, NULL);
-                    pthread_mutex_init(&info->to_client.mutex, NULL);
+                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->to_server.mutex,
+                                                         NULL));
+                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->to_client.mutex,
+                                                         NULL));
             #ifdef WOLFSSL_DTLS
-                    pthread_mutex_init(&info->dtls_mutex, NULL);
-                    pthread_cond_init(&info->dtls_cond, NULL);
+                    PTHREAD_CHECK_RET(pthread_mutex_init(&info->dtls_mutex,
+                                                         NULL));
+                    PTHREAD_CHECK_RET(pthread_cond_init(&info->dtls_cond,
+                                                        NULL));
             #endif
-                    pthread_cond_init(&info->to_server.cond, NULL);
-                    pthread_cond_init(&info->to_client.cond, NULL);
+                    PTHREAD_CHECK_RET(pthread_cond_init(&info->to_server.cond,
+                                                        NULL));
+                    PTHREAD_CHECK_RET(pthread_cond_init(&info->to_client.cond,
+                                                        NULL));
 
-                    pthread_create(&info->to_server.tid, NULL, server_thread,
-                                   info);
-                    pthread_create(&info->to_client.tid, NULL, client_thread,
-                                   info);
+                    PTHREAD_CHECK_RET(
+                        pthread_create(&info->to_server.tid, NULL,
+                                       server_thread, info));
+                    PTHREAD_CHECK_RET(
+                        pthread_create(&info->to_client.tid, NULL,
+                                       client_thread, info));
 
                     /* State that we won't be joining this thread */
-                    pthread_detach(info->to_server.tid);
-                    pthread_detach(info->to_client.tid);
+                    PTHREAD_CHECK_RET(pthread_detach(info->to_server.tid));
+                    PTHREAD_CHECK_RET(pthread_detach(info->to_client.tid));
             #endif
                 }
             }

@@ -28,11 +28,11 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.2.0 LANGUAGES C ASM)
+project(wolfssl VERSION 5.4.0 LANGUAGES C ASM)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 32)
+set(LIBTOOL_CURRENT 34)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
@@ -1425,24 +1425,9 @@ endif()
 #       - wolfCrypt only
 
 # fastmath
-set(FASTMATH_DEFAULT "no")
-
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
-    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-    set(FASTMATH_DEFAULT "yes")
-endif()
-
-if(WOLFSSL_LINUXKM_DEFAULTS)
-    set(FASTMATH_DEFAULT "no")
-endif()
-
-if(WOLFSSL_SP_MATH)
-    set(FASTMATH_DEFAULT "no")
-endif()
-
 add_option("WOLFSSL_FAST_MATH"
-    "Enable fast math ops (default: enabled on x86_64/aarch64)"
-    ${FASTMATH_DEFAULT} "yes;no")
+    "Enable fast math ops (default: disabled)"
+    "no" "yes;no")
 
 if(WOLFSSL_FAST_MATH)
     # turn off fastmath if leanpsk on or asn off (w/o DH and ECC)
@@ -1467,6 +1452,11 @@ if(WOLFSSL_FAST_MATH)
 endif()
 
 # TODO: - Fast huge math
+
+# SP math all
+add_option("WOLFSSL_SP_MATH_ALL"
+    "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
+    "yes" "yes;no")
 
 # Enable examples, used to disable examples
 if(WOLFSSL_LINUX_KM)

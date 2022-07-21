@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -142,7 +142,7 @@ enum {
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #else
-#if defined(WOLFSSL_SE050)
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
 /* wc_Sha512 digest */
@@ -177,7 +177,7 @@ struct wc_Sha512 {
 #ifdef WOLFSSL_KCAPI_HASH
     wolfssl_KCAPI_Hash kcapi;
 #endif
-#if defined(WOLFSSL_SE050)
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     SE050_HASH_Context se050Ctx;
 #endif
 #if defined(WOLFSSL_HASH_KEEP)

@@ -359,7 +359,6 @@
         int ret = 0;
         ret = se050_hash_final(&sha->se050Ctx, hash, WC_SHA_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA1);
-        (void)wc_InitSha(sha);
         return ret;
     }
     int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
@@ -367,7 +366,6 @@
         int ret = 0;
         ret = se050_hash_final(&sha->se050Ctx, hash, WC_SHA_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA1);
-        (void)wc_InitSha(sha);
         return ret;
     }
 
@@ -855,7 +853,7 @@ void wc_ShaFree(wc_Sha* sha)
     wc_ShaPic32Free(sha);
 #endif
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
-   se050_hash_free(&sha->se050Ctx);
+    se050_hash_free(&sha->se050Ctx);
 #endif
 #if (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH))
