@@ -11385,7 +11385,15 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
     #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+
+            #ifndef NO_TLSX_PSKKEM_PLAIN_ANNOUNCE
+            /* Some servers do not generate session tickets unless
+             * the extension is seen in a non-resume client hello */
+            if (1) {
+                (void)usingPSK;
+            #else
             if (usingPSK) {
+            #endif
                 byte modes;
 
                 /* Pre-shared key modes: mandatory extension for resumption. */
