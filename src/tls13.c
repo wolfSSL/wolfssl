@@ -3339,6 +3339,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ClientHello");
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ssl->options.buildingMsg = 1;
     major = SSLv3_MAJOR;
     tls12minor = TLSv1_2_MINOR;
@@ -3349,10 +3353,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         tls12minor = DTLSv1_2_MINOR;
     }
 #endif /* WOLFSSL_DTLS */
-
-    if (ssl == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
 #ifdef HAVE_SESSION_TICKET
     if (ssl->options.resuming &&
