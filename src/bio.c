@@ -2231,7 +2231,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 ret = b->eof;
                 break;
             default:
-                ret = wolfSSL_BIO_get_len(b) != 0;
+                ret = wolfSSL_BIO_get_len(b) == 0;
                 break;
         }
 
