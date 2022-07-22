@@ -58,7 +58,7 @@ tool access, open "nRF Connect for Desktop", then "Toolchain Manager",
 and finally next to the SDK version you are using click the drop down arrow,
 then "Open Terminal".
 
-## Build and Test
+## Build and Run wolfCrypt Test Application
 
 build and execute `wolfssl_test`
 
@@ -68,7 +68,17 @@ west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_tes
 west build -t run
 ```
 
-### Run wolfSSL example `wolfssl_tls_sock`
+## Build and Run wolfCrypt Benchmark Application
+
+build and execute `wolfssl_benchmark`
+
+```
+cd [zephyrproject]
+west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_benchmark
+west build -t run
+```
+
+### Build and Run wolfSSL example `wolfssl_tls_sock`
 
 ```
 cd [zephyrproject]
@@ -76,7 +86,7 @@ west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_tls
 west build -t run
 ```
 
-### Run wolfSSL example `wolfssl_tls_thread`
+### Build and Run wolfSSL example `wolfssl_tls_thread`
 
 ```
 cd [zephyrproject]
