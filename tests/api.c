@@ -703,6 +703,12 @@ static void test_for_double_Free(void)
 "CHA20-POLY1305:EDH-RSA-DES-CBC3-SHA:TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-S"
 "HA384:TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-"
 "8-SHA256:TLS13-SHA256-SHA256:TLS13-SHA384-SHA384";
+    /* OpenVPN uses a "blacklist" method to specify which ciphers NOT to use */
+#ifdef OPENSSL_EXTRA
+    char openvpnCiphers[] = "DEFAULT:!EXP:!LOW:!MEDIUM:!kDH:!kECDH:!DSS:!PSK:"
+                            "!SRP:!kRSA:!aNULL:!eNULL";
+#endif
+
 #ifndef NO_RSA
         testCertFile = svrCertFile;
         testKeyFile = svrKeyFile;
@@ -767,6 +773,9 @@ static void test_for_double_Free(void)
     defined(WOLFSSL_AES_128) && !defined(NO_RSA)
         /* only update pre-TLSv13 suites */
         AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256"));
+#endif
+#ifdef OPENSSL_EXTRA
+        AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, openvpnCiphers));
 #endif
         AssertNotNull(ssl = wolfSSL_new(ctx));
         wolfSSL_CTX_free(ctx);

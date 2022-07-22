@@ -2167,8 +2167,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon,
+                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                    ssl->options.side);
     }
 
@@ -4691,8 +4691,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
-               ssl->options.haveECC, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveAnon,
+               ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+               ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                ssl->options.side);
 
     return WOLFSSL_SUCCESS;
@@ -6735,8 +6735,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* let's reset suites */
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon,
+                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                    ssl->options.side);
     }
 
@@ -11016,45 +11016,6 @@ int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 
 #ifdef OPENSSL_EXTRA
 
-
-/* removes all cipher suites from the list that contain "toRemove"
- * returns the new list size on success
- */
-static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
-{
-    int idx = 0;
-    char* next = (char*)list;
-    int totalSz = sz;
-
-    if (list == NULL) {
-        return 0;
-    }
-
-    do {
-        char*  current = next;
-        char   name[MAX_SUITE_NAME + 1];
-        word32 length;
-
-        next   = XSTRSTR(next, ":");
-        length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /* last */
-                                         : (word32)(next - current));
-
-        XSTRNCPY(name, current, length);
-        name[(length == sizeof(name)) ? length - 1 : length] = 0;
-
-        if (XSTRSTR(name, toRemove)) {
-            XMEMMOVE(list + idx, list + idx + length, totalSz - (idx + length));
-            totalSz -= length;
-            list[totalSz] = '\0';
-            next = current;
-        }
-        else {
-            idx += length;
-        }
-    } while (next++); /* ++ needed to skip ':' */
-
-    return totalSz;
-}
 /*
  * build enabled cipher list w/ TLS13 or w/o TLS13 suites
  * @param ctx    a pointer to WOLFSSL_CTX structure
@@ -11240,11 +11201,6 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         const char* list)
 {
     int       ret          = 0;
-    const int suiteSz      = GetCipherNamesSize();
-    char*     next         = (char*)list;
-    const CipherSuiteInfo* names = GetCipherNames();
-    char*     localList    = NULL;
-    int sz = 0;
     int listattribute = 0;
     char*     buildcipherList = NULL;
     int tls13Only = 0;
@@ -11254,90 +11210,40 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         return WOLFSSL_FAILURE;
     }
 
-    /* does list contain eNULL or aNULL? */
-    if (XSTRSTR(list, "aNULL") || XSTRSTR(list, "eNULL")) {
-        do {
-            char*  current = next;
-            char   name[MAX_SUITE_NAME + 1];
-            int    i;
-            word32 length = MAX_SUITE_NAME;
-            word32 current_length;
+    listattribute = CheckcipherList(list);
 
-            next   = XSTRSTR(next, ":");
+    if (listattribute == 0) {
+       /* list has mixed(pre-TLSv13 and TLSv13) suites
+        * update cipher suites the same as before
+        */
+        return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
+        WOLFSSL_FAILURE;
+    }
+    else if (listattribute == 1) {
+       /* list has only pre-TLSv13 suites.
+        * Only update before TLSv13 suites.
+        */
+        tls13Only = 1;
+    }
+    else if (listattribute == 2) {
+       /* list has only TLSv13 suites. Only update TLv13 suites
+        * simulate set_ciphersuites() compatibility layer API
+        */
+        tls13Only = 0;
+    }
 
-            current_length = (!next) ? (word32)XSTRLEN(current)
-                                     : (word32)(next - current);
+    buildcipherList = buildEnabledCipherList(ctx, ctx->suites,
+                                            tls13Only, list);
 
-            if (current_length < length) {
-                length = current_length;
-            }
-            XMEMCPY(name, current, length);
-            name[length] = 0;
-
-            /* check for "not" case */
-            if (name[0] == '!' && suiteSz > 0) {
-                /* populate list with all suites if not already created */
-                if (localList == NULL) {
-                    for (i = 0; i < suiteSz; i++) {
-                        sz += (int)XSTRLEN(names[i].name) + 2;
-                    }
-                    localList = (char*)XMALLOC(sz, ctx->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                    if (localList == NULL) {
-                        return WOLFSSL_FAILURE;
-                    }
-                    wolfSSL_get_ciphers(localList, sz);
-                    sz = (int)XSTRLEN(localList);
-                }
-
-                if (XSTRSTR(name, "eNULL")) {
-                    wolfSSL_remove_ciphers(localList, sz, "-NULL");
-                }
-            }
-        }
-        while (next++); /* ++ needed to skip ':' */
-
-        ret = SetCipherList(ctx, suites, localList);
-        XFREE(localList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return (ret)? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    if (buildcipherList) {
+        ret = SetCipherList(ctx, suites, buildcipherList);
+        XFREE(buildcipherList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     else {
-
-        listattribute = CheckcipherList(list);
-
-        if (listattribute == 0) {
-           /* list has mixed(pre-TLSv13 and TLSv13) suites
-            * update cipher suites the same as before
-            */
-            return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
-            WOLFSSL_FAILURE;
-        }
-        else if (listattribute == 1) {
-           /* list has only pre-TLSv13 suites.
-            * Only update before TLSv13 suites.
-            */
-            tls13Only = 1;
-        }
-        else if (listattribute == 2) {
-           /* list has only TLSv13 suites. Only update TLv13 suites
-            * simulate set_ciphersuites() compatibility layer API
-            */
-            tls13Only = 0;
-        }
-
-        buildcipherList = buildEnabledCipherList(ctx, ctx->suites,
-                                                tls13Only, list);
-
-        if (buildcipherList) {
-            ret = SetCipherList(ctx, suites, buildcipherList);
-            XFREE(buildcipherList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-        else {
-            ret = SetCipherList(ctx, suites, list);
-        }
-
-        return ret;
+        ret = SetCipherList(ctx, suites, list);
     }
+
+    return ret;
 }
 
 #endif
@@ -14614,8 +14520,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon,
+                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                    ssl->options.side);
     }
     #ifdef OPENSSL_EXTRA
@@ -14667,8 +14573,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon,
+                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                    ssl->options.side);
     }
 
@@ -22647,8 +22553,8 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     if (ssl->suites != NULL && ssl->options.side != WOLFSSL_NEITHER_END)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveAnon,
+                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                   ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                    ssl->options.side);
 
     return ssl->options.mask;
