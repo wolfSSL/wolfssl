@@ -753,6 +753,9 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMCPY(&dup->options, &ssl->options, sizeof(Options));
     XMEMCPY(&dup->keys,    &ssl->keys,    sizeof(Keys));
     XMEMCPY(&dup->encrypt, &ssl->encrypt, sizeof(Ciphers));
+    XMEMCPY(&dup->version, &ssl->version, sizeof(ProtocolVersion));
+    XMEMCPY(&dup->chVersion, &ssl->chVersion, sizeof(ProtocolVersion));
+
     /* dup side now owns encrypt/write ciphers */
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
 
