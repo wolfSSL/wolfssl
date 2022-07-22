@@ -19,9 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/options.h>
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#define USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_256
 #include <wolfssl/certs_test.h>
 #include <wolfssl/test.h>
 
@@ -31,7 +34,7 @@
 
 #define BUFFER_SIZE           2048
 #define STATIC_MEM_SIZE       (96*1024)
-#define THREAD_STACK_SIZE     (12*1024)
+#define THREAD_STACK_SIZE     (13*1024)
 
 /* The stack to use in the server's thread. */
 K_THREAD_STACK_DEFINE(server_stack, THREAD_STACK_SIZE);
@@ -434,6 +437,12 @@ int main()
     WOLFSSL_CTX* client_ctx = NULL;
     WOLFSSL*     client_ssl = NULL;
     THREAD_TYPE serverThread;
+
+    /* set dummy wallclock time for cert validation without NTP/etc */
+    struct timespec utctime;
+    utctime.tv_sec = 1658510212; /* Friday, July 22, 2022 5:16:52 PM GMT */
+    utctime.tv_nsec = 0;
+    clock_settime(CLOCK_REALTIME, &utctime);
 
     wolfSSL_Init();
 #ifdef DEBUG_WOLFSSL
