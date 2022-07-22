@@ -15672,8 +15672,8 @@ int sp_radix_size(sp_int* a, int radix, int* size)
  * Prime number generation and checking.
  ***************************************/
 
-#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
-    !defined(WC_NO_RNG)
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || \
+    !defined(NO_DSA)) && !defined(WC_NO_RNG)
 /* Generate a random prime for RSA only.
  *
  * @param  [out]  r     SP integer to hold result.
