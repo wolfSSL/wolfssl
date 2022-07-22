@@ -2460,8 +2460,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_TLS_EXTENSIONS
+#if !defined(NO_TLS)
     TLSX_FreeAll(ctx->extensions, ctx->heap);
-
+#endif /* !NO_TLS */
 #ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -7388,8 +7389,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
+#if !defined(NO_TLS)
     TLSX_FreeAll(ssl->extensions, ssl->heap);
-
+#endif /* !NO_TLS */
 #ifdef HAVE_ALPN
     if (ssl->alpn_client_list != NULL) {
         XFREE(ssl->alpn_client_list, ssl->heap, DYNAMIC_TYPE_ALPN);
@@ -7701,7 +7703,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if defined(HAVE_TLS_EXTENSIONS) && !defined(HAVE_SNI) && \
-                    !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+!defined(NO_TLS) && !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     /* Some extensions need to be kept for post-handshake querying. */
     TLSX_FreeAll(ssl->extensions, ssl->heap);
     ssl->extensions = NULL;
@@ -12745,9 +12747,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     listSz -= extSz + OPAQUE16_LEN;
                     WOLFSSL_MSG_EX("\tParsing %d bytes of cert extensions",
                             args->exts[args->totalCerts].length);
+                    #if !defined(NO_TLS)
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
                         (word16)args->exts[args->totalCerts].length,
                         certificate, NULL);
+                    #endif /* !NO_TLS */
                     if (ret < 0) {
                         ERROR_OUT(ret, exit_ppc);
                     }
@@ -19577,7 +19581,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     (void)epochOrder;
 
 #ifndef NO_TLS
-#ifdef WOLFSSL_NO_TLS12
+#if defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
     return BuildTls13Message(ssl, output, outSz, input, inSz, type,
                                                hashOutput, sizeOnly, asyncOkay);
 #else

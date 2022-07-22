@@ -10218,11 +10218,14 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
         }
     }
 #endif
-
+#if defined(NO_TLS)
+    (void)ret;
+    (void)group;
+#else
     ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
     if (ret != 0)
         return ret;
-
+#endif /* NO_TLS */
     return WOLFSSL_SUCCESS;
 }
 
@@ -10239,11 +10242,13 @@ int wolfSSL_NoKeyShares(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return SIDE_ERROR;
-
+#if defined(NO_TLS)
+    (void)ret;
+#else
     ret = TLSX_KeyShare_Empty(ssl);
     if (ret != 0)
         return ret;
-
+#endif /* NO_TLS */
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -10509,13 +10514,17 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
         return BAD_FUNC_ARG;
 
     ctx->numGroups = 0;
+    #if !defined(NO_TLS)
     TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+    #endif /* !NO_TLS */
     for (i = 0; i < count; i++) {
         /* Call to wolfSSL_CTX_UseSupportedCurve also checks if input groups
          * are valid */
         if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, (word16)groups[i]))
                 != WOLFSSL_SUCCESS) {
+    #if !defined(NO_TLS)
             TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+    #endif /* !NO_TLS */
             return ret;
         }
         ctx->group[i] = (word16)groups[i];
@@ -10544,13 +10553,17 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
         return BAD_FUNC_ARG;
 
     ssl->numGroups = 0;
+    #if !defined(NO_TLS)
     TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+    #endif /* !NO_TLS */
     for (i = 0; i < count; i++) {
         /* Call to wolfSSL_UseSupportedCurve also checks if input groups
                  * are valid */
         if ((ret = wolfSSL_UseSupportedCurve(ssl, (word16)groups[i]))
                 != WOLFSSL_SUCCESS) {
+    #if !defined(NO_TLS)
             TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+    #endif /* !NO_TLS */
             return ret;
         }
         ssl->group[i] = (word16)groups[i];

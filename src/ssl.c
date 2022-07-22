@@ -2864,8 +2864,11 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         return BAD_FUNC_ARG;
 
     ssl->options.userCurves = 1;
-
+#if defined(NO_TLS)
+    return WOLFSSL_FAILURE;
+#else
     return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
+#endif /* NO_TLS */
 }
 
 
@@ -2875,8 +2878,11 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         return BAD_FUNC_ARG;
 
     ctx->userCurves = 1;
-
+#if defined(NO_TLS)
+    return WOLFSSL_FAILURE;
+#else
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
+#endif /* NO_TLS */
 }
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13)
@@ -3076,7 +3082,9 @@ int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list)
 int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
 {
     int ret = BAD_FUNC_ARG;
-
+#if defined(NO_TLS)
+    (void)ssl;
+#else
     if (ssl)
         ret = TLSX_UseSecureRenegotiation(&ssl->extensions, ssl->heap);
 
@@ -3086,7 +3094,7 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
         if (extension)
             ssl->secure_renegotiation = (SecureRenegotiation*)extension->data;
     }
-
+#endif /* !NO_TLS */
     return ret;
 }
 
@@ -4666,12 +4674,12 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             ssl->version = MakeTLSv1_2();
             break;
     #endif
-#endif
-#ifdef WOLFSSL_TLS13
+
+    #ifdef WOLFSSL_TLS13
         case WOLFSSL_TLSV1_3:
             ssl->version = MakeTLSv1_3();
             break;
-
+    #endif /* WOLFSSL_TLS13 */
 #endif
 
         default:
