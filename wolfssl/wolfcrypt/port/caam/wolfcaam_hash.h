@@ -26,19 +26,24 @@
 
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifndef NO_SHA
 WOLFSSL_LOCAL int wc_CAAM_ShaHash(wc_Sha* sha, const byte* in, word32 inSz,
     byte* digest);
+#endif
 #ifdef WOLFSSL_SHA224
 WOLFSSL_LOCAL int wc_CAAM_Sha224Hash(wc_Sha224* sha224, const byte* in,
     word32 inSz, byte* digest);
 #endif
 WOLFSSL_LOCAL int wc_CAAM_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest);
+#if defined(WOLFSSL_SHA384)
 WOLFSSL_LOCAL int wc_CAAM_Sha384Hash(wc_Sha384* sha384, const byte* in,
     word32 inSz, byte* digest);
+#endif
+#if defined(WOLFSSL_SHA512)
 WOLFSSL_LOCAL int wc_CAAM_Sha512Hash(wc_Sha512* sha512, const byte* in,
     word32 inSz, byte* digest);
-
+#endif
 
 #if !defined(NO_HMAC)
 #ifndef WC_HMAC_TYPE_DEFINED
