@@ -48069,6 +48069,7 @@ static int test_MakeCertWithPathLen(void)
     cert.selfSigned = 1;
     cert.isCA       = 1;
     cert.pathLen    = expectedPathLen;
+    cert.pathLenSet = 1;
     cert.sigType    = CTC_SHA256wECDSA;
 
 #ifdef WOLFSSL_CERT_EXT
