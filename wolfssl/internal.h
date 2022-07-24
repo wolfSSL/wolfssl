@@ -1166,11 +1166,12 @@ enum {
     #error RSA maximum bit size must be multiple of 8
 #endif
 
+
 /* MySQL wants to be able to use 8192-bit numbers. */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
         (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && \
          FP_MAX_BITS >= 16384) || \
-        ((defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH)) && \
+        ((defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
          SP_INT_MAX_BITS >= 16384)
      /* Maximum supported number length is 8192-bit. */
      #define ENCRYPT_BASE_BITS  8192
@@ -1181,7 +1182,7 @@ enum {
      #else
          #define ENCRYPT_BASE_BITS  1024
      #endif
-#elif defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH)
+#elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
     /* Use the SP math size down to a min of 1024-bit. */
     #if SP_INT_MAX_BITS > 2048
         #define ENCRYPT_BASE_BITS  (SP_INT_MAX_BITS / 2)
