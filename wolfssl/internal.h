@@ -1957,8 +1957,9 @@ WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
                               word16 haveECDSAsig, word16 haveECC,
-                              word16 haveStaticECC,  word16 haveFalconSig,
-                              word16 haveAnon, int side);
+                              word16 haveStaticRSA, word16 haveStaticECC,
+                              word16 haveFalconSig, word16 haveAnon,
+                              word16 haveNull, int side);
 
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX* ctx, Suites* suites,

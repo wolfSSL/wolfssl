@@ -10608,8 +10608,8 @@ void wolfSSL_set_psk_client_cs_callback(WOLFSSL* ssl,
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
-               ssl->options.haveECC, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveAnon,
+               ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+               ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                ssl->options.side);
 }
 
@@ -10659,8 +10659,8 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
-               ssl->options.haveECC, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveAnon,
+               ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+               ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                ssl->options.side);
 }
 
@@ -10707,8 +10707,8 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
-               ssl->options.haveECC, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveAnon,
+               ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+               ssl->options.haveFalconSig, ssl->options.haveAnon, TRUE,
                ssl->options.side);
 }
 
