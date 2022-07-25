@@ -4626,6 +4626,10 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
+    word32 outSzTmp;
+    byte *outTmp;
+    byte mask;
+    int zero;
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4642,6 +4646,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
     WOLFSSL_ENTER("RsaDec");
 
+    outTmp = *out;
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
     ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -4652,7 +4657,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaDecCb) {
         void* ctx = wolfSSL_GetRsaDecCtx(ssl);
-        ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz, ctx);
+        ret = ssl->ctx->RsaDecCb(ssl, in, inSz, &outTmp, keyBuf, keySz, ctx);
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
@@ -4672,11 +4677,13 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    /* For positive response return in outSz */
-    if (ret > 0) {
-        *outSz = ret;
-        ret = 0;
-    }
+    mask = ctMaskGT(ret, 0);
+    *outSz = 0;
+    zero = 0;
+    outSzTmp = (word32)ret;
+    ctMaskCopy(mask, (byte*)outSz, (byte*)&outSzTmp, (byte*)outSz, sizeof(*outSz));
+    ctMaskCopy(mask, (byte*)&ret, (byte*)&zero, (byte*)&ret, sizeof(ret));
+    ctMaskCopy(mask, (byte*)out, (byte*)&outTmp, (byte*)out, sizeof(*out));
 
     WOLFSSL_LEAVE("RsaDec", ret);
 
