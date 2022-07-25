@@ -4563,7 +4563,7 @@ void sp_clear(sp_int* a)
     }
 }
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(NO_DH) || defined(HAVE_ECC)
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || !defined(NO_DSA)
 /* Ensure the data in the multi-precision number is zeroed.
  *
  * Use when security sensitive data needs to be wiped.
