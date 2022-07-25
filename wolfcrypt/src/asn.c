@@ -24451,7 +24451,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* Set Basic Constraints to be a Certificate Authority. */
             SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_BC_CA], 1);
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_BC_OID], bcOID, sizeof(bcOID));
-            if (cert->pathLen
+            if (cert->pathLenSet
             #ifdef WOLFSSL_CERT_EXT
                 && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
             #endif
@@ -25057,7 +25057,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
      * asserted and the key usage extension, if present, asserts the
      * keyCertSign bit */
     /* Set CA and path length */
-    if ((cert->isCA) && (cert->pathLen)
+    if ((cert->isCA) && (cert->pathLenSet)
 #ifdef WOLFSSL_CERT_EXT
         && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
 #endif
@@ -26244,7 +26244,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
      * asserted and the key usage extension, if present, asserts the
      * keyCertSign bit */
     /* Set CA and path length */
-    if ((cert->isCA) && (cert->pathLen)
+    if ((cert->isCA) && (cert->pathLenSet)
 #ifdef WOLFSSL_CERT_EXT
         && ((cert->keyUsage & KEYUSE_KEY_CERT_SIGN) || (!cert->keyUsage))
 #endif

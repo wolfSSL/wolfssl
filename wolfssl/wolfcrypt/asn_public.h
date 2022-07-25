@@ -449,6 +449,7 @@ typedef struct Cert {
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
     byte    basicConstSet:1;  /* Indicator for when Basic Constaint is set */
+    byte    pathLenSet:1;     /* Indicator for when path length is set */
 } Cert;
 
 
