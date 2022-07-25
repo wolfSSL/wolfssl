@@ -34730,6 +34730,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
+                        byte *tmpRsa;
                         byte mask;
                         int i;
 
@@ -34762,6 +34763,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
+                        tmpRsa = input + args->idx - VERSION_SZ - SECRET_LEN;
+                        ctMaskCopy(mask, (byte*)&args->output,
+                            (byte*)&args->output, (byte*)&tmpRsa, sizeof(args->output));
                         if (args->output != NULL) {
                             /* Use random secret on error */
                             for (i = VERSION_SZ; i < SECRET_LEN; i++) {
