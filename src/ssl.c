@@ -5113,7 +5113,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     /* check CA key size */
     if (verify) {
         switch (cert->keyOID) {
-            #ifndef NO_RSA
+        #ifndef NO_RSA
+            #ifdef WC_RSA_PSS
+            case RSAPSSk:
+            #endif
             case RSAk:
                 if (cm->minRsaKeySz < 0 ||
                                    cert->pubKeySize < (word16)cm->minRsaKeySz) {
@@ -5121,7 +5124,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                     WOLFSSL_MSG("\tCA RSA key size error");
                 }
                 break;
-            #endif /* !NO_RSA */
+        #endif /* !NO_RSA */
             #ifdef HAVE_ECC
             case ECDSAk:
                 if (cm->minEccKeySz < 0 ||
@@ -6519,6 +6522,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             else if (cert->keyOID == RSAk) {
                 ssl->options.haveRSA = 1;
             }
+            #ifdef WC_RSA_PSS
+            else if (cert->keyOID == RSAPSSk) {
+                ssl->options.haveRSA = 1;
+            }
+            #endif
             #endif
             #ifdef HAVE_ED25519
                 else if (cert->keyOID == ED25519k) {
@@ -6552,6 +6560,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             else if (cert->keyOID == RSAk) {
                 ctx->haveRSA = 1;
             }
+            #ifdef WC_RSA_PSS
+            else if (cert->keyOID == RSAPSSk) {
+                ctx->haveRSA = 1;
+            }
+            #endif
             #endif
             #ifdef HAVE_ED25519
                 else if (cert->keyOID == ED25519k) {
@@ -6578,6 +6591,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* check key size of cert unless specified not to */
         switch (cert->keyOID) {
         #ifndef NO_RSA
+            #ifdef WC_RSA_PSS
+            case RSAPSSk:
+            #endif
             case RSAk:
             #ifdef WOLF_PRIVATE_KEY_ID
                 keyType = rsa_sa_algo;
@@ -8405,6 +8421,11 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
         if (der->keyOID == RSAk) {
             type = DYNAMIC_TYPE_RSA;
         }
+    #ifdef WC_RSA_PSS
+        if (der->keyOID == RSAPSSk) {
+            type = DYNAMIC_TYPE_RSA;
+        }
+    #endif
     #endif
     #ifdef HAVE_ECC
         if (der->keyOID == ECDSAk) {
@@ -8417,7 +8438,11 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
         #ifdef WOLF_CRYPTO_CB
         if (ret == 0) {
             #ifndef NO_RSA
-            if (der->keyOID == RSAk) {
+            if (der->keyOID == RSAk
+            #ifdef WC_RSA_PSS
+                || der->keyOID == RSAPSSk
+            #endif
+                ) {
                 ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey,
                                                der->publicKey, der->pubKeySize);
             }
@@ -8435,7 +8460,11 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, void* heap,
         #endif
         if (pkey != NULL) {
         #ifndef NO_RSA
-            if (der->keyOID == RSAk) {
+            if (der->keyOID == RSAk
+            #ifdef WC_RSA_PSS
+                || der->keyOID == RSAPSSk
+            #endif
+                ) {
                 wc_FreeRsaKey((RsaKey*)pkey);
             }
         #endif
@@ -9195,7 +9224,11 @@ static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,
             WOLFSSL_MSG("Found PKCS8 header");
             pkcs8HeaderSz = (word16)idx;
 
-            if ((type == EVP_PKEY_RSA && algId != RSAk) ||
+            if ((type == EVP_PKEY_RSA && algId != RSAk
+            #ifdef WC_RSA_PSS
+                 && algId != RSAPSSk
+            #endif
+                 ) ||
                 (type == EVP_PKEY_EC && algId != ECDSAk) ||
                 (type == EVP_PKEY_DSA && algId != DSAk) ||
                 (type == EVP_PKEY_DH && algId != DHk)) {
@@ -29465,9 +29498,14 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 
         /* Update the available options with public keys. */
         switch (x->pubKeyOID) {
+    #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+            case RSAPSSk:
+        #endif
             case RSAk:
                 ctx->haveRSA = 1;
                 break;
+    #endif
         #ifdef HAVE_ED25519
             case ED25519k:
         #endif

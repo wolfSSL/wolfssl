@@ -167,6 +167,8 @@ enum Ctc_SigType {
     CTC_SHA3_384wRSA = 429,
     CTC_SHA3_512wRSA = 430,
 
+    CTC_RSASSAPSS    = 654,
+
     CTC_ED25519      = 256,
     CTC_ED448        = 257,
 

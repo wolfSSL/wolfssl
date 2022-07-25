@@ -2378,6 +2378,62 @@ static int test_wolfSSL_FPKI(void)
     return 0;
 }
 
+static int test_wolfSSL_CertRsaPss(void)
+{
+/* FIPS v2 and below don't support long salts. */
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && !defined(NO_FILESYSTEM) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION > 2))) && (!defined(HAVE_SELFTEST) || \
+     (defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION > 2)))
+    XFILE f;
+    const char* rsaPssSha256Cert = "./certs/rsapss/ca-rsapss.der";
+    const char* rsaPssRootSha256Cert = "./certs/rsapss/root-rsapss.pem";
+#ifdef WOLFSSL_SHA384
+    const char* rsaPssSha384Cert = "./certs/rsapss/ca-3072-rsapss.der";
+    const char* rsaPssRootSha384Cert = "./certs/rsapss/root-3072-rsapss.pem";
+#endif
+    DecodedCert cert;
+    byte buf[4096];
+    int bytes;
+    WOLFSSL_CERT_MANAGER* cm;
+
+    printf(testingFmt, "test_CertRsaPss");
+
+    cm = wolfSSL_CertManagerNew();
+    AssertNotNull(cm);
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha256Cert, NULL));
+#ifdef WOLFSSL_SHA384
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha384Cert, NULL));
+#endif
+
+    f = XFOPEN(rsaPssSha256Cert, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
+    wc_FreeDecodedCert(&cert);
+
+#ifdef WOLFSSL_SHA384
+    f = XFOPEN(rsaPssSha384Cert, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
+    wc_FreeDecodedCert(&cert);
+#endif
+
+    wolfSSL_CertManagerFree(cm);
+
+    printf(resultFmt, passed);
+#endif
+
+    return 0;
+}
+
 static int test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -18523,6 +18579,12 @@ static int test_wc_RsaPublicKeyDecode(void)
     int     bytes = 0;
     word32  keySz = 0;
     word32  tstKeySz = 0;
+#if defined(WC_RSA_PSS) && !defined(NO_FILESYSTEM)
+    XFILE f;
+    const char* rsaPssPubKey = "./certs/rsapss/ca-rsapss-key.der";
+    const char* rsaPssPubKeyNoParams = "./certs/rsapss/ca-3072-rsapss-key.der";
+    byte buf[4096];
+#endif
 
     tmp = (byte*)XMALLOC(GEN_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
@@ -18591,6 +18653,23 @@ static int test_wc_RsaPublicKeyDecode(void)
             &tstKeySz, NULL, NULL);
         ret = (ret == 0 && tstKeySz == keySz/8) ? 0 : WOLFSSL_FATAL_ERROR;
     }
+
+#if defined(WC_RSA_PSS) && !defined(NO_FILESYSTEM)
+    f = XFOPEN(rsaPssPubKey, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+    idx = 0;
+    AssertIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, bytes, NULL, NULL, NULL,
+                                         NULL), 0);
+    f = XFOPEN(rsaPssPubKeyNoParams, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+    idx = 0;
+    AssertIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, bytes, NULL, NULL, NULL,
+                                         NULL), 0);
+#endif
 
     if (tmp != NULL) {
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -57044,6 +57123,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint4),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint5),
     TEST_DECL(test_wolfSSL_FPKI),
+    TEST_DECL(test_wolfSSL_CertRsaPss),
     TEST_DECL(test_wolfSSL_CertManagerCRL),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),

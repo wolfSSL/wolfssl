@@ -2564,6 +2564,53 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
+
+#ifdef WC_RSA_PSS
+/* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
+ * 16 bits.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the INTEGER tag is not found or length is invalid.
+ *         Otherwise, the 16-bit value.
+ */
+static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
+{
+    word32 idx = *inOutIdx;
+    byte tag;
+    word16 n;
+
+    if ((idx + 2) > maxIdx)
+        return BUFFER_E;
+
+    if (GetASNTag(input, &idx, &tag, maxIdx) != 0)
+        return ASN_PARSE_E;
+    if (tag != ASN_INTEGER)
+        return ASN_PARSE_E;
+    if (input[idx] == 1) {
+        idx++;
+        if ((idx + 1) > maxIdx) {
+            return ASN_PARSE_E;
+        }
+        n = input[idx++];
+    }
+    else if (input[idx] == 2) {
+        idx++;
+        if ((idx + 2) > maxIdx) {
+            return ASN_PARSE_E;
+        }
+        n = input[idx++];
+        n = (n << 8) | input[idx++];
+    }
+    else
+        return ASN_PARSE_E;
+
+    *inOutIdx = idx;
+    return n;
+}
+#endif
 #endif /* !NO_CERTS */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
@@ -2606,6 +2653,9 @@ static const char sigSha256wDsaName[] = "SHA256wDSA";
 #ifndef WOLFSSL_NOSHA3_512
     static const char sigSha3_512wRsaName[] = "sha3_512WithRSAEncryption";
 #endif
+#endif
+#ifdef WC_RSA_PSS
+    static const char sigRsaSsaPssName[] = "rsassaPss";
 #endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
@@ -2700,6 +2750,10 @@ const char* GetSigName(int oid) {
         case CTC_SHA3_512wRSA:
             return sigSha3_512wRsaName;
         #endif
+        #endif
+        #ifdef WC_RSA_PSS
+        case CTC_RSASSAPSS:
+            return sigRsaSsaPssName;
         #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
@@ -3885,6 +3939,9 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte sigSha3_512wRsaOid[] = {96, 134, 72, 1, 101, 3, 4, 3, 16};
     #endif
     #endif
+    #ifdef WC_RSA_PSS
+    static const byte sigRsaSsaPssOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 10};
+    #endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
     #ifndef NO_SHA
@@ -3937,6 +3994,9 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #endif /* NO_DSA */
 #ifndef NO_RSA
     static const byte keyRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 1};
+#ifdef WC_RSA_PSS
+    static const byte keyRsaPssOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 10};
+#endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
     static const byte keyEcdsaOid[] = {42, 134, 72, 206, 61, 2, 1};
@@ -4131,7 +4191,8 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 /* csrAttrType */
 #define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
 #if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
 #endif
 #ifdef WOLFSSL_CERT_REQ
@@ -4183,7 +4244,11 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
     defined(WOLFSSL_ASN_TEMPLATE)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
+#endif
 
+#if defined(WOLFSSL_CERT_GEN) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 static const byte dcOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 25}; /* domain component */
 #endif
 
@@ -4377,6 +4442,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
                 #endif
                 #endif
+                #ifdef WC_RSA_PSS
+                case CTC_RSASSAPSS:
+                    oid = sigRsaSsaPssOid;
+                    *oidSz = sizeof(sigRsaSsaPssOid);
+                    break;
+                #endif
                 #endif /* NO_RSA */
                 #ifdef HAVE_ECC
                 #ifndef NO_SHA
@@ -4471,12 +4542,18 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyDsaOid);
                     break;
                 #endif /* NO_DSA */
-                #ifndef NO_RSA
+            #ifndef NO_RSA
                 case RSAk:
                     oid = keyRsaOid;
                     *oidSz = sizeof(keyRsaOid);
                     break;
-                #endif /* NO_RSA */
+                #ifdef WC_RSA_PSS
+                case RSAPSSk:
+                    oid = keyRsaPssOid;
+                    *oidSz = sizeof(keyRsaPssOid);
+                    break;
+                #endif
+            #endif /* NO_RSA */
                 #ifdef HAVE_ECC
                 case ECDSAk:
                     oid = keyEcdsaOid;
@@ -5606,8 +5683,8 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
         /* Set OID type expected. */
         GetASN_OID(&dataASN[ALGOIDASN_IDX_OID], oidType);
         /* Decode the algorithm identifier. */
-        ret = GetASN_Items(algoIdASN, dataASN, algoIdASN_Length, 0, input, inOutIdx,
-                           maxIdx);
+        ret = GetASN_Items(algoIdASN, dataASN, algoIdASN_Length, 0, input,
+            inOutIdx, maxIdx);
     }
     if (ret == 0) {
         /* Return the OID id/sum. */
@@ -5620,6 +5697,349 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 #ifndef NO_RSA
+
+#ifdef WC_RSA_PSS
+/* RFC 8017 - PKCS #1 has RSA PSS parameter ASN definition. */
+
+/* Convert a hash OID to a hash type.
+ *
+ * @param  [in]   oid   Hash OID.
+ * @param  [out]  type  Hash type.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when hash OID not supported for RSA PSS.
+ */
+static int RsaPssHashOidToType(word32 oid, enum wc_HashType* type)
+{
+    int ret = 0;
+
+    switch (oid) {
+    /* SHA-1 is missing as it is the default is not allowed to appear. */
+#ifdef WOLFSSL_SHA224
+    case SHA224h:
+        *type = WC_HASH_TYPE_SHA224;
+        break;
+#endif
+#ifndef NO_SHA256
+    case SHA256h:
+        *type = WC_HASH_TYPE_SHA256;
+        break;
+#endif
+#ifdef WOLFSSL_SHA384
+    case SHA384h:
+        *type = WC_HASH_TYPE_SHA384;
+        break;
+#endif
+#ifdef WOLFSSL_SHA512
+    case SHA512h:
+        *type = WC_HASH_TYPE_SHA512;
+        break;
+    /* TODO: SHA512_224h */
+    /* TODO: SHA512_256h */
+#endif
+    default:
+        ret = ASN_PARSE_E;
+        break;
+    }
+
+    return ret;
+}
+
+/* Convert a hash OID to a MGF1 type.
+ *
+ * @param  [in]   oid   Hash OID.
+ * @param  [out]  mgf   MGF type.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when hash OID not supported for RSA PSS.
+ */
+static int RsaPssHashOidToMgf1(word32 oid, int* mgf)
+{
+    int ret = 0;
+
+    switch (oid) {
+    /* SHA-1 is missing as it is the default is not allowed to appear. */
+#ifdef WOLFSSL_SHA224
+    case SHA224h:
+        *mgf = WC_MGF1SHA224;
+        break;
+#endif
+#ifndef NO_SHA256
+    case SHA256h:
+        *mgf = WC_MGF1SHA256;
+        break;
+#endif
+#ifdef WOLFSSL_SHA384
+    case SHA384h:
+        *mgf = WC_MGF1SHA384;
+        break;
+#endif
+#ifdef WOLFSSL_SHA512
+    case SHA512h:
+        *mgf = WC_MGF1SHA512;
+        break;
+    /* TODO: SHA512_224h */
+    /* TODO: SHA512_256h */
+#endif
+    default:
+        ret = ASN_PARSE_E;
+        break;
+    }
+
+    return ret;
+}
+
+/* Convert a hash OID to a fake signature OID.
+ *
+ * @param  [in]   oid     Hash OID.
+ * @param  [out]  sigOid  Signature OID to pass wto HashForSignature().
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when hash OID not supported for RSA PSS.
+ */
+static int RsaPssHashOidToSigOid(word32 oid, word32* sigOid)
+{
+    int ret = 0;
+
+    switch (oid) {
+#ifndef NO_SHA
+    case WC_HASH_TYPE_SHA:
+        *sigOid = CTC_SHAwRSA;
+        break;
+#endif
+#ifdef WOLFSSL_SHA224
+    case WC_HASH_TYPE_SHA224:
+        *sigOid = CTC_SHA224wRSA;
+        break;
+#endif
+#ifndef NO_SHA256
+    case WC_HASH_TYPE_SHA256:
+        *sigOid = CTC_SHA256wRSA;
+        break;
+#endif
+#ifdef WOLFSSL_SHA384
+    case WC_HASH_TYPE_SHA384:
+        *sigOid = CTC_SHA384wRSA;
+        break;
+#endif
+#ifdef WOLFSSL_SHA512
+    case WC_HASH_TYPE_SHA512:
+        *sigOid = CTC_SHA512wRSA;
+        break;
+#endif
+    /* TODO: SHA512_224h */
+    /* TODO: SHA512_256h */
+    /* Not supported by HashForSignature() */
+    default:
+        ret = ASN_PARSE_E;
+        break;
+    }
+
+    return ret;
+}
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN tag for hashAlgorigthm. */
+#define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | 0)
+/* ASN tag for maskGenAlgorithm. */
+#define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | 1)
+/* ASN tag for saltLength. */
+#define ASN_TAG_RSA_PSS_SALTLEN     (ASN_CONTEXT_SPECIFIC | 2)
+/* ASN tag for trailerField. */
+#define ASN_TAG_RSA_PSS_TRAILER     (ASN_CONTEXT_SPECIFIC | 3)
+
+/* ASN.1 template for RSA PSS parameters. */
+static const ASNItem rsaPssParamsASN[] = {
+/*  SEQ         */  { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  HASH        */      { 1, ASN_TAG_RSA_PSS_HASH, 1, 1, 1 },
+/*  HASHSEQ     */          { 2, ASN_SEQUENCE, 1, 1, 0 },
+/*  HASHOID     */              { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/*  HASHNULL    */              { 3, ASN_TAG_NULL, 0, 0, 1 },
+/*  MGF         */      { 1, ASN_TAG_RSA_PSS_MGF, 1, 1, 1 },
+/*  MGFSEQ      */          { 2, ASN_SEQUENCE, 1, 1, 0 },
+/*  MGFOID      */              { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/*  MGFPARAM    */              { 3, ASN_SEQUENCE, 1, 1, 0 },
+/*  MGFHOID     */                  { 4, ASN_OBJECT_ID, 0, 0, 0 },
+/*  MGFHNULL    */                  { 4, ASN_TAG_NULL, 0, 0, 1 },
+/*  SALTLEN     */      { 1, ASN_TAG_RSA_PSS_SALTLEN, 1, 1, 1 },
+/*  SALTLENINT  */          { 2, ASN_INTEGER, 0, 0, 0 },
+/*  TRAILER     */      { 1, ASN_TAG_RSA_PSS_TRAILER, 1, 1, 1 },
+/*  TRAILERINT  */          { 2, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    RSAPSSPARAMSASN_IDX_SEQ = 0,
+    RSAPSSPARAMSASN_IDX_HASH,
+    RSAPSSPARAMSASN_IDX_HASHSEQ,
+    RSAPSSPARAMSASN_IDX_HASHOID,
+    RSAPSSPARAMSASN_IDX_HASHNULL,
+    RSAPSSPARAMSASN_IDX_MGF,
+    RSAPSSPARAMSASN_IDX_MGFSEQ,
+    RSAPSSPARAMSASN_IDX_MGFOID,
+    RSAPSSPARAMSASN_IDX_MGFPARAM,
+    RSAPSSPARAMSASN_IDX_MGFHOID,
+    RSAPSSPARAMSASN_IDX_MGFHNULL,
+    RSAPSSPARAMSASN_IDX_SALTLEN,
+    RSAPSSPARAMSASN_IDX_SALTLENINT,
+    RSAPSSPARAMSASN_IDX_TRAILER,
+    RSAPSSPARAMSASN_IDX_TRAILERINT,
+};
+
+/* Number of items in ASN.1 template for an algorithm identifier. */
+#define rsaPssParamsASN_Length (sizeof(rsaPssParamsASN) / sizeof(ASNItem))
+#else
+/* ASN tag for hashAlgorigthm. */
+#define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)
+/* ASN tag for maskGenAlgorithm. */
+#define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)
+/* ASN tag for saltLength. */
+#define ASN_TAG_RSA_PSS_SALTLEN     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)
+/* ASN tag for trailerField. */
+#define ASN_TAG_RSA_PSS_TRAILER     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)
+#endif
+
+/* Decode the RSA PSS parameters.
+ *
+ * @param  [in]   params   Buffer holding BER encoded RSA PSS parameters.
+ * @param  [in]   sz       Size of data in buffer in bytes.
+ * @param  [out]  hash     Hash algorithm to use on message.
+ * @param  [out]  mgf      MGF algorithm to use with PSS padding.
+ * @param  [out]  saltLen  Length of salt in PSS padding.
+ * @return  ASN_PARSE_E when the decoding fails.
+ * @return  0 on success.
+ */
+static int DecodeRsaPssParams(const byte* params, word32 sz,
+    enum wc_HashType* hash, int* mgf, int* saltLen)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    int ret = 0;
+    word32 idx = 0;
+    int len = 0;
+    word32 oid;
+    byte tag;
+    int length;
+
+    if (GetSequence_ex(params, &idx, &len, sz, 1) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_HASH)) {
+            /* Hash algorithm to use on message. */
+            if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                if (GetAlgoId(params, &idx, &oid, oidHashType, sz) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+            if (ret == 0) {
+                ret = RsaPssHashOidToType(oid, hash);
+            }
+        }
+        else {
+            /* Default hash algorithm. */
+            *hash = WC_HASH_TYPE_SHA;
+        }
+    }
+    if (ret == 0) {
+        if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_MGF)) {
+            /* MGF and hash algorithm to use with padding. */
+            if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                if (GetAlgoId(params, &idx, &oid, oidIgnoreType, sz) < 0) {
+                    ret = ASN_PARSE_E;
+                }
+            }
+            if ((ret == 0) && (oid != MGF1_OID)) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                ret = GetAlgoId(params, &idx, &oid, oidHashType, sz);
+                if (ret == 0) {
+                    ret = RsaPssHashOidToMgf1(oid, mgf);
+                }
+            }
+        }
+        else {
+            /* Default MGF/Hash algorithm. */
+            *mgf = WC_MGF1SHA1;
+        }
+    }
+    if (ret == 0) {
+        if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_SALTLEN)) {
+            /* Salt length to use with padding. */
+            if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                ret = GetInteger16Bit(params, &idx, sz);
+                if (ret >= 0) {
+                    *saltLen = ret;
+                    ret = 0;
+                }
+            }
+        }
+        else {
+            /* Default salt length. */
+            *saltLen = 20;
+        }
+    }
+    if (ret == 0) {
+        if ((idx < sz) && (params[idx] == ASN_TAG_RSA_PSS_TRAILER)) {
+            /* Unused - trialerField. */
+            if (GetHeader(params, &tag, &idx, &length, sz, 0) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                ret = GetInteger16Bit(params, &idx, sz);
+                if (ret > 0) {
+                    ret = 0;
+                }
+            }
+        }
+    }
+    if ((ret == 0) && (idx != sz)) {
+        ret = ASN_PARSE_E;
+    }
+
+    return ret;
+#else
+    DECL_ASNGETDATA(dataASN, rsaPssParamsASN_Length);
+    int ret = 0;
+    word16 sLen = 20;
+
+    CALLOC_ASNGETDATA(dataASN, rsaPssParamsASN_Length, ret, NULL);
+    if (ret == 0) {
+        word32 inOutIdx = 0;
+        /* Default values. */
+        *hash = WC_HASH_TYPE_SHA;
+        *mgf = WC_MGF1SHA1;
+
+        /* Set OID type expected. */
+        GetASN_OID(&dataASN[RSAPSSPARAMSASN_IDX_HASHOID], oidHashType);
+        GetASN_OID(&dataASN[RSAPSSPARAMSASN_IDX_MGFHOID], oidHashType);
+        /* Place the salt length into 16-bit var sLen. */
+        GetASN_Int16Bit(&dataASN[RSAPSSPARAMSASN_IDX_SALTLENINT], &sLen);
+        /* Decode the algorithm identifier. */
+        ret = GetASN_Items(rsaPssParamsASN, dataASN, rsaPssParamsASN_Length, 1,
+            params, &inOutIdx, sz);
+    }
+    if ((ret == 0) && (dataASN[RSAPSSPARAMSASN_IDX_HASHOID].tag != 0)) {
+        word32 oid = dataASN[RSAPSSPARAMSASN_IDX_HASHOID].data.oid.sum;
+        ret = RsaPssHashOidToType(oid, hash);
+    }
+    if ((ret == 0) && (dataASN[RSAPSSPARAMSASN_IDX_MGFHOID].tag != 0)) {
+        word32 oid = dataASN[RSAPSSPARAMSASN_IDX_MGFHOID].data.oid.sum;
+        ret = RsaPssHashOidToMgf1(oid, mgf);
+    }
+    if (ret == 0) {
+        *saltLen = sLen;
+    }
+
+    FREE_ASNGETDATA(dataASN, NULL);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+#endif /* WC_RSA_PSS */
 
 #ifndef HAVE_USER_RSA
 #if defined(WOLFSSL_ASN_TEMPLATE) || (!defined(NO_CERTS) && \
@@ -5878,6 +6298,9 @@ static const ASNItem pkcs8KeyASN[] = {
 /*  PKEY_ALGO_OID_KEY   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /*  PKEY_ALGO_OID_CURVE */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
 /*  PKEY_ALGO_NULL      */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+#ifdef WC_RSA_PSS
+/*  PKEY_ALGO_PARAM_SEQ */            { 2, ASN_SEQUENCE, 1, 0, 1 },
+#endif
 /*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
                 /* attributes            [0] Attributes OPTIONAL */
                 /* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
@@ -5889,6 +6312,9 @@ enum {
     PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY,
     PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE,
     PKCS8KEYASN_IDX_PKEY_ALGO_NULL,
+#ifdef WC_RSA_PSS
+    PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ,
+#endif
     PKCS8KEYASN_IDX_PKEY_DATA,
 };
 
@@ -5938,6 +6364,29 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     if (GetASNTag(input, &idx, &tag, sz) < 0)
         return ASN_PARSE_E;
     idx = idx - 1; /* reset idx after finding tag */
+
+#ifdef WC_RSA_PSS
+    if (*algId == RSAPSSk && tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        word32 seqIdx = idx;
+        int seqLen;
+        /* Not set when -1. */
+        enum wc_HashType hash = WC_HASH_TYPE_NONE;
+        int mgf = -1;
+        int saltLen = 0;
+
+        if (GetSequence(input, &idx, &seqLen, sz) < 0) {
+            return ASN_PARSE_E;
+        }
+        /* Get the private key parameters. */
+        ret = DecodeRsaPssParams(input + seqIdx,
+            seqLen + idx - seqIdx, &hash, &mgf, &saltLen);
+        if (ret != 0) {
+            return ASN_PARSE_E;
+        }
+        /* TODO: store parameters so that usage can be checked. */
+        idx += seqLen;
+    }
+#endif
 
     if (tag == ASN_OBJECT_ID) {
         if (SkipObjectId(input, &idx, sz) < 0)
@@ -5995,7 +6444,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     }
     if (ret == 0) {
         switch (oid) {
-        #ifndef NO_RSA
+    #ifndef NO_RSA
             case RSAk:
                 /* Must have NULL item but not OBJECT_ID item. */
                 if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag == 0) ||
@@ -6003,7 +6452,32 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                     ret = ASN_PARSE_E;
                 }
                 break;
+        #ifdef WC_RSA_PSS
+            case RSAPSSk:
+                /* Must not have NULL item. */
+                if (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) {
+                    ret = ASN_PARSE_E;
+                }
+                if (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ].tag != 0) {
+                    enum wc_HashType hash;
+                    int mgf;
+                    int saltLen;
+                    const byte* params = GetASNItem_Addr(
+                        dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ], input);
+                    word32 paramsSz = GetASNItem_Length(
+                        dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ], input);
+
+                    /* Validate the private key parameters. */
+                    ret = DecodeRsaPssParams(params, paramsSz, &hash, &mgf,
+                        &saltLen);
+                    if (ret != 0) {
+                        return ASN_PARSE_E;
+                    }
+                    /* TODO: store parameters so that usage can be checked. */
+                }
+                break;
         #endif
+    #endif
         #ifdef HAVE_ECC
             case ECDSAk:
                 /* Must not have NULL item. */
@@ -6251,6 +6725,9 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         }
         /* Only RSA keys have NULL tagged item after OID. */
         dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].noOut = (algoID != RSAk);
+    #ifdef WC_RSA_PSS
+        dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ].noOut = 1;
+    #endif
         /* Set key data to encode. */
         SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_DATA], key, keySz);
 
@@ -6303,7 +6780,11 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
 
     #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     /* test if RSA key */
-    if (ks == RSAk) {
+    if (ks == RSAk
+    #ifdef WC_RSA_PSS
+        || ks == RSAPSSk
+    #endif
+        ) {
     #ifdef WOLFSSL_SMALL_STACK
         RsaKey* a;
         RsaKey* b = NULL;
@@ -8127,6 +8608,7 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
             if (ret != 0)
                 return ret;
         }
+        /* TODO: support RSA PSS */
 
         /* should have bit tag length and seq next */
         ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
@@ -8171,6 +8653,9 @@ static const ASNItem rsaPublicKeyASN[] = {
 /*  ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
 /*  ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /*  ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+#ifdef WC_RSA_PSS
+/*  ALGOID_P_SEQ   */         { 2, ASN_SEQUENCE, 1, 0, 1 },
+#endif
 /*  PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
                                                   /* RSAPublicKey */
 /*  PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
@@ -8182,6 +8667,9 @@ enum {
     RSAPUBLICKEYASN_IDX_ALGOID_SEQ,
     RSAPUBLICKEYASN_IDX_ALGOID_OID,
     RSAPUBLICKEYASN_IDX_ALGOID_NULL,
+#ifdef WC_RSA_PSS
+    RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ,
+#endif
     RSAPUBLICKEYASN_IDX_PUBKEY,
     RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
     RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N,
@@ -8259,6 +8747,14 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
             if (ret != 0)
                 return ret;
         }
+    #ifdef WC_RSA_PSS
+        /* Skip RSA PSS parameters. */
+        else if (tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+                return ASN_PARSE_E;
+            *inOutIdx += length;
+        }
+    #endif
 
         /* should have bit tag length and seq next */
         ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
@@ -8296,6 +8792,9 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
 #else
     DECL_ASNGETDATA(dataASN, rsaPublicKeyASN_Length);
     int ret = 0;
+#ifdef WC_RSA_PSS
+    word32 oid = RSAk;
+#endif
 
     /* Check validity of parameters. */
     if (input == NULL || inOutIdx == NULL) {
@@ -8312,15 +8811,52 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
            0, input, inOutIdx, inSz);
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. */
+        #ifdef WC_RSA_PSS
+            /* Could be RSA or RSA PSS key. */
+            GetASN_OID(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
+        #else
             /* Set the OID to expect. */
             GetASN_ExpBuffer(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID],
                     keyRsaOid, sizeof(keyRsaOid));
+        #endif
             /* Decode SubjectKeyInfo. */
             ret = GetASN_Items(rsaPublicKeyASN, dataASN,
                                rsaPublicKeyASN_Length, 1, input, inOutIdx,
                                inSz);
         }
     }
+#ifdef WC_RSA_PSS
+    if ((ret == 0) && (dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID].tag != 0)) {
+        /* Two possible OIDs supported - RSA and RSA PSS. */
+        oid = dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID].data.oid.sum;
+        if ((oid != RSAk) && (oid != RSAPSSk)) {
+            ret = ASN_PARSE_E;
+        }
+    }
+    if ((ret == 0) && (dataASN[RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ].tag != 0)) {
+        /* Can't have NULL and SEQ. */
+        if (dataASN[RSAPUBLICKEYASN_IDX_ALGOID_NULL].tag != 0) {
+            ret = ASN_PARSE_E;
+        }
+        /* SEQ present only with RSA PSS. */
+        if ((ret == 0) && (oid != RSAPSSk)) {
+            ret = ASN_PARSE_E;
+        }
+        if (ret == 0) {
+            enum wc_HashType hash;
+            int mgf;
+            int saltLen;
+            const byte* params = GetASNItem_Addr(
+                dataASN[RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ], input);
+            word32 paramsSz = GetASNItem_Length(
+                dataASN[RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ], input);
+
+            /* Validate the private key parameters. */
+            ret = DecodeRsaPssParams(params, paramsSz, &hash, &mgf, &saltLen);
+            /* TODO: store parameters so that usage can be checked. */
+        }
+    }
+#endif
     if (ret == 0) {
         /* Return the buffers and lengths asked for. */
         if (n != NULL) {
@@ -10592,12 +11128,58 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
 
     /* Parse each type of public key. */
     switch (cert->keyOID) {
-    #ifndef NO_RSA
+#ifndef NO_RSA
+    #ifdef WC_RSA_PSS
+        case RSAPSSk:
+            if (srcIdx != maxIdx &&
+                          source[srcIdx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+                word32 seqIdx = srcIdx;
+                int seqLen;
+                /* Not set when -1. */
+                enum wc_HashType hash = WC_HASH_TYPE_NONE;
+                int mgf = -1;
+                int saltLen = 0;
+                /* Defaults for sig algorithm parameters. */
+                enum wc_HashType sigHash = WC_HASH_TYPE_SHA;
+                int sigMgf = WC_MGF1SHA1;
+                int sigSaltLen = 20;
+
+                if (GetSequence(source, &srcIdx, &seqLen, maxIdx) < 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Get the pubic key parameters. */
+                ret = DecodeRsaPssParams(source + seqIdx,
+                    seqLen + srcIdx - seqIdx, &hash, &mgf, &saltLen);
+                if (ret != 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Get the signature parameters. */
+                ret = DecodeRsaPssParams(source + cert->sigParamsIndex,
+                    cert->sigParamsLength, &sigHash, &sigMgf, &sigSaltLen);
+                if (ret != 0) {
+                    return ASN_PARSE_E;
+                }
+                /* Validated signature params match public key params. */
+                if (hash != WC_HASH_TYPE_NONE && hash != sigHash) {
+                    WOLFSSL_MSG("RSA PSS: hash not matching signature hash");
+                    return ASN_PARSE_E;
+                }
+                if (mgf != -1 && mgf != sigMgf) {
+                    WOLFSSL_MSG("RSA PSS: MGF not matching signature MGF");
+                    return ASN_PARSE_E;
+                }
+                if (saltLen > sigSaltLen) {
+                    WOLFSSL_MSG("RSA PSS: sig salt length too small");
+                    return ASN_PARSE_E;
+                }
+                srcIdx += seqLen;
+            }
+            FALL_THROUGH;
+    #endif /* WC_RSA_PSS */
         case RSAk:
             ret = StoreRsaKey(cert, source, &srcIdx, maxIdx);
             break;
-
-    #endif /* NO_RSA */
+#endif /* NO_RSA */
     #ifdef HAVE_ECC
         case ECDSAk:
             ret = StoreEccKey(cert, source, &srcIdx, maxIdx, source + pubIdx,
@@ -13142,6 +13724,47 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 #endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif /* !NO_ASN_TIME */
 
+#ifndef WOLFSSL_ASN_TEMPLATE
+static int GetSigAlg(DecodedCert* cert, word32* sigOid, word32 maxIdx)
+{
+    int length;
+    word32 endSeqIdx;
+
+    if (GetSequence(cert->source, &cert->srcIdx, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+    endSeqIdx = cert->srcIdx + length;
+
+    if (GetObjectId(cert->source, &cert->srcIdx, sigOid, oidSigType,
+                    maxIdx) < 0) {
+        return ASN_OBJECT_ID_E;
+    }
+
+    if (cert->srcIdx != endSeqIdx) {
+#ifdef WC_RSA_PSS
+        if (*sigOid == CTC_RSASSAPSS) {
+            cert->sigParamsIndex = cert->srcIdx;
+            cert->sigParamsLength = endSeqIdx - cert->srcIdx;
+        }
+        else
+#endif
+        /* Only allowed a ASN NULL header with zero length. */
+        if  (endSeqIdx - cert->srcIdx != 2)
+            return ASN_PARSE_E;
+        else {
+            byte tag;
+            if (GetASNTag(cert->source, &cert->srcIdx, &tag, endSeqIdx) != 0)
+                return ASN_PARSE_E;
+            if (tag != ASN_TAG_NULL)
+                return ASN_PARSE_E;
+        }
+    }
+
+    cert->srcIdx = endSeqIdx;
+
+    return 0;
+}
+#endif
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* TODO: move code around to not require this. */
 static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
@@ -13185,8 +13808,7 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 #endif
         /* Using the sigIndex as the upper bound because that's where the
          * actual certificate data ends. */
-        if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                              oidSigType, cert->sigIndex)) < 0)
+        if ((ret = GetSigAlg(cert, &cert->signatureOID, cert->sigIndex)) < 0)
             return ret;
 
         WOLFSSL_MSG("Got Algo ID");
@@ -13800,6 +14422,9 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
     if (sigCtx->key.ptr) {
         switch (sigCtx->keyOID) {
         #ifndef NO_RSA
+            #ifdef WC_RSA_PSS
+            case RSAPSSk:
+            #endif
             case RSAk:
                 wc_FreeRsaKey(sigCtx->key.rsa);
                 XFREE(sigCtx->key.rsa, sigCtx->heap, DYNAMIC_TYPE_RSA);
@@ -14008,9 +14633,17 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
 static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
-    const byte* sig, word32 sigSz, word32 sigOID, byte* rsaKeyIdx)
+    const byte* sig, word32 sigSz, word32 sigOID,
+    const byte* sigParams, word32 sigParamsSz,
+    byte* rsaKeyIdx)
 {
     int ret = 0;
+#ifdef WC_RSA_PSS
+    /* Defaults */
+    enum wc_HashType hash = WC_HASH_TYPE_SHA;
+    int mgf = WC_MGF1SHA1;
+    int saltLen = 20;
+#endif
 
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
@@ -14021,6 +14654,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     (void)keySz;
     (void)sig;
     (void)sigSz;
+    (void)sigParams;
+    (void)sigParamsSz;
 
     WOLFSSL_ENTER("ConfirmSignature");
 
@@ -14057,10 +14692,33 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         case SIG_STATE_HASH:
         {
-            ret = HashForSignature(buf, bufSz, sigOID, sigCtx->digest,
-                                   &sigCtx->typeH, &sigCtx->digestSz, 1);
-            if (ret != 0) {
-                goto exit_cs;
+        #ifdef WC_RSA_PSS
+            if (keyOID == RSAPSSk) {
+                word32 fakeSigOID = 0;
+                ret = DecodeRsaPssParams(sigParams, sigParamsSz, &hash, &mgf,
+                    &saltLen);
+                if (ret != 0) {
+                    goto exit_cs;
+                }
+                ret = RsaPssHashOidToSigOid(hash, &fakeSigOID);
+                if (ret != 0) {
+                    goto exit_cs;
+                }
+                /* Decode parameters. */
+                ret = HashForSignature(buf, bufSz, fakeSigOID, sigCtx->digest,
+                    &sigCtx->typeH, &sigCtx->digestSz, 1);
+                if (ret != 0) {
+                    goto exit_cs;
+                }
+            }
+            else
+        #endif
+            {
+                ret = HashForSignature(buf, bufSz, sigOID, sigCtx->digest,
+                                       &sigCtx->typeH, &sigCtx->digestSz, 1);
+                if (ret != 0) {
+                    goto exit_cs;
+                }
             }
 
             sigCtx->state = SIG_STATE_KEY;
@@ -14071,6 +14729,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         {
             switch (keyOID) {
             #ifndef NO_RSA
+                #ifdef WC_RSA_PSS
+                case RSAPSSk:
+                #endif
                 case RSAk:
                 {
                     word32 idx = 0;
@@ -14371,6 +15032,13 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         {
             switch (keyOID) {
             #ifndef NO_RSA
+                #ifdef WC_RSA_PSS
+                case RSAPSSk:
+                    /* TODO: pkCbRsaPss - RSA PSS callback. */
+                    ret = wc_RsaPSS_VerifyInline_ex(sigCtx->sigCpy, sigSz,
+                        &sigCtx->out, hash, mgf, saltLen, sigCtx->key.rsa);
+                    break;
+                #endif
                 case RSAk:
                 {
                 #if defined(HAVE_PK_CALLBACKS)
@@ -14480,6 +15148,29 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         {
             switch (keyOID) {
             #ifndef NO_RSA
+                #ifdef WC_RSA_PSS
+                case RSAPSSk:
+                #if (defined(HAVE_SELFTEST) && \
+                     (!defined(HAVE_SELFTEST_VERSION) || \
+                      (HAVE_SELFTEST_VERSION < 2))) || \
+                    (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+                     (HAVE_FIPS_VERSION < 2))
+                    ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
+                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen);
+                #elif (defined(HAVE_SELFTEST) && \
+                       (HAVE_SELFTEST_VERSION == 2)) || \
+                      (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+                       (HAVE_FIPS_VERSION == 2))
+                    ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
+                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen,
+                        0);
+                #else
+                    ret = wc_RsaPSS_CheckPadding_ex2(sigCtx->digest,
+                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen,
+                        wc_RsaEncryptSize(sigCtx->key.rsa)*8, sigCtx->heap);
+                #endif
+                    break;
+                #endif
                 case RSAk:
                 {
                     int encodedSigSz, verifySz;
@@ -18125,7 +18816,10 @@ static const ASNItem x509CertASN[] = {
                                                    /* Algorithm    OBJECT IDENTIFIER */
 /* TBS_ALGOID_OID                */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* TBS_ALGOID_PARAMS             */                { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* TBS_ALGOID_PARAMS_NULL        */                { 3, ASN_TAG_NULL, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+/* TBS_ALGOID_PARAMS             */                { 3, ASN_SEQUENCE, 1, 0, 2 },
+#endif
                                                    /* issuer               Name */
 /* TBS_ISSUER_SEQ                */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                    /* validity             Validity */
@@ -18149,8 +18843,11 @@ static const ASNItem x509CertASN[] = {
                                                    /* Algorithm    OBJECT IDENTIFIER */
 /* TBS_SPUBKEYINFO_ALGO_OID      */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* TBS_SPUBKEYINFO_ALGO_NOPARAMS */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
-/* TBS_SPUBKEYINFO_ALGO_CURVEID  */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
+/* TBS_SPUBKEYINFO_ALGO_NULL     */                    { 4, ASN_TAG_NULL, 0, 0, 2 },
+/* TBS_SPUBKEYINFO_ALGO_CURVEID  */                    { 4, ASN_OBJECT_ID, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+/* TBS_SPUBKEYINFO_ALGO_P_SEQ    */                    { 4, ASN_SEQUENCE, 1, 0, 2 },
+#endif
                                                    /* subjectPublicKey   BIT STRING */
 /* TBS_SPUBKEYINFO_PUBKEY        */                { 3, ASN_BIT_STRING, 0, 0, 0 },
                                                    /* issuerUniqueID       UniqueIdentfier OPTIONAL */
@@ -18166,7 +18863,10 @@ static const ASNItem x509CertASN[] = {
                                                    /* Algorithm    OBJECT IDENTIFIER */
 /* SIGALGO_OID                   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* SIGALGO_PARAMS                */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* SIGALGO_PARAMS_NULL           */            { 2, ASN_TAG_NULL, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+/* SIGALGO_PARAMS                */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+#endif
                                                    /* signature            BIT STRING */
 /* SIGNATURE                     */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
@@ -18178,7 +18878,10 @@ enum {
     X509CERTASN_IDX_TBS_SERIAL,
     X509CERTASN_IDX_TBS_ALGOID_SEQ,
     X509CERTASN_IDX_TBS_ALGOID_OID,
+    X509CERTASN_IDX_TBS_ALGOID_PARAMS_NULL,
+#ifdef WC_RSA_PSS
     X509CERTASN_IDX_TBS_ALGOID_PARAMS,
+#endif
     X509CERTASN_IDX_TBS_ISSUER_SEQ,
     X509CERTASN_IDX_TBS_VALIDITY_SEQ,
     X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC,
@@ -18189,8 +18892,11 @@ enum {
     X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ,
     X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_SEQ,
     X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_OID,
-    X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_NOPARAMS,
+    X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_NULL,
     X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID,
+#ifdef WC_RSA_PSS
+    X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_P_SEQ,
+#endif
     X509CERTASN_IDX_TBS_SPUBKEYINFO_PUBKEY,
     X509CERTASN_IDX_TBS_ISSUERUID,
     X509CERTASN_IDX_TBS_SUBJECTUID,
@@ -18198,7 +18904,10 @@ enum {
     X509CERTASN_IDX_TBS_EXT_SEQ,
     X509CERTASN_IDX_SIGALGO_SEQ,
     X509CERTASN_IDX_SIGALGO_OID,
+    X509CERTASN_IDX_SIGALGO_PARAMS_NULL,
+#ifdef WC_RSA_PSS
     X509CERTASN_IDX_SIGALGO_PARAMS,
+#endif
     X509CERTASN_IDX_SIGNATURE,
 };
 
@@ -18380,6 +19089,72 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     }
 
     if ((ret == 0) && (!done)) {
+        /* Store the signature information. */
+        cert->sigIndex = dataASN[X509CERTASN_IDX_SIGALGO_SEQ].offset;
+        GetASN_GetConstRef(&dataASN[X509CERTASN_IDX_SIGNATURE],
+                &cert->signature, &cert->sigLength);
+        /* Make sure 'signature' and 'signatureAlgorithm' are the same. */
+        if (dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum
+                != cert->signatureOID) {
+            WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
+            ret = ASN_SIG_OID_E;
+        }
+        /* Parameters not allowed after ECDSA or EdDSA algorithm OID. */
+        else if (IsSigAlgoECC(cert->signatureOID)) {
+            if ((dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0)
+        #ifdef WC_RSA_PSS
+                || (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)
+        #endif
+                ) {
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        }
+        #ifdef WC_RSA_PSS
+        /* Check parameters starting with a SEQUENCE. */
+        else if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
+            word32 oid = dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum;
+            word32 sigAlgParamsSz;
+
+            /* Parameters only with RSA PSS. */
+            if (oid != CTC_RSASSAPSS) {
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                const byte* tbsParams;
+                word32 tbsParamsSz;
+                const byte* sigAlgParams;
+
+                /* Check RSA PSS parameters are the same. */
+                tbsParams =
+                    GetASNItem_Addr(dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS],
+                        cert->source);
+                tbsParamsSz =
+                    GetASNItem_Length(dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS],
+                        cert->source);
+                sigAlgParams =
+                    GetASNItem_Addr(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                        cert->source);
+                sigAlgParamsSz =
+                    GetASNItem_Length(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                        cert->source);
+                if ((tbsParamsSz != sigAlgParamsSz) ||
+                        (XMEMCMP(tbsParams, sigAlgParams, tbsParamsSz) != 0)) {
+                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                    ret = ASN_PARSE_E;
+                }
+            }
+            if (ret == 0) {
+                /* Store parameters for use in signature verification. */
+                cert->sigParamsIndex =
+                    dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].offset;
+                cert->sigParamsLength = sigAlgParamsSz;
+            }
+        }
+        #endif
+    }
+    if ((ret == 0) && (!done)) {
         /* Parse the public key. */
         idx = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
         ret = GetCertKey(cert, cert->source, &idx,
@@ -18432,24 +19207,6 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
 
-    if ((ret == 0) && (!done)) {
-        /* Store the signature information. */
-        cert->sigIndex = dataASN[X509CERTASN_IDX_SIGALGO_SEQ].offset;
-        GetASN_GetConstRef(&dataASN[X509CERTASN_IDX_SIGNATURE],
-                &cert->signature, &cert->sigLength);
-        /* Make sure 'signature' and 'signatureAlgorithm' are the same. */
-        if (dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum
-                != cert->signatureOID) {
-            WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
-            ret = ASN_SIG_OID_E;
-        }
-        /* NULL tagged item not allowed after ECDSA or EdDSA algorithm OID. */
-        if (IsSigAlgoECC(cert->signatureOID) &&
-                (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)) {
-            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-            ret = ASN_PARSE_E;
-        }
-    }
     if ((ret == 0) && (!done) && (badDate != 0)) {
         /* Parsed whole certificate fine but return any date errors. */
         ret = badDate;
@@ -18704,7 +19461,7 @@ static const ASNItem certReqASN[] = {
                                                                       /* Algorithm    OBJECT IDENTIFIER */
 /* INFO_SPUBKEYINFO_ALGOID_OID      */                 { 4, ASN_OBJECT_ID, 0, 0, 0 },
                                                                       /* parameters   ANY defined by algorithm OPTIONAL */
-/* INFO_SPUBKEYINFO_ALGOID_NOPARAMS */                 { 4, ASN_TAG_NULL, 0, 0, 1 },
+/* INFO_SPUBKEYINFO_ALGOID_NULL     */                 { 4, ASN_TAG_NULL, 0, 0, 1 },
 /* INFO_SPUBKEYINFO_ALGOID_CURVEID  */                 { 4, ASN_OBJECT_ID, 0, 0, 1 },
 /* INFO_SPUBKEYINFO_ALGOID_PARAMS   */                 { 4, ASN_SEQUENCE, 1, 0, 1 },
                                                                   /* subjectPublicKey   BIT STRING */
@@ -18716,7 +19473,7 @@ static const ASNItem certReqASN[] = {
                                                               /* Algorithm    OBJECT IDENTIFIER */
 /* INFO_SIGALGO_OID                 */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                               /* parameters   ANY defined by algorithm OPTIONAL */
-/* INFO_SIGALGO_NOPARAMS            */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* INFO_SIGALGO_NULL                */         { 2, ASN_TAG_NULL, 0, 0, 1 },
                                                           /* signature            BIT STRING */
 /* INFO_SIGNATURE                   */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
@@ -18728,14 +19485,14 @@ enum {
     CERTREQASN_IDX_INFO_SPUBKEYINFO_SEQ,
     CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_SEQ,
     CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID,
-    CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_NOPARAMS,
+    CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_NULL,
     CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID,
     CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_PARAMS,
     CERTREQASN_IDX_INFO_SPUBKEYINFO_PUBKEY,
     CERTREQASN_IDX_INFO_ATTRS,
     CERTREQASN_IDX_INFO_SIGALGO_SEQ,
     CERTREQASN_IDX_INFO_SIGALGO_OID,
-    CERTREQASN_IDX_INFO_SIGALGO_NOPARAMS,
+    CERTREQASN_IDX_INFO_SIGALGO_NULL,
     CERTREQASN_IDX_INFO_SIGNATURE,
 };
 
@@ -18858,8 +19615,11 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_DYN_CERT)
     /* cert->publicKey not stored as copy if WOLFSSL_NO_MALLOC defined */
-    if (cert->keyOID == RSAk &&
-                          cert->publicKey != NULL  && cert->pubKeySize > 0) {
+    if ((cert->keyOID == RSAk
+    #ifdef WC_RSA_PSS
+         || cert->keyOID == RSAPSSk
+    #endif
+         ) && cert->publicKey != NULL && cert->pubKeySize > 0) {
         ptr = (char*) XMALLOC(cert->pubKeySize, cert->heap,
                               DYNAMIC_TYPE_PUBLIC_KEY);
         if (ptr == NULL)
@@ -19052,6 +19812,8 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     int           ret = 0;
     word32        localIdx;
     byte          tag;
+    const byte*   sigParams = NULL;
+    word32        sigParamsSz = 0;
 
 
     if (cert == NULL) {
@@ -19103,9 +19865,22 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         idx += len;
 
         /* signature */
-        if (!req &&
-                GetAlgoId(cert, &idx, &signatureOID, oidSigType, certSz) < 0)
-            ret = ASN_PARSE_E;
+        if (!req) {
+            if (GetAlgoId(cert, &idx, &signatureOID, oidSigType, certSz) < 0)
+                ret = ASN_PARSE_E;
+        #ifdef WC_RSA_PSS
+            else if (signatureOID == CTC_RSASSAPSS) {
+                int start = idx;
+                sigParams = cert + idx;
+                if (GetSequence(cert, &idx, &len, certSz) < 0)
+                    ret = ASN_PARSE_E;
+                if (ret == 0) {
+                    idx += len;
+                    sigParamsSz = idx - start;
+                }
+            }
+        #endif
+        }
     }
 
     if (ret == 0) {
@@ -19293,6 +20068,29 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         /* signatureAlgorithm */
         if (GetAlgoId(cert, &idx, &oid, oidSigType, certSz) < 0)
             ret = ASN_PARSE_E;
+    #ifdef WC_RSA_PSS
+        else if (signatureOID == CTC_RSASSAPSS) {
+            word32 sz = idx;
+            const byte* params = cert + idx;
+            if (GetSequence(cert, &idx, &len, certSz) < 0)
+                ret = ASN_PARSE_E;
+            if (ret == 0) {
+                idx += len;
+                sz = idx - sz;
+
+                if (req) {
+                    if ((sz != sigParamsSz) ||
+                                        (XMEMCMP(sigParams, params, sz) != 0)) {
+                        ret = ASN_PARSE_E;
+                    }
+                }
+                else {
+                    sigParams = params;
+                    sigParamsSz = sz;
+                }
+            }
+        }
+    #endif
         /* In CSR signature data is not present in body */
         if (req)
             signatureOID = oid;
@@ -19310,15 +20108,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if (ret == 0) {
         if (pubKey != NULL) {
             ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
-                               sigIndex - tbsCertIdx,
-                               pubKey, pubKeySz, pubKeyOID,
-                               cert + idx, len, signatureOID, NULL);
+                sigIndex - tbsCertIdx, pubKey, pubKeySz, pubKeyOID,
+                cert + idx, len, signatureOID, sigParams, sigParamsSz, NULL);
         }
         else {
             ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
-                               sigIndex - tbsCertIdx,
-                               ca->publicKey, ca->pubKeySize, ca->keyOID,
-                               cert + idx, len, signatureOID, NULL);
+                sigIndex - tbsCertIdx, ca->publicKey, ca->pubKeySize,
+                ca->keyOID, cert + idx, len, signatureOID, sigParams,
+                sigParamsSz, NULL);
         }
         if (ret != 0) {
             WOLFSSL_ERROR_VERBOSE(ret);
@@ -19349,9 +20146,15 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif
     const byte* tbs = NULL;
     word32 tbsSz = 0;
+#ifdef WC_RSA_PSS
+    const byte* tbsParams = NULL;
+    word32 tbsParamsSz = 0;
+#endif
     const byte* sig = NULL;
     word32 sigSz = 0;
     word32 sigOID = 0;
+    const byte* sigParams = NULL;
+    word32 sigParamsSz = 0;
     const byte* caName = NULL;
     word32 caNameLen = 0;
 
@@ -19403,7 +20206,37 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
             caNameLen = GetASNItem_Length(dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ],
                     cert);
             sigOID = dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum;
+        #ifdef WC_RSA_PSS
+            if (dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS].tag != 0) {
+                tbsParams =
+                    GetASNItem_Addr(dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS],
+                        cert);
+                tbsParamsSz =
+                    GetASNItem_Length(dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS],
+                        cert);
+            }
+            if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
+                sigParams =
+                    GetASNItem_Addr(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                        cert);
+                sigParamsSz =
+                    GetASNItem_Length(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                        cert);
+            }
+        #endif
             GetASN_GetConstRef(&dataASN[X509CERTASN_IDX_SIGNATURE], &sig, &sigSz);
+        #ifdef WC_RSA_PSS
+            if (tbsParamsSz != sigParamsSz) {
+                ret = ASN_PARSE_E;
+            }
+            else if ((tbsParamsSz > 0) && (sigOID != CTC_RSASSAPSS)) {
+                ret = ASN_PARSE_E;
+            }
+            else if ((tbsParamsSz > 0) &&
+                     (XMEMCMP(tbsParams, sigParams, tbsParamsSz) != 0)) {
+                ret = ASN_PARSE_E;
+            }
+        #endif
         }
     }
     else if (ret == 0) {
@@ -19430,6 +20263,13 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
             caNameLen = GetASNItem_Length(
                     dataASN[CERTREQASN_IDX_INFO_SUBJ_SEQ], cert);
             sigOID = dataASN[CERTREQASN_IDX_INFO_SIGALGO_OID].data.oid.sum;
+        #ifdef WC_RSA_PSS
+            sigParams = GetASNItem_Addr(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                cert);
+            sigParamsSz =
+                GetASNItem_Length(dataASN[X509CERTASN_IDX_SIGALGO_PARAMS],
+                    cert);
+        #endif
             GetASN_GetConstRef(&dataASN[CERTREQASN_IDX_INFO_SIGNATURE], &sig,
                     &sigSz);
         }
@@ -19477,7 +20317,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if (ret == 0) {
         /* Check signature. */
         ret = ConfirmSignature(sigCtx, tbs, tbsSz, pubKey, pubKeySz, pubKeyOID,
-                sig, sigSz, sigOID, NULL);
+                sig, sigSz, sigOID, sigParams, sigParamsSz, NULL);
         if (ret != 0) {
             WOLFSSL_MSG("Confirm signature failed");
         }
@@ -19767,13 +20607,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->srcIdx = cert->sigIndex;
         }
 
-        if ((ret = GetAlgoId(cert->source, &cert->srcIdx,
+        if ((ret = GetSigAlg(cert,
 #ifdef WOLFSSL_CERT_REQ
                 !cert->isCSR ? &confirmOID : &cert->signatureOID,
 #else
                 &confirmOID,
 #endif
-                oidSigType, cert->maxIdx)) < 0) {
+                cert->maxIdx)) < 0) {
             return ret;
         }
 
@@ -20031,6 +20871,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         cert->ca->publicKey, cert->ca->pubKeySize,
                         cert->ca->keyOID, cert->signature,
                         cert->sigLength, cert->signatureOID,
+                    #ifdef WC_RSA_PSS
+                        cert->source + cert->sigParamsIndex,
+                        cert->sigParamsLength,
+                    #else
+                        NULL, 0,
+                    #endif
                         sce_tsip_encRsaKeyIdx)) != 0) {
                     if (ret != WC_PENDING_E) {
                         WOLFSSL_MSG("Confirm signature failed");
@@ -20060,6 +20906,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     cert->publicKey, cert->pubKeySize,
                     cert->keyOID, cert->signature,
                     cert->sigLength, cert->signatureOID,
+                #ifdef WC_RSA_PSS
+                    cert->source + cert->sigParamsIndex, cert->sigParamsLength,
+                #else
+                    NULL, 0,
+                #endif
                     sce_tsip_encRsaKeyIdx)) != 0) {
                 if (ret != WC_PENDING_E) {
                     WOLFSSL_MSG("Confirm signature failed");
@@ -21942,6 +22793,9 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
         }
         /* Set OID for RSA key. */
         SetASN_OID(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID], RSAk, oidKeyType);
+    #ifdef WC_RSA_PSS
+        dataASN[RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ].noOut = 1;
+    #endif
         /* Set public key mp_ints. */
     #ifdef HAVE_USER_RSA
         SetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N], key->n);
@@ -26098,8 +26952,12 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                 oidSigType);
         if (IsSigAlgoECC(cert->sigType)) {
             /* No NULL tagged item with ECDSA and EdDSA signature OIDs. */
-            dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS].noOut = 1;
+            dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS_NULL].noOut = 1;
         }
+    #ifdef WC_RSA_PSS
+        /* TODO: Encode RSA PSS parameters. */
+        dataASN[X509CERTASN_IDX_TBS_ALGOID_PARAMS].noOut = 1;
+    #endif
         if (issRawLen > 0) {
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_CERT_REQ)
@@ -26114,7 +26972,6 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                     NULL, issuerSz);
         }
 
-#ifdef WOLFSSL_ALT_NAMES
         if (cert->beforeDateSz && cert->afterDateSz) {
             if (cert->beforeDate[0] == ASN_UTC_TIME) {
                 /* Make space for before date data. */
@@ -26146,7 +27003,6 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             }
         }
         else
-#endif
         {
             /* Don't put out UTC before data. */
             dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].noOut = 1;
@@ -26223,9 +27079,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             &cert->subject, cert->heap);
     }
     if (ret >= 0) {
-#ifdef WOLFSSL_ALT_NAMES
         if (cert->beforeDateSz == 0 || cert->afterDateSz == 0)
-#endif
         {
             /* Encode validity into buffer. */
             ret = SetValidity(
@@ -31847,7 +32701,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                 &cert->sigCtx,
                 resp->response, resp->responseSz,
                 cert->publicKey, cert->pubKeySize, cert->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
 
             if (ret != 0) {
                 WOLFSSL_MSG("\tOCSP Confirm signature failed");
@@ -31884,7 +32738,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             /* ConfirmSignature is blocking here */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
                 resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                                resp->sig, resp->sigSz, resp->sigOID, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
         }
         if (ca == NULL || sigValid != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
@@ -31974,7 +32828,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         /* Check the signature of the response. */
         ret = ConfirmSignature(&cert->sigCtx, resp->response, resp->responseSz,
             cert->publicKey, cert->pubKeySize, cert->keyOID, resp->sig,
-            resp->sigSz, resp->sigOID, NULL);
+            resp->sigSz, resp->sigOID, NULL, 0, NULL);
         if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             ret = ASN_OCSP_CONFIRM_E;
@@ -32004,7 +32858,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             /* Check the signature of the response CA public key. */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
                 resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
         }
         if ((ca == NULL) || (sigValid != 0)) {
             /* Didn't find certificate or signature verificate failed. */
@@ -32981,7 +33835,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
     if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
-                         signatureOID, NULL) != 0) {
+                         signatureOID, NULL, 0, NULL) != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
         WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
         return ASN_CRL_CONFIRM_E;

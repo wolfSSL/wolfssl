@@ -916,6 +916,20 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
 #endif
+#if defined(WC_RSA_PSS) && (!defined(HAVE_FIPS) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+     (!defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                      (HAVE_SELFTEST_VERSION > 2)))
+    /* add RSA-PSS certificate cipher suite tests */
+    XSTRLCPY(argv0[1], "tests/test-rsapss.conf", sizeof(argv0[1]));
+    printf("starting RSA-PSS extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #if defined(HAVE_CURVE25519) && defined(HAVE_ED25519) && \
     defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_VERIFY) && \
     defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
