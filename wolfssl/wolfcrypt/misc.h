@@ -126,6 +126,8 @@ WOLFSSL_LOCAL byte ctMaskNotEq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskSel(byte m, byte a, byte b);
 WOLFSSL_LOCAL int  ctMaskSelInt(byte m, int a, int b);
 WOLFSSL_LOCAL byte ctSetLTE(int a, int b);
+WOLFSSL_LOCAL void ctMaskCopy(byte m, byte* dst, byte* left, byte* right,
+    word16 size);
 
 #endif /* NO_INLINE */
 
