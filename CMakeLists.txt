@@ -2044,7 +2044,11 @@ endif()
 
 if(NOT BUILD_SP)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/sp.h"
+    "wolfssl/wolfcrypt/sp.h")
+endif()
+
+if(NOT BUILD_SP_INT)
+  list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/sp_int.h")
 endif()
 
