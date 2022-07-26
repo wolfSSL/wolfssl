@@ -48,6 +48,7 @@ include IDE/Android/include.am
 include IDE/NETOS/include.am
 include IDE/IAR-MSP430/include.am
 include IDE/zephyr/include.am
+include IDE/AURIX/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif
 EXTRA_DIST+= IDE/OPENSTM32/README.md

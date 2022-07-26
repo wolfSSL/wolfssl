@@ -187,13 +187,13 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
     ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
     if (ret == 0) {
-        if (XSTRNCMP((const char*)sender, (const char*)client,
+        if (XSTRNCMP((const char*)sender, (const char*)kTlsClientStr,
                                                           SIZEOF_SENDER) == 0) {
-            side = tls_client;
+            side = kTlsClientFinStr;
         }
-        else if (XSTRNCMP((const char*)sender, (const char*)server,
+        else if (XSTRNCMP((const char*)sender, (const char*)kTlsServerStr,
                                                           SIZEOF_SENDER) == 0) {
-            side = tls_server;
+            side = kTlsServerFinStr;
         }
         else {
             ret = BAD_FUNC_ARG;
@@ -5901,12 +5901,11 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
     ProtocolVersion pv = ssl->ctx->method->version;
     int i;
     int len;
-    byte major, minor;
     int newMinor = 0;
     int set = 0;
     int ret;
-    int tls13minor;
-    int tls12minor;
+    byte major, minor;
+    byte tls13minor, tls12minor;
     byte isDtls;
 
     tls13minor = TLSv1_3_MINOR;

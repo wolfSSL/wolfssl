@@ -18031,10 +18031,9 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         else {  /* sslv3, some implementations have bad padding, but don't
                  * allow bad read */
             int  badPadLen = 0;
-            byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
+            byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE];
             byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
-
-            (void)dmy;
+            XMEMSET(dmy, 0, sizeof(dmy));
 
             if (pad > (msgSz - digestSz - 1)) {
                 WOLFSSL_MSG("Plain Len not long enough for pad/mac");
@@ -18991,7 +18990,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     #endif
                     ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
                                        ssl->options.side == WOLFSSL_CLIENT_END ?
-                                       server : client);
+                                       kTlsServerStr : kTlsClientStr);
                     if (ret != 0)
                         return ret;
 #endif /* !WOLFSSL_NO_TLS12 */
@@ -20089,8 +20088,8 @@ int SendFinished(WOLFSSL* ssl)
 
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
-    ret = BuildFinished(ssl, hashes,
-                     ssl->options.side == WOLFSSL_CLIENT_END ? client : server);
+    ret = BuildFinished(ssl, hashes, ssl->options.side == WOLFSSL_CLIENT_END ?
+                                                 kTlsClientStr : kTlsServerStr);
     if (ret != 0) return ret;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -20118,13 +20117,15 @@ int SendFinished(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsMsgPoolSave(ssl, input, headerSz + finishedSz, finished)) != 0)
+            if ((ret = DtlsMsgPoolSave(ssl, input, headerSz + finishedSz,
+                                                              finished)) != 0) {
                 return ret;
+            }
         }
     #endif
 
     sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
-                                                          handshake, 1, 0, 0, CUR_ORDER);
+                                                 handshake, 1, 0, 0, CUR_ORDER);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
