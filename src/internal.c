@@ -4667,7 +4667,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
             if (ret != 0)
                 return ret;
         #endif
-        ret = wc_RsaPrivateDecryptInline(in, inSz, out, key);
+        ret = wc_RsaPrivateDecryptInline(in, inSz, &outTmp, key);
     }
 
     /* Handle async pending response */
