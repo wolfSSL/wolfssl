@@ -9939,6 +9939,36 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = ASN_GETINT_E;
     }
 #endif /* HAVE_WOLF_BIGINT */
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    if (ret == 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        mp_int* order = NULL;
+    #else
+        mp_int order[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        order = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
+        if (order == NULL) {
+            ret = MEMORY_E;
+        }
+    #endif
+
+        if (ret == 0) {
+            ret = mp_init(order);
+        }
+        if (ret == 0) {
+            ret = mp_read_radix(order, key->dp->order, MP_RADIX_HEX);
+        }
+        if ((ret == 0) && (mp_cmp(&key->k, order) != MP_LT)) {
+            ret = ECC_PRIV_KEY_E;
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(order, key->heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
 #endif /* WOLFSSL_CRYPTOCELL */
 
