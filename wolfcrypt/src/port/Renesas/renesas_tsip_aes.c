@@ -723,7 +723,7 @@ int wc_tsip_AesGcmEncrypt(
              * iv init func.
              * It expects to pass iv when users create their own key.
              */
-            err = initFn(&hdl, &key_client_aes, iv_l, ivSz_l);
+            err = initFn(&hdl, &key_client_aes, (uint8_t*)iv_l, ivSz_l);
 
             if (err == TSIP_SUCCESS) {
             	err = updateFn(&hdl, NULL, NULL, 0UL, (uint8_t*)aadBuf, authInSz);
@@ -917,7 +917,7 @@ int wc_tsip_AesGcmDecrypt(
              *
              * It expects to pass iv when users create their own key.
              */
-            err = initFn(&hdl, &key_server_aes, iv_l, ivSz_l);
+            err = initFn(&hdl, &key_server_aes, (uint8_t*)iv_l, ivSz_l);
 
             if (err == TSIP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */

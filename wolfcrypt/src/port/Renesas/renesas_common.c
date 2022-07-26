@@ -548,7 +548,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const unsigned char* sig,
  * key_e_start Byte position of public key exponent in cert
  * key_e_len   Length of public key exponent
  * cm_row      CA index
- * return FSP_SUCCESS(0) on success, otherwise FSP/TSIP error code
+ * return FSP_SUCCESS(0) on success, otherwise WOLFSSL_FATAL_ERROR
  */
 int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_n_start,
         word32 key_n_len, word32 key_e_start, word32 key_e_len, word32 cm_row)
@@ -568,11 +568,16 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_
         ret = wc_sce_tls_RootCertVerify(cert, cert_len, key_n_start,
                 key_n_len, key_e_start, key_e_len, cm_row);
     #endif
+
+        if (ret != TSIP_SUCCESS) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
     }
     else {
         /* already verified. skipped */
         ret = 0;
     }
+    WOLFSSL_LEAVE("wc_Renesas_cmn_RootCertVerify", ret);
     return ret;
 }
 

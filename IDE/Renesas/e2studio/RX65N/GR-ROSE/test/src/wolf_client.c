@@ -27,7 +27,9 @@
 #include "wolfssl/certs_test.h"
 #include "key_data.h"
 #include "wolfssl_demo.h"
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#endif
 
 #define SIMPLE_TLSSEVER_IP       "192.168.1.12"
 #define SIMPLE_TLSSERVER_PORT    "11111"
