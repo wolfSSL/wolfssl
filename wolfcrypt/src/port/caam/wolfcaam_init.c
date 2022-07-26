@@ -193,20 +193,22 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
                               info->hash.digest);
                     break;
 
+                #ifdef WOLFSSL_SHA384
                 case WC_HASH_TYPE_SHA384:
                     ret = wc_CAAM_Sha384Hash(info->hash.sha384,
                               info->hash.in,
                               info->hash.inSz,
                               info->hash.digest);
                     break;
-
+                #endif
+                #ifdef WOLFSSL_SHA512
                 case WC_HASH_TYPE_SHA512:
                     ret = wc_CAAM_Sha512Hash(info->hash.sha512,
                               info->hash.in,
                               info->hash.inSz,
                               info->hash.digest);
                     break;
-
+                #endif
                 default:
                     WOLFSSL_MSG("Unknown or unsupported hash type");
                     ret = CRYPTOCB_UNAVAILABLE;
