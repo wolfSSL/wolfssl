@@ -255,6 +255,31 @@ static int psa_ecc_shared_secret_cb(WOLFSSL* ssl, struct ecc_key* other_key,
     return 0;
 }
 
+/* Map hash length to equivalent psa_algorithm_t type.
+ *
+ * hash_len - length of hash
+ *
+ * Return psa_algorithm_t representing hash algorithm for hash length, or
+ * PSA_ALG_NONE if no match.
+ */
+static int psa_map_hash_alg(int hash_len)
+{
+    switch (hash_len) {
+        case 20:
+            return PSA_ALG_SHA_1;
+        case 28:
+            return PSA_ALG_SHA_224;
+        case 32:
+            return PSA_ALG_SHA_256;
+        case 48:
+            return PSA_ALG_SHA_384;
+        case 64:
+            return PSA_ALG_SHA_512;
+        default:
+            return PSA_ALG_NONE;
+    }
+}
+
 static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
                            unsigned int input_length,
                            unsigned char* signature, word32* signature_size,
@@ -266,6 +291,7 @@ static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
     psa_status_t status;
     size_t rs_length;
     word32 point_len;
+    psa_algorithm_t hash_algo;
     int ret;
 
     (void)ssl;
@@ -277,8 +303,11 @@ static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
     if (psa_ctx == NULL)
         return BAD_FUNC_ARG;
 
+    /* Get correct hash algorithm that matches input hash length */
+    hash_algo = psa_map_hash_alg(input_length);
+
     status = psa_sign_hash(psa_ctx->private_key,
-                           PSA_ALG_ECDSA_ANY, input,
+                           PSA_ALG_ECDSA(hash_algo), input,
                            input_length, rs, sizeof(rs),
                            &rs_length);
     if (status != PSA_SUCCESS)
@@ -294,7 +323,8 @@ static int psa_ecc_sign_cb(WOLFSSL* ssl, const unsigned char* input,
 }
 
 static int psa_ecc_decode_public_key(const uint8_t *key, word32 key_length,
-                                     psa_key_id_t *key_id)
+                                     psa_key_id_t *key_id,
+                                     psa_algorithm_t hash_algo)
 {
     uint8_t raw_key[(MAX_ECC_BYTES * 2) + 1];
     psa_key_attributes_t attr = { 0 };
@@ -327,7 +357,7 @@ static int psa_ecc_decode_public_key(const uint8_t *key, word32 key_length,
     psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_PUBLIC_KEY(ecc_curve));
     psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_VERIFY_HASH);
     psa_set_key_bits(&attr, ecc_curve_size * 8);
-    psa_set_key_algorithm(&attr, PSA_ALG_ECDSA_ANY);
+    psa_set_key_algorithm(&attr, PSA_ALG_ECDSA(hash_algo));
 
     PSA_LOCK();
     status = psa_import_key(&attr, raw_key, raw_key_length, key_id);
@@ -354,13 +384,17 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
     psa_key_id_t tmp_key;
     word32 r_len, s_len;
     psa_status_t status;
+    psa_algorithm_t hash_algo;
     int ret;
 
     (void)ssl;
     (void)ctx;
     WOLFSSL_ENTER("psa_ecc_verify_cb");
 
-    ret = psa_ecc_decode_public_key(key, key_length, &tmp_key);
+    /* Get correct hash algorithm that matches input hash length */
+    hash_algo = psa_map_hash_alg(hash_length);
+
+    ret = psa_ecc_decode_public_key(key, key_length, &tmp_key, hash_algo);
     if (ret != 0)
         return ret;
 
@@ -375,7 +409,7 @@ static int psa_ecc_verify_cb(WOLFSSL* ssl, const byte* sig, word32 sig_length,
     XMEMCPY(raw_signature + r_len, s, s_len);
 
     PSA_LOCK();
-    status = psa_verify_hash(tmp_key, PSA_ALG_ECDSA_ANY, hash,
+    status = psa_verify_hash(tmp_key, PSA_ALG_ECDSA(hash_algo), hash,
                              hash_length, raw_signature, r_len + s_len);
     PSA_UNLOCK();
 
