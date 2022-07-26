@@ -6,19 +6,39 @@
 # Package requires building with:
 #   cmake .. -DWOLFSSL_EXAMPLES=no -DWOLFSSL_FILESYSTEM=no
 
-WOLFSSL_TEMPDIR=`mktemp -d`
-WOLFSSL_VERSION=`grep -Eo '[0-9]\.[0-9]\.[0-9]+' wolfssl/version.h`
-echo "Detected wolfSSL Version $WOLFSSL_VERSION"
-
 if [ "$1" == "keep" ]; then KEEP="yes"; else KEEP="no"; fi
 
+WOLFSSL_TEMPDIR=$(mktemp -d) || exit $?
+
+function cleanup_on_exit() {
+    if [ "$KEEP" == "no" ];
+    then
+        echo "Removing tmp directory"
+        rm -rf "$WOLFSSL_TEMPDIR"
+    else
+        echo "tmp directory ${WOLFSSL_TEMPDIR} left in place."
+    fi
+}
+
+trap cleanup_on_exit EXIT
+
+WOLFSSL_VERSION=$(grep -Eo '[0-9]\.[0-9]\.[0-9]+' wolfssl/version.h)
+if [ -n "$WOLFSSL_VERSION" ]; then
+    echo "Detected wolfSSL Version $WOLFSSL_VERSION"
+else
+    echo "Couldn't detect wolfSSL version."
+    exit 1
+fi
+
 # generate a wolfSSL archive with minimum sources
-git clone . $WOLFSSL_TEMPDIR
+echo "Setting up work directory..."
+git clone -q -n --shared . "$WOLFSSL_TEMPDIR" || exit $?
+pushd "$WOLFSSL_TEMPDIR" >/dev/null || exit $?
+git checkout -q master || exit $?
 
 # cleanup example directories
-pushd $WOLFSSL_TEMPDIR
 echo "Removing files not needed..."
-rm -rf ./.git*
+rm -rf -- ./.git*
 rm -rf ./build-aux
 rm -rf ./certs
 rm -rf ./ctaocrypt
@@ -44,7 +64,7 @@ rm -rf ./tirtos
 rm -rf ./wolfcrypt/user-crypto
 rm -rf ./wrapper
 rm -rf ./zephyr
-rm -f *.rc *.supp *.ac *.am *.conf *.sh *.cproject *.project *.pl
+rm -f -- *.rc *.supp *.ac *.am *.conf *.sh *.cproject *.project *.pl
 rm -f Vagrantfile SCRIPTS-LIST quit input resource.h
 
 find . -name "*.am" -delete
@@ -101,16 +121,12 @@ rm -rf ./wolfcrypt/src/port
 rm -rf ./wolfssl/wolfcrypt/port
 
 # Setup blank options.h
-cp ./wolfssl/options.h.in ./wolfssl/options.h
+cp ./wolfssl/options.h.in ./wolfssl/options.h || exit $?
 
-popd
+popd >/dev/null || exit $?
 
-tar zcf wolfssl-$WOLFSSL_VERSION-small.tar.gz -C $WOLFSSL_TEMPDIR .
+echo "Generating wolfssl-${WOLFSSL_VERSION}-small.tar.gz..."
 
-if [ "$KEEP" == "no" ];
-then
-    echo "Removing tmp directory"
-    rm -rf $WOLFSSL_TEMPDIR
-fi
+tar zcf "wolfssl-${WOLFSSL_VERSION}-small.tar.gz" -C "$WOLFSSL_TEMPDIR" . || exit $?
 
 echo "Done"
