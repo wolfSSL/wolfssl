@@ -8262,33 +8262,31 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
             OPAQUE8_LEN + Dtls13GetRlHeaderLength(1) + DTLS_HANDSHAKE_HEADER_SZ,
             key_update, 0);
     }
-    else {
+    else
 #endif /* WOLFSSL_DTLS13 */
+    {
+        /* This message is always encrypted. */
+        sendSz = BuildTls13Message(ssl, output, outputSz, input,
+                                   headerSz + OPAQUE8_LEN, handshake, 0, 0, 0);
+        if (sendSz < 0)
+            return BUILD_MSG_ERROR;
 
-    /* This message is always encrypted. */
-    sendSz = BuildTls13Message(ssl, output, outputSz, input,
-                               headerSz + OPAQUE8_LEN, handshake, 0, 0, 0);
-    if (sendSz < 0)
-        return BUILD_MSG_ERROR;
+        #ifdef WOLFSSL_CALLBACKS
+            if (ssl->hsInfoOn) AddPacketName(ssl, "KeyUpdate");
+            if (ssl->toInfoOn) {
+                AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
+                              WRITE_PROTO, ssl->heap);
+            }
+        #endif
 
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName(ssl, "KeyUpdate");
-        if (ssl->toInfoOn) {
-            AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
-                          WRITE_PROTO, ssl->heap);
-        }
-    #endif
+        ssl->buffers.outputBuffer.length += sendSz;
 
-    ssl->buffers.outputBuffer.length += sendSz;
-
-    ret = SendBuffered(ssl);
+        ret = SendBuffered(ssl);
 
 
-    if (ret != 0 && ret != WANT_WRITE)
-        return ret;
-#ifdef WOLFSSL_DTLS13
+        if (ret != 0 && ret != WANT_WRITE)
+            return ret;
     }
-#endif /* WOLFSSL_DTLS13 */
 
     /* In DTLS we must wait for the ack before setting up the new keys */
     if (!ssl->options.dtls) {
@@ -9792,7 +9790,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                        the value of the enum ConnectState is stored in
                        serialized session. This would make importing serialized
                        session from other wolfSSL version incompatible */
-                    ssl->options.connectState = WAIT_FINISHED_ACK;
+                        ssl->options.connectState = WAIT_FINISHED_ACK;
                     }
                     else
 #endif /* WOLFSSL_DTLS13 */
@@ -9801,16 +9799,16 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                     }
                     WOLFSSL_MSG("connect state: "
                                 "Advanced from last buffered fragment send");
+#ifdef WOLFSSL_ASYNC_IO
+                    FreeAsyncCtx(ssl, 0);
+#endif
+
                 }
             }
             else {
                 WOLFSSL_MSG("connect state: "
                             "Not advanced, more fragments to send");
             }
-        #ifdef WOLFSSL_ASYNC_IO
-            FreeAsyncCtx(ssl, 0);
-        #endif
-
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls)
                 ssl->dtls13SendingAckOrRtx =0;
@@ -10878,10 +10876,10 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     ssl->options.acceptState++;
                     WOLFSSL_MSG("accept state: "
                                 "Advanced from last buffered fragment send");
+#ifdef WOLFSSL_ASYNC_IO
+                    FreeAsyncCtx(ssl, 0);
+#endif
                 }
-            #ifdef WOLFSSL_ASYNC_IO
-                FreeAsyncCtx(ssl, 0);
-            #endif
             }
             else {
                 WOLFSSL_MSG("accept state: "
