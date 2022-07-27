@@ -25757,8 +25757,10 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         else
     #endif
         {
-            /* Calcuate issuer name encoding size. */
-            issuerSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->issuer, cert->heap);
+            /* Calcuate issuer name encoding size. If the cert is self-signed
+             * use the subject instead of the issuer. */
+            issuerSz = SetNameEx(NULL, WC_ASN_NAME_MAX, cert->selfSigned ?
+                                 &cert->subject : &cert->issuer, cert->heap);
             ret = issuerSz;
         }
     }
@@ -25774,7 +25776,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
         {
             /* Calcuate subject name encoding size. */
-            subjectSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->subject, cert->heap);
+            subjectSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->subject,
+                                  cert->heap);
             ret = subjectSz;
         }
     }
@@ -25906,11 +25909,13 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         SetASN_Items(x509CertASN, dataASN, x509CertASN_Length, derBuffer);
 
         if (issRawLen == 0) {
-            /* Encode issuer name into buffer. */
+            /* Encode issuer name into buffer. Use the subject as the issuer
+             * if it is self-signed. Size will be correct because we did the
+             * same for size. */
             ret = SetNameEx(
                 (byte*)dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].data.buffer.data,
                 dataASN[X509CERTASN_IDX_TBS_ISSUER_SEQ].data.buffer.length,
-                &cert->issuer, cert->heap);
+                cert->selfSigned ? &cert->subject : &cert->issuer, cert->heap);
         }
     }
     if ((ret >= 0) && (sbjRawLen == 0)) {
