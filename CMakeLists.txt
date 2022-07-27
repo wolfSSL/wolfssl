@@ -381,7 +381,7 @@ set(WOLFSSL_SLOW_MATH "yes")
 
 # liboqs
 add_option(WOLFSSL_OQS
-    "Enable integration with the OQS (Open Quantum Safe) library (default: disabled)"
+    "Enable integration with the OQS (Open Quantum Safe) liboqs library (default: disabled)"
     "no" "yes;no")
 
 if (WOLFSSL_OQS)
