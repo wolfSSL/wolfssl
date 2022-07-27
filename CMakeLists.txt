@@ -44,7 +44,9 @@ set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION
 
 set(WOLFSSL_DEFINITIONS)
 set(WOLFSSL_LINK_LIBS)
+set(WOLFSSL_INCLUDE_DIRS)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
 ####################################################
@@ -376,6 +378,24 @@ endif()
 # TODO: - IPv6 test apps
 
 set(WOLFSSL_SLOW_MATH "yes")
+
+# liboqs
+add_option(WOLFSSL_OQS
+    "Enable integration with the OQS (Open Quantum Safe) library (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_OQS)
+    find_package(OQS)
+
+    if (OQS_FOUND)
+        list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
+        list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
+        set(HAVE_LIBOQS 1)
+        list(APPEND WOLFSSL_DEFINITIONS
+          "-DHAVE_TLS_EXTENSIONS"
+          "-DHAVE_LIBOQS")
+    endif()
+endif()
 
 # TODO: - Lean PSK
 #       - Lean TLS
@@ -1803,6 +1823,7 @@ target_include_directories(wolfssl
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        ${WOLFSSL_INCLUDE_DIRS}
 )
 
 ####################################################
