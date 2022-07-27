@@ -558,7 +558,7 @@ WOLFSSL_LOCAL
 int ecc_projective_dbl_point_safe(ecc_point* P, ecc_point* R, mp_int* a,
                                   mp_int* modulus, mp_digit mp);
 
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
@@ -569,7 +569,7 @@ WOLFSSL_API
 int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
 WOLFSSL_API
 int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime);
@@ -577,7 +577,7 @@ WOLFSSL_API
 int wc_ecc_get_generator(ecc_point* ecp, int curve_idx);
 
 #ifdef HAVE_ECC_DHE
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 WOLFSSL_LOCAL
@@ -646,7 +646,7 @@ WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_set_flags(ecc_key* key, word32 flags);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_fp_free(void);
 WOLFSSL_LOCAL
 void wc_ecc_fp_init(void);
@@ -800,11 +800,11 @@ int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 /* size helper */
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_size(ecc_key* key);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_sig_size_calc(int sz);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_sig_size(const ecc_key* key);
 
 WOLFSSL_API
