@@ -703,7 +703,7 @@ __asm__(                                                  \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
-     :"+rm"(c0), "+rm"(c1), "+rm"(c2)                     \
+     :"+m"(c0), "+m"(c1), "+m"(c2)                        \
      : "m"(i)                                             \
      :"%eax","%edx","cc");
 
@@ -717,7 +717,7 @@ __asm__(                                                  \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
-     :"+rm"(c0), "+rm"(c1), "+rm"(c2)                     \
+     :"+m"(c0), "+m"(c1), "+m"(c2)                        \
      : "m"(i), "m"(j)                                     \
      :"%eax","%edx", "cc");
 
