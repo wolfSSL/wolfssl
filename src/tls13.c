@@ -9746,7 +9746,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    if (ssl->ConnectFilter) {
+    if ((ssl->ConnectFilter != NULL) &&
+        (ssl->options.connectState == CONNECT_BEGIN))
+    {
         wolfSSL_netfilter_decision_t res;
         if ((ssl->ConnectFilter(ssl, ssl->ConnectFilter_arg, &res) ==
              WOLFSSL_SUCCESS) &&
@@ -10781,7 +10783,13 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    if (ssl->AcceptFilter) {
+    if ((ssl->AcceptFilter != NULL) &&
+            ((ssl->options.acceptState == TLS13_ACCEPT_BEGIN)
+#ifdef HAVE_SECURE_RENEGOTIATION
+             || (ssl->options.acceptState == TLS13_ACCEPT_BEGIN_RENEG)
+#endif
+                ))
+    {
         wolfSSL_netfilter_decision_t res;
         if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) ==
              WOLFSSL_SUCCESS) &&
