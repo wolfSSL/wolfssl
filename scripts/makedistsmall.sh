@@ -77,7 +77,7 @@ find . -name "*.sln" -delete
 #rm -rf ./wolfssl/openssl
 
 # wolfCrypt
-rm -f ./wolfcrypt/src/*.i
+#rm -f ./wolfcrypt/src/*.i
 #rm -f ./wolfcrypt/src/*.S
 #rm -f ./wolfcrypt/src/*.asm
 #rm -f ./wolfcrypt/src/arc4.c
@@ -122,6 +122,7 @@ rm -rf ./wolfssl/wolfcrypt/port
 
 # Setup blank options.h
 cp ./wolfssl/options.h.in ./wolfssl/options.h || exit $?
+cp ./wolfcrypt/test/test_paths.h.in ./wolfcrypt/test/test_paths.h || exit $?
 
 popd >/dev/null || exit $?
 
