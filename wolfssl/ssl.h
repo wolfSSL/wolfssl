@@ -1625,6 +1625,8 @@ WOLFSSL_API void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut);
 WOLFSSL_API int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO* bio);
 WOLFSSL_API void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio);
 WOLFSSL_API int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio);
+WOLFSSL_API int wolfSSL_BIO_should_read(WOLFSSL_BIO *bio);
+WOLFSSL_API int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio);
 
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char* name);
 WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD* biom);

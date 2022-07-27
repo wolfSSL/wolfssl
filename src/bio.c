@@ -3207,6 +3207,26 @@ int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio)
     return ret;
 }
 
+int wolfSSL_BIO_should_read(WOLFSSL_BIO *bio)
+{
+    int ret = 0;
+    if (bio != NULL) {
+        ret = (int)(bio->flags & WOLFSSL_BIO_FLAG_READ);
+    }
+
+    return ret;
+}
+
+int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio)
+{
+    int ret = 0;
+    if (bio != NULL) {
+        ret = (int)(bio->flags & WOLFSSL_BIO_FLAG_WRITE);
+    }
+
+    return ret;
+}
+
 #endif /* OPENSSL_ALL */
 
 #endif /* WOLFSSL_BIO_INCLUDED */
