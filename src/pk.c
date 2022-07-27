@@ -2637,7 +2637,7 @@ int wolfSSL_RSA_set_ex_data_with_cleanup(WOLFSSL_RSA *rsa, int idx, void *data,
 {
     WOLFSSL_ENTER("wolfSSL_RSA_set_ex_data_with_cleanup");
 
-    return (rsa == NULL) ? NULL :
+    return (rsa == NULL) ? 0 :
         wolfSSL_CRYPTO_set_ex_data_with_cleanup(&rsa->ex_data, idx, data,
             freeCb);
 }
