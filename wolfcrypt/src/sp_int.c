@@ -5144,7 +5144,7 @@ int sp_set(sp_int* a, sp_int_digit d)
     return err;
 }
 
-#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA)
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA) || defined(OPENSSL_EXTRA)
 /* Set a number into the multi-precision number.
  *
  * Number may be larger than the size of a digit.
@@ -5579,7 +5579,7 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
 /* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WC_MP_TO_RADIX)
+    defined(OPENSSL_EXTRA) || defined(WC_MP_TO_RADIX)
 #define WOLFSSL_SP_DIV_D
 #endif
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
@@ -5951,7 +5951,7 @@ int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
  * @return  MP_VAL when a is NULL or d is 0.
  */
 #if !defined(WOLFSSL_SP_MATH_ALL) && (!defined(HAVE_ECC) || \
-    !defined(HAVE_COMP_KEY))
+    !defined(HAVE_COMP_KEY)) && !defined(OPENSSL_EXTRA)
 static
 #endif /* !WOLFSSL_SP_MATH_ALL && (!HAVE_ECC || !HAVE_COMP_KEY) */
 int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)

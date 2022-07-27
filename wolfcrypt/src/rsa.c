@@ -4221,7 +4221,7 @@ int wc_RsaExportKey(RsaKey* key,
 #ifdef WOLFSSL_KEY_GEN
 
 /* Check that |p-q| > 2^((size/2)-100) */
-static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
+static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
 {
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *c = NULL, *d = NULL;
@@ -4265,10 +4265,7 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
 
     /* compare */
     if (ret == 0)
-        ret = mp_cmp(d, c);
-
-    if (ret == MP_GT)
-        ret = MP_OKAY;
+        *valid = (mp_cmp(d, c) == MP_GT);
 
 #ifdef WOLFSSL_SMALL_STACK
     if (d != NULL) {
@@ -4380,9 +4377,10 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
     *isPrime = MP_NO;
 
     if (q != NULL) {
+        int valid = 0;
         /* 5.4 - check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
-        ret = wc_CompareDiffPQ(p, q, nlen);
-        if (ret != MP_OKAY) goto notOkay;
+        ret = wc_CompareDiffPQ(p, q, nlen, &valid);
+        if ((ret != MP_OKAY) || (!valid)) goto notOkay;
         prime = q;
     }
     else

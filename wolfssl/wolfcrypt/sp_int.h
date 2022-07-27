@@ -358,78 +358,76 @@ typedef struct sp_ecc_ctx {
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 #include <wolfssl/wolfcrypt/random.h>
 
-#ifdef SP_INT_BITS
-    /* Calculate number of digits to have in an sp_int based maximum size of
+#ifndef SP_INT_BITS
+    #ifdef SP_INT_DIGITS
+        #define SP_INT_BITS (((SP_INT_DIGITS - 1) * SP_WORD_SIZE) / 2)
+    #else
+        /* Calculate number of bits to have in an sp_int based on features
+         * compiled in.
+         */
+        #ifdef WOLFSSL_MYSQL_COMPATIBLE
+            /* MySQL wants to be able to use 8192-bit numbers. */
+            #define SP_INT_BITS     8192
+        #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH) && \
+            !defined(WOLFSSL_HAVE_SP_ECC)
+            /* Not using SP - must be SP math all. */
+            #if !defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA)
+                /* Support max size FFHDE parameters compiled in. */
+                #if !defined(NO_DH) && defined(HAVE_FFDHE_8192)
+                    #define SP_INT_BITS     8192
+                #elif !defined(NO_DH) && defined(HAVE_FFDHE_6144)
+                    #define SP_INT_BITS     6144
+                #elif !defined(NO_DH) && defined(HAVE_FFDHE_4096)
+                    #define SP_INT_BITS     4096
+                #else
+                    /* Default to max 3072 for general RSA and DH. */
+                    #define SP_INT_BITS     3072
+                #endif
+            #elif defined(WOLFCRYPT_HAVE_SAKKE)
+                #define SP_INT_BITS     1024
+            #elif defined(HAVE_ECC)
+                /* P521 is the largest supported ECC algorithm curve. */
+                #define SP_INT_BITS     521
+            #elif !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+                /*  wc_PKCS12_PBKDF_ex() */
+                #define SP_INT_BITS     WC_MAX_DIGEST_SIZE * 8
+            #else
+                #define SP_INT_BITS     128
+            #endif
+        #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
+            /* Not use SP_RSA or DH but are using SP ECC. */
+            #if defined(WOLFCRYPT_HAVE_SAKKE)
+                #define SP_INT_BITS     1024
+            #elif defined(WOLFSSL_SP_521) || defined(WOLFSSL_SP_MATH_ALL)
+                /* P521 is the largest supported ECC algorithm curve. */
+                #define SP_INT_BITS     521
+            #elif defined(WOLFSSL_SP_384)
+                /* No generic support - largest curve P384. */
+                #define SP_INT_BITS     384
+            #else
+                /* No generic support - largest curve P256. */
+                #define SP_INT_BITS     256
+            #endif
+        /* SP RSA and DH supported so base on max size of RSA/DH in SP. */
+        #elif defined(WOLFSSL_SP_4096)
+            #define SP_INT_BITS     4096
+        #elif !defined(WOLFSSL_SP_NO_3072) || defined(WOLFSSL_SP_MATH_ALL)
+            #define SP_INT_BITS     3072
+        #else
+            #define SP_INT_BITS     2048
+        #endif
+    #endif
+#endif
+
+#ifndef SP_INT_DIGITS
+    /* Calculate number of digits to have in an sp_int based on maximum size of
      * numbers in bits that will be used.
      * Double the size to hold multiplication result.
      * Add one to accommodate extra digit used by sp_mul(), sp_mulmod(),
      * sp_sqr(), and sp_sqrmod().
      */
     #define SP_INT_DIGITS                                                      \
-        ((((SP_INT_BITS + (SP_WORD_SIZE - 1)) * 2 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-#endif
-
-#ifndef SP_INT_DIGITS
-    /* Calculate number of digits to have in an sp_int based on features
-     * compiled in.
-     */
-    #if !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH) && \
-        !defined(WOLFSSL_HAVE_SP_ECC)
-        #if !defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA)
-            /* large SP math requires 2048-bits + */
-            #if !defined(NO_DH) && defined(HAVE_FFDHE_8192)
-                #define SP_INT_DIGITS    (((16384 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-            #elif !defined(NO_DH) && defined(HAVE_FFDHE_6144)
-                #define SP_INT_DIGITS    (((12288 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-            #elif !defined(NO_DH) && defined(HAVE_FFDHE_4096)
-                #define SP_INT_DIGITS    (((8192 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-            #else
-                /* all else */
-                #define SP_INT_DIGITS    (((6144 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-            #endif
-        #elif defined(WOLFCRYPT_HAVE_SAKKE)
-            #define SP_INT_DIGITS   \
-                    (((2 * (1024 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #elif defined(HAVE_ECC)
-            #define SP_INT_DIGITS   \
-                    (((2 * ( 521 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #elif !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
-            #define SP_INT_DIGITS        ((( 512 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #else
-            #define SP_INT_DIGITS        ((( 256 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #endif
-    #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
-        #if defined(WOLFCRYPT_HAVE_SAKKE)
-            #define SP_INT_DIGITS   \
-                    (((2 * (1024 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #elif defined(WOLFSSL_SP_MATH_ALL)
-            #define SP_INT_DIGITS   \
-                    (((2 * ( 521 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #elif defined(WOLFSSL_SP_384)
-            #define SP_INT_DIGITS        ((( 768 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #else
-            #define SP_INT_DIGITS        ((( 512 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #endif
-    #elif defined(WOLFSSL_SP_4096)
-        #if defined(WOLFSSL_HAVE_SP_DH)
-            #define SP_INT_DIGITS        (((8192 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #else
-            #define SP_INT_DIGITS        (((4096 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #endif
-    #elif !defined(WOLFSSL_SP_NO_3072)
-        #if defined(WOLFSSL_HAVE_SP_DH)
-            #define SP_INT_DIGITS        (((6144 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #else
-            #define SP_INT_DIGITS        (((3072 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #endif
-    #else
-        #if defined(WOLFSSL_HAVE_SP_DH) || \
-                (defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_KEY_GEN))
-            #define SP_INT_DIGITS        (((4096 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #else
-            #define SP_INT_DIGITS        (((2048 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
-        #endif
-    #endif
+        (((SP_INT_BITS * 2 + SP_WORD_SIZE - 1) / SP_WORD_SIZE) + 1)
 #endif
 
 #ifndef SP_INT_MAX_BITS
@@ -837,7 +835,7 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && \
-    defined(HAVE_COMP_KEY))
+    defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA)
 MP_API int sp_mod_d(sp_int* a, sp_int_digit d, sp_int_digit* r);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
