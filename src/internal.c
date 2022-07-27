@@ -4626,6 +4626,8 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
+    byte *outTmp;
+    byte mask;
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4642,6 +4644,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
     WOLFSSL_ENTER("RsaDec");
 
+    outTmp = *out;
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
     ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -4652,7 +4655,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaDecCb) {
         void* ctx = wolfSSL_GetRsaDecCtx(ssl);
-        ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz, ctx);
+        ret = ssl->ctx->RsaDecCb(ssl, in, inSz, &outTmp, keyBuf, keySz, ctx);
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
@@ -4662,7 +4665,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
             if (ret != 0)
                 return ret;
         #endif
-        ret = wc_RsaPrivateDecryptInline(in, inSz, out, key);
+        ret = wc_RsaPrivateDecryptInline(in, inSz, &outTmp, key);
     }
 
     /* Handle async pending response */
@@ -4672,11 +4675,11 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    /* For positive response return in outSz */
-    if (ret > 0) {
-        *outSz = ret;
-        ret = 0;
-    }
+    mask = ctMaskGT(ret, 0);
+    *outSz = (word32)(ret & (int)(sword8)mask);
+    ret &= (int)(sword8)(~mask);
+    /* Copy pointer */
+    ctMaskCopy(mask, (byte*)out, (byte*)&outTmp, sizeof(*out));
 
     WOLFSSL_LEAVE("RsaDec", ret);
 
@@ -34730,6 +34733,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
+                        byte *tmpRsa;
                         byte mask;
                         int i;
 
@@ -34754,7 +34758,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
                         ret = args->lastErr;
                         args->lastErr = 0; /* reset */
-                        /* On error 'ret' will be negative - top bit set */
+                        /* On error 'ret' will be negative */
                         mask = ((unsigned int)ret >>
                                                    ((sizeof(ret) * 8) - 1)) - 1;
 
@@ -34762,6 +34766,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
+                        tmpRsa = input + args->idx - VERSION_SZ - SECRET_LEN;
+                        ctMaskCopy(~mask, (byte*)&args->output, (byte*)&tmpRsa,
+                            sizeof(args->output));
                         if (args->output != NULL) {
                             /* Use random secret on error */
                             for (i = VERSION_SZ; i < SECRET_LEN; i++) {
