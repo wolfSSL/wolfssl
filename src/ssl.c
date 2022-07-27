@@ -11908,11 +11908,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         ssl->options.connectState++;
                         WOLFSSL_MSG("connect state: "
                                     "Advanced from last buffered fragment send");
+                    #ifdef WOLFSSL_ASYNC_IO
+                        /* Cleanup async */
+                        FreeAsyncCtx(ssl, 0);
+                    #endif
                     }
-                #ifdef WOLFSSL_ASYNC_IO
-                    /* Cleanup async */
-                    FreeAsyncCtx(ssl, 0);
-                #endif
                 }
                 else {
                     WOLFSSL_MSG("connect state: "
@@ -12438,11 +12438,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         ssl->options.acceptState++;
                         WOLFSSL_MSG("accept state: "
                                     "Advanced from last buffered fragment send");
+                    #ifdef WOLFSSL_ASYNC_IO
+                        /* Cleanup async */
+                        FreeAsyncCtx(ssl, 0);
+                    #endif
                     }
-                #ifdef WOLFSSL_ASYNC_IO
-                    /* Cleanup async */
-                    FreeAsyncCtx(ssl, 0);
-                #endif
                 }
                 else {
                     WOLFSSL_MSG("accept state: "
