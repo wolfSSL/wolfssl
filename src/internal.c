@@ -4626,10 +4626,8 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
-    word32 outSzTmp;
     byte *outTmp;
     byte mask;
-    int zero;
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4678,12 +4676,10 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     mask = ctMaskGT(ret, 0);
-    *outSz = 0;
-    zero = 0;
-    outSzTmp = (word32)ret;
-    ctMaskCopy(mask, (byte*)outSz, (byte*)&outSzTmp, (byte*)outSz, sizeof(*outSz));
-    ctMaskCopy(mask, (byte*)&ret, (byte*)&zero, (byte*)&ret, sizeof(ret));
-    ctMaskCopy(mask, (byte*)out, (byte*)&outTmp, (byte*)out, sizeof(*out));
+    *outSz = (word32)(ret & (int)(sword8)mask);
+    ret &= (int)(sword8)(~mask);
+    /* Copy pointer */
+    ctMaskCopy(mask, (byte*)out, (byte*)&outTmp, sizeof(*out));
 
     WOLFSSL_LEAVE("RsaDec", ret);
 
@@ -34762,7 +34758,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
                         ret = args->lastErr;
                         args->lastErr = 0; /* reset */
-                        /* On error 'ret' will be negative - top bit set */
+                        /* On error 'ret' will be negative */
                         mask = ((unsigned int)ret >>
                                                    ((sizeof(ret) * 8) - 1)) - 1;
 
@@ -34771,8 +34767,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
                         tmpRsa = input + args->idx - VERSION_SZ - SECRET_LEN;
-                        ctMaskCopy(mask, (byte*)&args->output,
-                            (byte*)&args->output, (byte*)&tmpRsa, sizeof(args->output));
+                        ctMaskCopy(~mask, (byte*)&args->output, (byte*)&tmpRsa,
+                            sizeof(args->output));
                         if (args->output != NULL) {
                             /* Use random secret on error */
                             for (i = VERSION_SZ; i < SECRET_LEN; i++) {

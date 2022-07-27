@@ -545,14 +545,15 @@ WC_STATIC WC_INLINE byte ctSetLTE(int a, int b)
     return (byte)(((word32)a - b - 1) >> 31);
 }
 
-/* Constant time - copy size bytes from left to dst if mask is set, size bytes
- * from right to dst if mask is not set */
-WC_STATIC WC_INLINE void ctMaskCopy(byte m, byte* dst, byte* left, byte* right,
+/* Constant time - conditionally copy size bytes from src to dst if mask is set
+ */
+WC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     word16 size)
 {
     int i;
-    for (i = 0; i < size; ++i)
-        dst[i] = ctMaskSel(m, left[i], right[i]);
+    for (i = 0; i < size; ++i) {
+        dst[i] ^= (dst[i] ^ src[i]) & mask;
+    }
 }
 
 #endif
