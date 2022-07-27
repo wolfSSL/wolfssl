@@ -132,12 +132,15 @@ static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
 static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 29
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 29
     int i;
@@ -1949,7 +1952,7 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -3011,7 +3014,7 @@ static WC_INLINE sp_digit sp_2048_div_word_72(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -4882,12 +4885,15 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
 static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 29
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 29
     int i;
@@ -5631,7 +5637,7 @@ static WC_INLINE sp_digit sp_3072_div_word_53(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -6470,7 +6476,7 @@ static WC_INLINE sp_digit sp_3072_div_word_106(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -8184,12 +8190,15 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
 static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 28
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 28
     int i;
@@ -9654,7 +9663,7 @@ static WC_INLINE sp_digit sp_3072_div_word_56(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 28);
     m = d - ((sp_int64)r * div);
-    r += (m >> 56) - (sp_digit)(d >> 56);
+    r += (sp_digit)(m >> 56) - (sp_digit)(d >> 56);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -10572,7 +10581,7 @@ static WC_INLINE sp_digit sp_3072_div_word_112(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 28);
     m = d - ((sp_int64)r * div);
-    r += (m >> 56) - (sp_digit)(d >> 56);
+    r += (sp_digit)(m >> 56) - (sp_digit)(d >> 56);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -12516,12 +12525,15 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
 static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 29
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 29
     int i;
@@ -13274,7 +13286,7 @@ static WC_INLINE sp_digit sp_4096_div_word_71(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -14114,7 +14126,7 @@ static WC_INLINE sp_digit sp_4096_div_word_142(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -15686,12 +15698,15 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
 static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 26
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 26
     int i;
@@ -17177,7 +17192,7 @@ static WC_INLINE sp_digit sp_4096_div_word_81(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 26);
     m = d - ((sp_int64)r * div);
-    r += (m >> 52) - (sp_digit)(d >> 52);
+    r += (sp_digit)(m >> 52) - (sp_digit)(d >> 52);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -18081,7 +18096,7 @@ static WC_INLINE sp_digit sp_4096_div_word_162(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 26);
     m = d - ((sp_int64)r * div);
-    r += (m >> 52) - (sp_digit)(d >> 52);
+    r += (sp_digit)(m >> 52) - (sp_digit)(d >> 52);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -20388,12 +20403,15 @@ SP_NOINLINE static int sp_256_sub_9(sp_digit* r, const sp_digit* a,
 static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 29
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 29
     int i;
@@ -27588,12 +27606,15 @@ SP_NOINLINE static int sp_384_sub_15(sp_digit* r, const sp_digit* a,
 static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 26
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 26
     int i;
@@ -35173,12 +35194,15 @@ SP_NOINLINE static int sp_521_sub_21(sp_digit* r, const sp_digit* a,
 static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 25
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 25
     int i;
@@ -43708,7 +43732,7 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 25);
     m = d - ((sp_int64)r * div);
-    r += (m >> 50) - (sp_digit)(d >> 50);
+    r += (sp_digit)(m >> 50) - (sp_digit)(d >> 50);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -43937,12 +43961,15 @@ static void sp_1024_point_free_42(sp_point_1024* p, int clear, void* heap)
 static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
 {
 #if DIGIT_BIT == 25
-    int j;
+    int i;
+    int j = 0;
 
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
+    for (i = 0; i < size; i++) {
+        sp_digit mask =
+            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+        r[i] = a->dp[j] & mask;
+        j += (int)(((sp_digit)1) -
+                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 25
     int i;
