@@ -687,6 +687,7 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                     return WOLFSSL_FAILURE;
                 }
                 else {
+                    *outl = inl;
                     return WOLFSSL_SUCCESS;
                 }
             }
@@ -697,6 +698,7 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                     return WOLFSSL_FAILURE;
                 }
                 else {
+                    *outl = inl;
                     return WOLFSSL_SUCCESS;
                 }
             }
@@ -946,6 +948,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                 return WOLFSSL_FAILURE;
             }
             else {
+                *outl = 0;
                 return WOLFSSL_SUCCESS;
             }
 #endif
