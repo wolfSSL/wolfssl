@@ -7121,7 +7121,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
     }
 
-    if (!done) {
+    if ((!done) && (err == MP_OKAY)) {
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
     !defined(WOLFSSL_SP_NO_MALLOC)
         int cnt = 4;
