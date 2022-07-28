@@ -7446,6 +7446,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
  key         The corresponding public ECC key
  return      MP_OKAY if successful (even if the signature is not valid)
  */
+WOLFSSL_ABI
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                        word32 hashlen, int* res, ecc_key* key)
 {
@@ -8591,6 +8592,7 @@ done:
 #endif /* HAVE_COMP_KEY */
 
 /* export public ECC key in ANSI X9.63 format */
+WOLFSSL_ABI
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 {
    int    ret = MP_OKAY;
@@ -8688,6 +8690,7 @@ done:
 
 /* export public ECC key in ANSI X9.63 format, extended with
  * compression option */
+WOLFSSL_ABI
 int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
                           int compressed)
 {
@@ -9762,6 +9765,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
 /* export ecc private key only raw, outLen is in/out size as unsigned bin
    return MP_OKAY on success */
+WOLFSSL_ABI
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
 {
     if (out == NULL || outLen == NULL) {
@@ -9961,6 +9965,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 }
 
 /* ecc private key import, public key in ANSI X9.63 format, private raw */
+WOLFSSL_ABI
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key)
 {
@@ -9978,6 +9983,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
    outlen  [in/out] output buffer size, output signature size
    return  MP_OKAY on success
 */
+WOLFSSL_ABI
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 {
     int err;
@@ -10353,6 +10359,7 @@ int wc_ecc_import_unsigned(ecc_key* key, const byte* qx, const byte* qy,
    curveName ECC curve name, from ecc_sets[]
    return    MP_OKAY on success
 */
+WOLFSSL_ABI
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName)
 {

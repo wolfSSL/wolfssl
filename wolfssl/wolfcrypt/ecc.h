@@ -619,7 +619,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key);
 #endif /* HAVE_ECC_SIGN */
 
 #ifdef HAVE_ECC_VERIFY
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key);
 WOLFSSL_API
@@ -722,9 +722,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
                           int compressed);
     /* extended functionality with compressed option */
@@ -736,13 +736,13 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                           int curve_id);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                 const byte* pub, word32 pubSz, ecc_key* key, int curve_id);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
 int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
@@ -750,7 +750,7 @@ int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
 WOLFSSL_API
 int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
                    byte* s, word32* sLen);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 WOLFSSL_API
@@ -766,7 +766,7 @@ WOLFSSL_API
 int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                      byte* qy, word32* qyLen, byte* d, word32* dLen,
                      int encType);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,

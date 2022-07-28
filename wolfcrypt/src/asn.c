@@ -20790,6 +20790,7 @@ static int wc_EncryptedInfoAppend(char* dest, int destSz, char* cipherInfo)
 #ifdef WOLFSSL_DER_TO_PEM
 
 /* Used for compatibility API */
+WOLFSSL_ABI
 int wc_DerToPem(const byte* der, word32 derSz,
                 byte* output, word32 outSz, int type)
 {
@@ -22590,6 +22591,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
  * @return  BAD_FUNC_ARG when key or key's parameters is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
+WOLFSSL_ABI
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {
@@ -29043,6 +29045,7 @@ enum {
 #define eccKeyASN_Length (sizeof(eccKeyASN) / sizeof(ASNItem))
 #endif
 
+WOLFSSL_ABI
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {
@@ -29319,6 +29322,7 @@ static int EccKeyParamCopy(char** dst, char* src)
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
+WOLFSSL_ABI
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
@@ -29932,6 +29936,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
 
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
+WOLFSSL_ABI
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     return wc_BuildEccKeyDer(key, output, &inLen, 1, 1);

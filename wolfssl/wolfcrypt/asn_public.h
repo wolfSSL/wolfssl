@@ -613,7 +613,7 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 #endif /* WOLFSSL_CERT_GEN */
 
 #ifdef WOLFSSL_DER_TO_PEM
-    WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
+    WOLFSSL_ABI WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
@@ -658,9 +658,9 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 #ifdef HAVE_ECC
     /* private key helpers */
-    WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
+    WOLFSSL_ABI WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                            ecc_key* key, word32 inSz);
-    WOLFSSL_API int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
+    WOLFSSL_ABI WOLFSSL_API int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen);
     WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
                                           word32 inLen);
     WOLFSSL_API int wc_EccKeyDerSize(ecc_key* key, int pub);
@@ -670,9 +670,9 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
                                      word32* outLen);
 
     /* public key helper */
-    WOLFSSL_API int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
+    WOLFSSL_ABI WOLFSSL_API int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz);
-    WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
+    WOLFSSL_ABI WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
                                          word32 inLen, int with_AlgCurve);
     WOLFSSL_API int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
                                          word32 inLen, int with_AlgCurve,
