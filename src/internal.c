@@ -18124,7 +18124,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         if(IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_DTLS13
             ret = Dtls13ProcessBufferedMessages(ssl);
-#elif
+#else
             ret = NOT_COMPILED_IN;
 #endif /* WOLFSSL_DTLS13 */
         }
@@ -23272,7 +23272,6 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveStaticECC = 1;
             haveStaticRSA = 1;
             haveRSAsig = 1;
-            haveECDSAsig = 1;
             havePSK = 1;
             haveNull = 0;
 
@@ -23296,7 +23295,6 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveStaticECC = 0;
             haveStaticRSA = 0;
             haveRSAsig = 1;
-            haveECDSAsig = 1;
             havePSK = 1;
             haveNull = 0;
 
