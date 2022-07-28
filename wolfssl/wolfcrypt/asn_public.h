@@ -450,6 +450,9 @@ typedef struct Cert {
     void*   heap;             /* heap hint */
     byte    basicConstSet:1;  /* Indicator for when Basic Constaint is set */
     byte    pathLenSet:1;     /* Indicator for when path length is set */
+#ifdef WOLFSSL_ALT_NAMES
+    byte    altNamesCrit:1;   /* Indicator of criticality of SAN extension */
+#endif
 } Cert;
 
 

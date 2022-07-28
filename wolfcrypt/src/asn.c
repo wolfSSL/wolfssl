@@ -23499,11 +23499,13 @@ static int SetCertificatePolicies(byte *output,
 #ifndef WOLFSSL_ASN_TEMPLATE
 /* encode Alternative Names, return total bytes written */
 static int SetAltNames(byte *output, word32 outSz,
-        const byte *input, word32 length)
+        const byte *input, word32 length, int critical)
 {
     byte san_len[1 + MAX_LENGTH_SZ];
     int idx = 0, san_lenSz;
     const byte san_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x11 };
+    const byte san_crit[] = { 0x01, 0x01, 0xff };
+    word32 seqSz;
 
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
@@ -23517,14 +23519,22 @@ static int SetAltNames(byte *output, word32 outSz,
     if (outSz < MAX_SEQ_SZ)
         return BUFFER_E;
 
-    idx = SetSequence(length + sizeof(san_oid) + san_lenSz, output);
+    seqSz = length + sizeof(san_oid) + san_lenSz;
+    if (critical)
+        seqSz += sizeof(san_crit);
+    idx = SetSequence(seqSz, output);
 
-    if ((length + sizeof(san_oid) + san_lenSz) > outSz)
+    if (seqSz > outSz)
         return BUFFER_E;
 
     /* put oid */
     XMEMCPY(output+idx, san_oid, sizeof(san_oid));
     idx += sizeof(san_oid);
+
+    if (critical) {
+        XMEMCPY(output+idx, san_crit, sizeof(san_crit));
+        idx += sizeof(san_crit);
+    }
 
     /* put octet header */
     XMEMCPY(output+idx, san_len, san_lenSz);
@@ -24288,8 +24298,9 @@ static const ASNItem static_certExtsASN[] = {
 /* BC_PATHLEN    */                { 3, ASN_INTEGER, 0, 0, 1 },
                                        /* Subject Alternative Name - 4.2.1.6  */
 /* SAN_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* SAN_OID       */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* SAN_STR       */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* SAN_OID       */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* SAN_CRIT      */        { 1, ASN_BOOLEAN, 0, 0, 0 },
+/* SAN_STR       */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
             /* Subject Key Identifier - 4.2.1.2 */
 /* SKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* SKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
@@ -24337,6 +24348,7 @@ enum {
     CERTEXTSASN_IDX_BC_PATHLEN,
     CERTEXTSASN_IDX_SAN_SEQ,
     CERTEXTSASN_IDX_SAN_OID,
+    CERTEXTSASN_IDX_SAN_CRIT,
     CERTEXTSASN_IDX_SAN_STR,
     CERTEXTSASN_IDX_SKID_SEQ,
     CERTEXTSASN_IDX_SKID_OID,
@@ -24479,6 +24491,12 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* Set Subject Alternative Name OID and data. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SAN_OID],
                     sanOID, sizeof(sanOID));
+            if (cert->altNamesCrit) {
+                SetASN_Boolean(&dataASN[CERTEXTSASN_IDX_SAN_CRIT], 1);
+            }
+            else {
+                dataASN[CERTEXTSASN_IDX_SAN_CRIT].noOut = 1;
+            }
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SAN_STR],
                     cert->altNames, cert->altNamesSz);
         }
@@ -25091,7 +25109,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* Alternative Name */
     if (cert->altNamesSz) {
         der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
-                                      cert->altNames, cert->altNamesSz);
+                                      cert->altNames, cert->altNamesSz,
+                                      cert->altNamesCrit);
         if (der->altNamesSz <= 0)
             return ALT_NAME_E;
 
@@ -26283,7 +26302,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* Alternative Name */
     if (cert->altNamesSz) {
         der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
-                                      cert->altNames, cert->altNamesSz);
+                                      cert->altNames, cert->altNamesSz,
+                                      cert->altNamesCrit);
         if (der->altNamesSz <= 0)
             return ALT_NAME_E;
 
