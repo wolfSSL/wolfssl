@@ -4462,6 +4462,10 @@ static int test_wolfSSL_EVP_get_cipherbynid(void)
 #endif
 #endif /* !NO_DES3 */
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    AssertNotNull(strcmp("EVP_CHACHA20_POLY13O5", EVP_get_cipherbynid(1018)));
+#endif
+
   /* test for nid is out of range */
   AssertNull(wolfSSL_EVP_get_cipherbynid(1));
 
@@ -45587,6 +45591,10 @@ static int test_wolfSSL_EVP_CIPHER_block_size(void)
     AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
 #endif
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_chacha20_poly1305()), 1);
+#endif
+
     return 0;
 }
 
@@ -45636,6 +45644,9 @@ static int test_wolfSSL_EVP_CIPHER_iv_length(void)
          NID_des_cbc,
          NID_des_ede3_cbc,
     #endif
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+         NID_chacha20_poly1305,
+    #endif
     };
 
     int iv_lengths[] = {
@@ -45678,6 +45689,9 @@ static int test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifndef NO_DES3
             DES_BLOCK_SIZE,
             DES_BLOCK_SIZE,
+    #endif
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            CHACHA20_POLY1305_AEAD_IV_SIZE,
     #endif
     };
 
