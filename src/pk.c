@@ -35,6 +35,16 @@
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && defined(WOLFSSL_KEY_GEN) && \
+    (!defined(HAVE_USER_RSA) || defined(HAVE_ECC) || \
+     (!defined(NO_DSA) && !defined(HAVE_SELFTEST)))
+/* Forward declaration for wolfSSL_PEM_write_bio_RSA_PUBKEY,
+ * wolfSSL_PEM_write_bio_DSA_PUBKEY and wolfSSL_PEM_write_bio_EC_PUBKEY.
+ * Implementation in ssl.c.
+ */
+static int pem_write_bio_pubkey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key);
+#endif
+
 /*******************************************************************************
  * COMMON FUNCTIONS
  ******************************************************************************/
@@ -1429,11 +1439,6 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
 }
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
-/* Forward declaration for wolfSSL_PEM_write_bio_RSA_PUBKEY.
- * Implementation in ssl.c.
- */
-static int pem_write_bio_pubkey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key);
-
 /* Writes PEM encoding of an RSA public key to a BIO.
  *
  * @param [in] bio  BIO object to write to.

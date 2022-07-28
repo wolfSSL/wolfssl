@@ -2139,25 +2139,26 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 #if defined(HAVE_FFDHE_8192)
-    #define MIN_FFDHE_FP_MAX_BITS 16384
+    #define MIN_FFDHE_BITS 8192
 #elif defined(HAVE_FFDHE_6144)
-    #define MIN_FFDHE_FP_MAX_BITS 12288
+    #define MIN_FFDHE_BITS 6144
 #elif defined(HAVE_FFDHE_4096)
-    #define MIN_FFDHE_FP_MAX_BITS 8192
+    #define MIN_FFDHE_BITS 4096
 #elif defined(HAVE_FFDHE_3072)
-    #define MIN_FFDHE_FP_MAX_BITS 6144
+    #define MIN_FFDHE_BITS 3072
 #elif defined(HAVE_FFDHE_2048)
-    #define MIN_FFDHE_FP_MAX_BITS 4096
+    #define MIN_FFDHE_BITS 2048
 #else
-    #define MIN_FFDHE_FP_MAX_BITS 0
+    #define MIN_FFDHE_BITS 0
 #endif
+#define MIN_FFDHE_FP_MAX_BITS   (MIN_FFDHE_BITS * 2)
 #if defined(HAVE_FFDHE) && defined(FP_MAX_BITS)
     #if MIN_FFDHE_FP_MAX_BITS > FP_MAX_BITS
         #error "FFDHE parameters are too large for FP_MAX_BIT as set"
     #endif
 #endif
 #if defined(HAVE_FFDHE) && defined(SP_INT_BITS)
-    #if MIN_FFDHE_FP_MAX_BITS > SP_INT_BITS * 2
+    #if MIN_FFDHE_BITS > SP_INT_BITS
         #error "FFDHE parameters are too large for SP_INT_BIT as set"
     #endif
 #endif
@@ -2166,16 +2167,18 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD)
     #if defined(USE_FAST_MATH) && !defined(FP_MAX_BITS)
         #if MIN_FFDHE_FP_MAX_BITS <= 8192
-            #define FP_MAX_BITS 8192
+            #define FP_MAX_BITS     8192
         #else
-            #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+            #define FP_MAX_BITS     MIN_FFDHE_FP_MAX_BITS
         #endif
     #endif
     #if defined(WOLFSSL_SP_MATH_ALL) && !defined(SP_INT_BITS)
-        #if MIN_FFDHE_FP_MAX_BITS <= 8192
-            #define SP_INT_BITS 4096
+        #ifdef WOLFSSL_MYSQL_COMPATIBLE
+            #define SP_INT_BITS     8192
+        #elif MIN_FFDHE_BITS <= 4096
+            #define SP_INT_BITS     4096
         #else
-            #define PS_INT_BITS MIN_FFDHE_FP_MAX_BITS / 2
+            #define SP_INT_BITS     MIN_FFDHE_BITS
         #endif
     #endif
 #endif
