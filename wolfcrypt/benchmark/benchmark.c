@@ -39,8 +39,10 @@
 #ifdef HAVE_PTHREAD
     #include <pthread.h>
 #endif
-#if defined(HAVE_PTHREAD) || \
-        (!defined(NO_STDIO_FILESYSTEM) && !defined(NO_ERROR_STRINGS))
+#if defined(HAVE_PTHREAD) ||                                          \
+    (!defined(NO_CRYPT_BENCHMARK) && !defined(NO_STDIO_FILESYSTEM) && \
+     !defined(NO_ERROR_STRINGS) && !defined(NO_MAIN_DRIVER) &&        \
+     !defined(BENCH_EMBEDDED))
     #include <errno.h>
     #include <unistd.h>
 #endif
@@ -320,7 +322,8 @@
 #endif
 
 #undef LIBCALL_CHECK_RET
-#if defined(NO_STDIO_FILESYSTEM) || defined(NO_ERROR_STRINGS)
+#if defined(NO_STDIO_FILESYSTEM) || defined(NO_ERROR_STRINGS) || \
+    defined(NO_MAIN_DRIVER) || defined(BENCH_EMBEDDED)
 #define LIBCALL_CHECK_RET(...) __VA_ARGS__
 #else
 #define LIBCALL_CHECK_RET(...) do {                           \
