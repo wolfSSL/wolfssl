@@ -1441,7 +1441,8 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
     #endif
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case CHACHA20_POLY1305_TYPE:
-            return WOLFSSL_EVP_CIPH_STREAM_CIPHER;
+            return WOLFSSL_EVP_CIPH_STREAM_CIPHER |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
     #endif
         default:
             return 0;
