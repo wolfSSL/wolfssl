@@ -25788,6 +25788,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { NID_des, DESb, oidBlkType, "DES-CBC", "des-cbc"},
         { NID_des3, DES3b, oidBlkType, "DES-EDE3-CBC", "des-ede3-cbc"},
     #endif /* !NO_DES3 */
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        { NID_chacha20_poly1305, NID_chacha20_poly1305, oidBlkType, "ChaCha20-Poly1305", "chacha20-poly1305"},
+    #endif
 
         /* oidOcspType */
     #ifdef HAVE_OCSP
