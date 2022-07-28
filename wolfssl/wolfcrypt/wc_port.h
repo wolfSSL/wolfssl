@@ -358,9 +358,6 @@ WOLFSSL_API int wc_LockMutex_ex(int flag, int type, const char* file, int line);
 WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
 #endif
 
-#define WOLFSSL_ABI
-    /* TODO: Fix this. The above is a hack for now - UP */
-
 /* main crypto initialization function */
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Init(void);
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
