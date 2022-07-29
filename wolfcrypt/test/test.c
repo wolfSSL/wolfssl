@@ -12856,7 +12856,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
     /* RNG is handled with the cryptocell */
     if (ret != 0)
 #else
-    if (ret != MISSING_RNG_E)
+    if (ret == MISSING_RNG_E)
 #endif
         return -7658;
     sigSz = 0;
