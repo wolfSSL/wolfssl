@@ -470,6 +470,25 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
                       (SOCKADDR*)peer, peer != NULL ? &peerSz : NULL);
 
+    /* From the RECV(2) man page
+     * The returned address is truncated if the buffer provided is too small; in
+     * this case, addrlen will return a value greater than was supplied to the
+     * call.
+     */
+    if (dtlsCtx->connected) {
+        /* No need to sanitize the value of peerSz */
+    }
+    else if (dtlsCtx->userSet) {
+        /* Truncate peer size */
+        if (peerSz > sizeof(lclPeer))
+            peerSz = sizeof(lclPeer);
+    }
+    else {
+        /* Truncate peer size */
+        if (peerSz > dtlsCtx->peer.bufSz)
+            peerSz = dtlsCtx->peer.bufSz;
+    }
+
     recvd = TranslateReturnCode(recvd, sd);
 
     if (recvd < 0) {

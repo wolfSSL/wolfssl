@@ -15735,8 +15735,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
                 word32 digestSz = MacSize(ssl);
-                if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+                if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz) {
+                    WOLFSSL_ERROR(BUFFER_E);
                     return BUFFER_E;
+                }
                 *inOutIdx += digestSz;
             }
             else
@@ -15789,8 +15791,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
             word32 digestSz = MacSize(ssl);
-            if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+            if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz) {
+                WOLFSSL_ERROR(BUFFER_E);
                 return BUFFER_E;
+            }
             *inOutIdx += digestSz;
         }
         else
@@ -15833,8 +15837,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
             word32 digestSz = MacSize(ssl);
-            if (*inOutIdx + digestSz > totalSz)
+            if (*inOutIdx + digestSz > totalSz) {
+                WOLFSSL_ERROR(BUFFER_E);
                 return BUFFER_E;
+            }
             *inOutIdx += digestSz;
         }
 #endif
@@ -15846,47 +15852,51 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     else {
         /* This branch is in order next, and a complete message. On success
          * clean the tx list. */
-#ifdef WOLFSSL_ASYNC_CRYPT
-        word32 idx = *inOutIdx;
-#endif
         WOLFSSL_MSG("Branch is in order and a complete message");
+
 #ifdef WOLFSSL_ASYNC_CRYPT
-        /* In async mode always store the message and process it with
-         * DtlsMsgDrain because in case of a WC_PENDING_E it will be
-         * easier this way. */
-        if (ssl->devId != INVALID_DEVID &&
-            ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+        if (ssl->devId != INVALID_DEVID) {
+            word32 idx = *inOutIdx;
+            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
+                WOLFSSL_ERROR(BUFFER_ERROR);
+                return BUFFER_ERROR;
+            }
+            if (idx + fragSz + ssl->keys.padSz > totalSz)
+                return BUFFER_E;
+            *inOutIdx = idx + fragSz + ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
+                word32 digestSz = MacSize(ssl);
+                if (*inOutIdx + digestSz > totalSz)
+                    return BUFFER_E;
+                *inOutIdx += digestSz;
+            }
+#endif
+            /* In async mode always store the message and process it with
+             * DtlsMsgDrain because in case of a WC_PENDING_E it will be
+             * easier this way. */
             DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
                          fragOffset, fragSz, ssl->heap);
+            ret = DtlsMsgDrain(ssl);
         }
-        if (idx + fragSz + ssl->keys.padSz > totalSz)
-            return BUFFER_E;
-        *inOutIdx = idx + fragSz + ssl->keys.padSz;
-#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-        if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
-            word32 digestSz = MacSize(ssl);
-            if (*inOutIdx + digestSz > totalSz)
-                return BUFFER_E;
-            *inOutIdx += digestSz;
-        }
+        else
 #endif
-        ret = DtlsMsgDrain(ssl);
+        {
+#ifdef WOLFSSL_NO_TLS12
+            ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
+                                  totalSz);
 #else
-    #ifdef WOLFSSL_NO_TLS12
-        ret = DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
-                                      totalSz);
-    #else
-        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
-    #endif
-        if (ret == 0) {
-            DtlsTxMsgListClean(ssl);
-            if (ssl->dtls_rx_msg_list != NULL) {
-                ret = DtlsMsgDrain(ssl);
+            ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+#endif
+            if (ret == 0) {
+                DtlsTxMsgListClean(ssl);
+                if (ssl->dtls_rx_msg_list != NULL) {
+                    ret = DtlsMsgDrain(ssl);
+                }
             }
         }
-#endif
     }
 
     WOLFSSL_LEAVE("DoDtlsHandShakeMsg()", ret);
@@ -23267,7 +23277,6 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         #endif
             haveRSA = 1;
             haveDH = 1;
-            haveECDSAsig = 1;
             haveECC = 1;
             haveStaticECC = 1;
             haveStaticRSA = 1;
@@ -23290,7 +23299,6 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         #endif
             haveRSA = 1;
             haveDH = 1;
-            haveECDSAsig = 1;
             haveECC = 1;
             haveStaticECC = 0;
             haveStaticRSA = 0;
