@@ -5654,6 +5654,15 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
     fi
 
+    if test "x$ENABLED_SESSION_TICKET" = "xno"
+    then
+        ENABLED_SESSION_TICKET="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
+    fi
+
+    # FTPS server requires pointer to session cache
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 

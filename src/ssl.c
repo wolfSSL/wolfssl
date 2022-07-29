@@ -10037,35 +10037,36 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
             /* On the client side we want to return a persistant reference for
              * backwards compatibility. */
 #ifndef NO_CLIENT_CACHE
-            if (ssl->clientSession)
+            if (ssl->clientSession) {
                 return (WOLFSSL_SESSION*)ssl->clientSession;
+            }
             else {
                 /* Try to add a ClientCache entry to associate with the current
                  * session. Ignore any session cache options. */
-                int error;
-                const byte* id = NULL;
-                byte idSz = 0;
-                id = ssl->session->sessionID;
-                idSz = ssl->session->sessionIDSz;
+                int err;
+                const byte* id = ssl->session->sessionID;
+                byte idSz = ssl->session->sessionIDSz;
                 if (ssl->session->haveAltSessionID) {
                     id = ssl->session->altSessionID;
                     idSz = ID_LEN;
                 }
-                error = AddSessionToCache(ssl->ctx, ssl->session, id, idSz,
+                err = AddSessionToCache(ssl->ctx, ssl->session, id, idSz,
                         NULL, ssl->session->side,
-#ifdef HAVE_SESSION_TICKET
+                #ifdef HAVE_SESSION_TICKET
                         ssl->session->ticketLen > 0,
-#else
+                #else
                         0,
-#endif
+                #endif
                         &ssl->clientSession);
-                if (error == 0)
+                if (err == 0) {
                     return (WOLFSSL_SESSION*)ssl->clientSession;
+                }
             }
 #endif
         }
-        else
+        else {
             return ssl->session;
+        }
 #endif
     }
 
@@ -13633,11 +13634,15 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     (void)useTicket;
     (void)clientCacheEntry;
 
-    addSession = ClientSessionToSession(addSession);
-
-    if (addSession == NULL || idSz == 0) {
-        WOLFSSL_MSG("addSession NULL or idSz == 0");
+    if (idSz == 0) {
+        WOLFSSL_MSG("AddSessionToCache idSz == 0");
         return BAD_FUNC_ARG;
+    }
+
+    addSession = ClientSessionToSession(addSession);
+    if (addSession == NULL) {
+        WOLFSSL_MSG("AddSessionToCache is NULL");
+        return MEMORY_E;
     }
 
     /* Find a position for the new session in cache and use that */
