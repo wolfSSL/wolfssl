@@ -80,6 +80,9 @@
 
 #define BIO_should_retry                wolfSSL_BIO_should_retry
 
+#define BIO_sock_should_retry           wolfSSL_BIO_sock_should_retry
+#define BIO_sock_non_fatal_error        wolfSSL_BIO_sock_non_fatal_error
+
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY

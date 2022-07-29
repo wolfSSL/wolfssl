@@ -88,7 +88,7 @@ static WC_INLINE int TranslateReturnCode(int old, int sd)
     return old;
 }
 
-static WC_INLINE int wolfSSL_LastError(int err)
+int wolfSSL_LastError(int err)
 {
     (void)err; /* Suppress unused arg */
 
