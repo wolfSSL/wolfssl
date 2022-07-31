@@ -8288,21 +8288,21 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         #ifndef WOLFSSL_SP_NO_256
         if (curve_idx != ECC_CUSTOM_IDX &&
                                       ecc_sets[curve_idx].id == ECC_SECP256R1) {
-            sp_ecc_uncompress_256(point->x, pointType, point->y);
+            err = sp_ecc_uncompress_256(point->x, pointType, point->y);
         }
         else
         #endif
         #ifdef WOLFSSL_SP_384
         if (curve_idx != ECC_CUSTOM_IDX &&
                                       ecc_sets[curve_idx].id == ECC_SECP384R1) {
-            sp_ecc_uncompress_384(point->x, pointType, point->y);
+            err = sp_ecc_uncompress_384(point->x, pointType, point->y);
         }
         else
         #endif
         #ifdef WOLFSSL_SP_521
         if (curve_idx != ECC_CUSTOM_IDX &&
                                       ecc_sets[curve_idx].id == ECC_SECP521R1) {
-            sp_ecc_uncompress_521(point->x, pointType, point->y);
+            err = sp_ecc_uncompress_521(point->x, pointType, point->y);
         }
         else
         #endif
@@ -8424,7 +8424,7 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         if (compressed == 0)
 #endif
             err = mp_read_unsigned_bin(point->y, in + keysize, keysize);
-     }
+    }
     if (err == MP_OKAY)
         err = mp_set(point->z, 1);
 
@@ -9601,19 +9601,22 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #else
     #ifndef WOLFSSL_SP_NO_256
         if (key->dp->id == ECC_SECP256R1) {
-            sp_ecc_uncompress_256(key->pubkey.x, pointType, key->pubkey.y);
+            err = sp_ecc_uncompress_256(key->pubkey.x, pointType,
+                key->pubkey.y);
         }
         else
     #endif
     #ifdef WOLFSSL_SP_384
         if (key->dp->id == ECC_SECP384R1) {
-            sp_ecc_uncompress_384(key->pubkey.x, pointType, key->pubkey.y);
+            err = sp_ecc_uncompress_384(key->pubkey.x, pointType,
+                key->pubkey.y);
         }
         else
     #endif
     #ifdef WOLFSSL_SP_521
         if (key->dp->id == ECC_SECP521R1) {
-            sp_ecc_uncompress_521(key->pubkey.x, pointType, key->pubkey.y);
+            err = sp_ecc_uncompress_521(key->pubkey.x, pointType,
+                key->pubkey.y);
         }
         else
     #endif
@@ -9629,8 +9632,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         if (compressed == 0)
     #endif
         {
-            err = mp_read_unsigned_bin(key->pubkey.y, in + keysize,
-                                                                      keysize);
+            err = mp_read_unsigned_bin(key->pubkey.y, in + keysize, keysize);
         }
     }
     if (err == MP_OKAY)
