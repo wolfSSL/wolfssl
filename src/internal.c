@@ -9701,7 +9701,7 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
     if (readSize < DTLS_UNIFIED_HEADER_MIN_SZ)
         return BUFFER_ERROR;
 
-    epochBits = *input & EE_MASK;
+    epochBits = *(input + *inOutIdx) & EE_MASK;
     ret = Dtls13ReconstructEpochNumber(ssl, epochBits, &epochNumber);
     if (ret != 0)
         return ret;
