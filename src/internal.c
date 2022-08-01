@@ -7962,8 +7962,6 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
              * verify */
             break;
         ssl->dtls_tx_msg_list_sz--;
-        /* Reset timer as deleting a node means that state has progressed */
-        ssl->dtls_timeout = ssl->dtls_timeout_init;
         head = next;
     }
     ssl->dtls_tx_msg_list = head;
@@ -8263,8 +8261,7 @@ int DtlsMsgPoolTimeout(WOLFSSL* ssl)
 }
 
 
-/* DtlsMsgPoolReset() deletes the stored transmit list and resets the timeout
- * value. */
+/* DtlsMsgPoolReset() deletes the stored transmit list. */
 void DtlsMsgPoolReset(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("DtlsMsgPoolReset()");
@@ -8274,7 +8271,6 @@ void DtlsMsgPoolReset(WOLFSSL* ssl)
         ssl->dtls_tx_msg = NULL;
         ssl->dtls_tx_msg_list_sz = 0;
     }
-    ssl->dtls_timeout = ssl->dtls_timeout_init;
 }
 
 
@@ -18744,6 +18740,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
                 _DtlsUpdateWindow(ssl);
+            }
+
+            if (ssl->options.dtls) {
+                /* Reset timeout as we have received a valid DTLS message */
+                ssl->dtls_timeout = ssl->dtls_timeout_init;
             }
 #endif /* WOLFSSL_DTLS */
 
