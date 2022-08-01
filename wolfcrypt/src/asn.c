@@ -84,6 +84,9 @@ ASN Options:
     extension.
  * WOLFSSL_SUBJ_INFO_ACC: Enable support for SubjectInfoAccess extension.
  * WOLFSSL_FPKI: Enable support for FPKI (Federal PKI) extensions.
+ * WOLFSSL_CERT_NAME_ALL: Adds more certificate name capability at the
+    cost of taking up more memory. Adds initials, givenname, dnQualifer for
+    example.
 */
 
 #ifndef NO_ASN
@@ -9956,10 +9959,12 @@ void InitDecodedCert(DecodedCert* cert,
         cert->heap            = heap;
         cert->maxPathLen      = WOLFSSL_MAX_PATH_LEN;
     #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        #ifdef WOLFSSL_CERT_NAME_ALL
         cert->subjectNEnc     = CTC_UTF8;
         cert->subjectIEnc     = CTC_UTF8;
         cert->subjectDNQEnc   = CTC_UTF8;
         cert->subjectGNEnc    = CTC_UTF8;
+        #endif
         cert->subjectSNEnc    = CTC_UTF8;
         cert->subjectCEnc     = CTC_PRINTABLE;
         cert->subjectLEnc     = CTC_UTF8;
@@ -10702,10 +10707,12 @@ int wc_OBJ_sn2nid(const char *sn)
         {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
         {WOLFSSL_ORG_NAME, NID_organizationName},
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+    #ifdef WOLFSSL_CERT_NAME_ALL
         {WOLFSSL_NAME, NID_name},
         {WOLFSSL_INITIALS, NID_initials},
         {WOLFSSL_GIVEN_NAME, NID_givenName},
         {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
+    #endif
         {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
         {"SHA1", NID_sha1},
         {NULL, -1}};
@@ -11054,54 +11061,56 @@ static const CertNameData certNameSubject[] = {
         NID_userId
 #endif
     },
+#ifdef WOLFSSL_CERT_NAME_ALL
     /* Name, id 41 */
     {
         "/N=", 3,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectN),
         OFFSETOF(DecodedCert, subjectNLen),
         OFFSETOF(DecodedCert, subjectNEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_name
-#endif
+    #endif
     },
     /* Given Name, id 42 */
     {
         "/GN=", 4,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectGN),
         OFFSETOF(DecodedCert, subjectGNLen),
         OFFSETOF(DecodedCert, subjectGNEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_givenName
-#endif
+    #endif
     },
     /* initials, id 43 */
     {
         "/initials=", 10,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectI),
         OFFSETOF(DecodedCert, subjectILen),
         OFFSETOF(DecodedCert, subjectIEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_initials
-#endif
+    #endif
     },
     /* DN Qualifier Name, id 46 */
     {
         "/dnQualifier=", 13,
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         OFFSETOF(DecodedCert, subjectDNQ),
         OFFSETOF(DecodedCert, subjectDNQLen),
         OFFSETOF(DecodedCert, subjectDNQEnc),
-#endif
-#ifdef WOLFSSL_X509_NAME_AVAILABLE
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_dnQualifier
-#endif
+    #endif
     },
+#endif /* WOLFSSL_CERT_NAME_ALL */
 };
 
 static const int certNameSubjectSz =
@@ -11637,6 +11646,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 nid = NID_commonName;
             #endif /* OPENSSL_EXTRA */
             }
+        #ifdef WOLFSSL_CERT_NAME_ALL
             else if (id == ASN_NAME) {
                 copy = WOLFSSL_NAME;
                 copyLen = sizeof(WOLFSSL_NAME) - 1;
@@ -11701,6 +11711,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     nid = NID_dnQualifier;
                 #endif /* OPENSSL_EXTRA */
             }
+        #endif /* WOLFSSL_CERT_NAME_ALL */
             else if (id == ASN_SUR_NAME) {
                 copy = WOLFSSL_SUR_NAME;
                 copyLen = sizeof(WOLFSSL_SUR_NAME) - 1;
@@ -22803,10 +22814,12 @@ static const byte nameOid[][NAME_OID_SZ] = {
     { 0x55, 0x04, ASN_STATE_NAME },
     { 0x55, 0x04, ASN_STREET_ADDR },
     { 0x55, 0x04, ASN_LOCALITY_NAME },
+#ifdef WOLFSSL_CERT_NAME_ALL
     { 0x55, 0x04, ASN_NAME },
     { 0x55, 0x04, ASN_GIVEN_NAME },
     { 0x55, 0x04, ASN_INITIALS },
     { 0x55, 0x04, ASN_DNQUALIFIER },
+#endif
     { 0x55, 0x04, ASN_SUR_NAME },
     { 0x55, 0x04, ASN_ORG_NAME },
     { 0x00, 0x00, ASN_DOMAIN_COMPONENT}, /* not actual OID - see dcOid */
@@ -22848,6 +22861,7 @@ const char* GetOneCertName(CertName* name, int idx)
        return name->street;
     case ASN_LOCALITY_NAME:
        return name->locality;
+#ifdef WOLFSSL_CERT_NAME_ALL
     case ASN_NAME:
        return name->dnName;
     case ASN_GIVEN_NAME:
@@ -22856,6 +22870,7 @@ const char* GetOneCertName(CertName* name, int idx)
        return name->initials;
     case ASN_DNQUALIFIER:
        return name->dnQualifier;
+#endif /* WOLFSSL_CERT_NAME_ALL */
     case ASN_SUR_NAME:
        return name->sur;
     case ASN_ORG_NAME:
@@ -22899,6 +22914,7 @@ static char GetNameType(CertName* name, int idx)
        return name->streetEnc;
     case ASN_LOCALITY_NAME:
        return name->localityEnc;
+#ifdef WOLFSSL_CERT_NAME_ALL
     case ASN_NAME:
        return name->dnNameEnc;
     case ASN_GIVEN_NAME:
@@ -22907,6 +22923,7 @@ static char GetNameType(CertName* name, int idx)
        return name->initialsEnc;
     case ASN_DNQUALIFIER:
        return name->dnQualifierEnc;
+#endif /* WOLFSSL_CERT_NAME_ALL */
     case ASN_SUR_NAME:
        return name->surEnc;
     case ASN_ORG_NAME:
@@ -27646,13 +27663,6 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
         cn->unit[sz] = '\0';
         cn->unitEnc = decoded->subjectOUEnc;
     }
-    if (decoded->subjectN) {
-        sz = (decoded->subjectNLen < CTC_NAME_SIZE) ? decoded->subjectNLen
-                                                     : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->dnName, decoded->subjectN, sz);
-        cn->dnName[sz] = '\0';
-        cn->dnNameEnc = decoded->subjectNEnc;
-    }
     if (decoded->subjectSN) {
         sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
                                                      : CTC_NAME_SIZE - 1;
@@ -27703,6 +27713,37 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
         XSTRNCPY(cn->email, decoded->subjectEmail, sz);
         cn->email[sz] = '\0';
     }
+#if defined(WOLFSSL_CERT_NAME_ALL) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT))
+    if (decoded->subjectN) {
+        sz = (decoded->subjectNLen < CTC_NAME_SIZE) ? decoded->subjectNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->dnName, decoded->subjectN, sz);
+        cn->dnName[sz] = '\0';
+        cn->dnNameEnc = decoded->subjectNEnc;
+    }
+    if (decoded->subjectI) {
+        sz = (decoded->subjectILen < CTC_NAME_SIZE) ? decoded->subjectILen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->initials, decoded->subjectI, sz);
+        cn->initials[sz] = '\0';
+        cn->initialsEnc = decoded->subjectIEnc;
+    }
+    if (decoded->subjectGN) {
+        sz = (decoded->subjectGNLen < CTC_NAME_SIZE) ? decoded->subjectGNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->givenName, decoded->subjectGN, sz);
+        cn->givenName[sz] = '\0';
+        cn->givenNameEnc = decoded->subjectGNEnc;
+    }
+    if (decoded->subjectDNQ) {
+        sz = (decoded->subjectDNQLen < CTC_NAME_SIZE) ? decoded->subjectDNQLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->dnQualifier, decoded->subjectDNQ, sz);
+        cn->dnQualifier[sz] = '\0';
+        cn->dnQualifierEnc = decoded->subjectDNQEnc;
+    }
+#endif /* WOLFSSL_CERT_NAME_ALL */
 }
 
 #ifndef NO_FILESYSTEM

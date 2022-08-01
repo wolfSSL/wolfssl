@@ -337,6 +337,7 @@ typedef struct CertName {
     char localityEnc;
     char sur[CTC_NAME_SIZE];
     char surEnc;
+#ifdef WOLFSSL_CERT_NAME_ALL
     char givenName[CTC_NAME_SIZE];
     char givenNameEnc;
     char initials[CTC_NAME_SIZE];
@@ -345,6 +346,7 @@ typedef struct CertName {
     char dnQualifierEnc;
     char dnName[CTC_NAME_SIZE];
     char dnNameEnc;
+#endif /* WOLFSSL_CERT_NAME_ALL */
     char org[CTC_NAME_SIZE];
     char orgEnc;
     char unit[CTC_NAME_SIZE];

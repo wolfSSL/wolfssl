@@ -9403,10 +9403,12 @@ static int ConvertNIDToWolfSSL(int nid)
 {
     switch (nid) {
         case NID_commonName : return ASN_COMMON_NAME;
+    #ifdef WOLFSSL_CERT_NAME_ALL
         case NID_name :       return ASN_NAME;
         case NID_givenName:   return ASN_GIVEN_NAME;
         case NID_dnQualifier :   return ASN_DNQUALIFIER;
         case NID_initials:   return ASN_INITIALS;
+    #endif /* WOLFSSL_CERT_NAME_ALL */
         case NID_surname :    return ASN_SUR_NAME;
         case NID_countryName: return ASN_COUNTRY_NAME;
         case NID_localityName: return ASN_LOCALITY_NAME;

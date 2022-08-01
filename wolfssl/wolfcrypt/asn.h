@@ -674,10 +674,12 @@ enum DN_Tags {
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
+#ifdef WOLFSSL_CERT_NAME_ALL
     ASN_NAME          = 0x2a,   /* name */
     ASN_GIVEN_NAME    = 0x29,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
+#endif /* WOLFSSL_CERT_NAME_ALL */
 
     ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
     ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
@@ -707,10 +709,12 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_COMMON_NAME      "/CN="
 #define WOLFSSL_LN_COMMON_NAME   "/commonName="
 #define WOLFSSL_SUR_NAME         "/SN="
-#define WOLFSSL_NAME             "/N="
-#define WOLFSSL_INITIALS         "/initials="
-#define WOLFSSL_GIVEN_NAME       "/GN="
-#define WOLFSSL_DNQUALIFIER      "/dnQualifier="
+#ifdef WOLFSSL_CERT_NAME_ALL
+    #define WOLFSSL_NAME             "/N="
+    #define WOLFSSL_INITIALS         "/initials="
+    #define WOLFSSL_GIVEN_NAME       "/GN="
+    #define WOLFSSL_DNQUALIFIER      "/dnQualifier="
+#endif /* WOLFSSL_CERT_NAME_ALL */
 #define WOLFSSL_SERIAL_NUMBER    "/serialNumber="
 #define WOLFSSL_COUNTRY_NAME     "/C="
 #define WOLFSSL_LN_COUNTRY_NAME  "/countryName="
@@ -1658,6 +1662,7 @@ struct DecodedCert {
     char*   subjectSN;
     int     subjectSNLen;
     char    subjectSNEnc;
+    #ifdef WOLFSSL_CERT_NAME_ALL
     char*   subjectN;
     int     subjectNLen;
     char    subjectNEnc;
@@ -1670,6 +1675,7 @@ struct DecodedCert {
     char*   subjectDNQ;
     int     subjectDNQLen;
     char    subjectDNQEnc;
+    #endif /*WOLFSSL_CERT_NAME_ALL */
     char*   subjectC;
     int     subjectCLen;
     char    subjectCEnc;
