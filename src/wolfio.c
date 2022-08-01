@@ -481,6 +481,20 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
         return recvd;
     }
+    else if (recvd == 0) {
+        int type;
+        XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
+
+        if (getsockopt(sd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
+                type != SOCK_DGRAM) {
+            /* Closed TCP connection */
+            recvd = WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        }
+        else {
+            WOLFSSL_MSG("Ignoring 0-length datagram");
+        }
+        return recvd;
+    }
     else if (dtlsCtx->connected) {
         /* Nothing to do */
     }
