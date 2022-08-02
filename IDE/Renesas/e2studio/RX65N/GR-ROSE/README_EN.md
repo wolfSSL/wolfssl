@@ -205,7 +205,7 @@ Configuration options need to be changed depending on the certificate type used.
 <br>
 
 ```
-$ cd {wolfssl-folder}
+$ cd <wolfssl-folder>
 $ ./autogen.sh
 $ ./configure --enable-ecc --enable-dsa --enable-aesccm CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC -DHAVE_DSA -DHAVE_ALL_CURVES -DHAVE_ECC -DNO_RSA"
 $ make
@@ -213,12 +213,6 @@ $ make
 Note: Do not forget to specify "-DNO_RSA"
 
 
-```
-$ cd <wolfssl-folder>
-$ ./autogen.sh
-$ ./configure CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVEAES_CBC"
-$ make
-```
 
 <br>
 
@@ -236,7 +230,7 @@ $ examples/server/server -b -d -i
 <br>
 
 ```
-$ cd {wolfssl-folder}
+$ cd <wolfssl-folder>
 $ ./autogen.sh
 $ ./configure --enable-ecc --enable-dsa --enable-aesccm CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC -DHAVE_DSA -DHAVE_ALL_CURVES -DHAVE_ECC"
 $ make

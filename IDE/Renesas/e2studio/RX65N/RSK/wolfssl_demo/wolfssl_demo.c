@@ -210,7 +210,7 @@ static void Tls_client_init(const char* cipherlist)
     /* load client private key */
 
 #ifdef USE_ECC_CERT
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && 
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && \
         (WOLFSSL_RENESAS_TSIP_VER >= 115 )
     if (tsip_set_clientPrivateKeyEnc(
                         g_key_block_data.encrypted_user_ecc256_private_key,
@@ -247,7 +247,7 @@ static void Tls_client_init(const char* cipherlist)
         printf("client can't set cipher list");
     }
 
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) &&
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     (WOLFSSL_RENESAS_TSIP_VER >= 115)
 
     if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
