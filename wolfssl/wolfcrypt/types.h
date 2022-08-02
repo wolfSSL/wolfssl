@@ -39,6 +39,9 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
 
+    #define WOLFSSL_ABI
+            /* Tag for all the APIs that are a part of the fixed ABI. */
+
     /*
      * This struct is used multiple time by other structs and
      * needs to be defined somewhere that all structs can import
