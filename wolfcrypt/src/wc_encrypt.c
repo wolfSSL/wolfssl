@@ -261,10 +261,13 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
     /* use file's salt for key derivation, hex decode first */
     if (Base16_Decode(info->iv, info->ivSz, info->iv, &info->ivSz) != 0) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return BUFFER_E;
     }
-    if (info->ivSz < PKCS5_SALT_SZ)
+    if (info->ivSz < PKCS5_SALT_SZ) {
+        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return BUFFER_E;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
@@ -482,6 +485,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decrypt id");
             (void)shaOid;
             ret = ALGO_ID_E;
+            WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -541,6 +545,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             default:
                 WOLFSSL_MSG("Unknown/Unsupported PKCS version");
                 ret = ALGO_ID_E;
+                WOLFSSL_ERROR_VERBOSE(ret);
         } /* switch (version) */
     }
 
@@ -685,6 +690,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             default:
                 WOLFSSL_MSG("Unknown/Unsupported encrypt/decryption algorithm");
                 ret = ALGO_ID_E;
+                WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
 

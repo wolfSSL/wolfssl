@@ -1791,6 +1791,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     const word32* rk = aes->key;
 
     if (r > 7 || r == 0) {
+        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
 
@@ -1824,6 +1825,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
             return 0;
         #else
             WOLFSSL_MSG("AES-ECB encrypt with bad alignment");
+            WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
             return BAD_ALIGN_E;
         #endif
         }
@@ -2146,6 +2148,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     const word32* rk = aes->key;
 
     if (r > 7 || r == 0) {
+        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
 
@@ -4006,6 +4009,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         blocks = sz / AES_BLOCK_SIZE;
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
         if (sz % AES_BLOCK_SIZE) {
+            WOLFSSL_ERROR_VERBOSE(BAD_LENGTH_E);
             return BAD_LENGTH_E;
         }
 #endif
@@ -4081,6 +4085,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 return 0;
             #else
                 WOLFSSL_MSG("AES-CBC encrypt with bad alignment");
+                WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
                 return BAD_ALIGN_E;
             #endif
             }

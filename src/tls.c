@@ -165,8 +165,10 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
      wc_MemZero_Add("TLS handshake hash", hash, hashSz);
 #endif
 
-    if (ret != 0)
+    if (ret != 0) {
         ret = BUILD_MSG_ERROR;
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
 
     return ret;
 }
@@ -224,6 +226,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #else
         /* Pseudo random function must be enabled in the configuration. */
         ret = PRF_MISSING;
+        WOLFSSL_ERROR_VERBOSE(ret);
         WOLFSSL_MSG("Pseudo-random function is not enabled");
 
         (void)side;
@@ -331,6 +334,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
+    WOLFSSL_ERROR_VERBOSE(ret);
     WOLFSSL_MSG("Pseudo-random function is not enabled");
 
     (void)key_dig;
@@ -1387,6 +1391,7 @@ int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl);
 int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
 {
     SendAlert(ssl, alert_fatal, unsupported_extension);
+    WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_EXTENSION);
     return UNSUPPORTED_EXTENSION;
 }
 
@@ -1670,6 +1675,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         }
 
         SendAlert(ssl, alert_fatal, no_application_protocol);
+        WOLFSSL_ERROR_VERBOSE(UNKNOWN_ALPN_PROTOCOL_NAME_E);
         return UNKNOWN_ALPN_PROTOCOL_NAME_E;
     }
 
@@ -1679,7 +1685,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
                      (word16)XSTRLEN(alpn->protocol_name),
                      ssl->heap);
     if (r != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("TLSX_UseALPN failed");
+        WOLFSSL_MSG("TLSX_SetALPN failed");
         return BUFFER_ERROR;
     }
 
@@ -1743,6 +1749,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     extension = TLSX_Find(extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL) {
         WOLFSSL_MSG("TLS extension not found");
+        WOLFSSL_ERROR_VERBOSE(WOLFSSL_ALPN_NOT_FOUND);
         return WOLFSSL_ALPN_NOT_FOUND;
     }
 
@@ -1751,6 +1758,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
         WOLFSSL_MSG("ALPN extension not found");
         *data = NULL;
         *dataSz = 0;
+        WOLFSSL_ERROR_VERBOSE(WOLFSSL_FATAL_ERROR);
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -1759,16 +1767,19 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
         /* consider as an error */
         if (alpn->options & WOLFSSL_ALPN_FAILED_ON_MISMATCH) {
             WOLFSSL_MSG("No protocol match with peer -> Failed");
+            WOLFSSL_ERROR_VERBOSE(WOLFSSL_FATAL_ERROR);
             return WOLFSSL_FATAL_ERROR;
         }
 
         /* continue without negotiated protocol */
         WOLFSSL_MSG("No protocol match with peer -> Continue");
+        WOLFSSL_ERROR_VERBOSE(WOLFSSL_ALPN_NOT_FOUND);
         return WOLFSSL_ALPN_NOT_FOUND;
     }
 
     if (alpn->next != NULL) {
         WOLFSSL_MSG("Only one protocol name must be accepted");
+        WOLFSSL_ERROR_VERBOSE(WOLFSSL_FATAL_ERROR);
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -2076,7 +2087,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
     else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
         SendAlert(ssl, alert_fatal, unrecognized_name);
-
+        WOLFSSL_ERROR_VERBOSE(UNKNOWN_SNI_HOST_NAME_E);
         return UNKNOWN_SNI_HOST_NAME_E;
     }
 #else
@@ -2116,6 +2127,7 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
                 }
 
                 SendAlert(ssl, alert_fatal, handshake_failure);
+                WOLFSSL_ERROR_VERBOSE(SNI_ABSENT_ERROR);
                 return SNI_ABSENT_ERROR;
             }
         }
@@ -2126,6 +2138,7 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
                     continue;
 
                 SendAlert(ssl, alert_fatal, handshake_failure);
+                WOLFSSL_ERROR_VERBOSE(SNI_ABSENT_ERROR);
                 return SNI_ABSENT_ERROR;
             }
         }
@@ -2242,6 +2255,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
             if (len16 != 0) /* session_id_length must be 0 */
                 return BUFFER_ERROR;
 
+            WOLFSSL_ERROR_VERBOSE(SNI_UNSUPPORTED);
             return SNI_UNSUPPORTED;
         }
 
@@ -2251,8 +2265,10 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     if (clientHello[offset++] != SSLv3_MAJOR)
         return BUFFER_ERROR;
 
-    if (clientHello[offset++] < TLSv1_MINOR)
+    if (clientHello[offset++] < TLSv1_MINOR) {
+        WOLFSSL_ERROR_VERBOSE(SNI_UNSUPPORTED);
         return SNI_UNSUPPORTED;
+    }
 
     ato16(clientHello + offset, &len16);
     offset += OPAQUE16_LEN;
@@ -2635,6 +2651,7 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 offset += idSz;
                 break;
             default:
+                WOLFSSL_ERROR_VERBOSE(TCA_INVALID_ID_TYPE);
                 return TCA_INVALID_ID_TYPE;
         }
 
@@ -2664,6 +2681,7 @@ static int TLSX_TCA_VerifyParse(WOLFSSL* ssl, byte isRequest)
 
         if (extension && !extension->resp) {
             SendAlert(ssl, alert_fatal, handshake_failure);
+            WOLFSSL_ERROR_VERBOSE(TCA_ABSENT_ERROR);
             return TCA_ABSENT_ERROR;
         }
     #endif /* NO_WOLFSSL_CLIENT */
@@ -2755,7 +2773,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         default:
             SendAlert(ssl, alert_fatal, illegal_parameter);
-
+            WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
             return UNKNOWN_MAX_FRAG_LEN_E;
     }
 
@@ -3044,8 +3062,10 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             ret = 0;
             if (OPAQUE8_LEN + OPAQUE24_LEN > length)
                 ret = BUFFER_ERROR;
-            if (ret == 0 && input[offset++] != WOLFSSL_CSR_OCSP)
+            if (ret == 0 && input[offset++] != WOLFSSL_CSR_OCSP) {
                 ret = BAD_CERTIFICATE_STATUS_ERROR;
+                WOLFSSL_ERROR_VERBOSE(ret);
+            }
             if (ret == 0) {
                 c24to32(input + offset, &resp_length);
                 offset += OPAQUE24_LEN;
@@ -3222,8 +3242,10 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
                     return CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                                       &csr->request.ocsp, NULL);
                 }
-                else
+                else {
+                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
                     return OCSP_LOOKUP_FAIL;
+                }
         }
     }
 
@@ -3652,8 +3674,10 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                     return CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                                   &csr2->request.ocsp[0], NULL);
                 }
-                else
+                else {
+                    WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
                     return OCSP_LOOKUP_FAIL;
+                }
         }
     }
 
@@ -4984,7 +5008,8 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                         WOLFSSL_MSG("SCR client verify data match");
                         TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
                         ret = 0;  /* verified */
-                    } else {
+                    }
+                    else {
                         /* already in error state */
                         WOLFSSL_MSG("SCR client verify data Failure");
                     }
@@ -5013,7 +5038,8 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                             TLS_FINISHED_SZ) == 0) {
                     WOLFSSL_MSG("SCR client and server verify data match");
                     ret = 0;  /* verified */
-                } else {
+                }
+                else {
                     /* already in error state */
                     WOLFSSL_MSG("SCR client and server verify data Failure");
                 }
@@ -5023,6 +5049,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
     }
 
     if (ret != 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
         SendAlert(ssl, alert_fatal, handshake_failure);
     }
 
@@ -5160,6 +5187,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
 
         if (length > SESSION_TICKET_LEN) {
             ret = BAD_TICKET_MSG_SZ;
+            WOLFSSL_ERROR_VERBOSE(ret);
         } else if (IsAtLeastTLSv1_3(ssl->version)) {
             WOLFSSL_MSG("Process client ticket rejected, TLS 1.3 no support");
             ssl->options.rejectTicket = 1;
@@ -5308,6 +5336,7 @@ static int TLSX_EncryptThenMac_GetSize(byte msgType, word16* pSz)
     (void)pSz;
 
     if (msgType != client_hello && msgType != server_hello) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
@@ -5334,6 +5363,7 @@ static int TLSX_EncryptThenMac_Write(void* data, byte* output, byte msgType,
     (void)pSz;
 
     if (msgType != client_hello && msgType != server_hello) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
@@ -5362,6 +5392,7 @@ static int TLSX_EncryptThenMac_Parse(WOLFSSL* ssl, const byte* input,
     (void)input;
 
     if (msgType != client_hello && msgType != server_hello) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
@@ -5382,8 +5413,10 @@ static int TLSX_EncryptThenMac_Parse(WOLFSSL* ssl, const byte* input,
     }
 
     /* Server Hello */
-    if (ssl->options.disallowEncThenMac)
+    if (ssl->options.disallowEncThenMac) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     ssl->options.encThenMac = 1;
     return 0;
@@ -5771,6 +5804,7 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
         *pSz += OPAQUE16_LEN;
     }
     else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
@@ -5881,8 +5915,10 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
 
         *pSz += OPAQUE16_LEN;
     }
-    else
+    else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     return 0;
 }
@@ -5998,6 +6034,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
  #else
             SendAlert(ssl, alert_fatal, protocol_version);
  #endif
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
         }
     }
@@ -6009,12 +6046,16 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
         major = input[0];
         minor = input[OPAQUE8_LEN];
 
-        if (major != pv.major)
+        if (major != pv.major) {
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
+        }
 
         /* Can't downgrade with this extension below TLS v1.3. */
-        if (versionIsLesser(isDtls, minor, tls13minor))
+        if (versionIsLesser(isDtls, minor, tls13minor)) {
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
+        }
 
         /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
         if (ssl->options.downgrade && ssl->version.minor == tls12minor) {
@@ -6023,24 +6064,32 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
         }
 
         /* No upgrade allowed. */
-        if (versionIsLesser(isDtls, ssl->version.minor, minor))
+        if (versionIsLesser(isDtls, ssl->version.minor, minor)) {
+            WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
+        }
 
         /* Check downgrade. */
         if (versionIsGreater(isDtls, ssl->version.minor, minor)) {
-            if (!ssl->options.downgrade)
+            if (!ssl->options.downgrade) {
+                WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
+            }
 
             if (versionIsLesser(
-                    isDtls, minor, ssl->options.minDowngrade))
+                    isDtls, minor, ssl->options.minDowngrade)) {
+                WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
+            }
 
             /* Downgrade the version. */
             ssl->version.minor = minor;
         }
     }
-    else
+    else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     return 0;
 }
@@ -6101,10 +6150,13 @@ static void TLSX_Cookie_FreeAll(Cookie* cookie, void* heap)
  */
 static int TLSX_Cookie_GetSize(Cookie* cookie, byte msgType, word16* pSz)
 {
-    if (msgType == client_hello || msgType == hello_retry_request)
+    if (msgType == client_hello || msgType == hello_retry_request) {
         *pSz += OPAQUE16_LEN + cookie->len;
-    else
+    }
+    else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
     return 0;
 }
 
@@ -6126,8 +6178,10 @@ static int TLSX_Cookie_Write(Cookie* cookie, byte* output, byte msgType,
         XMEMCPY(output, &cookie->data, cookie->len);
         *pSz += OPAQUE16_LEN + cookie->len;
     }
-    else
+    else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
     return 0;
 }
 
@@ -6148,8 +6202,10 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     TLSX*   extension;
     Cookie* cookie;
 
-    if (msgType != client_hello && msgType != hello_retry_request)
+    if (msgType != client_hello && msgType != hello_retry_request) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     /* Message contains length and Cookie which must be at least one byte
      * in length.
@@ -6175,12 +6231,17 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 0);
         else
 #endif
+        {
+            WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
             return HRR_COOKIE_ERROR;
+        }
     }
 
     cookie = (Cookie*)extension->data;
-    if (cookie->len != len || XMEMCMP(&cookie->data, input + idx, len) != 0)
+    if (cookie->len != len || XMEMCMP(&cookie->data, input + idx, len) != 0) {
+        WOLFSSL_ERROR_VERBOSE(HRR_COOKIE_ERROR);
         return HRR_COOKIE_ERROR;
+    }
 
     /* Request seen. */
     extension->resp = 0;
@@ -6662,6 +6723,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     (void)kse;
 
     ret = NOT_COMPILED_IN;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif
 
     return ret;
@@ -6722,6 +6784,7 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         if (wc_curve25519_export_public_ex(key, kse->pubKey, &kse->pubKeyLen,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
             ret = ECC_EXPORT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         kse->pubKeyLen = CURVE25519_KEYSIZE; /* always CURVE25519_KEYSIZE */
     }
@@ -6751,6 +6814,7 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
     (void)kse;
 
     ret = NOT_COMPILED_IN;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_CURVE25519 */
 
     return ret;
@@ -6838,6 +6902,7 @@ static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
     (void)kse;
 
     ret = NOT_COMPILED_IN;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_CURVE448 */
 
     return ret;
@@ -6886,6 +6951,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         #endif /* !NO_ECC_SECP */
     #endif
         default:
+            WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
             return BAD_FUNC_ARG;
     }
 
@@ -6951,6 +7017,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         PRIVATE_KEY_UNLOCK();
         if (wc_ecc_export_x963(eccKey, kse->pubKey, &kse->pubKeyLen) != 0) {
             ret = ECC_EXPORT_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         PRIVATE_KEY_LOCK();
     }
@@ -6979,6 +7046,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     (void)kse;
 
     ret = NOT_COMPILED_IN;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
     return ret;
@@ -7167,12 +7235,13 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
         else {
             WOLFSSL_MSG("liboqs keygen failure");
             ret = BAD_FUNC_ARG;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Public liboqs Key");
-    WOLFSSL_BUFFER(kse->pubKey, kse->pubKeyLen );
+    WOLFSSL_BUFFER(kse->pubKey, kse->pubKeyLen);
 #endif
 
     OQS_KEM_free(kem);
@@ -7255,6 +7324,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
         else {
             WOLFSSL_MSG("liboqs keygen failure");
             ret = BAD_FUNC_ARG;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
 
@@ -7473,12 +7543,14 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             break;
     }
     if (params == NULL) {
+        WOLFSSL_ERROR_VERBOSE(PEER_KEY_ERROR);
         return PEER_KEY_ERROR;
     }
     pSz = params->p_len;
 #else
     ret = wc_DhGetNamedKeyParamSize(keyShareEntry->group, &pSz, NULL, NULL);
     if (ret != 0 || pSz == 0) {
+        WOLFSSL_ERROR_VERBOSE(PEER_KEY_ERROR);
         return PEER_KEY_ERROR;
     }
 #endif
@@ -7562,6 +7634,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     (void)ssl;
     (void)keyShareEntry;
     ret = PEER_KEY_ERROR;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif
     return ret;
 }
@@ -7608,6 +7681,7 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     if (wc_curve25519_check_public(keyShareEntry->ke, keyShareEntry->keLen,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
         ret = ECC_PEERKEY_ERROR;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     if (ret == 0) {
@@ -7615,6 +7689,7 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
                                             keyShareEntry->keLen, peerX25519Key,
                                             EC25519_LITTLE_ENDIAN) != 0) {
             ret = ECC_PEERKEY_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
 
@@ -7639,6 +7714,7 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     (void)keyShareEntry;
 
     ret = PEER_KEY_ERROR;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_CURVE25519 */
 
     return ret;
@@ -7685,6 +7761,7 @@ static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     if (wc_curve448_check_public(keyShareEntry->ke, keyShareEntry->keLen,
                                                     EC448_LITTLE_ENDIAN) != 0) {
         ret = ECC_PEERKEY_ERROR;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     if (ret == 0) {
@@ -7692,6 +7769,7 @@ static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                                               keyShareEntry->keLen, peerX448Key,
                                               EC448_LITTLE_ENDIAN) != 0) {
             ret = ECC_PEERKEY_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
     }
 
@@ -7716,6 +7794,7 @@ static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     (void)keyShareEntry;
 
     ret = PEER_KEY_ERROR;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_CURVE448 */
 
     return ret;
@@ -7764,6 +7843,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     #endif
         default:
             /* unsupported curve */
+            WOLFSSL_ERROR_VERBOSE(ECC_PEERKEY_ERROR);
             return ECC_PEERKEY_ERROR;
     }
 
@@ -7805,6 +7885,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                                 ssl->peerEccKey, curveId);
             if (ret != 0) {
                 ret = ECC_PEERKEY_ERROR;
+                WOLFSSL_ERROR_VERBOSE(ret);
             }
         }
 
@@ -7851,6 +7932,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     (void)keyShareEntry;
 
     ret = PEER_KEY_ERROR;
+    WOLFSSL_ERROR_VERBOSE(ret);
 #endif /* HAVE_ECC */
 
     return ret;
@@ -7887,6 +7969,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
          * pre-allocated buffer. */
         if (keyShareEntry->keLen > ENCRYPT_LEN) {
             WOLFSSL_MSG("shared secret is too long.");
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
             return LENGTH_ERROR;
         }
 
@@ -7904,6 +7987,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     algName = OQS_ID2name(oqs_group);
     if (algName == NULL) {
         WOLFSSL_MSG("Invalid OQS algorithm specified.");
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
 
@@ -7951,6 +8035,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                                    keyShareEntry->privKey) != OQS_SUCCESS) {
         WOLFSSL_MSG("Liboqs decapsulation failure.");
         ret = BAD_FUNC_ARG;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     if (ecc_group != 0) {
@@ -7961,6 +8046,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                                      (word32)kem->length_ciphertext,
                                      &eccpubkey);
             if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 WOLFSSL_MSG("ECC Public key import error.");
             }
         }
@@ -7983,6 +8069,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             if (outlen != sharedSecretLen - kem->length_shared_secret) {
                 WOLFSSL_MSG("ECC shared secret derivation error.");
                 ret = BAD_FUNC_ARG;
+                WOLFSSL_ERROR_VERBOSE(ret);
             }
         }
     }
@@ -7990,6 +8077,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     if (sharedSecretLen > ENCRYPT_LEN) {
         WOLFSSL_MSG("shared secret is too long.");
         ret = LENGTH_ERROR;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     if (ret == 0) {
@@ -8029,6 +8117,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
          * pre-allocated buffer. */
         if (keyShareEntry->keLen > ENCRYPT_LEN) {
             WOLFSSL_MSG("shared secret is too long.");
+            WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
             return LENGTH_ERROR;
         }
 
@@ -8370,12 +8459,16 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         ato16(input, &group);
 
         /* Check the selected group was supported by ClientHello extensions. */
-        if (!TLSX_SupportedGroups_Find(ssl, group))
+        if (!TLSX_SupportedGroups_Find(ssl, group)) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
             return BAD_KEY_SHARE_DATA;
+        }
 
         /* Check if the group was sent. */
-        if (!TLSX_KeyShare_Find(ssl, group))
+        if (!TLSX_KeyShare_Find(ssl, group)) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
             return BAD_KEY_SHARE_DATA;
+        }
 
         /* ServerHello contains one key share entry. */
         len = TLSX_KeyShareEntry_Parse(ssl, input, length, &keyShareEntry);
@@ -8388,6 +8481,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             && keyShareEntry->privKey == NULL
         #endif
         )) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
             return BAD_KEY_SHARE_DATA;
         }
 
@@ -8409,12 +8503,16 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     #endif
         {
             /* Check the selected group was supported by ClientHello extensions. */
-            if (!TLSX_SupportedGroups_Find(ssl, group))
+            if (!TLSX_SupportedGroups_Find(ssl, group)) {
+                WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
+            }
 
             /* Check if the group was sent. */
-            if (TLSX_KeyShare_Find(ssl, group))
+            if (TLSX_KeyShare_Find(ssl, group)) {
+                WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
+            }
 
             /* Clear out unusable key shares. */
             ret = TLSX_KeyShare_Empty(ssl);
@@ -8430,6 +8528,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
     else {
         /* Not a message type that is allowed to have this extension. */
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
     }
 
@@ -8537,6 +8636,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     if (ret == 0 && len != kem->length_public_key + ecc_kse->pubKeyLen) {
         WOLFSSL_MSG("Invalid public key.");
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         ret = BAD_FUNC_ARG;
     }
 
@@ -9160,8 +9260,10 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     }
     curve = preferredCurve;
 
-    if (curve == NULL)
+    if (curve == NULL) {
+        WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
         return BAD_KEY_SHARE_DATA;
+    }
 
     /* Delete the old key share data list. */
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
@@ -9188,6 +9290,8 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
 #else
 
     (void)ssl;
+
+    WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
     ret = NOT_COMPILED_IN;
 #endif
 
@@ -9433,6 +9537,7 @@ static int TLSX_PreSharedKey_GetSize(PreSharedKey* list, byte msgType,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -9448,8 +9553,10 @@ int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType,
 {
     word16 len;
 
-    if (msgType != client_hello)
+    if (msgType != client_hello) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     /* Length of all binders. */
     len = OPAQUE16_LEN;
@@ -9478,8 +9585,10 @@ int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list, byte* output,
     word16 lenIdx;
     word16 len;
 
-    if (msgType != client_hello)
+    if (msgType != client_hello) {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     /* Skip length of all binders. */
     lenIdx = idx;
@@ -9556,8 +9665,10 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         /* Find the index of the chosen identity. */
         for (i=0; list != NULL && !list->chosen; i++)
             list = list->next;
-        if (list == NULL)
+        if (list == NULL) {
+            WOLFSSL_ERROR_VERBOSE(BUILD_MSG_ERROR);
             return BUILD_MSG_ERROR;
+        }
 
         /* The index of the identity chosen by the server from the list supplied
          * by the client.
@@ -9565,8 +9676,10 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         c16toa(i, output);
         *pSz += OPAQUE16_LEN;
     }
-    else
+    else {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
         return SANITY_MSG_E;
+    }
 
     return 0;
 }
@@ -9695,8 +9808,10 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
         /* Mark the identity as chosen. */
         for (; list != NULL && idx > 0; idx--)
             list = list->next;
-        if (list == NULL)
+        if (list == NULL) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
+        }
         list->chosen = 1;
 
     #ifdef HAVE_SESSION_TICKET
@@ -9706,6 +9821,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
                ssl->options.cipherSuite   != ssl->session->cipherSuite        ||
                ssl->session->version.major != ssl->ctx->method->version.major ||
                ssl->session->version.minor != ssl->ctx->method->version.minor) {
+                WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                return PSK_KEY_ERROR;
            }
         }
@@ -9714,6 +9830,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -9887,6 +10004,7 @@ static int TLSX_PskKeModes_GetSize(byte modes, byte msgType, word16* pSz)
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -9918,6 +10036,7 @@ static int TLSX_PskKeModes_Write(byte modes, byte* output, byte msgType,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -9967,6 +10086,7 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -10031,6 +10151,7 @@ static int TLSX_PostHandAuth_GetSize(byte msgType, word16* pSz)
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -10051,6 +10172,7 @@ static int TLSX_PostHandAuth_Write(byte* output, byte msgType, word16* pSz)
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -10077,6 +10199,7 @@ static int TLSX_PostHandAuth_Parse(WOLFSSL* ssl, const byte* input,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -10134,8 +10257,10 @@ static int TLSX_EarlyData_GetSize(byte msgType, word16* pSz)
         *pSz += 0;
     else if (msgType == session_ticket)
         *pSz += OPAQUE32_LEN;
-    else
+    else {
         ret = SANITY_MSG_E;
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
 
     return ret;
 }
@@ -10160,6 +10285,7 @@ static int TLSX_EarlyData_Write(word32 maxSz, byte* output, byte msgType,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -10199,8 +10325,10 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         /* Ensure the index of PSK identity chosen by server is 0.
          * Index is plus one to handle 'not set' value of 0.
          */
-        if (ssl->options.pskIdIndex != 1)
+        if (ssl->options.pskIdIndex != 1) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
+        }
 
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             /* the extension from server comes in */
@@ -10220,6 +10348,7 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return 0;
     }
 
+    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
     return SANITY_MSG_E;
 }
 
@@ -11984,8 +12113,10 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         word16 size;
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
-        if (msgType == client_hello && pskDone)
+        if (msgType == client_hello && pskDone) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
+        }
 #endif
 
         if (length - offset < HELLO_EXT_TYPE_SZ + OPAQUE16_LEN)
@@ -12049,10 +12180,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (IsAtLeastTLSv1_3(ssl->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
                 else if (!IsAtLeastTLSv1_3(ssl->version) &&
                          msgType == encrypted_extensions) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -12082,10 +12215,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (IsAtLeastTLSv1_3(ssl->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
                 else if (!IsAtLeastTLSv1_3(ssl->version) &&
                          msgType == encrypted_extensions) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -12279,8 +12414,10 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
 
-                if (msgType != client_hello && msgType != server_hello)
+                if (msgType != client_hello && msgType != server_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
+                }
 
                 ret = PSK_PARSE(ssl, input + offset, size, msgType);
                 pskDone = 1;
@@ -12295,8 +12432,10 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
 
-                if (msgType != client_hello)
+                if (msgType != client_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
+                }
 
                 ret = PKM_PARSE(ssl, input + offset, size, msgType);
                 break;
@@ -12314,11 +12453,13 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
                 if (msgType != client_hello && msgType != session_ticket &&
                         msgType != encrypted_extensions) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
                 if (!IsAtLeastTLSv1_3(ssl->version) &&
                         (msgType == session_ticket ||
                          msgType == encrypted_extensions)) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
                 ret = EDI_PARSE(ssl, input + offset, size, msgType);
@@ -12335,8 +12476,10 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
 
-                if (msgType != client_hello)
+                if (msgType != client_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
+                }
 
                 ret = PHA_PARSE(ssl, input + offset, size, msgType);
                 break;
@@ -12354,10 +12497,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
                 if (msgType != client_hello &&
                         msgType != certificate_request) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
                 if (!IsAtLeastTLSv1_3(ssl->version) &&
                         msgType == certificate_request) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
 
@@ -12377,6 +12522,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
                 if (msgType != client_hello && msgType != server_hello &&
                         msgType != hello_retry_request) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
     #endif

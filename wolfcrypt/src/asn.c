@@ -3083,6 +3083,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
             /* check if version is expected value rfc 5280 4.1 {0, 1, 2} */
             if (*version > MAX_X509_VERSION || *version < MIN_X509_VERSION) {
                 WOLFSSL_MSG("Unexpected certificate version");
+                WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
                 ret = ASN_VERSION_E;
             }
         }
@@ -5105,7 +5106,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
  *
  * @param [in]  oid  OID id.
  * @return  ECC set id on success.
- * @return  ALGO_ID_E when OID id is 0 or not supported.
+ * @return  ECC_CURVE_OID_E when OID id is 0 or not supported.
  */
 static int CheckCurve(word32 oid)
 {
@@ -5117,7 +5118,8 @@ static int CheckCurve(word32 oid)
     /* Check for error or zero length OID size (can't get OID for encoding). */
     if ((ret < 0) || (oidSz == 0)) {
         WOLFSSL_MSG("CheckCurve not found");
-        ret = ALGO_ID_E;
+        WOLFSSL_ERROR_VERBOSE(ECC_CURVE_OID_E);
+        ret = ECC_CURVE_OID_E;
     }
 
     /* Return ECC set id or error code. */
@@ -5443,6 +5445,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         if ((ret == 0) && (checkOid != NULL) && ((checkOidSz != actualOidSz) ||
                 (XMEMCMP(actualOid, checkOid, checkOidSz) != 0))) {
             WOLFSSL_MSG("OID Check Failed");
+            WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
         }
     }
@@ -5901,6 +5904,7 @@ enum {
  * @param [in]       sz        Size of data in buffer.
  * @param [out]      algId     Key's algorithm id from PKCS #8 header.
  * @return  Length of key data on success.
+ * @return  BAD_FUNC_ARG when input or inOutIdx is NULL.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -6351,10 +6355,14 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 if (mp_cmp(&(a->n), &(b->n)) != MP_EQ ||
                     mp_cmp(&(a->e), &(b->e)) != MP_EQ) {
                     ret = MP_CMP_E;
+                    WOLFSSL_ERROR_VERBOSE(ret);
                 }
                 else
                     ret = 1;
             #endif
+            }
+            else {
+                WOLFSSL_ERROR_VERBOSE(ret);
             }
         }
         wc_FreeRsaKey(b);
@@ -6422,9 +6430,15 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                     if ((ret = wc_ecc_check_key(key_pair)) == 0) {
                         ret = 1;
                     }
+                    else {
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                    }
                 }
                 ForceZero(privDer, privSz);
             }
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         wc_ecc_free(key_pair);
     #ifdef WOLFSSL_SMALL_STACK
@@ -6468,9 +6482,16 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
-                if ((ret = wc_ed25519_check_key(key_pair)) == 0)
+                if ((ret = wc_ed25519_check_key(key_pair)) == 0) {
                     ret = 1;
+                }
+                else {
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
             }
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         wc_ed25519_free(key_pair);
     #ifdef WOLFSSL_SMALL_STACK
@@ -6511,9 +6532,16 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
-                if ((ret = wc_ed448_check_key(key_pair)) == 0)
+                if ((ret = wc_ed448_check_key(key_pair)) == 0) {
                     ret = 1;
+                }
+                else {
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
             }
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         wc_ed448_free(key_pair);
     #ifdef WOLFSSL_SMALL_STACK
@@ -6565,9 +6593,16 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             if ((ret = wc_falcon_import_public(pubKey, pubKeySz,
                                                key_pair)) == 0) {
                 /* Public and private extracted successfully. Sanity check. */
-                if ((ret = wc_falcon_check_key(key_pair)) == 0)
+                if ((ret = wc_falcon_check_key(key_pair)) == 0) {
                     ret = 1;
+                }
+                else {
+                    WOLFSSL_ERROR_VERBOSE(ret);
+                }
             }
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ret);
         }
         wc_falcon_free(key_pair);
     #ifdef WOLFSSL_SMALL_STACK
@@ -10600,6 +10635,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
     #endif /* NO_DSA */
         default:
             WOLFSSL_MSG("Unknown or not compiled in key OID");
+            WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
     }
 
@@ -11317,8 +11353,7 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
  * @param [in]      str     String for component.
  * @param [in]      strLen  Length of string.
  * @param [in]      tag     BER tag representing encoding of string.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  0 on success, negative values on failure.
  */
 static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
                       byte tag)
@@ -11433,6 +11468,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     /* Other OIDs that start with the same values. */
     else if (oidSz == sizeof(dcOid) && XMEMCMP(oid, dcOid, oidSz-1) == 0) {
         WOLFSSL_MSG("Unknown pilot attribute type");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
     }
     else if (oidSz == ASN_JOI_PREFIX_SZ + 1 &&
@@ -12927,8 +12963,10 @@ static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
         return BUFFER_E;
     format = source[*idx];
     *idx += 1;
-    if (format != ASN_UTC_TIME && format != ASN_GENERALIZED_TIME)
+    if (format != ASN_UTC_TIME && format != ASN_GENERALIZED_TIME) {
+        WOLFSSL_ERROR_VERBOSE(ASN_TIME_E);
         return ASN_TIME_E;
+    }
 
     /* get length */
     if (GetLength(source, idx, &length, maxIdx) < 0)
@@ -13013,10 +13051,14 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 #ifndef NO_ASN_TIME
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
             !XVALIDATE_DATE(date, format, dateType)) {
-        if (dateType == BEFORE)
+        if (dateType == BEFORE) {
+            WOLFSSL_ERROR_VERBOSE(ASN_BEFORE_DATE_E);
             return ASN_BEFORE_DATE_E;
-        else
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ASN_AFTER_DATE_E);
             return ASN_AFTER_DATE_E;
+        }
     }
 #else
     (void)verify;
@@ -13115,6 +13157,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
  * @param [in]      verify   Whether to verify dates.
  * @param [out]     badDate  Error code when verify dates.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when cert or badDate is NULL.
  * @return  ASN_TIME_E when date BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -14050,6 +14093,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_RsaPublicKeyDecode(key, &idx, sigCtx->key.rsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error RSA");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                     XMEMCPY(sigCtx->sigCpy, sig, sigSz);
@@ -14084,6 +14128,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_DsaPublicKeyDecode(key, &idx, sigCtx->key.dsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error DSA");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                     if (sigSz != DSA_160_SIG_SIZE &&
@@ -14186,6 +14231,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                                                          keySz);
                     if (ret < 0) {
                         WOLFSSL_MSG("ASN Key import error ECC");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -14211,6 +14257,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_ed25519_import_public(key, keySz,
                                                     sigCtx->key.ed25519)) < 0) {
                         WOLFSSL_MSG("ASN Key import error ED25519");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -14235,6 +14282,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_ed448_import_public(key, keySz,
                                                       sigCtx->key.ed448)) < 0) {
                         WOLFSSL_MSG("ASN Key import error ED448");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -14264,6 +14312,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_falcon_import_public(key, keySz,
                         sigCtx->key.falcon)) < 0) {
                         WOLFSSL_MSG("ASN Key import error Falcon Level 1");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                     break;
@@ -14288,6 +14337,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if ((ret = wc_falcon_import_public(key, keySz,
                         sigCtx->key.falcon)) < 0) {
                         WOLFSSL_MSG("ASN Key import error Falcon Level 5");
+                        WOLFSSL_ERROR_VERBOSE(ret);
                         goto exit_cs;
                     }
                     break;
@@ -14296,6 +14346,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 default:
                     WOLFSSL_MSG("Verify Key type unknown");
                     ret = ASN_UNKNOWN_OID_E;
+                    WOLFSSL_ERROR_VERBOSE(ret);
                     break;
             } /* switch (keyOID) */
 
@@ -14415,8 +14466,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         #endif
 
             if (ret < 0) {
-                /* treat all RSA errors as ASN_SIG_CONFIRM_E */
+                /* treat all errors as ASN_SIG_CONFIRM_E */
                 ret = ASN_SIG_CONFIRM_E;
+                WOLFSSL_ERROR_VERBOSE(ret);
                 goto exit_cs;
             }
 
@@ -14457,6 +14509,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("RSA SSL verify match encode error");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
 
                 #ifdef WOLFSSL_SMALL_STACK
@@ -14474,6 +14527,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("DSA Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14487,6 +14541,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("ECC Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14500,6 +14555,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("ED25519 Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14513,6 +14569,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("ED448 Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14526,6 +14583,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("FALCON_LEVEL1 Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14537,6 +14595,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     else {
                         WOLFSSL_MSG("FALCON_LEVEL5 Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
+                        WOLFSSL_ERROR_VERBOSE(ret);
                     }
                     break;
                 }
@@ -14931,7 +14990,9 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
             break;
         default:
+            WOLFSSL_ERROR_VERBOSE(ASN_UNKNOWN_OID_E);
             ret = ASN_UNKNOWN_OID_E;
+            break;
     }
 
     if (ret == 0) {
@@ -14994,6 +15055,7 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #endif /* WOLFSSL_FPKI */
             default:
                 WOLFSSL_MSG("\tunsupported OID");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 ret = ASN_PARSE_E;
         }
     }
@@ -15084,6 +15146,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             if (i >= len - 2 || (input[idx + i + 1] != '/' ||
                                  input[idx + i + 2] != '/')) {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                 return ASN_ALT_NAME_E;
             }
         }
@@ -15365,6 +15428,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         /* RFC 5280 4.2.1.6.  Subject Alternative Name
            If the subjectAltName extension is present, the sequence MUST
            contain at least one entry. */
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         return ASN_PARSE_E;
     }
 
@@ -15522,6 +15586,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                     }
                     if (input[idx + i] == '/') {
                         WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                        WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                         return ASN_ALT_NAME_E;
                     }
                 }
@@ -15531,6 +15596,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 if (i >= strLen - 2 || (input[idx + i + 1] != '/' ||
                                         input[idx + i + 2] != '/')) {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                    WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                     return ASN_ALT_NAME_E;
                 }
             }
@@ -15701,6 +15767,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         /* RFC 5280 4.2.1.6.  Subject Alternative Name
            If the subjectAltName extension is present, the sequence MUST
            contain at least one entry. */
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
@@ -15842,10 +15909,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
         if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
         /* Path length must be a 7-bit value. */
         if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
         /* Store CA boolean and whether a path length was seen. */
@@ -16108,6 +16177,7 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
                      &reason);
              /* First bit (LSB) unused and eight other bits defined. */
              if ((ret == 0) && ((reason >> 9) || (reason & 0x01))) {
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 ret = ASN_PARSE_E;
              }
         }
@@ -17175,6 +17245,7 @@ exit:
                                        cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
                                        input + idx, length) <= 0) {
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
+                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                     return ASN_PARSE_E;
                 }
             #ifndef WOLFSSL_DUP_CERTPOL
@@ -17189,6 +17260,7 @@ exit:
                             MAX_CERTPOL_SZ) == 0) {
                             WOLFSSL_MSG("Duplicate policy OIDs not allowed");
                             WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
+                            WOLFSSL_ERROR_VERBOSE(CERTPOLICIES_E);
                             return CERTPOLICIES_E;
                     }
                 }
@@ -17280,6 +17352,7 @@ exit:
                                  cert->extCertPolicies[cert->extCertPoliciesNb],
                                  MAX_CERTPOL_SZ, data, length) <= 0) {
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
+                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                     ret = ASN_PARSE_E;
                 }
             }
@@ -17295,6 +17368,7 @@ exit:
                             MAX_CERTPOL_SZ) == 0) {
                     WOLFSSL_MSG("Duplicate policy OIDs not allowed");
                     WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
+                    WOLFSSL_ERROR_VERBOSE(CERTPOLICIES_E);
                     ret = CERTPOLICIES_E;
                 }
             }
@@ -17372,6 +17446,7 @@ static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
         /* RFC 5280 4.2.1.8.  Subject Directory Attributes
            If the subjectDirectoryAttributes extension is present, the
            sequence MUST contain at least one entry. */
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         return ASN_PARSE_E;
     }
 
@@ -17477,6 +17552,7 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
         /* RFC 5280 4.2.2.2.  Subject Information Access
            If the subjectInformationAccess extension is present, the
            sequence MUST contain at least one entry. */
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         return ASN_PARSE_E;
     }
 
@@ -17572,7 +17648,7 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
  * @return  0 on success.
  * @return  ASN_PARSE_E when BER encoding is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
- * @return  Other -ve value on error.
+ * @return  Other negative values on error.
  */
 static int DecodeExtensionType(const byte* input, int length, word32 oid,
                                byte critical, DecodedCert* cert,
@@ -17706,6 +17782,7 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
                 which MUST be used only in a CA certificate" */
             if (!cert->isCA) {
                 WOLFSSL_MSG("Name constraints allowed only for CA certs");
+                WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                 ret = ASN_NAME_INVALID_E;
             }
         #endif
@@ -17768,8 +17845,10 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
              * still parse the certificate ignoring the unsupported
              * extension to allow caller to accept it with the verify
              * callback. */
-            if (critical)
+            if (critical) {
+                WOLFSSL_ERROR_VERBOSE(ASN_CRIT_EXT_E);
                 ret = ASN_CRIT_EXT_E;
+            }
         #endif
             break;
     }
@@ -18228,6 +18307,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     /* Check version is valid/supported - can't be negative. */
     if ((ret == 0) && (version > MAX_X509_VERSION)) {
         WOLFSSL_MSG("Unexpected certificate version");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
@@ -18320,6 +18400,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Certificate extensions were only defined in version 2. */
         if (cert->version < 2) {
             WOLFSSL_MSG("\tv1 and v2 certs not allowed extensions");
+            WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
             ret = ASN_VERSION_E;
         }
     #endif
@@ -18359,11 +18440,13 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Make sure 'signature' and 'signatureAlgorithm' are the same. */
         if (dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum
                 != cert->signatureOID) {
+            WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
             ret = ASN_SIG_OID_E;
         }
         /* NULL tagged item not allowed after ECDSA or EdDSA algorithm OID. */
         if (IsSigAlgoECC(cert->signatureOID) &&
                 (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
             ret = ASN_PARSE_E;
         }
     }
@@ -19238,6 +19321,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                                cert + idx, len, signatureOID, NULL);
         }
         if (ret != 0) {
+            WOLFSSL_ERROR_VERBOSE(ret);
             WOLFSSL_MSG("Confirm signature failed");
         }
     }
@@ -19630,15 +19714,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         cert->extensionsIdx = cert->srcIdx; /* for potential later use */
 
                         if ((ret = DecodeCertExtensions(cert)) < 0) {
-                            if (ret == ASN_CRIT_EXT_E)
+                            if (ret == ASN_CRIT_EXT_E) {
                                 cert->criticalExt = ret;
-                            else
+                            }
+                            else {
                                 return ret;
+                            }
                         }
                         cert->srcIdx += len;
                         break;
                     default:
                         WOLFSSL_MSG("Unsupported attribute type");
+                        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                         return ASN_PARSE_E;
                     }
                 }
@@ -19650,6 +19737,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         #ifndef ALLOW_V1_EXTENSIONS
             if (cert->version < 2) {
                 WOLFSSL_MSG("\tv1 and v2 certs not allowed extensions");
+                WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
                 return ASN_VERSION_E;
             }
         #endif
@@ -19685,18 +19773,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 #else
                 &confirmOID,
 #endif
-                oidSigType, cert->maxIdx)) < 0)
+                oidSigType, cert->maxIdx)) < 0) {
             return ret;
+        }
 
-        if ((ret = GetSignature(cert)) < 0)
+        if ((ret = GetSignature(cert)) < 0) {
             return ret;
+        }
 
         if (confirmOID != cert->signatureOID
 #ifdef WOLFSSL_CERT_REQ
                 && !cert->isCSR
 #endif
-                )
+                ) {
+            WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
             return ASN_SIG_OID_E;
+        }
 #else
 #ifdef WOLFSSL_CERT_REQ
         if (cert->isCSR) {
@@ -19709,10 +19801,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 #endif
         {
             ret = DecodeCert(cert, verify, &cert->criticalExt);
-            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
+            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
                 cert->badDate = ret;
-            else if (ret < 0)
+            }
+            else if (ret < 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
+            }
         }
 #endif
 
@@ -19721,8 +19816,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                                          cert->pubKeySize > 0) {
             ret = CalcHashId(cert->publicKey, cert->pubKeySize,
                                                             cert->extSubjKeyId);
-            if (ret != 0)
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
+            }
         }
     #endif /* !NO_SKID */
 
@@ -19802,13 +19899,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 if (cert->isCA) {
                     WOLFSSL_MSG("\tCA boolean set");
                     if (cert->extKeyUsageSet) {
-                         WOLFSSL_MSG("\tExtension Key Usage Set");
-                         if ((cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
+                        WOLFSSL_MSG("\tExtension Key Usage Set");
+                        if ((cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
                             checkPathLen = 1;
-                         } else {
+                        }
+                        else {
                             decrementMaxPathLen = 1;
-                         }
-                    } else {
+                        }
+                    }
+                    else {
                         checkPathLen = 1;
                     } /* !cert->ca check */
                 } /* cert is not a CA (assuming entity cert) */
@@ -19817,7 +19916,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     if (cert->pathLength < cert->ca->maxPathLen) {
                         WOLFSSL_MSG("\tmaxPathLen status: set to pathLength");
                         cert->maxPathLen = cert->pathLength;
-                    } else {
+                    }
+                    else {
                         decrementMaxPathLen = 1;
                     }
                 }
@@ -19835,6 +19935,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                                     type != TRUSTED_PEER_TYPE) {
                         WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
                         WOLFSSL_MSG("\tmaxPathLen status: ERROR");
+                        WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_INV_E);
                         return ASN_PATHLEN_INV_E;
                     }
                 }
@@ -19848,6 +19949,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                                     type != TRUSTED_PEER_TYPE) {
                         WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
                         WOLFSSL_MSG("\tmaxPathLen status: ERROR");
+                        WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_INV_E);
                         return ASN_PATHLEN_INV_E;
                     }
                 }
@@ -19896,7 +19998,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                              cert->heap, DYNAMIC_TYPE_RSA);
         if (cert->sce_tsip_encRsaKeyIdx == NULL)
                 return MEMORY_E;
-    } else {
+    }
+    else {
         if (cert->ca) {
             /* TSIP isn't usable */
             if (Renesas_cmn_checkCA(cert->ca->cm_idx) == 0)
@@ -19932,6 +20035,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     if (ret != WC_PENDING_E) {
                         WOLFSSL_MSG("Confirm signature failed");
                     }
+                    WOLFSSL_ERROR_VERBOSE(ret);
                     return ret;
                 }
             }
@@ -19942,6 +20046,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                  * name constraints */
                 if (!ConfirmNameConstraints(cert->ca, cert)) {
                     WOLFSSL_MSG("Confirm name constraint failed");
+                    WOLFSSL_ERROR_VERBOSE(ASN_NAME_INVALID_E);
                     return ASN_NAME_INVALID_E;
                 }
             }
@@ -19959,6 +20064,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 if (ret != WC_PENDING_E) {
                     WOLFSSL_MSG("Confirm signature failed");
                 }
+                WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
             }
         }
@@ -19966,6 +20072,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         else {
             /* no signer */
             WOLFSSL_MSG("No CA signer to verify with");
+            WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
             return ASN_NO_SIGNER_E;
         }
     }
@@ -20142,8 +20249,10 @@ int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     }
     /* RFC 5280 - 4.1.2.2:
      *   Serial numbers must be a positive value (and not zero) */
-    if (snSzInt == 0)
+    if (snSzInt == 0) {
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
+    }
 
     if (sn[0] & 0x80)
         maxSnSz--;
@@ -20198,6 +20307,7 @@ int wc_GetSerialNumber(const byte* input, word32* inOutIdx,
 
     if (*serialSz > EXTERNAL_SERIAL_SIZE || *serialSz <= 0) {
         WOLFSSL_MSG("Serial size bad");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
         return ASN_PARSE_E;
     }
 
@@ -20760,6 +20870,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         outLen = 0;
         if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
                 != LENGTH_ONLY_E) {
+            WOLFSSL_ERROR_VERBOSE(err);
             return err;
         }
         return headerLen + footerLen + outLen;
@@ -20796,6 +20907,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+        WOLFSSL_ERROR_VERBOSE(err);
         return err;
     }
     i += outLen;
@@ -21112,13 +21224,15 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
         if (!info || !info->passwd_cb) {
             WOLFSSL_MSG("No password callback set");
+            WOLFSSL_ERROR_VERBOSE(NO_PASSWORD);
             return NO_PASSWORD;
         }
 
     #ifdef WOLFSSL_SMALL_STACK
         password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
-        if (password == NULL)
+        if (password == NULL) {
             return MEMORY_E;
+        }
     #endif
 
         /* get password */
@@ -21150,6 +21264,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                     }
                 }
             #else
+                WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
                 ret = NOT_COMPILED_IN;
             #endif
             }
@@ -21158,6 +21273,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 if (passwordSz == 0) {
                     /* The key is encrypted but does not have a password */
                     WOLFSSL_MSG("No password for encrypted key");
+                    WOLFSSL_ERROR_VERBOSE(NO_PASSWORD);
                     ret = NO_PASSWORD;
                 }
                 else {
@@ -23821,6 +23937,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
     /* Restrict country code size */
     if (type == ASN_COUNTRY_NAME && strLen != CTC_COUNTRY_SIZE) {
         WOLFSSL_MSG("Country code size error");
+        WOLFSSL_ERROR_VERBOSE(ASN_COUNTRY_SIZE_E);
         return ASN_COUNTRY_SIZE_E;
     }
 
@@ -25537,7 +25654,7 @@ static int WriteCertBody(DerCert* der, byte* buf)
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
 
-/* Make RSA signature from buffer (sz), write to sig (sigSz) */
+/* Make signature from buffer (sz), write to sig (sigSz) */
 static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
     byte* sig, int sigSz, RsaKey* rsaKey, ecc_key* eccKey,
     ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
@@ -25669,6 +25786,10 @@ exit_ms:
 
     /* reset state */
     certSignCtx->state = CERTSIGN_STATE_BEGIN;
+
+    if (ret < 0) {
+        WOLFSSL_ERROR_VERBOSE(ret);
+    }
 
     return ret;
 }
@@ -32852,6 +32973,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
 #ifndef IGNORE_KEY_EXTENSIONS
     if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
         WOLFSSL_MSG("CA cannot sign CRLs");
+        WOLFSSL_ERROR_VERBOSE(ASN_CRL_NO_SIGNER_E);
         return ASN_CRL_NO_SIGNER_E;
     }
 #endif /* IGNORE_KEY_EXTENSIONS */
@@ -32861,6 +32983,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
                          signatureOID, NULL) != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
+        WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
         return ASN_CRL_CONFIRM_E;
     }
 
@@ -32913,6 +33036,7 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
     if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
         ret = ASN_CRL_NO_SIGNER_E;
+        WOLFSSL_ERROR_VERBOSE(ret);
     }
 
     if (ret == 0) {
@@ -32982,6 +33106,7 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         if (verify != NO_VERIFY &&
                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
+            WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
         }
 #endif
@@ -33363,6 +33488,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, int verify,
     if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
         ret = ASN_CRL_NO_SIGNER_E;
+        WOLFSSL_ERROR_VERBOSE(ret);
         goto end;
     }
 
@@ -33448,6 +33574,7 @@ end:
                  !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
                 ret = CRL_CERT_DATE_ERR;
+                WOLFSSL_ERROR_VERBOSE(ret);
             }
         }
     }

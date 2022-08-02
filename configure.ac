@@ -833,6 +833,9 @@ then
 
     # Handle as many subject/issuer name OIDs as possible
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_NAME_ALL"
+
+    # More thorough error queue usage.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERBOSE_ERRORS"
 fi
 
 

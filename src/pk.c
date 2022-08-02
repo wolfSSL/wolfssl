@@ -1331,6 +1331,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
             else {
                  WOLFSSL_MSG("RsaPublicKeyDecode failed");
             }
+            WOLFSSL_ERROR_VERBOSE(res);
             ret = -1;
         }
     }
@@ -5597,10 +5598,12 @@ int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA* dsa, const unsigned char* derBuf,
     }
 
     if (ret < 0 && opt == WOLFSSL_DSA_LOAD_PRIVATE) {
+        WOLFSSL_ERROR_VERBOSE(ret);
         WOLFSSL_MSG("DsaPrivateKeyDecode failed");
         return -1;
     }
     else if (ret < 0 && opt == WOLFSSL_DSA_LOAD_PUBLIC) {
+        WOLFSSL_ERROR_VERBOSE(ret);
         WOLFSSL_MSG("DsaPublicKeyDecode failed");
         return -1;
     }

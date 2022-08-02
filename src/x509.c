@@ -4882,6 +4882,10 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
 WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key = NULL;
+    int ret;
+
+    (void)ret;
+
     WOLFSSL_ENTER("X509_get_pubkey");
     if (x509 != NULL) {
         key = wolfSSL_EVP_PKEY_new_ex(x509->heap);
@@ -4943,8 +4947,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
                 /* not using wolfSSL_EC_KEY_LoadDer because public key in x509
                  * is in the format of x963 (no sequence at start of buffer) */
-                if (wc_EccPublicKeyDecode((const unsigned char*)key->pkey.ptr,
-                        &idx, (ecc_key*)key->ecc->internal, key->pkey_sz) < 0) {
+                ret = wc_EccPublicKeyDecode((const unsigned char*)key->pkey.ptr,
+                                            &idx, (ecc_key*)key->ecc->internal,
+                                            key->pkey_sz);
+                if (ret < 0) {
+                    WOLFSSL_ERROR_VERBOSE(ret);
                     WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
                     wolfSSL_EVP_PKEY_free(key);
                     return NULL;
@@ -4990,11 +4997,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 #endif /* OPENSSL_EXTRA_X509_SMALL || KEEP_PEER_CERT || SESSION_CERTS */
 
 #if defined(OPENSSL_ALL)
-/* Takes two WOLFSSL_X509* certificates and performs a Sha hash of each, if the
-   * hash values are the same, then it will do an XMEMCMP to confirm they are
-   * identical. Returns a 0 when certificates match, returns a negative number
-   * when certificates are not a match.
-*/
+/*
+ * Converts a and b to DER and then does an XMEMCMP to check if they match.
+ * Returns 0 when certificates match and WOLFSSL_FATAL_ERROR when they don't.
+ */
 int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
         const byte* derA;
@@ -5023,6 +5029,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         }
 
         WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+
         return 0;
     }
 #endif /* OPENSSL_ALL */
@@ -6960,10 +6967,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     size = wolfSSL_BIO_get_len(bio);
     if (size <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_get_len error. Possibly no pending data.");
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-        /* EOF ASN1 file */
         WOLFSSL_ERROR(ASN1_R_HEADER_TOO_LONG);
-#endif
         return NULL;
     }
 
@@ -8708,7 +8712,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             cert->beforeDateSz = CertDateFromX509(cert->beforeDate,
                         CTC_DATE_SIZE, &x509->notBefore);
             if (cert->beforeDateSz <= 0){
-                WOLFSSL_MSG("Not before date error");
+                WOLFSSL_MSG("Error converting WOLFSSL_X509 not before date");
                 return WOLFSSL_FAILURE;
             }
         }
@@ -8720,7 +8724,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             cert->afterDateSz = CertDateFromX509(cert->afterDate,
                         CTC_DATE_SIZE, &x509->notAfter);
             if (cert->afterDateSz <= 0){
-                WOLFSSL_MSG("Not after date error");
+                WOLFSSL_MSG("Error converting WOLFSSL_X509 not after date");
                 return WOLFSSL_FAILURE;
             }
         }
@@ -8747,6 +8751,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         }
         else {
             WOLFSSL_MSG("Subject Key ID too large");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
 
@@ -8767,6 +8772,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         }
         else {
             WOLFSSL_MSG("Auth Key ID too large");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
 
@@ -8790,6 +8796,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         if (x509->rawCRLInfo != NULL) {
             if (x509->rawCRLInfoSz > CTC_MAX_CRLINFO_SZ) {
                 WOLFSSL_MSG("CRL Info too large");
+                WOLFSSL_ERROR_VERBOSE(BUFFER_E);
                 return WOLFSSL_FAILURE;
             }
             XMEMCPY(cert->crlInfo, x509->rawCRLInfo, x509->rawCRLInfoSz);
@@ -8832,6 +8839,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             if (serialSz > EXTERNAL_SERIAL_SIZE ||
                     serialSz > CTC_SERIAL_SIZE) {
                 WOLFSSL_MSG("Serial size too large error");
+                WOLFSSL_ERROR_VERBOSE(BUFFER_E);
                 return WOLFSSL_FAILURE;
             }
             XMEMCPY(cert->serial, serial, serialSz);
@@ -9049,6 +9057,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             ret = wc_RsaPublicKeyDecode(x509->pubKey.buffer, &idx, rsa,
                                                            x509->pubKey.length);
             if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 wc_FreeRsaKey(rsa);
                 XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -9077,6 +9086,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             ret = wc_EccPublicKeyDecode(x509->pubKey.buffer, &idx, ecc,
                                                            x509->pubKey.length);
             if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 wc_ecc_free(ecc);
                 XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -9105,6 +9115,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             ret = wc_DsaPublicKeyDecode(x509->pubKey.buffer, &idx, dsa,
                                                            x509->pubKey.length);
             if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
                 wc_FreeDsaKey(dsa);
                 XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -9137,6 +9148,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             wc_FreeRng(&rng);
         }
         if (ret <= 0) {
+            WOLFSSL_ERROR_VERBOSE(ret);
             ret = WOLFSSL_FAILURE;
             goto cleanup;
         }
@@ -9813,10 +9825,8 @@ cleanup:
         }
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
             /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-    #endif
             return NULL;
         }
 
@@ -9852,12 +9862,8 @@ cleanup:
                 break;
             }
         }
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (l == 0)
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-    #else
-        (void)l;
-    #endif
         if (i > pemSz) {
             WOLFSSL_MSG("Error parsing PEM");
         }
@@ -12850,6 +12856,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         }
         else {
             WOLFSSL_MSG("Challenge password too long");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         break;
@@ -12858,6 +12865,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             len = (int)XSTRLEN((char*)bytes);
         if (len + 1 > EXTERNAL_SERIAL_SIZE) {
             WOLFSSL_MSG("SerialNumber too long");
+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(req->serial, bytes, len);
