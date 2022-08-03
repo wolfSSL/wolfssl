@@ -22927,6 +22927,15 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
     return name;
 }
 
+/* gcc-12 and later, building with ASAN at -O2 and higher, generate spurious
+ * stringop-overread warnings on some (but not all...) reads of n[1] in
+ * GetCipherKeaStr().
+ */
+#if defined(__GNUC__) && __GNUC__ > 11 && defined(__SANITIZE_ADDRESS__)
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wstringop-overread\"")
+#endif
+
 const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     const char* keaStr = NULL;
 
@@ -22957,6 +22966,9 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     return keaStr;
 }
 
+#if defined(__GNUC__) && __GNUC__ > 11 && defined(__SANITIZE_ADDRESS__)
+PRAGMA_GCC_DIAG_POP
+#endif
 
 const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
 
