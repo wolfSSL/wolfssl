@@ -11385,9 +11385,19 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
     #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            if (usingPSK) {
+
+            /* Some servers do not generate session tickets unless
+             * the extension is seen in a non-resume client hello.
+             * We used to send it only if we were otherwise using PSK.
+             * Now always send it. Define NO_TLSX_PSKKEM_PLAIN_ANNOUNCE
+             * to revert to the old behaviour. */
+            #ifdef NO_TLSX_PSKKEM_PLAIN_ANNOUNCE
+            if (usingPSK)
+            #endif
+            {
                 byte modes;
 
+                (void)usingPSK;
                 /* Pre-shared key modes: mandatory extension for resumption. */
                 modes = 1 << PSK_KE;
             #if !defined(NO_DH) || defined(HAVE_ECC) || \
