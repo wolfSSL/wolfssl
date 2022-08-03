@@ -51686,9 +51686,12 @@ static int test_wolfssl_EVP_chacha20_poly1305(void)
     AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
     AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &outSz, aad, sizeof(aad)),
                WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, sizeof(aad));
     AssertIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
                 sizeof(plainText)), WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, sizeof(plainText));
     AssertIntEQ(EVP_EncryptFinal_ex(ctx, cipherText, &outSz), WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, 0);
     /* Invalid tag length. */
     AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
                 CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE-1, tag), WOLFSSL_FAILURE);
@@ -51708,10 +51711,13 @@ static int test_wolfssl_EVP_chacha20_poly1305(void)
     AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
     AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &outSz, aad, sizeof(aad)),
                WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, sizeof(aad));
     AssertIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
                 sizeof(cipherText)), WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, sizeof(cipherText));
     AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
                 WOLFSSL_SUCCESS);
+    AssertIntEQ(outSz, 0);
     EVP_CIPHER_CTX_free(ctx);
 
     printf(resultFmt, passed);
