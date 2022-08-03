@@ -2672,7 +2672,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* Clients do not need a session cache. */
-#if defined(NO_WOLFSSL_SERVER)
+#if defined(NO_WOLFSSL_SERVER)  && !defined(NO_SESSION_CACHE_REF)
     #define NO_SESSION_CACHE_REF
 #endif
 
