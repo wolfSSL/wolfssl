@@ -5683,7 +5683,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
     defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_CFB) || \
-    defined(WOLFSSL_AES_OFB)
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_DIRECT)
     #define AES_SET_KEY
 #endif
 

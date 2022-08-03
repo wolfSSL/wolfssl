@@ -688,7 +688,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         }
     }
 
-    if (key != NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+    if (key != NULL)
+#endif
+    {
         ForceZero(key, PKCS_MAX_KEY_SIZE);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
