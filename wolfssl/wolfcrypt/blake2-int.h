@@ -77,7 +77,7 @@
     byte  personal[BLAKE2S_PERSONALBYTES];  /* 32 */
   } blake2s_param;
 
-  typedef struct ALIGN32 __blake2s_state
+  typedef struct __blake2s_state
   {
     word32 h[8];
     word32 t[2];
@@ -102,7 +102,7 @@
     byte  personal[BLAKE2B_PERSONALBYTES];  /* 64 */
   } blake2b_param;
 
-  typedef struct ALIGN64 __blake2b_state
+  typedef struct __blake2b_state
   {
     word64 h[8];
     word64 t[2];
