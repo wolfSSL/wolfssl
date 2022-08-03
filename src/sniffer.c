@@ -459,6 +459,9 @@ typedef struct Flags {
 #endif
     byte           gotFinished;     /* processed finished */
     byte           secRenegEn;      /* secure renegotiation enabled */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    byte           wasPolled;
+#endif
 } Flags;
 
 
@@ -6392,6 +6395,14 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         return 0; /* done for now */
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* make sure this server was polled */
+    if (asyncOkay && session->sslServer->error == WC_PENDING_E &&
+        !session->flags.wasPolled) {
+        return WC_PENDING_E;
+    }
+#endif
+
 #ifdef WOLFSSL_SNIFFER_STATS
     #ifdef WOLFSSL_ASYNC_CRYPT
     if (session->sslServer->error != WC_PENDING_E)
@@ -6419,6 +6430,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         session->pendSeq = tcpInfo.sequence;
 
         if (ret == WC_PENDING_E) {
+            session->flags.wasPolled = 0;
             if (!asyncOkay || CryptoDeviceId == INVALID_DEVID) {
                 /* If devId has not been set then we need to block here by
                  * polling and looping */
@@ -6819,11 +6831,28 @@ int ssl_DecodePacketAsync(void* packet, unsigned int packetSz,
         userCtx, error, 1);
 }
 
+static SnifferSession* FindSession(WOLFSSL* ssl)
+{
+    int i;
+    SnifferSession* session;
+    for (i = 0; i < HASH_SIZE; i++) {
+        session = SessionTable[i];
+        while (session) {
+            if (session->sslServer == ssl) {
+                return session;
+            }
+            session = session->next;
+        }
+    }
+    return NULL;
+}
+
 int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
     int* pEventCount)
 {
     int ret = 0;
     int eventCount = 0;
+    int i;
     SnifferServer* srv;
 
     wc_LockMutex(&ServerListMutex);
@@ -6848,7 +6877,20 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
         }
         srv = srv->next;
     }
+
     wc_UnLockMutex(&ServerListMutex);
+
+
+    /* iterate list and mark polled */
+    wc_LockMutex(&SessionMutex);
+    for (i=0; i<eventCount; i++) {
+        WOLFSSL* ssl = (WOLFSSL*)events[i]->context;
+        SnifferSession* session = FindSession(ssl);
+        if (session) {
+            session->flags.wasPolled = 1;
+        }
+    }
+    wc_UnLockMutex(&SessionMutex);
 
     *pEventCount = eventCount;
 

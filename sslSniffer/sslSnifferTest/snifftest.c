@@ -522,6 +522,7 @@ static int SnifferAsyncQueueAdd(int lastRet, void* chain, int chainSz,
         asyncQueue[ret].lastRet = lastRet;
         asyncQueue[ret].packetNumber = packetNumber;
     }
+    (void)isChain;
 
     return ret;
 }
