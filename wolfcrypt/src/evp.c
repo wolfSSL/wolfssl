@@ -542,17 +542,14 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         break;
     #endif
         default:
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
     }
-
-    if (ret != 0)
-        return WOLFSSL_FAILURE; /* failure */
 
     (void)in;
     (void)inl;
     (void)out;
 
-    return WOLFSSL_SUCCESS; /* success */
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 #if defined(HAVE_AESGCM)
