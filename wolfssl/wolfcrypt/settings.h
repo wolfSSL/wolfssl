@@ -2671,6 +2671,11 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_ONE_TIME_AUTH
 #endif
 
+/* Clients do not need a session cache. */
+#if defined(NO_WOLFSSL_SERVER)
+    #define NO_SESSION_CACHE_REF
+#endif
+
 /* Check for insecure build combination:
  * secure renegotiation   [enabled]
  * extended master secret [disabled]
