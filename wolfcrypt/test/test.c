@@ -1826,7 +1826,7 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
     /* Invalid character less than 0x2b */
     for (i = 1; i < 0x2b; i++) {
         outLen = sizeof(out);
-        charTest[0] = i;
+        charTest[0] = (byte)i;
         ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
         if (ret != ASN_INPUT_E)
             return -1240 - i;
@@ -1842,7 +1842,7 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
     /* Invalid character greater than 0x7a */
     for (i = 0x7b; i < 0x100; i++) {
         outLen = sizeof(out);
-        charTest[0] = i;
+        charTest[0] = (byte)i;
         ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
         if (ret != ASN_INPUT_E)
             return -1290 - i;

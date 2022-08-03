@@ -1949,7 +1949,7 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -3011,7 +3011,7 @@ static WC_INLINE sp_digit sp_2048_div_word_72(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -5631,7 +5631,7 @@ static WC_INLINE sp_digit sp_3072_div_word_53(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -6470,7 +6470,7 @@ static WC_INLINE sp_digit sp_3072_div_word_106(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -9654,7 +9654,7 @@ static WC_INLINE sp_digit sp_3072_div_word_56(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 28);
     m = d - ((sp_int64)r * div);
-    r += (m >> 56) - (sp_digit)(d >> 56);
+    r += (sp_digit)(m >> 56) - (sp_digit)(d >> 56);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -10572,7 +10572,7 @@ static WC_INLINE sp_digit sp_3072_div_word_112(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 28);
     m = d - ((sp_int64)r * div);
-    r += (m >> 56) - (sp_digit)(d >> 56);
+    r += (sp_digit)(m >> 56) - (sp_digit)(d >> 56);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -13274,7 +13274,7 @@ static WC_INLINE sp_digit sp_4096_div_word_71(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -14114,7 +14114,7 @@ static WC_INLINE sp_digit sp_4096_div_word_142(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 29);
     m = d - ((sp_int64)r * div);
-    r += (m >> 58) - (sp_digit)(d >> 58);
+    r += (sp_digit)(m >> 58) - (sp_digit)(d >> 58);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -17177,7 +17177,7 @@ static WC_INLINE sp_digit sp_4096_div_word_81(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 26);
     m = d - ((sp_int64)r * div);
-    r += (m >> 52) - (sp_digit)(d >> 52);
+    r += (sp_digit)(m >> 52) - (sp_digit)(d >> 52);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -18081,7 +18081,7 @@ static WC_INLINE sp_digit sp_4096_div_word_162(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 26);
     m = d - ((sp_int64)r * div);
-    r += (m >> 52) - (sp_digit)(d >> 52);
+    r += (sp_digit)(m >> 52) - (sp_digit)(d >> 52);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;
@@ -43708,7 +43708,7 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     m = d - ((sp_int64)r * div);
     r += (sp_digit)(m >> 25);
     m = d - ((sp_int64)r * div);
-    r += (m >> 50) - (sp_digit)(d >> 50);
+    r += (sp_digit)(m >> 50) - (sp_digit)(d >> 50);
 
     m = d - ((sp_int64)r * div);
     sign = (sp_digit)(0 - ((sp_uint32)m >> 31)) * 2 + 1;

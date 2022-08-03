@@ -1499,7 +1499,7 @@ static WC_INLINE int bench_stats_sym_check(double start)
 static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
                                    int countSz, double start, int ret)
 {
-    double total, persec = 0, blocks = count;
+    double total, persec = 0, blocks = (double)count;
     const char* blockType;
     char msg[128] = {0};
     const char** word = bench_result_words1[lng_index];

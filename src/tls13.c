@@ -2668,7 +2668,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 const byte* aad = output;
                 output += args->headerSz;
                 ret = EncryptTls13(ssl, output, output, args->size, aad,
-                                   args->headerSz, asyncOkay);
+                                   (word16)args->headerSz, asyncOkay);
 #ifdef WOLFSSL_DTLS13
                 if (ret == 0 && ssl->options.dtls) {
                     /* AAD points to the header. Reuse the variable  */

@@ -869,7 +869,7 @@ static WC_INLINE sp_digit sp_2048_div_word_17(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 61);
     m = d - ((sp_int128)r * div);
-    r += (m >> 122) - (sp_digit)(d >> 122);
+    r += (sp_digit)(m >> 122) - (sp_digit)(d >> 122);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -1694,7 +1694,7 @@ static WC_INLINE sp_digit sp_2048_div_word_34(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 61);
     m = d - ((sp_int128)r * div);
-    r += (m >> 122) - (sp_digit)(d >> 122);
+    r += (sp_digit)(m >> 122) - (sp_digit)(d >> 122);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -4393,7 +4393,7 @@ static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 57);
     m = d - ((sp_int128)r * div);
-    r += (m >> 114) - (sp_digit)(d >> 114);
+    r += (sp_digit)(m >> 114) - (sp_digit)(d >> 114);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -5279,7 +5279,7 @@ static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 57);
     m = d - ((sp_int128)r * div);
-    r += (m >> 114) - (sp_digit)(d >> 114);
+    r += (sp_digit)(m >> 114) - (sp_digit)(d >> 114);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -7732,7 +7732,7 @@ static WC_INLINE sp_digit sp_3072_div_word_26(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 60);
     m = d - ((sp_int128)r * div);
-    r += (m >> 120) - (sp_digit)(d >> 120);
+    r += (sp_digit)(m >> 120) - (sp_digit)(d >> 120);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -8563,7 +8563,7 @@ static WC_INLINE sp_digit sp_3072_div_word_52(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 60);
     m = d - ((sp_int128)r * div);
-    r += (m >> 120) - (sp_digit)(d >> 120);
+    r += (sp_digit)(m >> 120) - (sp_digit)(d >> 120);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -11400,7 +11400,7 @@ static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 57);
     m = d - ((sp_int128)r * div);
-    r += (m >> 114) - (sp_digit)(d >> 114);
+    r += (sp_digit)(m >> 114) - (sp_digit)(d >> 114);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -12297,7 +12297,7 @@ static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 57);
     m = d - ((sp_int128)r * div);
-    r += (m >> 114) - (sp_digit)(d >> 114);
+    r += (sp_digit)(m >> 114) - (sp_digit)(d >> 114);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -14792,7 +14792,7 @@ static WC_INLINE sp_digit sp_4096_div_word_35(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 59);
     m = d - ((sp_int128)r * div);
-    r += (m >> 118) - (sp_digit)(d >> 118);
+    r += (sp_digit)(m >> 118) - (sp_digit)(d >> 118);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -15618,7 +15618,7 @@ static WC_INLINE sp_digit sp_4096_div_word_70(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 59);
     m = d - ((sp_int128)r * div);
-    r += (m >> 118) - (sp_digit)(d >> 118);
+    r += (sp_digit)(m >> 118) - (sp_digit)(d >> 118);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -18510,7 +18510,7 @@ static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 53);
     m = d - ((sp_int128)r * div);
-    r += (m >> 106) - (sp_digit)(d >> 106);
+    r += (sp_digit)(m >> 106) - (sp_digit)(d >> 106);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -19408,7 +19408,7 @@ static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 53);
     m = d - ((sp_int128)r * div);
-    r += (m >> 106) - (sp_digit)(d >> 106);
+    r += (sp_digit)(m >> 106) - (sp_digit)(d >> 106);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
@@ -43170,7 +43170,7 @@ static WC_INLINE sp_digit sp_1024_div_word_18(sp_digit d1, sp_digit d0,
     m = d - ((sp_int128)r * div);
     r += (sp_digit)(m >> 57);
     m = d - ((sp_int128)r * div);
-    r += (m >> 114) - (sp_digit)(d >> 114);
+    r += (sp_digit)(m >> 114) - (sp_digit)(d >> 114);
 
     m = d - ((sp_int128)r * div);
     sign = (sp_digit)(0 - ((sp_uint64)m >> 63)) * 2 + 1;
