@@ -84,6 +84,9 @@ ASN Options:
     extension.
  * WOLFSSL_SUBJ_INFO_ACC: Enable support for SubjectInfoAccess extension.
  * WOLFSSL_FPKI: Enable support for FPKI (Federal PKI) extensions.
+ * WOLFSSL_CERT_NAME_ALL: Adds more certificate name capability at the
+    cost of taking up more memory. Adds initials, givenname, dnQualifer for
+    example.
 */
 
 #ifndef NO_ASN
@@ -9956,6 +9959,12 @@ void InitDecodedCert(DecodedCert* cert,
         cert->heap            = heap;
         cert->maxPathLen      = WOLFSSL_MAX_PATH_LEN;
     #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        #ifdef WOLFSSL_CERT_NAME_ALL
+        cert->subjectNEnc     = CTC_UTF8;
+        cert->subjectIEnc     = CTC_UTF8;
+        cert->subjectDNQEnc   = CTC_UTF8;
+        cert->subjectGNEnc    = CTC_UTF8;
+        #endif
         cert->subjectSNEnc    = CTC_UTF8;
         cert->subjectCEnc     = CTC_PRINTABLE;
         cert->subjectLEnc     = CTC_UTF8;
@@ -10698,6 +10707,12 @@ int wc_OBJ_sn2nid(const char *sn)
         {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
         {WOLFSSL_ORG_NAME, NID_organizationName},
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        {WOLFSSL_NAME, NID_name},
+        {WOLFSSL_INITIALS, NID_initials},
+        {WOLFSSL_GIVEN_NAME, NID_givenName},
+        {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
+    #endif
         {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
         {"SHA1", NID_sha1},
         {NULL, -1}};
@@ -11046,6 +11061,56 @@ static const CertNameData certNameSubject[] = {
         NID_userId
 #endif
     },
+#ifdef WOLFSSL_CERT_NAME_ALL
+    /* Name, id 41 */
+    {
+        "/N=", 3,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectN),
+        OFFSETOF(DecodedCert, subjectNLen),
+        OFFSETOF(DecodedCert, subjectNEnc),
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_name
+    #endif
+    },
+    /* Given Name, id 42 */
+    {
+        "/GN=", 4,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectGN),
+        OFFSETOF(DecodedCert, subjectGNLen),
+        OFFSETOF(DecodedCert, subjectGNEnc),
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_givenName
+    #endif
+    },
+    /* initials, id 43 */
+    {
+        "/initials=", 10,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectI),
+        OFFSETOF(DecodedCert, subjectILen),
+        OFFSETOF(DecodedCert, subjectIEnc),
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_initials
+    #endif
+    },
+    /* DN Qualifier Name, id 46 */
+    {
+        "/dnQualifier=", 13,
+    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+        OFFSETOF(DecodedCert, subjectDNQ),
+        OFFSETOF(DecodedCert, subjectDNQLen),
+        OFFSETOF(DecodedCert, subjectDNQEnc),
+    #endif
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_dnQualifier
+    #endif
+    },
+#endif /* WOLFSSL_CERT_NAME_ALL */
 };
 
 static const int certNameSubjectSz =
@@ -11583,6 +11648,72 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 nid = NID_commonName;
             #endif /* OPENSSL_EXTRA */
             }
+        #ifdef WOLFSSL_CERT_NAME_ALL
+            else if (id == ASN_NAME) {
+                copy = WOLFSSL_NAME;
+                copyLen = sizeof(WOLFSSL_NAME) - 1;
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+                    if (nameType == SUBJECT) {
+                        cert->subjectN = (char*)&input[srcIdx];
+                        cert->subjectNLen = strLen;
+                        cert->subjectNEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_name;
+                #endif /* OPENSSL_EXTRA */
+            }
+            else if (id == ASN_INITIALS) {
+                copy = WOLFSSL_INITIALS;
+                copyLen = sizeof(WOLFSSL_INITIALS) - 1;
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+                    if (nameType == SUBJECT) {
+                        cert->subjectI = (char*)&input[srcIdx];
+                        cert->subjectILen = strLen;
+                        cert->subjectIEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_initials;
+                #endif /* OPENSSL_EXTRA */
+            }
+            else if (id == ASN_GIVEN_NAME) {
+                copy = WOLFSSL_GIVEN_NAME;
+                copyLen = sizeof(WOLFSSL_GIVEN_NAME) - 1;
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+                    if (nameType == SUBJECT) {
+                        cert->subjectGN = (char*)&input[srcIdx];
+                        cert->subjectGNLen = strLen;
+                        cert->subjectGNEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_givenName;
+                #endif /* OPENSSL_EXTRA */
+            }
+            else if (id == ASN_DNQUALIFIER) {
+                copy = WOLFSSL_DNQUALIFIER;
+                copyLen = sizeof(WOLFSSL_DNQUALIFIER) - 1;
+                #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+                    if (nameType == SUBJECT) {
+                        cert->subjectDNQ = (char*)&input[srcIdx];
+                        cert->subjectDNQLen = strLen;
+                        cert->subjectDNQEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_dnQualifier;
+                #endif /* OPENSSL_EXTRA */
+            }
+        #endif /* WOLFSSL_CERT_NAME_ALL */
             else if (id == ASN_SUR_NAME) {
                 copy = WOLFSSL_SUR_NAME;
                 copyLen = sizeof(WOLFSSL_SUR_NAME) - 1;
@@ -22685,6 +22816,12 @@ static const byte nameOid[][NAME_OID_SZ] = {
     { 0x55, 0x04, ASN_STATE_NAME },
     { 0x55, 0x04, ASN_STREET_ADDR },
     { 0x55, 0x04, ASN_LOCALITY_NAME },
+#ifdef WOLFSSL_CERT_NAME_ALL
+    { 0x55, 0x04, ASN_NAME },
+    { 0x55, 0x04, ASN_GIVEN_NAME },
+    { 0x55, 0x04, ASN_INITIALS },
+    { 0x55, 0x04, ASN_DNQUALIFIER },
+#endif
     { 0x55, 0x04, ASN_SUR_NAME },
     { 0x55, 0x04, ASN_ORG_NAME },
     { 0x00, 0x00, ASN_DOMAIN_COMPONENT}, /* not actual OID - see dcOid */
@@ -22726,6 +22863,16 @@ const char* GetOneCertName(CertName* name, int idx)
        return name->street;
     case ASN_LOCALITY_NAME:
        return name->locality;
+#ifdef WOLFSSL_CERT_NAME_ALL
+    case ASN_NAME:
+       return name->dnName;
+    case ASN_GIVEN_NAME:
+       return name->givenName;
+    case ASN_INITIALS:
+       return name->initials;
+    case ASN_DNQUALIFIER:
+       return name->dnQualifier;
+#endif /* WOLFSSL_CERT_NAME_ALL */
     case ASN_SUR_NAME:
        return name->sur;
     case ASN_ORG_NAME:
@@ -22769,6 +22916,16 @@ static char GetNameType(CertName* name, int idx)
        return name->streetEnc;
     case ASN_LOCALITY_NAME:
        return name->localityEnc;
+#ifdef WOLFSSL_CERT_NAME_ALL
+    case ASN_NAME:
+       return name->dnNameEnc;
+    case ASN_GIVEN_NAME:
+       return name->givenNameEnc;
+    case ASN_INITIALS:
+       return name->initialsEnc;
+    case ASN_DNQUALIFIER:
+       return name->dnQualifierEnc;
+#endif /* WOLFSSL_CERT_NAME_ALL */
     case ASN_SUR_NAME:
        return name->surEnc;
     case ASN_ORG_NAME:
@@ -26026,79 +26183,109 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
 #ifdef WOLFSSL_CERT_REQ
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
-                        int extSz)
+/* return size of data set on success
+ * if getting size only then attr and oid should be NULL
+ */
+static int SetReqAttribSingle(byte* output, int* idx, char* attr, int attrSz,
+        const byte* oid, int oidSz, byte printable, int extSz)
+{
+    int totalSz  = 0;
+    int seqSz = 0;
+    int setSz = 0;
+    int strSz = 0;
+    byte seq[MAX_SEQ_SZ];
+    byte set[MAX_SET_SZ];
+    byte str[MAX_PRSTR_SZ];
+
+    totalSz = SetObjectId(oidSz, NULL);
+    totalSz += oidSz;
+    if (extSz > 0) {
+        totalSz += setSz = SetSet(extSz, set);
+        totalSz += seqSz = SetSequence(totalSz + extSz, seq);
+        totalSz += extSz;
+    }
+    else {
+        if (printable) {
+            totalSz += strSz = SetPrintableString(attrSz, str);
+        }
+        else {
+            totalSz += strSz = SetUTF8String(attrSz, str);
+        }
+        totalSz += setSz = SetSet(strSz + attrSz, set);
+        totalSz += seqSz = SetSequence(totalSz + attrSz, seq);
+        totalSz += attrSz;
+    }
+
+    if (oid) {
+        XMEMCPY(&output[*idx], seq, seqSz);
+        *idx += seqSz;
+        *idx += SetObjectId(oidSz, output + *idx);
+        XMEMCPY(&output[*idx], oid, oidSz);
+        *idx += oidSz;
+        XMEMCPY(&output[*idx], set, setSz);
+        *idx += setSz;
+        if (strSz > 0) {
+            XMEMCPY(&output[*idx], str, strSz);
+            *idx += strSz;
+            XMEMCPY(&output[*idx], attr, attrSz);
+            *idx += attrSz;
+        }
+    }
+    return totalSz;
+}
+
+
+
+static int SetReqAttrib(byte* output, Cert* cert, int extSz)
 {
     int sz      = 0; /* overall size */
-    int cpSz    = 0; /* Challenge Password section size */
-    int cpSeqSz = 0;
-    int cpSetSz = 0;
-    int cpStrSz = 0;
-    int pwSz    = 0;
-    int erSz    = 0; /* Extension Request section size */
-    int erSeqSz = 0;
-    int erSetSz = 0;
-    byte cpSeq[MAX_SEQ_SZ];
-    byte cpSet[MAX_SET_SZ];
-    byte cpStr[MAX_PRSTR_SZ];
-    byte erSeq[MAX_SEQ_SZ];
-    byte erSet[MAX_SET_SZ];
+    int setSz   = 0;
 
     output[0] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
     sz++;
 
-    if (pw && pw[0]) {
-        int cpOidSz = SetObjectId(sizeof(attrChallengePasswordOid), NULL);
-        cpOidSz += sizeof(attrChallengePasswordOid);
-        pwSz = (int)XSTRLEN(pw);
-        if (pwPrintableString) {
-            cpStrSz = SetPrintableString(pwSz, cpStr);
-        } else {
-            cpStrSz = SetUTF8String(pwSz, cpStr);
-        }
-        cpSetSz = SetSet(cpStrSz + pwSz, cpSet);
-        /* +2 for tag and length parts of the TLV triplet */
-        cpSeqSz = SetSequence(cpOidSz + cpSetSz +
-                cpStrSz + pwSz, cpSeq);
-        cpSz = cpSeqSz + cpOidSz + cpSetSz +
-                cpStrSz + pwSz;
+    if (cert->challengePw[0]) {
+        setSz += SetReqAttribSingle(output, &sz, NULL,
+                (int)XSTRLEN(cert->challengePw), NULL,
+                sizeof(attrChallengePasswordOid),
+                cert->challengePwPrintableString, 0);
+    }
+
+    if (cert->unstructuredName[0]) {
+        setSz += SetReqAttribSingle(output, &sz, NULL,
+                (int)XSTRLEN(cert->unstructuredName), NULL,
+                sizeof(attrUnstructuredNameOid), 1, 0);
     }
 
     if (extSz) {
-        int erOidSz = SetObjectId(sizeof(attrExtensionRequestOid), NULL);
-        erOidSz += sizeof(attrExtensionRequestOid);
-        erSetSz = SetSet(extSz, erSet);
-        erSeqSz = SetSequence(erSetSz + erOidSz + extSz, erSeq);
-        erSz = extSz + erSetSz + erSeqSz + erOidSz;
+        setSz += SetReqAttribSingle(output, &sz, NULL, 0, NULL,
+                sizeof(attrExtensionRequestOid), 1, extSz);
     }
 
     /* Put the pieces together. */
-    sz += SetLength(cpSz + erSz, &output[sz]);
-
-    if (cpSz) {
-        XMEMCPY(&output[sz], cpSeq, cpSeqSz);
-        sz += cpSeqSz;
-        sz += SetObjectId(sizeof(attrChallengePasswordOid), output + sz);
-        XMEMCPY(&output[sz], attrChallengePasswordOid,
-                sizeof(attrChallengePasswordOid));
-        sz += sizeof(attrChallengePasswordOid);
-        XMEMCPY(&output[sz], cpSet, cpSetSz);
-        sz += cpSetSz;
-        XMEMCPY(&output[sz], cpStr, cpStrSz);
-        sz += cpStrSz;
-        XMEMCPY(&output[sz], pw, pwSz);
-        sz += pwSz;
+    sz += SetLength(setSz, &output[sz]);
+    if (sz + setSz - extSz > MAX_ATTRIB_SZ) {
+        WOLFSSL_MSG("Attribute Buffer is not big enough!");
+        return REQ_ATTRIBUTE_E;
     }
 
-    if (erSz) {
-        XMEMCPY(&output[sz], erSeq, erSeqSz);
-        sz += erSeqSz;
-        sz += SetObjectId(sizeof(attrExtensionRequestOid), output + sz);
-        XMEMCPY(&output[sz], attrExtensionRequestOid,
-                sizeof(attrExtensionRequestOid));
-        sz += sizeof(attrExtensionRequestOid);
-        XMEMCPY(&output[sz], erSet, erSetSz);
-        sz += erSetSz;
+    if (cert->challengePw[0]) {
+        SetReqAttribSingle(output, &sz, cert->challengePw,
+                (int)XSTRLEN(cert->challengePw), &attrChallengePasswordOid[0],
+                sizeof(attrChallengePasswordOid),
+                cert->challengePwPrintableString, 0);
+    }
+
+    if (cert->unstructuredName[0]) {
+        SetReqAttribSingle(output, &sz, cert->unstructuredName,
+                (int)XSTRLEN(cert->unstructuredName),
+                &attrUnstructuredNameOid[0],
+                sizeof(attrUnstructuredNameOid), 1, 0);
+    }
+
+    if (extSz) {
+        SetReqAttribSingle(output, &sz, NULL, 0, &attrExtensionRequestOid[0],
+                sizeof(attrExtensionRequestOid), 1, extSz);
         /* The actual extension data will be tacked onto the output later. */
     }
 
@@ -26443,9 +26630,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 #endif /* WOLFSSL_CERT_EXT */
     }
 
-    der->attribSz = SetReqAttrib(der->attrib, cert->challengePw,
-                                 cert->challengePwPrintableString,
-                                 der->extensionsSz);
+    der->attribSz = SetReqAttrib(der->attrib, cert, der->extensionsSz);
     if (der->attribSz <= 0)
         return REQ_ATTRIBUTE_E;
 
@@ -27621,6 +27806,37 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
         XSTRNCPY(cn->email, decoded->subjectEmail, sz);
         cn->email[sz] = '\0';
     }
+#if defined(WOLFSSL_CERT_NAME_ALL) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT))
+    if (decoded->subjectN) {
+        sz = (decoded->subjectNLen < CTC_NAME_SIZE) ? decoded->subjectNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->dnName, decoded->subjectN, sz);
+        cn->dnName[sz] = '\0';
+        cn->dnNameEnc = decoded->subjectNEnc;
+    }
+    if (decoded->subjectI) {
+        sz = (decoded->subjectILen < CTC_NAME_SIZE) ? decoded->subjectILen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->initials, decoded->subjectI, sz);
+        cn->initials[sz] = '\0';
+        cn->initialsEnc = decoded->subjectIEnc;
+    }
+    if (decoded->subjectGN) {
+        sz = (decoded->subjectGNLen < CTC_NAME_SIZE) ? decoded->subjectGNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->givenName, decoded->subjectGN, sz);
+        cn->givenName[sz] = '\0';
+        cn->givenNameEnc = decoded->subjectGNEnc;
+    }
+    if (decoded->subjectDNQ) {
+        sz = (decoded->subjectDNQLen < CTC_NAME_SIZE) ? decoded->subjectDNQLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->dnQualifier, decoded->subjectDNQ, sz);
+        cn->dnQualifier[sz] = '\0';
+        cn->dnQualifierEnc = decoded->subjectDNQEnc;
+    }
+#endif /* WOLFSSL_CERT_NAME_ALL */
 }
 
 #ifndef NO_FILESYSTEM
