@@ -1867,8 +1867,7 @@ WOLFSSL_LOCAL int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
-                                word16 sz, const byte* aad, word16 aadSz,
-                                int doAlert);
+                                word16 sz, const byte* aad, word16 aadSz);
 WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
                                            word32* inOutIdx, byte type,
                                            word32 size, word32 totalSz);

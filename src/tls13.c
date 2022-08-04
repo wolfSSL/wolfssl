@@ -2278,11 +2278,10 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
  * sz      The length of the encrypted data plus authentication tag.
  * aad     The additional authentication data.
  * aadSz   The size of the addition authentication data.
- * doAlert Generate alert on error (set to 0 for sniffer use cases)
  * returns 0 on success, otherwise failure.
  */
 int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
-                 const byte* aad, word16 aadSz, int doAlert)
+                 const byte* aad, word16 aadSz)
 {
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
@@ -2476,17 +2475,6 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
        default:
             break;
     }
-
-#ifndef WOLFSSL_EARLY_DATA
-    if (ret < 0) {
-        if (doAlert) {
-            SendAlert(ssl, alert_fatal, bad_record_mac);
-        }
-        ret = VERIFY_MAC_ERROR;
-    }
-#else
-    (void)doAlert;
-#endif
 
     return ret;
 }

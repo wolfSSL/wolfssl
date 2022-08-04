@@ -7962,8 +7962,6 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
              * verify */
             break;
         ssl->dtls_tx_msg_list_sz--;
-        /* Reset timer as deleting a node means that state has progressed */
-        ssl->dtls_timeout = ssl->dtls_timeout_init;
         head = next;
     }
     ssl->dtls_tx_msg_list = head;
@@ -8263,8 +8261,7 @@ int DtlsMsgPoolTimeout(WOLFSSL* ssl)
 }
 
 
-/* DtlsMsgPoolReset() deletes the stored transmit list and resets the timeout
- * value. */
+/* DtlsMsgPoolReset() deletes the stored transmit list. */
 void DtlsMsgPoolReset(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("DtlsMsgPoolReset()");
@@ -8274,7 +8271,6 @@ void DtlsMsgPoolReset(WOLFSSL* ssl)
         ssl->dtls_tx_msg = NULL;
         ssl->dtls_tx_msg_list_sz = 0;
     }
-    ssl->dtls_timeout = ssl->dtls_timeout_init;
 }
 
 
@@ -16983,17 +16979,6 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
     /* Reset state */
     ssl->decrypt.state = CIPHER_STATE_BEGIN;
 
-    /* handle mac error case */
-    if (ret == VERIFY_MAC_ERROR) {
-        if (!ssl->options.dtls) {
-            SendAlert(ssl, alert_fatal, bad_record_mac);
-        }
-    #ifdef WOLFSSL_DTLS_DROP_STATS
-        if (ssl->options.dtls)
-            ssl->macDropCount++;
-    #endif /* WOLFSSL_DTLS_DROP_STATS */
-    }
-
     return ret;
 }
 
@@ -18503,19 +18488,20 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 #ifdef WOLFSSL_TLS13
                         byte *aad = (byte*)&ssl->curRL;
                         word16 aad_size = RECORD_HEADER_SZ;
-#ifdef WOLFSSL_DTLS13
+                    #ifdef WOLFSSL_DTLS13
                         if (ssl->options.dtls) {
                             /* aad now points to the record header */
                             aad = ssl->dtls13CurRL;
                             aad_size = ssl->dtls13CurRlLength;
                         }
-#endif /* WOLFSSL_DTLS13 */
-
+                    #endif /* WOLFSSL_DTLS13 */
+                        /* Don't send an alert for DTLS. We will just drop it
+                         * silently later. */
                         ret = DecryptTls13(ssl,
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
-                                        aad, aad_size, 1);
+                                        aad, aad_size);
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
@@ -18542,16 +18528,20 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 }
                 else {
                     WOLFSSL_MSG("Decrypt failed");
-                    WOLFSSL_ERROR(ret);
-#ifdef WOLFSSL_DTLS13
-                    if (ssl->options.tls1_3 && ssl->options.dtls) {
-                        WOLFSSL_MSG("DTLS: Ignoring decrypted failed record");
+                #ifdef WOLFSSL_DTLS
+                    /* If in DTLS mode, if the decrypt fails for any
+                     * reason, pretend the datagram never happened. */
+                    if (ssl->options.dtls) {
+                        WOLFSSL_MSG("DTLS: Ignoring failed decryption");
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
-                            ssl->buffers.inputBuffer.length;
+                                        ssl->buffers.inputBuffer.length;
+                    #ifdef WOLFSSL_DTLS_DROP_STATS
+                        ssl->macDropCount++;
+                    #endif /* WOLFSSL_DTLS_DROP_STATS */
                         return 0;
                     }
-#endif /* WOLFSSL_DTLS13 */
+                #endif /* WOLFSSL_DTLS */
                 #ifdef WOLFSSL_EARLY_DATA
                     if (ssl->options.tls1_3) {
                          if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -18567,29 +18557,24 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 ssl->options.processReply = doProcessInit;
                                 ssl->buffers.inputBuffer.idx += ssl->curSize;
                                 if (ssl->buffers.inputBuffer.idx >
-                                    ssl->buffers.inputBuffer.length)
+                                    ssl->buffers.inputBuffer.length) {
+                                    WOLFSSL_ERROR(BUFFER_E);
                                     return BUFFER_E;
+                                }
 
                                 return 0;
                             }
                             WOLFSSL_MSG("Too much EarlyData!");
+                            SendAlert(ssl, alert_fatal, unexpected_message);
+                            WOLFSSL_ERROR(TOO_MUCH_EARLY_DATA);
+                            return TOO_MUCH_EARLY_DATA;
                         }
-                        SendAlert(ssl, alert_fatal, bad_record_mac);
                     }
                 #endif
-                #ifdef WOLFSSL_DTLS
-                    /* If in DTLS mode, if the decrypt fails for any
-                     * reason, pretend the datagram never happened. */
-                    if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx =
-                                        ssl->buffers.inputBuffer.length;
-                        #ifdef WOLFSSL_DTLS_DROP_STATS
-                            ssl->macDropCount++;
-                        #endif /* WOLFSSL_DTLS_DROP_STATS */
-                    }
-                #endif /* WOLFSSL_DTLS */
-                    return DECRYPT_ERROR;
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    /* Push error once we know that we will error out here */
+                    WOLFSSL_ERROR(ret);
+                    return ret;
                 }
             }
 
@@ -18753,6 +18738,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
                 _DtlsUpdateWindow(ssl);
+            }
+
+            if (ssl->options.dtls) {
+                /* Reset timeout as we have received a valid DTLS message */
+                ssl->dtls_timeout = ssl->dtls_timeout_init;
             }
 #endif /* WOLFSSL_DTLS */
 
