@@ -26227,8 +26227,10 @@ static int SetReqAttribSingle(byte* output, int* idx, char* attr, int attrSz,
         if (strSz > 0) {
             XMEMCPY(&output[*idx], str, strSz);
             *idx += strSz;
-            XMEMCPY(&output[*idx], attr, attrSz);
-            *idx += attrSz;
+            if (attrSz > 0) {
+                XMEMCPY(&output[*idx], attr, attrSz);
+                *idx += attrSz;
+            }
         }
     }
     return totalSz;
