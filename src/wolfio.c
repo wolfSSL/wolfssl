@@ -372,6 +372,20 @@ static int sockAddrEqual(
     return 0;
 }
 
+static int isDGramSock(int sfd)
+{
+    int type = 0;
+    XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
+
+    if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
+            type != SOCK_DGRAM) {
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
@@ -482,11 +496,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         return recvd;
     }
     else if (recvd == 0) {
-        int type;
-        XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
-
-        if (getsockopt(sd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
-                type != SOCK_DGRAM) {
+        if (!isDGramSock(sd)) {
             /* Closed TCP connection */
             recvd = WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
@@ -530,13 +540,10 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     int sent;
     const SOCKADDR_S* peer = NULL;
     XSOCKLENT peerSz = 0;
-    int type;
-    XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
-    if (getsockopt(sd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
-            type != SOCK_DGRAM) {
+    if (!isDGramSock(sd)) {
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
     }
     else if (!dtlsCtx->connected) {
