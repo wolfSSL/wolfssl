@@ -4095,7 +4095,8 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->CRLInfo = NULL;
         }
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+            defined(WOLFSSL_QT)
         if (x509->authInfoCaIssuer != NULL) {
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
