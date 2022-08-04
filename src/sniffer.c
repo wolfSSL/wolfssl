@@ -4790,7 +4790,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        ret = DecryptTls13(ssl, output, input, sz, (byte*)rh, RECORD_HEADER_SZ, 0);
+        ret = DecryptTls13(ssl, output, input, sz, (byte*)rh, RECORD_HEADER_SZ);
     }
     else
 #endif

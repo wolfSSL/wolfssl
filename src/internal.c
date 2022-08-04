@@ -16969,17 +16969,6 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
     /* Reset state */
     ssl->decrypt.state = CIPHER_STATE_BEGIN;
 
-    /* handle mac error case */
-    if (ret == VERIFY_MAC_ERROR) {
-        if (!ssl->options.dtls) {
-            SendAlert(ssl, alert_fatal, bad_record_mac);
-        }
-    #ifdef WOLFSSL_DTLS_DROP_STATS
-        if (ssl->options.dtls)
-            ssl->macDropCount++;
-    #endif /* WOLFSSL_DTLS_DROP_STATS */
-    }
-
     return ret;
 }
 
@@ -18490,20 +18479,20 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 #ifdef WOLFSSL_TLS13
                         byte *aad = (byte*)&ssl->curRL;
                         word16 aad_size = RECORD_HEADER_SZ;
-#ifdef WOLFSSL_DTLS13
+                    #ifdef WOLFSSL_DTLS13
                         if (ssl->options.dtls) {
                             /* aad now points to the record header */
                             aad = ssl->dtls13CurRL;
                             aad_size = ssl->dtls13CurRlLength;
                         }
-#endif /* WOLFSSL_DTLS13 */
+                    #endif /* WOLFSSL_DTLS13 */
                         /* Don't send an alert for DTLS. We will just drop it
                          * silently later. */
                         ret = DecryptTls13(ssl,
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
-                                        aad, aad_size, !ssl->options.dtls);
+                                        aad, aad_size);
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
@@ -18534,7 +18523,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        WOLFSSL_MSG("DTLS: Ignoring decrypted failed record");
+                        WOLFSSL_MSG("DTLS: Ignoring failed decryption");
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
                                         ssl->buffers.inputBuffer.length;
@@ -18567,13 +18556,16 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                 return 0;
                             }
                             WOLFSSL_MSG("Too much EarlyData!");
+                            SendAlert(ssl, alert_fatal, unexpected_message);
+                            WOLFSSL_ERROR(TOO_MUCH_EARLY_DATA);
+                            return TOO_MUCH_EARLY_DATA;
                         }
                     }
                 #endif
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     /* Push error once we know that we will error out here */
                     WOLFSSL_ERROR(ret);
-                    return DECRYPT_ERROR;
+                    return ret;
                 }
             }
 
