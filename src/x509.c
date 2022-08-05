@@ -40,7 +40,7 @@
     #include <wolfssl/openssl/x509v3.h>
 #endif
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509)
 {
     unsigned int flags = 0;
@@ -6068,7 +6068,6 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
 
     return WOLFSSL_SUCCESS;
 }
-
 int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
     return wolfSSL_X509_print_ex(bio, x509, 0, 0);
@@ -10926,10 +10925,10 @@ void wolfSSL_sk_X509_NAME_ENTRY_free(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
             HAVE_LIGHTY || WOLFSSL_HAPROXY ||
             WOLFSSL_OPENSSH || HAVE_SBLIM_SFCB */
 
-#if defined(OPENSSL_EXTRA) || (defined(HAVE_STUNNEL) || \
-    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH) || \
-    defined(HAVE_SBLIM_SFCB))
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))
 
 #if defined(OPENSSL_ALL)
 WOLFSSL_X509_INFO* wolfSSL_X509_INFO_new(void)
@@ -12539,7 +12538,7 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 }
 #endif /* OPENSSL_ALL && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
 
-#if defined(OPENSSL_EXTRA) && \
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
 
 WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(

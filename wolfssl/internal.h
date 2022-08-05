@@ -4117,12 +4117,13 @@ struct WOLFSSL_X509 {
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
 #endif /* WOLFSSL_SEP */
-#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT) || defined (OPENSSL_EXTRA)) && \
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
+    defined (OPENSSL_EXTRA)) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     byte             certPolicySet;
     byte             certPolicyCrit;
 #endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
-#if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
     WOLFSSL_STACK* ext_sk_full; /* Store X509_EXTENSIONS from wolfSSL_X509_get0_extensions */
     WOLFSSL_STACK* ext_d2i;/* Store d2i extensions from wolfSSL_X509_get_ext_d2i */
@@ -4172,7 +4173,7 @@ struct WOLFSSL_X509 {
     byte*            rawCRLInfo;
     byte*            CRLInfo;
     byte*            authInfo;
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)
     byte*            authInfoCaIssuer;
     int              authInfoCaIssuerSz;
 #endif
