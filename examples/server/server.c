@@ -619,7 +619,24 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
     (void)pqcAlg;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
-    if (onlyKeyShare == 2) {
+    if (onlyKeyShare == 10) {
+    #ifdef HAVE_ECC
+        #if !defined(NO_ECC384) || defined(HAVE_ALL_CURVES)
+            do {
+                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1);
+                if (ret == WOLFSSL_SUCCESS)
+                    groups[count++] = WOLFSSL_ECC_SECP384R1;
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                else if (ret == WC_PENDING_E)
+                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            #endif
+                else
+                    err_sys("unable to use curve secp384r1");
+            } while (ret == WC_PENDING_E);
+        #endif
+    #endif
+    }
+    else if (onlyKeyShare == 2) {
         if (useX25519) {
     #ifdef HAVE_CURVE25519
             do {
@@ -884,6 +901,7 @@ static const char* server_usage_msg[][64] = {
 #endif
 #ifdef HAVE_ECC
         "-Y          Pre-generate Key Share using P-256 only \n",       /* 42 */
+        "-E          Pre-generate Key Share using P-384 only \n",
 #endif
 #ifdef HAVE_CURVE25519
         "-t          Pre-generate Key share using Curve25519 only\n",   /* 43 */
@@ -1064,6 +1082,7 @@ static const char* server_usage_msg[][64] = {
 #endif
 #ifdef HAVE_ECC
         "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 42 */
+        "-E          P-384のみを使用したキー共有の事前生成\n",
 #endif
 #ifdef HAVE_CURVE25519
         "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 43 */
@@ -1641,7 +1660,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Not Used: h, z, W, X */
     while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mop:q:rstu;v:wxy"
-                "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
+                "A:B:C:D:EFGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:567:89"
                 "@#", long_options, 0)) != -1) {
         switch (ch) {
@@ -1954,6 +1973,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) \
                     && defined(HAVE_ECC)
                     onlyKeyShare = 2;
+                #endif
+                break;
+
+            case 'E' :
+                #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) \
+                    && defined(HAVE_ECC)
+                    onlyKeyShare = 10;
                 #endif
                 break;
 
