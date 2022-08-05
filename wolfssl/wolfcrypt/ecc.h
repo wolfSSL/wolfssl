@@ -857,13 +857,13 @@ enum ecFlags {
 
 typedef struct ecEncCtx ecEncCtx;
 
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 WOLFSSL_API
 ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx* ctx);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
 
 WOLFSSL_API
@@ -878,13 +878,13 @@ int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz);
 WOLFSSL_API
 int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
 
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 WOLFSSL_API
 int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
-WOLFSSL_API
+WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
