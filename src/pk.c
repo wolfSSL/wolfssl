@@ -1782,7 +1782,7 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
 /* Create an RSA private key by reading the PEM encoded data from the file
  * pointer.
  *
- * @param [in]  fp    BIO object to read from.
+ * @param [in]  fp    File pointer to read from.
  * @param [out] out   RSA key created.
  * @param [in]  cb    Password callback when PEM encrypted.
  * @param [in]  pass  NUL terminated string for passphrase when PEM encrypted.
