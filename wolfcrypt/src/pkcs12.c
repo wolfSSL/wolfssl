@@ -668,6 +668,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 
     if (version != WC_PKCS12_VERSION_DEFAULT) {
         WOLFSSL_MSG("PKCS12 unsupported version!");
+        WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
         return ASN_VERSION_E;
     }
 

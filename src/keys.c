@@ -49,6 +49,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         /* server side verified before SetCipherSpecs call */
         if (VerifyClientSuite(ssl) != 1) {
             WOLFSSL_MSG("SetCipherSpecs() client has an unusable suite");
+            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
             return UNSUPPORTED_SUITE;
         }
     }
@@ -2056,6 +2057,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
     default:
         WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
+        WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
         return UNSUPPORTED_SUITE;
     }  /* switch */
     }  /* if ECC / Normal suites else */

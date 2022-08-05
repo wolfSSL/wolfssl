@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef NO_HMAC
 
@@ -329,8 +330,10 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return ret;
 
 #ifdef HAVE_FIPS
-    if (length < HMAC_FIPS_MIN_KEY)
+    if (length < HMAC_FIPS_MIN_KEY) {
+        WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
         return HMAC_MIN_KEYLEN_E;
+    }
 #endif
 
 #ifdef WOLF_CRYPTO_CB
