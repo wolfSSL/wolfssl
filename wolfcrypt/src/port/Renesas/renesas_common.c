@@ -562,16 +562,18 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = wc_tsip_tls_RootCertVerify(cert, cert_len, key_n_start,
                 key_n_len, key_e_start, key_e_len, cm_row);
-
+        if (ret != TSIP_SUCCESS) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
 
         ret = wc_sce_tls_RootCertVerify(cert, cert_len, key_n_start,
                 key_n_len, key_e_start, key_e_len, cm_row);
-    #endif
-
-        if (ret != TSIP_SUCCESS) {
+        if (ret != FSP_SUCCESS) {
             ret = WOLFSSL_FATAL_ERROR;
         }
+    #endif
+
     }
     else {
         /* already verified. skipped */
