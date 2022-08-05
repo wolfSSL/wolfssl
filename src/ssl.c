@@ -24804,7 +24804,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             #endif
                 break;
             case STACK_TYPE_X509_EXT:
-            #ifdef OPENSSL_ALL
+            #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_EXTENSION_free;
             #endif
                 break;
@@ -29961,7 +29961,6 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
-        printf("ret from peek error node = %d\n", ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;

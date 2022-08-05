@@ -52449,9 +52449,9 @@ static int test_wolfSSL_X509_print(void)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     /* Will print IP address subject alt name. */
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3341);
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3240);
 #else
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3319);
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3218);
 #endif
     BIO_free(bio);
 
