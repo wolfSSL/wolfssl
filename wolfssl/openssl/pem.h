@@ -50,10 +50,6 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
         WOLFSSL_RSA** rsa, wc_pem_password_cb* cb, void* pass);
 
 WOLFSSL_API
-WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp,
-        WOLFSSL_RSA** rsa, wc_pem_password_cb* cb, void* pass);
-
-WOLFSSL_API
 int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa);
 
 WOLFSSL_API
@@ -77,6 +73,11 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
                                     const WOLFSSL_EVP_CIPHER *enc,
                                     unsigned char *kstr, int klen,
                                     wc_pem_password_cb *cb, void *u);
+
+WOLFSSL_API
+WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp, WOLFSSL_RSA** rsa,
+                                            wc_pem_password_cb* cb, void* pass);
+
 WOLFSSL_API
 WOLFSSL_RSA *wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA **x,
                                            wc_pem_password_cb *cb, void *u);
