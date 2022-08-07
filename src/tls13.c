@@ -2312,14 +2312,9 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
     if (ret != CRYPTOCB_UNAVAILABLE) {
         #ifndef WOLFSSL_EARLY_DATA
         if (ret < 0) {
-            if (doAlert) {
-                SendAlert(ssl, alert_fatal, bad_record_mac);
-            }
             ret = VERIFY_MAC_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
         }
-        #else
-            (void)doAlert;
         #endif
         return ret;
     }
