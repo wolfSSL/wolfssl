@@ -390,3 +390,5 @@ cmake_install.cmake
 # GDB Settings
 \.gdbinit
 
+# Pycharm and other IDEs
+\.idea

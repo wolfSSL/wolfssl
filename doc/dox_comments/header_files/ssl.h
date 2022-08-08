@@ -14332,3 +14332,18 @@ int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
  \param ssl A WOLFSSL object pointer
 */
 int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
+
+/*!
+    \ingroup SSL
+    \brief Get the maximum size of Early Data from a session.
+
+    \param [in] s  the WOLFSSL_SESSION instance.
+
+    \return the value of max_early_data that was configured in the WOLFSSL* the session
+    was derived from.
+
+    \sa wolfSSL_set_max_early_data
+    \sa wolfSSL_write_early_data
+    \sa wolfSSL_read_early_data
+ */
+unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);

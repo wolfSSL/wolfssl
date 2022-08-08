@@ -533,7 +533,11 @@ static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 
     }
     #endif /* WOLFSSL_DTLS */
-
+    #ifdef WOLFSSL_QUIC
+        if (WOLFSSL_IS_QUIC(ssl) && IsAtLeastTLSv1_3(ssl->version)) {
+            return 0;
+        }
+    #endif
     return ssl->keys.encryptionOn &&
         (isSend ? ssl->encrypt.setup : ssl->decrypt.setup);
 }
@@ -6871,6 +6875,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls13Rtx.rtxRecordTailPtr = &ssl->dtls13Rtx.rtxRecords;
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef WOLFSSL_QUIC
+    if (ctx->quic.method) {
+        ret = wolfSSL_set_quic_method(ssl, ctx->quic.method);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+    }
+#endif
     return 0;
 }
 
@@ -7538,6 +7549,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
 #endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_QUIC
+    wolfSSL_quic_free(ssl);
+#endif
 }
 
 /* Free any handshake resources no longer needed */
@@ -9268,6 +9282,15 @@ static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
     int recvd;
     int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
 
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        /* QUIC only "reads" from data provided by the application
+         * via wolfSSL_provide_quic_data(). Transfer from there
+         * into the inputBuffer. */
+        return wolfSSL_quic_receive(ssl, buf, sz);
+    }
+#endif
+
     if (ssl->CBIORecv == NULL) {
         WOLFSSL_MSG("Your IO Recv callback is null, please set");
         return -1;
@@ -9423,7 +9446,7 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 
 int SendBuffered(WOLFSSL* ssl)
 {
-    if (ssl->CBIOSend == NULL) {
+    if (ssl->CBIOSend == NULL && !WOLFSSL_IS_QUIC(ssl)) {
         WOLFSSL_MSG("Your IO Send callback is null, please set");
         return SOCKET_ERROR_E;
     }
@@ -9433,6 +9456,12 @@ int SendBuffered(WOLFSSL* ssl)
         WOLFSSL_MSG("Data to send");
         WOLFSSL_BUFFER(ssl->buffers.outputBuffer.buffer,
                        ssl->buffers.outputBuffer.length);
+    }
+#endif
+
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        return wolfSSL_quic_send(ssl);
     }
 #endif
 
@@ -17644,7 +17673,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 
 int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 {
-    word32 msgSz   = ssl->keys.encryptSz;
+    word32 msgSz   = WOLFSSL_IS_QUIC(ssl)? ssl->curSize : ssl->keys.encryptSz;
     word32 idx     = *inOutIdx;
     int    dataSz;
     int    ivExtra = 0;
@@ -21876,6 +21905,16 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 
     WOLFSSL_ENTER("SendAlert");
 
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        ret = !ssl->quic.method->send_alert(ssl, ssl->quic.enc_level_write, (uint8_t)type);
+        if (ret) {
+            WOLFSSL_MSG("QUIC send_alert callback error");
+        }
+        return ret;
+    }
+#endif
+
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
         int notifyErr = 0;
@@ -22521,6 +22560,11 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case FALCON_KEY_SIZE_E:
         return "Wrong key size for Falcon.";
+
+#ifdef WOLFSSL_QUIC
+    case QUIC_TP_MISSING_E:
+        return "QUIC transport parameter not set";
+#endif
 
     default :
         return "unknown error number";

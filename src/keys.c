@@ -2988,6 +2988,11 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     if (ret == 0 && ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
         ret = Dtls13SetRecordNumberKeys(ssl, side);
 #endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_QUIC
+    if (ret == 0 && WOLFSSL_IS_QUIC(ssl)) {
+        ret = wolfSSL_quic_keys_active(ssl, side);
+    }
+#endif /* WOLFSSL_QUIC */
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 #ifdef WOLFSSL_DTLS
