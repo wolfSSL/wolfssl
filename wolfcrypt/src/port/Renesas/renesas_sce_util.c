@@ -642,8 +642,8 @@ WOLFSSL_LOCAL int wc_sce_generateVerifyData(const uint8_t *ms, /* master secret 
         (hashes == NULL))
       return BAD_FUNC_ARG;
 
-    if (XSTRNCMP((const char*)side, (const char*)tls_server, FINISHED_LABEL_SZ)
-                                                                           == 0)
+    if (XSTRNCMP((const char*)side, (const char*)kTlsServerFinStr,
+                                                FINISHED_LABEL_SZ) == 0)
     {
         l_side = SCE_TLS_GENERATE_SERVER_VERIFY;
     }
