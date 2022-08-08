@@ -22214,9 +22214,38 @@ int wc_InitCert_ex(Cert* cert, void* heap, int devId)
     return 0;
 }
 
+WOLFSSL_ABI
 int wc_InitCert(Cert* cert)
 {
     return wc_InitCert_ex(cert, NULL, INVALID_DEVID);
+}
+
+WOLFSSL_ABI
+Cert* wc_CertNew(void* heap)
+{
+    Cert* certNew;
+
+    certNew = (Cert*)XMALLOC(sizeof(certNew), heap, DYNAMIC_TYPE_CERT);
+    if (certNew) {
+        if (wc_InitCert_ex(certNew, NULL, INVALID_DEVID) != 0) {
+            XFREE(certNew, heap, DYNAMIC_TYPE_CERT);
+            certNew = NULL;
+        }
+    }
+
+    return certNew;
+}
+
+WOLFSSL_ABI
+void  wc_CertFree(Cert* cert)
+{
+    if (cert) {
+         void* heap = cert->heap;
+
+         ForceZero(cert, sizeof(cert));
+         XFREE(cert, heap, DYNAMIC_TYPE_CERT);
+         (void)heap;
+     }
 }
 
 /* DER encoded x509 Certificate */
@@ -26297,6 +26326,7 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
 }
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
+WOLFSSL_ABI
 int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
@@ -27108,6 +27138,7 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
                        ed25519Key, ed448Key, falconKey);
 }
 
+WOLFSSL_ABI
 int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey)
 {
@@ -27230,6 +27261,7 @@ int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     NULL, rng);
 }
 
+WOLFSSL_ABI
 int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
                     RsaKey* key, WC_RNG* rng)
 {
@@ -27248,6 +27280,7 @@ int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
 
 /* Get raw subject from cert, which may contain OIDs not parsed by Decode.
    The raw subject pointer will only be valid while "cert" is valid. */
+WOLFSSL_ABI
 int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 {
     int rc = BAD_FUNC_ARG;
@@ -28007,6 +28040,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 }
 
 /* Set cert issuer from issuerFile in PEM */
+WOLFSSL_ABI
 int wc_SetIssuer(Cert* cert, const char* issuerFile)
 {
     int         ret;
@@ -28028,6 +28062,7 @@ int wc_SetIssuer(Cert* cert, const char* issuerFile)
 
 
 /* Set cert subject from subjectFile in PEM */
+WOLFSSL_ABI
 int wc_SetSubject(Cert* cert, const char* subjectFile)
 {
     int         ret;
@@ -28049,6 +28084,7 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 #ifdef WOLFSSL_ALT_NAMES
 
 /* Set alt names from file in PEM */
+WOLFSSL_ABI
 int wc_SetAltNames(Cert* cert, const char* file)
 {
     int         ret;
@@ -28073,6 +28109,7 @@ int wc_SetAltNames(Cert* cert, const char* file)
 #endif /* !NO_FILESYSTEM */
 
 /* Set cert issuer from DER buffer */
+WOLFSSL_ABI
 int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;
@@ -28101,6 +28138,7 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 }
 
 /* Set cert subject from DER buffer */
+WOLFSSL_ABI
 int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;
@@ -28127,6 +28165,7 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 }
 #ifdef WOLFSSL_CERT_EXT
 /* Set cert raw subject from DER buffer */
+WOLFSSL_ABI
 int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;
@@ -28159,6 +28198,7 @@ int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
 }
 
 /* Set cert raw issuer from DER buffer */
+WOLFSSL_ABI
 int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;
@@ -28194,6 +28234,7 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
 #ifdef WOLFSSL_ALT_NAMES
 
 /* Set cert alt names from DER buffer */
+WOLFSSL_ABI
 int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;
@@ -28220,6 +28261,7 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
 }
 
 /* Set cert dates from DER buffer */
+WOLFSSL_ABI
 int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 {
     int ret = 0;

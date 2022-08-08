@@ -478,16 +478,18 @@ typedef struct Cert {
    isCA       = 0 (false)
    keyType    = RSA_KEY (default)
 */
-WOLFSSL_API int wc_InitCert(Cert* cert);
+WOLFSSL_ABI WOLFSSL_API int   wc_InitCert(Cert* cert);
+WOLFSSL_ABI WOLFSSL_API Cert* wc_CertNew(void* heap);
+WOLFSSL_ABI WOLFSSL_API void  wc_CertFree(Cert* cert);
 WOLFSSL_API int wc_InitCert_ex(Cert* cert, void* heap, int devId);
 WOLFSSL_API int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz,
                                int keyType, void* key, WC_RNG* rng);
-WOLFSSL_API int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz,
+WOLFSSL_ABI WOLFSSL_API int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_API int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz,
                                       int keyType, void* key);
-    WOLFSSL_API int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
+    WOLFSSL_ABI WOLFSSL_API int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey);
 #endif
 WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
@@ -495,22 +497,22 @@ WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
                                WC_RNG* rng);
 WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
-WOLFSSL_API int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
+WOLFSSL_ABI WOLFSSL_API int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
                                 RsaKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_SetIssuer(Cert* cert, const char* issuerFile);
-WOLFSSL_API int wc_SetSubject(Cert* cert, const char* subjectFile);
+WOLFSSL_ABI WOLFSSL_API int wc_SetIssuer(Cert* cert, const char* issuerFile);
+WOLFSSL_ABI WOLFSSL_API int wc_SetSubject(Cert* cert, const char* subjectFile);
 #ifdef WOLFSSL_ALT_NAMES
-    WOLFSSL_API int wc_SetAltNames(Cert* cert, const char* file);
+    WOLFSSL_ABI WOLFSSL_API int wc_SetAltNames(Cert* cert, const char* file);
 #endif
 
 #ifdef WOLFSSL_CERT_GEN_CACHE
 WOLFSSL_ABI WOLFSSL_API void wc_SetCert_Free(Cert* cert);
 #endif
 
-WOLFSSL_API int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz);
-WOLFSSL_API int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz);
-WOLFSSL_API int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz);
-WOLFSSL_API int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz);
 
 #ifndef NO_ASN_TIME
 WOLFSSL_API int wc_GetCertDates(Cert* cert, struct tm* before,
@@ -529,9 +531,9 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType,
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
-WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
-WOLFSSL_API int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
-WOLFSSL_API int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
+WOLFSSL_ABI WOLFSSL_API int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
+WOLFSSL_ABI WOLFSSL_API int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
 
 /* Set the KeyUsage.
  * Value is a string separated tokens with ','. Accepted tokens are :
