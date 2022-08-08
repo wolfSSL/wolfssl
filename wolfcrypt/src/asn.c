@@ -22314,6 +22314,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 /* wc_SetCert_Free is only public when WOLFSSL_CERT_GEN_CACHE is not defined */
 static
 #endif
+WOLFSSL_ABI
 void wc_SetCert_Free(Cert* cert)
 {
     if (cert != NULL) {

@@ -504,7 +504,7 @@ WOLFSSL_API int wc_SetSubject(Cert* cert, const char* subjectFile);
 #endif
 
 #ifdef WOLFSSL_CERT_GEN_CACHE
-WOLFSSL_API void wc_SetCert_Free(Cert* cert);
+WOLFSSL_ABI WOLFSSL_API void wc_SetCert_Free(Cert* cert);
 #endif
 
 WOLFSSL_API int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz);
