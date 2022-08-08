@@ -20228,6 +20228,74 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     if (ssl == NULL)
         return NULL;
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_PQC)
+    /* Check for post-quantum groups. Return now because we do not want the ECC
+     * check to override this result in the case of a hybrid. */
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        switch (ssl->namedGroup) {
+#ifdef HAVE_LIBOQS
+        case WOLFSSL_KYBER_LEVEL1:
+            return "KYBER_LEVEL1";
+        case WOLFSSL_KYBER_LEVEL3:
+            return "KYBER_LEVEL3";
+        case WOLFSSL_KYBER_LEVEL5:
+            return "KYBER_LEVEL5";
+        case WOLFSSL_NTRU_HPS_LEVEL1:
+            return "NTRU_HPS_LEVEL1";
+        case WOLFSSL_NTRU_HPS_LEVEL3:
+            return "NTRU_HPS_LEVEL3";
+        case WOLFSSL_NTRU_HPS_LEVEL5:
+            return "NTRU_HPS_LEVEL5";
+        case WOLFSSL_NTRU_HRSS_LEVEL3:
+            return "NTRU_HRSS_LEVEL3";
+        case WOLFSSL_SABER_LEVEL1:
+            return "SABER_LEVEL1";
+        case WOLFSSL_SABER_LEVEL3:
+            return "SABER_LEVEL3";
+        case WOLFSSL_SABER_LEVEL5:
+            return "SABER_LEVEL5";
+        case WOLFSSL_KYBER_90S_LEVEL1:
+            return "KYBER_90S_LEVEL1";
+        case WOLFSSL_KYBER_90S_LEVEL3:
+            return "KYBER_90S_LEVEL3";
+        case WOLFSSL_KYBER_90S_LEVEL5:
+            return "KYBER_90S_LEVEL5";
+        case WOLFSSL_P256_NTRU_HPS_LEVEL1:
+            return "P256_NTRU_HPS_LEVEL1";
+        case WOLFSSL_P384_NTRU_HPS_LEVEL3:
+            return "P384_NTRU_HPS_LEVEL3";
+        case WOLFSSL_P521_NTRU_HPS_LEVEL5:
+            return "P521_NTRU_HPS_LEVEL5";
+        case WOLFSSL_P384_NTRU_HRSS_LEVEL3:
+            return "P384_NTRU_HRSS_LEVEL3";
+        case WOLFSSL_P256_SABER_LEVEL1:
+            return "P256_SABER_LEVEL1";
+        case WOLFSSL_P384_SABER_LEVEL3:
+            return "P384_SABER_LEVEL3";
+        case WOLFSSL_P521_SABER_LEVEL5:
+            return "P521_SABER_LEVEL5";
+        case WOLFSSL_P256_KYBER_LEVEL1:
+            return "P256_KYBER_LEVEL1";
+        case WOLFSSL_P384_KYBER_LEVEL3:
+            return "P384_KYBER_LEVEL3";
+        case WOLFSSL_P521_KYBER_LEVEL5:
+            return "P521_KYBER_LEVEL5";
+        case WOLFSSL_P256_KYBER_90S_LEVEL1:
+            return "P256_KYBER_90S_LEVEL1";
+        case WOLFSSL_P384_KYBER_90S_LEVEL3:
+            return "P384_KYBER_90S_LEVEL3";
+        case WOLFSSL_P521_KYBER_90S_LEVEL5:
+            return "P521_KYBER_90S_LEVEL5";
+#elif defined(HAVE_PQM4)
+        case WOLFSSL_KYBER_LEVEL1:
+            return "KYBER_LEVEL1";
+#endif
+        default:
+            /* Fall through. */
+        }
+    }
+
+#endif /* WOLFSSL_TLS13 && HAVE_PQC */
 #ifdef HAVE_FFDHE
     if (ssl->namedGroup != 0) {
         cName = wolfssl_ffdhe_name(ssl->namedGroup);
