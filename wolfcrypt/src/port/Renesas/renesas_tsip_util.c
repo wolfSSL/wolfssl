@@ -2794,9 +2794,8 @@ int wc_tsip_generateVerifyData(
         WOLFSSL_LEAVE("tsip_generateVerifyData", BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
-    if (XSTRNCMP((const char*)side, (const char*)tls_server, FINISHED_LABEL_SZ)
-                                                                           == 0)
-    {
+    if (XSTRNCMP((const char*)side, (const char*)kTlsServerFinStr, 
+                                                FINISHED_LABEL_SZ) == 0) {
         l_side = R_TSIP_TLS_GENERATE_SERVER_VERIFY;
     }
 
