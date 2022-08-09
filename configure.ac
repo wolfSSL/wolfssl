@@ -664,6 +664,7 @@ then
         test "$enable_tls13" = "" && enable_tls13=yes
         test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
+    test "$enable_quic" = "" && enable_quic=yes
 
     # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
@@ -1036,6 +1037,25 @@ if test "x$FIPS_VERSION" = "xv1" ||
 then
     ENABLED_TLS13="no"
 fi
+
+# QUIC support
+AC_ARG_ENABLE([quic],
+    [AS_HELP_STRING([--enable-quic],[Enable QUIC API with wolfSSL TLS v1.3 (default: disabled)])],
+    [ ENABLED_QUIC=$enableval ],
+    [ ENABLED_QUIC=no ]
+    )
+
+if test "$ENABLED_QUIC" = "yes"
+then
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_ERROR([TLS 1.3 is disabled - necessary for QUIC])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QUIC"
+    # QUIC proto handlers need app_data at WOLFSSL*
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+fi
+
 
 # Post-handshake Authentication
 AC_ARG_ENABLE([postauth],
@@ -1476,6 +1496,12 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
+
+if test "$ENABLED_QUIC" = "yes"
+then
+    ENABLED_OPENSSLEXTRA="yes"
+fi
+
 
 # One Error Queue per Thread
 AC_ARG_ENABLE([error-queue-per-thread],
@@ -1939,6 +1965,11 @@ AC_ARG_ENABLE([aesctr],
     [ ENABLED_AESCTR=no ]
     )
 if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
+then
+    ENABLED_AESCTR=yes
+fi
+
+if test "$ENABLED_QUIC" = "yes"
 then
     ENABLED_AESCTR=yes
 fi
@@ -4550,6 +4581,11 @@ then
     ENABLED_SNI="yes"
 fi
 
+if test "$ENABLED_QUIC" = "yes"
+then
+    ENABLED_SNI=yes
+fi
+
 if test "x$ENABLED_SNI" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI"
@@ -4570,6 +4606,11 @@ AC_ARG_ENABLE([alpn],
     )
 
 if test "$ENABLED_BIND" = "yes"
+then
+    ENABLED_ALPN=yes
+fi
+
+if test "$ENABLED_QUIC" = "yes"
 then
     ENABLED_ALPN=yes
 fi
@@ -4832,7 +4873,6 @@ if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENA
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
 fi
-
 
 # PKCS7
 AC_ARG_ENABLE([pkcs7],
@@ -5668,6 +5708,12 @@ then
 
     # FTPS server requires pointer to session cache
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
+
+    if test "x$ENABLED_QUIC" = "xno"
+    then
+        ENABLED_QUIC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QUIC"
+    fi
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
@@ -8033,6 +8079,7 @@ AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
 AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes"])
+AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -8381,6 +8428,7 @@ echo "   * TLS v1.2:                   $ENABLED_TLSV12"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
+echo "   * QUIC:                       $ENABLED_QUIC"
 echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"

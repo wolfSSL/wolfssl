@@ -185,6 +185,13 @@ int unit_test(int argc, char** argv)
 #endif
 #endif /* NO_WOLFSSL_CIPHER_SUITE_TEST */
 
+#ifdef WOLFSSL_QUIC
+    if ( (ret = QuicTest()) != 0){
+        printf("quic test failed with %d\n", ret);
+        goto exit;
+    }
+#endif
+
     SrpTest();
 
 exit:

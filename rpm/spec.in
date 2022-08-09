@@ -234,6 +234,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/x509_vfy.h
 %{_includedir}/wolfssl/openssl/x509v3.h
 %{_includedir}/wolfssl/options.h
+%{_includedir}/wolfssl/quic.h
 %{_includedir}/wolfssl/sniffer.h
 %{_includedir}/wolfssl/sniffer_error.h
 %{_includedir}/wolfssl/ssl.h

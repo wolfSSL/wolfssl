@@ -74,6 +74,9 @@
 #ifdef HAVE_OCSP
     #include <wolfssl/ocsp.h>
 #endif
+#ifdef WOLFSSL_QUIC
+    #include <wolfssl/quic.h>
+#endif
 #ifdef WOLFSSL_SHA384
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
@@ -2026,7 +2029,7 @@ WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
    !defined(WOLFSSL_DTLS_EXPORT_TYPES)
     typedef int (*wc_dtls_export)(WOLFSSL* ssl,
-                   unsigned char* exportBuffer, unsigned int sz, void* userCtx);
+
 #define WOLFSSL_DTLS_EXPORT_TYPES
 #endif /* WOLFSSL_DTLS_EXPORT_TYPES */
 
@@ -2423,8 +2426,14 @@ typedef enum {
     TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
     #endif
     TLSX_KEY_SHARE                  = 0x0033,
+    #ifdef WOLFSSL_QUIC
+    TLSX_KEY_QUIC_TP_PARAMS         = 0x0039, /* RFC 9001, ch. 8.2 */
+    #endif
 #endif
-    TLSX_RENEGOTIATION_INFO         = 0xff01
+    TLSX_RENEGOTIATION_INFO         = 0xff01,
+#ifdef WOLFSSL_QUIC
+    TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
+#endif
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -3084,7 +3093,8 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
-#if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY))
+#if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || defined(WOLFSSL_QUIC))
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
@@ -3218,6 +3228,11 @@ struct WOLFSSL_CTX {
     #ifndef SINGLE_THREADED
     wolfSSL_Mutex staticKELock;
     #endif
+#endif
+#ifdef WOLFSSL_QUIC
+    struct {
+        const WOLFSSL_QUIC_METHOD *method;
+    } quic;
 #endif
 };
 
@@ -3481,6 +3496,35 @@ typedef enum WOLFSSL_SESSION_TYPE {
     WOLFSSL_SESSION_TYPE_CACHE,  /* pointer to internal cache */
     WOLFSSL_SESSION_TYPE_HEAP    /* allocated from heap SESSION_new */
 } WOLFSSL_SESSION_TYPE;
+
+#ifdef WOLFSSL_QUIC
+typedef struct QuicRecord QuicRecord;
+typedef struct QuicRecord {
+    struct QuicRecord *next;
+    uint8_t *data;
+    word32 capacity;
+    word32 len;
+    word32 start;
+    word32 end;
+    WOLFSSL_ENCRYPTION_LEVEL level;
+    word32 rec_hdr_remain;
+} QuicEncData;
+
+typedef struct QuicTransportParam QuicTransportParam;
+struct QuicTransportParam {
+    const uint8_t *data;
+    word16 len;
+};
+
+WOLFSSL_LOCAL const QuicTransportParam *QuicTransportParam_new(const uint8_t *data, size_t len, void *heap);
+WOLFSSL_LOCAL const QuicTransportParam *QuicTransportParam_dup(const QuicTransportParam *tp, void *heap);
+WOLFSSL_LOCAL void QuicTransportParam_free(const QuicTransportParam *tp, void *heap);
+WOLFSSL_LOCAL int TLSX_QuicTP_Use(WOLFSSL* ssl, TLSX_Type ext_type, int is_response);
+WOLFSSL_LOCAL int wolfSSL_quic_add_transport_extensions(WOLFSSL *ssl, int msg_type);
+
+#define QTP_FREE     QuicTransportParam_free
+
+#endif /* WOLFSSL_QUIC */
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
@@ -3917,6 +3961,9 @@ typedef struct Options {
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
+#endif
+#ifdef WOLFSSL_TLS13
+    word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
 #endif
 
     /* need full byte values for this section */
@@ -4780,7 +4827,8 @@ struct WOLFSSL {
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
         char*   alpn_client_list;  /* keep the client's list */
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)  || \
+            defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_QUIC)
             CallbackALPNSelect alpnSelect;
             void*              alpnSelectArg;
         #endif
@@ -4924,6 +4972,27 @@ struct WOLFSSL {
 #ifdef WOLFSSL_LWIP_NATIVE
     WOLFSSL_LWIP_NATIVE_STATE      lwipCtx; /* LwIP native socket IO Context */
 #endif
+#ifdef WOLFSSL_QUIC
+    struct {
+        const WOLFSSL_QUIC_METHOD* method;
+        WOLFSSL_ENCRYPTION_LEVEL enc_level_read;
+        WOLFSSL_ENCRYPTION_LEVEL enc_level_read_next;
+        WOLFSSL_ENCRYPTION_LEVEL enc_level_latest_recvd;
+        WOLFSSL_ENCRYPTION_LEVEL enc_level_write;
+        WOLFSSL_ENCRYPTION_LEVEL enc_level_write_next;
+        int transport_version;
+        const QuicTransportParam* transport_local;
+        const QuicTransportParam* transport_peer;
+        const QuicTransportParam* transport_peer_draft;
+        QuicRecord* input_head;          /* we own, data for handshake */
+        QuicRecord* input_tail;          /* points to last element for append */
+        QuicRecord* scratch;             /* we own, record construction */
+        enum wolfssl_encryption_level_t output_rec_level;
+                                         /* encryption level of current output record */
+        word32 output_rec_remain;        /* how many bytes of output TLS record
+                                          * content have not been handled yet by quic */
+    } quic;
+#endif /* WOLFSSL_QUIC */
 };
 
 /*
@@ -5561,6 +5630,20 @@ WOLFSSL_LOCAL int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 WOLFSSL_LOCAL int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf,
     int publicKey, void* heap);
 #endif
+
+#ifdef WOLFSSL_QUIC
+#define WOLFSSL_IS_QUIC(s)  (s && s->quic.method != NULL)
+WOLFSSL_LOCAL int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz);
+WOLFSSL_LOCAL int wolfSSL_quic_send(WOLFSSL* ssl);
+WOLFSSL_LOCAL void wolfSSL_quic_clear(WOLFSSL* ssl);
+WOLFSSL_LOCAL void wolfSSL_quic_free(WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfSSL_quic_forward_secrets(WOLFSSL *ssl,
+                                               int ktype, int side);
+WOLFSSL_LOCAL int wolfSSL_quic_keys_active(WOLFSSL* ssl, enum encrypt_side side);
+
+#else
+#define WOLFSSL_IS_QUIC(s) 0
+#endif /* WOLFSSL_QUIC (else) */
 
 #ifdef __cplusplus
     }  /* extern "C" */

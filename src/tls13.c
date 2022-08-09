@@ -1280,6 +1280,14 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
             break;
     }
 
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        ret = wolfSSL_quic_forward_secrets(ssl, secret, side);
+        if (ret != 0)
+            goto end;
+    }
+#endif /* WOLFSSL_QUIC */
+
     if (!store)
         goto end;
 
@@ -2657,6 +2665,16 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
         case BUILD_MSG_ENCRYPT:
         {
+#ifdef WOLFSSL_QUIC
+            if (WOLFSSL_IS_QUIC(ssl)) {
+                /* QUIC does not use encryption of the TLS Record Layer.
+                 * Return the original length + added headers
+                 * and restore it in the record header. */
+                AddTls13RecordHeader(output, inSz, type, ssl);
+                ret = args->headerSz + inSz;
+                goto exit_buildmsg;
+            }
+#endif
         #ifdef ATOMIC_USER
             if (ssl->ctx->MacEncryptCb) {
                 /* User Record Layer Callback handling */
@@ -3435,8 +3453,19 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     /* Version | Random | Session Id | Cipher Suites | Compression */
     args->length = VERSION_SZ + RAN_LEN + ENUM_LEN + ssl->suites->suiteSz +
             SUITE_LEN + COMP_LEN + ENUM_LEN;
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        /* RFC 9001 ch. 8.4 sessionID in ClientHello MUST be 0 length */
+        ssl->session->sessionIDSz = 0;
+        ssl->options.tls13MiddleBoxCompat = 0;
+    }
+    else
+#endif
 #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-    args->length += ID_LEN;
+    {
+        args->length += ID_LEN;
+        ssl->options.tls13MiddleBoxCompat = 1;
+    }
 #else
     if (ssl->session->sessionIDSz > 0)
         args->length += ssl->session->sessionIDSz;
@@ -3488,6 +3517,13 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->earlyData != no_early_data &&
                                        (ret = TLSX_EarlyData_Use(ssl, 0)) < 0) {
         return ret;
+    }
+#endif
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl) && IsAtLeastTLSv1_3(ssl->version)) {
+        ret = wolfSSL_quic_add_transport_extensions(ssl, client_hello);
+        if (ret != 0)
+            return ret;
     }
 #endif
     /* Include length of TLS extensions. */
@@ -3546,13 +3582,17 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
     else {
     #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-        args->output[args->idx++] = ID_LEN;
-        XMEMCPY(args->output + args->idx, ssl->arrays->clientRandom, ID_LEN);
-        args->idx += ID_LEN;
-    #else
-        /* TLS v1.3 does not use session id - 0 length. */
-        args->output[args->idx++] = 0;
+        if (ssl->options.tls13MiddleBoxCompat) {
+            args->output[args->idx++] = ID_LEN;
+            XMEMCPY(args->output + args->idx, ssl->arrays->clientRandom, ID_LEN);
+            args->idx += ID_LEN;
+        }
+        else
     #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
+        {
+            /* TLS v1.3 does not use session id - 0 length. */
+            args->output[args->idx++] = 0;
+        }
     }
 
 #ifdef WOLFSSL_DTLS13
@@ -3653,7 +3693,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     case TLS_ASYNC_END:
 #ifdef WOLFSSL_EARLY_DATA_GROUP
-    if (ssl->earlyData == no_early_data)
+    /* QUIC needs to forward records at their encryption level
+     * and is therefore unable to group here */
+    if (ssl->earlyData == no_early_data || WOLFSSL_IS_QUIC(ssl))
 #endif
         ret = SendBuffered(ssl);
 
@@ -4092,27 +4134,39 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_FINALIZE:
     {
 #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-    if (args->sessIdSz == 0) {
-        WOLFSSL_MSG("args->sessIdSz == 0");
-        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-        return INVALID_PARAMETER;
-    }
-    if (ssl->session->sessionIDSz != 0) {
-        if (ssl->session->sessionIDSz != args->sessIdSz ||
-            XMEMCMP(ssl->session->sessionID, args->sessId,
+    if (ssl->options.tls13MiddleBoxCompat) {
+        if (args->sessIdSz == 0) {
+            WOLFSSL_MSG("args->sessIdSz == 0");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+        }
+        if (ssl->session->sessionIDSz != 0) {
+            if (ssl->session->sessionIDSz != args->sessIdSz ||
+                XMEMCMP(ssl->session->sessionID, args->sessId,
+                    args->sessIdSz) != 0) {
+                WOLFSSL_MSG("session id doesn't match");
+                WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+                return INVALID_PARAMETER;
+            }
+        }
+        else if (XMEMCMP(ssl->arrays->clientRandom, args->sessId,
                 args->sessIdSz) != 0) {
-            WOLFSSL_MSG("session id doesn't match");
+            WOLFSSL_MSG("session id doesn't match client random");
+            WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+            return INVALID_PARAMETER;
+    }
+    else
+#endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        if (args->sessIdSz != 0) {
+            WOLFSSL_MSG("args->sessIdSz != 0");
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
         }
     }
-    else if (XMEMCMP(ssl->arrays->clientRandom, args->sessId,
-            args->sessIdSz) != 0) {
-        WOLFSSL_MSG("session id doesn't match client random");
-        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
-        return INVALID_PARAMETER;
-    }
-#else
+    else
+#endif /* WOLFSSL_QUIC */
     if (args->sessIdSz != ssl->session->sessionIDSz || (args->sessIdSz > 0 &&
         XMEMCMP(ssl->session->sessionID, args->sessId, args->sessIdSz) != 0))
     {
@@ -4120,7 +4174,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
-#endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
 
     ret = SetCipherSpecs(ssl);
     if (ret != 0)
@@ -5861,6 +5914,13 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 #else
     if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
         return ret;
+#endif
+#ifdef WOLFSSL_QUIC
+    if (IsAtLeastTLSv1_3(ssl->version) && WOLFSSL_IS_QUIC(ssl)) {
+        ret = wolfSSL_quic_add_transport_extensions(ssl, encrypted_extensions);
+        if (ret != 0)
+            return ret;
+    }
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -8196,6 +8256,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
         }
 #endif /* WOLFSSL_DTLS13 */
+
     }
 
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -9314,7 +9375,9 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             #ifdef WOLFSSL_EARLY_DATA
                 if (ssl->earlyData == process_early_data &&
                     /* early data may be lost when using DTLS */
-                    !ssl->options.dtls) {
+                    !ssl->options.dtls
+                    /* QUIC does not use EndOfEarlyData records */
+                    && !WOLFSSL_IS_QUIC(ssl)) {
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
@@ -9676,6 +9739,15 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ForceZero(ssl->arrays->preMasterSecret,
                     ssl->arrays->preMasterSz);
         #ifdef WOLFSSL_EARLY_DATA
+        #ifdef WOLFSSL_QUIC
+                if (WOLFSSL_IS_QUIC(ssl) && ssl->earlyData != no_early_data) {
+                    /* QUIC never sends/receives EndOfEarlyData, but having
+                     * early data means the last encrpytion keys had not been
+                     * set yet. */
+                    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+                        return ret;
+                }
+        #endif
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
                                     ENCRYPT_AND_DECRYPT_SIDE,
                                     ssl->earlyData == no_early_data)) != 0) {
@@ -9987,7 +10059,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     #ifdef WOLFSSL_EARLY_DATA
             if (ssl->earlyData != no_early_data) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-                if (!ssl->options.dtls) {
+                if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat) {
                     if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
@@ -10041,7 +10113,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-                if (!ssl->options.dtls && !ssl->options.sentChangeCipher) {
+                if (!ssl->options.dtls && !ssl->options.sentChangeCipher
+                    && ssl->options.tls13MiddleBoxCompat) {
                     if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
@@ -10084,7 +10157,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
         case FIRST_REPLY_DONE:
         #ifdef WOLFSSL_EARLY_DATA
-            if (!ssl->options.dtls && ssl->earlyData != no_early_data) {
+            if (!ssl->options.dtls && ssl->earlyData != no_early_data
+                && !WOLFSSL_IS_QUIC(ssl)) {
                 if ((ssl->error = SendTls13EndOfEarlyData(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -10099,7 +10173,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
         case FIRST_REPLY_FIRST:
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-            if (!ssl->options.sentChangeCipher && !ssl->options.dtls) {
+            if (!ssl->options.sentChangeCipher && !ssl->options.dtls
+                && ssl->options.tls13MiddleBoxCompat) {
                 if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -11151,7 +11226,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE :
     #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-            if (!ssl->options.dtls && ssl->options.serverState ==
+            if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat
+                && ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
                 if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
@@ -11213,7 +11289,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_SERVER_HELLO_SENT :
     #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
-            if (!ssl->options.dtls
+            if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat
                           && !ssl->options.sentChangeCipher && !ssl->options.dtls) {
                 if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

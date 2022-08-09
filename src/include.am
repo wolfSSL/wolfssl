@@ -699,6 +699,10 @@ if BUILD_DTLS13
 src_libwolfssl_la_SOURCES += src/dtls13.c
 endif
 
+if BUILD_QUIC
+src_libwolfssl_la_SOURCES += src/quic.c
+endif
+
 endif !BUILD_CRYPTONLY
 
 

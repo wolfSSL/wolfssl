@@ -12,6 +12,7 @@ tests_unit_test_SOURCES = \
                   tests/hash.c \
                   tests/w64wrapper.c \
                   tests/srp.c \
+                  tests/quic.c \
                   examples/client/client.c \
                   examples/server/server.c
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)

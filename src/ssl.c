@@ -2338,6 +2338,12 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        WOLFSSL_MSG("SSL_write() on QUIC not allowed");
+        return BAD_FUNC_ARG;
+    }
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data && (ret = wolfSSL_negotiate(ssl)) < 0) {
         ssl->error = ret;
@@ -2405,6 +2411,12 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        WOLFSSL_MSG("SSL_read() on QUIC not allowed");
+        return BAD_FUNC_ARG;
+    }
+#endif
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL) && defined(OPENSSL_EXTRA)
     /* This additional logic is meant to simulate following openSSL behavior:
      * After bidirectional SSL_shutdown complete, SSL_read returns 0 and
@@ -9791,6 +9803,13 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
     (void)ses;
     return SECRET_LEN;
 }
+
+#ifdef WOLFSSL_EARLY_DATA
+unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *session)
+{
+    return session->maxEarlyDataSz;
+}
+#endif /* WOLFSSL_EARLY_DATA */
 
 #endif /* OPENSSL_EXTRA */
 
@@ -18251,6 +18270,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);
+#endif
+
+#ifdef WOLFSSL_QUIC
+        wolfSSL_quic_clear(ssl);
 #endif
 
         return WOLFSSL_SUCCESS;
@@ -33310,7 +33333,8 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_QUIC)
 #ifdef HAVE_ALPN
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)
