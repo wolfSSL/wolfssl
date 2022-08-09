@@ -26779,6 +26779,57 @@ static int test_ToTraditional(void)
 }/* End test_ToTraditional*/
 
 /*
+ * Testing test_ToTraditionalWithSequence with key with sequence in the AlgorithmIdentifier parameters
+ *     0:d=0  hl=4 l=2423 cons: SEQUENCE
+ *     4:d=1  hl=2 l=   1 prim:  INTEGER           :00
+ *     7:d=1  hl=2 l=  65 cons:  SEQUENCE
+ *     9:d=2  hl=2 l=   9 prim:   OBJECT            :rsassaPss
+ *    20:d=2  hl=2 l=  52 cons:   SEQUENCE
+ *    22:d=3  hl=2 l=  15 cons:    cont [ 0 ]
+ *    24:d=4  hl=2 l=  13 cons:     SEQUENCE
+ *    26:d=5  hl=2 l=   9 prim:      OBJECT            :sha256
+ *    37:d=5  hl=2 l=   0 prim:      NULL
+ *    39:d=3  hl=2 l=  28 cons:    cont [ 1 ]
+ *    41:d=4  hl=2 l=  26 cons:     SEQUENCE
+ *    43:d=5  hl=2 l=   9 prim:      OBJECT            :mgf1
+ *    54:d=5  hl=2 l=  13 cons:      SEQUENCE
+ *    56:d=6  hl=2 l=   9 prim:       OBJECT            :sha256
+ *    67:d=6  hl=2 l=   0 prim:       NULL
+ *    69:d=3  hl=2 l=   3 cons:    cont [ 2 ]
+ *    71:d=4  hl=2 l=   1 prim:     INTEGER           :20
+ *    74:d=1  hl=4 l=2349 prim:  OCTET STRING
+ */
+static int test_ToTraditionalWithSequence(void)
+{
+    int ret = -1;
+#if !defined(NO_ASN) && (defined(HAVE_PKCS8) || defined(HAVE_PKCS12)) && \
+(defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+defined(OPENSSL_EXTRA_X509_SMALL))
+
+    XFILE   f;
+    byte    input[FOURK_BUF];
+    word32  sz;
+
+    printf(testingFmt, "ToTraditionalWithSequence()");
+
+    f = XFOPEN("./certs/keyPkcs8WithSequence.der", "rb");
+    AssertTrue((f != XBADFILE));
+    sz = (word32)XFREAD(input, 1, sizeof(input), f);
+    XFCLOSE(f);
+
+    /* Good case */
+    ret = ToTraditional(input, sz);
+    if (ret == 2349) {
+        ret = 0;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    fflush(stdout);
+#endif
+    return ret;
+}/* End test_ToTraditionalWithSequence*/
+
+/*
  * Testing wc_EccPrivateKeyToDer
  */
 static int test_wc_EccPrivateKeyToDer(void)
@@ -57851,6 +57902,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ecc_sig_size_calc),
 
     TEST_DECL(test_ToTraditional),
+    TEST_DECL(test_ToTraditionalWithSequence),
     TEST_DECL(test_wc_EccPrivateKeyToDer),
     TEST_DECL(test_wc_DhPublicKeyDecode),
     TEST_DECL(test_wc_Ed25519KeyToDer),
