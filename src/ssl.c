@@ -20290,8 +20290,6 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
 #endif
-        default:
-            /* Fall through. */
         }
     }
 
