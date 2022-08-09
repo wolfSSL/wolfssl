@@ -12139,17 +12139,18 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SNI)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
-                        msgType != encrypted_extensions) {
-                    return EXT_NOT_ALLOWED;
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions)
+                        return EXT_NOT_ALLOWED;
                 }
-                else if (!IsAtLeastTLSv1_3(ssl->version) &&
-                         msgType == encrypted_extensions) {
-                    return EXT_NOT_ALLOWED;
-                }
+                else
 #endif
+                {
+                    if (msgType != client_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
 #endif
@@ -12160,13 +12161,18 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_TRUSTED_CA)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
-                        msgType != encrypted_extensions) {
-                    return EXT_NOT_ALLOWED;
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions)
+                        return EXT_NOT_ALLOWED;
                 }
+                else
 #endif
+                {
+                    if (msgType != client_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = TCA_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12176,19 +12182,23 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_MAX_FRAGMENT)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
                         msgType != encrypted_extensions) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
                 }
-                else if (!IsAtLeastTLSv1_3(ssl->version) &&
-                         msgType == encrypted_extensions) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
-                }
+                else
 #endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = MFL_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12198,10 +12208,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_TRUNCATED_HMAC)
+#ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
+                if (msgType != client_hello)
+                    return EXT_NOT_ALLOWED;
                 ret = THM_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12211,19 +12223,22 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
                         msgType != encrypted_extensions) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
                 }
-                else if (!IsAtLeastTLSv1_3(ssl->version) &&
-                         msgType == encrypted_extensions) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
-                }
+                else
 #endif
+                {
+                    if (msgType != client_hello) {
+                        WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                        return EXT_NOT_ALLOWED;
+                    }
+                }
                 ret = EC_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12233,10 +12248,16 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+#ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
+                if (msgType != client_hello &&
+                    msgType != server_hello) {
+                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
+                    return EXT_NOT_ALLOWED;
+                }
+
                 ret = PF_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12246,14 +12267,20 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
                         msgType != certificate_request &&
-                        msgType != certificate) {
-                     break;
+                        msgType != certificate)
+                        return EXT_NOT_ALLOWED;
                 }
+                else
  #endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = CSR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12264,13 +12291,19 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
                         msgType != certificate_request &&
-                        msgType != certificate) {
-                    return EXT_NOT_ALLOWED;
+                        msgType != certificate)
+                        return EXT_NOT_ALLOWED;
                 }
+                else
 #endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = CSR2_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12285,6 +12318,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
+                if (msgType != client_hello &&
+                    msgType != server_hello)
+                    return EXT_NOT_ALLOWED;
                 if (size != 0)
                     return BUFFER_ERROR;
 
@@ -12302,10 +12338,13 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
+#ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
+                if (msgType != client_hello &&
+                    msgType != server_hello)
+                    return EXT_NOT_ALLOWED;
                 ret = SCR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12316,11 +12355,17 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello) {
-                    return EXT_NOT_ALLOWED;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello)
+                        return EXT_NOT_ALLOWED;
                 }
+                else
 #endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = WOLF_STK_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
@@ -12332,16 +12377,18 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ALPN)
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
-                        msgType != encrypted_extensions) {
-                    return EXT_NOT_ALLOWED;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != encrypted_extensions)
+                        return EXT_NOT_ALLOWED;
                 }
-                else if (!IsAtLeastTLSv1_3(ssl->version) &&
-                         msgType == encrypted_extensions) {
-                    return EXT_NOT_ALLOWED;
-                }
+                else
 #endif
+                {
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = ALPN_PARSE(ssl, input + offset, size, isRequest);
                 break;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
@@ -12354,12 +12401,17 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_2(ssl))
                     break;
             #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
-                        msgType != certificate_request) {
-                    return EXT_NOT_ALLOWED;
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    if (msgType != client_hello &&
+                        msgType != certificate_request)
+                        return EXT_NOT_ALLOWED;
                 }
+                else
             #endif
+                {
+                    if (msgType != client_hello)
+                        return EXT_NOT_ALLOWED;
+                }
                 ret = SA_PARSE(ssl, input + offset, size, isRequest, suites);
                 break;
 #endif
@@ -12371,6 +12423,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 /* Ignore for TLS 1.3+ */
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
+                if (msgType != client_hello &&
+                    msgType != server_hello)
+                    return EXT_NOT_ALLOWED;
 
                 ret = ETM_PARSE(ssl, input + offset, size, msgType);
                 break;
@@ -12382,6 +12437,10 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
             #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
+                if (msgType != client_hello &&
+                    msgType != server_hello &&
+                    msgType != hello_retry_request)
+                    return EXT_NOT_ALLOWED;
 
                 break;
 
@@ -12396,7 +12455,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                     break;
 
                 if (msgType != client_hello &&
-                        msgType != hello_retry_request) {
+                    msgType != hello_retry_request) {
                     return EXT_NOT_ALLOWED;
                 }
 
@@ -12414,7 +12473,8 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
 
-                if (msgType != client_hello && msgType != server_hello) {
+                if (msgType != client_hello &&
+                    msgType != server_hello) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
@@ -12452,13 +12512,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                     break;
 
                 if (msgType != client_hello && msgType != session_ticket &&
-                        msgType != encrypted_extensions) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
-                }
-                if (!IsAtLeastTLSv1_3(ssl->version) &&
-                        (msgType == session_ticket ||
-                         msgType == encrypted_extensions)) {
+                    msgType != encrypted_extensions) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
@@ -12497,11 +12551,6 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
                 if (msgType != client_hello &&
                         msgType != certificate_request) {
-                    WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
-                    return EXT_NOT_ALLOWED;
-                }
-                if (!IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType == certificate_request) {
                     WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                     return EXT_NOT_ALLOWED;
                 }
