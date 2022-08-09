@@ -5619,6 +5619,51 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
+/* Get the OID id/sum from the BER encoding of an algorithm identifier
+ * and skip all data situated in the inner SEQUENCE
+ *
+ * @param [in]      input     Buffer holding BER encoded data.
+ * @param [in, out] inOutIdx  On in, start of algorithm identifier.
+ *                            On out, start of ASN.1 item after algorithm id.
+ * @param [out]     oid       Id of OID in algorithm identifier data.
+ * @param [in]      oidType   Type of OID to expect.
+ * @param [in]      localMaxIdx    Maximum index of data in buffer.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when encoding is invalid.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ */
+int GetAlgoIdAndSkipSequence(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 oidType, word32 maxIdx)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    int    length;
+    word32 idx = *inOutIdx;
+    int    ret;
+    word32 localMaxIdx = maxIdx;
+    *oid = 0;
+
+    WOLFSSL_ENTER("GetAlgoId");
+    if (GetSequence(input, &idx, &length, localMaxIdx) < 0)
+        return ASN_PARSE_E;
+
+    localMaxIdx = idx + length; /* All data should be inside the sequence */
+    if (localMaxIdx > maxIdx) /* If we have partial data ...*/
+    {
+        return ASN_PARSE_E;
+    }
+
+    if (GetObjectId(input, &idx, oid, oidType, localMaxIdx) < 0)
+        return ASN_OBJECT_ID_E;
+
+    *inOutIdx = localMaxIdx;
+    WOLFSSL_LEAVE("GetAlgoId", 0);
+
+    return 0;
+#else
+    return ASN_PARSE_E;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
 #ifndef NO_RSA
 
 #ifndef HAVE_USER_RSA
@@ -5932,17 +5977,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     if (GetMyVersion(input, &idx, &version, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &idx, algId, oidKeyType, sz) < 0)
+    if (GetAlgoIdAndSkipSequence(input, &idx, algId, oidKeyType, sz) < 0)
         return ASN_PARSE_E;
-
-    if (GetASNTag(input, &idx, &tag, sz) < 0)
-        return ASN_PARSE_E;
-    idx = idx - 1; /* reset idx after finding tag */
-
-    if (tag == ASN_OBJECT_ID) {
-        if (SkipObjectId(input, &idx, sz) < 0)
-            return ASN_PARSE_E;
-    }
 
     ret = GetOctetString(input, &idx, &length, sz);
     if (ret < 0) {
