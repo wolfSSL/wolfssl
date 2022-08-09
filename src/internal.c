@@ -25903,33 +25903,48 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
             {
+                WOLFSSL_X509_NAME* name = NULL;
                 /* Use a DecodedCert struct to get access to GetName to
                  * parse DN name */
-                DecodedCert cert;
-                WOLFSSL_X509_NAME* name;
+#ifdef WOLFSSL_SMALL_STACK
+                DecodedCert *cert = (DecodedCert *)XMALLOC(
+                    sizeof(*cert), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (cert == NULL)
+                    return MEMORY_ERROR;
+#else
+                DecodedCert cert[1];
+#endif
 
-                InitDecodedCert(&cert, input + *inOutIdx, dnSz, ssl->heap);
+                InitDecodedCert(cert, input + *inOutIdx, dnSz, ssl->heap);
 
-                if ((ret = GetName(&cert, SUBJECT, dnSz)) != 0) {
-                    FreeDecodedCert(&cert);
+                do {
+                    if ((ret = GetName(cert, SUBJECT, dnSz)) != 0) {
+                        break;
+                    }
+
+                    if ((name = wolfSSL_X509_NAME_new()) == NULL) {
+                        ret = MEMORY_ERROR;
+                        break;
+                    }
+
+                    CopyDecodedName(name, cert, SUBJECT);
+
+                    if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
+                        == WOLFSSL_FAILURE)
+                    {
+                        ret = MEMORY_ERROR;
+                        break;
+                    }
+                } while (0);
+                FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(cert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                if (ret != 0) {
+                    if (name != NULL)
+                        wolfSSL_X509_NAME_free(name);
                     return ret;
                 }
-
-                if ((name = wolfSSL_X509_NAME_new()) == NULL) {
-                    FreeDecodedCert(&cert);
-                    return MEMORY_ERROR;
-                }
-
-                CopyDecodedName(name, &cert, SUBJECT);
-
-                if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
-                        == WOLFSSL_FAILURE) {
-                    FreeDecodedCert(&cert);
-                    wolfSSL_X509_NAME_free(name);
-                    return MEMORY_ERROR;
-                }
-
-                FreeDecodedCert(&cert);
             }
         #endif
 

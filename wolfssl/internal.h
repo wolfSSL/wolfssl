@@ -5632,7 +5632,7 @@ WOLFSSL_LOCAL int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf,
 #endif
 
 #ifdef WOLFSSL_QUIC
-#define WOLFSSL_IS_QUIC(s)  (s && s->quic.method != NULL)
+#define WOLFSSL_IS_QUIC(s)  (((s) != NULL) && ((s)->quic.method != NULL))
 WOLFSSL_LOCAL int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz);
 WOLFSSL_LOCAL int wolfSSL_quic_send(WOLFSSL* ssl);
 WOLFSSL_LOCAL void wolfSSL_quic_clear(WOLFSSL* ssl);

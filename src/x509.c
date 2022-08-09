@@ -115,14 +115,18 @@ unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
 /* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
 int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
 {
-    int extCount = 0;
+    int extCount = WOLFSSL_FAILURE;
     int length = 0;
     int outSz = 0;
     const byte* rawCert;
     int sz = 0;
     word32 idx = 0;
-    DecodedCert cert;
     const byte* input;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert *cert;
+#else
+    DecodedCert cert[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
     if (passedCert == NULL) {
@@ -135,26 +139,33 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
         WOLFSSL_MSG("\tpassedCert has no internal DerBuffer set.");
         return WOLFSSL_FAILURE;
     }
-    InitDecodedCert(&cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert,
+#ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert *)XMALLOC(sizeof(*cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL) {
+        WOLFSSL_MSG("out of memory");
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    InitDecodedCert(cert, rawCert, (word32)outSz, 0);
+
+    if (ParseCert(cert,
 #ifdef WOLFSSL_CERT_REQ
             passedCert->isCSR ? CERTREQ_TYPE :
 #endif
                     CA_TYPE,
             NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FAILURE;
+        goto out;
     }
 
-    input = cert.extensions;
-    sz = cert.extensionsSz;
+    input = cert->extensions;
+    sz = cert->extensionsSz;
 
     if (input == NULL || sz == 0) {
         WOLFSSL_MSG("\tsz or input NULL error");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FAILURE;
+        goto out;
     }
 
 #ifdef WOLFSSL_CERT_REQ
@@ -163,33 +174,37 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     {
         if (input[idx++] != ASN_EXTENSIONS) {
             WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FAILURE;
+            goto out;
         }
 
         if (GetLength(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: invalid length");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FAILURE;
+            goto out;
         }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FAILURE;
+        goto out;
     }
 
+    extCount = 0;
     while (idx < (word32)sz) {
         if (GetSequence(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-            FreeDecodedCert(&cert);
+            FreeDecodedCert(cert);
             return WOLFSSL_FAILURE;
         }
         idx += length;
         extCount++;
     }
-    FreeDecodedCert(&cert);
+
+out:
+
+    FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return extCount;
 }
 
@@ -1709,7 +1724,11 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
     const byte* rawCert;
     const byte* input;
     word32 oid, idx = 0, tmpIdx = 0, foundNID;
-    DecodedCert cert;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert *cert;
+#else
+    DecodedCert cert[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_by_NID");
 
@@ -1731,26 +1750,33 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
+#ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert *)XMALLOC(sizeof(*cert), x509->heap,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL) {
+        WOLFSSL_MSG("\tout of memory");
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
 
-    if (ParseCert(&cert,
+    InitDecodedCert( cert, rawCert, (word32)outSz, 0);
+
+    if (ParseCert(cert,
 #ifdef WOLFSSL_CERT_REQ
             x509->isCSR ? CERTREQ_TYPE :
 #endif
             CA_TYPE,
             NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FATAL_ERROR;
+        goto out;
     }
 
-    input = cert.extensions;
-    sz = cert.extensionsSz;
+    input = cert->extensions;
+    sz = cert->extensionsSz;
 
     if (input == NULL || sz == 0) {
         WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FATAL_ERROR;
+        goto out;
     }
 
 #ifdef WOLFSSL_CERT_REQ
@@ -1759,21 +1785,18 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
     {
         if (input[idx++] != ASN_EXTENSIONS) {
             WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FATAL_ERROR;
+            goto out;
         }
 
         if (GetLength(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: invalid length");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FATAL_ERROR;
+            goto out;
         }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FATAL_ERROR;
+        goto out;
     }
 
     while (idx < (word32)sz) {
@@ -1781,16 +1804,14 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 
         if (GetSequence(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FATAL_ERROR;
+            goto out;
         }
 
         tmpIdx = idx;
         ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz);
         if (ret < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
-            FreeDecodedCert(&cert);
-            return WOLFSSL_FATAL_ERROR;
+            goto out;
         }
         idx = tmpIdx;
         foundNID = (word32)oid2nid(oid, oidCertExtType);
@@ -1809,7 +1830,12 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
         extCount++;
     } /* while(idx < sz) */
 
-    FreeDecodedCert(&cert);
+out:
+
+    FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(cert, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return found ? extCount : WOLFSSL_FATAL_ERROR;
 }
@@ -11807,7 +11833,11 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
                     unsigned int flags, char **peername)
 {
     int         ret;
-    DecodedCert dCert;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert *dCert;
+#else
+    DecodedCert dCert[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_check_host");
 
@@ -11829,15 +11859,30 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
         return WOLFSSL_FAILURE;
     }
 
-    InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
-    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    dCert = (DecodedCert *)XMALLOC(sizeof(*dCert), x->heap,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+    if (dCert == NULL) {
+        WOLFSSL_MSG("\tout of memory");
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+
+    InitDecodedCert(dCert, x->derCert->buffer, x->derCert->length, NULL);
+    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL);
     if (ret != 0) {
-        FreeDecodedCert(&dCert);
-        return WOLFSSL_FAILURE;
+        goto out;
     }
 
-    ret = CheckHostName(&dCert, (char *)chk, chklen);
-    FreeDecodedCert(&dCert);
+    ret = CheckHostName(dCert, (char *)chk, chklen);
+
+out:
+
+    FreeDecodedCert(dCert);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(dCert, x->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     if (ret != 0)
         return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
@@ -11848,7 +11893,11 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
         unsigned int flags)
 {
     int ret = WOLFSSL_FAILURE;
-    DecodedCert dCert;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert *dCert = NULL;
+#else
+    DecodedCert dCert[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_check_ip_asc");
 
@@ -11862,14 +11911,25 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
         ret = WOLFSSL_SUCCESS;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
     if (ret == WOLFSSL_SUCCESS) {
-        InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
-        ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+        dCert = (DecodedCert *)XMALLOC(sizeof(*dCert), x->heap,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (dCert == NULL) {
+            WOLFSSL_MSG("\tout of memory");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+#endif
+
+    if (ret == WOLFSSL_SUCCESS) {
+        InitDecodedCert(dCert, x->derCert->buffer, x->derCert->length, NULL);
+        ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL);
         if (ret != 0) {
             ret = WOLFSSL_FAILURE;
         }
         else {
-            ret = CheckIPAddr(&dCert, ipasc);
+            ret = CheckIPAddr(dCert, ipasc);
             if (ret != 0) {
                 ret = WOLFSSL_FAILURE;
             }
@@ -11877,8 +11937,13 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
                 ret = WOLFSSL_SUCCESS;
             }
         }
-        FreeDecodedCert(&dCert);
+        FreeDecodedCert(dCert);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (dCert != NULL)
+        XFREE(dCert, x->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }

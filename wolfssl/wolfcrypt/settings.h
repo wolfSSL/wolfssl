@@ -2607,6 +2607,11 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SMALL_STACK
 #endif
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_STATIC) && \
+    !defined(NO_WOLFSSL_SMALL_STACK_STATIC)
+#define WOLFSSL_SMALL_STACK_STATIC
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK_STATIC
     #undef WOLFSSL_SMALL_STACK_STATIC
     #define WOLFSSL_SMALL_STACK_STATIC static

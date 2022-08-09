@@ -692,7 +692,8 @@ cleanup:
 /* Called internally when SSL wants a certain amount of input. */
 int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
-    word32 n, transferred = 0;
+    word32 n = 0;
+    int transferred = 0;
 
     WOLFSSL_ENTER("wolfSSL_quic_receive");
     while (sz > 0) {
@@ -975,14 +976,29 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
 
 size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
-    WOLFSSL_EVP_CIPHER_CTX ctx;
-
-    XMEMSET(&ctx, 0, sizeof(ctx));
-    if (wolfSSL_EVP_CipherInit(&ctx, aead_cipher, NULL, NULL, 0)
-        != WOLFSSL_SUCCESS) {
+    size_t ret;
+#ifdef WOLFSSL_SMALL_STACK
+    WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX *)XMALLOC(
+        sizeof(*ctx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ctx == NULL)
         return 0;
+#else
+    WOLFSSL_EVP_CIPHER_CTX ctx[1];
+#endif
+
+    XMEMSET(ctx, 0, sizeof(*ctx));
+    if (wolfSSL_EVP_CipherInit(ctx, aead_cipher, NULL, NULL, 0)
+        == WOLFSSL_SUCCESS) {
+        ret = ctx->authTagSz;
+    } else {
+        ret = 0;
     }
-    return ctx.authTagSz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUF);
+#endif
+
+    return ret;
 }
 
 int wolfSSL_quic_aead_is_gcm(const WOLFSSL_EVP_CIPHER* aead_cipher)
