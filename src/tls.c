@@ -7869,6 +7869,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         if (ret != CRYPTOCB_UNAVAILABLE) {
             return ret;
         }
+        ret = 0;
 #endif
 
         ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
