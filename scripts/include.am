@@ -116,4 +116,5 @@ EXTRA_DIST += scripts/cleanup_testfiles.sh
 
 if BUILD_DTLS13
 EXTRA_DIST += scripts/dtls13.test
+EXTRA_DIST += scripts/dtlscid.test
 endif
