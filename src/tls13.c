@@ -4472,7 +4472,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
  * first       Set to 1 if first in extension
  * returns 0 on success and otherwise failure.
  */
-static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
+static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
+    byte* suite, int* usingPSK, int* first)
 {
     int           ret = 0;
     TLSX*         ext;
@@ -4503,8 +4504,13 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
 
     #ifdef HAVE_SESSION_TICKET
         /* Decode the identity. */
-        if (DoClientTicket(ssl, current->identity, current->identityLen)
-                                                     == WOLFSSL_TICKET_RET_OK) {
+        ret = DoClientTicket(ssl, current->identity, current->identityLen);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E)
+            return ret;
+        #endif
+
+        if (ret == WOLFSSL_TICKET_RET_OK) {
             word32  now;
             sword64 diff;
 
@@ -4573,6 +4579,12 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             ret = DeriveEarlySecret(ssl);
             if (ret != 0)
                 return ret;
+
+            /* Hash data up to binders for deriving binders in PSK extension. */
+            ret = HashInput(ssl, input, inputSz);
+            if (ret < 0)
+                return ret;
+
             /* Derive the binder key to use with HMAC. */
             ret = DeriveBinderKeyResume(ssl, binderKey);
             if (ret != 0)
@@ -4583,6 +4595,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
     #ifndef NO_PSK
         if (FindPsk(ssl, current, suite, &ret)) {
             if (ret != 0)
+                return ret;
+
+            ret = HashInput(ssl, input, inputSz);
+            if (ret < 0)
                 return ret;
 
             /* Derive the binder key to use with HMAC. */
@@ -4692,11 +4708,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (ret < 0)
         return ret;
 
-    /* Hash data up to binders for deriving binders in PSK extension. */
-    ret = HashInput(ssl, input,  helloSz - bindersLen);
-    if (ret < 0)
-        return ret;
-
     /* Refine list for PSK processing. */
     RefineSuites(ssl, clSuites);
 
@@ -4707,8 +4718,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (!ssl->options.useClientOrder) {
         /* Server order - server list has only common suites from refining. */
         for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, ssl->suites->suites + i, usingPSK,
-                                                                        &first);
+            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
+                ssl->suites->suites + i, usingPSK, &first);
             if (ret != 0) {
                 return ret;
             }
@@ -4718,15 +4729,16 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         /* Client order */
         for (j = 0; !(*usingPSK) && j < clSuites->suiteSz; j += 2) {
             for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, ssl->suites->suites + i, usingPSK,
-                                                                        &first);
+            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
+                ssl->suites->suites + i, usingPSK, &first);
                 if (ret != 0)
                     return ret;
             }
         }
     }
 #else
-    ret = DoPreSharedKeys(ssl, suite, usingPSK, &first);
+    ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
+        &first);
     if (ret != 0)
         return ret;
 #endif
