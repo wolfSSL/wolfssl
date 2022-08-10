@@ -1244,7 +1244,6 @@ int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
 #ifndef HAVE_FIPS
             wc_InitRng_ex(&rng, req->heap, INVALID_DEVID)
 #else
-WOLFSSL_ABI
             wc_InitRng(&rng)
 #endif
             != 0) {
