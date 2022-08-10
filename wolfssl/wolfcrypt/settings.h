@@ -2775,6 +2775,10 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_DTLS13)
+#error "ConnectionID is supported for DTLSv1.3 only"
+#endif
+
 /* RSA Key Checking is disabled by default unless WOLFSSL_RSA_KEY_CHECK is
  *   defined or FIPS v2 3389, FIPS v5 or later.
  * Not allowed for:

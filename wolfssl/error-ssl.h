@@ -179,6 +179,7 @@ enum wolfSSL_ErrorCodes {
     QUIC_TP_MISSING_E            = -452,   /* QUIC transport parameter missing */
     DILITHIUM_KEY_SIZE_E         = -453,   /* Wrong key size for Dilithium. */
 
+    DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

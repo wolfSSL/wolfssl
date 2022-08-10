@@ -88,28 +88,6 @@ typedef struct Dtls13RecordPlaintextHeader {
     byte length[2];
 } Dtls13RecordPlaintextHeader;
 
-/**
- * struct Dtls13RecordCiphertextHeader: represent the header of protected
- * DTLSv1.3 used in wolfSSL
- * @unifiedHdrflags: the first three bits are always 001, then CID bit: if
- * setted the header contains a CID, S bit: if setted the header contains the 16
- * LSBs of sequence number length, otherwise only the 8 LSBs are present, then
- * the L bit: if present the length of the record is present, lastly EE: the
- * last two bits of the epoch
- * @sequenceNumber: 16 LSBs of the sequence number
- * @length: length of the record
- *
- * DTLSv1.3 uses a variable length header, this struct represent only the
- * representation used by wolfSSL, where CID is never present (not supported),
- * the 16 LSBs of the sequence number and the length are always present.
- */
-typedef struct Dtls13RecordCiphertextHeader {
-    /* 0 0 1 C S L E E */
-    byte unifiedHdrFlags;
-    byte sequenceNumber[2];
-    byte length[2];
-} Dtls13RecordCiphertextHeader;
-
 /* size of the len field in the unified header */
 #define DTLS13_LEN_SIZE 2
 /* size of the mask used to encrypt/decrypt Record Number  */
@@ -484,7 +462,7 @@ static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
         return BUFFER_ERROR;
 
     isProtected = Dtls13TypeIsEncrypted(handshakeType);
-    recordHeaderLength = Dtls13GetRlHeaderLength(isProtected);
+    recordHeaderLength = Dtls13GetRlHeaderLength(ssl, isProtected);
 
     if (length <= recordHeaderLength)
         return BUFFER_ERROR;
@@ -829,7 +807,7 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
     int ret;
 
     isProtected = Dtls13TypeIsEncrypted(handshakeType);
-    recordHeaderLength = Dtls13GetRlHeaderLength(isProtected);
+    recordHeaderLength = Dtls13GetRlHeaderLength(ssl, isProtected);
 
     rtxRecord = Dtls13RtxNewRecord(ssl, message + recordHeaderLength,
         (word16)(length - recordHeaderLength), handshakeType,
@@ -860,7 +838,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
 
     isEncrypted = Dtls13TypeIsEncrypted(
         (enum HandShakeType)ssl->dtls13FragHandshakeType);
-    rlHeaderLength = Dtls13GetRlHeaderLength(isEncrypted);
+    rlHeaderLength = Dtls13GetRlHeaderLength(ssl, isEncrypted);
     maxFragment = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
 
     remainingSize = ssl->dtls13MessageLength - ssl->dtls13FragOffset;
@@ -933,7 +911,7 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
     }
 
     isEncrypted = Dtls13TypeIsEncrypted(handshake_type);
-    rlHeaderLength = Dtls13GetRlHeaderLength(isEncrypted);
+    rlHeaderLength = Dtls13GetRlHeaderLength(ssl, isEncrypted);
 
     if (length < rlHeaderLength)
         return INCOMPLETE_DATA;
@@ -970,6 +948,96 @@ static WC_INLINE word8 Dtls13GetEpochBits(w64wrapper epoch)
     return w64GetLow32(epoch) & EE_MASK;
 }
 
+#ifdef WOLFSSL_DTLS_CID
+static byte Dtls13GetCidTxSize(WOLFSSL* ssl)
+{
+    unsigned int cidSz;
+    int ret;
+    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz);
+    if (ret != WOLFSSL_SUCCESS)
+        return 0;
+    return (byte)cidSz;
+}
+
+static byte Dtls13GetCidRxSize(WOLFSSL* ssl)
+{
+    unsigned int cidSz;
+    int ret;
+    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &cidSz);
+    if (ret != WOLFSSL_SUCCESS)
+        return 0;
+    return (byte)cidSz;
+}
+
+static int Dtls13AddCID(WOLFSSL* ssl, byte* flags, byte* out, word16* idx)
+{
+    byte cidSize;
+    int ret;
+
+    if (!wolfSSL_dtls_cid_is_enabled(ssl))
+        return 0;
+
+    cidSize = Dtls13GetCidTxSize(ssl);
+
+    /* no cid */
+    if (cidSize == 0)
+        return 0;
+    *flags |= DTLS13_CID_BIT;
+    /* we know that we have at least cidSize of space */
+    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSize);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+    *idx += cidSize;
+    return 0;
+}
+
+static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
+    const byte* input, word16 inputSize, word16* idx)
+{
+    unsigned int _cidSz;
+    int ret;
+
+    if (flags & DTLS13_CID_BIT) {
+        if (!wolfSSL_dtls_cid_is_enabled(ssl)) {
+            WOLFSSL_MSG("CID while no negotiated CID, ignoring");
+            return DTLS_CID_ERROR;
+        }
+
+        if (!DtlsCIDCheck(ssl, input + *idx, inputSize - *idx)) {
+            WOLFSSL_MSG("Not matching or wrong CID, ignoring");
+            return DTLS_CID_ERROR;
+        }
+
+        ret = wolfSSL_dtls_cid_get_rx_size(ssl, &_cidSz);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+
+        *idx += _cidSz;
+        return 0;
+    }
+
+    /* CID not present */
+    if (wolfSSL_dtls_cid_is_enabled(ssl)) {
+        ret = wolfSSL_dtls_cid_get_rx_size(ssl, &_cidSz);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+
+        if (_cidSz != 0) {
+            WOLFSSL_MSG("expecting CID, ignoring");
+            return DTLS_CID_ERROR;
+        }
+    }
+
+    return 0;
+}
+
+#else
+#define Dtls13AddCID(a, b, c, d) 0
+#define Dtls13GetCidRxSize(a) 0
+#define Dtls13GetCidTxSize(a) 0
+#define Dtls13UnifiedHeaderParseCID(a, b, c, d, e) 0
+#endif /* WOLFSSL_DTLS_CID */
+
 /**
  * dtls13RlAddCiphertextHeader() - add record layer header in the buffer
  * @ssl: ssl object
@@ -978,8 +1046,9 @@ static WC_INLINE word8 Dtls13GetEpochBits(w64wrapper epoch)
  */
 int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out, word16 length)
 {
-    Dtls13RecordCiphertextHeader* hdr;
-    word16 seqNumber;
+    word16 seqNumber, idx;
+    byte* flags;
+    int ret;
 
     if (out == NULL)
         return BAD_FUNC_ARG;
@@ -987,20 +1056,27 @@ int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out, word16 length)
     if (ssl->dtls13EncryptEpoch == NULL)
         return BAD_STATE_E;
 
-    hdr = (Dtls13RecordCiphertextHeader*)out;
+    flags = out;
 
-    hdr->unifiedHdrFlags = DTLS13_FIXED_BITS;
-    hdr->unifiedHdrFlags |=
-        Dtls13GetEpochBits(ssl->dtls13EncryptEpoch->epochNumber);
+    /* header fixed bits */
+    *flags = DTLS13_FIXED_BITS;
+    /* epoch bits */
+    *flags |= Dtls13GetEpochBits(ssl->dtls13EncryptEpoch->epochNumber);
+
+    idx = DTLS13_HDR_FLAGS_SIZE;
+    ret = Dtls13AddCID(ssl, flags, out, &idx);
+    if (ret != 0)
+        return ret;
 
     /* include 16-bit seq */
-    hdr->unifiedHdrFlags |= DTLS13_SEQ_LEN_BIT;
+    *flags |= DTLS13_SEQ_LEN_BIT;
     /* include 16-bit length */
-    hdr->unifiedHdrFlags |= DTLS13_LEN_BIT;
+    *flags |= DTLS13_LEN_BIT;
 
     seqNumber = (word16)w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
-    c16toa(seqNumber, hdr->sequenceNumber);
-    c16toa(length, hdr->length);
+    c16toa(seqNumber, out + idx);
+    idx += OPAQUE16_LEN;
+    c16toa(length, out + idx);
 
     return 0;
 }
@@ -1041,19 +1117,21 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
 {
     int seqLength;
     int hdrLength;
+    int cidSz;
 
     if (ssl == NULL || hdr == NULL)
         return BAD_FUNC_ARG;
 
     /* we need at least a 16 bytes of ciphertext to encrypt record number see
        4.2.3*/
-    if (recordLength < Dtls13GetRlHeaderLength(1) + DTLS13_MIN_CIPHERTEXT)
+    if (recordLength < Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT)
         return BUFFER_ERROR;
 
     seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
 
-    /* header flags + seq number */
-    hdrLength = 1 + seqLength;
+    cidSz = Dtls13GetCidTxSize(ssl);
+    /* header flags + seq number + CID size*/
+    hdrLength = OPAQUE8_LEN + seqLength + cidSz;
 
     /* length present */
     if (*hdr & DTLS13_LEN_BIT)
@@ -1061,7 +1139,7 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
 
     return Dtls13EncryptDecryptRecordNumber(ssl,
         /* seq number offset */
-        hdr + 1,
+        hdr + OPAQUE8_LEN + cidSz,
         /* seq size */
         seqLength,
         /* cipher text */
@@ -1075,27 +1153,28 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
  *
  * returns the length of the record layer header in bytes.
  */
-word16 Dtls13GetRlHeaderLength(byte isEncrypted)
+word16 Dtls13GetRlHeaderLength(WOLFSSL* ssl, byte isEncrypted)
 {
-    /* the function looks useless but allow to support variable length unified
-       header in the future */
+    (void)ssl;
+
     if (!isEncrypted)
         return DTLS_RECORD_HEADER_SZ;
 
-    return DTLS13_UNIFIED_HEADER_SIZE;
+    return DTLS13_UNIFIED_HEADER_SIZE + Dtls13GetCidTxSize(ssl);
 }
 
 /**
  * Dtls13GetHeadersLength() - return length of record + handshake header
+ * @ssl: ssl oject
  * @type: type of handshake in the message
  */
-word16 Dtls13GetHeadersLength(enum HandShakeType type)
+word16 Dtls13GetHeadersLength(WOLFSSL* ssl, enum HandShakeType type)
 {
     byte isEncrypted;
 
     isEncrypted = Dtls13TypeIsEncrypted(type);
 
-    return Dtls13GetRlHeaderLength(isEncrypted) + DTLS_HANDSHAKE_HEADER_SZ;
+    return Dtls13GetRlHeaderLength(ssl, isEncrypted) + DTLS_HANDSHAKE_HEADER_SZ;
 }
 
 /**
@@ -1200,18 +1279,15 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
     return SEQUENCE_ERROR;
 }
 
-int Dtls13GetUnifiedHeaderSize(const byte input, word16* size)
+int Dtls13GetUnifiedHeaderSize(WOLFSSL* ssl, const byte input, word16* size)
 {
+    (void)ssl;
+
     if (size == NULL)
         return BAD_FUNC_ARG;
 
-    if (input & DTLS13_CID_BIT) {
-        WOLFSSL_MSG("DTLS1.3 header with connection ID. Not supported");
-        return WOLFSSL_NOT_IMPLEMENTED;
-    }
-
-    /* flags (1) + seq 8bit (1) */
-    *size = OPAQUE8_LEN + OPAQUE8_LEN;
+    /* flags (1) + CID + seq 8bit (1) */
+    *size = OPAQUE8_LEN + Dtls13GetCidRxSize(ssl) + OPAQUE8_LEN;
     if (input & DTLS13_SEQ_LEN_BIT)
         *size += OPAQUE8_LEN;
     if (input & DTLS13_LEN_BIT)
@@ -1237,23 +1313,24 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
 {
     byte seqLen, hasLength;
     byte* seqNum;
+    byte flags;
     word16 idx;
     int ret;
 
-    if (input == NULL || inputSize == 0)
+    if (input == NULL || inputSize < DTLS13_HDR_FLAGS_SIZE)
         return BAD_FUNC_ARG;
 
-    if (*input & DTLS13_CID_BIT) {
-        WOLFSSL_MSG("DTLS1.3 header with connection ID. Not supported");
-        return WOLFSSL_NOT_IMPLEMENTED;
-    }
-
+    flags = *input;
     idx = DTLS13_HDR_FLAGS_SIZE;
+    ret = Dtls13UnifiedHeaderParseCID(ssl, flags, input, inputSize, &idx);
+    if (ret != 0)
+        return ret;
 
-    seqLen = (*input & DTLS13_SEQ_LEN_BIT) != 0 ? DTLS13_SEQ_16_LEN
-                                                : DTLS13_SEQ_8_LEN;
-    hasLength = *input & DTLS13_LEN_BIT;
-    hdrInfo->epochBits = *input & EE_MASK;
+    seqNum = (byte*)input + idx;
+    seqLen = (flags & DTLS13_SEQ_LEN_BIT) != 0 ? DTLS13_SEQ_16_LEN
+                                               : DTLS13_SEQ_8_LEN;
+    hasLength = flags & DTLS13_LEN_BIT;
+    hdrInfo->epochBits = flags & EE_MASK;
 
     idx += seqLen;
 
@@ -1277,8 +1354,6 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
        to create record number xor mask). (draft 43 - Sec 4.2.3) */
     if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
         return LENGTH_ERROR;
-
-    seqNum = (byte*)(input + DTLS13_HDR_FLAGS_SIZE);
 
     ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
         DEPROTECT);
@@ -1356,7 +1431,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         isLast = r->next == NULL;
         WOLFSSL_MSG("Dtls13Rtx One Record");
 
-        headerLength = Dtls13GetRlHeaderLength(!w64IsZero(r->epoch));
+        headerLength = Dtls13GetRlHeaderLength(ssl, !w64IsZero(r->epoch));
 
         sendSz = r->length + headerLength;
 
@@ -1569,7 +1644,7 @@ int Dtls13AddHeaders(byte* output, word32 length, enum HandShakeType hsType,
     int isEncrypted;
 
     isEncrypted = Dtls13TypeIsEncrypted(hsType);
-    handshakeOffset = Dtls13GetRlHeaderLength(isEncrypted);
+    handshakeOffset = Dtls13GetRlHeaderLength(ssl, isEncrypted);
 
     /* The record header is placed by either Dtls13HandshakeSend() or
        BuildTls13Message() */
@@ -2126,10 +2201,9 @@ static int Dtls13WriteAckMessage(WOLFSSL* ssl,
     if (w64IsZero(ssl->dtls13EncryptEpoch->epochNumber)) {
         /* unprotected ACK */
         headerLength = DTLS_RECORD_HEADER_SZ;
-        ;
     }
     else {
-        headerLength = Dtls13GetRlHeaderLength(1);
+        headerLength = Dtls13GetRlHeaderLength(ssl, 1);
         sendSz += MAX_MSG_EXTRA;
     }
 
@@ -2438,7 +2512,7 @@ int SendDtls13Ack(WOLFSSL* ssl)
         outputSize = ssl->buffers.outputBuffer.bufferSize -
                      ssl->buffers.outputBuffer.length;
 
-        headerSize = Dtls13GetRlHeaderLength(1);
+        headerSize = Dtls13GetRlHeaderLength(ssl, 1);
 
         ret = BuildTls13Message(ssl, output, outputSize, output + headerSize,
             length, ack, 0, 0, 0);

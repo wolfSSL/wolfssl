@@ -7911,7 +7911,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if defined(HAVE_TLS_EXTENSIONS) && !defined(HAVE_SNI) && \
-!defined(NO_TLS) && !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+!defined(NO_TLS) && !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    !defined(WOLFSSL_DTLS_CID)
     /* Some extensions need to be kept for post-handshake querying. */
     TLSX_FreeAll(ssl->extensions, ssl->heap);
     ssl->extensions = NULL;
@@ -9103,7 +9104,7 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         if (IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_DTLS13
             word16 dtls_record_extra;
-            dtls_record_extra = Dtls13GetRlHeaderLength(IsEncryptionOn(ssl, 1));
+            dtls_record_extra = Dtls13GetRlHeaderLength(ssl, IsEncryptionOn(ssl, 1));
             dtls_record_extra -= RECORD_HEADER_SZ;
 
             adj += dtls_record_extra;
@@ -9947,7 +9948,7 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
             return SEQUENCE_ERROR;
     }
 
-    ret = Dtls13GetUnifiedHeaderSize(
+    ret = Dtls13GetUnifiedHeaderSize(ssl,
         *(input+*inOutIdx), &ssl->dtls13CurRlLength);
     if (ret != 0)
         return ret;
@@ -10018,7 +10019,7 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, const byte* input,
         /* version 1.3 already negotiated */
         if (ssl->options.tls1_3) {
             ret = GetDtls13RecordHeader(ssl, input, inOutIdx, rh, size);
-            if (ret == 0 || ret != SEQUENCE_ERROR)
+            if (ret == 0 || ret != SEQUENCE_ERROR || ret != DTLS_CID_ERROR)
                 return ret;
         }
 
@@ -18777,8 +18778,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
-                WOLFSSL_MSG("Silently dropping out of order DTLS message");
+            if (ssl->options.dtls &&
+                    (ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR)) {
+                WOLFSSL_MSG("Silently dropping DTLS message");
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
@@ -22846,6 +22848,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case QUIC_TP_MISSING_E:
         return "QUIC transport parameter not set";
 #endif
+    case DTLS_CID_ERROR:
+        return "DTLS ConnectionID mismatch or missing";
 
     default :
         return "unknown error number";
@@ -32704,6 +32708,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             else
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
+
+#ifdef WOLFSSL_DTLS_CID
+        if (ssl->options.useDtlsCID)
+            DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
 
         ssl->options.clientState   = CLIENT_HELLO_COMPLETE;
         ssl->options.haveSessionId = 1;

@@ -5108,6 +5108,21 @@ WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void
                                            WOLFSSL_CRYPTO_EX_free* free_func);
 #endif /* HAVE_EX_DATA || WOLFSSL_WPAS_SMALL */
 
+#if defined(WOLFSSL_DTLS_CID)
+WOLFSSL_API int wolfSSL_dtls_cid_use(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_cid_is_enabled(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid,
+    unsigned int size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_rx_size(WOLFSSL* ssl,
+    unsigned int* size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);
+WOLFSSL_API int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl,
+    unsigned int* size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);
+#endif /* defined(WOLFSSL_DTLS_CID) */
+
 /*  */
 #define SSL2_VERSION                     0x0002
 #define SSL3_VERSION                     0x0300
