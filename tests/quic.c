@@ -951,7 +951,7 @@ static int QuicConversation_step(QuicConversation *conv)
         conv->started = 1;
     }
     if (conv->server->output.len > 0) {
-        QuicTestContext_forward(conv->server, conv->client, conv->rec_log, sizeof conv->rec_log);
+        QuicTestContext_forward(conv->server, conv->client, conv->rec_log, sizeof(conv->rec_log));
         n = wolfSSL_quic_read_write(conv->client->ssl);
         if (n != WOLFSSL_SUCCESS) {
             AssertIntEQ(wolfSSL_get_error(conv->client->ssl, 0), SSL_ERROR_WANT_READ);
@@ -959,7 +959,7 @@ static int QuicConversation_step(QuicConversation *conv)
         return 1;
     }
     else if (conv->client->output.len > 0) {
-        QuicTestContext_forward(conv->client, conv->server, conv->rec_log, sizeof conv->rec_log);
+        QuicTestContext_forward(conv->client, conv->server, conv->rec_log, sizeof(conv->rec_log));
 #ifdef WOLFSSL_EARLY_DATA
         if (conv->accept_early_data) {
             int written;

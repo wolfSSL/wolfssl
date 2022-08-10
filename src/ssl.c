@@ -40527,7 +40527,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
 #ifdef WOLFSSL_SMALL_STACK
     DeCert = (DecodedCert *)XMALLOC(sizeof(*DeCert), heap,
-                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                    DYNAMIC_TYPE_DCERT);
     if (DeCert == NULL) {
         WOLFSSL_MSG("out of memory");
         return WOLFSSL_FAILURE;
@@ -40726,7 +40726,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 out:
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(DeCert, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(DeCert, heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     return ret;

@@ -115,7 +115,7 @@ unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
 /* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
 int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
 {
-    int extCount = WOLFSSL_FAILURE;
+    int extCount = 0;
     int length = 0;
     int outSz = 0;
     const byte* rawCert;
@@ -141,7 +141,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    cert = (DecodedCert *)XMALLOC(sizeof(*cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    cert = (DecodedCert *)XMALLOC(sizeof(*cert), NULL, DYNAMIC_TYPE_DCERT);
     if (cert == NULL) {
         WOLFSSL_MSG("out of memory");
         return WOLFSSL_FAILURE;
@@ -188,7 +188,6 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
         goto out;
     }
 
-    extCount = 0;
     while (idx < (word32)sz) {
         if (GetSequence(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -203,7 +202,7 @@ out:
 
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
 #endif
     return extCount;
 }
@@ -1752,7 +1751,7 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 
 #ifdef WOLFSSL_SMALL_STACK
     cert = (DecodedCert *)XMALLOC(sizeof(*cert), x509->heap,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
+                                  DYNAMIC_TYPE_DCERT);
     if (cert == NULL) {
         WOLFSSL_MSG("\tout of memory");
         return WOLFSSL_FATAL_ERROR;
@@ -1834,7 +1833,7 @@ out:
 
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, x509->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     return found ? extCount : WOLFSSL_FATAL_ERROR;
@@ -11861,7 +11860,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
 
 #ifdef WOLFSSL_SMALL_STACK
     dCert = (DecodedCert *)XMALLOC(sizeof(*dCert), x->heap,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
+                                   DYNAMIC_TYPE_DCERT);
     if (dCert == NULL) {
         WOLFSSL_MSG("\tout of memory");
         return WOLFSSL_FATAL_ERROR;
@@ -11880,7 +11879,7 @@ out:
 
     FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(dCert, x->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     if (ret != 0)
@@ -11914,7 +11913,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 #ifdef WOLFSSL_SMALL_STACK
     if (ret == WOLFSSL_SUCCESS) {
         dCert = (DecodedCert *)XMALLOC(sizeof(*dCert), x->heap,
-                                       DYNAMIC_TYPE_TMP_BUFFER);
+                                       DYNAMIC_TYPE_DCERT);
         if (dCert == NULL) {
             WOLFSSL_MSG("\tout of memory");
             ret = WOLFSSL_FAILURE;
@@ -11942,7 +11941,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (dCert != NULL)
-        XFREE(dCert, x->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     return ret;

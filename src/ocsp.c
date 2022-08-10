@@ -599,10 +599,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     int ret = -1;
     DerBuffer* derCert = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *cert = (DecodedCert *)XMALLOC(sizeof(*cert), NULL,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-    if (cert == NULL)
-        return NULL;
+    DecodedCert *cert = NULL;
 #else
     DecodedCert cert[1];
 #endif
@@ -615,6 +612,12 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
             || issuer  == NULL || issuer->derCert  == NULL)
         goto out;
 
+#ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert *)XMALLOC(sizeof(*cert), cm->heap, DYNAMIC_TYPE_DCERT);
+    if (cert == NULL)
+        goto out;
+#endif
+
     ret = AllocDer(&derCert, issuer->derCert->length,
         issuer->derCert->type, NULL);
     if (ret == 0) {
@@ -625,16 +628,17 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
         if (ret != WOLFSSL_SUCCESS) {
             goto out;
         }
+        derCert = NULL;
     }
 
     ret = -1;
 
-    certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID), NULL,
-                                           DYNAMIC_TYPE_OPENSSL);
+    certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID),
+                                           cm->heap, DYNAMIC_TYPE_OPENSSL);
     if (certId == NULL)
         goto out;
 
-    certStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+    certStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), cm->heap,
                                            DYNAMIC_TYPE_OPENSSL);
     if (certStatus == NULL)
         goto out;
@@ -662,21 +666,25 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
 
 out:
 
+    if (ret != 0) {
+        if (derCert != NULL)
+            FreeDer(&derCert);
+        if (certId != NULL)
+            XFREE(certId, cm->heap, DYNAMIC_TYPE_OPENSSL);
+        if (certStatus)
+            XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (cert != NULL)
+        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+#endif
+
     if (cm != NULL)
         wolfSSL_CertManagerFree(cm);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    if (ret != 0) {
-        if (certId != NULL)
-            XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
-        if (certStatus)
-            XFREE(certStatus, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
-    } else
-        return certId;
+    return certId;
 }
 
 void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
@@ -691,8 +699,9 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
 {
     int         ret;
 #ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *cert = (DecodedCert *)XMALLOC(sizeof(*cert), NULL,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
+    DecodedCert *cert = (DecodedCert *)
+        XMALLOC(sizeof(*cert), (st && st->cm) ? st->cm->heap : NULL,
+                DYNAMIC_TYPE_DCERT);
     if (cert == NULL)
         return WOLFSSL_FAILURE;
 #else
@@ -722,7 +731,7 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
 out:
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cert, (st && st->cm) ? st->cm->heap : NULL, DYNAMIC_TYPE_DCERT);
 #endif
 
     return ret;

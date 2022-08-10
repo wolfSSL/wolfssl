@@ -25908,7 +25908,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                  * parse DN name */
 #ifdef WOLFSSL_SMALL_STACK
                 DecodedCert *cert = (DecodedCert *)XMALLOC(
-                    sizeof(*cert), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    sizeof(*cert), ssl->heap, DYNAMIC_TYPE_DCERT);
                 if (cert == NULL)
                     return MEMORY_ERROR;
 #else
@@ -25917,28 +25917,29 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
                 InitDecodedCert(cert, input + *inOutIdx, dnSz, ssl->heap);
 
-                do {
-                    if ((ret = GetName(cert, SUBJECT, dnSz)) != 0) {
-                        break;
-                    }
+                ret = GetName(cert, SUBJECT, dnSz);
 
-                    if ((name = wolfSSL_X509_NAME_new()) == NULL) {
+                if (ret == 0) {
+                    if ((name = wolfSSL_X509_NAME_new()) == NULL)
                         ret = MEMORY_ERROR;
-                        break;
-                    }
+                }
 
+                if (ret == 0) {
                     CopyDecodedName(name, cert, SUBJECT);
+                }
 
+                if (ret == 0) {
                     if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
                         == WOLFSSL_FAILURE)
                     {
                         ret = MEMORY_ERROR;
-                        break;
                     }
-                } while (0);
+                }
+
                 FreeDecodedCert(cert);
+
 #ifdef WOLFSSL_SMALL_STACK
-                XFREE(cert, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
 #endif
                 if (ret != 0) {
                     if (name != NULL)
