@@ -999,12 +999,7 @@ static void QuicConversation_do(QuicConversation *conv)
         if (!QuicConversation_step(conv)) {
             int c_err = wolfSSL_get_error(conv->client->ssl, 0);
             int s_err = wolfSSL_get_error(conv->server->ssl, 0);
-            if (c_err == 0
-                && (s_err == 0
-                    || (conv->sent_early_data && s_err == SSL_ERROR_WANT_READ))) {
-                /* Since QUIC does not use EndOfEarlyData messages, we may
-                 * encounter WANT_READ on the server side. QUIC protocol stacks
-                 * detect EOF here differently, so this should be fine. */
+            if (c_err == 0 && s_err == 0) {
                 break;  /* handshake done */
             }
             printf("Neither tclient nor server have anything to send, "
@@ -1237,12 +1232,11 @@ static int test_quic_early_data(int verbose) {
     AssertIntEQ(wolfSSL_set_session(tclient.ssl, session), WOLFSSL_SUCCESS);
     /* enable early data -*/
     wolfSSL_set_quic_early_data_enabled(tserver.ssl, 1);
-    /* client will send, but server will not receive, since
-     * QuicConversation_do() uses wolfSSL_accept() */
+    /* client will send, and server will receive implicitly */
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_start(&conv, early_data, sizeof(early_data), &ed_written);
     QuicConversation_do(&conv);
-    AssertIntEQ(wolfSSL_get_early_data_status(tclient.ssl), WOLFSSL_EARLY_DATA_REJECTED);
+    AssertIntEQ(wolfSSL_get_early_data_status(tclient.ssl), WOLFSSL_EARLY_DATA_ACCEPTED);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
