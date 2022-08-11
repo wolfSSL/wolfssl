@@ -33555,7 +33555,8 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_ECC) || \
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 {
     int idx, start = 0, len;
@@ -33596,14 +33597,18 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
         {
             curve = WOLFSSL_ECC_SECP521R1;
         }
+    #ifdef HAVE_CURVE25519
         else if (XSTRCMP(name, "X25519") == 0)
         {
             curve = WOLFSSL_ECC_X25519;
         }
+    #endif
+    #ifdef HAVE_CURVE448
         else if (XSTRCMP(name, "X448") == 0)
         {
             curve = WOLFSSL_ECC_X448;
         }
+    #endif
         else {
         #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
             int   ret;
@@ -33659,7 +33664,7 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
     }
     return wolfSSL_CTX_set1_curves_list(ssl->ctx, names);
 }
-#endif /* OPENSSL_EXTRA && HAVE_ECC */
+#endif /* OPENSSL_EXTRA && (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
 
 #ifdef OPENSSL_EXTRA
 /* Sets a callback for when sending and receiving protocol messages.

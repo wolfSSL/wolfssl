@@ -36233,7 +36233,7 @@ static int test_wolfSSL_sk_SSL_CIPHER(void)
 
 static int test_wolfSSL_set1_curves_list(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_RSA)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
     SSL*     ssl = NULL;
     SSL_CTX* ctx = NULL;
@@ -36243,18 +36243,43 @@ static int test_wolfSSL_set1_curves_list(void)
 #else
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, eccCertFile,
                SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertIntEQ(SSL_CTX_set1_curves_list(ctx, NULL), WOLFSSL_FAILURE);
+#ifdef HAVE_ECC
     AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "P-25X"), WOLFSSL_FAILURE);
     AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "P-256"), WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_CURVE25519
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "X25519"), WOLFSSL_FAILURE);
+#endif
+#ifdef HAVE_CURVE448
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "X448"), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "X448"), WOLFSSL_FAILURE);
+#endif
 
     AssertIntEQ(SSL_set1_curves_list(ssl, NULL), WOLFSSL_FAILURE);
+#ifdef HAVE_ECC
     AssertIntEQ(SSL_set1_curves_list(ssl, "P-25X"), WOLFSSL_FAILURE);
     AssertIntEQ(SSL_set1_curves_list(ssl, "P-256"), WOLFSSL_SUCCESS);
+#endif
+
+#ifdef HAVE_CURVE25519
+    AssertIntEQ(SSL_set1_curves_list(ssl, "X25519"), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(SSL_set1_curves_list(ssl, "X25519"), WOLFSSL_FAILURE);
+#endif
+#ifdef HAVE_CURVE448
+    AssertIntEQ(SSL_set1_curves_list(ssl, "X448"), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(SSL_set1_curves_list(ssl, "X448"), WOLFSSL_FAILURE);
+#endif
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
