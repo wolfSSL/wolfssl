@@ -45,6 +45,35 @@
 static const char *wolfsentry_config_path = NULL;
 #endif
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
+        #include <stdio.h>
+        #include <string.h>
+        #include "rl_fs.h"
+        #include "rl_net.h"
+#endif
+
+#ifdef NO_FILESYSTEM
+    #ifdef NO_RSA
+    #error currently the example only tries to load in a RSA buffer
+    #endif
+    #undef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+    #include <wolfssl/certs_test.h>
+#endif
+
+#include <wolfssl/test.h>
+#include <wolfssl/error-ssl.h>
+
+/* Force enable the compatibility macros for this example */
+#ifndef OPENSSL_EXTRA_X509_SMALL
+#define OPENSSL_EXTRA_X509_SMALL
+#endif
+#include <wolfssl/openssl/ssl.h>
+
+#include "examples/server/server.h"
+
+#ifndef NO_WOLFSSL_SERVER
+
 #if defined(WOLFSSL_TLS13) && ( \
        defined(HAVE_ECC) \
     || defined(HAVE_CURVE25519) \
@@ -75,34 +104,6 @@ static struct group_info group_id_to_text[] = {
     { 0, NULL }
 };
 #endif /* CAN_FORCE_CURVE && HAVE_ECC */
-#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-        #include <stdio.h>
-        #include <string.h>
-        #include "rl_fs.h"
-        #include "rl_net.h"
-#endif
-
-#ifdef NO_FILESYSTEM
-    #ifdef NO_RSA
-    #error currently the example only tries to load in a RSA buffer
-    #endif
-    #undef USE_CERT_BUFFERS_2048
-    #define USE_CERT_BUFFERS_2048
-    #include <wolfssl/certs_test.h>
-#endif
-
-#include <wolfssl/test.h>
-#include <wolfssl/error-ssl.h>
-
-/* Force enable the compatibility macros for this example */
-#ifndef OPENSSL_EXTRA_X509_SMALL
-#define OPENSSL_EXTRA_X509_SMALL
-#endif
-#include <wolfssl/openssl/ssl.h>
-
-#include "examples/server/server.h"
-
-#ifndef NO_WOLFSSL_SERVER
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
