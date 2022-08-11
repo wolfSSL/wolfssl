@@ -15,7 +15,18 @@ WOLFSSL_CLIENT=${WOLFSSL_CLIENT:="./examples/client/client"}
 
 # need a unique port since may run the same time as testsuite
 generate_port() {
-    port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+    #-------------------------------------------------------------------------#
+    # Generate a random port number
+    #-------------------------------------------------------------------------#
+
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+    else
+        echo "Unknown OS TYPE"
+        exit 1
+    fi
 }
 
 # get size of key material based on the profile
