@@ -45,7 +45,38 @@
 static const char *wolfsentry_config_path = NULL;
 #endif
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
-
+#if defined(WOLFSSL_TLS13) && ( \
+       defined(HAVE_ECC) \
+    || defined(HAVE_CURVE25519) \
+    || defined(HAVE_CURVE448) \
+    || defined(HAVE_FFDHE_2048))
+    #define CAN_FORCE_CURVE
+#endif
+#ifdef CAN_FORCE_CURVE
+static int force_curve_group_id = 0;
+/* Not sure of group/curve relationship, and no group decoder so here's one */
+struct group_info {
+    word16 group;
+    const char *name;
+};
+static struct group_info groups[] = {
+    { WOLFSSL_ECC_SECP160K1, "SECP160K1" },
+    { WOLFSSL_ECC_SECP160R1, "SECP160R1" },
+    { WOLFSSL_ECC_SECP160R2, "SECP160R2" },
+    { WOLFSSL_ECC_SECP192K1, "SECP192K1" },
+    { WOLFSSL_ECC_SECP192R1, "SECP192R1" },
+    { WOLFSSL_ECC_SECP224K1, "SECP224K1" },
+    { WOLFSSL_ECC_SECP224R1, "SECP224R1" },
+    { WOLFSSL_ECC_SECP256K1, "SECP256K1" },
+    { WOLFSSL_ECC_SECP256R1, "SECP256R1" },
+    { WOLFSSL_ECC_SECP384R1, "SECP384R1" },
+    { WOLFSSL_ECC_SECP521R1, "SECP521R1" },
+    { WOLFSSL_ECC_BRAINPOOLP256R1, "BRAINPOOLP256R1" },
+    { WOLFSSL_ECC_BRAINPOOLP384R1, "BRAINPOOLP384R1" },
+    { WOLFSSL_ECC_BRAINPOOLP512R1, "BRAINPOOLP512R1" },
+    { 0, NULL }
+};
+#endif
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -619,24 +650,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
     (void)pqcAlg;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
-    if (onlyKeyShare == 10) {
-    #ifdef HAVE_ECC
-        #if !defined(NO_ECC384) || defined(HAVE_ALL_CURVES)
-            do {
-                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1);
-                if (ret == WOLFSSL_SUCCESS)
-                    groups[count++] = WOLFSSL_ECC_SECP384R1;
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                else if (ret == WC_PENDING_E)
-                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            #endif
-                else
-                    err_sys("unable to use curve secp384r1");
-            } while (ret == WC_PENDING_E);
-        #endif
-    #endif
-    }
-    else if (onlyKeyShare == 2) {
+    if (onlyKeyShare == 2) {
         if (useX25519) {
     #ifdef HAVE_CURVE25519
             do {
@@ -815,7 +829,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][64] = {
+static const char* server_usage_msg[][65] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -901,7 +915,6 @@ static const char* server_usage_msg[][64] = {
 #endif
 #ifdef HAVE_ECC
         "-Y          Pre-generate Key Share using P-256 only \n",       /* 42 */
-        "-E          Pre-generate Key Share using P-384 only \n",
 #endif
 #ifdef HAVE_CURVE25519
         "-t          Pre-generate Key share using Curve25519 only\n",   /* 43 */
@@ -981,9 +994,14 @@ static const char* server_usage_msg[][64] = {
         "--send-ticket    Send a new session ticket during application data\n",
                                                                         /* 62 */
 #endif
+#ifdef CAN_FORCE_CURVE
+        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
+        "                        Leave <curve> blank to list all curves.\n"
+                                                                        /* 63 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 63 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1082,7 +1100,6 @@ static const char* server_usage_msg[][64] = {
 #endif
 #ifdef HAVE_ECC
         "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 42 */
-        "-E          P-384のみを使用したキー共有の事前生成\n",
 #endif
 #ifdef HAVE_CURVE25519
         "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 43 */
@@ -1166,6 +1183,12 @@ static const char* server_usage_msg[][64] = {
         "--send-ticket    Application data 中に新しい"
                                              "セッションチケットを送信します\n",
                                                                         /* 62 */
+#endif
+#ifdef CAN_FORCE_CURVE
+        // TODO: Needs translation; 
+        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
+        "                        Leave <curve> blank to list all curves.\n"
+                                                                        /* 63 */
 #endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
@@ -1322,6 +1345,9 @@ static void Usage(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     printf("%s", msg[++msgId]);     /* send-ticket */
 #endif
+#ifdef CAN_FORCE_CURVE
+    printf("%s", msg[++msgId]);     /* force-curve */
+#endif
 }
 
 #ifdef WOLFSSL_SRTP
@@ -1420,6 +1446,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         { "send-ticket", 0, 261 },
+#endif
+#ifdef CAN_FORCE_CURVE
+        { "force-curve", 2, 262},
 #endif
         { 0, 0, 0 }
     };
@@ -1976,13 +2005,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #endif
                 break;
 
-            case 'E' :
-                #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) \
-                    && defined(HAVE_ECC)
-                    onlyKeyShare = 10;
-                #endif
-                break;
-
             case 't' :
                 #ifdef HAVE_CURVE25519
                     useX25519 = 1;
@@ -2193,7 +2215,77 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 sendTicket = 1;
                 break;
 #endif
-
+#ifdef CAN_FORCE_CURVE
+            /* Build test: 
+            export CFLAGS=" \
+                -DHAVE_ALL_CURVES \
+                -DHAVE_ECC_BRAINPOOL \
+                -DHAVE_ECC_KOBLITZ \
+                -DWOLFSSL_CUSTOM_CURVES \
+                -DHAVE_ECC_SECPR2 \
+                -DHAVE_ECC_SECPR3"
+            cmake .. -DWOLFSSL_CURVE25519=yes -DWOLFSSL_CURVE448=yes
+            */
+            case 262: {
+                if (NULL == myoptarg) {
+                    Usage();
+                    printf("\nChoose one of the available curves:\n");
+                    #ifdef HAVE_ECC
+                    // Compare groups with compiled curves...
+                    for (int i=0; ecc_sets[i].id != ECC_CURVE_INVALID; ++i) {
+                        for (int j=0; groups[j].group != 0; ++j) {
+                            if (strcmp(groups[j].name, ecc_sets[i].name) == 0) {
+                                printf("\t%s\n", ecc_sets[i].name);
+                            }
+                        }
+                    }
+                    #endif
+                    #ifdef HAVE_CURVE25519
+                    printf("\tCURVE25519\n");
+                    #endif
+                    #ifdef HAVE_CURVE448
+                    printf("\tCURVE448\n");
+                    #endif
+                    printf("\n");
+                    XEXIT_T(EXIT_SUCCESS);
+                }
+                /* TODO: Should we warn the user?
+                if (onlyKeyShare > 0 || usePqc > 0) {
+                    Usage();
+                    fprintf(stderr, "\n--force-curves and [-y|-Y|--pqc] are mutex.");
+                    XEXIT_T(EXIT_FAILURE);
+                }
+                */
+                #ifdef HAVE_ECC
+                // This is actually an index into the table, not the ID
+                for (int j=0; groups[j].group != 0; ++j) {
+                    if (strcmp(groups[j].name, myoptarg) == 0) {
+                        force_curve_group_id = groups[j].group;
+                    }
+                }
+                #endif
+                #ifdef HAVE_CURVE25519
+                if (force_curve_group_id <= 0) {
+                    if (strcmp(myoptarg, "CURVE25519") == 0) {
+                        force_curve_group_id = WOLFSSL_ECC_X25519;
+                    }
+                }
+                #endif
+                #ifdef HAVE_CURVE448
+                if (force_curve_group_id <= 0) {
+                    if (strcmp(myoptarg, "CURVE448") == 0) {
+                        force_curve_group_id = WOLFSSL_ECC_X448;
+                    }
+                }
+                #endif
+                if (force_curve_group_id <= 0) {
+                    Usage();
+                    fprintf(stderr, "Error: Curve '%s' not found.\n", myoptarg);
+                    XEXIT_T(EXIT_FAILURE);
+                }
+            }
+            break;
+#endif /* CAN_FORCE_CURVE */
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2986,8 +3078,33 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (version >= 4) {
-            SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
-                        pqcAlg);
+            #ifdef CAN_FORCE_CURVE
+            if (force_curve_group_id > 0) {
+                do {
+                    ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1);
+                    if (ret == WOLFSSL_SUCCESS) {
+
+                    }
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                    else if (ret == WC_PENDING_E) {
+                        wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                    }
+                    #endif
+                    else {
+                        printf("%d\n", ret);
+                        err_sys("Failed wolfSSL_UseKeyShare in force-curve");
+                    }
+                } while (ret == WC_PENDING_E);
+                ret = wolfSSL_set_groups(ssl, &force_curve_group_id, 1);
+                if (WOLFSSL_SUCCESS != ret) {
+                    printf("%d 0x%x -0x%x\n", ret, ret, -ret);
+                    err_sys("Failed wolfSSL_set_groups in force-curve");
+                }
+            }
+            else
+            #endif
+                SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
+                    pqcAlg);
         }
     #endif
 
