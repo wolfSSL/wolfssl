@@ -1689,7 +1689,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Not Used: h, z, W, X */
     while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mop:q:rstu;v:wxy"
-                "A:B:C:D:EFGH:IJKL:MNO:PQR:S:T;UVYZ:"
+                "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:567:89"
                 "@#", long_options, 0)) != -1) {
         switch (ch) {
