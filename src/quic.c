@@ -579,17 +579,17 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
          */
 #ifdef WOLFSSL_EARLY_DATA
         if (ssl->quic.early_data_enabled) {
-            byte buffer[256];
+            byte tmpbuffer[256];
             int len;
 
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 if (ssl->options.resuming) {
-                    ret = wolfSSL_write_early_data(ssl, buffer, 0, &len);
+                    ret = wolfSSL_write_early_data(ssl, tmpbuffer, 0, &len);
                 }
             }
             else if (/*disables code*/(1)) {
-                ret = wolfSSL_read_early_data(ssl, buffer,
-                                              sizeof(buffer), &len);
+                ret = wolfSSL_read_early_data(ssl, tmpbuffer,
+                                              sizeof(tmpbuffer), &len);
                 if (ret < 0 && ssl->error == ZERO_RETURN) {
                     /* this is expected, since QUIC handles the actual early
                      * data separately. */
