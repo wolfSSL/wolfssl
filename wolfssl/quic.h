@@ -189,6 +189,9 @@ WOLFSSL_API
 int wolfSSL_provide_quic_data(WOLFSSL* ssl, WOLFSSL_ENCRYPTION_LEVEL level,
                               const uint8_t* data, size_t len);
 
+WOLFSSL_API
+int wolfSSL_quic_do_handshake(WOLFSSL* ssl);
+
 /**
  * Process any CRYPTO data added post-handshake.
  */

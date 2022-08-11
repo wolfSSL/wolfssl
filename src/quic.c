@@ -554,6 +554,37 @@ void wolfSSL_set_quic_early_data_enabled(WOLFSSL* ssl, int enabled)
 }
 #endif /* WOLFSSL_EARLY_DATA */
 
+int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_quic_do_handshake");
+
+    if (!wolfSSL_is_quic(ssl)) {
+        WOLFSSL_MSG("WOLFSSL_QUIC_DO_HANDSHAKE not a QUIC SSL");
+        ret = WOLFSSL_FAILURE;
+        goto cleanup;
+    }
+
+    while (ssl->options.handShakeState != HANDSHAKE_DONE) {
+        /* Peculiar: do_handshake() is successful, but the state
+         * indicates that we are not DONE. This seems to happen
+         * when resuming sessions and an EARLY_DATA indicator
+         * is presented by the client.
+         * Theory: wolfSSL expects the APP to read the early data
+         * and silently continues the handshake when the EndOfEarlyData
+         * and the client Finished arrives.
+         * This confuses the QUIC state handling.
+         */
+        ret = wolfSSL_SSL_do_handshake(ssl);
+        if (ret != WOLFSSL_SUCCESS)
+            goto cleanup;
+    }
+
+cleanup:
+    WOLFSSL_LEAVE("wolfSSL_quic_do_handshake", ret);
+    return ret;
+}
 
 int wolfSSL_quic_read_write(WOLFSSL* ssl)
 {
@@ -568,7 +599,7 @@ int wolfSSL_quic_read_write(WOLFSSL* ssl)
     }
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-        ret = wolfSSL_SSL_do_handshake(ssl);
+        ret = wolfSSL_quic_do_handshake(ssl);
         if (ret != WOLFSSL_SUCCESS)
             goto cleanup;
     }
@@ -603,6 +634,8 @@ int wolfSSL_process_quic_post_handshake(WOLFSSL* ssl)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         WOLFSSL_MSG("WOLFSSL_QUIC_POST_HS handshake is not done yet");
+        fprintf(stderr, "WOLFSSL_QUIC_POST_HS, handShakeState is %d\n",
+            ssl->options.handShakeState);
         ret = WOLFSSL_FAILURE;
         goto cleanup;
     }
