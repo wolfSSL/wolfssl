@@ -59,7 +59,7 @@ struct group_info {
     word16 group;
     const char *name;
 };
-static struct group_info groups[] = {
+static struct group_info group_id_to_text[] = {
     { WOLFSSL_ECC_SECP160K1, "SECP160K1" },
     { WOLFSSL_ECC_SECP160R1, "SECP160R1" },
     { WOLFSSL_ECC_SECP160R2, "SECP160R2" },
@@ -2233,8 +2233,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     #ifdef HAVE_ECC
                     // Compare groups with compiled curves...
                     for (int i=0; ecc_sets[i].id != ECC_CURVE_INVALID; ++i) {
-                        for (int j=0; groups[j].group != 0; ++j) {
-                            if (strcmp(groups[j].name, ecc_sets[i].name) == 0) {
+                        for (int j=0; group_id_to_text[j].group != 0; ++j) {
+                            if (strcmp(group_id_to_text[j].name, 
+                                    ecc_sets[i].name) == 0) {
                                 printf("\t%s\n", ecc_sets[i].name);
                             }
                         }
@@ -2258,9 +2259,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 */
                 #ifdef HAVE_ECC
                 // This is actually an index into the table, not the ID
-                for (int j=0; groups[j].group != 0; ++j) {
-                    if (strcmp(groups[j].name, myoptarg) == 0) {
-                        force_curve_group_id = groups[j].group;
+                for (int j=0; group_id_to_text[j].group != 0; ++j) {
+                    if (strcmp(group_id_to_text[j].name, myoptarg) == 0) {
+                        force_curve_group_id = group_id_to_text[j].group;
                     }
                 }
                 #endif
@@ -3091,13 +3092,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     }
                     #endif
                     else {
-                        printf("%d\n", ret);
                         err_sys("Failed wolfSSL_UseKeyShare in force-curve");
                     }
                 } while (ret == WC_PENDING_E);
                 ret = wolfSSL_set_groups(ssl, &force_curve_group_id, 1);
                 if (WOLFSSL_SUCCESS != ret) {
-                    printf("%d 0x%x -0x%x\n", ret, ret, -ret);
                     err_sys("Failed wolfSSL_set_groups in force-curve");
                 }
             }
