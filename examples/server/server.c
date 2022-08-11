@@ -52,8 +52,7 @@ static const char *wolfsentry_config_path = NULL;
     || defined(HAVE_FFDHE_2048))
     #define CAN_FORCE_CURVE
 #endif
-#ifdef CAN_FORCE_CURVE
-/* Not sure of group/curve relationship, and no group decoder so here's one */
+#if defined(CAN_FORCE_CURVE) && defined(HAVE_ECC)
 struct group_info {
     word16 group;
     const char *name;
@@ -75,7 +74,7 @@ static struct group_info group_id_to_text[] = {
     { WOLFSSL_ECC_BRAINPOOLP512R1, "BRAINPOOLP512R1" },
     { 0, NULL }
 };
-#endif
+#endif /* CAN_FORCE_CURVE && HAVE_ECC */
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -2224,8 +2223,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef CAN_FORCE_CURVE
             case 262: {
                 /* Note: this requires TSL1.3 (version >= 4) */
+                #ifdef HAVE_ECC
                 int idx = 0; /* ecc curve index */
                 int j = 0; /* our group index */
+                #endif
                 if (NULL == myoptarg) {
                     Usage();
                     if (lng_index == 1) {
