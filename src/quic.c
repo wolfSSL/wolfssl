@@ -634,8 +634,6 @@ int wolfSSL_process_quic_post_handshake(WOLFSSL* ssl)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         WOLFSSL_MSG("WOLFSSL_QUIC_POST_HS handshake is not done yet");
-        fprintf(stderr, "WOLFSSL_QUIC_POST_HS, handShakeState is %d\n",
-            ssl->options.handShakeState);
         ret = WOLFSSL_FAILURE;
         goto cleanup;
     }
@@ -1044,6 +1042,8 @@ int wolfSSL_quic_aead_is_gcm(const WOLFSSL_EVP_CIPHER* aead_cipher)
     ) {
         return 1;
     }
+#else
+    (void)aead_cipher;
 #endif
     return 0;
 }
@@ -1054,13 +1054,20 @@ int wolfSSL_quic_aead_is_ccm(const WOLFSSL_EVP_CIPHER* aead_cipher)
     if (evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_128_ctr())) {
         return 1;
     }
+#else
+    (void)aead_cipher;
 #endif
     return 0;
 }
 
 int wolfSSL_quic_aead_is_chacha20(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     return evp_cipher_eq(aead_cipher, wolfSSL_EVP_chacha20_poly1305());
+#else
+    (void)aead_cipher;
+    return 0;
+#endif
 }
 
 const WOLFSSL_EVP_MD* wolfSSL_quic_get_md(WOLFSSL* ssl)

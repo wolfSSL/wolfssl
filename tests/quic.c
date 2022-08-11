@@ -104,17 +104,25 @@ static int test_set_quic_method(void) {
     const uint8_t *data;
     size_t data_len;
     ctx_setups valids[] = {
+#ifdef WOLFSSL_TLS13
         { "TLSv1.3 server", wolfTLSv1_3_server_method(), 1},
         { "TLSv1.3 client", wolfTLSv1_3_client_method(), 0},
+#endif
+        { NULL, NULL, 0}
     };
     ctx_setups invalids[] = {
+#ifndef WOLFSSL_NO_TLS12
         { "TLSv1.2 server", wolfTLSv1_2_server_method(), 1},
         { "TLSv1.2 client", wolfTLSv1_2_client_method(), 0},
+#endif
+#ifndef NO_OLD_TLS
         { "TLSv1.1 server", wolfTLSv1_1_server_method(), 1},
         { "TLSv1.1 client", wolfTLSv1_1_client_method(), 0},
+#endif
+        { NULL, NULL, 0}
     };
 
-    for (i = 0; i < (int)(sizeof(valids)/sizeof(valids[0])); ++i) {
+    for (i = 0; valids[i].name != NULL; ++i) {
         AssertNotNull(ctx = wolfSSL_CTX_new(valids[i].method));
         if (valids[i].is_server) {
             AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
@@ -166,7 +174,7 @@ static int test_set_quic_method(void) {
         wolfSSL_CTX_free(ctx);
     }
 
-    for (i = 0; i < (int)(sizeof(invalids)/sizeof(invalids[0])); ++i) {
+    for (i = 0; invalids[i].name != NULL; ++i) {
 
         AssertNotNull(ctx = wolfSSL_CTX_new(invalids[i].method));
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,

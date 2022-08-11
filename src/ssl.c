@@ -11807,7 +11807,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv2_client_method(void)
     {
         WOLFSSL_STUB("wolfSSLv2_client_method");
@@ -12284,7 +12284,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 /* server only parts */
 #ifndef NO_WOLFSSL_SERVER
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv2_server_method(void)
     {
         WOLFSSL_STUB("wolfSSLv2_server_method");
