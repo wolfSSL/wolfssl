@@ -53,7 +53,6 @@ static const char *wolfsentry_config_path = NULL;
     #define CAN_FORCE_CURVE
 #endif
 #ifdef CAN_FORCE_CURVE
-static int force_curve_group_id = 0;
 /* Not sure of group/curve relationship, and no group decoder so here's one */
 struct group_info {
     word16 group;
@@ -997,11 +996,13 @@ static const char* server_usage_msg[][65] = {
 #ifdef CAN_FORCE_CURVE
         "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
         "                        Leave <curve> blank to list all curves.\n"
+        "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
+                                                                        /* 64 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1185,15 +1186,16 @@ static const char* server_usage_msg[][65] = {
                                                                         /* 62 */
 #endif
 #ifdef CAN_FORCE_CURVE
-        // TODO: Needs translation; 
+        /* TODO: Need Japanese translation */
         "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
         "                        Leave <curve> blank to list all curves.\n"
+        "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
         NULL,
     },
 #endif
@@ -1332,7 +1334,6 @@ static void Usage(void)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgId]); /* -7 */
-    printf("%s", msg[++msgId]); /* Examples repo link */
 #ifdef HAVE_PQC
     printf("%s", msg[++msgId]);     /* --pqc */
     printf("%s", msg[++msgId]);     /* --pqc options */
@@ -1348,6 +1349,7 @@ static void Usage(void)
 #ifdef CAN_FORCE_CURVE
     printf("%s", msg[++msgId]);     /* force-curve */
 #endif
+    printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
 #ifdef WOLFSSL_SRTP
@@ -1624,6 +1626,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     MyTicketCtx myTicketCtx;
 #endif
 
+#ifdef CAN_FORCE_CURVE
+    int force_curve_group_id = 0;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifndef NO_RSA
@@ -1689,7 +1695,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Not Used: h, z, W, X */
     while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mop:q:rstu;v:wxy"
-                "A:B:C:D:EFGH:IJKL:MNO:PQR:S:T;UVYZ:"
+                "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:567:89"
                 "@#", long_options, 0)) != -1) {
         switch (ch) {
@@ -2216,27 +2222,28 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 #endif
 #ifdef CAN_FORCE_CURVE
-            /* Build test: 
-            export CFLAGS=" \
-                -DHAVE_ALL_CURVES \
-                -DHAVE_ECC_BRAINPOOL \
-                -DHAVE_ECC_KOBLITZ \
-                -DWOLFSSL_CUSTOM_CURVES \
-                -DHAVE_ECC_SECPR2 \
-                -DHAVE_ECC_SECPR3"
-            cmake .. -DWOLFSSL_CURVE25519=yes -DWOLFSSL_CURVE448=yes
-            */
             case 262: {
+                /* Note: this requires TSL1.3 (version >= 4) */
+                int idx = 0; /* ecc curve index */
+                int j = 0; /* our group index */
                 if (NULL == myoptarg) {
                     Usage();
-                    printf("\nChoose one of the available curves:\n");
+                    if (lng_index == 1) {
+                        /* TODO: Need Japanese translation */
+                        printf("\nAvailable choices for --force-curve:\n");
+                    } else {
+                        printf("\nAvailable choices for --force-curve:\n");
+                    }
                     #ifdef HAVE_ECC
-                    // Compare groups with compiled curves...
-                    for (int i=0; ecc_sets[i].id != ECC_CURVE_INVALID; ++i) {
-                        for (int j=0; group_id_to_text[j].group != 0; ++j) {
-                            if (strcmp(group_id_to_text[j].name, 
-                                    ecc_sets[i].name) == 0) {
-                                printf("\t%s\n", ecc_sets[i].name);
+                    for (idx=0; ; ++idx) {
+                        int id = wc_ecc_get_curve_id(idx);
+                        if (ECC_CURVE_INVALID == id) {
+                            break;
+                        }
+                        for (j=0; group_id_to_text[j].group != 0; ++j) {
+                            if (XSTRCMP(group_id_to_text[j].name,
+                                wc_ecc_get_curve_name_from_id(id)) == 0) {
+                                printf("\t%s\n", group_id_to_text[j].name);
                             }
                         }
                     }
@@ -2250,38 +2257,34 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     printf("\n");
                     XEXIT_T(EXIT_SUCCESS);
                 }
-                /* TODO: Should we warn the user?
-                if (onlyKeyShare > 0 || usePqc > 0) {
-                    Usage();
-                    fprintf(stderr, "\n--force-curves and [-y|-Y|--pqc] are mutex.");
-                    XEXIT_T(EXIT_FAILURE);
-                }
-                */
                 #ifdef HAVE_ECC
-                // This is actually an index into the table, not the ID
-                for (int j=0; group_id_to_text[j].group != 0; ++j) {
-                    if (strcmp(group_id_to_text[j].name, myoptarg) == 0) {
+                for (j=0; group_id_to_text[j].group != 0; ++j) {
+                    if (XSTRCMP(group_id_to_text[j].name, myoptarg) == 0) {
                         force_curve_group_id = group_id_to_text[j].group;
                     }
                 }
                 #endif
                 #ifdef HAVE_CURVE25519
                 if (force_curve_group_id <= 0) {
-                    if (strcmp(myoptarg, "CURVE25519") == 0) {
+                    if (XSTRCMP(myoptarg, "CURVE25519") == 0) {
                         force_curve_group_id = WOLFSSL_ECC_X25519;
                     }
                 }
                 #endif
                 #ifdef HAVE_CURVE448
                 if (force_curve_group_id <= 0) {
-                    if (strcmp(myoptarg, "CURVE448") == 0) {
+                    if (XSTRCMP(myoptarg, "CURVE448") == 0) {
                         force_curve_group_id = WOLFSSL_ECC_X448;
                     }
                 }
                 #endif
                 if (force_curve_group_id <= 0) {
-                    Usage();
-                    fprintf(stderr, "Error: Curve '%s' not found.\n", myoptarg);
+                    if (lng_index == 1) {
+                        /* TODO: Need Japanese translation */
+                        fprintf(stderr, "Invalid curve '%s'\n", myoptarg);
+                    } else {
+                        fprintf(stderr, "Invalid curve '%s'\n", myoptarg);
+                    }
                     XEXIT_T(EXIT_FAILURE);
                 }
             }
