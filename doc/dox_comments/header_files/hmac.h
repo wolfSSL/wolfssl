@@ -5,9 +5,7 @@
     encryption type, key and HMAC length.
 
     \return 0 Returned on successfully initializing the Hmac object
-    \return BAD_FUNC_ARG Returned if the input type is invalid. Valid options
-    are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224, SHA3-256, SHA3-384,
-    SHA3-512
+    \return BAD_FUNC_ARG Returned if the input type is invalid (see type param)
     \return MEMORY_E Returned if there is an error allocating memory for the
     structure to use for hashing
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
@@ -16,8 +14,8 @@
 
     \param hmac pointer to the Hmac object to initialize
     \param type type specifying which encryption method the Hmac object
-    should use. Valid options are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224,
-    SHA3-256, SHA3-384, SHA3-512
+    should use. Valid options are: WC_MD5, WC_SHA, WC_SHA256, WC_SHA384,
+    WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or WC_SHA3_512
     \param key pointer to a buffer containing the key with which to
     initialize the Hmac object
     \param length length of the key
@@ -26,7 +24,7 @@
     \code
     Hmac hmac;
     byte key[] = { // initialize with key to use for encryption };
-    if (wc_HmacSetKey(&hmac, MD5, key, sizeof(key)) != 0) {
+    if (wc_HmacSetKey(&hmac, WC_MD5, key, sizeof(key)) != 0) {
     	// error initializing Hmac object
     }
     \endcode
@@ -132,16 +130,15 @@ int wolfSSL_GetHmacMaxSize(void);
     defaults to MD5 if 0 or NULL is given.
 
     \return 0 Returned upon successfully generating a key with the given inputs
-    \return BAD_FUNC_ARG Returned if an invalid hash type is given as
-    argument. Valid types are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224,
-    SHA3-256, SHA3-384, SHA3-512
+    \return BAD_FUNC_ARG Returned if an invalid hash type is given (see type param)
     \return MEMORY_E Returned if there is an error allocating memory
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
 
-    \param type hash type to use for the HKDF.  Valid types are: MD5, SHA,
-    SHA256, SHA384, SHA512, SHA3-224, SHA3-256, SHA3-384, SHA3-512
+    \param type hash type to use for the HKDF. Valid types are: WC_MD5, WC_SHA,
+    WC_SHA256, WC_SHA384, WC_SHA512, WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or
+    WC_SHA3_512
     \param inKey pointer to the buffer containing the key to use for KDF
     \param inKeySz length of the input key
     \param salt pointer to a buffer containing an optional salt. Use NULL
@@ -160,7 +157,7 @@ int wolfSSL_GetHmacMaxSize(void);
     byte salt[] = { // initialize with salt };
     byte derivedKey[MAX_DIGEST_SIZE];
 
-    int ret = wc_HKDF(SHA512, key, sizeof(key), salt, sizeof(salt),
+    int ret = wc_HKDF(WC_SHA512, key, sizeof(key), salt, sizeof(salt),
     NULL, 0, derivedKey, sizeof(derivedKey));
     if ( ret != 0 ) {
 	    // error generating derived key
