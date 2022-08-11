@@ -48,6 +48,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \
+              tests/test-rsapss.conf \
               tests/test-ed25519.conf \
               tests/test-ed448.conf \
               tests/test-enckeys.conf \

@@ -3574,7 +3574,7 @@ else
 fi
 if test "$ENABLED_RSAPSS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"
+    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS -DWOLFSSL_PSS_LONG_SALT"
 fi
 
 

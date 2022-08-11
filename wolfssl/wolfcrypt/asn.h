@@ -1052,7 +1052,6 @@ enum Hash_Sum  {
     SHAKE256h = 425
 };
 
-
 #if !defined(NO_DES3) || !defined(NO_AES)
 enum Block_Sum {
 #ifdef WOLFSSL_AES_128
@@ -1081,6 +1080,7 @@ enum Block_Sum {
 enum Key_Sum {
     DSAk           = 515,
     RSAk           = 645,
+    RSAPSSk        = 654,
     ECDSAk         = 518,
     ED25519k       = 256, /* 1.3.101.112 */
     X25519k        = 254, /* 1.3.101.110 */
@@ -1119,7 +1119,8 @@ enum Key_Agree {
 
 
 enum KDF_Sum {
-    PBKDF2_OID = 660
+    PBKDF2_OID = 660,
+    MGF1_OID = 652,
 };
 
 
@@ -1549,6 +1550,10 @@ struct DecodedCert {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     word32  keyOID;                  /* sum of key algo  object id       */
+#ifdef WC_RSA_PSS
+    word32  sigParamsIndex;          /* start of signature parameters    */
+    word32  sigParamsLength;         /* length of signature parameters   */
+#endif
     int     version;                 /* cert version, 1 or 3             */
     DNS_entry* altNames;             /* alt names list of dns entries    */
 #ifndef IGNORE_NAME_CONSTRAINTS

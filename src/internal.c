@@ -12537,6 +12537,9 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
 
     switch (args->dCert->keyOID) {
     #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+        case RSAPSSk:
+        #endif
         case RSAk:
             if (ssl->options.minRsaKeySz < 0 ||
                     args->dCert->pubKeySize <
@@ -13612,6 +13615,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 /* decode peer key */
                 switch (args->dCert->keyOID) {
                 #ifndef NO_RSA
+                    #ifdef WC_RSA_PSS
+                    case RSAPSSk:
+                    #endif
                     case RSAk:
                     {
                         word32 keyIdx = 0;
