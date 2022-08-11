@@ -7111,7 +7111,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #endif
 {
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-  ecc_key        key;
+  ecc_key        *key = NULL;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
   ecc_point**    precomp = NULL;
@@ -7152,24 +7152,35 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
+  #ifdef WOLFSSL_SMALL_STACK_CACHE
+  key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC_BUFFER);
+  if (key == NULL) {
+     XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
+     XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
+     return GEN_MEM_ERR;
+  }
+  #endif
   precomp = (ecc_point**)XMALLOC(sizeof(ecc_point*) * SHAMIR_PRECOMP_SZ, heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
   if (precomp == NULL) {
      XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
+  #ifdef WOLFSSL_SMALL_STACK_CACHE
+     XFREE(key, heap, DYNAMIC_TYPE_ECC_BUFFER);
+  #endif
      return GEN_MEM_ERR;
   }
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-  key.t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
-  key.t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #ifdef ALT_ECC_SIZE
   key.x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
   key.y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
   key.z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #endif
 
-  if (key.t1 == NULL || key.t2 == NULL
+  if (key->t1 == NULL || key->t2 == NULL
 #ifdef ALT_ECC_SIZE
      || key.x == NULL || key.y == NULL || key.z == NULL
 #endif
@@ -7179,14 +7190,15 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
       XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
       XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
 #endif
-      XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
-      XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
       XFREE(precomp, heap, DYNAMIC_TYPE_ECC_BUFFER);
       XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
       XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
+      XFREE(key, heap, DYNAMIC_TYPE_ECC_BUFFER);
       return MEMORY_E;
   }
-  C->key = &key;
+  C->key = key;
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
   /* init variables */
@@ -7230,7 +7242,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
             if (err != MP_OKAY)
                 break;
         #ifdef WOLFSSL_SMALL_STACK_CACHE
-            precomp[x]->key = &key;
+            precomp[x]->key = key;
         #endif
         }
     }
@@ -7399,8 +7411,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
   XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
 #endif
-  XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
-  XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key, heap, DYNAMIC_TYPE_ECC);
   C->key = NULL;
 #endif
 #ifdef WOLFSSL_SMALL_STACK

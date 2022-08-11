@@ -29532,82 +29532,95 @@ static int eccsi_enc_dec_pair_test(EccsiKey* priv, mp_int* ssk, ecc_point* pvt)
     int ret;
     byte data[32 * 3];
     word32 sz;
-    mp_int decSsk;
     ecc_point* decPvt = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *decSsk = (mp_int *)XMALLOC(sizeof(*decSsk), HEAP_HINT,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decSsk == NULL)
+        return -10173;
+#else
+    mp_int decSsk[1];
+#endif
 
-    ret = mp_init(&decSsk);
+    ret = mp_init(decSsk);
     if (ret != 0)
-        return -10117;
+        ERROR_OUT(-10117, out);
 
     decPvt = wc_ecc_new_point();
     if (decPvt == NULL)
-        return -10118;
+        ERROR_OUT(-10118, out);
 
     ret = wc_EncodeEccsiPair(priv, ssk, pvt, NULL, &sz);
     if (ret != LENGTH_ONLY_E)
-        return -10119;
+        ERROR_OUT(-10119, out);
     if (sz != 32 * 3)
-        return -10120;
+        ERROR_OUT(-10120, out);
     ret = wc_EncodeEccsiPair(priv, ssk, pvt, data, &sz);
     if (ret != 0)
-        return -10121;
+        ERROR_OUT(-10121, out);
     if (sz != 32* 3)
-        return -10122;
-    ret = wc_DecodeEccsiPair(priv, data, sz, &decSsk, decPvt);
+        ERROR_OUT(-10122, out);
+    ret = wc_DecodeEccsiPair(priv, data, sz, decSsk, decPvt);
     if (ret != 0)
-        return -10123;
-    if (mp_cmp(ssk, &decSsk) != MP_EQ)
-        return -10124;
+        ERROR_OUT(-10123, out);
+    if (mp_cmp(ssk, decSsk) != MP_EQ)
+        ERROR_OUT(-10124, out);
     if (wc_ecc_cmp_point(pvt, decPvt) != MP_EQ)
-        return -10125;
+        ERROR_OUT(-10125, out);
 
     ret = wc_EncodeEccsiSsk(priv, ssk, NULL, &sz);
     if (ret != LENGTH_ONLY_E)
-        return -10119;
+        ERROR_OUT(-10119, out);
     if (sz != 32)
-        return -10120;
+        ERROR_OUT(-10120, out);
     ret = wc_EncodeEccsiSsk(priv, ssk, data, &sz);
     if (ret != 0)
-        return -10121;
+        ERROR_OUT(-10121, out);
     if (sz != 32)
-        return -10122;
-    ret = wc_DecodeEccsiSsk(priv, data, sz, &decSsk);
+        ERROR_OUT(-10122, out);
+    ret = wc_DecodeEccsiSsk(priv, data, sz, decSsk);
     if (ret != 0)
-        return -10123;
-    if (mp_cmp(ssk, &decSsk) != MP_EQ)
-        return -10124;
+        ERROR_OUT(-10123, out);
+    if (mp_cmp(ssk, decSsk) != MP_EQ)
+        ERROR_OUT(-10124, out);
 
     ret = wc_EncodeEccsiPvt(priv, pvt, NULL, &sz, 1);
     if (ret != LENGTH_ONLY_E)
-        return -10126;
+        ERROR_OUT(-10126, out);
     if (sz != 32 * 2)
-        return -10127;
+        ERROR_OUT(-10127, out);
     ret = wc_EncodeEccsiPvt(priv, pvt, data, &sz, 1);
     if (ret != 0)
-        return -10128;
+        ERROR_OUT(-10128, out);
     if (sz != 32 * 2)
-        return -10129;
+        ERROR_OUT(-10129, out);
     ret = wc_DecodeEccsiPvt(priv, data, sz, decPvt);
     if (ret != 0)
-        return -10130;
+        ERROR_OUT(-10130, out);
     if (wc_ecc_cmp_point(pvt, decPvt) != MP_EQ)
-        return -10131;
+        ERROR_OUT(-10131, out);
     sz = sizeof(data);
     ret = wc_EncodeEccsiPvt(priv, pvt, data, &sz, 0);
     if (ret != 0)
-        return -10128;
+        ERROR_OUT(-10128, out);
     if (sz != 32 * 2 + 1)
-        return -10129;
+        ERROR_OUT(-10129, out);
     ret = wc_DecodeEccsiPvt(priv, data, sz, decPvt);
     if (ret != 0)
-        return -10130;
+        ERROR_OUT(-10130, out);
     if (wc_ecc_cmp_point(pvt, decPvt) != MP_EQ)
-        return -10131;
+        ERROR_OUT(-10131, out);
 
     wc_ecc_del_point(decPvt);
-    mp_free(&decSsk);
 
-    return 0;
+out:
+
+    mp_free(decSsk);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(decSsk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 static int eccsi_imp_exp_key_test(EccsiKey* priv)

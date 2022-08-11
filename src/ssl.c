@@ -32965,7 +32965,11 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         int encTicketLen, int* encLen, void* ctx)
 {
     byte                    digest[WC_MAX_DIGEST_SIZE];
-    WOLFSSL_EVP_CIPHER_CTX  evpCtx;
+#ifdef WOLFSSL_SMALL_STACK
+    WOLFSSL_EVP_CIPHER_CTX  *evpCtx;
+#else
+    WOLFSSL_EVP_CIPHER_CTX  evpCtx[1];
+#endif
     WOLFSSL_HMAC_CTX        hmacCtx;
     unsigned int            mdSz = 0;
     int                     len = 0;
@@ -32981,14 +32985,26 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         return WOLFSSL_TICKET_RET_FATAL;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    evpCtx = (WOLFSSL_EVP_CIPHER_CTX *)XMALLOC(sizeof(*evpCtx), ssl->heap,
+                                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (evpCtx == NULL) {
+        WOLFSSL_MSG("out of memory");
+        return WOLFSSL_TICKET_RET_FATAL;
+    }
+#endif
+
     /* Initialize the cipher and HMAC. */
-    wolfSSL_EVP_CIPHER_CTX_init(&evpCtx);
+    wolfSSL_EVP_CIPHER_CTX_init(evpCtx);
     if (wolfSSL_HMAC_CTX_Init(&hmacCtx) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_HMAC_CTX_Init error");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(evpCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return WOLFSSL_TICKET_RET_FATAL;
     }
     res = ssl->ctx->ticketEncWrapCb(ssl, keyName,
-            iv, &evpCtx, &hmacCtx, enc);
+            iv, evpCtx, &hmacCtx, enc);
     if (res != TICKET_KEY_CB_RET_OK && res != TICKET_KEY_CB_RET_RENEW) {
         WOLFSSL_MSG("Ticket callback error");
         ret = WOLFSSL_TICKET_RET_FATAL;
@@ -32998,11 +33014,11 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
     if (enc)
     {
         /* Encrypt in place. */
-        if (!wolfSSL_EVP_CipherUpdate(&evpCtx, encTicket, &len,
+        if (!wolfSSL_EVP_CipherUpdate(evpCtx, encTicket, &len,
                                       encTicket, encTicketLen))
             goto end;
         encTicketLen = len;
-        if (!wolfSSL_EVP_EncryptFinal(&evpCtx, &encTicket[encTicketLen], &len))
+        if (!wolfSSL_EVP_EncryptFinal(evpCtx, &encTicket[encTicketLen], &len))
             goto end;
         /* Total length of encrypted data. */
         encTicketLen += len;
@@ -33030,11 +33046,11 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
             goto end;
 
         /* Decrypt the ticket data in place. */
-        if (!wolfSSL_EVP_CipherUpdate(&evpCtx, encTicket, &len,
+        if (!wolfSSL_EVP_CipherUpdate(evpCtx, encTicket, &len,
                                       encTicket, encTicketLen))
             goto end;
         encTicketLen = len;
-        if (!wolfSSL_EVP_DecryptFinal(&evpCtx, &encTicket[encTicketLen], &len))
+        if (!wolfSSL_EVP_DecryptFinal(evpCtx, &encTicket[encTicketLen], &len))
             goto end;
         /* Total length of decrypted data. */
         *encLen = encTicketLen + len;
@@ -33048,6 +33064,9 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
 end:
 
     (void)wc_HmacFree(&hmacCtx.hmac);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(evpCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -35659,9 +35678,16 @@ static int wolfSSL_BN_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
 {
     int ret = WOLFSSL_SUCCESS;
     int rc = 0;
-    mp_int w_mp;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *w_mp = (mp_int *)XMALLOC(sizeof(*w_mp), NULL,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+    if (w_mp == NULL)
+        return WOLFSSL_FAILURE;
+#else
+    mp_int w_mp[1];
+#endif
 
-    XMEMSET(&w_mp, 0, sizeof(mp_int));
+    XMEMSET(w_mp, 0, sizeof(*w_mp));
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
@@ -35684,21 +35710,21 @@ static int wolfSSL_BN_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
             }
         }
         else {
-            if (mp_init(&w_mp) != MP_OKAY) {
+            if (mp_init(w_mp) != MP_OKAY) {
                 ret = WOLFSSL_FAILURE;
             }
             if (ret == WOLFSSL_SUCCESS) {
-                if (mp_set_int(&w_mp, w) != MP_OKAY) {
+                if (mp_set_int(w_mp, w) != MP_OKAY) {
                     ret = WOLFSSL_FAILURE;
                 }
             }
             if (ret == WOLFSSL_SUCCESS) {
                 if (sub == 1) {
-                    rc = mp_sub((mp_int *)bn->internal, &w_mp,
+                    rc = mp_sub((mp_int *)bn->internal, w_mp,
                                 (mp_int *)bn->internal);
                 }
                 else {
-                    rc = mp_add((mp_int *)bn->internal, &w_mp,
+                    rc = mp_add((mp_int *)bn->internal, w_mp,
                                 (mp_int *)bn->internal);
                 }
                 if (rc != MP_OKAY) {
@@ -35709,7 +35735,11 @@ static int wolfSSL_BN_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
         }
     }
 
-    mp_free(&w_mp);
+    mp_free(w_mp);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(w_mp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -40455,7 +40485,6 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
           WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert,
           WOLF_STACK_OF(WOLFSSL_X509)** ca)
 {
-    DecodedCert DeCert;
     void* heap = NULL;
     int ret;
     byte* certData = NULL;
@@ -40463,6 +40492,11 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     byte* pk = NULL;
     word32 pkSz;
     WC_DerCertList* certList = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert *DeCert;
+#else
+    DecodedCert DeCert[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_parse");
 
@@ -40491,6 +40525,15 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    DeCert = (DecodedCert *)XMALLOC(sizeof(*DeCert), heap,
+                                    DYNAMIC_TYPE_DCERT);
+    if (DeCert == NULL) {
+        WOLFSSL_MSG("out of memory");
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
     /* Decode cert and place in X509 stack struct */
     if (certList != NULL) {
         WC_DerCertList* current = certList;
@@ -40512,7 +40555,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 XFREE(current, heap, DYNAMIC_TYPE_PKCS);
                 current = next;
             }
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
         XMEMSET(*ca, 0, sizeof(WOLF_STACK_OF(WOLFSSL_X509)));
 
@@ -40524,16 +40568,16 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
                 DYNAMIC_TYPE_X509);
             InitX509(x509, 1, heap);
-            InitDecodedCert(&DeCert, current->buffer, current->bufferSz, heap);
-            if (ParseCertRelative(&DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+            InitDecodedCert(DeCert, current->buffer, current->bufferSz, heap);
+            if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
                 WOLFSSL_MSG("Issue with parsing certificate");
-                FreeDecodedCert(&DeCert);
+                FreeDecodedCert(DeCert);
                 wolfSSL_X509_free(x509);
             }
             else {
-                if (CopyDecodedToX509(x509, &DeCert) != 0) {
+                if (CopyDecodedToX509(x509, DeCert) != 0) {
                     WOLFSSL_MSG("Failed to copy decoded cert");
-                    FreeDecodedCert(&DeCert);
+                    FreeDecodedCert(DeCert);
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
                     if (pk != NULL) {
@@ -40550,9 +40594,10 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         XFREE(current, heap, DYNAMIC_TYPE_PKCS);
                         current = next;
                     }
-                    return WOLFSSL_FAILURE;
+                    ret = WOLFSSL_FAILURE;
+                    goto out;
                 }
-                FreeDecodedCert(&DeCert);
+                FreeDecodedCert(DeCert);
 
                 if (wolfSSL_sk_X509_push(*ca, x509) != 1) {
                     WOLFSSL_MSG("Failed to push x509 onto stack");
@@ -40573,7 +40618,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         XFREE(current, heap, DYNAMIC_TYPE_PKCS);
                         current = next;
                     }
-                    return WOLFSSL_FAILURE;
+                    ret = WOLFSSL_FAILURE;
+                    goto out;
                 }
             }
             current = current->next;
@@ -40595,16 +40641,17 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
             XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
         InitX509(*cert, 1, heap);
-        InitDecodedCert(&DeCert, certData, certDataSz, heap);
-        if (ParseCertRelative(&DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+        InitDecodedCert(DeCert, certData, certDataSz, heap);
+        if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
             WOLFSSL_MSG("Issue with parsing certificate");
         }
-        if (CopyDecodedToX509(*cert, &DeCert) != 0) {
+        if (CopyDecodedToX509(*cert, DeCert) != 0) {
             WOLFSSL_MSG("Failed to copy decoded cert");
-            FreeDecodedCert(&DeCert);
+            FreeDecodedCert(DeCert);
             if (pk != NULL) {
                 XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             }
@@ -40612,9 +40659,10 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
             wolfSSL_X509_free(*cert); *cert = NULL;
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
-        FreeDecodedCert(&DeCert);
+        FreeDecodedCert(DeCert);
         XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
     }
 
@@ -40629,7 +40677,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
             XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
 
     #ifndef NO_RSA
@@ -40660,7 +40709,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             }
             wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
             WOLFSSL_MSG("Bad PKCS12 key format");
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
 
         if (pkey != NULL && *pkey != NULL) {
@@ -40671,7 +40721,15 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     (void)ret;
     (void)ca;
 
-    return WOLFSSL_SUCCESS;
+    ret = WOLFSSL_SUCCESS;
+
+out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(DeCert, heap, DYNAMIC_TYPE_DCERT);
+#endif
+
+    return ret;
 }
 
 int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,

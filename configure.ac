@@ -664,7 +664,6 @@ then
         test "$enable_tls13" = "" && enable_tls13=yes
         test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
-    test "$enable_quic" = "" && enable_quic=yes
 
     # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
@@ -744,6 +743,7 @@ then
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
+        test "$enable_quic" = "" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 

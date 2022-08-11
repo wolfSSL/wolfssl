@@ -413,7 +413,7 @@ static int ctx_set_encryption_secrets(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL lev
 static int ctx_add_handshake_data(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
                                   const uint8_t *data, size_t len);
 static int ctx_flush_flight(WOLFSSL *ssl);
-static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t alert);
+static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t err);
 #ifdef HAVE_SESSION_TICKET
 static int ctx_session_ticket_cb(WOLFSSL* ssl,
                                  const unsigned char* ticket, int ticketSz,
@@ -793,7 +793,7 @@ static void check_crypto_rec(const byte *data, size_t data_len, int verbose, int
     }
 }
 
-static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int indent, char *rec_log)
+static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int indent, char *rec_log, size_t rec_log_size)
 {
     const byte *data = out->data;
     size_t data_len = out->len;
@@ -843,8 +843,8 @@ static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int i
         }
 
         if (rec_log) {
-            if (*rec_log) strcat(rec_log, ":");
-            strcat(rec_log, rec_name);
+            if (*rec_log) XSTRLCAT(rec_log, ":", rec_log_size);
+            XSTRLCAT(rec_log, rec_name, rec_log_size);
         }
         if (from->verbose) printf("%*sCRYPTO[%s]: ", indent, " ", rec_name);
         check_rec(data, rec_len, from->verbose, indent);
@@ -854,7 +854,7 @@ static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int i
     }
 }
 
-static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to, char *rec_log)
+static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to, char *rec_log, size_t rec_log_size)
 {
     int ret;
     OutputBuffer *out, *old;
@@ -869,7 +869,7 @@ static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to, 
             if (from->verbose) dump_buffer("EarlyData", out->data, out->len, 4);
         }
         else {
-            check_crypto_records(from, out, 4, rec_log);
+            check_crypto_records(from, out, 4, rec_log, rec_log_size);
         }
         ret = wolfSSL_provide_quic_data(to->ssl, out->level, out->data, out->len);
         out->len = 0;
@@ -951,7 +951,7 @@ static int QuicConversation_step(QuicConversation *conv)
         conv->started = 1;
     }
     if (conv->server->output.len > 0) {
-        QuicTestContext_forward(conv->server, conv->client, conv->rec_log);
+        QuicTestContext_forward(conv->server, conv->client, conv->rec_log, sizeof(conv->rec_log));
         n = wolfSSL_quic_read_write(conv->client->ssl);
         if (n != WOLFSSL_SUCCESS) {
             AssertIntEQ(wolfSSL_get_error(conv->client->ssl, 0), SSL_ERROR_WANT_READ);
@@ -959,7 +959,7 @@ static int QuicConversation_step(QuicConversation *conv)
         return 1;
     }
     else if (conv->client->output.len > 0) {
-        QuicTestContext_forward(conv->client, conv->server, conv->rec_log);
+        QuicTestContext_forward(conv->client, conv->server, conv->rec_log, sizeof(conv->rec_log));
 #ifdef WOLFSSL_EARLY_DATA
         if (conv->accept_early_data) {
             int written;

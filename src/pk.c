@@ -4106,8 +4106,17 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 {
     int     ret = 1;
     int     err;
-    mp_int  tmp;
     mp_int* t = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int  *tmp = (mp_int *)XMALLOC(sizeof(*tmp), rsa->heap,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        WOLFSSL_MSG("out of memory");
+        return -1;
+    }
+#else
+    mp_int  tmp[1];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_RsaGenAdd");
 
@@ -4120,17 +4129,17 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 
     if (ret == 1) {
         /* Initialize temp MP integer. */
-        if (mp_init(&tmp) != MP_OKAY) {
+        if (mp_init(tmp) != MP_OKAY) {
             WOLFSSL_MSG("mp_init error");
             ret = -1;
         }
     }
 
     if (ret == 1) {
-        t = &tmp;
+        t = tmp;
 
         /* Sub 1 from p into temp. */
-        err = mp_sub_d((mp_int*)rsa->p->internal, 1, &tmp);
+        err = mp_sub_d((mp_int*)rsa->p->internal, 1, tmp);
         if (err != MP_OKAY) {
             WOLFSSL_MSG("mp_sub_d error");
             ret = -1;
@@ -4138,7 +4147,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     }
     if (ret == 1) {
         /* Calculate d mod (p - 1) into dmp1 MP integer of BN. */
-        err = mp_mod((mp_int*)rsa->d->internal, &tmp,
+        err = mp_mod((mp_int*)rsa->d->internal, tmp,
             (mp_int*)rsa->dmp1->internal);
         if (err != MP_OKAY) {
             WOLFSSL_MSG("mp_mod error");
@@ -4147,7 +4156,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     }
     if (ret == 1) {
         /* Sub 1 from q into temp. */
-        err = mp_sub_d((mp_int*)rsa->q->internal, 1, &tmp);
+        err = mp_sub_d((mp_int*)rsa->q->internal, 1, tmp);
         if (err != MP_OKAY) {
             WOLFSSL_MSG("mp_sub_d error");
             ret = -1;
@@ -4155,7 +4164,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     }
     if (ret == 1) {
         /* Calculate d mod (q - 1) into dmq1 MP integer of BN. */
-        err = mp_mod((mp_int*)rsa->d->internal, &tmp,
+        err = mp_mod((mp_int*)rsa->d->internal, tmp,
             (mp_int*)rsa->dmq1->internal);
         if (err != MP_OKAY) {
             WOLFSSL_MSG("mp_mod error");
@@ -4164,6 +4173,10 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     }
 
     mp_clear(t);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmp, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -6488,7 +6501,7 @@ int wolfSSL_DH_size(WOLFSSL_DH* dh)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6516,7 +6529,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6546,7 +6559,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6580,7 +6593,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_2048_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6618,7 +6631,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_2048_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_3072_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6664,7 +6677,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_3072_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_4096_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6718,7 +6731,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_4096_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_6144_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -6789,7 +6802,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_6144_prime(WOLFSSL_BIGNUM* bn)
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
 {
-    const char prm[] = {
+    static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
         "020BBEA63B139B22514A08798E3404DD"
@@ -9100,22 +9113,38 @@ int NIDToEccEnum(int n)
 
 int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
 {
-    int ret;
-    mp_int order;
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *order = (mp_int *)XMALLOC(sizeof(*order), NULL,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (order == NULL)
+        return 0;
+#else
+    mp_int order[1];
+#endif
 
     if (group == NULL || group->curve_idx < 0) {
         WOLFSSL_MSG("wolfSSL_EC_GROUP_order_bits NULL error");
-        return 0;
+        ret = -1;
     }
 
-    ret = mp_init(&order);
+    if (ret == 0)
+        ret = mp_init(order);
+
     if (ret == 0) {
-        ret = mp_read_radix(&order, ecc_sets[group->curve_idx].order,
+        ret = mp_read_radix(order, ecc_sets[group->curve_idx].order,
             MP_RADIX_HEX);
         if (ret == 0)
-            ret = mp_count_bits(&order);
-        mp_clear(&order);
+            ret = mp_count_bits(order);
+        mp_clear(order);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(order, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    if (ret == -1)
+        ret = 0;
 
     return ret;
 }
