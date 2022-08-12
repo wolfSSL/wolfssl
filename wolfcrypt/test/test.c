@@ -1537,6 +1537,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         tz.tz_dsttime = 0;
         os_settimeofday(&utctime, &tz);
 #endif
+#ifdef WOLFSSL_ZEPHYR
+        /* set dummy wallclock time. */
+        struct timespec utctime;
+        utctime.tv_sec = 1521725159; /* dummy time: 2018-03-22T13:25:59+00:00 */
+        utctime.tv_nsec = 0;
+        clock_settime(CLOCK_REALTIME, &utctime);
+#endif
 #ifdef DEVKITPRO
         void *framebuffer;
         GXRModeObj *rmode = NULL;

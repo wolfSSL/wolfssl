@@ -19,9 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include <wolfssl/options.h>
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#define USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_256
 #include <wolfssl/certs_test.h>
 #include <wolfssl/test.h>
 
@@ -29,9 +32,19 @@
 #define printf   printk
 #endif
 
+/* wolfSSL PSA Crypto API integration with ECDH/ECDSA currently requires
+ * use of wolfSSL Public Key (PK) callbacks.
+ *
+ * PSA Crypto API integration for this sample was tested on a
+ * Nordic nRF5340dk.
+ */
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    #include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
 #define BUFFER_SIZE           2048
 #define STATIC_MEM_SIZE       (96*1024)
-#define THREAD_STACK_SIZE     (12*1024)
+#define THREAD_STACK_SIZE     (13*1024)
 
 /* The stack to use in the server's thread. */
 K_THREAD_STACK_DEFINE(server_stack, THREAD_STACK_SIZE);
@@ -56,6 +69,13 @@ wolfSSL_Mutex client_mutex;
 unsigned char server_buffer[BUFFER_SIZE];
 int server_buffer_sz = 0;
 wolfSSL_Mutex server_mutex;
+
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+static struct psa_ssl_ctx server_psa_ctx;
+static struct psa_ssl_ctx client_psa_ctx;
+/* psa_key_id_t representing server key loaded into PSA Crypto API */
+static psa_key_id_t ecc_key_id;
+#endif
 
 /* Application data to send. */
 static const char msgHTTPGet[] = "GET /index.html HTTP/1.0\r\n\r\n";
@@ -161,7 +181,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL*     client_ssl = NULL;
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_client_method(),
+    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_client_method(),
                                                    HEAP_HINT_CLIENT)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -169,13 +189,22 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
 
     if (ret == 0) {
         /* Load client certificates into WOLFSSL_CTX */
-        if (wolfSSL_CTX_load_verify_buffer(client_ctx, ca_cert_der_2048,
-                sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1) !=
+         if (wolfSSL_CTX_load_verify_buffer(client_ctx, ca_ecc_cert_der_256,
+                sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1) !=
                 WOLFSSL_SUCCESS) {
             printf("ERROR: failed to load CA certificate\n");
             ret = -1;
         }
     }
+
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    if (ret == 0) {
+        if (wolfSSL_CTX_psa_enable(client_ctx) != WOLFSSL_SUCCESS) {
+            printf("ERROR: failed to enable PSA Crypto API for WOLFSSL_CTX\n");
+            ret = -1;
+        }
+    }
+#endif
 
     if (ret == 0) {
         /* Register callbacks */
@@ -189,6 +218,16 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         }
     }
 
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    if (ret == 0) {
+        XMEMSET(&client_psa_ctx, 0, sizeof(client_psa_ctx));
+        if (wolfSSL_set_psa_ctx(client_ssl, &client_psa_ctx) != WOLFSSL_SUCCESS) {
+            printf("ERROR: wolfSSL_set_psa_ctx() failed\n");
+            ret = -1;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(client_ssl, 1);
@@ -198,8 +237,12 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         *ssl = client_ssl;
     }
     else {
-        if (client_ssl != NULL)
+        if (client_ssl != NULL) {
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+            wolfSSL_free_psa_ctx(&client_psa_ctx);
+#endif
             wolfSSL_free(client_ssl);
+        }
         if (client_ctx != NULL)
             wolfSSL_CTX_free(client_ctx);
     }
@@ -220,7 +263,49 @@ static int wolfssl_client_connect(WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
 
+/* ./certs/ecc-key.pem */
+static const unsigned char ecc_key_256[] =
+{
+    0x45, 0xB6, 0x69, 0x02, 0x73, 0x9C, 0x6C, 0x85, 0xA1, 0x38,
+    0x5B, 0x72, 0xE8, 0xE8, 0xC7, 0xAC, 0xC4, 0x03, 0x8D, 0x53,
+    0x35, 0x04, 0xFA, 0x6C, 0x28, 0xDC, 0x34, 0x8D, 0xE1, 0xA8,
+    0x09, 0x8C
+};
+
+/* Provision server private key using PSA Crypto API.
+ *
+ * key_id - resulting psa_key_id_t
+ *
+ * Returns - 0 on success, negative on error
+ */
+static int psa_private_key_provisioning(psa_key_id_t *key_id)
+{
+    psa_key_attributes_t key_attr = { 0 };
+    psa_key_type_t key_type;
+    psa_status_t status;
+
+    key_type = PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1);
+
+    psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_SIGN_HASH);
+    psa_set_key_lifetime(&key_attr, PSA_KEY_LIFETIME_VOLATILE);
+    psa_set_key_algorithm(&key_attr, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
+    psa_set_key_type(&key_attr, key_type);
+    psa_set_key_bits(&key_attr, 256);
+
+    status = psa_import_key(&key_attr, ecc_key_256,
+                            sizeof(ecc_key_256), key_id);
+
+    if (status != PSA_SUCCESS) {
+        printf("ERROR: provisioning of private key failed: [%d] \n", status);
+        return -1;
+    }
+
+    return 0;
+}
+
+#endif /* WOLFSSL_HAVE_PSA & HAVE_PK_CALLBACKS */
 
 /* Create a new wolfSSL server with a certificate for authentication. */
 static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
@@ -229,32 +314,57 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL_CTX* server_ctx = NULL;
     WOLFSSL*     server_ssl = NULL;
 
-    /* Create and initialize WOLFSSL_CTX */
-    if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_server_method(),
-                                                   HEAP_HINT_SERVER)) == NULL) {
-        printf("ERROR: failed to create WOLFSSL_CTX\n");
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    /* Provision ECC private key with PSA Crypto API */
+    if (psa_private_key_provisioning(&ecc_key_id) != 0) {
+        printf("ERROR: failed to provision PSA private key\n");
         ret = -1;
+    }
+
+    if (ret == 0) {
+        XMEMSET(&server_psa_ctx, 0, sizeof(server_psa_ctx));
+        wolfSSL_psa_set_private_key_id(&server_psa_ctx, ecc_key_id);
+    }
+#endif
+
+    if (ret == 0) {
+        /* Create and initialize WOLFSSL_CTX */
+        if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_server_method(),
+                                             HEAP_HINT_SERVER)) == NULL) {
+            printf("ERROR: failed to create WOLFSSL_CTX\n");
+            ret = -1;
+        }
     }
 
     if (ret == 0) {
         /* Load client certificates into WOLFSSL_CTX */
         if (wolfSSL_CTX_use_certificate_buffer(server_ctx,
-                server_cert_der_2048, sizeof_server_cert_der_2048,
+                serv_ecc_der_256, sizeof_serv_ecc_der_256,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("ERROR: failed to load server certificate\n");
             ret = -1;
         }
     }
 
+#if !defined(WOLFSSL_HAVE_PSA) || \
+    (defined(WOLFSSL_HAVE_PSA) && !defined(HAVE_PK_CALLBACKS))
     if (ret == 0) {
         /* Load client certificates into WOLFSSL_CTX */
         if (wolfSSL_CTX_use_PrivateKey_buffer(server_ctx,
-                server_key_der_2048, sizeof_server_key_der_2048,
+                ecc_key_der_256, sizeof_ecc_key_der_256,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("ERROR: failed to load server key\n");
             ret = -1;
         }
     }
+#else
+    if (ret == 0) {
+        if (wolfSSL_CTX_psa_enable(server_ctx) != WOLFSSL_SUCCESS) {
+            printf("ERROR: failed to enable PSA\n");
+            ret = -1;
+        }
+    }
+#endif /* WOLFSSL_HAVE_PSA */
 
     if (ret == 0) {
         /* Register callbacks */
@@ -268,6 +378,16 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         }
     }
 
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    if (ret == 0) {
+        if (wolfSSL_set_psa_ctx(server_ssl, &server_psa_ctx)
+                != WOLFSSL_SUCCESS) {
+            printf("ERROR: failed to enable PSA in WOLFSSL struct\n");
+            ret = -1;
+        }
+    }
+#endif
+
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(server_ssl, 1);
@@ -277,8 +397,12 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         *ssl = server_ssl;
     }
     else {
-        if (server_ssl != NULL)
+        if (server_ssl != NULL) {
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+            wolfSSL_free_psa_ctx(&server_psa_ctx);
+#endif
             wolfSSL_free(server_ssl);
+        }
         if (server_ctx != NULL)
             wolfSSL_CTX_free(server_ctx);
     }
@@ -390,7 +514,6 @@ void server_thread(void* arg1, void* arg2, void* arg3)
     WOLFSSL_CTX* server_ctx = NULL;
     WOLFSSL*     server_ssl = NULL;
 
-
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wc_LoadStaticMemory(&HEAP_HINT_SERVER, gMemoryServer,
                                sizeof(gMemoryServer),
@@ -425,6 +548,12 @@ void server_thread(void* arg1, void* arg2, void* arg3)
     printf("Server Memory Stats\n");
 #endif
     wolfssl_memstats(server_ssl);
+
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    if (server_ssl != NULL) {
+        wolfSSL_free_psa_ctx(&server_psa_ctx);
+    }
+#endif
     wolfssl_free(server_ctx, server_ssl);
 }
 
@@ -433,7 +562,13 @@ int main()
     int ret = 0;
     WOLFSSL_CTX* client_ctx = NULL;
     WOLFSSL*     client_ssl = NULL;
-    THREAD_TYPE serverThread;
+    THREAD_TYPE  serverThread;
+
+    /* set dummy wallclock time for cert validation without NTP/etc */
+    struct timespec utctime;
+    utctime.tv_sec = 1658510212; /* Friday, July 22, 2022 5:16:52 PM GMT */
+    utctime.tv_nsec = 0;
+    clock_settime(CLOCK_REALTIME, &utctime);
 
     wolfSSL_Init();
 #ifdef DEBUG_WOLFSSL
@@ -490,6 +625,12 @@ int main()
     printf("Client Memory Stats\n");
 #endif
     wolfssl_memstats(client_ssl);
+
+#if defined(WOLFSSL_HAVE_PSA) && defined(HAVE_PK_CALLBACKS)
+    if (client_ssl != NULL) {
+        wolfSSL_free_psa_ctx(&client_psa_ctx);
+    }
+#endif
     wolfssl_free(client_ctx, client_ssl);
 
     wolfSSL_Cleanup();

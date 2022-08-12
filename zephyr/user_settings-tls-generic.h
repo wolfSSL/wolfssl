@@ -126,6 +126,18 @@ extern "C" {
 #undef  WOLFSSL_STATIC_MEMORY
 #define WOLFSSL_STATIC_MEMORY
 
+#undef  WOLFSSL_TLS13
+#define WOLFSSL_TLS13
+
+#undef  HAVE_HKDF
+#define HAVE_HKDF
+
+#undef  WC_RSA_PSS
+#define WC_RSA_PSS
+
+#undef  HAVE_FFDHE_2048
+#define HAVE_FFDHE_2048
+
 #if 0
 #undef  WOLFSSL_HAVE_SP_RSA
 #define WOLFSSL_HAVE_SP_RSA

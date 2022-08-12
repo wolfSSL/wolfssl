@@ -44,7 +44,9 @@
      !defined(NO_ERROR_STRINGS) && !defined(NO_MAIN_DRIVER) &&        \
      !defined(BENCH_EMBEDDED))
     #include <errno.h>
-    #include <unistd.h>
+    #ifndef WOLFSSL_ZEPHYR
+        #include <unistd.h>
+    #endif
 #endif
 
 /* Macro to disable benchmark */

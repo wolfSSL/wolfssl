@@ -52,6 +52,7 @@ static int wc_psa_aes_import_key(Aes *aes, const uint8_t *key,
     aes->ctx_initialized = 0;
 
     psa_set_key_type(&key_attr, PSA_KEY_TYPE_AES);
+    psa_set_key_bits(&key_attr, key_length * 8);
     psa_set_key_usage_flags(&key_attr,
                             dir == AES_ENCRYPTION ? PSA_KEY_USAGE_ENCRYPT :
                             dir == AES_DECRYPTION ? PSA_KEY_USAGE_DECRYPT : 0);
@@ -125,7 +126,7 @@ int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize)
  * @dir: direction to use with this key
  *
  *
- * NOTE: if we don't know for teh mode or the direction (@alg == 0) the key
+ * NOTE: if we don't know the  mode or the direction (@alg == 0) the key
  * import operation will be delayed until the first wc_psa_aes_encrypt_decrypt()
  * invocation. In this case the key is temporary stored inside the AES
  * object. Indeed PSA requires that the mode of operation is already known when
@@ -147,7 +148,7 @@ int wc_psa_aes_set_key(Aes *aes, const uint8_t *key, size_t key_length,
         if (s != PSA_SUCCESS)
             return WC_HW_E;
 
-        aes->ctx_initialized =0;
+        aes->ctx_initialized = 0;
     }
 
     /* a key was already imported, destroy it first */
