@@ -178,8 +178,8 @@ enum wolfSSL_ErrorCodes {
     FALCON_KEY_SIZE_E            = -451,   /* Wrong key size for Falcon. */
     QUIC_TP_MISSING_E            = -452,   /* QUIC transport parameter missing */
     DILITHIUM_KEY_SIZE_E         = -453,   /* Wrong key size for Dilithium. */
-
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
+    DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

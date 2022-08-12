@@ -10354,8 +10354,6 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case HELLO_AGAIN:
-            if (ssl->options.certOnly)
-                return WOLFSSL_SUCCESS;
 
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
@@ -10403,6 +10401,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_DONE:
+            if (ssl->options.certOnly)
+                return WOLFSSL_SUCCESS;
         #ifdef WOLFSSL_EARLY_DATA
             if (!ssl->options.dtls && ssl->earlyData != no_early_data
                 && !WOLFSSL_IS_QUIC(ssl)) {

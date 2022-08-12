@@ -12406,8 +12406,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case HELLO_AGAIN :
-            if (ssl->options.certOnly)
-                return WOLFSSL_SUCCESS;
 
         #ifdef WOLFSSL_TLS13
             if (ssl->options.tls1_3)
@@ -12461,6 +12459,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case FIRST_REPLY_DONE :
+            if (ssl->options.certOnly)
+                return WOLFSSL_SUCCESS;
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 #ifdef WOLFSSL_TLS13
                     if (ssl->options.tls1_3)

@@ -613,6 +613,7 @@ typedef struct callback_functions {
 #endif
     int devId;
     int return_code;
+    int last_err;
     unsigned char isSharedCtx:1;
     unsigned char loadToSSL:1;
     unsigned char ticNoInit:1;
@@ -2093,32 +2094,33 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #endif
 
+    if (args != NULL && args->signal != NULL) {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    /* signal ready to accept data */
-    {
-    tcp_ready* ready = args->signal;
-    PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
-    ready->ready = 1;
-    ready->port = port;
-    PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
-    PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
-    }
+        /* signal ready to accept data */
+        tcp_ready* ready = args->signal;
+        PTHREAD_CHECK_RET(pthread_mutex_lock(&ready->mutex));
+        ready->ready = 1;
+        ready->port = port;
+        PTHREAD_CHECK_RET(pthread_cond_signal(&ready->cond));
+        PTHREAD_CHECK_RET(pthread_mutex_unlock(&ready->mutex));
 #elif defined (WOLFSSL_TIRTOS)
-    /* Need mutex? */
-    tcp_ready* ready = args->signal;
-    ready->ready = 1;
-    ready->port = port;
+        /* Need mutex? */
+        tcp_ready* ready = args->signal;
+        ready->ready = 1;
+        ready->port = port;
 #elif defined(NETOS)
-    {
         tcp_ready* ready = args->signal;
         (void)tx_mutex_get(&ready->mutex, TX_WAIT_FOREVER);
         ready->ready = 1;
         ready->port = port;
         (void)tx_mutex_put(&ready->mutex);
-    }
 #else
-    (void)port;
+        (void)port;
 #endif
+    }
+    else {
+        fprintf(stderr, "args or args->signal was NULL. Not setting ready info.");
+    }
 
     *clientfd = *sockfd;
 }
