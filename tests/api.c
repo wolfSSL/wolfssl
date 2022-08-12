@@ -2416,7 +2416,7 @@ static int test_wolfSSL_CertRsaPss(void)
     AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
     wc_FreeDecodedCert(&cert);
 
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_PSS_LONG_SALT)
     f = XFOPEN(rsaPssSha384Cert, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buf, 1, sizeof(buf), f);

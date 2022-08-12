@@ -167,6 +167,8 @@ find_package(Threads)
 # Example for map file and custom linker script
 #set(CMAKE_EXE_LINKER_FLAGS " -Xlinker -Map=output.map -T\"${CMAKE_CURRENT_SOURCE_DIR}/linker.ld\"")
 
+set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused -Werror ${CMAKE_C_FLAGS}")
+
 ####################################################
 # Build Options
 ####################################################
@@ -874,6 +876,7 @@ else()
 endif()
 if(WOLFSSL_RSA_PSS)
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_PSS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_PSS_LONG_SALT")
 endif()
 
 # DH
