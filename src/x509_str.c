@@ -181,7 +181,11 @@ static int GetX509Error(int e)
         case ASN_SIG_KEY_E:
             return X509_V_ERR_CERT_SIGNATURE_FAILURE;
         default:
+#ifdef HAVE_WOLFSSL_MSG_EX
+            WOLFSSL_MSG_EX("Error not configured or implemented yet: %d", e);
+#else
             WOLFSSL_MSG("Error not configured or implemented yet");
+#endif
             return e;
     }
 }

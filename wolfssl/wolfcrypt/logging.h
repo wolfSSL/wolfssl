@@ -164,6 +164,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void);
 #if !defined(_WIN32) && defined(XVSNPRINTF)
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
+    #define HAVE_WOLFSSL_MSG_EX
 #else
     #define WOLFSSL_MSG_EX(m, ...)
 #endif
