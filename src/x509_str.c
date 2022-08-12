@@ -161,7 +161,7 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx, WOLF_STAC
 
 
 /* Returns corresponding X509 error from internal ASN error <e> */
-static int GetX509Error(int e)
+int GetX509Error(int e)
 {
     switch (e) {
         case ASN_BEFORE_DATE_E:

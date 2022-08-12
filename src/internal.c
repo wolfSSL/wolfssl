@@ -11992,7 +11992,11 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
             }
         }
 
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
         store->error = ret;
+#else
+        store->error = GetX509Error(ret);
+#endif
         store->error_depth = args->certIdx;
         store->discardSessionCerts = 0;
         store->domain = domain;
