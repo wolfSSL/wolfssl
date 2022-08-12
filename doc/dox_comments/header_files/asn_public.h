@@ -1994,7 +1994,7 @@ time_t wc_Time(time_t* t);
     \param cert Pointer to an initialized DecodedCert object.
     \param critical If 0, the extension will not be marked critical, otherwise
      it will be marked critical.
-    \param oid Dot separted oid as a string. For example "1.2.840.10045.3.1.7"
+    \param oid Dot separated oid as a string. For example "1.2.840.10045.3.1.7"
     \param der The der encoding of the content of the extension.
     \param derSz The size in bytes of the der encoding.
 
@@ -2080,7 +2080,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     \sa ParseCert
     \sa wc_SetCustomExtension
 */
-WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
+int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
 /*!
     \ingroup ASN
@@ -2099,8 +2099,7 @@ WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
     \param pubKeySz The size in bytes of pubKey.
     \param pubKeyOID OID identifying the algorithm of the public key.
     (ie: ECDSAk, DSAk or RSAk)
-
+*/
 int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
-*/
