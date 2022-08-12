@@ -2720,6 +2720,7 @@ extern void uITRON4_free(void *p) ;
 #ifdef HAVE_LIBOQS
 #define HAVE_PQC
 #define HAVE_FALCON
+#define HAVE_DILITHIUM
 #define HAVE_KYBER
 #endif
 

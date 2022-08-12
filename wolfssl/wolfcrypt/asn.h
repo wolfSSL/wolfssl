@@ -1078,17 +1078,23 @@ enum Block_Sum {
 
 
 enum Key_Sum {
-    DSAk           = 515,
-    RSAk           = 645,
-    RSAPSSk        = 654,
-    ECDSAk         = 518,
-    ED25519k       = 256, /* 1.3.101.112 */
-    X25519k        = 254, /* 1.3.101.110 */
-    ED448k         = 257, /* 1.3.101.113 */
-    X448k          = 255, /* 1.3.101.111 */
-    DHk            = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
-    FALCON_LEVEL1k = 268, /* 1.3.9999.3.1 */
-    FALCON_LEVEL5k = 271  /* 1.3.9999.3.4 */
+    DSAk              = 515,
+    RSAk              = 645,
+    RSAPSSk           = 654,
+    ECDSAk            = 518,
+    ED25519k          = 256, /* 1.3.101.112 */
+    X25519k           = 254, /* 1.3.101.110 */
+    ED448k            = 257, /* 1.3.101.113 */
+    X448k             = 255, /* 1.3.101.111 */
+    DHk               = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
+    FALCON_LEVEL1k    = 268, /* 1.3.9999.3.1 */
+    FALCON_LEVEL5k    = 271, /* 1.3.9999.3.4 */
+    DILITHIUM_LEVEL2k = 213,    /* 1.3.6.1.4.1.2.267.7.4.4 */
+    DILITHIUM_LEVEL3k = 216,    /* 1.3.6.1.4.1.2.267.7.6.5 */
+    DILITHIUM_LEVEL5k = 220,    /* 1.3.6.1.4.1.2.267.7.8.7 */
+    DILITHIUM_AES_LEVEL2k = 217,/* 1.3.6.1.4.1.2.267.11.4.4 */
+    DILITHIUM_AES_LEVEL3k = 221,/* 1.3.6.1.4.1.2.267.11.6.5 + 1 (See GetOID() in asn.c) */
+    DILITHIUM_AES_LEVEL5k = 224,/* 1.3.6.1.4.1.2.267.11.8.7 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1404,6 +1410,7 @@ struct SignatureCtx {
     #endif
     #ifdef HAVE_PQC
         struct falcon_key* falcon;
+        struct dilithium_key* dilithium;
     #endif
         void* ptr;
     } key;
@@ -2208,13 +2215,19 @@ WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 #ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
-    RSA_KEY           = 10,
-    ECC_KEY           = 12,
-    ED25519_KEY       = 13,
-    ED448_KEY         = 14,
-    DSA_KEY           = 15,
-    FALCON_LEVEL1_KEY = 16,
-    FALCON_LEVEL5_KEY = 17
+    RSA_KEY                  = 10,
+    ECC_KEY                  = 12,
+    ED25519_KEY              = 13,
+    ED448_KEY                = 14,
+    DSA_KEY                  = 15,
+    FALCON_LEVEL1_KEY        = 16,
+    FALCON_LEVEL5_KEY        = 17,
+    DILITHIUM_LEVEL2_KEY     = 18,
+    DILITHIUM_LEVEL3_KEY     = 19,
+    DILITHIUM_LEVEL5_KEY     = 20,
+    DILITHIUM_AES_LEVEL2_KEY = 21,
+    DILITHIUM_AES_LEVEL3_KEY = 22,
+    DILITHIUM_AES_LEVEL5_KEY = 23,
 };
 
 #endif /* WOLFSSL_CERT_GEN */
@@ -2440,6 +2453,24 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 #endif
 
 #endif /* !NO_ASN */
+
+
+#if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
+    || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
+    || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
+    || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
+    || (defined(HAVE_PQC) && defined(HAVE_FALCON)) \
+    || (defined(HAVE_PQC) && defined(HAVE_DILITHIUM)))
+WOLFSSL_LOCAL int DecodeAsymKey(const byte* input, word32* inOutIdx,
+    word32 inSz, byte* privKey, word32* privKeyLen, byte* pubKey,
+    word32* pubKeyLen, int keyType);
+#endif
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+WOLFSSL_LOCAL int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
+    const byte* pubKey, word32 pubKeyLen, byte* output, word32 outLen,
+    int keyType);
+#endif
 
 
 #if !defined(NO_ASN) || !defined(NO_PWDBASED)

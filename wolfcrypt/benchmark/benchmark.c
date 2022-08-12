@@ -263,9 +263,17 @@
 #ifdef HAVE_LIBOQS
     #include <oqs/kem.h>
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
-    #include <wolfssl/wolfcrypt/falcon.h>
+#if defined(HAVE_PQC)
+    #if defined(HAVE_FALCON)
+        #include <wolfssl/wolfcrypt/falcon.h>
+    #endif
 #endif
+#if defined(HAVE_PQC)
+    #if defined(HAVE_DILITHIUM)
+        #include <wolfssl/wolfcrypt/dilithium.h>
+    #endif
+#endif
+
 #ifdef HAVE_PQM4
     #include <api_kyber.h>
     #define PQM4_PUBLIC_KEY_LENGTH    CRYPTO_PUBLICKEYBYTES
@@ -442,34 +450,38 @@
 #define BENCH_SAKKE              0x80000000
 
 /* Post-Quantum Asymmetric algorithms. */
-#define BENCH_FALCON_LEVEL1_SIGN     0x00000001
-#define BENCH_FALCON_LEVEL5_SIGN     0x00000002
-#define BENCH_KYBER_LEVEL1_KEYGEN    0x00000004
-#define BENCH_KYBER_LEVEL1_ENCAP     0x00000008
-#define BENCH_KYBER_LEVEL3_KEYGEN    0x00000010
-#define BENCH_KYBER_LEVEL3_ENCAP     0x00000020
-#define BENCH_KYBER_LEVEL5_KEYGEN    0x00000040
-#define BENCH_KYBER_LEVEL5_ENCAP     0x00000080
-#define BENCH_KYBER90S_LEVEL1_KEYGEN 0x00000100
-#define BENCH_KYBER90S_LEVEL1_ENCAP  0x00000200
-#define BENCH_KYBER90S_LEVEL3_KEYGEN 0x00000400
-#define BENCH_KYBER90S_LEVEL3_ENCAP  0x00000800
-#define BENCH_KYBER90S_LEVEL5_KEYGEN 0x00001000
-#define BENCH_KYBER90S_LEVEL5_ENCAP  0x00002000
-#define BENCH_SABER_LEVEL1_KEYGEN    0x00004000
-#define BENCH_SABER_LEVEL1_ENCAP     0x00008000
-#define BENCH_SABER_LEVEL3_KEYGEN    0x00010000
-#define BENCH_SABER_LEVEL3_ENCAP     0x00020000
-#define BENCH_SABER_LEVEL5_KEYGEN    0x00040000
-#define BENCH_SABER_LEVEL5_ENCAP     0x00080000
-#define BENCH_NTRUHPS_LEVEL1_KEYGEN  0x00100000
-#define BENCH_NTRUHPS_LEVEL1_ENCAP   0x00200000
-#define BENCH_NTRUHPS_LEVEL3_KEYGEN  0x00400000
-#define BENCH_NTRUHPS_LEVEL3_ENCAP   0x00800000
-#define BENCH_NTRUHPS_LEVEL5_KEYGEN  0x01000000
-#define BENCH_NTRUHPS_LEVEL5_ENCAP   0x02000000
-#define BENCH_NTRUHRSS_LEVEL3_KEYGEN 0x04000000
-#define BENCH_NTRUHRSS_LEVEL3_ENCAP  0x08000000
+#define BENCH_FALCON_LEVEL1_SIGN        0x00000001
+#define BENCH_FALCON_LEVEL5_SIGN        0x00000002
+#define BENCH_KYBER_LEVEL1_KEYGEN       0x00000004
+#define BENCH_KYBER_LEVEL1_ENCAP        0x00000008
+#define BENCH_KYBER_LEVEL3_KEYGEN       0x00000010
+#define BENCH_KYBER_LEVEL3_ENCAP        0x00000020
+#define BENCH_KYBER_LEVEL5_KEYGEN       0x00000040
+#define BENCH_KYBER_LEVEL5_ENCAP        0x00000080
+#define BENCH_KYBER90S_LEVEL1_KEYGEN    0x00000100
+#define BENCH_KYBER90S_LEVEL1_ENCAP     0x00000200
+#define BENCH_KYBER90S_LEVEL3_KEYGEN    0x00000400
+#define BENCH_KYBER90S_LEVEL3_ENCAP     0x00000800
+#define BENCH_KYBER90S_LEVEL5_KEYGEN    0x00001000
+#define BENCH_KYBER90S_LEVEL5_ENCAP     0x00002000
+#define BENCH_SABER_LEVEL1_KEYGEN       0x00004000
+#define BENCH_SABER_LEVEL1_ENCAP        0x00008000
+#define BENCH_SABER_LEVEL3_KEYGEN       0x00010000
+#define BENCH_SABER_LEVEL3_ENCAP        0x00020000
+#define BENCH_SABER_LEVEL5_KEYGEN       0x00040000
+#define BENCH_SABER_LEVEL5_ENCAP        0x00080000
+#define BENCH_NTRUHPS_LEVEL1_KEYGEN     0x00100000
+#define BENCH_NTRUHPS_LEVEL1_ENCAP      0x00200000
+#define BENCH_NTRUHPS_LEVEL3_KEYGEN     0x00400000
+#define BENCH_NTRUHPS_LEVEL3_ENCAP      0x00800000
+#define BENCH_NTRUHPS_LEVEL5_KEYGEN     0x01000000
+#define BENCH_NTRUHPS_LEVEL5_ENCAP      0x02000000
+#define BENCH_DILITHIUM_LEVEL2_SIGN     0x04000000
+#define BENCH_DILITHIUM_LEVEL3_SIGN     0x08000000
+#define BENCH_DILITHIUM_LEVEL5_SIGN     0x10000000
+#define BENCH_DILITHIUM_AES_LEVEL2_SIGN 0x20000000
+#define BENCH_DILITHIUM_AES_LEVEL3_SIGN 0x40000000
+#define BENCH_DILITHIUM_AES_LEVEL5_SIGN 0x80000000
 
 /* Other */
 #define BENCH_RNG                0x00000001
@@ -736,10 +748,23 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-kyber_level1-ed", BENCH_KYBER_LEVEL1_ENCAP, NULL },
 #endif
 #ifdef HAVE_LIBOQS
-    { "-falcon_level1",      BENCH_FALCON_LEVEL1_SIGN,
+    { "-falcon_level1", BENCH_FALCON_LEVEL1_SIGN,
       OQS_SIG_alg_falcon_512 },
-    { "-falcon_level5",      BENCH_FALCON_LEVEL5_SIGN,
+    { "-falcon_level5", BENCH_FALCON_LEVEL5_SIGN,
       OQS_SIG_alg_falcon_1024 },
+    { "-dilithium_level2", BENCH_DILITHIUM_LEVEL2_SIGN,
+      OQS_SIG_alg_dilithium_2 },
+    { "-dilithium_level3", BENCH_DILITHIUM_LEVEL3_SIGN,
+      OQS_SIG_alg_dilithium_3 },
+    { "-dilithium_level5", BENCH_DILITHIUM_LEVEL5_SIGN,
+      OQS_SIG_alg_dilithium_5 },
+    { "-dilithium_aes_level2", BENCH_DILITHIUM_AES_LEVEL2_SIGN,
+      OQS_SIG_alg_dilithium_2_aes },
+    { "-dilithium_aes_level3", BENCH_DILITHIUM_AES_LEVEL3_SIGN,
+      OQS_SIG_alg_dilithium_3_aes },
+    { "-dilithium_aes_level5", BENCH_DILITHIUM_AES_LEVEL5_SIGN,
+      OQS_SIG_alg_dilithium_5_aes },
+
     { "-kyber_level1-kg",    BENCH_KYBER_LEVEL1_KEYGEN,
       OQS_KEM_alg_kyber_512 },
     { "-kyber_level1-ed",       BENCH_KYBER_LEVEL1_ENCAP,
@@ -788,10 +813,6 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
       OQS_KEM_alg_ntru_hps4096821 },
     { "-ntruHPS_level5-ed",     BENCH_NTRUHPS_LEVEL5_ENCAP,
       OQS_KEM_alg_ntru_hps4096821 },
-    { "-ntruHRSS_level3-kg", BENCH_NTRUHRSS_LEVEL3_KEYGEN,
-      OQS_KEM_alg_ntru_hrss701 },
-    { "-ntruHRSS_level3-ed",    BENCH_NTRUHRSS_LEVEL3_ENCAP,
-      OQS_KEM_alg_ntru_hrss701 },
 #endif
     { NULL, 0, NULL }
 };
@@ -2332,16 +2353,27 @@ static void* benchmarks_do(void* args)
         bench_pqcKemKeygen(BENCH_NTRUHPS_LEVEL5_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL5_ENCAP))
         bench_pqcKemEncapDecap(BENCH_NTRUHPS_LEVEL5_ENCAP);
-    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_KEYGEN))
-        bench_pqcKemKeygen(BENCH_NTRUHRSS_LEVEL3_KEYGEN);
-    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_ENCAP))
-        bench_pqcKemEncapDecap(BENCH_NTRUHRSS_LEVEL3_ENCAP);
 #ifdef HAVE_FALCON
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
 #endif
+#ifdef HAVE_DILITHIUM
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL2_SIGN))
+        bench_dilithiumKeySign(2, SHAKE_VARIANT);
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL3_SIGN))
+        bench_dilithiumKeySign(3, SHAKE_VARIANT);
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL5_SIGN))
+        bench_dilithiumKeySign(5, SHAKE_VARIANT);
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL2_SIGN))
+        bench_dilithiumKeySign(2, AES_VARIANT);
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL3_SIGN))
+        bench_dilithiumKeySign(3, AES_VARIANT);
+    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL5_SIGN))
+        bench_dilithiumKeySign(5, AES_VARIANT);
+#endif
+
 #endif /* HAVE_LIBOQS */
 
 #ifdef WOLFCRYPT_HAVE_SAKKE
@@ -7251,12 +7283,12 @@ void bench_falconKeySign(byte level)
             if (ret == 0) {
                 if (level == 1) {
                     x = FALCON_LEVEL1_SIG_SIZE;
-                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
                 }
                 else {
                     x = FALCON_LEVEL5_SIG_SIZE;
-                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
                 }
+
+                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
                 if (ret != 0) {
                     printf("wc_falcon_sign_msg failed\n");
                 }
@@ -7274,18 +7306,11 @@ void bench_falconKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 int verify = 0;
-                if (level == 1) {
-                    ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg),
-                                               &verify, &key);
-                }
-                else {
-                    ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg),
-                                               &verify, &key);
-                }
-
+                ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg), &verify,
+                                           &key);
                 if (ret != 0 || verify != 1) {
                     printf("wc_falcon_verify_msg failed %d, verify %d\n",
-                        ret, verify);
+                           ret, verify);
                     ret = -1;
                 }
             }
@@ -7300,7 +7325,137 @@ void bench_falconKeySign(byte level)
     wc_falcon_free(&key);
 }
 #endif /* HAVE_FALCON */
-#endif /* HAVE_PQC && HAVE_LIBOQS */
+
+#ifdef HAVE_DILITHIUM
+void bench_dilithiumKeySign(byte level, byte sym)
+{
+    int    ret = 0;
+    dilithium_key key;
+    double start;
+    int    i, count;
+    byte   sig[DILITHIUM_MAX_SIG_SIZE];
+    byte   msg[512];
+    word32 x = 0;
+    const char**desc = bench_desc_words[lng_index];
+
+    ret = wc_dilithium_init(&key);
+    if (ret != 0) {
+        printf("wc_dilithium_init failed %d\n", ret);
+        return;
+    }
+
+    ret = wc_dilithium_set_level_and_sym(&key, level, sym);
+    if (ret != 0) {
+        printf("wc_dilithium_set_level_and_sym() failed %d\n", ret);
+    }
+
+    if (ret == 0) {
+        ret = -1;
+        if ((level == 2) && (sym == SHAKE_VARIANT)) {
+            ret = wc_dilithium_import_private_key(bench_dilithium_level2_key,
+                      sizeof_bench_dilithium_level2_key, NULL, 0, &key);
+        }
+        else if ((level == 3) && (sym == SHAKE_VARIANT)) {
+            ret = wc_dilithium_import_private_key(bench_dilithium_level3_key,
+                      sizeof_bench_dilithium_level3_key, NULL, 0, &key);
+        }
+        else if ((level == 5) && (sym == SHAKE_VARIANT)) {
+            ret = wc_dilithium_import_private_key(bench_dilithium_level5_key,
+                      sizeof_bench_dilithium_level5_key, NULL, 0, &key);
+        }
+        else if ((level == 2) && (sym == AES_VARIANT)) {
+            ret = wc_dilithium_import_private_key(
+                      bench_dilithium_aes_level2_key,
+                      sizeof_bench_dilithium_level2_key, NULL, 0, &key);
+        }
+        else if ((level == 3) && (sym == AES_VARIANT)) {
+            ret = wc_dilithium_import_private_key(
+                      bench_dilithium_aes_level3_key,
+                      sizeof_bench_dilithium_level3_key, NULL, 0, &key);
+        }
+        else if ((level == 5) && (sym == AES_VARIANT)) {
+            ret = wc_dilithium_import_private_key(
+                      bench_dilithium_aes_level5_key,
+                      sizeof_bench_dilithium_level5_key, NULL, 0, &key);
+        }
+
+        if (ret != 0) {
+            printf("wc_dilithium_import_private_key failed %d\n", ret);
+        }
+    }
+
+    /* make dummy msg */
+    for (i = 0; i < (int)sizeof(msg); i++) {
+        msg[i] = (byte)i;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < agreeTimes; i++) {
+            if (ret == 0) {
+                if (level == 2) {
+                    x = DILITHIUM_LEVEL2_SIG_SIZE;
+                }
+                else if (level == 3) {
+                    x = DILITHIUM_LEVEL3_SIG_SIZE;
+                }
+                else {
+                    x = DILITHIUM_LEVEL5_SIG_SIZE;
+                }
+
+                ret = wc_dilithium_sign_msg(msg, sizeof(msg), sig, &x, &key);
+                if (ret != 0) {
+                    printf("wc_dilithium_sign_msg failed\n");
+                }
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+
+    if (ret == 0) {
+        if (sym == SHAKE_VARIANT) {
+            bench_stats_asym_finish("DILITHIUM", level, desc[4], 0, count,
+                                    start, ret);
+        }
+        else {
+            bench_stats_asym_finish("DILITHIUM-AES", level, desc[4], 0, count,
+                                    start, ret);
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < agreeTimes; i++) {
+            if (ret == 0) {
+                int verify = 0;
+                ret = wc_dilithium_verify_msg(sig, x, msg, sizeof(msg), &verify,
+                                              &key);
+
+                if (ret != 0 || verify != 1) {
+                    printf("wc_dilithium_verify_msg failed %d, verify %d\n",
+                           ret, verify);
+                    ret = -1;
+                }
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+
+    if (ret == 0) {
+        if (sym == SHAKE_VARIANT) {
+            bench_stats_asym_finish("DILITHIUM", level, desc[5], 0, count,
+                                    start, ret);
+        }
+        else {
+            bench_stats_asym_finish("DILITHIUM-AES", level, desc[5], 0, count,
+                                    start, ret);
+        }
+    }
+
+    wc_dilithium_free(&key);
+}
+#endif /* HAVE_DILITHIUM */
+#endif /* HAVE_PQC */
 
 #ifndef HAVE_STACK_SIZE
 #if defined(_WIN32) && !defined(INTIME_RTOS)
