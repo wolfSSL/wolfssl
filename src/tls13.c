@@ -8085,7 +8085,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 && WOLFSSL_EARLY_DATA */
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_EARLY_DATA)
     if (WOLFSSL_IS_QUIC(ssl) && ssl->earlyData > early_data_ext) {
-        /* QUIC has no EndOfearlydata messages. We stop processing EarlyData
+        /* QUIC has no EndOfEarlyData messages. We stop processing EarlyData
            as soon we receive the client's finished message */
         ssl->earlyData = done_early_data;
     }

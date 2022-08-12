@@ -273,6 +273,7 @@ void wolfSSL_quic_clear(WOLFSSL* ssl)
     }
     ssl->quic.enc_level_write = wolfssl_encryption_initial;
     ssl->quic.enc_level_latest_recvd = wolfssl_encryption_initial;
+    ssl->quic.early_data_enabled = 0;
 
     while ((qd = ssl->quic.input_head)) {
         ssl->quic.input_head = qd->next;
@@ -545,11 +546,11 @@ void wolfSSL_set_quic_early_data_enabled(WOLFSSL* ssl, int enabled)
     else if (ssl->options.handShakeState != NULL_STATE) {
         WOLFSSL_MSG("wolfSSL_set_quic_early_data_enabled: handshake started");
     }
-    else if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        WOLFSSL_MSG("wolfSSL_set_quic_early_data_enabled: on client side");
-    }
     else {
-        wolfSSL_set_max_early_data(ssl, enabled ? UINT32_MAX : 0);
+        ssl->quic.early_data_enabled = enabled;
+        if (ssl->options.side != WOLFSSL_CLIENT_END) {
+            wolfSSL_set_max_early_data(ssl, enabled ? UINT32_MAX : 0);
+        }
     }
 }
 #endif /* WOLFSSL_EARLY_DATA */
@@ -576,19 +577,52 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
          * and the client Finished arrives.
          * This confuses the QUIC state handling.
          */
+#ifdef WOLFSSL_EARLY_DATA
+        if (ssl->quic.early_data_enabled) {
+            byte tmpbuffer[256];
+            int len;
+
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                if (ssl->options.resuming) {
+                    ret = wolfSSL_write_early_data(ssl, tmpbuffer, 0, &len);
+                }
+            }
+            else if (/*disables code*/(1)) {
+                ret = wolfSSL_read_early_data(ssl, tmpbuffer,
+                                              sizeof(tmpbuffer), &len);
+                if (ret < 0 && ssl->error == ZERO_RETURN) {
+                    /* this is expected, since QUIC handles the actual early
+                     * data separately. */
+                    ret = WOLFSSL_SUCCESS;
+                }
+            }
+            if (ret < 0) {
+                goto cleanup;
+            }
+        }
+#endif /* WOLFSSL_EARLY_DATA */
+
         ret = wolfSSL_SSL_do_handshake(ssl);
-        if (ret != WOLFSSL_SUCCESS)
+        if (ret <= 0)
             goto cleanup;
     }
 
 cleanup:
+    if (ret <= 0
+        && ssl->options.handShakeState == HANDSHAKE_DONE
+        && (ssl->error == ZERO_RETURN || ssl->error == WANT_READ)) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        ssl->error = WOLFSSL_ERROR_NONE;
+    }
     WOLFSSL_LEAVE("wolfSSL_quic_do_handshake", ret);
     return ret;
 }
 
 int wolfSSL_quic_read_write(WOLFSSL* ssl)
 {
-    int ret = WOLFSSL_SUCCESS, nret;
+    int ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_quic_read_write");
 
@@ -604,16 +638,7 @@ int wolfSSL_quic_read_write(WOLFSSL* ssl)
             goto cleanup;
     }
 
-    while (ssl->quic.input_head != NULL
-           || ssl->buffers.inputBuffer.length > 0) {
-        if ((nret = ProcessReply(ssl)) < 0) {
-            ret = nret;
-            goto cleanup;
-        }
-    }
-    while (ssl->buffers.outputBuffer.length > 0) {
-        SendBuffered(ssl);
-    }
+    ret = wolfSSL_process_quic_post_handshake(ssl);
 
 cleanup:
     WOLFSSL_LEAVE("wolfSSL_quic_read_write", ret);
@@ -642,7 +667,7 @@ int wolfSSL_process_quic_post_handshake(WOLFSSL* ssl)
            || ssl->buffers.inputBuffer.length > 0) {
         if ((nret = ProcessReply(ssl)) < 0) {
             ret = nret;
-            goto cleanup;
+            break;
         }
     }
     while (ssl->buffers.outputBuffer.length > 0) {
