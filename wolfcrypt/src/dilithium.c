@@ -950,7 +950,7 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 inLen,
 
     return ret;
 }
-#endif 
+#endif
 
 int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 inLen)
 {

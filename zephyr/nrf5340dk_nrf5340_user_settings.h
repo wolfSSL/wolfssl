@@ -59,11 +59,11 @@ extern "C" {
 
 #define HAVE_ECC
 #define ECC_USER_CURVES
-//#define HAVE_ECC192
-//#define HAVE_ECC224
+/* #define HAVE_ECC192 */
+/* #define HAVE_ECC224 */
 #undef NO_ECC256
-//#define HAVE_ECC384
-//#define HAVE_ECC521
+/* #define HAVE_ECC384 */
+/* #define HAVE_ECC521 */
 #define ECC_SHAMIR
 #define ECC_TIMING_RESISTANT
 

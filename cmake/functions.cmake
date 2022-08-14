@@ -912,8 +912,6 @@ function(add_to_options_file DEFINITIONS OPTION_FILE)
             endif()
 
             file(APPEND ${OPTION_FILE} "\n")
-        else()
-            message("option w/o begin -D is ${DEF}, not saving to ${OPTION_FILE}")
         endif()
     endforeach()
 endfunction()
