@@ -28261,22 +28261,38 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
     return pkey;
 }
 
-#endif /* !NO_BIO */
-
 #if !defined(NO_FILESYSTEM)
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **x,
                                           wc_pem_password_cb *cb, void *u)
 {
-    (void)fp;
-    (void)x;
-    (void)cb;
-    (void)u;
+    int err = 0;
+    WOLFSSL_EVP_PKEY* ret = NULL;
+    WOLFSSL_BIO* bio = NULL;
 
-    WOLFSSL_MSG("wolfSSL_PEM_read_PUBKEY not implemented");
+    WOLFSSL_ENTER("wolfSSL_PEM_read_PUBKEY");
 
-    return NULL;
+    if (fp == XBADFILE) {
+        err = 1;
+    }
+    if (err == 0) {
+        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        err = bio == NULL;
+    }
+    if (err == 0) {
+        err = wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS;
+    }
+    if (err == 0) {
+        ret = wolfSSL_PEM_read_bio_PUBKEY(bio, x, cb, u);
+    }
+
+    if (bio != NULL) {
+        wolfSSL_BIO_free(bio);
+    }
+
+    return ret;
 }
 #endif /* NO_FILESYSTEM */
+#endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_ALT_CERT_CHAINS
