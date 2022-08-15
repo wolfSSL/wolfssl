@@ -6495,6 +6495,70 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     }
 }
 
+/* called if user attempts to re-use WOLFSSL object for a new session.
+ * For example wolfSSL_clear() is called then wolfSSL_connect or accept */
+int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
+{
+    int ret = 0;
+
+    /* arrays */
+    if (!writeDup && ssl->arrays == NULL) {
+        ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
+                                                           DYNAMIC_TYPE_ARRAYS);
+        if (ssl->arrays == NULL) {
+            WOLFSSL_MSG("Arrays Memory error");
+            return MEMORY_E;
+        }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SSL Arrays", ssl->arrays, sizeof(*ssl->arrays));
+#endif
+        XMEMSET(ssl->arrays, 0, sizeof(Arrays));
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
+            DYNAMIC_TYPE_SECRET);
+        if (ssl->arrays->preMasterSecret == NULL) {
+            return MEMORY_E;
+        }
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("SSL Arrays", ssl->arrays->preMasterSecret, ENCRYPT_LEN);
+#endif
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
+#endif
+    }
+
+    /* RNG */
+#ifdef SINGLE_THREADED
+    if (ssl->rng == NULL) {
+        ssl->rng = ctx->rng; /* CTX may have one, if so use it */
+    }
+#endif
+    if (ssl->rng == NULL) {
+        ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap,DYNAMIC_TYPE_RNG);
+        if (ssl->rng == NULL) {
+            WOLFSSL_MSG("RNG Memory error");
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
+        ssl->options.weOwnRng = 1;
+
+        /* FIPS RNG API does not accept a heap hint */
+#ifndef HAVE_FIPS
+        if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap, ssl->devId)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#else
+        if ( (ret = wc_InitRng(ssl->rng)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#endif
+    }
+    (void)ctx;
+
+    return ret;
+}
 
 /* init everything to 0, NULL, default values before calling anything that may
    fail so that destructor has a "good" state to cleanup
@@ -6803,40 +6867,19 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     InitCipherSpecs(&ssl->specs);
 
     /* all done with init, now can return errors, call other stuff */
+    if ((ret = ReinitSSL(ssl, ctx, writeDup)) != 0) {
+        return ret;
+    }
 
     if (!writeDup) {
-        /* arrays */
-        ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                                           DYNAMIC_TYPE_ARRAYS);
-        if (ssl->arrays == NULL) {
-            WOLFSSL_MSG("Arrays Memory error");
-            return MEMORY_E;
-        }
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("SSL Arrays", ssl->arrays, sizeof(*ssl->arrays));
-#endif
-        XMEMSET(ssl->arrays, 0, sizeof(Arrays));
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
-        ssl->arrays->preMasterSz = ENCRYPT_LEN;
-        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
-            DYNAMIC_TYPE_SECRET);
-        if (ssl->arrays->preMasterSecret == NULL) {
-            return MEMORY_E;
-        }
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Add("SSL Arrays", ssl->arrays->preMasterSecret, ENCRYPT_LEN);
-#endif
-        XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
-#endif
-
 #ifdef OPENSSL_EXTRA
-    if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
-                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
-        WOLFSSL_MSG("ssl->param memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                                    sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                                    ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+            WOLFSSL_MSG("ssl->param memory error");
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 #endif
 
 #ifdef SINGLE_THREADED
@@ -6862,42 +6905,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             ssl->options.ownSuites = 0;
         }
 #endif
-    }
+    } /* !writeDup */
 
     /* Initialize SSL with the appropriate fields from it's ctx */
     /* requires valid arrays and suites unless writeDup ing */
-    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS)
+    if ((ret = SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS)
         return ret;
 
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
-
-#ifdef SINGLE_THREADED
-    ssl->rng = ctx->rng;   /* CTX may have one, if so use it */
-#endif
-
-    if (ssl->rng == NULL) {
-        /* RNG */
-        ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap,DYNAMIC_TYPE_RNG);
-        if (ssl->rng == NULL) {
-            WOLFSSL_MSG("RNG Memory error");
-            return MEMORY_E;
-        }
-        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
-        ssl->options.weOwnRng = 1;
-
-        /* FIPS RNG API does not accept a heap hint */
-#ifndef HAVE_FIPS
-        if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap, ssl->devId)) != 0) {
-            WOLFSSL_MSG("RNG Init error");
-            return ret;
-        }
-#else
-        if ( (ret = wc_InitRng(ssl->rng)) != 0) {
-            WOLFSSL_MSG("RNG Init error");
-            return ret;
-        }
-#endif
-    }
 
 #ifdef HAVE_WRITE_DUP
     if (writeDup) {

@@ -1406,9 +1406,7 @@ int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
 #endif
 
 /** Mark an extension to be sent back to the client. */
-void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
-
-void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
+static void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
     TLSX *extension = TLSX_Find(ssl->extensions, type);
 
@@ -5991,7 +5989,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
 
             /* No upgrade allowed. */
             if (versionIsGreater(isDtls, minor, ssl->version.minor))
-                    continue;
+                continue;
 
             /* Check downgrade. */
             if (versionIsLesser(isDtls, minor, ssl->version.minor)) {
@@ -6011,8 +6009,10 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
             }
 
             if (versionIsAtLeast(isDtls, minor, tls13minor)) {
-                if (!ssl->options.tls1_3) {
-                    ssl->options.tls1_3 = 1;
+                ssl->options.tls1_3 = 1;
+
+                /* TLS v1.3 requires supported version extension */
+                if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
                     ret = TLSX_Prepend(&ssl->extensions,
                               TLSX_SUPPORTED_VERSIONS, ssl, ssl->heap);
                     if (ret != 0) {
