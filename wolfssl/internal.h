@@ -5635,6 +5635,9 @@ WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void
 WOLFSSL_LOCAL int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     const WOLFSSL_ASN1_STRING* asn_in);
 #endif
+#ifdef OPENSSL_EXTRA
+WOLFSSL_LOCAL int GetX509Error(int e);
+#endif
 #endif
 
 #if defined(HAVE_EX_DATA) && \
