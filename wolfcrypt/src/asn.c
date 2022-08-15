@@ -22225,7 +22225,8 @@ Cert* wc_CertNew(void* heap)
 {
     Cert* certNew;
 
-    certNew = (Cert*)XMALLOC(sizeof(certNew), heap, DYNAMIC_TYPE_CERT);
+    certNew = (Cert*)XMALLOC(sizeof(Cert), heap, DYNAMIC_TYPE_CERT);
+
     if (certNew) {
         if (wc_InitCert_ex(certNew, heap, INVALID_DEVID) != 0) {
             XFREE(certNew, heap, DYNAMIC_TYPE_CERT);
@@ -22242,7 +22243,7 @@ void  wc_CertFree(Cert* cert)
     if (cert) {
          void* heap = cert->heap;
 
-         ForceZero(cert, sizeof(cert));
+         ForceZero(cert, sizeof(Cert));
          XFREE(cert, heap, DYNAMIC_TYPE_CERT);
          (void)heap;
      }
