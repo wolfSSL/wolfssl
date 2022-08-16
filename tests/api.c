@@ -32003,6 +32003,7 @@ static int test_wolfSSL_PEM_read_PUBKEY(void)
     file = XFOPEN(fname, "rb");
     AssertTrue(file != XBADFILE);
     AssertNotNull(pkey = PEM_read_PUBKEY(file, NULL, NULL, NULL));
+    EVP_PKEY_free(pkey);
     XFCLOSE(file);
 #endif
 
@@ -32490,6 +32491,7 @@ static int test_wolfSSL_PEM_read_RSA_PUBKEY(void)
     AssertNotNull((rsa = PEM_read_RSA_PUBKEY(file, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
     RSA_free(rsa);
+    XFCLOSE(file);
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
 
     return 0;
