@@ -32315,6 +32315,7 @@ static int test_wolfSSL_PEM_RSAPrivateKey(void)
     AssertNotNull((rsa = PEM_read_RSAPrivateKey(f, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
     RSA_free(rsa);
+    XFCLOSE(f);
 
 #ifdef HAVE_ECC
     AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
