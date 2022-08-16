@@ -23699,19 +23699,49 @@ int wc_InitCert_ex(Cert* cert, void* heap, int devId)
 
     cert->issuer.countryEnc = CTC_PRINTABLE;
     cert->issuer.stateEnc = CTC_UTF8;
+    cert->issuer.streetEnc = CTC_UTF8;
     cert->issuer.localityEnc = CTC_UTF8;
     cert->issuer.surEnc = CTC_UTF8;
+#ifdef WOLFSSL_CERT_NAME_ALL
+    cert->issuer.givenNameEnc = CTC_UTF8;
+    cert->issuer.initialsEnc = CTC_UTF8;
+    cert->issuer.dnQualifierEnc = CTC_UTF8;
+    cert->issuer.dnNameEnc = CTC_UTF8;
+#endif
     cert->issuer.orgEnc = CTC_UTF8;
     cert->issuer.unitEnc = CTC_UTF8;
     cert->issuer.commonNameEnc = CTC_UTF8;
+    cert->issuer.serialDevEnc = CTC_PRINTABLE;
+    cert->issuer.userIdEnc = CTC_UTF8;
+    cert->issuer.postalCodeEnc = CTC_UTF8;
+#ifdef WOLFSSL_CERT_EXT
+    cert->issuer.busCatEnc = CTC_UTF8;
+    cert->issuer.joiCEnc = CTC_UTF8;
+    cert->issuer.joiStEnc = CTC_UTF8;
+#endif
 
     cert->subject.countryEnc = CTC_PRINTABLE;
     cert->subject.stateEnc = CTC_UTF8;
+    cert->subject.streetEnc = CTC_UTF8;
     cert->subject.localityEnc = CTC_UTF8;
     cert->subject.surEnc = CTC_UTF8;
+#ifdef WOLFSSL_CERT_NAME_ALL
+    cert->subject.givenNameEnc = CTC_UTF8;
+    cert->subject.initialsEnc = CTC_UTF8;
+    cert->subject.dnQualifierEnc = CTC_UTF8;
+    cert->subject.dnNameEnc = CTC_UTF8;
+#endif
     cert->subject.orgEnc = CTC_UTF8;
     cert->subject.unitEnc = CTC_UTF8;
     cert->subject.commonNameEnc = CTC_UTF8;
+    cert->subject.serialDevEnc = CTC_PRINTABLE;
+    cert->subject.userIdEnc = CTC_UTF8;
+    cert->subject.postalCodeEnc = CTC_UTF8;
+#ifdef WOLFSSL_CERT_EXT
+    cert->subject.busCatEnc = CTC_UTF8;
+    cert->subject.joiCEnc = CTC_UTF8;
+    cert->subject.joiStEnc = CTC_UTF8;
+#endif
 
 #ifdef WOLFSSL_MULTI_ATTRIB
     for (i = 0; i < CTC_MAX_ATTRIB; i++) {

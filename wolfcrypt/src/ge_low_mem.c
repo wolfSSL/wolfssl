@@ -176,7 +176,7 @@ static void barrett_reduce(word32* r, word32 x[64])
 }
 
 
-void sc_reduce(unsigned char x[64])
+void sc_reduce(unsigned char *x)
 {
   int i;
   word32 t[64];
