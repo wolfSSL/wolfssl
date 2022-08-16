@@ -3087,7 +3087,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #ifdef CAN_FORCE_CURVE
             if (force_curve_group_id > 0) {
                 do {
-                    ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1);
+                    ret = wolfSSL_UseKeyShare(ssl, force_curve_group_id);
                     if (ret == WOLFSSL_SUCCESS) {
 
                     }
