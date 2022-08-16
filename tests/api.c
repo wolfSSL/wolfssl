@@ -1458,6 +1458,9 @@ static int test_wolfSSL_CertManagerGetCerts(void)
     WOLFSSL_BIO* bio = NULL;
 #endif
     int i = 0;
+    int ret = 0;
+    const byte* der;
+    int derSz = 0;
 
     printf(testingFmt, "wolfSSL_CertManagerGetCerts()");
     AssertNotNull(file1=fopen("./certs/ca-cert.pem", "rb"));
@@ -1467,6 +1470,17 @@ static int test_wolfSSL_CertManagerGetCerts(void)
 
     AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
     AssertNull(sk = wolfSSL_CertManagerGetCerts(cm));
+
+    AssertNotNull(der = wolfSSL_X509_get_der(cert1, &derSz));
+    ret = wolfSSL_CertManagerVerifyBuffer(cm, der, derSz, WOLFSSL_FILETYPE_ASN1);
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    /* Check that ASN_SELF_SIGNED_E is returned for a self-signed cert for QT
+     * and full OpenSSL compatibility */
+    AssertIntEQ(ret, ASN_SELF_SIGNED_E);
+#else
+    AssertIntEQ(ret, ASN_NO_SIGNER_E);
+#endif
+
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
                 "./certs/ca-cert.pem", NULL));
 
