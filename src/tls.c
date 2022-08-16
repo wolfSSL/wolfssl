@@ -10445,6 +10445,10 @@ int TLSX_QuicTP_Use(WOLFSSL* ssl, TLSX_Type ext_type, int is_response)
             goto cleanup;
         }
     }
+    if (extension->data) {
+        QuicTransportParam_free(extension->data, ssl->heap);
+        extension->data = NULL;
+    }
     extension->resp = is_response;
     extension->data = (void*)QuicTransportParam_dup(ssl->quic.transport_local, ssl->heap);
     if (!extension->data) {
