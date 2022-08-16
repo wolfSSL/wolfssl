@@ -34,6 +34,7 @@
 #endif
 
 #ifndef NO_ERROR_STRINGS
+WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
     switch (error) {

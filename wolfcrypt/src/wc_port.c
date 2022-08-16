@@ -126,6 +126,7 @@ static volatile int initRefCount = 0;
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
+WOLFSSL_ABI
 int wolfCrypt_Init(void)
 {
     int ret = 0;
@@ -361,6 +362,7 @@ long wolfCrypt_heap_peakBytes_checkpoint(void) {
 #endif
 
 /* return success value is the same as wolfCrypt_Init */
+WOLFSSL_ABI
 int wolfCrypt_Cleanup(void)
 {
     int ret = 0;

@@ -359,8 +359,8 @@ WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
 #endif
 
 /* main crypto initialization function */
-WOLFSSL_API int wolfCrypt_Init(void);
-WOLFSSL_API int wolfCrypt_Cleanup(void);
+WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Init(void);
+WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
     WOLFSSL_API long wolfCrypt_heap_peakAllocs_checkpoint(void);

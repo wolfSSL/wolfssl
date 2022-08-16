@@ -77,5 +77,11 @@
 #endif /* BUILDING_WOLFSSL */
 
 #endif /* HAVE_FIPS */
-#endif /* WOLF_CRYPT_VISIBILITY_H */
 
+/* WOLFSSL_ABI is used for public API symbols that must not change
+ * their signature. This tag is used for all APIs that are a
+ * part of the fixed ABI.
+ */
+#define WOLFSSL_ABI
+
+#endif /* WOLF_CRYPT_VISIBILITY_H */
