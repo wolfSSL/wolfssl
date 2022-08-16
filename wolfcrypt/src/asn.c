@@ -15006,12 +15006,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     byte* rsaKeyIdx)
 {
     int ret = 0;
-#ifdef WC_RSA_PSS
-    /* Defaults */
-    enum wc_HashType hash = WC_HASH_TYPE_SHA;
-    int mgf = WC_MGF1SHA1;
-    int saltLen = 20;
-#endif
 
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
@@ -15054,21 +15048,28 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 ERROR_OUT(MEMORY_E, exit_cs);
             }
 
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
+            /* RSA PSS Defaults */
+            sigCtx->hash = WC_HASH_TYPE_SHA;
+            sigCtx->mgf = WC_MGF1SHA1;
+            sigCtx->saltLen = 20;
+        #endif
+
             sigCtx->state = SIG_STATE_HASH;
         } /* SIG_STATE_BEGIN */
         FALL_THROUGH;
 
         case SIG_STATE_HASH:
         {
-        #ifdef WC_RSA_PSS
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
             if (keyOID == RSAPSSk) {
                 word32 fakeSigOID = 0;
-                ret = DecodeRsaPssParams(sigParams, sigParamsSz, &hash, &mgf,
-                    &saltLen);
+                ret = DecodeRsaPssParams(sigParams, sigParamsSz, &sigCtx->hash,
+                    &sigCtx->mgf, &sigCtx->saltLen);
                 if (ret != 0) {
                     goto exit_cs;
                 }
-                ret = RsaPssHashOidToSigOid(hash, &fakeSigOID);
+                ret = RsaPssHashOidToSigOid(sigCtx->hash, &fakeSigOID);
                 if (ret != 0) {
                     goto exit_cs;
                 }
@@ -15558,7 +15559,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case RSAPSSk:
                     /* TODO: pkCbRsaPss - RSA PSS callback. */
                     ret = wc_RsaPSS_VerifyInline_ex(sigCtx->sigCpy, sigSz,
-                        &sigCtx->out, hash, mgf, saltLen, sigCtx->key.rsa);
+                        &sigCtx->out, sigCtx->hash, sigCtx->mgf,
+                        sigCtx->saltLen, sigCtx->key.rsa);
                     break;
                 #endif
                 case RSAk:
@@ -15694,18 +15696,20 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
                      (HAVE_FIPS_VERSION < 2))
                     ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
-                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen);
+                        sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
+                        sigCtx->saltLen);
                 #elif (defined(HAVE_SELFTEST) && \
                        (HAVE_SELFTEST_VERSION == 2)) || \
                       (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
                        (HAVE_FIPS_VERSION == 2))
                     ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
-                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen,
-                        0);
+                        sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
+                        sigCtx->saltLen, 0);
                 #else
                     ret = wc_RsaPSS_CheckPadding_ex2(sigCtx->digest,
-                        sigCtx->digestSz, sigCtx->out, ret, hash, saltLen,
-                        wc_RsaEncryptSize(sigCtx->key.rsa)*8, sigCtx->heap);
+                        sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
+                        sigCtx->saltLen, wc_RsaEncryptSize(sigCtx->key.rsa) * 8,
+                        sigCtx->heap);
                 #endif
                     break;
                 #endif

@@ -1439,6 +1439,11 @@ struct SignatureCtx {
     defined(HAVE_PK_CALLBACKS)
     CertAttribute  CertAtt;
 #endif
+#ifdef WC_RSA_PSS
+    enum wc_HashType hash;
+    int mgf;
+    int saltLen;
+#endif
 #endif
 };
 
