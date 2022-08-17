@@ -29497,11 +29497,11 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
     /* Free old dynamic ticket if we already had one */
     if (ssl->session->ticketLenAlloc > 0) {
         XFREE(ssl->session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session->ticket = ssl->session->_staticTicket;
+        ssl->session->ticket = ssl->session->staticTicket;
         ssl->session->ticketLenAlloc = 0;
     }
 
-    if (length > sizeof(ssl->session->_staticTicket)) {
+    if (length > sizeof(ssl->session->staticTicket)) {
         byte* sessionTicket =
                    (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         if (sessionTicket == NULL)

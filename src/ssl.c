@@ -3418,7 +3418,7 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                 XFREE(ssl->session->ticket, ssl->session->heap,
                       DYNAMIC_TYPE_SESSION_TICK);
                 ssl->session->ticketLenAlloc = 0;
-                ssl->session->ticket = ssl->session->_staticTicket;
+                ssl->session->ticket = ssl->session->staticTicket;
             }
         }
         else { /* Ticket requires dynamic ticket storage */
@@ -3430,7 +3430,7 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                 ssl->session->ticket = (byte*)XMALLOC(bufSz, ssl->session->heap,
                         DYNAMIC_TYPE_SESSION_TICK);
                 if(ssl->session->ticket == NULL) {
-                    ssl->session->ticket = ssl->session->_staticTicket;
+                    ssl->session->ticket = ssl->session->staticTicket;
                     ssl->session->ticketLenAlloc = 0;
                     return MEMORY_ERROR;
                 }
@@ -13599,7 +13599,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         WOLFSSL_MSG("Session cache row lock failure");
 #ifdef HAVE_SESSION_TICKET
         if (tmpBufSet) {
-            output->ticket = output->_staticTicket;
+            output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
 #ifdef WOLFSSL_SMALL_STACK
@@ -13672,18 +13672,18 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
                         DYNAMIC_TYPE_SESSION_TICK);
                 if (output->ticket == NULL) {
                     error = WOLFSSL_FAILURE;
-                    output->ticket = output->_staticTicket;
+                    output->ticket = output->staticTicket;
                     output->ticketLenAlloc = 0;
                     output->ticketLen = 0;
                 }
             }
             else {
-                output->ticket = output->_staticTicket;
+                output->ticket = output->staticTicket;
                 output->ticketLenAlloc = 0;
             }
         }
         else {
-            output->ticket = output->_staticTicket;
+            output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
             output->ticketLen = 0;
         }
@@ -14101,7 +14101,9 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
      * ticBuff at all making it a very cheap malloc/free. The page on a modern
      * OS will most likely not even be allocated to the process. */
     if (ticBuff != NULL && cacheSession->ticketLenAlloc < ticLen) {
-        cacheTicBuff = cacheSession->ticket;
+        /* Save pointer only if separately allocated */
+        if (cacheSession->ticket != cacheSession->staticTicket)
+            cacheTicBuff = cacheSession->ticket;
         ticBuffUsed = 1;
         cacheSession->ticket = ticBuff;
         cacheSession->ticketLenAlloc = (word16) ticLen;
@@ -14143,7 +14145,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifdef HAVE_SESSION_TICKET
     else if (ticBuffUsed) {
         /* Error occured. Need to clean up the ticket buffer. */
-        cacheSession->ticket = cacheSession->_staticTicket;
+        cacheSession->ticket = cacheSession->staticTicket;
         cacheSession->ticketLenAlloc = 0;
         cacheSession->ticketLen = 0;
     }
@@ -19902,19 +19904,12 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
 #endif
         ret->type = WOLFSSL_SESSION_TYPE_HEAP;
         ret->heap = heap;
-        ret->masterSecret = ret->_masterSecret;
 #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Add("SESSION master secret", ret->masterSecret, SECRET_LEN);
         wc_MemZero_Add("SESSION id", ret->sessionID, ID_LEN);
 #endif
-    #ifndef NO_CLIENT_CACHE
-        ret->serverID = ret->_serverID;
-    #endif
-    #ifdef OPENSSL_EXTRA
-        ret->sessionCtx = ret->_sessionCtx;
-    #endif
     #ifdef HAVE_SESSION_TICKET
-        ret->ticket = ret->_staticTicket;
+        ret->ticket = ret->staticTicket;
     #endif
 #ifdef HAVE_STUNNEL
         /* stunnel has this funny mechanism of storing the "is_authenticated"
@@ -20001,7 +19996,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
     }
 
 #ifdef HAVE_SESSION_TICKET
-    if (output->ticket != output->_staticTicket) {
+    if (output->ticket != output->staticTicket) {
         ticBuff = output->ticket;
         ticLenAlloc = output->ticketLenAlloc;
     }
@@ -20022,8 +20017,8 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
             sizeof(WOLFSSL_SESSION) - copyOffset);
 
     /* Set sane values for copy */
-    if (output->type != WOLFSSL_SESSION_TYPE_CACHE)
 #ifndef NO_SESSION_CACHE
+    if (output->type != WOLFSSL_SESSION_TYPE_CACHE)
         output->cacheRow = INVALID_SESSION_ROW;
 #endif
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -20038,13 +20033,6 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
     else
         /* output->peer is not that important to copy */
         output->peer = NULL;
-#endif
-    output->masterSecret = output->_masterSecret;
-#ifndef NO_CLIENT_CACHE
-    output->serverID = output->_serverID;
-#endif
-#ifdef OPENSSL_EXTRA
-    output->sessionCtx = output->_sessionCtx;
 #endif
 #ifdef HAVE_SESSION_TICKET
     if (input->ticketLen > SESSION_TICKET_LEN) {
@@ -20090,7 +20078,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
              * the static buffer. */
             if (ticBuff != NULL) {
                 if (ticLenAlloc >= input->ticketLen) {
-                    output->ticket = output->_staticTicket;
+                    output->ticket = output->staticTicket;
                     output->ticketLenAlloc = 0;
                 }
                 else {
@@ -20103,14 +20091,14 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
                 }
             }
             else {
-                output->ticket = output->_staticTicket;
+                output->ticket = output->staticTicket;
                 output->ticketLenAlloc = 0;
             }
         }
         else {
             if (ticBuff != NULL)
                 XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            output->ticket = output->_staticTicket;
+            output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
         if (input->ticketLenAlloc > 0 && ret == WOLFSSL_SUCCESS) {
@@ -25763,7 +25751,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         XFREE(s->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
     }
     if (s->ticketLen <= SESSION_TICKET_LEN)
-        s->ticket = s->_staticTicket;
+        s->ticket = s->staticTicket;
     else {
         s->ticket = (byte*)XMALLOC(s->ticketLen, NULL,
                                    DYNAMIC_TYPE_SESSION_TICK);

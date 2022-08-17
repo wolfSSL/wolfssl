@@ -3585,7 +3585,7 @@ struct WOLFSSL_SESSION {
                                            * ID for TLS 1.3           */
     byte               sessionIDSz;
 
-    byte*              masterSecret;      /* stored secret            */
+    byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
@@ -3601,11 +3601,11 @@ struct WOLFSSL_SESSION {
 #endif
 #ifndef NO_CLIENT_CACHE
     word16             idLen;             /* serverID length          */
-    byte*              serverID;          /* for easier client lookup */
+    byte               serverID[SERVER_ID_LEN]; /* for easier client lookup */
 #endif
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;      /* sessionCtx length        */
-    byte*              sessionCtx;        /* app specific context id  */
+    byte               sessionCtx[ID_LEN]; /* app specific context id */
 #endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte               peerVerifyRet;     /* cert verify error */
@@ -3624,6 +3624,7 @@ struct WOLFSSL_SESSION {
     #endif
 #endif
 #ifdef HAVE_SESSION_TICKET
+    byte               staticTicket[SESSION_TICKET_LEN];
     byte*              ticket;
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */
@@ -3637,22 +3638,6 @@ struct WOLFSSL_SESSION {
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
-
-    /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
-     * the above pointers reference the session cache for backwards
-     * compatibility. For all other session types the above pointers reference
-     * these buffers directly. Keep these buffers at the end so that they don't
-     * get copied into the WOLFSSL_SESSION_TYPE_REF object. */
-    byte               _masterSecret[SECRET_LEN];
-#ifndef NO_CLIENT_CACHE
-    byte               _serverID[SERVER_ID_LEN];
-#endif
-#ifdef HAVE_SESSION_TICKET
-    byte               _staticTicket[SESSION_TICKET_LEN];
-#endif
-#ifdef OPENSSL_EXTRA
-    byte               _sessionCtx[ID_LEN];
 #endif
 };
 
