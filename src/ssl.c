@@ -33905,18 +33905,18 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
-int wolfSSL_CTX_curve_is_disabled(WOLFSSL_CTX* ctx, word16 named_curve)
+int wolfSSL_CTX_curve_is_disabled(WOLFSSL_CTX* ctx, word16 curve_id)
 {
-    return (named_curve <= WOLFSSL_ECC_MAX &&
+    return (curve_id <= WOLFSSL_ECC_MAX &&
             ctx->disabledCurves &&
-            ctx->disabledCurves & (1 << named_curve));
+            ctx->disabledCurves & (1 << curve_id));
 }
 
-int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 named_curve)
+int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 curve_id)
 {
     /* FIXME: see wolfSSL_set1_curves_list() below on why
      * this dependency on ssl->ctx alone is insufficient. */
-    return wolfSSL_CTX_curve_is_disabled(ssl->ctx, named_curve);
+    return wolfSSL_CTX_curve_is_disabled(ssl->ctx, curve_id);
 }
 #endif
 
