@@ -1785,6 +1785,47 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
     return rsa;
 }
 
+/* Create an RSA private key by reading the PEM encoded data from the file
+ * pointer.
+ *
+ * @param [in]  fp    File pointer to read from.
+ * @param [out] out   RSA key created.
+ * @param [in]  cb    Password callback when PEM encrypted.
+ * @param [in]  pass  NUL terminated string for passphrase when PEM encrypted.
+ * @return  RSA key on success.
+ * @return  NULL on failure.
+ */
+#ifndef NO_FILESYSTEM
+WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp, WOLFSSL_RSA** out,
+    wc_pem_password_cb* cb, void* pass)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_RSA* rsa = NULL;
+
+    WOLFSSL_ENTER("PEM_read_RSAPrivateKey");
+
+    /* Read PEM encoded RSA private key from a file pointer. using generic EVP
+     * function.
+     */
+    pkey = wolfSSL_PEM_read_PrivateKey(fp, NULL, cb, pass);
+    if (pkey != NULL) {
+        /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PKEY
+         * the flag indicating that the WOLFSSL_RSA structure is owned should be
+         * FALSE to avoid having it free'd. */
+        pkey->ownRsa = 0;
+        rsa = pkey->rsa;
+        if (out != NULL) {
+            /* Return WOLFSSL_RSA object through parameter too. */
+            *out = rsa;
+        }
+    }
+
+    /* Dispose of EVP_PKEY wrapper. */
+    wolfSSL_EVP_PKEY_free(pkey);
+    return rsa;
+}
+#endif /* !NO_FILESYSTEM */
+
 #endif /* NO_BIO */
 
 #if !defined(NO_FILESYSTEM)

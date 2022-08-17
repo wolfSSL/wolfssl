@@ -32416,6 +32416,7 @@ static int test_wolfSSL_PEM_RSAPrivateKey(void)
     RSA* rsa = NULL;
     RSA* rsa_dup = NULL;
     BIO* bio = NULL;
+    XFILE f = NULL;
 
     printf(testingFmt, "wolfSSL_PEM_RSAPrivateKey()");
 
@@ -32440,6 +32441,13 @@ static int test_wolfSSL_PEM_RSAPrivateKey(void)
     BIO_free(bio);
     RSA_free(rsa);
     RSA_free(rsa_dup);
+
+    f = XFOPEN(svrKeyFile, "r");
+    AssertTrue((f != XBADFILE));
+    AssertNotNull((rsa = PEM_read_RSAPrivateKey(f, NULL, NULL, NULL)));
+    AssertIntEQ(RSA_size(rsa), 256);
+    RSA_free(rsa);
+    XFCLOSE(f);
 
 #ifdef HAVE_ECC
     AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
