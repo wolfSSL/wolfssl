@@ -134,6 +134,19 @@ int wc_dilithium_pub_size(dilithium_key* key);
 WOLFSSL_API
 int wc_dilithium_sig_size(dilithium_key* key);
 
+WOLFSSL_API int wc_Dilithium_PrivateKeyDecode(const byte* input,
+                                              word32* inOutIdx,
+                                              dilithium_key* key, word32 inSz);
+WOLFSSL_API int wc_Dilithium_PublicKeyDecode(const byte* input,
+                                             word32* inOutIdx,
+                                             dilithium_key* key, word32 inSz);
+WOLFSSL_API int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output,
+                                      word32 inLen);
+WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
+                                             word32 inLen);
+WOLFSSL_API int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output,
+                                            word32 inLen, int withAlg);
+
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif
