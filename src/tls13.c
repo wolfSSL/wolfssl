@@ -10134,14 +10134,23 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("wolfSSL_connect_TLSv13()");
 
-    #ifdef HAVE_ERRNO_H
+#ifdef HAVE_ERRNO_H
     errno = 0;
-    #endif
+#endif
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
 
     if (ssl->options.side != WOLFSSL_CLIENT_END) {
         ssl->error = SIDE_ERROR;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* make sure this wolfSSL object has arrays and rng setup. Protects
+     * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+    if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
+        return ret;
     }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
@@ -11185,10 +11194,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("SSL_accept_TLSv13()");
 
-
 #ifdef HAVE_ERRNO_H
     errno = 0;
 #endif
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
 
 #if !defined(NO_CERTS) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     havePSK = ssl->options.havePSK;
@@ -11198,6 +11209,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         ssl->error = SIDE_ERROR;
         WOLFSSL_ERROR(ssl->error);
         return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* make sure this wolfSSL object has arrays and rng setup. Protects
+     * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+    if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
+        return ret;
     }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS

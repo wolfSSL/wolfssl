@@ -1779,6 +1779,10 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
     int err = WOLFSSL_FATAL_ERROR;
 
     WOLFSSL_ENTER("wolfSSL_negotiate");
+
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END) {
 #ifdef WOLFSSL_TLS13
@@ -12201,8 +12205,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         (void)ret;
 
-        WOLFSSL_ENTER("SSL_connect()");
-
         #ifdef HAVE_ERRNO_H
             errno = 0;
         #endif
@@ -12235,6 +12237,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         if (ssl->options.tls1_3)
             return wolfSSL_connect_TLSv13(ssl);
         #endif
+
+        WOLFSSL_ENTER("SSL_connect()");
+
+        /* make sure this wolfSSL object has arrays and rng setup. Protects
+         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+        if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
+            return ret;
+        }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
         if ((ssl->ConnectFilter != NULL) &&
@@ -12272,7 +12282,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
              ssl->options.connectState == HELLO_AGAIN ||
              (ssl->options.connectState >= FIRST_REPLY_DONE &&
               ssl->options.connectState <= FIRST_REPLY_FOURTH));
-;
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version))
@@ -12707,6 +12716,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             return wolfSSL_accept_TLSv13(ssl);
     #endif
         WOLFSSL_ENTER("SSL_accept()");
+
+        /* make sure this wolfSSL object has arrays and rng setup. Protects
+         * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+        if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
+            return ret;
+        }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
         if ((ssl->AcceptFilter != NULL) &&
@@ -18604,6 +18619,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             }
         }
 
+        /* reset option bits */
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
@@ -18616,12 +18632,35 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.handShakeState  = NULL_STATE;
         ssl->options.handShakeDone = 0;
         ssl->options.processReply = 0; /* doProcessInit */
+        ssl->options.havePeerVerify = 0;
+        ssl->options.havePeerCert = 0;
+        ssl->options.peerAuthGood = 0;
+        ssl->options.tls1_3 = 0;
+        ssl->options.haveSessionId = 0;
+        ssl->options.tls = 0;
+        ssl->options.tls1_1 = 0;
+        ssl->options.noPskDheKe = 0;
+    #ifdef HAVE_SESSION_TICKET
+        #ifdef WOLFSSL_TLS13
+        ssl->options.ticketsSent = 0;
+        #endif
+        ssl->options.rejectTicket = 0;
+    #endif
+    #ifdef WOLFSSL_EARLY_DATA
+        ssl->earlyData = no_early_data;
+        ssl->earlyDataSz = 0;
+    #endif
+
+    #if defined(HAVE_TLS_EXTENSIONS) && !defined(NO_TLS)
+        TLSX_FreeAll(ssl->extensions, ssl->heap);
+        ssl->extensions = NULL;
+    #endif
 
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-        if (ssl->hsHashes)
-            (void)InitHandshakeHashes(ssl);
+        if (InitHandshakeHashes(ssl) != 0)
+            return WOLFSSL_FAILURE;
 
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
