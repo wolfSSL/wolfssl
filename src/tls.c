@@ -4183,8 +4183,7 @@ static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
     const DhParams* params = NULL;
 
     for (; serverGroup != NULL; serverGroup = serverGroup->next) {
-        if (serverGroup->name < MIN_FFHDE_GROUP ||
-            serverGroup->name > MAX_FFHDE_GROUP)
+        if (!WOLFSSL_NAMED_GROUP_IS_FFHDE(serverGroup->name))
             continue;
 
         for (group = clientGroup; group != NULL; group = group->next) {
@@ -4261,8 +4260,7 @@ static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
     word32 p_len;
 
     for (; serverGroup != NULL; serverGroup = serverGroup->next) {
-        if (serverGroup->name < MIN_FFHDE_GROUP ||
-            serverGroup->name > MAX_FFHDE_GROUP)
+        if (!WOLFSSL_NAMED_GROUP_IS_FFHDE(serverGroup->name))
             continue;
 
         for (group = clientGroup; group != NULL; group = group->next) {
@@ -4367,7 +4365,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
         return 0;
     clientGroup = (SupportedCurve*)extension->data;
     for (group = clientGroup; group != NULL; group = group->next) {
-        if (group->name >= MIN_FFHDE_GROUP && group->name <= MAX_FFHDE_GROUP) {
+        if (WOLFSSL_NAMED_GROUP_IS_FFHDE(group->name)) {
             found = 1;
             break;
         }
@@ -4495,11 +4493,10 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
          curve = curve->next) {
 
     #ifdef OPENSSL_EXTRA
-        /* skip if name is not in supported ECC range */
-        if (curve->name > WOLFSSL_ECC_X448)
-            continue;
-        /* skip if curve is disabled by user */
-        if (ssl->ctx->disabledCurves & (1 << curve->name))
+        /* skip if name is not in supported ECC range
+         * or disabled by user */
+        if (curve->name > WOLFSSL_ECC_MAX ||
+            wolfSSL_curve_is_disabled(ssl, curve->name))
             continue;
     #endif
 
@@ -7356,14 +7353,14 @@ static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
 {
     int ret;
     /* Named FFDHE groups have a bit set to identify them. */
-    if (kse->group >= MIN_FFHDE_GROUP && kse->group <= MAX_FFHDE_GROUP)
+    if (WOLFSSL_NAMED_GROUP_IS_FFHDE(kse->group))
         ret = TLSX_KeyShare_GenDhKey(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X25519)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_GenX448Key(ssl, kse);
 #ifdef HAVE_PQC
-    else if (kse->group >= WOLFSSL_PQC_MIN && kse->group <= WOLFSSL_PQC_MAX)
+    else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group))
         ret = TLSX_KeyShare_GenPqcKey(ssl, kse);
 #endif
     else
@@ -7385,8 +7382,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        if (current->group >= MIN_FFHDE_GROUP &&
-            current->group <= MAX_FFHDE_GROUP) {
+        if (WOLFSSL_NAMED_GROUP_IS_FFHDE(current->group)) {
 #ifndef NO_DH
             wc_FreeDhKey((DhKey*)current->key);
 #endif
@@ -7402,8 +7398,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
         }
 #ifdef HAVE_PQC
-        else if (current->group >= WOLFSSL_PQC_MIN &&
-                 current->group <= WOLFSSL_PQC_MAX &&
+        else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group) &&
                  current->key != NULL) {
             ForceZero((byte*)current->key, current->keyLen);
         }
@@ -8251,16 +8246,14 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = ENCRYPT_LEN;
 
     /* Use Key Share Data from server. */
-    if (keyShareEntry->group >= MIN_FFHDE_GROUP &&
-        keyShareEntry->group <= MAX_FFHDE_GROUP)
+    if (WOLFSSL_NAMED_GROUP_IS_FFHDE(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessDh(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X25519)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
 #ifdef HAVE_PQC
-    else if (keyShareEntry->group >= WOLFSSL_PQC_MIN &&
-             keyShareEntry->group <= WOLFSSL_PQC_MAX)
+    else if (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessPqc(ssl, keyShareEntry);
 #endif
     else
@@ -8311,8 +8304,7 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
 #ifdef HAVE_PQC
-    if (group >= WOLFSSL_PQC_MIN &&
-        group <= WOLFSSL_PQC_MAX &&
+    if (WOLFSSL_NAMED_GROUP_IS_PQC(group) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         /* For KEMs, the public key is not stored. Casting away const because
          * we know for KEMs, it will be read-only.*/
@@ -8526,7 +8518,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifdef HAVE_PQC
         /* For post-quantum groups, do this in TLSX_PopulateExtensions(). */
-        if (group < WOLFSSL_PQC_MIN || group > WOLFSSL_PQC_MAX)
+        if (!WOLFSSL_NAMED_GROUP_IS_PQC(group))
 #endif
             ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
     }
@@ -8907,8 +8899,7 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
 
 
 #ifdef HAVE_PQC
-    if (group >= WOLFSSL_PQC_MIN &&
-        group <= WOLFSSL_PQC_MAX &&
+    if (WOLFSSL_NAMED_GROUP_IS_PQC(group) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         ret = server_generate_pqc_ciphertext(ssl, keyShareEntry, data,
                                              len);
@@ -9261,6 +9252,8 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     for (; curve != NULL; curve = curve->next) {
         if (!TLSX_KeyShare_IsSupported(curve->name))
             continue;
+        if (wolfSSL_curve_is_disabled(ssl, curve->name))
+            continue;
 
         rank = TLSX_KeyShare_GroupRank(ssl, curve->name);
         if (rank == -1)
@@ -9355,21 +9348,16 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
             continue;
 
-        if (clientKSE->group < MIN_FFHDE_GROUP ||
-            clientKSE->group > MAX_FFHDE_GROUP) {
+        if (!WOLFSSL_NAMED_GROUP_IS_FFHDE(clientKSE->group)) {
             /* Check max value supported. */
             if (clientKSE->group > WOLFSSL_ECC_MAX) {
 #ifdef HAVE_PQC
-                if (clientKSE->group < WOLFSSL_PQC_MIN ||
-                    clientKSE->group > WOLFSSL_PQC_MAX )
+                if (!WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group))
 #endif
                     continue;
             }
-        #ifdef OPENSSL_EXTRA
-            /* Check if server supports group. */
-            if (ssl->ctx->disabledCurves & ((word32)1 << clientKSE->group))
+            if (wolfSSL_curve_is_disabled(ssl, clientKSE->group))
                 continue;
-        #endif
         }
         if (!TLSX_KeyShare_IsSupported(clientKSE->group))
             continue;
@@ -9402,8 +9390,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
     if (clientKSE->key == NULL) {
 #ifdef HAVE_PQC
-        if (clientKSE->group >= WOLFSSL_PQC_MIN &&
-            clientKSE->group <= WOLFSSL_PQC_MAX ) {
+        if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)) {
             /* Going to need the public key (AKA ciphertext). */
             serverKSE->pubKey = clientKSE->pubKey;
             clientKSE->pubKey = NULL;
@@ -10446,7 +10433,7 @@ int TLSX_QuicTP_Use(WOLFSSL* ssl, TLSX_Type ext_type, int is_response)
         }
     }
     if (extension->data) {
-        QuicTransportParam_free(extension->data, ssl->heap);
+        QuicTransportParam_free((QuicTransportParam*)extension->data, ssl->heap);
         extension->data = NULL;
     }
     extension->resp = is_response;
@@ -11476,7 +11463,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             if (namedGroup > 0) {
 #ifdef HAVE_PQC
                 /* For KEMs, the key share has already been generated. */
-                if (namedGroup < WOLFSSL_PQC_MIN || namedGroup > WOLFSSL_PQC_MAX)
+                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup))
 #endif
                     ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)

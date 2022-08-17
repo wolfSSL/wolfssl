@@ -33904,6 +33904,22 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
+#ifdef OPENSSL_EXTRA
+int wolfSSL_CTX_curve_is_disabled(WOLFSSL_CTX* ctx, word16 named_curve)
+{
+    return (named_curve <= WOLFSSL_ECC_MAX &&
+            ctx->disabledCurves &&
+            ctx->disabledCurves & (1 << named_curve));
+}
+
+int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 named_curve)
+{
+    /* FIXME: see wolfSSL_set1_curves_list() below on why
+     * this dependency on ssl->ctx alone is insufficient. */
+    return wolfSSL_CTX_curve_is_disabled(ssl->ctx, named_curve);
+}
+#endif
+
 #if defined(OPENSSL_EXTRA) && (defined(HAVE_ECC) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
@@ -34011,6 +34027,8 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
     if (ssl == NULL) {
         return WOLFSSL_FAILURE;
     }
+    /* FIXME: this manipulates the context from a WOLFSSL* and
+     * will lead to surprises for some. */
     return wolfSSL_CTX_set1_curves_list(ssl->ctx, names);
 }
 #endif /* OPENSSL_EXTRA && (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */

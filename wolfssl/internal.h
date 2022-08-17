@@ -1570,6 +1570,15 @@ enum Misc {
     READ_PROTO         = 0     /* reading a protocol message */
 };
 
+#define WOLFSSL_NAMED_GROUP_IS_FFHDE(group) \
+    (MIN_FFHDE_GROUP <= (group) && (group) <= MAX_FFHDE_GROUP)
+#ifdef HAVE_PQC
+#define WOLFSSL_NAMED_GROUP_IS_PQC(group) \
+    (WOLFSSL_PQC_MIN <= (group) && (group) <= WOLFSSL_PQC_MAX)
+#else
+#define WOLFSSL_NAMED_GROUP_IS_PQC(group)    ((void)(group), 0)
+#endif /* HAVE_PQC */
+
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
     #ifndef NO_OLD_TLS
@@ -5239,6 +5248,14 @@ WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_ECC)
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
+#endif
+
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_LOCAL int wolfSSL_CTX_curve_is_disabled(WOLFSSL_CTX* ctx, word16 named_curve);
+WOLFSSL_LOCAL int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 named_curve);
+#else
+#define wolfSSL_CTX_curve_is_disabled(ctx, c)   ((void)(ctx), (void)(c), 0)
+#define wolfSSL_curve_is_disabled(ssl, c)   ((void)(ssl), (void)(c), 0)
 #endif
 
 WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
