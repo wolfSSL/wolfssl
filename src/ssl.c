@@ -28289,6 +28289,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **x,
         wolfSSL_BIO_free(bio);
     }
 
+    WOLFSSL_LEAVE("wolfSSL_PEM_read_PUBKEY", 0);
+
     return ret;
 }
 #endif /* NO_FILESYSTEM */

@@ -1588,7 +1588,7 @@ WOLFSSL_RSA *wolfSSL_PEM_read_RSA_PUBKEY(XFILE fp,
     
     /* Validate parameters. */
     if (fp == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_LEAVE("wolfSSL_PEM_read_RSA_PUBKEY", BAD_FUNC_ARG);
         return NULL;
     }
 
@@ -1609,6 +1609,8 @@ WOLFSSL_RSA *wolfSSL_PEM_read_RSA_PUBKEY(XFILE fp,
     else {
         WOLFSSL_MSG("wolfSSL_PEM_read_PUBKEY failed");
     }
+    
+    WOLFSSL_LEAVE("wolfSSL_PEM_read_RSA_PUBKEY", 0);
 
     return rsa;
 }
