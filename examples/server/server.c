@@ -45,7 +45,6 @@
 static const char *wolfsentry_config_path = NULL;
 #endif
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
-
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -74,6 +73,37 @@ static const char *wolfsentry_config_path = NULL;
 #include "examples/server/server.h"
 
 #ifndef NO_WOLFSSL_SERVER
+
+#if defined(WOLFSSL_TLS13) && ( \
+       defined(HAVE_ECC) \
+    || defined(HAVE_CURVE25519) \
+    || defined(HAVE_CURVE448) \
+    || defined(HAVE_FFDHE_2048))
+    #define CAN_FORCE_CURVE
+#endif
+#if defined(CAN_FORCE_CURVE) && defined(HAVE_ECC)
+struct group_info {
+    word16 group;
+    const char *name;
+};
+static struct group_info group_id_to_text[] = {
+    { WOLFSSL_ECC_SECP160K1, "SECP160K1" },
+    { WOLFSSL_ECC_SECP160R1, "SECP160R1" },
+    { WOLFSSL_ECC_SECP160R2, "SECP160R2" },
+    { WOLFSSL_ECC_SECP192K1, "SECP192K1" },
+    { WOLFSSL_ECC_SECP192R1, "SECP192R1" },
+    { WOLFSSL_ECC_SECP224K1, "SECP224K1" },
+    { WOLFSSL_ECC_SECP224R1, "SECP224R1" },
+    { WOLFSSL_ECC_SECP256K1, "SECP256K1" },
+    { WOLFSSL_ECC_SECP256R1, "SECP256R1" },
+    { WOLFSSL_ECC_SECP384R1, "SECP384R1" },
+    { WOLFSSL_ECC_SECP521R1, "SECP521R1" },
+    { WOLFSSL_ECC_BRAINPOOLP256R1, "BRAINPOOLP256R1" },
+    { WOLFSSL_ECC_BRAINPOOLP384R1, "BRAINPOOLP384R1" },
+    { WOLFSSL_ECC_BRAINPOOLP512R1, "BRAINPOOLP512R1" },
+    { 0, NULL }
+};
+#endif /* CAN_FORCE_CURVE && HAVE_ECC */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
@@ -798,7 +828,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][64] = {
+static const char* server_usage_msg[][65] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -963,9 +993,16 @@ static const char* server_usage_msg[][64] = {
         "--send-ticket    Send a new session ticket during application data\n",
                                                                         /* 62 */
 #endif
+#ifdef CAN_FORCE_CURVE
+        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
+        "                        Leave <curve> blank to list all curves.\n"
+        "                        Note: requires TLS1.3\n",
+                                                                        /* 63 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 63 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
+                                                                        /* 64 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1148,10 +1185,17 @@ static const char* server_usage_msg[][64] = {
                                              "セッションチケットを送信します\n",
                                                                         /* 62 */
 #endif
+#ifdef CAN_FORCE_CURVE
+        /* TODO: Need Japanese translation */
+        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
+        "                        Leave <curve> blank to list all curves.\n"
+        "                        Note: requires TLS1.3\n",
+                                                                        /* 63 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
         NULL,
     },
 #endif
@@ -1290,7 +1334,6 @@ static void Usage(void)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgId]); /* -7 */
-    printf("%s", msg[++msgId]); /* Examples repo link */
 #ifdef HAVE_PQC
     printf("%s", msg[++msgId]);     /* --pqc */
     printf("%s", msg[++msgId]);     /* --pqc options */
@@ -1303,6 +1346,10 @@ static void Usage(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     printf("%s", msg[++msgId]);     /* send-ticket */
 #endif
+#ifdef CAN_FORCE_CURVE
+    printf("%s", msg[++msgId]);     /* force-curve */
+#endif
+    printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
 #ifdef WOLFSSL_SRTP
@@ -1401,6 +1448,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         { "send-ticket", 0, 261 },
+#endif
+#ifdef CAN_FORCE_CURVE
+        { "force-curve", 2, 262},
 #endif
         { 0, 0, 0 }
     };
@@ -1574,6 +1624,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_TEST_SESSION_TICKET
     MyTicketCtx myTicketCtx;
+#endif
+
+#ifdef CAN_FORCE_CURVE
+    int force_curve_group_id = 0;
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -2167,7 +2221,77 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 sendTicket = 1;
                 break;
 #endif
-
+#ifdef CAN_FORCE_CURVE
+            case 262: {
+                /* Note: this requires TSL1.3 (version >= 4) */
+                #ifdef HAVE_ECC
+                int idx = 0; /* ecc curve index */
+                int j = 0; /* our group index */
+                #endif
+                if (NULL == myoptarg) {
+                    Usage();
+                    if (lng_index == 1) {
+                        /* TODO: Need Japanese translation */
+                        printf("\nAvailable choices for --force-curve:\n");
+                    } else {
+                        printf("\nAvailable choices for --force-curve:\n");
+                    }
+                    #ifdef HAVE_ECC
+                    for (idx=0; ; ++idx) {
+                        int id = wc_ecc_get_curve_id(idx);
+                        if (ECC_CURVE_INVALID == id) {
+                            break;
+                        }
+                        for (j=0; group_id_to_text[j].group != 0; ++j) {
+                            if (XSTRCMP(group_id_to_text[j].name,
+                                wc_ecc_get_curve_name_from_id(id)) == 0) {
+                                printf("\t%s\n", group_id_to_text[j].name);
+                            }
+                        }
+                    }
+                    #endif
+                    #ifdef HAVE_CURVE25519
+                    printf("\tCURVE25519\n");
+                    #endif
+                    #ifdef HAVE_CURVE448
+                    printf("\tCURVE448\n");
+                    #endif
+                    printf("\n");
+                    XEXIT_T(EXIT_SUCCESS);
+                }
+                #ifdef HAVE_ECC
+                for (j=0; group_id_to_text[j].group != 0; ++j) {
+                    if (XSTRCMP(group_id_to_text[j].name, myoptarg) == 0) {
+                        force_curve_group_id = group_id_to_text[j].group;
+                    }
+                }
+                #endif
+                #ifdef HAVE_CURVE25519
+                if (force_curve_group_id <= 0) {
+                    if (XSTRCMP(myoptarg, "CURVE25519") == 0) {
+                        force_curve_group_id = WOLFSSL_ECC_X25519;
+                    }
+                }
+                #endif
+                #ifdef HAVE_CURVE448
+                if (force_curve_group_id <= 0) {
+                    if (XSTRCMP(myoptarg, "CURVE448") == 0) {
+                        force_curve_group_id = WOLFSSL_ECC_X448;
+                    }
+                }
+                #endif
+                if (force_curve_group_id <= 0) {
+                    if (lng_index == 1) {
+                        /* TODO: Need Japanese translation */
+                        fprintf(stderr, "Invalid curve '%s'\n", myoptarg);
+                    } else {
+                        fprintf(stderr, "Invalid curve '%s'\n", myoptarg);
+                    }
+                    XEXIT_T(EXIT_FAILURE);
+                }
+            }
+            break;
+#endif /* CAN_FORCE_CURVE */
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2960,8 +3084,31 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (version >= 4) {
-            SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
-                        pqcAlg);
+            #ifdef CAN_FORCE_CURVE
+            if (force_curve_group_id > 0) {
+                do {
+                    ret = wolfSSL_UseKeyShare(ssl, force_curve_group_id);
+                    if (ret == WOLFSSL_SUCCESS) {
+
+                    }
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                    else if (ret == WC_PENDING_E) {
+                        wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                    }
+                    #endif
+                    else {
+                        err_sys("Failed wolfSSL_UseKeyShare in force-curve");
+                    }
+                } while (ret == WC_PENDING_E);
+                ret = wolfSSL_set_groups(ssl, &force_curve_group_id, 1);
+                if (WOLFSSL_SUCCESS != ret) {
+                    err_sys("Failed wolfSSL_set_groups in force-curve");
+                }
+            }
+            else
+            #endif
+                SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
+                    pqcAlg);
         }
     #endif
 
