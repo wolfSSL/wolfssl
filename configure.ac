@@ -743,7 +743,6 @@ then
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
-        test "$enable_quic" = "" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
@@ -2927,6 +2926,10 @@ AC_ARG_ENABLE([curve25519],
     [ ENABLED_CURVE25519=no ]
     )
 
+if test "$ENABLED_QUIC" = "yes" && test "$ENABLED_CURVE25519" = "no"
+then
+    ENABLED_CURVE25519=yes
+fi
 
 if test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno"
 then
@@ -5708,12 +5711,6 @@ then
 
     # FTPS server requires pointer to session cache
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
-
-    if test "x$ENABLED_QUIC" = "xno"
-    then
-        ENABLED_QUIC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QUIC"
-    fi
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
