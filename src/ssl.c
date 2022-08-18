@@ -14860,10 +14860,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 ssl->timeoutInfo.timeoutValue.tv_usec = timeout.tv_usec;
                 (toCb)(&ssl->timeoutInfo);
             }
-            /* clean up */
-            FreeTimeoutInfo(&ssl->timeoutInfo, ssl->heap);
             ssl->toInfoOn = 0;
         }
+
+        /* clean up buffers allocated by AddPacketInfo */
+        FreeTimeoutInfo(&ssl->timeoutInfo, ssl->heap);
+
         if (hsCb) {
             FinishHandShakeInfo(&ssl->handShakeInfo);
             (hsCb)(&ssl->handShakeInfo);

@@ -4799,7 +4799,7 @@ WOLFSSL_API int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx,
     void *data);
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
 WOLFSSL_API int wolfSSL_X509_set_ex_data_with_cleanup(
-    X509 *x509,
+    WOLFSSL_X509 *x509,
     int idx,
     void *data,
     wolfSSL_ex_data_cleanup_routine_t cleanup_routine);

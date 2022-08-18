@@ -3732,6 +3732,9 @@ exit:
 #ifdef HAVE_SECURE_RENEGOTIATION
     (void) forceScr;
 #endif
+#ifdef WOLFSSL_CALLBACKS
+    (void) earlyData;
+#endif
 #ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
