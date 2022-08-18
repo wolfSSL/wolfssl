@@ -1178,6 +1178,8 @@ static int test_quic_key_share(int verbose) {
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
     printf("    test_quic_key_share: %s\n", (ret == 0)? passed : failed);
     return ret;
 }
