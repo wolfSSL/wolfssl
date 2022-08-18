@@ -20040,7 +20040,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         if (ticBuff == NULL || ticLenAlloc < input->ticketLen) {
             /* allocate new one */
             byte* tmp;
-            if (!avoidSysCalls) {
+            if (avoidSysCalls) {
                 WOLFSSL_MSG("Failed to allocate memory for ticket when avoiding"
                         " syscalls");
                 output->ticket = ticBuff;
