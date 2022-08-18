@@ -1676,10 +1676,6 @@ enum Misc {
     #define MAX_HANDSHAKE_SZ MAX_CERTIFICATE_SZ
 #endif
 
-#ifndef SESSION_TICKET_LEN
-    #define SESSION_TICKET_LEN 256
-#endif
-
 #ifndef PREALLOC_SESSION_TICKET_LEN
     #define PREALLOC_SESSION_TICKET_LEN 512
 #endif
@@ -2694,7 +2690,68 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 /** Session Ticket - RFC 5077 (session 3.2) */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+/* Ticket nonce - for deriving PSK.
+ * Length allowed to be: 1..255. Only support 4 bytes.
+ * Defined here so that it can be included in InternalTicket.
+ */
+typedef struct TicketNonce {
+    byte len;
+    byte data[MAX_TICKET_NONCE_SZ];
+} TicketNonce;
+#endif
+
 #ifdef HAVE_SESSION_TICKET
+/* Our ticket format. All members need to be a byte or array of byte to
+ * avoid alignment issues */
+typedef struct InternalTicket {
+    ProtocolVersion pv;                    /* version when ticket created */
+    byte            suite[SUITE_LEN];      /* cipher suite when created */
+    byte            msecret[SECRET_LEN];   /* master secret */
+    byte            timestamp[TIMESTAMP_LEN];          /* born on */
+    byte            haveEMS;               /* have extended master secret */
+#ifdef WOLFSSL_TLS13
+    byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
+    byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
+    TicketNonce     ticketNonce;           /* Ticket nonce */
+#ifdef WOLFSSL_EARLY_DATA
+    byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
+                                                         * early data */
+#endif
+#endif
+#ifdef WOLFSSL_TICKET_HAVE_ID
+    byte            id[ID_LEN];
+#endif
+} InternalTicket;
+
+#ifndef WOLFSSL_TICKET_EXTRA_PADDING_SZ
+#define WOLFSSL_TICKET_EXTRA_PADDING_SZ 32
+#endif
+
+#if defined(WOLFSSL_GENERAL_ALIGNMENT) && WOLFSSL_GENERAL_ALIGNMENT > 0
+    /* round up to WOLFSSL_GENERAL_ALIGNMENT */
+    #define WOLFSSL_TICKET_ENC_SZ \
+        (((sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ) + \
+            WOLFSSL_GENERAL_ALIGNMENT - 1) & ~(WOLFSSL_GENERAL_ALIGNMENT-1))
+#else
+    #define WOLFSSL_TICKET_ENC_SZ \
+        (sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
+#endif
+
+/* RFC 5077 defines this for session tickets. All members need to be a byte or
+ * array of byte to avoid alignment issues */
+typedef struct ExternalTicket {
+    byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name - 16 */
+    byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv - 16 */
+    byte enc_len[OPAQUE16_LEN];             /* encrypted length - 2 */
+    byte enc_ticket[WOLFSSL_TICKET_ENC_SZ];
+                                            /* encrypted internal ticket */
+    byte mac[WOLFSSL_TICKET_MAC_SZ];        /* total mac - 32 */
+} ExternalTicket;
+
+/* Cast to int to reduce amount of casts in code */
+#define SESSION_TICKET_LEN ((int)sizeof(ExternalTicket))
+#define WOLFSSL_TICKET_FIXED_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_ENC_SZ)
 
 typedef struct SessionTicket {
     word32 lifetime;
@@ -2779,13 +2836,6 @@ WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-/* Ticket nonce - for deriving PSK.
- * Length allowed to be: 1..255. Only support 4 bytes.
- */
-typedef struct TicketNonce {
-    byte len;
-    byte data[MAX_TICKET_NONCE_SZ];
-} TicketNonce;
 
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {

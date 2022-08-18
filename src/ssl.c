@@ -33350,6 +33350,7 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
     int                     len = 0;
     int                     ret = WOLFSSL_TICKET_RET_FATAL;
     int                     res;
+    int                     totalSz = 0;
 
     (void)ctx;
 
@@ -33386,27 +33387,30 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         goto end;
     }
 
+    if (wolfSSL_HMAC_size(&hmacCtx) > WOLFSSL_TICKET_MAC_SZ) {
+        WOLFSSL_MSG("Ticket cipher MAC size error");
+        goto end;
+    }
+
     if (enc)
     {
         /* Encrypt in place. */
         if (!wolfSSL_EVP_CipherUpdate(evpCtx, encTicket, &len,
                                       encTicket, encTicketLen))
             goto end;
-        encTicketLen = len;
-        if (!wolfSSL_EVP_EncryptFinal(evpCtx, &encTicket[encTicketLen], &len))
+        totalSz = len;
+        if (totalSz > *encLen)
+            goto end;
+        if (!wolfSSL_EVP_EncryptFinal(evpCtx, &encTicket[len], &len))
             goto end;
         /* Total length of encrypted data. */
-        encTicketLen += len;
-        *encLen = encTicketLen;
+        totalSz += len;
+        if (totalSz > *encLen)
+            goto end;
 
         /* HMAC the encrypted data into the parameter 'mac'. */
-        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
+        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, totalSz))
             goto end;
-#ifdef WOLFSSL_SHA512
-        /* Check for SHA512, which would overrun the mac buffer */
-        if (hmacCtx.hmac.macType == WC_SHA512)
-            goto end;
-#endif
         if (!wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz))
             goto end;
     }
@@ -33424,12 +33428,17 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         if (!wolfSSL_EVP_CipherUpdate(evpCtx, encTicket, &len,
                                       encTicket, encTicketLen))
             goto end;
-        encTicketLen = len;
-        if (!wolfSSL_EVP_DecryptFinal(evpCtx, &encTicket[encTicketLen], &len))
+        totalSz = len;
+        if (totalSz > encTicketLen)
+            goto end;
+        if (!wolfSSL_EVP_DecryptFinal(evpCtx, &encTicket[len], &len))
             goto end;
         /* Total length of decrypted data. */
-        *encLen = encTicketLen + len;
+        totalSz += len;
+        if (totalSz > encTicketLen)
+            goto end;
     }
+    *encLen = totalSz;
 
     if (res == TICKET_KEY_CB_RET_RENEW && !IsAtLeastTLSv1_3(ssl->version)
             && !enc)
