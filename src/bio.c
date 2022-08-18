@@ -1865,7 +1865,7 @@ int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD *biom,
 int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
         wolfSSL_BIO_meth_destroy_cb biom_destroy)
 {
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_destroy");
+    WOLFSSL_ENTER("wolfSSL_BIO_meth_set_destroy");
     if (biom) {
         biom->freeCb = biom_destroy;
         return WOLFSSL_SUCCESS;
