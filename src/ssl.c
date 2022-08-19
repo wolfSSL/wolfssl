@@ -30628,11 +30628,8 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
 {
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
-    (void)idx;
-    (void)arg;
-    (void)a;
-    (void)b;
-    (void)c;
+
+    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(idx, arg, a, b, c);
 
     return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX);
 }
@@ -30645,14 +30642,9 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
         WOLFSSL_CRYPTO_EX_new* cb1, WOLFSSL_CRYPTO_EX_dup* cb2,
         WOLFSSL_CRYPTO_EX_free* cb3)
 {
-
     WOLFSSL_ENTER("wolfSSL_get_ex_new_index");
 
-    (void)argValue;
-    (void)arg;
-    (void)cb1;
-    (void)cb2;
-    (void)cb3;
+    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(argValue, arg, cb1, cb2, cb3);
 
     return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL);
 }
@@ -31400,11 +31392,7 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
        void* cb2, CRYPTO_free_func* cb3)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_new_index");
-    (void)idx;
-    (void)cb1;
-    (void)cb2;
-    (void)cb3;
-    (void)data;
+    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(idx, data, cb1, cb2, cb3);
     return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION);
 }
 #endif
@@ -38116,11 +38104,9 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_free* free_func)
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
-    (void)argl;
-    (void)argp;
-    (void)new_func;
-    (void)dup_func;
-    (void)free_func;
+
+    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(argl, argp, new_func, dup_func,
+                                         free_func);
 
     return wolfssl_get_ex_new_index(class_index);
 }
