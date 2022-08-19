@@ -6797,6 +6797,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (ctx->protoMsgCb != NULL) {
         ssl->toInfoOn = 1;
     }
+
+    ssl->disabledCurves = ctx->disabledCurves;
 #endif
 
     InitCiphers(ssl);

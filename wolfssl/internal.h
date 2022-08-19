@@ -4668,6 +4668,7 @@ struct WOLFSSL {
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
+    word32            disabledCurves;    /* curves disabled by user */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     unsigned long    peerVerifyRet;
@@ -5251,10 +5252,8 @@ WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif
 
 #if defined(OPENSSL_EXTRA)
-WOLFSSL_LOCAL int wolfSSL_CTX_curve_is_disabled(WOLFSSL_CTX* ctx, word16 named_curve);
 WOLFSSL_LOCAL int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 named_curve);
 #else
-#define wolfSSL_CTX_curve_is_disabled(ctx, c)   ((void)(ctx), (void)(c), 0)
 #define wolfSSL_curve_is_disabled(ssl, c)   ((void)(ssl), (void)(c), 0)
 #endif
 
