@@ -5534,7 +5534,7 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
         for (i = 0; i < sz; i++) {
             if ((valLen = XSNPRINTF(
                      scratch + scratchLen, scratchSz - scratchLen,
-                     "%02x%s", serial[i], (i < sz - 1) ? 
+                     "%02x%s", serial[i], (i < sz - 1) ?
                      (delimiter ? ":" : "") : "\n"))
                 >= scratchSz - scratchLen)
             {
@@ -5944,17 +5944,25 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig, int sigSz, int sig
     if (obj != NULL)
         wolfSSL_ASN1_OBJECT_free(obj);
 
-    return ret; 
+    return ret;
 }
 
 static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         int algOnly, int indent)
 {
     int sigSz = 0;
-    wolfSSL_X509_get_signature(x509, NULL, &sigSz);
+    if (wolfSSL_X509_get_signature(x509, NULL, &sigSz) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
     if (sigSz > 0) {
         unsigned char* sig;
-        int sigNid = wolfSSL_X509_get_signature_nid(x509);
+        int sigNid;
+
+        sigNid = wolfSSL_X509_get_signature_nid(x509);
+        if (sigNid <= 0) {
+            return WOLFSSL_FAILURE;
+        }
 
         sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sig == NULL) {
