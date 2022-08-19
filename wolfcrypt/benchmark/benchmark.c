@@ -1301,8 +1301,9 @@ static const char* bench_result_words2[][5] = {
         genTimes   = BENCH_MAX_PENDING,
         agreeTimes = 2
     };
-    static int    numBlocks  = 25; /* how many kB to test (en/de)cryption */
-    static word32 bench_size = (1024ul);
+    /* how many kB to test (en/de)cryption */
+    #define NUM_BLOCKS 25
+    #define BENCH_SIZE (1024uL)
 #else
     enum BenchmarkBounds {
         scryptCnt  = 10,
@@ -1310,9 +1311,12 @@ static const char* bench_result_words2[][5] = {
         genTimes   = BENCH_MAX_PENDING, /* must be at least BENCH_MAX_PENDING */
         agreeTimes = 100
     };
-    static int    numBlocks  = 5; /* how many megs to test (en/de)cryption */
-    static word32 bench_size = (1024*1024UL);
+    /* how many megs to test (en/de)cryption */
+    #define NUM_BLOCKS 5
+    #define BENCH_SIZE (1024*1024uL)
 #endif
+static int    numBlocks  = NUM_BLOCKS;
+static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
 #ifndef NO_RSA
@@ -1374,14 +1378,9 @@ static void benchmark_static_init(void)
         gBenchStaticInit = 1;
 
         /* Init static variables */
+        numBlocks  = NUM_BLOCKS;
+        bench_size = BENCH_SIZE;
         bench_all = 1;
-    #ifdef BENCH_EMBEDDED
-        numBlocks  = 25; /* how many kB to test (en/de)cryption */
-        bench_size = (1024ul);
-    #else
-        numBlocks  = 5; /* how many megs to test (en/de)cryption */
-        bench_size = (1024*1024UL);
-    #endif
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         aesAuthAddSz    = AES_AUTH_ADD_SZ;
         aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
