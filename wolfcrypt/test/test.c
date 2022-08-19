@@ -1515,7 +1515,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     char* myoptarg = NULL;
 #endif
 
+#ifndef NO_MAIN_FUNCTION
     int main(int argc, char** argv)
+    {
+        return wolfcrypt_test_main(argc, argv);
+    }
+#endif
+
+    int wolfcrypt_test_main(int argc, char** argv)
 #endif
     {
         int ret;
