@@ -8179,44 +8179,56 @@ static void print_alg(const char* str, int* line)
 static void Usage(void)
 {
 #ifndef WOLFSSL_BENCHMARK_ALL
-    int i;
+    int i, e = 0;
     int line;
 #endif
 
     printf("benchmark\n");
-    printf("%s", bench_Usage_msg1[lng_index][0]);    /* option -? */
-    printf("%s", bench_Usage_msg1[lng_index][1]);    /* option -csv */
-    printf("%s", bench_Usage_msg1[lng_index][2]);    /* option -base10 */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -? */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -csv */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -base10 */
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-    printf("%s", bench_Usage_msg1[lng_index][3]);    /* option -no_add */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -no_aad */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -both_aad */
+#else
+    e += 2;
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][4]);    /* option -dgst_full */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
 #ifndef NO_RSA
-    printf("%s", bench_Usage_msg1[lng_index][5]);    /* option -ras_sign */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -ras_sign */
     #ifdef WOLFSSL_KEY_GEN
-    printf("%s", bench_Usage_msg1[lng_index][6]);    /* option -rsa-sz */
+    printf("%s", bench_Usage_msg1[lng_index][e]);    /* option -rsa-sz */
     #endif
+    e++;
+#else
+    e += 2;
 #endif
 #if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
-    printf("%s", bench_Usage_msg1[lng_index][7]);    /* option -ffdhe2048 */
+    printf("%s", bench_Usage_msg1[lng_index][e]);    /* option -ffdhe2048 */
 #endif
+    e++;
 #if !defined(NO_DH) && defined(HAVE_FFDHE_3072)
-    printf("%s", bench_Usage_msg1[lng_index][8]);    /* option -ffdhe3072 */
+    printf("%s", bench_Usage_msg1[lng_index][e]);    /* option -ffdhe3072 */
 #endif
+    e++;
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
-    printf("%s", bench_Usage_msg1[lng_index][9]);    /* option -p256 */
+    printf("%s", bench_Usage_msg1[lng_index][e]);    /* option -p256 */
 #endif
+    e++;
 #if defined(HAVE_ECC) && defined(HAVE_ECC384)
-    printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -p384 */
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -p384 */
 #endif
+    e++;
 #if defined(HAVE_ECC) && defined(HAVE_ECC521)
-    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -p521 */
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -p521 */
 #endif
+    e++;
 #if defined(HAVE_ECC)
-    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -ecc-all */
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -ecc-all */
 #endif
+    e++;
 #ifndef WOLFSSL_BENCHMARK_ALL
-    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -<alg> */
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -<alg> */
     printf("             ");
     line = 13;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
@@ -8249,12 +8261,15 @@ static void Usage(void)
 #endif /* HAVE_LIBOQS */
 #endif /* HAVE_PQC */
 #endif /* !WOLFSSL_BENCHMARK_ALL */
-    printf("%s", bench_Usage_msg1[lng_index][14]);   /* option -lng */
-    printf("%s", bench_Usage_msg1[lng_index][15]);   /* option <num> */
+    e++;
+    printf("%s", bench_Usage_msg1[lng_index][e++]);   /* option -lng */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);   /* option <num> */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);   /* option -blocks <num> */
 #ifdef WC_ENABLE_BENCH_THREADING
-    printf("%s", bench_Usage_msg1[lng_index][16]);   /* option -threads <num> */
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -threads <num> */
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][17]);   /* option -print */
+    e++;
+    printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -print */
 }
 
 /* Match the command line argument with the string.
