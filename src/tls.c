@@ -10324,7 +10324,7 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             else
                 ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
 
-            return TLSX_EarlyData_Use(ssl, 0);
+            return TLSX_EarlyData_Use(ssl, 0, 0);
         }
         ssl->earlyData = early_data_ext;
 
@@ -10347,7 +10347,7 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
         }
 
-        return TLSX_EarlyData_Use(ssl, 1);
+        return TLSX_EarlyData_Use(ssl, 1, 1);
     }
     if (msgType == session_ticket) {
         word32 maxSz;
@@ -10368,9 +10368,10 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
  *
  * ssl    The SSL/TLS object.
  * maxSz  The maximum early data size.
+ * is_response   if this extension is part of a response
  * returns 0 on success and other values indicate failure.
  */
-int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz)
+int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz, int is_response)
 {
     int   ret = 0;
     TLSX* extension;
@@ -10388,7 +10389,7 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz)
             return MEMORY_E;
     }
 
-    extension->resp = 1;
+    extension->resp = is_response;
     extension->val  = maxSz;
 
     return 0;
