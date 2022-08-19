@@ -1037,7 +1037,8 @@ static int test_quic_client_hello(int verbose) {
     /* Set transport params, expect both extensions */
     QuicTestContext_init(&tctx, ctx, "client", verbose);
 #ifdef HAVE_SNI
-    wolfSSL_UseSNI(tctx.ssl, WOLFSSL_SNI_HOST_NAME, "wolfssl.com", sizeof("wolfssl.com")-1);
+    wolfSSL_UseSNI(tctx.ssl, WOLFSSL_SNI_HOST_NAME,
+                   "wolfssl.com", sizeof("wolfssl.com")-1);
 #endif
     AssertTrue(wolfSSL_connect(tctx.ssl) != 0);
     AssertIntEQ(wolfSSL_get_error(tctx.ssl, 0), SSL_ERROR_WANT_READ);
@@ -1106,9 +1107,11 @@ static int test_quic_server_hello(int verbose) {
     AssertIntEQ(tserver.output.len, 0);
     /* what have we seen? */
 #ifdef HAVE_SESSION_TICKET
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
 #else
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Certificate:CertificateVerify:Finished:Finished");
 #endif
     /* we are at application encryption level */
     AssertTrue(wolfSSL_quic_read_level(tclient.ssl) == wolfssl_encryption_application);
@@ -1158,8 +1161,8 @@ static int test_quic_key_share(int verbose) {
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
-    AssertStrEQ(conv.rec_log,
-        "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
@@ -1174,7 +1177,8 @@ static int test_quic_key_share(int verbose) {
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     AssertStrEQ(conv.rec_log,
-        "ClientHello:ServerHello:ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+        "ClientHello:ServerHello:ClientHello:ServerHello:EncryptedExtension:"
+            "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
@@ -1207,7 +1211,8 @@ static int test_quic_resumption(int verbose) {
     /* run till end */
     QuicConversation_do(&conv);
     /* what have we seen? */
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
 
     /* Should have received a session ticket, save the session
      * and also make a serialized/deserialized copy to check that persisting
@@ -1232,7 +1237,8 @@ static int test_quic_resumption(int verbose) {
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     /* this is what should happen. Look Ma, no certificate! */
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Finished:Finished:SessionTicket");
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
@@ -1244,12 +1250,12 @@ static int test_quic_resumption(int verbose) {
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     /* this is what should happen. Look Ma, no certificate! */
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Finished:Finished:SessionTicket");
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
-    if (/*disables code*/(0)) {
-        /* FIXME: this fails with a RSA Padding error in DoTls13CertificateVerify */
+    {
         /* Do a Session resumption with a new server ctx */
         WOLFSSL_CTX *ctx_s2;
         AssertNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
@@ -1262,7 +1268,8 @@ static int test_quic_resumption(int verbose) {
         /* let them talk */
         QuicConversation_init(&conv, &tclient, &tserver);
         QuicConversation_do(&conv);
-        AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:XEncryptedExtension:Finished:Finished:SessionTicket");
+        AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+            "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
         QuicTestContext_free(&tclient);
         QuicTestContext_free(&tserver);
         wolfSSL_CTX_free(ctx_s2);
@@ -1306,7 +1313,8 @@ static int test_quic_early_data(int verbose) {
     /* run till end */
     QuicConversation_do(&conv);
     /* what have we seen? */
-    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+    AssertStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+        "Certificate:CertificateVerify:Finished:Finished:SessionTicket");
 
     /* Should have received a session ticket, save the session */
     AssertTrue(tclient.ticket_len > 0);
@@ -1466,7 +1474,7 @@ int QuicTest(void)
     if ((ret = test_quic_server_hello(verbose)) != 0) goto leave;
 #ifdef HAVE_SESSION_TICKET
     if ((ret = test_quic_key_share(verbose)) != 0) goto leave;
-    if ((ret = test_quic_resumption(verbose || 1)) != 0) goto leave;
+    if ((ret = test_quic_resumption(verbose)) != 0) goto leave;
 #ifdef WOLFSSL_EARLY_DATA
     if ((ret = test_quic_early_data(verbose)) != 0) goto leave;
 #endif /* WOLFSSL_EARLY_DATA */
