@@ -1619,28 +1619,28 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
     blocks *= countSz;
 
     if (base2) {
-        /* determine if we should show as KB or MB */
+        /* determine if we should show as KiB or MiB */
         if (blocks > (1024UL * 1024UL)) {
             blocks /= (1024UL * 1024UL);
-            blockType = "MB";
+            blockType = "MiB";
         }
         else if (blocks > 1024) {
-            blocks /= 1024; /* make KB */
-            blockType = "KB";
+            blocks /= 1024;
+            blockType = "KiB";
         }
         else {
             blockType = "bytes";
         }
     }
     else {
-        /* determine if we should show as kB or mB */
+        /* determine if we should show as KB or MB */
         if (blocks > (1000UL * 1000UL)) {
             blocks /= (1000UL * 1000UL);
-            blockType = "mB";
+            blockType = "MB";
         }
         else if (blocks > 1000) {
-            blocks /= 1000; /* make kB */
-            blockType = "kB";
+            blocks /= 1000; /* make KB */
+            blockType = "KB";
         }
         else {
             blockType = "bytes";
