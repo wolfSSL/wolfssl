@@ -10388,7 +10388,6 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz)
             return MEMORY_E;
     }
 
-    extension->resp = 1;
     extension->val  = maxSz;
 
     return 0;
