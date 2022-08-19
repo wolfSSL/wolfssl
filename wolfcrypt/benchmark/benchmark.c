@@ -876,7 +876,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][19] = {
+static const char* bench_Usage_msg1[][20] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
@@ -895,6 +895,8 @@ static const char* bench_Usage_msg1[][19] = {
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
+        "-blocks <num>  Number of blocks. Can be used together with the 'Size of block'\n"
+        "            option, but must be used after that one.\n"
         "-threads <num> Number of threads to run\n",
         "-print      Show benchmark stats summary\n"
     },
@@ -917,6 +919,7 @@ static const char* bench_Usage_msg1[][19] = {
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
+        "-blocks <num>  TBD.\n",
         "-threads <num> 実行するスレッド数\n",
         "-print      ベンチマーク統計の要約を表示する\n"
     },
@@ -8378,6 +8381,12 @@ int main(int argc, char** argv)
             gPrintStats = 1;
         }
 #endif
+        else if (string_matches(argv[1], "-blocks")) {
+            argc--;
+            argv++;
+            if (argc > 1)
+                numBlocks = XATOI(argv[1]);
+        }
         else if (argv[1][0] == '-') {
             optMatched = 0;
 #ifndef WOLFSSL_BENCHMARK_ALL
