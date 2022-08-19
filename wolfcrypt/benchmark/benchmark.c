@@ -1702,10 +1702,10 @@ static void bench_stats_asym_finish(const char* algo, int strength,
         /* only print out header once */
         if (csv_header_count == 1) {
             printf("\nAsymmetric Ciphers:\n\n");
-            printf("Algorithm,avg ms,ops/sec,\n");
+            printf("Algorithm,key size,operation,avg ms,ops/sec,\n");
             csv_header_count++;
         }
-        (void)XSNPRINTF(msg, sizeof(msg), "%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%d,%s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
     } else {
         (void)XSNPRINTF(msg, sizeof(msg), "%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
         " %.3f %s\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(useDeviceID),
