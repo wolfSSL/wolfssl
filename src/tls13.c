@@ -3523,7 +3523,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->earlyData == no_early_data)
         TLSX_Remove(&ssl->extensions, TLSX_EARLY_DATA, ssl->heap);
     if (ssl->earlyData != no_early_data &&
-                                       (ret = TLSX_EarlyData_Use(ssl, 0)) < 0) {
+        (ret = TLSX_EarlyData_Use(ssl, 0, 0)) < 0) {
         return ret;
     }
 #endif
@@ -9097,7 +9097,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #ifdef WOLFSSL_EARLY_DATA
     ssl->session->maxEarlyDataSz = ssl->options.maxEarlyDataSz;
     if (ssl->session->maxEarlyDataSz > 0)
-        TLSX_EarlyData_Use(ssl, ssl->session->maxEarlyDataSz);
+        TLSX_EarlyData_Use(ssl, ssl->session->maxEarlyDataSz, 1);
     extSz = 0;
     ret = TLSX_GetResponseSize(ssl, session_ticket, &extSz);
     if (ret != 0)

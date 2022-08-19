@@ -1381,7 +1381,7 @@ int QuicTest(void)
 #ifdef HAVE_SESSION_TICKET
     if ((ret = test_quic_resumption(verbose)) != 0) goto leave;
 #ifdef WOLFSSL_EARLY_DATA
-    if ((ret = test_quic_early_data(verbose)) != 0) goto leave;
+    if ((ret = test_quic_early_data(verbose || 1)) != 0) goto leave;
 #endif /* WOLFSSL_EARLY_DATA */
     if ((ret = test_quic_session_export(verbose)) != 0) goto leave;
 #endif /* HAVE_SESSION_TICKET */

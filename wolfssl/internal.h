@@ -2827,7 +2827,7 @@ enum PskKeyExchangeMode {
 WOLFSSL_LOCAL int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes);
 
 #ifdef WOLFSSL_EARLY_DATA
-WOLFSSL_LOCAL int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max);
+WOLFSSL_LOCAL int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max, int is_response);
 #endif
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
