@@ -1371,22 +1371,33 @@ static THREAD_LS_T byte* bench_iv = NULL;
 
 /* This code handles cases with systems where static (non cost) ram variables
     aren't properly initialized with data */
-static int gBenchStaticInit = 0;
-static void benchmark_static_init(void)
+static void benchmark_static_init(int force)
 {
-    if (gBenchStaticInit == 0) {
+    static int gBenchStaticInit = 0;
+    if (gBenchStaticInit == 0 || force) {
         gBenchStaticInit = 1;
 
         /* Init static variables */
         numBlocks  = NUM_BLOCKS;
         bench_size = BENCH_SIZE;
-        bench_all = 1;
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         aesAuthAddSz    = AES_AUTH_ADD_SZ;
         aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
     #endif
         base2 = 1;
         digest_stream = 1;
+
+        bench_all = 1;
+        bench_cipher_algs = 0;
+        bench_digest_algs = 0;
+        bench_mac_algs = 0;
+        bench_asym_algs = 0;
+        bench_pq_asym_algs = 0;
+        bench_other_algs = 0;
+        csv_format = 0;
+#ifdef BENCH_ASYM
+        csv_header_count = 0;
+#endif
     }
 }
 
@@ -2535,7 +2546,7 @@ int benchmark_init(void)
 {
     int ret = 0;
 
-    benchmark_static_init();
+    benchmark_static_init(0);
 
 #ifdef WOLFSSL_STATIC_MEMORY
     ret = wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory, sizeof(gBenchMemory),
@@ -8276,7 +8287,7 @@ int main(int argc, char** argv)
 #endif
 #endif
 
-    benchmark_static_init();
+    benchmark_static_init(1);
 
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
