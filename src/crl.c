@@ -90,10 +90,19 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
     crle->lastDateFormat = dcrl->lastDateFormat;
     crle->nextDateFormat = dcrl->nextDateFormat;
-
+    crle->version = dcrl->version;
+#if defined(OPENSSL_EXTRA)
+    crle->issuer = NULL;
+    wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
+            XSTRLEN((const char*)dcrl->issuer));
+    if (crle->issuer == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
     crle->certs = dcrl->certs;   /* take ownsership */
     dcrl->certs = NULL;
     crle->totalCerts = dcrl->totalCerts;
+    crle->crlNumber = dcrl->crlNumber;
     crle->verified = verified;
     if (!verified) {
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
@@ -146,7 +155,12 @@ static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
         XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
     if (crle->toBeSigned != NULL)
         XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
-
+#if defined(OPENSSL_EXTRA)
+    if (crle->issuer != NULL) {
+        FreeX509Name(crle->issuer);
+        XFREE(crle->issuer, heap, DYNAMIC_TYPE_X509);
+    }
+#endif
     (void)heap;
 }
 
@@ -558,6 +572,9 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
             XMEMCPY(tmp->serialNumber, current->serialNumber,
                     EXTERNAL_SERIAL_SIZE);
             tmp->serialSz = current->serialSz;
+            XMEMCPY(tmp->revDate, current->revDate,
+                    MAX_DATE_SIZE);
+            tmp->revDateFormat = current->revDateFormat;
             tmp->next = NULL;
             if (prev != NULL)
                 prev->next = tmp;

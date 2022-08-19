@@ -5504,69 +5504,77 @@ static int X509PrintExtendedKeyUsage(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
 /* print serial number out
  * return WOLFSSL_SUCCESS on success
  */
-static int X509PrintSerial(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
+static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
+        int delimiter, int indent)
 {
-    unsigned char serial[32];
-    int  sz = sizeof(serial);
     char scratch[MAX_WIDTH];
     const int scratchSz = sizeof(scratch);
     int scratchLen;
 
-    XMEMSET(serial, 0, sz);
-    if (wolfSSL_X509_get_serial_number(x509, serial, &sz) == WOLFSSL_SUCCESS) {
-        if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*sSerial Number:",
-                                     indent, "")) >= MAX_WIDTH) {
+    if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*sSerial Number:",
+                                 indent, "")) >= MAX_WIDTH) {
+        WOLFSSL_MSG("buffer overrun");
+        return WOLFSSL_FAILURE;
+    }
+    if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (sz > (int)sizeof(byte)) {
+        int i;
+        int valLen;
+
+        /* serial is larger than int size so print off hex values */
+        if ((scratchLen = XSNPRINTF(
+                 scratch, MAX_WIDTH, "\n%*s", indent, ""))
+                >= MAX_WIDTH) {
+            WOLFSSL_MSG("buffer overrun");
+            return WOLFSSL_FAILURE;
+        }
+        for (i = 0; i < sz; i++) {
+            if ((valLen = XSNPRINTF(
+                     scratch + scratchLen, scratchSz - scratchLen,
+                     "%02x%s", serial[i], (i < sz - 1) ? 
+                     (delimiter ? ":" : "") : "\n"))
+                >= scratchSz - scratchLen)
+            {
+                WOLFSSL_MSG("buffer overrun");
+                return WOLFSSL_FAILURE;
+            }
+            scratchLen += valLen;
+        }
+        if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    /* if serial can fit into byte then print on the same line */
+    else  {
+        if ((scratchLen = XSNPRINTF(
+                 scratch, MAX_WIDTH, " %d (0x%x)\n", serial[0], serial[0]))
+            >= MAX_WIDTH)
+        {
             WOLFSSL_MSG("buffer overrun");
             return WOLFSSL_FAILURE;
         }
         if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
             return WOLFSSL_FAILURE;
         }
-
-        if (sz > (int)sizeof(byte)) {
-            int i;
-            int valLen;
-
-            /* serial is larger than int size so print off hex values */
-            if ((scratchLen = XSNPRINTF(
-                     scratch, MAX_WIDTH, "\n%*s", indent, ""))
-                    >= MAX_WIDTH) {
-                WOLFSSL_MSG("buffer overrun");
-                return WOLFSSL_FAILURE;
-            }
-            for (i = 0; i < sz; i++) {
-                if ((valLen = XSNPRINTF(
-                         scratch + scratchLen, scratchSz - scratchLen,
-                         "%02x%s", serial[i], (i < sz - 1) ? ":" : "\n"))
-                    >= scratchSz - scratchLen)
-                {
-                    WOLFSSL_MSG("buffer overrun");
-                    return WOLFSSL_FAILURE;
-                }
-                scratchLen += valLen;
-            }
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
-                return WOLFSSL_FAILURE;
-            }
-        }
-
-        /* if serial can fit into byte then print on the same line */
-        else  {
-            if ((scratchLen = XSNPRINTF(
-                     scratch, MAX_WIDTH, " %d (0x%x)\n", serial[0], serial[0]))
-                >= MAX_WIDTH)
-            {
-                WOLFSSL_MSG("buffer overrun");
-                return WOLFSSL_FAILURE;
-            }
-            if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
-                return WOLFSSL_FAILURE;
-            }
-        }
     }
     return WOLFSSL_SUCCESS;
 }
 
+static int X509PrintSerial(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
+{
+    unsigned char serial[32];
+    int  sz = sizeof(serial);
+
+    XMEMSET(serial, 0, sz);
+    if (wolfSSL_X509_get_serial_number(x509, serial, &sz) == WOLFSSL_SUCCESS) {
+        X509PrintSerial_ex(bio, serial, sz, 1, indent);
+    }
+    return WOLFSSL_SUCCESS;
+}
 
 /* iterate through certificate extensions printing them out in human readable
  * form
@@ -5804,25 +5812,20 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
  * wolfSSL_X509_print()
  * return WOLFSSL_SUCCESS on success
  */
-static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
+static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig, int sigSz, int sigNid,
+        int algOnly, int indent)
 {
     char scratch[MAX_WIDTH];
     int scratchLen;
-    unsigned char* sig = NULL;
-    int sigSz = 0;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     int ret = WOLFSSL_SUCCESS;
     int i;
     char tmp[100];
     int tmpLen = 0;
-    int sigNid;
 
-    wolfSSL_X509_get_signature(x509, NULL, &sigSz);
     if (sigSz <= 0) {
         return WOLFSSL_SUCCESS;
     }
-
-    sigNid = wolfSSL_X509_get_signature_nid(x509);
 
     if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s%s", indent, "",
                                 "Signature Algorithm: ")) >= MAX_WIDTH) {
@@ -5859,19 +5862,17 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
             ret = WOLFSSL_FAILURE;
     }
 
-    if (ret == WOLFSSL_SUCCESS) {
-        sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sig == NULL)
-            ret = WOLFSSL_FAILURE;
+    /* Leave function if the desired content to print
+     * is only the signature algorithm */
+    if (algOnly) {
+        if (obj != NULL)
+            wolfSSL_ASN1_OBJECT_free(obj);
+
+        return ret;
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (wolfSSL_X509_get_signature(x509, sig, &sigSz) <= 0)
-            ret = WOLFSSL_FAILURE;
-    }
-
-    if (ret == WOLFSSL_SUCCESS) {
-        if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%*s", indent + 4, ""))
+        if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%*s", indent + 5, ""))
             >= (int)sizeof(tmp))
         {
             ret = WOLFSSL_FAILURE;
@@ -5898,7 +5899,7 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                     break;
                 }
                 if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), ":\n%*s",
-                                        indent + 4, ""))
+                                        indent + 5, ""))
                     >= (int)sizeof(tmp))
                 {
                     ret = WOLFSSL_FAILURE;
@@ -5943,10 +5944,41 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     if (obj != NULL)
         wolfSSL_ASN1_OBJECT_free(obj);
 
-    if (sig != NULL)
-        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret; 
+}
 
-    return ret;
+static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
+        int algOnly, int indent)
+{
+    int sigSz = 0;
+    wolfSSL_X509_get_signature(x509, NULL, &sigSz);
+    if (sigSz > 0) {
+        unsigned char* sig;
+        int sigNid = wolfSSL_X509_get_signature_nid(x509);
+
+        sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sig == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_X509_get_signature(x509, sig, &sigSz) <= 0) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (X509PrintSignature_ex(bio, sig, sigSz, sigNid, algOnly, indent)
+                != WOLFSSL_SUCCESS) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (sig != NULL) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+    }
+
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -6012,16 +6044,10 @@ static int X509PrintName(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 /* human readable print out of x509 version
  * return WOLFSSL_SUCCESS on success
  */
-static int _wolfSSL_X509_version_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
-        int indent)
+static int X509PrintVersion(WOLFSSL_BIO* bio, int version, int indent)
 {
-    int version;
     char scratch[MAX_WIDTH];
     int scratchLen;
-
-    if ((version = wolfSSL_X509_version(x509)) < 0) {
-        return WOLFSSL_FAILURE;
-    }
 
     if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
                                  "%*s%s", indent, "", "Version:"))
@@ -6044,7 +6070,6 @@ static int _wolfSSL_X509_version_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     }
     return WOLFSSL_SUCCESS;
 }
-
 
 #ifdef WOLFSSL_CERT_REQ
 /* Print out of REQ attributes
@@ -6127,7 +6152,7 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     }
 
     /* print version of cert */
-    if (_wolfSSL_X509_version_print(bio, x509, 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -6157,7 +6182,7 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     }
 
     /* print out signature */
-    if (X509PrintSignature(bio, x509, 4) != WOLFSSL_SUCCESS) {
+    if (X509PrintSignature(bio, x509, 0, 4) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -6205,7 +6230,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     }
 
     /* print version of cert */
-    if (_wolfSSL_X509_version_print(bio, x509, 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -6214,26 +6239,9 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
         return WOLFSSL_FAILURE;
     }
 
-    /* print signature algo */
-    {
-        int oid;
-        const char* sig;
-
-        if ((oid = wolfSSL_X509_get_signature_type(x509)) <= 0) {
-            WOLFSSL_MSG("Error getting x509 signature type");
-            return WOLFSSL_FAILURE;
-        }
-        if (wolfSSL_BIO_write(bio, "        Signature Algorithm: ",
-                      (int)XSTRLEN("        Signature Algorithm: ")) <= 0) {
-            return WOLFSSL_FAILURE;
-        }
-        sig = GetSigName(oid);
-        if (wolfSSL_BIO_write(bio, sig, (int)XSTRLEN(sig)) <= 0) {
-            return WOLFSSL_FAILURE;
-        }
-        if (wolfSSL_BIO_write(bio, "\n", (int)XSTRLEN("\n")) <= 0) {
-            return WOLFSSL_FAILURE;
-        }
+    /* print out signature algo*/
+    if (X509PrintSignature(bio, x509, 1, 8) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
     }
 
     /* print issuer */
@@ -6319,7 +6327,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     }
 
     /* print out signature */
-    if (X509PrintSignature(bio, x509, 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintSignature(bio, x509, 0, 8) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -7457,6 +7465,460 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
 
     return newcrl;
 }
+
+/* Retrieve issuer X509_NAME from CRL
+ * return X509_NAME*  on success
+ * return NULL on failure
+ */
+WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL* crl)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return NULL;
+
+    return crl->crlList->issuer;
+}
+
+/* Retrieve version from CRL
+ * return version on success
+ * return 0 on failure
+ */
+int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL* crl)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return 0;
+
+    return crl->crlList->version;
+}
+
+/* Retrieve sig OID from CRL
+ * return OID on success
+ * return 0 on failure
+ */
+int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return 0;
+
+    return crl->crlList->signatureOID;
+}
+
+/* Retrieve sig NID from CRL
+ * return NID on success
+ * return 0 on failure
+ */
+int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl)
+{
+    if (crl == NULL || crl->crlList == NULL)
+        return 0;
+
+    return oid2nid(crl->crlList->signatureOID, oidSigType);
+}
+
+/* Retrieve signature from CRL
+ * return WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
+    unsigned char* buf, int* bufSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_get_signature");
+
+    if (crl == NULL || crl->crlList == NULL || bufSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (buf != NULL)
+        XMEMCPY(buf, crl->crlList->signature, *bufSz);
+    *bufSz = (int)crl->crlList->signatureSz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Retrieve serial number from RevokedCert
+ * return WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
+    byte* in, int* inOutSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get_serial_number");
+    if (rev == NULL || inOutSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (in != NULL) {
+        if (*inOutSz < rev->serialSz) {
+            WOLFSSL_MSG("Serial buffer too small");
+            return BUFFER_E;
+        }
+        XMEMCPY(in, rev->serialNumber, rev->serialSz);
+    }
+    *inOutSz = rev->serialSz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* print serial number out
+* return WOLFSSL_SUCCESS on success
+*/
+static int X509RevokedPrintSerial(WOLFSSL_BIO* bio, RevokedCert* rev,
+    int indent)
+{
+    unsigned char serial[32];
+    int  sz = sizeof(serial);
+
+    XMEMSET(serial, 0, sz);
+    if (wolfSSL_X509_REVOKED_get_serial_number(rev, serial, &sz)
+            == WOLFSSL_SUCCESS) {
+        X509PrintSerial_ex(bio, serial, sz, 0, indent);
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* print out the signature in human readable format for use with
+* wolfSSL_X509_CRL_print()
+ * return WOLFSSL_SUCCESS on success
+ */
+static int X509CRLPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
+        int algOnly, int indent)
+{
+    int sigSz = 0;
+
+    if (wolfSSL_X509_CRL_get_signature(crl, NULL, &sigSz) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (sigSz > 0) {
+        unsigned char* sig;
+        int sigNid = wolfSSL_X509_CRL_get_signature_nid(crl);
+
+        sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sig == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_X509_CRL_get_signature(crl, sig, &sigSz) <= 0) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (X509PrintSignature_ex(bio, sig, sigSz, sigNid, algOnly, indent)
+                != WOLFSSL_SUCCESS) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (sig != NULL) {
+            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* print out the extensions in human readable format for use with
+ * wolfSSL_X509_CRL_print()
+ * return WOLFSSL_SUCCESS on success
+ */
+static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
+        int indent)
+{
+    char tmp[MAX_WIDTH]; /* buffer for XSNPRINTF */
+
+    if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent, "",
+                "CRL extensions:") >= MAX_WIDTH) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+    }
+
+    if (crl->crlList->crlNumber) {
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 4, "",
+                    "X509v3 CRL Number:") >= MAX_WIDTH) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%d\n", indent + 8, "",
+            crl->crlList->crlNumber) >= MAX_WIDTH)
+        {
+            return WOLFSSL_FAILURE;
+        }
+        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(tmp, 0, sizeof(tmp));
+    }
+
+#if !defined(NO_SKID)
+    if (crl->crlList->extAuthKeyIdSet && crl->crlList->extAuthKeyId[0] != 0) {
+        word32 i;
+        char val[5];
+        int valSz = 5;
+
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent + 4, "",
+                    "X509v3 Authority Key Identifier:") >= MAX_WIDTH) {
+            return WOLFSSL_FAILURE;
+        }
+
+        XSTRNCAT(tmp, "\n", MAX_WIDTH - XSTRLEN(tmp) - 1);
+
+        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(tmp, 0, MAX_WIDTH);
+
+        if (XSNPRINTF(tmp, MAX_WIDTH - 1, "%*s%s",
+                    indent + 8, "", "keyid") >= MAX_WIDTH) {
+            return WOLFSSL_FAILURE;
+        }
+
+
+        for (i = 0; i < XSTRLEN((char*)crl->crlList->extAuthKeyId); i++) {
+            /* check if buffer is almost full */
+            if (XSTRLEN(tmp) >= sizeof(tmp) - valSz) {
+                if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+                    return WOLFSSL_FAILURE;
+                }
+                tmp[0] = '\0';
+            }
+            if (XSNPRINTF(val, valSz, ":%02X", crl->crlList->extAuthKeyId[i])
+                >= valSz)
+            {
+                WOLFSSL_MSG("buffer overrun");
+                return WOLFSSL_FAILURE;
+            }
+            XSTRNCAT(tmp, val, valSz);
+        }
+        XSTRNCAT(tmp, "\n", XSTRLEN("\n") + 1);
+        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* iterate through a CRL's Revoked Certs and print out in human
+ * readable format for use with wolfSSL_X509_CRL_print()
+ * return WOLFSSL_SUCCESS on success
+ */
+static int X509CRLPrintRevoked(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
+        int indent)
+{
+    char tmp[MAX_WIDTH]; /* buffer for XSNPRINTF */
+    int i;
+
+    if (crl->crlList->totalCerts > 0) {
+        RevokedCert* revoked = crl->crlList->certs;
+
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent, "",
+                    "Revoked Certificates:") >= MAX_WIDTH) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(tmp, 0, MAX_WIDTH);
+
+        for (i = 0; i < crl->crlList->totalCerts; i++) {
+            if (revoked->serialSz > 0) {
+                if (X509RevokedPrintSerial(bio, revoked, indent + 4) != WOLFSSL_SUCCESS) {
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        #ifndef NO_ASN_TIME
+             if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent + 8, "",
+                         "Revocation Date: ") >= MAX_WIDTH) {
+                return WOLFSSL_FAILURE;
+            }
+
+            if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+                return WOLFSSL_FAILURE;
+            }
+
+            if (revoked->revDate[0] != 0) {
+                if (GetTimeString(revoked->revDate, ASN_UTC_TIME,
+                    tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                    if (GetTimeString(revoked->revDate, ASN_GENERALIZED_TIME,
+                    tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("Error getting revocation date");
+                        return WOLFSSL_FAILURE;
+                    }
+                }
+            }
+            else {
+                XSTRNCPY(tmp, "Not Set", MAX_WIDTH-1);
+            }
+            tmp[MAX_WIDTH - 1] = '\0'; /* make sure null terminated */
+            if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+                return WOLFSSL_FAILURE;
+            }
+
+            if (wolfSSL_BIO_write(bio, "\n", (int)XSTRLEN("\n")) <= 0) {
+                return WOLFSSL_FAILURE;
+            }
+        #endif
+            revoked = revoked->next;
+        }
+    }
+    else {
+        if (wolfSSL_BIO_write(bio, "No Revoked Certificates.\n",
+                       (int)XSTRLEN("No Revoked Certificates.\n")) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+#ifndef NO_ASN_TIME
+/* print out the last/next update times in human readable
+ * format for use with wolfSSL_X509_CRL_print()
+ * return WOLFSSL_SUCCESS on success
+ */
+static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
+        int indent)
+{
+    char tmp[MAX_WIDTH]; /* buffer for XSNPRINTF */
+
+    if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent, "",
+                "Last Update: ") >= MAX_WIDTH) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (crl->crlList->lastDate[0] != 0) {
+        if (GetTimeString(crl->crlList->lastDate, ASN_UTC_TIME,
+            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+            if (GetTimeString(crl->crlList->lastDate, ASN_GENERALIZED_TIME,
+            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Error getting last update date");
+                return WOLFSSL_FAILURE;
+            }
+        }
+    }
+    else {
+        XSTRNCPY(tmp, "Not Set", sizeof(tmp)-1);
+    }
+    tmp[sizeof(tmp) - 1] = '\0'; /* make sure null terminated */
+    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, "\n", (int)XSTRLEN("\n")) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent, "",
+                "Next Update: ") >= MAX_WIDTH) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (crl->crlList->nextDate[0] != 0) {
+        if (GetTimeString(crl->crlList->nextDate, ASN_UTC_TIME,
+            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+            if (GetTimeString(crl->crlList->nextDate, ASN_GENERALIZED_TIME,
+            tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Error getting next update date");
+                return WOLFSSL_FAILURE;
+            }
+        }
+    }
+    else {
+        XSTRNCPY(tmp, "Not Set", sizeof(tmp)-1);
+    }
+    tmp[sizeof(tmp) - 1] = '\0'; /* make sure null terminated */
+    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, "\n", (int)XSTRLEN("\n")) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+#if !defined(NO_BIO) && defined(XSNPRINTF)
+/* Writes the human readable form of x509 to bio.
+ *
+ * bio  WOLFSSL_BIO to write to.
+ * crl Certificate revocation list to write.
+ *
+ * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl)
+{
+    char issuType[] = "Issuer: ";
+
+    if (bio == NULL || crl == NULL || crl->crlList == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, "Certificate Revocation List (CRL):\n",
+                  (int)XSTRLEN("Certificate Revocation List (CRL):\n")) <= 0) {
+            return WOLFSSL_FAILURE;
+    }
+
+    /* print version */
+    if (X509PrintVersion(bio, wolfSSL_X509_CRL_version(crl), 8) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* print signature algo */
+    if (X509CRLPrintSignature(bio, crl, 1, 8) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* print issuer name */
+    if (X509PrintName(bio, wolfSSL_X509_CRL_get_issuer_name(crl), issuType, 8)
+            != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+#ifndef NO_ASN_TIME
+    /* print last and next update times */
+    if (X509CRLPrintDates(bio, crl, 8) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
+    /* print CRL extensions */
+    if (X509CRLPrintExtensions(bio, crl, 8) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* print CRL Revoked Certs */
+    if (X509CRLPrintRevoked(bio, crl, 0) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (X509CRLPrintSignature(bio, crl, 0, 4) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, "\n\0", (int)XSTRLEN("\n\0")) <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_BIO && XSNPRINTF */
 #endif /* HAVE_CRL */
 #endif /* OPENSSL_EXTRA */
 

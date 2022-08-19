@@ -32771,8 +32771,24 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-
 #ifdef HAVE_CRL
+
+#ifdef OPENSSL_EXTRA
+static char* GetNameFromDer(const byte* source, int sz)
+{
+    char* out;
+
+    out = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (out == NULL) {
+        WOLFSSL_MSG("Name malloc failed");
+        return NULL;
+    }
+
+    XMEMCPY(out, source, sz);
+
+    return out;
+}
+#endif
 
 /* initialize decoded CRL */
 void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
@@ -32799,6 +32815,10 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
         XFREE(tmp, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
+#ifdef OPENSSL_EXTRA
+    if (dcrl->issuer != NULL)
+        XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
 }
 
 
@@ -32835,7 +32855,6 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    ret, len;
     word32 end;
-    byte   b;
     RevokedCert* rc;
 
     WOLFSSL_ENTER("GetRevoked");
@@ -32864,12 +32883,13 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     dcrl->totalCerts++;
 
     /* get date */
-    ret = GetDateInfo(buff, idx, NULL, &b, NULL, maxIdx);
+#ifndef NO_ASN_TIME
+    ret = GetBasicDate(buff, idx, rc->revDate, &rc->revDateFormat, maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("Expecting Date");
         return ret;
     }
-
+#endif
     /* skip extensions */
     *idx = end;
 
@@ -32878,6 +32898,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     DECL_ASNGETDATA(dataASN, revokedASN_Length);
     int ret = 0;
     word32 serialSz = EXTERNAL_SERIAL_SIZE;
+    word32 revDateSz = MAX_DATE_SIZE;
     RevokedCert* rc;
 
     /* Allocate a new revoked certificate object. */
@@ -32893,6 +32914,11 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
         /* Set buffer to place serial number into. */
         GetASN_Buffer(&dataASN[REVOKEDASN_IDX_CERT], rc->serialNumber,
                 &serialSz);
+        /* Set buffer to store revocation date. */
+        GetASN_Buffer(&dataASN[REVOKEDASN_IDX_TIME_UTC], rc->revDate,
+                &revDateSz);
+        GetASN_Buffer(&dataASN[REVOKEDASN_IDX_TIME_GT], rc->revDate,
+                &revDateSz);
         /* Decode the Revoked */
         ret = GetASN_Items(revokedASN, dataASN, revokedASN_Length, 1, buff, idx,
                 maxIdx);
@@ -32900,7 +32926,10 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     if (ret == 0) {
         /* Store size of serial number. */
         rc->serialSz = serialSz;
-        /* TODO: use revocation date */
+        rc->revDateFormat = (dataASN[REVOKEDASN_IDX_TIME_UTC].tag != 0)
+                ? dataASN[REVOKEDASN_IDX_TIME_UTC].tag
+                : dataASN[REVOKEDASN_IDX_TIME_GT].tag;
+
         /* TODO: use extensions, only v2 */
         /* Add revoked certificate to chain. */
         rc->next = dcrl->certs;
@@ -33056,7 +33085,7 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, int sz, int verify)
 {
     word32 oid, dateIdx, idx, checkIdx;
-    int version;
+    int length;
 #ifdef WOLFSSL_NO_CRL_NEXT_DATE
     int doNextDate = 1;
 #endif
@@ -33071,12 +33100,23 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
 
     checkIdx = idx;
     if (GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
-        if (GetMyVersion(buf, &idx, &version, sz) < 0)
+        if (GetMyVersion(buf, &idx, &dcrl->version, sz) < 0)
             return ASN_PARSE_E;
+        dcrl->version++;
     }
 
     if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0)
         return ASN_PARSE_E;
+
+    checkIdx = idx;
+    if (GetSequence(buf, &checkIdx, &length, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+#ifdef OPENSSL_EXTRA
+    else {
+        dcrl->issuer = (byte*)GetNameFromDer(buf + idx, WC_ASN_NAME_MAX);
+    }
+#endif
 
     if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
@@ -33282,6 +33322,42 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                 return ret;
             }
         #endif
+        }
+        else if (oid == CRL_NUMBER_OID) {
+            localIdx = idx;
+            if (GetASNTag(buf, &localIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
+                ret = GetASNInt(buf, &idx, &length, sz);
+                if (ret < 0) {
+                    WOLFSSL_MSG("\tcouldn't parse CRL number extension");
+                    return ret;
+                }
+                else {
+                    if (length > 1) {
+                        mp_int m;
+                        int    i;
+
+                        mp_init(&m);
+                        ret = mp_read_unsigned_bin(&m, buf + idx, length);
+                        if (ret != MP_OKAY) {
+                            mp_free(&m);
+                            return BUFFER_E;
+                        }
+
+                        dcrl->crlNumber = 0;
+                        for (i = 0; i < m.used; ++i) {
+                            if (i > (int)sizeof(word32)) {
+                                    break;
+                            }
+                            dcrl->crlNumber |= ((word32)m.dp[i]) <<
+                                (DIGIT_BIT * i);
+                        }
+                        mp_free(&m);
+                    }
+                    else {
+                        dcrl->crlNumber = buf[idx];
+                    }
+                }
+            }
         }
 
         idx += length;
@@ -33551,6 +33627,8 @@ end:
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
+        /* Store version */
+        dcrl->version = ++version;
         /* Store offset of to be signed part. */
         dcrl->certBegin = dataASN[CRLASN_IDX_TBS].offset;
         /* Store index of signature. */
@@ -33580,6 +33658,9 @@ end:
     }
     if (ret == 0) {
     #endif
+        /* Parse and store the issuer name. */
+        dcrl->issuer = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER],
+                               buff), ASN_NAME_MAX);
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
                 GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),

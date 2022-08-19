@@ -2101,6 +2101,7 @@ struct CRL_Entry {
     byte    nextDateFormat;          /* next date format */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+    int     version;                 /* version of certficate */
     int     verified;
     byte*   toBeSigned;
     word32  tbsSz;
@@ -2110,6 +2111,10 @@ struct CRL_Entry {
 #if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
+#endif
+    int                   crlNumber;  /* CRL number extension */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
 };
 
