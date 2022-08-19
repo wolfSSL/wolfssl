@@ -8270,6 +8270,7 @@ static int string_matches(const char* arg, const char* str)
 }
 #endif /* MAIN_NO_ARGS */
 
+#ifndef NO_MAIN_FUNCTION
 #if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
 int wolf_benchmark_task( )
 #elif defined(MAIN_NO_ARGS)
@@ -8278,13 +8279,19 @@ int main()
 int main(int argc, char** argv)
 #endif
 {
-    int ret = 0;
-#ifndef MAIN_NO_ARGS
-    int optMatched;
 #ifdef WOLFSSL_ESPIDF
     int argc = construct_argv();
     char** argv = (char**)__argv;
 #endif
+    return wolfcrypt_benchmark_main(argc, argv);
+}
+#endif /* NO_MAIN_FUNCTION */
+
+int wolfcrypt_benchmark_main(int argc, char** argv)
+{
+    int ret = 0;
+#ifndef MAIN_NO_ARGS
+    int optMatched;
 #ifndef WOLFSSL_BENCHMARK_ALL
     int i;
 #endif
@@ -8489,7 +8496,7 @@ int main(int argc, char** argv)
 #endif /* !NO_MAIN_DRIVER */
 
 #else
-    #ifndef NO_MAIN_DRIVER
+    #if !defined(NO_MAIN_DRIVER) && !defined(NO_MAIN_FUNCTION)
         int main(void) { return 0; }
     #endif
 #endif /* !NO_CRYPT_BENCHMARK */

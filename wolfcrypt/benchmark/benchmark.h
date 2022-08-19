@@ -36,6 +36,9 @@ THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args);
 #else
 int benchmark_test(void *args);
 #endif
+#ifndef NO_MAIN_DRIVER
+int wolfcrypt_benchmark_main(int argc, char** argv);
+#endif
 
 /* individual benchmarks */
 int  benchmark_init(void);
