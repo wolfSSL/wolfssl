@@ -32485,7 +32485,7 @@ static int test_wolfSSL_PEM_read_RSA_PUBKEY(void)
     XFILE file;
     const char* fname = "./certs/client-keyPub.pem";
     RSA *rsa;
-    
+
     file = XFOPEN(fname, "rb");
     AssertTrue((file != XBADFILE));
     AssertNotNull((rsa = PEM_read_RSA_PUBKEY(file, NULL, NULL, NULL)));
