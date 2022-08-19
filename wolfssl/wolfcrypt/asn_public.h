@@ -244,7 +244,12 @@ typedef struct WOLFSSL_ASN1_TIME {
 
 enum {
     IV_SZ   = 32,                   /* max iv sz */
+#ifdef OPENSSL_ALL
+    NAME_SZ = 160,                  /* larger max one line, allows for longer
+                                       encryption password support */
+#else
     NAME_SZ = 80,                   /* max one line */
+#endif
 
     PEM_PASS_READ  = 0,
     PEM_PASS_WRITE = 1,
