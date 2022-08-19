@@ -1706,9 +1706,10 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
-#define WOLFSSL_ASSERT_SIZEOF_GE(x, y)                              \
-    typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
-    (void)sizeof(_args_test)
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) do {                           \
+    typedef char _args_test_[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
+    (void)sizeof(_args_test_);                                        \
+} while(0)
 
 /* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {

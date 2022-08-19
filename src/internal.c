@@ -33340,31 +33340,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef HAVE_SESSION_TICKET
-    /* Make a work from the front of random hash */
-    static WC_INLINE word32 MakeWordFromHash(const byte* hashID)
-    {
-        return ((word32)hashID[0] << 24) | ((word32)hashID[1] << 16) |
-               ((word32)hashID[2] <<  8) |  (word32)hashID[3];
-    }
-
-    /* Check to make sure that the callback has actually encrypted the ticket */
-    static word32 compute_InternalTicket_hash(InternalTicket *a)
-    {
-        byte digest[WC_MAX_DIGEST_SIZE];
-        int error;
-
-    #ifndef NO_MD5
-        error =  wc_Md5Hash((byte*)a, sizeof(*a), digest);
-    #elif !defined(NO_SHA)
-        error =  wc_ShaHash((byte*)a, sizeof(*a), digest);
-    #elif !defined(NO_SHA256)
-        error =  wc_Sha256Hash((byte*)a, sizeof(*a), digest);
-    #else
-        #error "We need a digest to hash the InternalTicket"
-    #endif
-
-        return error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
-    }
 
     /* create a new session ticket, 0 on success */
     int CreateTicket(WOLFSSL* ssl)
@@ -33373,6 +33348,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ExternalTicket* et;
         int encLen;
         int ret;
+        int error;
         word32 itHash = 0;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
 
@@ -33476,10 +33452,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = BAD_TICKET_ENCRYPT;
         }
         else {
-            itHash = compute_InternalTicket_hash(it);
-            ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
-                                    et->enc_ticket, sizeof(InternalTicket),
-                                    &encLen, ssl->ctx->ticketEncCtx);
+            itHash = HashObject((byte*)it, sizeof(*it), &error);
+            if (error == 0) {
+                ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac,
+                        1, et->enc_ticket, sizeof(InternalTicket), &encLen,
+                        ssl->ctx->ticketEncCtx);
+            }
+            else {
+                ret = WOLFSSL_TICKET_RET_FATAL;
+            }
         }
         if (ret != WOLFSSL_TICKET_RET_OK) {
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -33498,9 +33479,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* sanity checks on encrypt callback */
 
         /* internal ticket can't be the same if encrypted */
-        if (itHash == compute_InternalTicket_hash(it))
+        if (itHash == HashObject((byte*)it, sizeof(*it), &error) || error != 0)
         {
-            WOLFSSL_MSG("User ticket encrypt didn't encrypt");
+            WOLFSSL_MSG("User ticket encrypt didn't encrypt or hash failed");
             ret = BAD_TICKET_ENCRYPT;
             goto error;
         }

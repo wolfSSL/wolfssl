@@ -4731,19 +4731,6 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 }
 #endif /* !leanpsk */
 
-
-#if !defined(NO_CERTS) || !defined(NO_SESSION_CACHE)
-
-/* Make a work from the front of random hash */
-static WC_INLINE word32 MakeWordFromHash(const byte* hashID)
-{
-    return ((word32)hashID[0] << 24) | ((word32)hashID[1] << 16) |
-           ((word32)hashID[2] <<  8) |  (word32)hashID[3];
-}
-
-#endif /* !NO_CERTS || !NO_SESSION_CACHE */
-
-
 #ifndef NO_CERTS
 
 /* hash is the SHA digest of name, just use first 32 bits as hash */
@@ -13249,25 +13236,6 @@ int wolfSSL_Cleanup(void)
 
 #ifndef NO_SESSION_CACHE
 
-/* some session IDs aren't random after all, let's make them random */
-static WC_INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
-{
-    byte digest[WC_MAX_DIGEST_SIZE];
-
-#ifndef NO_MD5
-    *error =  wc_Md5Hash(sessionID, len, digest);
-#elif !defined(NO_SHA)
-    *error =  wc_ShaHash(sessionID, len, digest);
-#elif !defined(NO_SHA256)
-    *error =  wc_Sha256Hash(sessionID, len, digest);
-#else
-    #error "We need a digest to hash the session IDs"
-#endif
-
-    return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
-}
-
-
 WOLFSSL_ABI
 void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 {
@@ -13396,7 +13364,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     }
 #endif
 
-    row = HashSession(id, len, &error) % CLIENT_SESSION_ROWS;
+    row = HashObject(id, len, &error) % CLIENT_SESSION_ROWS;
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return NULL;
@@ -13559,7 +13527,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     }
 #endif
 
-    row = HashSession(id, ID_LEN, &error) % SESSION_ROWS;
+    row = HashObject(id, ID_LEN, &error) % SESSION_ROWS;
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return WOLFSSL_FAILURE;
@@ -13851,11 +13819,11 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
         WOLFSSL_MSG("Trying to add client cache entry");
 
         if (idLen) {
-            clientRow = HashSession(serverID,
+            clientRow = HashObject(serverID,
                     idLen, &error) % CLIENT_SESSION_ROWS;
         }
         else if (serverID != NULL) {
-            clientRow = HashSession(sessionID,
+            clientRow = HashObject(sessionID,
                     ID_LEN, &error) % CLIENT_SESSION_ROWS;
         }
         else {
@@ -13869,7 +13837,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
                 ClientCache[clientRow].Clients[clientIdx].serverIdx =
                                                                 (word16)idx;
                 if (sessionID != NULL) {
-                    sessionIDHash = HashSession(sessionID, ID_LEN, &error);
+                    sessionIDHash = HashObject(sessionID, ID_LEN, &error);
                     if (error == 0) {
                         ClientCache[clientRow].Clients[clientIdx].sessionIDHash
                             = sessionIDHash;
@@ -13963,7 +13931,7 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
         }
         if (error == 0) {
             /* Calculate the hash of the session ID */
-            sessionIDHash = HashSession(cacheSession->sessionID, ID_LEN,
+            sessionIDHash = HashObject(cacheSession->sessionID, ID_LEN,
                     &error);
         }
         if (error == 0) {
@@ -14041,7 +14009,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     }
 #endif
     /* Use the session object in the cache for external cache if required */
-    row = (int)(HashSession(id, ID_LEN, &ret) % SESSION_ROWS);
+    row = (int)(HashObject(id, ID_LEN, &ret) % SESSION_ROWS);
     if (ret != 0) {
         WOLFSSL_MSG("Hash session failed");
     #ifdef HAVE_SESSION_TICKET
@@ -31226,7 +31194,7 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
     if (session->haveAltSessionID)
         id = session->altSessionID;
 
-    row = (int)(HashSession(id, ID_LEN, &error) % SESSION_ROWS);
+    row = (int)(HashObject(id, ID_LEN, &error) % SESSION_ROWS);
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return;
@@ -33038,7 +33006,7 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
             if (s->haveAltSessionID)
                 id = s->altSessionID;
 
-            row = (int)(HashSession(id, ID_LEN, &ret) % SESSION_ROWS);
+            row = (int)(HashObject(id, ID_LEN, &ret) % SESSION_ROWS);
             if (ret != 0) {
                 WOLFSSL_MSG("Hash session failed");
                 return ret;
