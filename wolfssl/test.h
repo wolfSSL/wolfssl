@@ -2783,6 +2783,14 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                                       wolfSSL_X509_get_subject_name(peer), 0, 0);
         printf("\tPeer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        /* preverify needs to be self-signer error for Qt compat.
+         * Should be ASN_SELF_SIGNED_E */
+        if (XSTRCMP(issuer, subject) == 0 && preverify == ASN_NO_SIGNER_E)
+            return 0;
+#endif
+
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
 #if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)

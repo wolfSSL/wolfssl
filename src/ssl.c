@@ -7291,12 +7291,6 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
     if (ret == 0)
         ret = ParseCertRelative(cert, CERT_TYPE, 1, cm);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    /* ret needs to be self-singer error for Qt compat */
-    if (ret == ASN_NO_SIGNER_E && cert->selfSigned)
-        ret = ASN_SELF_SIGNED_E;
-#endif
-
 #ifdef HAVE_CRL
     if (ret == 0 && cm->crlEnabled)
         ret = CheckCertCRL(cm->crl, cert);

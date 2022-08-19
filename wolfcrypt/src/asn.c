@@ -21535,8 +21535,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         else {
             /* no signer */
             WOLFSSL_MSG("No CA signer to verify with");
-            WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
-            return ASN_NO_SIGNER_E;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            /* ret needs to be self-signer error for Qt compat */
+            if (cert->selfSigned) {
+                WOLFSSL_ERROR_VERBOSE(ASN_SELF_SIGNED_E);
+                return ASN_SELF_SIGNED_E;
+            }
+            else
+#endif
+            {
+                WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+                return ASN_NO_SIGNER_E;
+            }
         }
     }
 
