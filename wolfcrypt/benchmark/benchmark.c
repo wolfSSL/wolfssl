@@ -501,6 +501,18 @@
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
 
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+/* Define AES_AUTH_ADD_SZ already here, since it's used in the
+ * static declaration of `bench_Usage_msg1`. */
+#if !defined(AES_AUTH_ADD_SZ) && \
+        defined(STM32_CRYPTO) && !defined(STM32_AESGCM_PARTIAL)
+    /* For STM32 use multiple of 4 to leverage crypto hardware */
+    #define AES_AUTH_ADD_SZ 16
+#endif
+#ifndef AES_AUTH_ADD_SZ
+    #define AES_AUTH_ADD_SZ 13
+#endif
+#endif
 
 /* Benchmark all compiled in algorithms.
  * When 1, ignore other benchmark algorithm values.
@@ -876,13 +888,15 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][20] = {
+static const char* bench_Usage_msg1[][21] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
         "-no_aad     No additional authentication data passed.\n",
-        "-both_aad   Both AAD options, with and w/o AAD.\n",
+        "-aad_size <num>   With <num> bytes of AAD.\n",
+        "-all_aad    With AAD length of 0, " WC_STRINGIFY(AES_AUTH_ADD_SZ) " and\n"
+        "            (if set via -aad_size) <aad_size> bytes.\n",
         "-dgst_full  Full digest operation performed.\n",
         "-rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.\n",
         "<keySz> -rsa-sz\n            Measure RSA <key size> performance.\n",
@@ -906,7 +920,8 @@ static const char* bench_Usage_msg1[][20] = {
         "-csv        csv 形式で端末に出力します。\n",
         "-base10     バイトを10のべき乗で表示します。(例 1 kB = 1000 Bytes)\n",
         "-no_aad     追加の認証データを使用しません.\n",
-        "-both_aad   TBD.\n",
+        "-aad_size <num>  TBD.\n",
+        "-all_aad    TBD.\n",
         "-dgst_full  フルの digest 暗号操作を実施します。\n",
         "-rsa_sign   暗号/復号化の代わりに RSA の署名/検証を測定します。\n",
         "<keySz> -rsa-sz\n            RSA <key size> の性能を測定します。\n",
@@ -1254,14 +1269,6 @@ static const char* bench_result_words2[][5] = {
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-    #if !defined(AES_AUTH_ADD_SZ) && \
-            defined(STM32_CRYPTO) && !defined(STM32_AESGCM_PARTIAL)
-        /* For STM32 use multiple of 4 to leverage crypto hardware */
-        #define AES_AUTH_ADD_SZ 16
-    #endif
-    #ifndef AES_AUTH_ADD_SZ
-    #define AES_AUTH_ADD_SZ 13
-    #endif
     #define AES_AUTH_TAG_SZ 16
     #define BENCH_CIPHER_ADD AES_AUTH_TAG_SZ
     static word32 aesAuthAddSz = AES_AUTH_ADD_SZ;
@@ -1272,19 +1279,28 @@ static const char* bench_result_words2[][5] = {
             #define AES_AAD_OPTIONS_DEFAULT 0x3U
         #endif
     #endif
-    #define AES_AAD_STRING(s)           (aesAuthAddSz == 0 ? s "-no_AAD" : s)
+    #define AES_AAD_STRING(s)           (aesAuthAddSz == 0 ? s "-no_AAD" : (aesAuthAddSz == AES_AUTH_ADD_SZ ? s : s "-custom"))
+    enum en_aad_options {
+        AAD_SIZE_DEFAULT = 0x1U,
+        AAD_SIZE_ZERO = 0x2U,
+        AAD_SIZE_CUSTOM = 0x4U,
+    };
     static word32 aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
+    static word32 aes_aad_size = 0;
     static void bench_aes_aad_options_wrap(void (*fn)(int), int i)
     {
         word32 aesAuthAddSz_orig = aesAuthAddSz;
         word32 options = aes_aad_options;
         while(options) {
-            if (options & 0x01U) {
+            if (options & AAD_SIZE_DEFAULT) {
                 aesAuthAddSz = AES_AUTH_ADD_SZ;
-                options &= ~0x01U;
-            } else if (options & 0x02U) {
+                options &= ~AAD_SIZE_DEFAULT;
+            } else if (options & AAD_SIZE_ZERO) {
                 aesAuthAddSz = 0;
-                options &= ~0x02U;
+                options &= ~AAD_SIZE_ZERO;
+            } else if (options & AAD_SIZE_CUSTOM) {
+                aesAuthAddSz = aes_aad_size;
+                options &= ~AAD_SIZE_CUSTOM;
             }
             fn(i);
             aesAuthAddSz = aesAuthAddSz_orig;
@@ -1386,6 +1402,7 @@ static void benchmark_static_init(int force)
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         aesAuthAddSz    = AES_AUTH_ADD_SZ;
         aes_aad_options = AES_AAD_OPTIONS_DEFAULT;
+        aes_aad_size    = 0;
     #endif
         base2 = 1;
         digest_stream = 1;
@@ -8189,9 +8206,10 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -base10 */
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -no_aad */
-    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -both_aad */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -aad_size */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -all_aad */
 #else
-    e += 2;
+    e += 3;
 #endif
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
 #ifndef NO_RSA
@@ -8346,9 +8364,17 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             base2 = 0;
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         else if (string_matches(argv[1], "-no_aad"))
-            aes_aad_options = 0x2U;
-        else if (string_matches(argv[1], "-both_aad"))
-            aes_aad_options = 0x3U;
+            aes_aad_options = AAD_SIZE_ZERO;
+        else if (string_matches(argv[1], "-all_aad"))
+            aes_aad_options |= AAD_SIZE_ZERO | AAD_SIZE_DEFAULT;
+        else if (string_matches(argv[1], "-aad_size")) {
+            argc--;
+            argv++;
+            if (argc > 1) {
+                aes_aad_size = XATOI(argv[1]);
+                aes_aad_options |= AAD_SIZE_CUSTOM;
+            }
+        }
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
