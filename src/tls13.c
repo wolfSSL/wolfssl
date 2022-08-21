@@ -4803,6 +4803,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
 #endif
+        if (usingPSK)
+            *usingPSK = 0;
         /* Hash data up to binders for deriving binders in PSK extension. */
         ret = HashInput(ssl, input,  helloSz);
         return ret;
@@ -4860,8 +4862,18 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return ret;
 #endif
 
-    /* Hash the rest of the ClientHello. */
-    ret = HashRaw(ssl, input + helloSz - bindersLen, bindersLen);
+    if (*usingPSK) {
+        /* While verifying the selected PSK, we updated the
+         * handshake hash up to the binder bytes in the PSK extensions.
+         * Continuing, we need the rest of the ClientHello hashed as well.
+         */
+        ret = HashRaw(ssl, input + helloSz - bindersLen, bindersLen);
+    }
+    else {
+        /* No suitable PSK found, Hash the complete ClientHello,
+         * as caller expect it after we return */
+        ret = HashInput(ssl, input,  helloSz);
+    }
     if (ret != 0)
         return ret;
 
@@ -10615,8 +10627,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
 #endif
 
 #ifdef HAVE_PQC
-    if (group >= WOLFSSL_PQC_MIN &&
-        group <= WOLFSSL_PQC_MAX) {
+    if (WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
             ssl->ctx->method->version.minor != TLSv1_3_MINOR) {
