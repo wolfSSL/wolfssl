@@ -636,7 +636,8 @@ int wc_ecc_free(ecc_key* key);
 
     \brief This function frees the fixed-point cache, which can be used
     with ecc to speed up computation times. To use this functionality,
-    FP_ECC (fixed-point ecc), should be defined.
+    FP_ECC (fixed-point ecc), should be defined. Threaded applications should
+    call this function before exiting the thread.
 
     \return none No returns.
 

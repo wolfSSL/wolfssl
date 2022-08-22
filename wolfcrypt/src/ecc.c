@@ -56,7 +56,7 @@ Possible ECC enable options:
  *                      FP cache is not supported for SECP160R1, SECP160R2,
  *                      SECP160K1 and SECP224K1. These do not work with scalars
  *                      that are the length of the order when the order is
- *                      longer than the prime.
+ *                      longer than the prime. Use wc_ecc_fp_free to free cache.
  * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
  *                      (on for HAVE_COMP_KEY)
  * WOLFSSL_ECC_CURVE_STATIC:                                    default off (on for windows)

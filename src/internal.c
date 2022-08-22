@@ -24585,21 +24585,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
     /* Initialize TimeoutInfo */
     void InitTimeoutInfo(TimeoutInfo* info)
     {
-        int i;
-
-        info->timeoutName[0] = 0;
-        info->flags          = 0;
-
-        for (i = 0; i < MAX_PACKETS_HANDSHAKE; i++) {
-            info->packets[i].packetName[0]     = 0;
-            info->packets[i].timestamp.tv_sec  = 0;
-            info->packets[i].timestamp.tv_usec = 0;
-            info->packets[i].bufferValue       = 0;
-            info->packets[i].valueSz           = 0;
-        }
-        info->numberPackets        = 0;
-        info->timeoutValue.tv_sec  = 0;
-        info->timeoutValue.tv_usec = 0;
+        XMEMSET(info, 0, sizeof(TimeoutInfo));
     }
 
 
@@ -24608,12 +24594,12 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
     {
         int i;
         (void)heap;
-        for (i = 0; i < MAX_PACKETS_HANDSHAKE; i++)
+        for (i = 0; i < MAX_PACKETS_HANDSHAKE; i++) {
             if (info->packets[i].bufferValue) {
                 XFREE(info->packets[i].bufferValue, heap, DYNAMIC_TYPE_INFO);
-                info->packets[i].bufferValue = 0;
+                info->packets[i].bufferValue = NULL;
             }
-
+        }
     }
 
     /* Add packet name to previously added packet info */

@@ -3272,6 +3272,9 @@ WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx);
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    #ifndef HAVE_EX_DATA
+        #error "HAVE_EX_DATA_CLEANUP_HOOKS requires HAVE_EX_DATA to be defined"
+    #endif
 void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data);
 #endif
 
