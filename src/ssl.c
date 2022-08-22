@@ -1205,6 +1205,34 @@ int wolfSSL_set_ConnectFilter(
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #ifndef WOLFSSL_LEANPSK
+#if defined(WOLFSSL_DTLS) && defined(XINET_PTON) && \
+    !defined(WOLFSSL_NO_SOCK) && defined(HAVE_SOCKADDR)
+void* wolfSSL_dtls_create_peer(int port, char* ip)
+{
+    SOCKADDR_IN *addr;
+    addr = (SOCKADDR_IN*)XMALLOC(sizeof(*addr), NULL,
+            DYNAMIC_TYPE_SOCKADDR);
+    if (addr == NULL) {
+        return NULL;
+    }
+
+    addr->sin_family = AF_INET;
+    addr->sin_port = htons(port);
+    if (XINET_PTON(AF_INET, ip, &addr->sin_addr) < 1) {
+        XFREE(addr, NULL, DYNAMIC_TYPE_SOCKADDR);
+        return NULL;
+    }
+
+    return addr;
+}
+
+int wolfSSL_dtls_free_peer(void* addr)
+{
+    XFREE(addr, NULL, DYNAMIC_TYPE_SOCKADDR);
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
 #ifdef WOLFSSL_DTLS
