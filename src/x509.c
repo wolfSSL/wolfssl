@@ -5812,8 +5812,8 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
  * wolfSSL_X509_print()
  * return WOLFSSL_SUCCESS on success
  */
-static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig, int sigSz, int sigNid,
-        int algOnly, int indent)
+static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
+        int sigSz, int sigNid, int algOnly, int indent)
 {
     char scratch[MAX_WIDTH];
     int scratchLen;
@@ -6160,7 +6160,8 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     }
 
     /* print version of cert */
-    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8)
+            != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -6238,7 +6239,8 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     }
 
     /* print version of cert */
-    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8)
+            != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -7737,7 +7739,8 @@ static int X509CRLPrintRevoked(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 
         for (i = 0; i < crl->crlList->totalCerts; i++) {
             if (revoked->serialSz > 0) {
-                if (X509RevokedPrintSerial(bio, revoked, indent + 4) != WOLFSSL_SUCCESS) {
+                if (X509RevokedPrintSerial(bio, revoked, indent + 4)
+                        != WOLFSSL_SUCCESS) {
                     return WOLFSSL_FAILURE;
                 }
             }
@@ -7884,7 +7887,8 @@ int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl)
     }
 
     /* print version */
-    if (X509PrintVersion(bio, wolfSSL_X509_CRL_version(crl), 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintVersion(bio, wolfSSL_X509_CRL_version(crl), 8)
+            != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 

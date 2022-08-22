@@ -2790,11 +2790,16 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE file, WOLFSSL_X509_C
 #if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
 WOLFSSL_API int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL *crl);
 WOLFSSL_API int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl);
-WOLFSSL_API int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl);
-WOLFSSL_API int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl, unsigned char* buf, int* bufSz);
-WOLFSSL_API int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl);
-WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(WOLFSSL_X509_CRL *crl);
-WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev, byte* in, int* inOutSz);
+WOLFSSL_API int wolfSSL_X509_CRL_get_signature_nid(
+                                                  const WOLFSSL_X509_CRL* crl);
+WOLFSSL_API int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
+                                               unsigned char* buf, int* bufSz);
+WOLFSSL_API int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio,
+                                       WOLFSSL_X509_CRL* crl);
+WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(
+                                                        WOLFSSL_X509_CRL *crl);
+WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
+                                                       byte* in, int* inOutSz);
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 #endif
 

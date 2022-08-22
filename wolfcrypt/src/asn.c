@@ -33325,7 +33325,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
         }
         else if (oid == CRL_NUMBER_OID) {
             localIdx = idx;
-            if (GetASNTag(buf, &localIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
+            if (GetASNTag(buf, &localIdx, &tag, sz) == 0 &&
+                    tag == ASN_INTEGER) {
                 ret = GetASNInt(buf, &idx, &length, sz);
                 if (ret < 0) {
                     WOLFSSL_MSG("\tcouldn't parse CRL number extension");
@@ -33333,25 +33334,46 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                 }
                 else {
                     if (length > 1) {
-                        mp_int m;
+                    #ifdef WOLFSSL_SMALL_STACK
+                        mp_int* m;
+                    #else
+                        mp_int m[1];
+                    #endif
                         int    i;
 
-                        mp_init(&m);
-                        ret = mp_read_unsigned_bin(&m, buf + idx, length);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+                        if (m == NULL) {
+                            return MEMORY_E;
+                        }
+                    #endif
+                        if (mp_init(m) != MP_OKAY) {
+                            return MP_INIT_E;
+                        }
+
+                        ret = mp_read_unsigned_bin(m, buf + idx, length);
                         if (ret != MP_OKAY) {
-                            mp_free(&m);
+                            mp_free(m);
+                    #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                             return BUFFER_E;
                         }
 
                         dcrl->crlNumber = 0;
-                        for (i = 0; i < m.used; ++i) {
+                        for (i = 0; i < (*m).used; ++i) {
                             if (i > (int)sizeof(word32)) {
                                     break;
                             }
-                            dcrl->crlNumber |= ((word32)m.dp[i]) <<
+                            dcrl->crlNumber |= ((word32)(*m).dp[i]) <<
                                 (DIGIT_BIT * i);
                         }
-                        mp_free(&m);
+
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        mp_free(m);
                     }
                     else {
                         dcrl->crlNumber = buf[idx];
@@ -33659,8 +33681,8 @@ end:
     if (ret == 0) {
     #endif
         /* Parse and store the issuer name. */
-        dcrl->issuer = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER],
-                               buff), ASN_NAME_MAX);
+        dcrl->issuer = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
+                        dataASN[CRLASN_IDX_TBS_ISSUER], buff), ASN_NAME_MAX);
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
                 GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),

@@ -52574,7 +52574,8 @@ static int test_wolfSSL_X509_CRL_print(void)
 
     fp = XFOPEN("./certs/crl/crl.pem", "rb");
     AssertTrue((fp != XBADFILE));
-    AssertNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
+    AssertNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
+                NULL, NULL));
     XFCLOSE(fp);
 
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
