@@ -8549,21 +8549,21 @@ static int aesecb_test(void)
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
         if (ret != 0)
-            ERROR_OUT(-5943, out);
+            ERROR_OUT(-5923, out);
         if (wc_AesEcbEncrypt(enc, cipher, niPlain, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5950, out);
+            ERROR_OUT(-5924, out);
         if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5944, out);
+            ERROR_OUT(-5925, out);
 
         XMEMSET(plain, 0, AES_BLOCK_SIZE);
         ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
         if (ret != 0)
-            ERROR_OUT(-5945, out);
+            ERROR_OUT(-5926, out);
         if (wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5951, out);
+            ERROR_OUT(-5927, out);
         wc_AesEcbDecrypt(dec, plain, niCipher, AES_BLOCK_SIZE);
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5946, out);
+            ERROR_OUT(-5928, out);
     }
 
     wc_AesFree(enc);
@@ -8627,11 +8627,11 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 #ifdef WOLFSSL_SMALL_STACK
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     if (enc == NULL)
-        ERROR_OUT(-5948, out);
+        ERROR_OUT(-5990, out);
 #endif
 #if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     if (dec == NULL)
-        ERROR_OUT(-5949, out);
+        ERROR_OUT(-5991, out);
 #endif
 #endif
 
@@ -8737,7 +8737,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             (bigPlain == NULL)) {
             if (bigCipher != NULL)
                 XFREE(bigCipher, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            ERROR_OUT(-5947, out);
+            ERROR_OUT(-5992, out);
         }
 #else
         byte bigCipher[sizeof(bigMsg)];
@@ -8909,6 +8909,12 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
         };
 
+        WOLFSSL_SMALL_STACK_STATIC const byte ctrIvWrap[] =
+        {
+            0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+            0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
+        };
+
 #ifdef WOLFSSL_AES_128
         WOLFSSL_SMALL_STACK_STATIC const byte oddCipher[] =
         {
@@ -8933,6 +8939,13 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,
             0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
         };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte ctr128WrapCipher[] =
+        {
+            0xe1,0x33,0x38,0xe3,0x6c,0xb7,0x19,0x62,
+            0xe0,0x0d,0x02,0x0b,0x4c,0xed,0xbd,0x86,
+            0xd3,0xda,0xe1,0x5b,0x04
+        };
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -8953,6 +8966,13 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             0xd1,0xbd,0x1d,0x66,0x56,0x20,0xab,0xf7,
             0x4f,0x78,0xa7,0xf6,0xd2,0x98,0x09,0x58,
             0x5a,0x97,0xda,0xec,0x58,0xc6,0xb0,0x50
+        };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte ctr192WrapCipher[] =
+        {
+            0xd4,0x45,0x1f,0xc8,0xa4,0x71,0xbf,0xd9,
+            0x61,0xe2,0xec,0xa8,0x4d,0x80,0x7b,0x81,
+            0xf8,0xd4,0x6f,0xa1,0x38
         };
 #endif
 #ifdef WOLFSSL_AES_256
@@ -8975,78 +8995,113 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             0xdf,0xc9,0xc5,0x8d,0xb6,0x7a,0xad,0xa6,
             0x13,0xc2,0xdd,0x08,0x45,0x79,0x41,0xa6
         };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte ctr256WrapCipher[] =
+        {
+            0xed,0x4b,0xc8,0xa8,0x5c,0x84,0xae,0x14,
+            0xc4,0x6e,0xb2,0x25,0xba,0xf7,0x4f,0x47,
+            0x38,0xf1,0xe2,0xee,0x3d
+        };
 #endif
 
 #ifdef WOLFSSL_AES_128
         ret = wc_AesSetKeyDirect(enc, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5947, out);
+            ERROR_OUT(-5930, out);
         }
         /* Ctr only uses encrypt, even on key setup */
         ret = wc_AesSetKeyDirect(dec, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5948, out);
+            ERROR_OUT(-5931, out);
         }
 
         ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(ctrPlain));
         if (ret != 0) {
-            ERROR_OUT(-5923, out);
+            ERROR_OUT(-5932, out);
         }
         ret = wc_AesCtrEncrypt(dec, plain, cipher, sizeof(ctrPlain));
         if (ret != 0) {
-            ERROR_OUT(-5924, out);
+            ERROR_OUT(-5933, out);
         }
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
-            ERROR_OUT(-5925, out);
+            ERROR_OUT(-5934, out);
 
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(ctr128Cipher)))
-            ERROR_OUT(-5926, out);
+            ERROR_OUT(-5935, out);
 
         /* let's try with just 9 bytes, non block size test */
         ret = wc_AesSetKeyDirect(enc, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5949, out);
+            ERROR_OUT(-5936, out);
         }
         /* Ctr only uses encrypt, even on key setup */
         ret = wc_AesSetKeyDirect(dec, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5952, out);
+            ERROR_OUT(-5937, out);
         }
 
         ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
-            ERROR_OUT(-5927, out);
+            ERROR_OUT(-5938, out);
         }
         ret = wc_AesCtrEncrypt(dec, plain, cipher, sizeof(oddCipher));
         if (ret != 0) {
-            ERROR_OUT(-5928, out);
+            ERROR_OUT(-5939, out);
         }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
-            ERROR_OUT(-5929, out);
+            ERROR_OUT(-5940, out);
 
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(oddCipher)))
-            ERROR_OUT(-5930, out);
+            ERROR_OUT(-5941, out);
 
         /* and an additional 9 bytes to reuse tmp left buffer */
         ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
-            ERROR_OUT(-5931, out);
+            ERROR_OUT(-5942, out);
         }
         ret = wc_AesCtrEncrypt(dec, plain, cipher, sizeof(oddCipher));
         if (ret != 0) {
-            ERROR_OUT(-5932, out);
+            ERROR_OUT(-5943, out);
         }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
-            ERROR_OUT(-5933, out);
+            ERROR_OUT(-5944, out);
 
         if (XMEMCMP(cipher, oddCipher, sizeof(oddCipher)))
-            ERROR_OUT(-5934, out);
+            ERROR_OUT(-5945, out);
+
+        /* When more than a block but less than two and wrapping ctr */
+        ret = wc_AesSetKeyDirect(enc, ctr128Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5946, out);
+        }
+        /* Ctr only uses encrypt, even on key setup */
+        ret = wc_AesSetKeyDirect(dec, ctr128Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5947, out);
+        }
+
+        ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(ctr128WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5948, out);
+        }
+        ret = wc_AesCtrEncrypt(dec, plain, cipher,  sizeof(ctr128WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5949, out);
+        }
+
+        if (XMEMCMP(plain, ctrPlain, sizeof(ctr128WrapCipher)))
+            ERROR_OUT(-5950, out);
+
+        if (XMEMCMP(cipher, ctr128WrapCipher, sizeof(ctr128WrapCipher)))
+            ERROR_OUT(-5951, out);
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -9054,30 +9109,58 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKeyDirect(enc, ctr192Key, sizeof(ctr192Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5953, out);
+            ERROR_OUT(-5952, out);
         }
         /* Ctr only uses encrypt, even on key setup */
         ret = wc_AesSetKeyDirect(dec, ctr192Key, sizeof(ctr192Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5954, out);
+            ERROR_OUT(-5953, out);
         }
 
         XMEMSET(plain, 0, sizeof(plain));
         ret = wc_AesCtrEncrypt(enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
         if (ret != 0) {
-            ERROR_OUT(-5935, out);
+            ERROR_OUT(-5954, out);
         }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctr192Cipher)))
-            ERROR_OUT(-5936, out);
+            ERROR_OUT(-5955, out);
 
         ret = wc_AesCtrEncrypt(dec, cipher, ctrPlain, sizeof(ctrPlain));
         if (ret != 0) {
-            ERROR_OUT(-5937, out);
+            ERROR_OUT(-5956, out);
         }
         if (XMEMCMP(ctr192Cipher, cipher, sizeof(ctr192Cipher)))
-            ERROR_OUT(-5938, out);
+            ERROR_OUT(-5957, out);
+
+        /* When more than a block but less than two and wrapping ctr */
+        ret = wc_AesSetKeyDirect(enc, ctr192Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5958, out);
+        }
+        /* Ctr only uses encrypt, even on key setup */
+        ret = wc_AesSetKeyDirect(dec, ctr192Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5959, out);
+        }
+
+        ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(ctr192WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5960, out);
+        }
+        ret = wc_AesCtrEncrypt(dec, plain, cipher,  sizeof(ctr192WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5961, out);
+        }
+
+        if (XMEMCMP(plain, ctrPlain, sizeof(ctr192WrapCipher)))
+            ERROR_OUT(-5962, out);
+
+        if (XMEMCMP(cipher, ctr192WrapCipher, sizeof(ctr192WrapCipher)))
+            ERROR_OUT(-5963, out);
 #endif /* WOLFSSL_AES_192 */
 
 #ifdef WOLFSSL_AES_256
@@ -9085,30 +9168,58 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKeyDirect(enc, ctr256Key, sizeof(ctr256Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5955, out);
+            ERROR_OUT(-5964, out);
         }
         /* Ctr only uses encrypt, even on key setup */
         ret = wc_AesSetKeyDirect(dec, ctr256Key, sizeof(ctr256Key),
                            ctrIv, AES_ENCRYPTION);
         if (ret != 0) {
-            ERROR_OUT(-5956, out);
+            ERROR_OUT(-5965, out);
         }
 
         XMEMSET(plain, 0, sizeof(plain));
         ret = wc_AesCtrEncrypt(enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
         if (ret != 0) {
-            ERROR_OUT(-5939, out);
+            ERROR_OUT(-5966, out);
         }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
-            ERROR_OUT(-5940, out);
+            ERROR_OUT(-5967, out);
 
         ret = wc_AesCtrEncrypt(dec, cipher, ctrPlain, sizeof(ctrPlain));
         if (ret != 0) {
-            ERROR_OUT(-5941, out);
+            ERROR_OUT(-5968, out);
         }
         if (XMEMCMP(ctr256Cipher, cipher, sizeof(ctr256Cipher)))
-            ERROR_OUT(-5942, out);
+            ERROR_OUT(-5969, out);
+
+        /* When more than a block but less than two and wrapping ctr */
+        ret = wc_AesSetKeyDirect(enc, ctr256Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5970, out);
+        }
+        /* Ctr only uses encrypt, even on key setup */
+        ret = wc_AesSetKeyDirect(dec, ctr256Key, AES_BLOCK_SIZE,
+                           ctrIvWrap, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5971, out);
+        }
+
+        ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(ctr256WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5972, out);
+        }
+        ret = wc_AesCtrEncrypt(dec, plain, cipher,  sizeof(ctr256WrapCipher));
+        if (ret != 0) {
+            ERROR_OUT(-5973, out);
+        }
+
+        if (XMEMCMP(plain, ctrPlain, sizeof(ctr256WrapCipher)))
+            ERROR_OUT(-5974, out);
+
+        if (XMEMCMP(cipher, ctr256WrapCipher, sizeof(ctr256WrapCipher)))
+            ERROR_OUT(-5975, out);
 #endif /* WOLFSSL_AES_256 */
     }
 #endif /* WOLFSSL_AES_COUNTER */
@@ -9138,34 +9249,34 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
         if (ret != 0)
-            ERROR_OUT(-5943, out);
+            ERROR_OUT(-5976, out);
 #if !defined(HAVE_SELFTEST) && \
     (defined(WOLFSSL_LINUXKM) || \
      !defined(HAVE_FIPS) || \
      (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
         if (wc_AesEncryptDirect(enc, cipher, niPlain) != 0)
-            ERROR_OUT(-5950, out);
+            ERROR_OUT(-5977, out);
 #else
         wc_AesEncryptDirect(enc, cipher, niPlain);
 #endif
         if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5944, out);
+            ERROR_OUT(-5978, out);
 
         XMEMSET(plain, 0, AES_BLOCK_SIZE);
         ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
         if (ret != 0)
-            ERROR_OUT(-5945, out);
+            ERROR_OUT(-5979, out);
 #if !defined(HAVE_SELFTEST) && \
     (defined(WOLFSSL_LINUXKM) || \
      !defined(HAVE_FIPS) || \
      (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
         if (wc_AesDecryptDirect(dec, plain, niCipher) != 0)
-            ERROR_OUT(-5951, out);
+            ERROR_OUT(-5980, out);
 #else
         wc_AesDecryptDirect(dec, plain, niCipher);
 #endif
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
-            ERROR_OUT(-5946, out);
+            ERROR_OUT(-5981, out);
     }
 #endif /* WOLFSSL_AES_DIRECT && WOLFSSL_AES_256 */
 
