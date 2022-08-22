@@ -1349,9 +1349,7 @@ static int use_ffdhe = 0;
 
 /* Don't print out in CSV format by default */
 static int csv_format = 0;
-#ifdef BENCH_ASYM
 static int csv_header_count = 0;
-#endif
 
 
 /* globals for cipher tests */
@@ -1415,9 +1413,7 @@ static void benchmark_static_init(int force)
         bench_pq_asym_algs = 0;
         bench_other_algs = 0;
         csv_format = 0;
-#ifdef BENCH_ASYM
         csv_header_count = 0;
-#endif
     }
 }
 
@@ -1634,6 +1630,14 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
 
     /* calculate actual bytes */
     blocks *= countSz;
+    if (csv_format == 1) {
+        /* only print out header once */
+        if (csv_header_count == 1) {
+            printf("\n\nSymmetric Ciphers:\n\n");
+            printf("Algorithm,MB/s,Cycles per byte,\n");
+            csv_header_count++;
+        }
+    }
 
     if (base2) {
         /* determine if we should show as KiB or MiB */
@@ -2600,15 +2604,10 @@ int benchmark_init(void)
     wolfSSL_Debugging_ON();
 #endif
 
+    printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
+           (int)bench_size, BENCH_MIN_RUNTIME_SEC);
     if (csv_format == 1) {
-        printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        (int)bench_size, BENCH_MIN_RUNTIME_SEC);
         printf("This format allows you to easily copy the output to a csv file.");
-        printf("\n\nSymmetric Ciphers:\n\n");
-        printf("Algorithm,MB/s,Cycles per byte,\n");
-    } else {
-        printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        (int)bench_size, BENCH_MIN_RUNTIME_SEC);
     }
 
 #ifdef HAVE_WNR
