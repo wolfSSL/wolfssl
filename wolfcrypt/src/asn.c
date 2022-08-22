@@ -33116,10 +33116,8 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         return ASN_PARSE_E;
     }
 #ifdef OPENSSL_EXTRA
-    else {
-        dcrl->issuerSz = length + 3;
-        dcrl->issuer   = (byte*)GetNameFromDer(buf + idx, dcrl->issuerSz);
-    }
+    dcrl->issuerSz = length + (checkIdx - idx);
+    dcrl->issuer   = (byte*)GetNameFromDer(buf + idx, (int)dcrl->issuerSz);
 #endif
 
     if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
@@ -33377,7 +33375,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         }
 
                     #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
                     #endif
                         mp_free(m);
                     }
@@ -33691,7 +33689,7 @@ end:
                             buff);
         dcrl->issuer   = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
                             dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                            dcrl->issuerSz);
+                            (int)dcrl->issuerSz);
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
                 dcrl->issuerSz, dcrl->issuerHash);
