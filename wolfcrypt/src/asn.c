@@ -2569,7 +2569,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return b;
 }
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 16 bits.
  *
@@ -2614,7 +2614,7 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return n;
 }
-#endif
+#endif /* WC_RSA_PSS && !NO_RSA */
 #endif /* !NO_CERTS */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
@@ -6514,7 +6514,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         return ASN_PARSE_E;
     idx = idx - 1; /* reset idx after finding tag */
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
     if (*algId == RSAPSSk && tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
         word32 seqIdx = idx;
         int seqLen;
@@ -6535,7 +6535,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         /* TODO: store parameters so that usage can be checked. */
         idx += seqLen;
     }
-#endif
+#endif /* WC_RSA_PSS && !NO_RSA */
 
     if (tag == ASN_OBJECT_ID) {
         if (SkipObjectId(input, &idx, sz) < 0)
