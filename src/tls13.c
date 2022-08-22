@@ -3672,7 +3672,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) {
         AddPacketInfo(ssl, "ClientHello", handshake, args->output, args->sendSz,
@@ -5854,7 +5854,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ret != 0)
         return ret;
 
-    #ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     if (ssl->hsInfoOn)
         AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) {
@@ -5998,7 +5998,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
         return ret;
     idx += length;
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     if (ssl->hsInfoOn)
         AddPacketName(ssl, "EncryptedExtensions");
     if (ssl->toInfoOn) {
@@ -6138,7 +6138,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (sendSz < 0)
         return sendSz;
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
             AddPacketName(ssl, "CertificateRequest");
         if (ssl->toInfoOn) {
@@ -6944,7 +6944,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (sendSz < 0)
                 return sendSz;
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn)
                 AddPacketName(ssl, "Certificate");
             if (ssl->toInfoOn) {
@@ -7479,7 +7479,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = 0;
             }
 
-        #ifdef WOLFSSL_CALLBACKS
+        #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn)
                 AddPacketName(ssl, "CertificateVerify");
             if (ssl->toInfoOn) {
@@ -8399,7 +8399,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         return BUILD_MSG_ERROR;
     }
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) {
             AddPacketInfo(ssl, "Finished", handshake, output, sendSz,
@@ -8607,7 +8607,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
         if (sendSz < 0)
             return BUILD_MSG_ERROR;
 
-        #ifdef WOLFSSL_CALLBACKS
+        #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn) AddPacketName(ssl, "KeyUpdate");
             if (ssl->toInfoOn) {
                 AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
@@ -9735,7 +9735,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return ret;
     }
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS)
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
         int add = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
