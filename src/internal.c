@@ -24693,7 +24693,8 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         }
     #endif /* WOLFSSL_CALLBACKS */
     #ifdef OPENSSL_EXTRA
-        if (ssl->protoMsgCb != NULL && sz > RECORD_HEADER_SZ) {
+        if ((ssl->protoMsgCb != NULL) && (sz > RECORD_HEADER_SZ) &&
+            (ssl->keys.encryptionOn != 1)) {
             /* version from hex to dec  16 is 16^1, 256 from 16^2 and
                4096 from 16^3 */
             int version = (ssl->version.minor & 0x0F) +
