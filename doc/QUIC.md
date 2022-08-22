@@ -1,10 +1,51 @@
-# QUIC in wolfSSL
+# wolfSSL and QUIC
 
-This is an intermediate documentation about the added support for the QUIC protocol in wolfSSL. 
-It is intended as a guide to reviewing the changes and a base for future update of the standard
-wolfSSL documentation, once the changes have been reviewed.
+wolfSSL *supports* QUIC implementations. It does not offer an implementation of the QUIC protocol.
 
-## Configuration
+What does that mean?
+
+TLS works on top of the Internet's TCP protocol stack. The TCP is shipped as part of the Operating System
+and accessible via system calls and APIs. TCP itself is not secured by TLS, only the data sent via it is
+protected. TCP does not have to know anything about TLS.
+
+QUIC, on the other hand, is always protected by TLS. A QUIC implementation does always need an 
+implementation of the TLS protocol, specifically TLSv1.3. It does this in new ways and TLS
+implementations need to accommodate these. Those specifics have been added to wolfSSL.
+
+## ngtcp2
+
+One of the recommended QUIC implementations is [ngtpc2](https://github.com/ngtcp2/ngtcp2). It now
+supports use of wolfSSL as its "crypto" library. Configuring ngtcp2 with wolfSSL is done via:
+
+```
+> ./configure --with-wolfssl
+```
+
+Built this way, one gets a complete, standard-conform QUIC library.
+
+### HTTP/3 != QUIC
+
+HTTP/3 is designed for the QUIC protocol. But QUIC does not know anything about HTTP/3. [nghttp3](https://github.com/ngtcp2/nghttp3) is an implementation of HTTP/3 that works with ngtcp2.
+
+A *complete* HTTP/3 choice would be `nghttp3 + ngtcp2 + wolfSSL` plus the UDP of the operating system. The examples provided in ngtcp2 build exactly that and give you clients and servers that illustrate the use of the APIs.
+
+### curl - all in one
+
+The above configuration has also been added to [curl](https://github.com/curl/curl) and its library `libcurl`. Which will, once it leaves the experimental stage, make QUIC available in your favourite command line tool and for all applications built on top of `libcurl`.
+
+### why?
+
+Why all these different blocks? 
+
+The separation of HTTP/3 and QUIC is natural when you think about the relationship between TCP and HTTP/1.1. Like TCP, QUIC can and will carry other protocols. HTTP/3 is only the first one. Most likely 'DNS over QUIC' (DoQ) is the next popular, replacing DoH.
+
+The separation of QUIC's "crypto" parts from its other protocol enabling functions is a matter of security. In its experimental beginnings, QUIC had its own security design. With the emerging TLSv1.3 and all it improvements, plus decades of experience, it seemed rather unwise to have something separate in QUIC.
+
+Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementors happily make use of existing TLS libraries. 
+
+
+
+## wolfSSL Configuration
 
 QUIC support is enabled in the common autoconf style via:
 
@@ -12,32 +53,15 @@ QUIC support is enabled in the common autoconf style via:
 > ./configure --enable-quic
 ```
 
-this drags in some very basic features. To have everything necessary for a QUIC protocol implementation like ngtcpo2, one would do:
+this drags in some very basic features. To have everything necessary for a QUIC protocol implementation like ngtcp2, one would do:
 
 ```
- ./configure --enable-quic --enable-session-ticket --enable-earlydata --enable-psk --enable-sni --enable-alpn
+ ./configure --enable-quic --enable-session-ticket --enable-earlydata --enable-psk
 ```
 
-CMake support files have been updated as well, but not tested.
+**Note**: for now, quic is not enabled via `--enable-all` and always needs to be specified.
 
-## Structure of Changes
-
-The following files carry the main code added:
-
-```
-src/quic.c
-wolfssl/quic.h
-tests/quic.c
-```
-
-Additions to other files were necessary, protected by `#ifdef WOLFSSL_QUIC`, those cover:
-
-* additions to `SSL_new()`, `SSL_free()`, `SSL_clear()`
-* a new TLSX extension for QUIC transport parameters in QUICv1 and draft-27 versions. A new error code for when this is missing.
-* a new `ssl->options` field to en-/disable TLSv1.3 MiddleBox Compat support, since this feature may not be active on a TLS13 session that is used by QUIC.
-* handling of EarlyData without `EndOfEarlyData` messages being exchanged, since QUIC does not use those.
-
-## API
+## wolfSSL API
 
 The exposed API carries all methods that the [quictls/openssl](https://github.com/quictls/openssl) introduces. This seems to become the standard, since other *SLL libraries have picked those up or are about to. The methods are all in the `wolfSSL_` prefix. There are some additional methods, which are covered below.
 
