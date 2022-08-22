@@ -1264,6 +1264,20 @@ typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
 #define WOLF_CRYPTO_EX_INDEX__COUNT          16
 
 #ifdef HAVE_EX_DATA
+/* Helper macro to log that input arguments should not be used */
+#define WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(a1, a2, a3, a4, a5) \
+    (void)a1;                                                    \
+    (void)a2;                                                    \
+    (void)a3;                                                    \
+    (void)a4;                                                    \
+    (void)a5;                                                    \
+    do {                                                         \
+        if (a3 != NULL || a4 != NULL || a5 != NULL) {            \
+            WOLFSSL_MSG("get_ex_new_index API does not support " \
+                        "new, dup, or free callbacks");          \
+        }                                                        \
+    } while(0)
+
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
 typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,

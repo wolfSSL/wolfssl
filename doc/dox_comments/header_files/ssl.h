@@ -14347,3 +14347,22 @@ int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
     \sa wolfSSL_read_early_data
  */
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
+
+/*!
+    \ingroup SSL
+    \brief Get a new index for external data. This entry applies also for the
+           following API:
+           - wolfSSL_CTX_get_ex_new_index
+           - wolfSSL_get_ex_new_index
+           - wolfSSL_SESSION_get_ex_new_index
+           - wolfSSL_X509_get_ex_new_index
+
+    \param [in] All input parameters are ignored. The callback functions are not
+                supported with wolfSSL.
+
+    \return The new index value to be used with the external data API for this
+            object class.
+ */
+int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
+
+
