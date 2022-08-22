@@ -32853,7 +32853,10 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
                       int maxIdx)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-    int    ret, len;
+#ifndef NO_ASN_TIME
+    int ret;
+#endif
+    int len;
     word32 end;
     RevokedCert* rc;
 
@@ -33114,7 +33117,8 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
     }
 #ifdef OPENSSL_EXTRA
     else {
-        dcrl->issuer = (byte*)GetNameFromDer(buf + idx, WC_ASN_NAME_MAX);
+        dcrl->issuerSz = length + 3;
+        dcrl->issuer   = (byte*)GetNameFromDer(buf + idx, dcrl->issuerSz);
     }
 #endif
 
@@ -33149,6 +33153,8 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
         }
+#else
+        (void)verify;
 #endif
     }
 
@@ -33343,7 +33349,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
                     #ifdef WOLFSSL_SMALL_STACK
                         m = (mp_int*)XMALLOC(sizeof(*m), NULL,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+                                DYNAMIC_TYPE_BIGINT);
                         if (m == NULL) {
                             return MEMORY_E;
                         }
@@ -33356,7 +33362,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         if (ret != MP_OKAY) {
                             mp_free(m);
                     #ifdef WOLFSSL_SMALL_STACK
-                            XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                            XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
                     #endif
                             return BUFFER_E;
                         }
@@ -33681,12 +33687,14 @@ end:
     if (ret == 0) {
     #endif
         /* Parse and store the issuer name. */
-        dcrl->issuer = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
-                        dataASN[CRLASN_IDX_TBS_ISSUER], buff), ASN_NAME_MAX);
+        dcrl->issuerSz = GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER],
+                            buff);
+        dcrl->issuer   = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
+                            dataASN[CRLASN_IDX_TBS_ISSUER], buff),
+                            dcrl->issuerSz);
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                dcrl->issuerHash);
+                dcrl->issuerSz, dcrl->issuerHash);
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }

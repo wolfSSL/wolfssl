@@ -94,7 +94,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 #if defined(OPENSSL_EXTRA)
     crle->issuer = NULL;
     wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
-            XSTRLEN((const char*)dcrl->issuer));
+                          dcrl->issuerSz);
     if (crle->issuer == NULL) {
         return WOLFSSL_FAILURE;
     }

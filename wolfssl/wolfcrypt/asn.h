@@ -2412,6 +2412,7 @@ struct DecodedCRL {
     RevokedCert* certs;              /* revoked cert list  */
 #if defined(OPENSSL_EXTRA)
     byte*   issuer;                  /* full name including common name  */
+    int     issuerSz;                /* length of the issuer             */
 #endif
     int          totalCerts;         /* number on list     */
     int          version;            /* version of cert    */
