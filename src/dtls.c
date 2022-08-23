@@ -149,7 +149,7 @@ void TLSX_ConnectionID_Free(byte* ext, void* heap)
         XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
     XFREE(info, heap, DYNAMIC_TYPE_TLSX);
     DtlsCidUnsetInfoFromExt(ext);
-    XFREE(ext, heap, DYANMIC_TYPE_TLSX);
+    XFREE(ext, heap, DYNAMIC_TYPE_TLSX);
 }
 
 word16 TLSX_ConnectionID_Write(byte* ext, byte* output)
