@@ -2743,15 +2743,8 @@ typedef struct InternalTicket {
 #define WOLFSSL_TICKET_EXTRA_PADDING_SZ 32
 #endif
 
-#if defined(WOLFSSL_GENERAL_ALIGNMENT) && WOLFSSL_GENERAL_ALIGNMENT > 0
-    /* round up to WOLFSSL_GENERAL_ALIGNMENT */
-    #define WOLFSSL_TICKET_ENC_SZ \
-        (((sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ) + \
-            WOLFSSL_GENERAL_ALIGNMENT - 1) & ~(WOLFSSL_GENERAL_ALIGNMENT-1))
-#else
-    #define WOLFSSL_TICKET_ENC_SZ \
-        (sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
-#endif
+#define WOLFSSL_TICKET_ENC_SZ \
+    (sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
 
 /* RFC 5077 defines this for session tickets. All members need to be a byte or
  * array of byte to avoid alignment issues */
