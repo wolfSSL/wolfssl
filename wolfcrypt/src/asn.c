@@ -35019,46 +35019,44 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                 }
                 else {
                     if (length > 1) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        mp_int* m;
-                    #else
-                        mp_int m[1];
-                    #endif
                         int    i;
-
                     #ifdef WOLFSSL_SMALL_STACK
-                        m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                        mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
                                 DYNAMIC_TYPE_BIGINT);
                         if (m == NULL) {
                             return MEMORY_E;
                         }
+                    #else
+                        mp_int m[1];
                     #endif
+
                         if (mp_init(m) != MP_OKAY) {
-                            return MP_INIT_E;
+                            ret = MP_INIT_E;
                         }
 
-                        ret = mp_read_unsigned_bin(m, buf + idx, length);
-                        if (ret != MP_OKAY) {
-                            mp_free(m);
-                    #ifdef WOLFSSL_SMALL_STACK
-                            XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
-                    #endif
-                            return BUFFER_E;
-                        }
+                        if (ret == 0)
+                            ret = mp_read_unsigned_bin(m, buf + idx, length);
+                        if (ret != MP_OKAY)
+                            ret = BUFFER_E;
 
-                        dcrl->crlNumber = 0;
-                        for (i = 0; i < (*m).used; ++i) {
-                            if (i > (int)sizeof(word32)) {
+                        if (ret == 0) {
+                            dcrl->crlNumber = 0;
+                            for (i = 0; i < (*m).used; ++i) {
+                                if (i > (int)sizeof(word32)) {
                                     break;
+                                }
+                                dcrl->crlNumber |= ((word32)(*m).dp[i]) <<
+                                    (DIGIT_BIT * i);
                             }
-                            dcrl->crlNumber |= ((word32)(*m).dp[i]) <<
-                                (DIGIT_BIT * i);
                         }
 
+                        mp_free(m);
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
                     #endif
-                        mp_free(m);
+
+                        if (ret != 0)
+                            return ret;
                     }
                     else {
                         dcrl->crlNumber = buf[idx];
