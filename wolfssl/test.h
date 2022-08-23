@@ -5445,10 +5445,19 @@ static WC_INLINE int process_handshake_messages(WOLFSSL* ssl, int blocking,
 }
 #endif /* HAVE_SESSION_TICKET || WOLFSSL_DTLS13 */
 
+static WC_INLINE void printBuffer(const byte *buf, int size)
+{
+    int i;
+    for (i = 0; i < size; i++)
+        printf("%x", buf[i]);
+}
+
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
 void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName);
 void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
 #endif
+
+#define DTLS_CID_BUFFER_SIZE 256
 
 #endif /* wolfSSL_TEST_H */

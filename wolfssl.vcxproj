@@ -278,6 +278,7 @@
   <ItemGroup>
     <ClCompile Include="src\crl.c" />
     <ClCompile Include="src\dtls13.c" />
+    <ClCompile Include="src\dtls.c" />
     <ClCompile Include="src\internal.c" />
     <ClCompile Include="src\wolfio.c" />
     <ClCompile Include="src\keys.c" />

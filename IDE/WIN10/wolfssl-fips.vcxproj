@@ -279,6 +279,7 @@
     <ClCompile Include="..\..\src\tls.c" />
     <ClCompile Include="..\..\src\tls13.c" />
     <ClCompile Include="..\..\src\dtls13.c" />
+    <ClCompile Include="..\..\src\dtls.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_first.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_last.c" />

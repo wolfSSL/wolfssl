@@ -1153,6 +1153,17 @@ int SuiteTest(int argc, char** argv)
     }
 #endif /* NO_PSK */
 
+#ifdef WOLFSSL_DTLS_CID
+    XSTRLCPY(argv0[1], "tests/test-dtls13-cid.conf", sizeof(argv0[1]));
+    printf("starting DTLS 1.3 ConnectionID suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* WOLFSSL_DTLS_CID */
+
 #endif /* WOLFSSL_DTLS13 */
 
 #endif
