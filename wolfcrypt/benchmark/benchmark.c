@@ -1675,7 +1675,11 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
 
     /* format and print to terminal */
     if (csv_format == 1) {
-        (void)XSNPRINTF(msg, sizeof(msg), "%s,%.3f,", desc, persec);
+        if (blockType[0] == 'K')
+            persec /= base2 ? 1024. : 1000.;
+        else if (blockType[0] == 'b')
+            persec /= base2 ? (1024. * 1024.) : (1000. * 1000.);
+        (void)XSNPRINTF(msg, sizeof(msg), "%s,%f,", desc, persec);
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     } else {
         (void)XSNPRINTF(msg, sizeof(msg), "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
