@@ -5879,8 +5879,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     ssl->options.buildingMsg = 0;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret =  Dtls13HandshakeSend(ssl, output, sendSz, sendSz,
-                                   extMsgType, 0);
+        ret = Dtls13HandshakeSend(ssl, output, sendSz, sendSz,
+            (enum HandShakeType)extMsgType, 0);
 
         WOLFSSL_LEAVE("SendTls13ServerHello", ret);
         WOLFSSL_END(WC_FUNC_SERVER_HELLO_SEND);
