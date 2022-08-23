@@ -24766,24 +24766,31 @@ exit:
 /* ECC Non-blocking tests for Sign and Verify */
 /* Requires SP math and supports P384 or P256 */
 /* ./configure --enable-ecc=nonblock --enable-sp=yes,nonblock CFLAGS="-DWOLFSSL_PUBLIC_MP" */
-#if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_PUBLIC_MP) && \
-    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
-    defined(WOLFSSL_HAVE_SP_ECC)
-/* Test Data - Random */
-static const uint8_t kMsg[] = {
-    0x69, 0xbc, 0x9f, 0xce, 0x68, 0x17, 0xc2, 0x10, 0xea, 0xfc, 0x10, 0x65, 0x67, 0x52, 0xed, 0x78,
-    0x6e, 0xb8, 0x83, 0x9c, 0x9a, 0xb4, 0x56, 0x0d, 0xc1, 0x0d, 0x1f, 0x78, 0x6e, 0x75, 0xd7, 0xbe,
-    0x92, 0x6b, 0x12, 0xf6, 0x76, 0x60, 0x8e, 0xb1, 0xf4, 0x19, 0x0c, 0x81, 0xe7, 0x54, 0x5e, 0xbc,
-    0xe0, 0xae, 0xc2, 0x7d, 0x1b, 0xc4, 0x6e, 0xec, 0xb1, 0x99, 0x6c, 0xbf, 0x0e, 0x38, 0xa8, 0x01,
-    0xa6, 0x9a, 0x48, 0x12, 0xe4, 0xc9, 0x3b, 0xf0, 0x63, 0x46, 0x15, 0xb4, 0x61, 0xa8, 0x1a, 0x60,
-    0x71, 0x87, 0x98, 0xd7, 0x6f, 0x98, 0x7b, 0x2d, 0xb9, 0x19, 0x1b, 0x21, 0x9c, 0x70, 0x58, 0xe8,
-    0x0d, 0x0f, 0xe9, 0x2d, 0x9a, 0x9a, 0xf1, 0x55, 0xa0, 0x4c, 0xd3, 0x07, 0xbd, 0x97, 0x48, 0xec,
-    0x88, 0x0a, 0xaf, 0xb3, 0x80, 0x78, 0xa4, 0x59, 0x43, 0x57, 0xd3, 0xa7, 0x01, 0x66, 0x0e, 0xfc
-};
-
+#if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_HAVE_SP_ECC) && \
+    defined(WOLFSSL_PUBLIC_MP)
 /* ECC Private Key "d" */
-static const uint8_t kPrivKey[] = {
+static const byte p256PrivKey[] = {
+    /* SECP256R1 */
+    /* d */
+    0x1e, 0xe7, 0x70, 0x07, 0xd3, 0x30, 0x94, 0x39,
+    0x28, 0x90, 0xdf, 0x23, 0x88, 0x2c, 0x4a, 0x34,
+    0x15, 0xdb, 0x4c, 0x43, 0xcd, 0xfa, 0xe5, 0x1f,
+    0x3d, 0x4c, 0x37, 0xfe, 0x59, 0x3b, 0x96, 0xd8
+};
+#ifdef HAVE_ECC384
+static const byte p384PrivKey[] = {
+    /* SECP384R1 */
+    /* d */
+    0xa4, 0xe5, 0x06, 0xe8, 0x06, 0x16, 0x3e, 0xab,
+    0x89, 0xf8, 0x60, 0x43, 0xc0, 0x60, 0x25, 0xdb,
+    0xba, 0x7b, 0xfe, 0x19, 0x35, 0x08, 0x55, 0x65,
+    0x76, 0xe2, 0xdc, 0xe0, 0x01, 0x8b, 0x6b, 0x68,
+    0xdf, 0xcf, 0x6f, 0x80, 0x12, 0xce, 0x79, 0x37,
+    0xeb, 0x2b, 0x9c, 0x7b, 0xc4, 0x68, 0x1c, 0x74
+};
+#endif /* HAVE_ECC384 */
 #ifdef HAVE_ECC521
+static const byte p521PrivKey[] = {
     /* SECP521R1 */
     /* d */
     0x01, 0x68, 0x91, 0x33, 0x53, 0xe2, 0x90, 0x68,
@@ -24795,28 +24802,44 @@ static const uint8_t kPrivKey[] = {
     0x02, 0x32, 0xee, 0x26, 0x87, 0xcc, 0xed, 0x63,
     0x3f, 0x39, 0x27, 0xf0, 0xd7, 0x17, 0x77, 0xa1,
     0xa4, 0x36
-#elif defined(HAVE_ECC384)
-    /* SECP384R1 */
-    /* d */
-    0xa4, 0xe5, 0x06, 0xe8, 0x06, 0x16, 0x3e, 0xab,
-    0x89, 0xf8, 0x60, 0x43, 0xc0, 0x60, 0x25, 0xdb,
-    0xba, 0x7b, 0xfe, 0x19, 0x35, 0x08, 0x55, 0x65,
-    0x76, 0xe2, 0xdc, 0xe0, 0x01, 0x8b, 0x6b, 0x68,
-    0xdf, 0xcf, 0x6f, 0x80, 0x12, 0xce, 0x79, 0x37,
-    0xeb, 0x2b, 0x9c, 0x7b, 0xc4, 0x68, 0x1c, 0x74
-#else
-    /* SECP256R1 */
-    /* d */
-    0x1e, 0xe7, 0x70, 0x07, 0xd3, 0x30, 0x94, 0x39,
-    0x28, 0x90, 0xdf, 0x23, 0x88, 0x2c, 0x4a, 0x34,
-    0x15, 0xdb, 0x4c, 0x43, 0xcd, 0xfa, 0xe5, 0x1f,
-    0x3d, 0x4c, 0x37, 0xfe, 0x59, 0x3b, 0x96, 0xd8
-#endif
 };
+#endif /* HAVE_ECC521 */
 
 /* ECC public key Qx/Qy */
-static const uint8_t kPubKey[] = {
+static const byte p256PubKey[] = {
+    /* SECP256R1 */
+    /* Qx */
+    0x96, 0x93, 0x1c, 0x53, 0x0b, 0x43, 0x6c, 0x42,
+    0x0c, 0x52, 0x90, 0xe4, 0xa7, 0xec, 0x98, 0xb1,
+    0xaf, 0xd4, 0x14, 0x49, 0xd8, 0xc1, 0x42, 0x82,
+    0x04, 0x78, 0xd1, 0x90, 0xae, 0xa0, 0x6c, 0x07,
+    /* Qy */
+    0xf2, 0x3a, 0xb5, 0x10, 0x32, 0x8d, 0xce, 0x9e,
+    0x76, 0xa0, 0xd2, 0x8c, 0xf3, 0xfc, 0xa9, 0x94,
+    0x43, 0x24, 0xe6, 0x82, 0x00, 0x40, 0xc6, 0xdb,
+    0x1c, 0x2f, 0xcd, 0x38, 0x4b, 0x60, 0xdd, 0x61
+};
+#ifdef HAVE_ECC384
+static const byte p384PubKey[] = {
+    /* SECP384R1 */
+    /* Qx */
+    0xea, 0xcf, 0x93, 0x4f, 0x2c, 0x09, 0xbb, 0x39,
+    0x14, 0x0f, 0x56, 0x64, 0xc3, 0x40, 0xb4, 0xdf,
+    0x0e, 0x63, 0xae, 0xe5, 0x71, 0x4b, 0x00, 0xcc,
+    0x04, 0x97, 0xff, 0xe1, 0xe9, 0x38, 0x96, 0xbb,
+    0x5f, 0x91, 0xb2, 0x6a, 0xcc, 0xb5, 0x39, 0x5f,
+    0x8f, 0x70, 0x59, 0xf1, 0x01, 0xf6, 0x5a, 0x2b,
+    /* Qy */
+    0x01, 0x6c, 0x68, 0x0b, 0xcf, 0x55, 0x25, 0xaf,
+    0x6d, 0x98, 0x48, 0x0a, 0xa8, 0x74, 0xc9, 0xa9,
+    0x17, 0xa0, 0x0c, 0xc3, 0xfb, 0xd3, 0x23, 0x68,
+    0xfe, 0x04, 0x3c, 0x63, 0x50, 0x88, 0x3b, 0xb9,
+    0x4f, 0x7c, 0x67, 0x34, 0xf7, 0x3b, 0xa9, 0x73,
+    0xe7, 0x1b, 0xc3, 0x51, 0x5e, 0x22, 0x18, 0xec
+};
+#endif
 #ifdef HAVE_ECC521
+static const byte p521PubKey[] = {
     /* SECP521R1 */
     /* Qx */
     0x01, 0x62, 0x6e, 0xf1, 0x00, 0xec, 0xd8, 0x99,
@@ -24838,268 +24861,7 @@ static const uint8_t kPubKey[] = {
     0x37, 0x24, 0xd8, 0xbf, 0x03, 0x0d, 0x8b, 0xb5,
     0x40, 0x5c, 0x4f, 0xd6, 0x13, 0x73, 0x42, 0xbc,
     0x91, 0xd9
-#elif defined(HAVE_ECC384)
-    /* SECP384R1 */
-    /* Qx */
-    0xea, 0xcf, 0x93, 0x4f, 0x2c, 0x09, 0xbb, 0x39,
-    0x14, 0x0f, 0x56, 0x64, 0xc3, 0x40, 0xb4, 0xdf,
-    0x0e, 0x63, 0xae, 0xe5, 0x71, 0x4b, 0x00, 0xcc,
-    0x04, 0x97, 0xff, 0xe1, 0xe9, 0x38, 0x96, 0xbb,
-    0x5f, 0x91, 0xb2, 0x6a, 0xcc, 0xb5, 0x39, 0x5f,
-    0x8f, 0x70, 0x59, 0xf1, 0x01, 0xf6, 0x5a, 0x2b,
-    /* Qy */
-    0x01, 0x6c, 0x68, 0x0b, 0xcf, 0x55, 0x25, 0xaf,
-    0x6d, 0x98, 0x48, 0x0a, 0xa8, 0x74, 0xc9, 0xa9,
-    0x17, 0xa0, 0x0c, 0xc3, 0xfb, 0xd3, 0x23, 0x68,
-    0xfe, 0x04, 0x3c, 0x63, 0x50, 0x88, 0x3b, 0xb9,
-    0x4f, 0x7c, 0x67, 0x34, 0xf7, 0x3b, 0xa9, 0x73,
-    0xe7, 0x1b, 0xc3, 0x51, 0x5e, 0x22, 0x18, 0xec
-#else
-    /* SECP256R1 */
-    /* Qx */
-    0x96, 0x93, 0x1c, 0x53, 0x0b, 0x43, 0x6c, 0x42,
-    0x0c, 0x52, 0x90, 0xe4, 0xa7, 0xec, 0x98, 0xb1,
-    0xaf, 0xd4, 0x14, 0x49, 0xd8, 0xc1, 0x42, 0x82,
-    0x04, 0x78, 0xd1, 0x90, 0xae, 0xa0, 0x6c, 0x07,
-    /* Qy */
-    0xf2, 0x3a, 0xb5, 0x10, 0x32, 0x8d, 0xce, 0x9e,
-    0x76, 0xa0, 0xd2, 0x8c, 0xf3, 0xfc, 0xa9, 0x94,
-    0x43, 0x24, 0xe6, 0x82, 0x00, 0x40, 0xc6, 0xdb,
-    0x1c, 0x2f, 0xcd, 0x38, 0x4b, 0x60, 0xdd, 0x61
-#endif
 };
-
-/* ECC Curve */
-#ifdef HAVE_ECC521
-    /* SECP521R1 */
-    #define ECC_CURVE_SZ 66
-    #define ECC_CURVE_ID ECC_SECP521R1
-#elif defined(HAVE_ECC384)
-    /* SECP384R1 */
-    #define ECC_CURVE_SZ 48
-    #define ECC_CURVE_ID ECC_SECP384R1
-#else
-    /* SECP256R1 */
-    #define ECC_CURVE_SZ 32
-    #define ECC_CURVE_ID ECC_SECP256R1
-#endif
-
-/* Hash Algorithm */
-#if defined(HAVE_ECC521) && defined(WOLFSSL_SHA3)
-    #define HASH_DIGEST_SZ  WC_SHA3_512_DIGEST_SIZE
-    #define HASH_SHA_VER    3
-    #define CRYPTO_HASH_FN  crypto_sha3_512
-#elif defined(HAVE_ECC521) && defined(WOLFSSL_SHA512)
-    #define HASH_DIGEST_SZ  WC_SHA512_DIGEST_SIZE
-    #define HASH_SHA_VER    2
-    #define CRYPTO_HASH_FN  crypto_sha2_512
-#elif defined(HAVE_ECC384) && defined(WOLFSSL_SHA3)
-    #define HASH_DIGEST_SZ  WC_SHA3_384_DIGEST_SIZE
-    #define HASH_SHA_VER    3
-    #define CRYPTO_HASH_FN  crypto_sha3_384
-#elif defined(HAVE_ECC384) && defined(WOLFSSL_SHA384)
-    #define HASH_DIGEST_SZ  WC_SHA384_DIGEST_SIZE
-    #define HASH_SHA_VER    2
-    #define CRYPTO_HASH_FN  crypto_sha2_384
-#elif !defined(NO_SHA256)
-    #define HASH_DIGEST_SZ  WC_SHA256_DIGEST_SIZE
-    #define HASH_SHA_VER    2
-    #define CRYPTO_HASH_FN  crypto_sha2_256
-#else
-    #error test configuration not supported
-#endif
-
-#if defined(HAVE_ECC521) && defined(WOLFSSL_SHA3)
-/* helper to perform hashing block by block */
-static int crypto_sha3_512(const uint8_t *buf, uint32_t len, uint8_t *hash,
-    uint32_t hashSz, uint32_t blkSz)
-{
-    int ret;
-    uint32_t i = 0, chunk;
-    wc_Sha3 sha3;
-
-    /* validate arguments */
-    if ((buf == NULL && len > 0) || hash == NULL ||
-        hashSz < WC_SHA3_512_DIGEST_SIZE || blkSz == 0)
-    {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Init Sha3_512 structure */
-    ret = wc_InitSha3_512(&sha3, NULL, INVALID_DEVID);
-    if (ret != 0) {
-        return ret;
-    }
-    while (i < len) {
-        chunk = blkSz;
-        if ((chunk + i) > len)
-            chunk = len - i;
-        /* Perform chunked update */
-        ret = wc_Sha3_512_Update(&sha3, (buf + i), chunk);
-        if (ret != 0) {
-            break;
-        }
-        i += chunk;
-    }
-    if (ret == 0) {
-        /* Get final digest result */
-        ret = wc_Sha3_512_Final(&sha3, hash);
-    }
-    return ret;
-}
-#elif defined(HAVE_ECC521) && defined(WOLFSSL_SHA512)
-/* helper to perform hashing block by block */
-static int crypto_sha2_512(const uint8_t *buf, uint32_t len, uint8_t *hash,
-    uint32_t hashSz, uint32_t blkSz)
-{
-    int ret;
-    uint32_t i = 0, chunk;
-    wc_Sha512 sha512;
-
-    /* validate arguments */
-    if ((buf == NULL && len > 0) || hash == NULL ||
-        hashSz < WC_SHA512_DIGEST_SIZE || blkSz == 0)
-    {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Init Sha512 structure */
-    ret = wc_InitSha512(&sha512);
-    if (ret != 0) {
-        return ret;
-    }
-    while (i < len) {
-        chunk = blkSz;
-        if ((chunk + i) > len)
-            chunk = len - i;
-        /* Perform chunked update */
-        ret = wc_Sha512Update(&sha512, (buf + i), chunk);
-        if (ret != 0) {
-            break;
-        }
-        i += chunk;
-    }
-    if (ret == 0) {
-        /* Get final digest result */
-        ret = wc_Sha512Final(&sha512, hash);
-    }
-    return ret;
-}
-#elif defined(HAVE_ECC384) && defined(WOLFSSL_SHA3)
-/* helper to perform hashing block by block */
-static int crypto_sha3_384(const uint8_t *buf, uint32_t len, uint8_t *hash,
-    uint32_t hashSz, uint32_t blkSz)
-{
-    int ret;
-    uint32_t i = 0, chunk;
-    wc_Sha3 sha3;
-
-    /* validate arguments */
-    if ((buf == NULL && len > 0) || hash == NULL ||
-        hashSz < WC_SHA3_384_DIGEST_SIZE || blkSz == 0)
-    {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Init Sha3_384 structure */
-    ret = wc_InitSha3_384(&sha3, NULL, INVALID_DEVID);
-    if (ret != 0) {
-        return ret;
-    }
-    while (i < len) {
-        chunk = blkSz;
-        if ((chunk + i) > len)
-            chunk = len - i;
-        /* Perform chunked update */
-        ret = wc_Sha3_384_Update(&sha3, (buf + i), chunk);
-        if (ret != 0) {
-            break;
-        }
-        i += chunk;
-    }
-    if (ret == 0) {
-        /* Get final digest result */
-        ret = wc_Sha3_384_Final(&sha3, hash);
-    }
-    return ret;
-}
-#elif defined(HAVE_ECC384) && defined(WOLFSSL_SHA384)
-/* helper to perform hashing block by block */
-static int crypto_sha2_384(const uint8_t *buf, uint32_t len, uint8_t *hash,
-    uint32_t hashSz, uint32_t blkSz)
-{
-    int ret;
-    uint32_t i = 0, chunk;
-    wc_Sha384 sha384;
-
-    /* validate arguments */
-    if ((buf == NULL && len > 0) || hash == NULL ||
-        hashSz < WC_SHA384_DIGEST_SIZE || blkSz == 0)
-    {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Init Sha384 structure */
-    ret = wc_InitSha384(&sha384);
-    if (ret != 0) {
-        return ret;
-    }
-    while (i < len) {
-        chunk = blkSz;
-        if ((chunk + i) > len)
-            chunk = len - i;
-        /* Perform chunked update */
-        ret = wc_Sha384Update(&sha384, (buf + i), chunk);
-        if (ret != 0) {
-            break;
-        }
-        i += chunk;
-    }
-    if (ret == 0) {
-        /* Get final digest result */
-        ret = wc_Sha384Final(&sha384, hash);
-    }
-    return ret;
-}
-#elif !defined(NO_SHA256)
-/* helper to perform hashing block by block */
-static int crypto_sha2_256(const uint8_t *buf, uint32_t len, uint8_t *hash,
-    uint32_t hashSz, uint32_t blkSz)
-{
-    int ret;
-    uint32_t i = 0, chunk;
-    wc_Sha256 sha256;
-
-    /* validate arguments */
-    if ((buf == NULL && len > 0) || hash == NULL ||
-        hashSz < WC_SHA256_DIGEST_SIZE || blkSz == 0)
-    {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Init Sha256 structure */
-    ret = wc_InitSha256(&sha256);
-    if (ret != 0) {
-        return ret;
-    }
-    while (i < len) {
-        chunk = blkSz;
-        if ((chunk + i) > len)
-            chunk = len - i;
-        /* Perform chunked update */
-        ret = wc_Sha256Update(&sha256, (buf + i), chunk);
-        if (ret != 0) {
-            break;
-        }
-        i += chunk;
-    }
-    if (ret == 0) {
-        /* Get final digest result */
-        ret = wc_Sha256Final(&sha256, hash);
-    }
-    return ret;
-}
-#endif
 
 /* perform verify of signature and hash using public key */
 /* key is public Qx + public Qy */
@@ -25283,48 +25045,177 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
 
     return ret;
 }
+#endif /* HAVE_ECC_SIGN && HAVE_ECC_VERIFY */
 
-static int ecc_test_nonblock(WC_RNG* rng)
+/*
+ * This test doesn't work with WOLFSSL_VALIDATE_ECC_KEYGEN defined because we
+ * don't have non-blocking versions of the key checking functions, yet.
+ */
+#if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
+    const byte* privKey, const byte* pubKey, WC_RNG* rng)
 {
     int ret;
-    uint8_t hash[HASH_DIGEST_SZ];
-    uint8_t sig[ECC_CURVE_SZ*2];
-    uint32_t sigSz = sizeof(sig);
+    ecc_key keyA;
+    ecc_key keyB;
+    ecc_nb_ctx_t nbCtxA;
+    ecc_nb_ctx_t nbCtxB;
+    byte secretA[ECC_SHARED_SIZE];
+    byte secretB[ECC_SHARED_SIZE];
+    word32 secretSzA = ECC_SHARED_SIZE;
+    word32 secretSzB = ECC_SHARED_SIZE;
+    int count = 0;
 
-    ret = CRYPTO_HASH_FN(
-        kMsg, sizeof(kMsg), /* input message */
-        hash, sizeof(hash), /* hash digest result */
-        32                  /* configurable block / chunk size */
-    );
+    ret = wc_ecc_init(&keyA);
+    if (ret == 0) {
+        ret = wc_ecc_init(&keyB);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_set_nonblock(&keyA, &nbCtxA);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_set_nonblock(&keyB, &nbCtxB);
+    }
+    if (ret == 0) {
+        do {
+            ret = wc_ecc_make_key_ex(rng, curveSz, &keyA, curveId);
+            count++;
+        } while (ret == FP_WOULDBLOCK);
+    }
+#ifdef DEBUG_WOLFSSL
+    fprintf(stderr, "ECC non-block key gen: %d times\n", count);
+#endif
+    if (ret == 0) {
+        ret = wc_ecc_check_key(&keyA);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_import_unsigned(&keyB, pubKey, pubKey + curveSz,
+                                     privKey, curveId);
+    }
+    count = 0;
+    if (ret == 0) {
+        do {
+            ret = wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretSzA);
+            count++;
+        } while (ret == FP_WOULDBLOCK);
+    }
+#ifdef DEBUG_WOLFSSL
+    fprintf(stderr, "ECC non-block shared secret: %d times\n", count);
+#endif
+    if (ret == 0) {
+        do {
+            ret = wc_ecc_shared_secret(&keyB, &keyA, secretB, &secretSzB);
+        } while (ret == FP_WOULDBLOCK);
+    }
+    if (ret == 0) {
+        if (secretSzA != secretSzB ||
+            XMEMCMP(secretA, secretB, secretSzA) != 0) {
+            ret = -1;
+        }
+    }
+
+    wc_ecc_free(&keyA);
+    wc_ecc_free(&keyB);
+
+    return ret;
+}
+#endif /* HAVE_ECC_DHE && !WOLFSSL_VALIDATE_ECC_KEYGEN */
+
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+static int ecc_test_nonblock_ecdsa(int curveId, word32 curveSz,
+    const byte* privKey, word32 privKeySz, const byte* pubKey, word32 pubKeySz,
+    WC_RNG* rng)
+{
+    int ret = 0;
+    byte* sig = NULL;
+    word32 sigSz = curveSz * 2;
+    static const byte hash[] = {
+        0x8d, 0x28, 0xa3, 0x8b, 0x0b, 0xa9, 0xfe, 0xd4, 0x0e, 0x54, 0xc4, 0x17,
+        0x3d, 0x54, 0x66, 0x34, 0xbf, 0x5d, 0x6f, 0x46, 0xc2, 0x20, 0xcb, 0xc3,
+        0x22, 0xe9, 0xb0, 0xdf, 0xe7, 0x64, 0x3f, 0xd9
+    };
+
+    sig = (byte*)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
+    if (sig == NULL) {
+        ret = -1;
+    }
     if (ret == 0) {
         /* Sign hash using private key */
         /* Note: result of an ECC sign varies for each call even with same
             private key and hash. This is because a new random public key is
             used for each operation. */
-        ret = crypto_ecc_sign(
-            kPrivKey, sizeof(kPrivKey), /* private key */
-            hash, sizeof(hash),         /* computed hash digest */
-            sig, &sigSz,                /* signature r/s */
-            ECC_CURVE_SZ,               /* curve size in bytes */
-            ECC_CURVE_ID,               /* curve id */
-            rng
-        );
+        ret = crypto_ecc_sign(privKey, privKeySz, hash, sizeof(hash), sig,
+                  &sigSz, curveSz, curveId, rng);
     }
-
     if (ret == 0) {
         /* Verify generated signature is valid */
-        ret = crypto_ecc_verify(
-            kPubKey, sizeof(kPubKey),   /* public key point x/y */
-            hash, sizeof(hash),         /* computed hash digest */
-            sig, sigSz,                 /* signature r/s */
-            ECC_CURVE_SZ,               /* curve size in bytes */
-            ECC_CURVE_ID                /* curve id */
-        );
+        ret = crypto_ecc_verify(pubKey, pubKeySz, hash, sizeof(hash), sig,
+                  sigSz, curveSz, curveId);
+    }
+
+    if (sig != NULL) {
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
     }
 
     return ret;
 }
-#endif /* WC_ECC_NONBLOCK && WOLFSSL_PUBLIC_MP && HAVE_ECC_SIGN && HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN && HAVE_ECC_VERIFY */
+
+static int ecc_test_nonblock(WC_RNG* rng)
+{
+    int ret = 0;
+    word32 i;
+    int curveIds[3] = {0, 0, 0};
+    word32 curveSzs[3] = {0, 0, 0};
+    const byte* privKeys[3] = {NULL, NULL, NULL};
+    word32 privKeySzs[3] = {0, 0, 0};
+    const byte* pubKeys[3] = {NULL, NULL, NULL};
+    word32 pubKeySzs[3] = {0, 0, 0};
+
+    curveIds[0] = ECC_SECP256R1;
+    curveSzs[0] = 32;
+    privKeys[0] = p256PrivKey;
+    privKeySzs[0] = sizeof(p256PrivKey);
+    pubKeys[0] = p256PubKey;
+    pubKeySzs[0] = sizeof(p256PubKey);
+#ifdef HAVE_ECC384
+    curveIds[1] = ECC_SECP384R1;
+    curveSzs[1] = 48;
+    privKeys[1] = p384PrivKey;
+    privKeySzs[1] = sizeof(p384PrivKey);
+    pubKeys[1] = p384PubKey;
+    pubKeySzs[1] = sizeof(p384PubKey);
+#endif
+#ifdef HAVE_ECC521
+    curveIds[2] = ECC_SECP521R1;
+    curveSzs[2] = 66;
+    privKeys[2] = p521PrivKey;
+    privKeySzs[2] = sizeof(p521PrivKey);
+    pubKeys[2] = p521PubKey;
+    pubKeySzs[2] = sizeof(p521PubKey);
+#endif
+
+    for (i = 0; ret == 0 && i < sizeof(curveIds) / sizeof(curveIds[0]); ++i) {
+        if (curveIds[i] == 0) {
+            continue;
+        }
+
+    #if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+        ret = ecc_test_nonblock_ecdsa(curveIds[i], curveSzs[i], privKeys[i],
+                  privKeySzs[i], pubKeys[i], pubKeySzs[i], rng);
+    #endif /* HAVE_ECC_SIGN && HAVE_ECC_VERIFY */
+
+    #if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
+        if (ret == 0) {
+            ret = ecc_test_nonblock_dhe(curveIds[i], curveSzs[i], privKeys[i],
+                      pubKeys[i], rng);
+        }
+    #endif /* HAVE_ECC_DHE && !WOLFSSL_VALIDATE_ECC_KEYGEN */
+    }
+
+    return ret;
+}
+#endif /* WC_ECC_NONBLOCK && WOLFSSL_HAVE_SP_ECC && WOLFSSL_PUBLIC_MP */
 
 WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 {
