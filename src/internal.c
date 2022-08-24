@@ -24092,6 +24092,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
 {
     int ret = 0;
     int idx = 0;
+    int i;
 
     int haveRSAsig       = 0;
     int haveECDSAsig     = 0;
@@ -24105,7 +24106,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         return 0;
     }
 
-    for (int i = 0; (i + 1) < listSz; i += 2) {
+    for (i = 0; (i + 1) < listSz; i += 2) {
         const byte firstByte = list[i];
         const byte secondByte = list[i + 1];
         const char* name = NULL;
