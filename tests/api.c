@@ -432,9 +432,9 @@ enum {
 
 #ifdef WOLFSSL_QNX_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
-static int devId = WOLFSSL_CAAM_DEVID;
+static int testDevId = WOLFSSL_CAAM_DEVID;
 #else
-static int devId = INVALID_DEVID;
+static int testDevId = INVALID_DEVID;
 #endif
 
 
@@ -1608,7 +1608,7 @@ static int test_wolfSSL_CertManagerNameConstraint(void)
     wc_InitRng(&rng);
 
     /* load in CA private key for signing */
-    AssertIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, devId), 0);
+    AssertIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, testDevId), 0);
     AssertIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
                 sizeof_server_key_der_2048), 0);
 
@@ -7609,34 +7609,34 @@ static void verify_SNI_ABSENT_on_server(WOLFSSL* ssl)
 static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = (char*) &type; /* to be overwritten */
+    void* request = (void*) &type; /* to be overwritten */
 
     AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
     AssertNotNull(request);
-    AssertIntEQ(0, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(0, wolfSSL_SNI_GetRequest(ssl, type, &request));
     AssertNull(request);
 }
 
 static void verify_SNI_real_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = NULL;
+    void* request = NULL;
 
     AssertIntEQ(WOLFSSL_SNI_REAL_MATCH, wolfSSL_SNI_Status(ssl, type));
-    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, &request));
     AssertNotNull(request);
-    AssertStrEQ("www.wolfssl.com", request);
+    AssertStrEQ("www.wolfssl.com", (char*)request);
 }
 
 static void verify_SNI_fake_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = NULL;
+    void* request = NULL;
 
     AssertIntEQ(WOLFSSL_SNI_FAKE_MATCH, wolfSSL_SNI_Status(ssl, type));
-    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, &request));
     AssertNotNull(request);
-    AssertStrEQ("ww2.wolfssl.com", request);
+    AssertStrEQ("ww2.wolfssl.com", (char*)request);
 }
 
 static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
@@ -7655,8 +7655,8 @@ static int test_wolfSSL_UseSNI_connection(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    client_cb.devId = devId;
-    server_cb.devId = devId;
+    client_cb.devId = testDevId;
+    server_cb.devId = testDevId;
 
     /* success case at ctx */
     client_cb.ctx_ready = use_SNI_at_ctx; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
@@ -8208,8 +8208,8 @@ static int test_wolfSSL_UseALPN_connection(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    client_cb.devId = devId;
-    server_cb.devId = devId;
+    client_cb.devId = testDevId;
+    server_cb.devId = testDevId;
 
     /* success case same list */
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all; client_cb.on_result = NULL;
@@ -8413,8 +8413,8 @@ static int test_wolfSSL_set_alpn_protos(void)
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
-    client_cb.devId = devId;
-    server_cb.devId = devId;
+    client_cb.devId = testDevId;
+    server_cb.devId = testDevId;
 
     /* use CTX_alpn_protos */
     client_cb.ctx_ready = CTX_set_alpn_protos; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
@@ -13053,11 +13053,11 @@ static int test_wc_InitSha3(void)
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_InitSha3_224()");
 
-        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
 
         /* Test bad args. */
         if (ret == 0) {
-            ret = wc_InitSha3_224(NULL, HEAP_HINT, devId);
+            ret = wc_InitSha3_224(NULL, HEAP_HINT, testDevId);
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
@@ -13071,10 +13071,10 @@ static int test_wc_InitSha3(void)
         if (ret == 0) {
             printf(testingFmt, "wc_InitSha3_256()");
 
-            ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_256(&sha3, HEAP_HINT, testDevId);
             /* Test bad args. */
             if (ret == 0) {
-                ret = wc_InitSha3_256(NULL, HEAP_HINT, devId);
+                ret = wc_InitSha3_256(NULL, HEAP_HINT, testDevId);
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
                 } else if (ret == 0) {
@@ -13089,10 +13089,10 @@ static int test_wc_InitSha3(void)
         if (ret == 0) {
             printf(testingFmt, "wc_InitSha3_384()");
 
-            ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_384(&sha3, HEAP_HINT, testDevId);
             /* Test bad args. */
             if (ret == 0) {
-                ret = wc_InitSha3_384(NULL, HEAP_HINT, devId);
+                ret = wc_InitSha3_384(NULL, HEAP_HINT, testDevId);
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
                 } else if (ret == 0) {
@@ -13107,10 +13107,10 @@ static int test_wc_InitSha3(void)
         if (ret == 0) {
             printf(testingFmt, "wc_InitSha3_512()");
 
-            ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_512(&sha3, HEAP_HINT, testDevId);
             /* Test bad args. */
             if (ret == 0) {
-                ret = wc_InitSha3_512(NULL, HEAP_HINT, devId);
+                ret = wc_InitSha3_512(NULL, HEAP_HINT, testDevId);
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
                 } else if (ret == 0) {
@@ -13151,7 +13151,7 @@ static int testing_wc_Sha3_Update(void)
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_Sha3_224_Update()");
 
-        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
         if (ret != 0) {
             return ret;
         }
@@ -13174,7 +13174,7 @@ static int testing_wc_Sha3_Update(void)
             }
             if (ret == BAD_FUNC_ARG) {
                 wc_Sha3_224_Free(&sha3);
-                if (wc_InitSha3_224(&sha3, HEAP_HINT, devId)) {
+                if (wc_InitSha3_224(&sha3, HEAP_HINT, testDevId)) {
                     return ret;
                 }
                 ret = wc_Sha3_224_Update(&sha3, NULL, 0);
@@ -13195,7 +13195,7 @@ static int testing_wc_Sha3_Update(void)
         if (ret == 0) {
             printf(testingFmt, "wc_Sha3_256_Update()");
 
-            ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_256(&sha3, HEAP_HINT, testDevId);
             if (ret != 0) {
                 return ret;
             }
@@ -13217,7 +13217,7 @@ static int testing_wc_Sha3_Update(void)
                 }
                 if (ret == BAD_FUNC_ARG) {
                     wc_Sha3_256_Free(&sha3);
-                    if (wc_InitSha3_256(&sha3, HEAP_HINT, devId)) {
+                    if (wc_InitSha3_256(&sha3, HEAP_HINT, testDevId)) {
                         return ret;
                     }
                     ret = wc_Sha3_256_Update(&sha3, NULL, 0);
@@ -13239,7 +13239,7 @@ static int testing_wc_Sha3_Update(void)
         if (ret == 0) {
             printf(testingFmt, "wc_Sha3_384_Update()");
 
-            ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_384(&sha3, HEAP_HINT, testDevId);
             if (ret != 0) {
                 return ret;
             }
@@ -13261,7 +13261,7 @@ static int testing_wc_Sha3_Update(void)
                 }
                 if (ret == BAD_FUNC_ARG) {
                     wc_Sha3_384_Free(&sha3);
-                    if (wc_InitSha3_384(&sha3, HEAP_HINT, devId)) {
+                    if (wc_InitSha3_384(&sha3, HEAP_HINT, testDevId)) {
                         return ret;
                     }
                     ret = wc_Sha3_384_Update(&sha3, NULL, 0);
@@ -13283,7 +13283,7 @@ static int testing_wc_Sha3_Update(void)
         if (ret == 0) {
             printf(testingFmt, "wc_Sha3_512_Update()");
 
-            ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+            ret = wc_InitSha3_512(&sha3, HEAP_HINT, testDevId);
             if (ret != 0) {
                 return ret;
             }
@@ -13305,7 +13305,7 @@ static int testing_wc_Sha3_Update(void)
                 }
                 if (ret == BAD_FUNC_ARG) {
                     wc_Sha3_512_Free(&sha3);
-                    if (wc_InitSha3_512(&sha3, HEAP_HINT, devId)) {
+                    if (wc_InitSha3_512(&sha3, HEAP_HINT, testDevId)) {
                         return ret;
                     }
                     ret = wc_Sha3_512_Update(&sha3, NULL, 0);
@@ -13348,7 +13348,7 @@ static int test_wc_Sha3_224_Final(void)
 
     printf(testingFmt, "wc_Sha3_224_Final()");
 
-    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -13378,7 +13378,7 @@ static int test_wc_Sha3_224_Final(void)
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_224_GetHash()");
 
-        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
         if (ret != 0) {
             return ret;
         }
@@ -13442,7 +13442,7 @@ static int test_wc_Sha3_256_Final(void)
 
     printf(testingFmt, "wc_Sha3_256_Final()");
 
-    ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_256(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -13472,7 +13472,7 @@ static int test_wc_Sha3_256_Final(void)
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_256_GetHash()");
 
-        ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_256(&sha3, HEAP_HINT, testDevId);
         if (ret != 0) {
             return ret;
         }
@@ -13535,7 +13535,7 @@ static int test_wc_Sha3_384_Final(void)
 
     printf(testingFmt, "wc_Sha3_384_Final()");
 
-    ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_384(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -13565,7 +13565,7 @@ static int test_wc_Sha3_384_Final(void)
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_384_GetHash()");
 
-        ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_384(&sha3, HEAP_HINT, testDevId);
         if (ret != 0) {
             return ret;
         }
@@ -13631,7 +13631,7 @@ static int test_wc_Sha3_512_Final(void)
 
     printf(testingFmt, "wc_Sha3_512_Final()");
 
-    ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_512(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -13661,7 +13661,7 @@ static int test_wc_Sha3_512_Final(void)
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_512_GetHash()");
 
-        ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+        ret = wc_InitSha3_512(&sha3, HEAP_HINT, testDevId);
         if (ret != 0) {
             return ret;
         }
@@ -13719,12 +13719,12 @@ static int test_wc_Sha3_224_Copy(void)
 
     printf(testingFmt, "wc_Sha3_224_Copy()");
 
-    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
 
-    ret = wc_InitSha3_224(&sha3Cpy, HEAP_HINT, devId);
+    ret = wc_InitSha3_224(&sha3Cpy, HEAP_HINT, testDevId);
     if (ret != 0) {
     wc_Sha3_224_Free(&sha3);
     return ret;
@@ -13784,12 +13784,12 @@ static int test_wc_Sha3_256_Copy(void)
 
     printf(testingFmt, "wc_Sha3_256_Copy()");
 
-    ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_256(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
 
-    ret = wc_InitSha3_256(&sha3Cpy, HEAP_HINT, devId);
+    ret = wc_InitSha3_256(&sha3Cpy, HEAP_HINT, testDevId);
     if (ret != 0) {
     wc_Sha3_256_Free(&sha3);
     return ret;
@@ -13849,12 +13849,12 @@ static int test_wc_Sha3_384_Copy(void)
 
     printf(testingFmt, "wc_Sha3_384_Copy()");
 
-    ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_384(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
 
-    ret = wc_InitSha3_384(&sha3Cpy, HEAP_HINT, devId);
+    ret = wc_InitSha3_384(&sha3Cpy, HEAP_HINT, testDevId);
     if (ret != 0) {
     wc_Sha3_384_Free(&sha3);
     return ret;
@@ -13915,12 +13915,12 @@ static int test_wc_Sha3_512_Copy(void)
 
     printf(testingFmt, "wc_Sha3_512_Copy()");
 
-    ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_512(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
 
-    ret = wc_InitSha3_512(&sha3Cpy, HEAP_HINT, devId);
+    ret = wc_InitSha3_512(&sha3Cpy, HEAP_HINT, testDevId);
     if (ret != 0) {
     wc_Sha3_512_Free(&sha3);
     return ret;
@@ -13973,7 +13973,7 @@ static int test_wc_Sha3_GetFlags(void)
     printf(testingFmt, "wc_Sha3_GetFlags()");
 
     /* Initialize */
-    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -14004,10 +14004,10 @@ static int test_wc_InitShake256(void)
 
     printf(testingFmt, "wc_InitShake256()");
 
-    ret = wc_InitShake256(&shake, HEAP_HINT, devId);
+    ret = wc_InitShake256(&shake, HEAP_HINT, testDevId);
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_InitShake256(NULL, HEAP_HINT, devId);
+        ret = wc_InitShake256(NULL, HEAP_HINT, testDevId);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
@@ -14041,7 +14041,7 @@ static int testing_wc_Shake256_Update(void)
 
     printf(testingFmt, "wc_Shake256_Update()");
 
-    ret = wc_InitShake256(&shake, HEAP_HINT, devId);
+    ret = wc_InitShake256(&shake, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -14063,7 +14063,7 @@ static int testing_wc_Shake256_Update(void)
         }
         if (ret == BAD_FUNC_ARG) {
             wc_Shake256_Free(&shake);
-            if (wc_InitShake256(&shake, HEAP_HINT, devId)) {
+            if (wc_InitShake256(&shake, HEAP_HINT, testDevId)) {
                 return ret;
             }
             ret = wc_Shake256_Update(&shake, NULL, 0);
@@ -14108,7 +14108,7 @@ static int test_wc_Shake256_Final(void)
 
     printf(testingFmt, "wc_Shake256_Final()");
 
-    ret = wc_InitShake256(&shake, HEAP_HINT, devId);
+    ret = wc_InitShake256(&shake, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
@@ -14157,12 +14157,12 @@ static int test_wc_Shake256_Copy(void)
 
     printf(testingFmt, "wc_Shake256_Copy()");
 
-    ret = wc_InitShake256(&shake, HEAP_HINT, devId);
+    ret = wc_InitShake256(&shake, HEAP_HINT, testDevId);
     if (ret != 0) {
         return ret;
     }
 
-    ret = wc_InitShake256(&shakeCpy, HEAP_HINT, devId);
+    ret = wc_InitShake256(&shakeCpy, HEAP_HINT, testDevId);
     if (ret != 0) {
         wc_Shake256_Free(&shake);
         return ret;
@@ -27339,7 +27339,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
     printf(testingFmt, "wc_SetSubjectKeyIdFromPublicKey_ex()");
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, testDevId);
 #else
     ret = wc_InitRng(&rng);
 #endif
@@ -27432,7 +27432,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
     printf(testingFmt, "wc_SetAuthKeyIdFromPublicKey_ex()");
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, testDevId);
 #else
     ret = wc_InitRng(&rng);
 #endif
@@ -27510,7 +27510,7 @@ static int test_wc_PKCS7_New (void)
 
     printf(testingFmt, "wc_PKCS7_New()");
 
-    pkcs7 = wc_PKCS7_New(heap, devId);
+    pkcs7 = wc_PKCS7_New(heap, testDevId);
     AssertNotNull(pkcs7);
 
     printf(resultFmt, passed);
@@ -27531,13 +27531,13 @@ static int test_wc_PKCS7_Init (void)
 
     printf(testingFmt, "wc_PKCS7_Init()");
 
-    pkcs7 = wc_PKCS7_New(heap, devId);
+    pkcs7 = wc_PKCS7_New(heap, testDevId);
     AssertNotNull(pkcs7);
 
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, testDevId), 0);
 
     /* Pass in bad args. */
-    AssertIntEQ(wc_PKCS7_Init(NULL, heap, devId), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_Init(NULL, heap, testDevId), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
     wc_PKCS7_Free(pkcs7);
@@ -27677,12 +27677,12 @@ static int test_wc_PKCS7_InitWithCert (void)
 #endif
         printf(testingFmt, "wc_PKCS7_InitWithCert()");
 
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         /* If initialization is not successful, it's free'd in init func. */
         AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, (word32)certSz), 0);
 
         wc_PKCS7_Free(pkcs7);
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
 
         /* Valid initialization usage. */
         AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -27785,7 +27785,7 @@ static int test_wc_PKCS7_EncodeData (void)
 
     XMEMSET(output, 0, sizeof(output));
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, certSz), 0);
@@ -27960,7 +27960,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
@@ -27978,7 +27978,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
 
     wc_PKCS7_Free(pkcs7);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
 
@@ -27995,7 +27995,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     /* test RSA sign raw digest callback, if using RSA and compiled in.
      * Example callback assumes SHA-256, so only run test if compiled in. */
     wc_PKCS7_Free(pkcs7);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
     pkcs7->content = data;
@@ -28113,7 +28113,7 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     XMEMSET(outputFoot, 0, outputFootSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
@@ -28146,7 +28146,7 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     AssertIntGT(outputFootSz, 0);
 
     wc_PKCS7_Free(pkcs7);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
     /* required parameter even on verify when using _ex, if using outputHead
@@ -28169,7 +28169,7 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(&output[outputSz], outputFoot, outputFootSz);
         outputSz += outputFootSz;
 
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
         AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
         XFREE(output, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28323,7 +28323,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
@@ -28349,7 +28349,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     if (detachedSig) {
         pkcs7->content = data;
@@ -28388,7 +28388,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
                                                   (word32)sizeof(data),
                                                   0, 0)), 0);
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
@@ -28412,7 +28412,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
                                                   (word32)sizeof(data),
                                                   1, 1)), 0);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     pkcs7->content = badContent;
     pkcs7->contentSz = sizeof(badContent);
@@ -28420,7 +28420,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
     wc_PKCS7_Free(pkcs7);
 
     /* Test success case with detached signature and valid content */
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     pkcs7->content = data;
     pkcs7->contentSz = sizeof(data);
@@ -28440,7 +28440,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
         }
         AssertIntEQ(ret, 0);
 
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         AssertIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
         AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
                                                  output, outputSz,
@@ -28742,8 +28742,8 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 
     printf(testingFmt, "wc_PKCS7_EncodeEnvelopedData()");
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
 
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
@@ -28773,7 +28773,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         /* Don't free the last time through the loop. */
         if (i < testSz - 1 ){
             wc_PKCS7_Free(pkcs7);
-            AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+            AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         }
     }  /* END test loop. */
     }
@@ -28835,7 +28835,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         int envelopedSz;
         const byte keyId[] = { 0x00 };
 
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         pkcs7->content      = (byte*)input;
         pkcs7->contentSz    = (word32)(sizeof(input)/sizeof(char));
         pkcs7->contentOID   = DATA;
@@ -28849,7 +28849,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         wc_PKCS7_Free(pkcs7);
 
         /* decode envelopedData */
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         AssertIntEQ(wc_PKCS7_SetWrapCEKCb(pkcs7, myCEKwrapFunc), 0);
         AssertIntEQ(wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc), 0);
         AssertIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
@@ -28889,7 +28889,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         XFILE  cmsFile;
 
         XMEMSET(out, 0, sizeof(out));
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         cmsFile = XFOPEN("./certs/test/ktri-keyid-cms.msg", "rb");
         AssertTrue(cmsFile != XBADFILE);
         cmsSz = (word32)FOURK_BUF;
@@ -29002,8 +29002,8 @@ static int test_wc_PKCS7_EncodeEncryptedData (void)
     testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
 
     for (i = 0; i < testSz; i++) {
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
-        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
         pkcs7->content              = (byte*)testVectors[i].content;
         pkcs7->contentSz            = testVectors[i].contentSz;
         pkcs7->contentOID           = testVectors[i].contentOID;
@@ -29028,8 +29028,8 @@ static int test_wc_PKCS7_EncodeEncryptedData (void)
         }
     }
     if (pkcs7 == NULL || testSz == 0) {
-        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
-        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
     }
 
     printf(testingFmt, "wc_PKCS7_EncodeEncryptedData()");
@@ -29119,7 +29119,7 @@ static int test_wc_PKCS7_Degenerate(void)
     XFCLOSE(f);
 
     /* test degenerate success */
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 #ifndef NO_RSA
@@ -29130,7 +29130,7 @@ static int test_wc_PKCS7_Degenerate(void)
     wc_PKCS7_Free(pkcs7);
 
     /* test with turning off degenerate cases */
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     wc_PKCS7_AllowDegenerate(pkcs7, 0); /* override allowing degenerate case */
@@ -29360,7 +29360,7 @@ static int test_wc_PKCS7_BER(void)
     derSz = (word32)ret;
     XFCLOSE(f);
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 #ifndef NO_RSA
@@ -29376,7 +29376,7 @@ static int test_wc_PKCS7_BER(void)
     AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
     derSz = (word32)ret;
     XFCLOSE(f);
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
 #ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, der, derSz), 0);
 #else
@@ -29552,7 +29552,7 @@ static int test_PKCS7_signed_enveloped(void)
 
     /* check verify */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
     AssertNotNull(pkcs7->content);
 
@@ -29593,9 +29593,9 @@ static int test_wc_PKCS7_NoDefaultSignedAttribs (void)
 
     printf(testingFmt, "wc_PKCS7_NoDefaultSignedAttribs()");
 
-    pkcs7 = wc_PKCS7_New(heap, devId);
+    pkcs7 = wc_PKCS7_New(heap, testDevId);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, testDevId), 0);
 
     AssertIntEQ(wc_PKCS7_NoDefaultSignedAttribs(NULL), BAD_FUNC_ARG);
 
@@ -29619,9 +29619,9 @@ static int test_wc_PKCS7_SetOriEncryptCtx (void)
 
     printf(testingFmt, "wc_PKCS7_SetOriEncryptCtx()");
 
-    pkcs7 = wc_PKCS7_New(heap, devId);
+    pkcs7 = wc_PKCS7_New(heap, testDevId);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, testDevId), 0);
 
     AssertIntEQ(wc_PKCS7_SetOriEncryptCtx(NULL, ctx), BAD_FUNC_ARG);
 
@@ -29645,9 +29645,9 @@ static int test_wc_PKCS7_SetOriDecryptCtx (void)
 
     printf(testingFmt, "wc_PKCS7_SetOriDecryptCtx()");
 
-    pkcs7 = wc_PKCS7_New(heap, devId);
+    pkcs7 = wc_PKCS7_New(heap, testDevId);
     AssertNotNull(pkcs7);
-    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, testDevId), 0);
 
     AssertIntEQ(wc_PKCS7_SetOriDecryptCtx(NULL, ctx), BAD_FUNC_ARG);
 
@@ -29680,7 +29680,7 @@ static int test_wc_PKCS7_DecodeCompressedData(void)
     AssertNotNull((decompressed =
                 (byte*)XMALLOC(cert_sz, heap, DYNAMIC_TYPE_TMP_BUFFER)));
     decompressedSz = (int)cert_sz;
-    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
+    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, testDevId)));
 
     pkcs7->content    = (byte*)cert_buf;
     pkcs7->contentSz  = (word32)cert_sz;
@@ -29694,7 +29694,7 @@ static int test_wc_PKCS7_DecodeCompressedData(void)
     AssertIntLT(outSz, cert_sz);
 
     /* test decompression */
-    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
+    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, testDevId)));
     AssertIntEQ(pkcs7->contentOID, 0);
 
     /* fail case with out buffer too small */
@@ -29920,7 +29920,7 @@ static int test_wc_SignatureGetSize_rsa(void)
         }
 
         if (ret == 0) {
-            ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, devId);
+            ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, testDevId);
         }
         if (ret == 0) {
             ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key, (word32)bytes);
@@ -43614,7 +43614,7 @@ static int test_wolfSSL_make_cert(void)
 
     AssertIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
 #ifndef HAVE_FIPS
-    AssertIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, devId), 0);
+    AssertIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, testDevId), 0);
 #else
     AssertIntEQ(wc_InitRng(&rng), 0);
 #endif
@@ -49351,7 +49351,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         PKCS7_free(p7Ver);
 
         /* verify with wc_PKCS7_VerifySignedData */
-        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         AssertIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
 
@@ -49412,7 +49412,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
 
         /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
-        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         p7Ver->content = data;
         p7Ver->contentSz = sizeof(data);
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
@@ -49443,7 +49443,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
 
         /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
-        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         p7Ver->content = data;
         p7Ver->contentSz = sizeof(data);
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
@@ -49567,7 +49567,7 @@ static int test_wolfSSL_PEM_write_bio_PKCS7(void)
 #endif
     printf(testingFmt, "wolfSSL_PEM_write_bio_PKCS7()");
 
-    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     /* initialize with DER encoded cert */
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, (word32)certSz), 0);
 
@@ -51151,7 +51151,7 @@ static int test_wc_InitRngNonce_ex(void)
     printf(testingFmt, "wc_InitRngNonce_ex()");
 
     if (ret == 0){
-        ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
+        ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, testDevId);
     }
 
     wc_FreeRng(&rng);
@@ -58145,7 +58145,7 @@ void ApiTest(void)
 
     wolfSSL_Cleanup();
 
-    (void)devId;
+    (void)testDevId;
 
     printf(" End API Tests\n");
     fflush(stdout);
