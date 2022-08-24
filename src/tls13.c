@@ -77,6 +77,10 @@
  *    When multiple PSK identities are available for the same cipher suite.
  *    Sets the first byte of the client identity to the count of identites
  *    that have been seen so far for the cipher suite.
+ * WOLFSSL_CHECK_SIG_FAULTS
+ *    Verifies the ECC signature after signing in case of faults in the
+ *    calculation of the signature. Useful when signature fault injection is a
+ *    possible attack.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -7326,7 +7330,6 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
-
                 ret = EccSign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     (word32*)&sig->length, (ecc_key*)ssl->hsKey,
@@ -7430,6 +7433,20 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 );
             }
         #endif /* !NO_RSA */
+        #if defined(HAVE_ECC) && defined(WOLFSSL_CHECK_SIG_FAULTS)
+           if (ssl->hsType == DYNAMIC_TYPE_ECC) {
+                ret = EccVerify(ssl,
+                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                    sig->length, args->sigData, args->sigDataSz,
+                    (ecc_key*)ssl->hsKey,
+            #ifdef HAVE_PK_CALLBACKS
+                    ssl->buffers.key
+            #else
+                    NULL
+            #endif
+                );
+            }
+        #endif
 
             /* Check for error */
             if (ret != 0) {

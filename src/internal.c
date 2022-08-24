@@ -65,7 +65,7 @@
  *     may be received by a client. To support detecting this, peek will
  *     return WOLFSSL_ERROR_WANT_READ.
  *     This define turns off this behaviour.
-*  WOLFSSL_DTLS_NO_HVR_ON_RESUME
+ * WOLFSSL_DTLS_NO_HVR_ON_RESUME
  *     If defined, a DTLS server will not do a cookie exchange on successful
  *     client resumption: the resumption will be faster (one RTT less) and
  *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
@@ -76,6 +76,10 @@
  *     Verify hostname/ip address using alternate name (SAN) only and do not
  *     use the common name. Forces use of the alternate name, so certificates
  *     missing SAN will be rejected during the handshake
+ * WOLFSSL_CHECK_SIG_FAULTS
+ *     Verifies the ECC signature after signing in case of faults in the
+ *     calculation of the signature. Useful when signature fault injection is a
+ *     possible attack.
  */
 
 
@@ -29369,23 +29373,46 @@ int SendCertificateVerify(WOLFSSL* ssl)
             args->verify = &args->output[args->idx];
 
             switch (ssl->hsType) {
-        #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
-            #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+        #ifdef HAVE_ECC
                 case DYNAMIC_TYPE_ECC:
-            #endif
-            #ifdef HAVE_ED25519
+            #ifdef WOLFSSL_CHECK_SIG_FAULTS
+                {
+                    ecc_key* key = (ecc_key*)ssl->hsKey;
+
+                    ret = EccVerify(ssl,
+                        ssl->buffers.sig.buffer, ssl->buffers.sig.length,
+                        ssl->buffers.digest.buffer, ssl->buffers.digest.length,
+                        key,
+                    #ifdef HAVE_PK_CALLBACKS
+                        ssl->buffers.key
+                    #else
+                        NULL
+                    #endif
+                    );
+                    if (ret != 0) {
+                        WOLFSSL_MSG("Failed to verify ECC signature");
+                        goto exit_scv;
+                    }
+                }
+                #if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+                FALL_THROUGH;
+                #endif
+            #endif /* WOLFSSL_CHECK_SIG_FAULTS */
+        #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
                 case DYNAMIC_TYPE_ED25519:
-            #endif
-            #ifdef HAVE_ED448
+        #endif
+        #ifdef HAVE_ED448
                 case DYNAMIC_TYPE_ED448:
-            #endif
+        #endif
                     args->length = (word16)ssl->buffers.sig.length;
                     /* prepend hdr */
                     c16toa(args->length, args->verify + args->extraSz);
                     XMEMCPY(args->verify + args->extraSz + VERIFY_HEADER,
                             ssl->buffers.sig.buffer, ssl->buffers.sig.length);
                     break;
-        #endif
+    #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
             #ifndef NO_RSA
                 case DYNAMIC_TYPE_RSA:
                 {
@@ -31415,6 +31442,33 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         #endif
                             case ecc_dsa_sa_algo:
+                        #ifdef WOLFSSL_CHECK_SIG_FAULTS
+                            {
+                                ecc_key* key = (ecc_key*)ssl->hsKey;
+
+                                ret = EccVerify(ssl,
+                                    args->output + LENGTH_SZ + args->idx,
+                                    args->sigSz,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
+                                    key,
+                                #ifdef HAVE_PK_CALLBACKS
+                                    ssl->buffers.key
+                                #else
+                                    NULL
+                                #endif
+                                );
+                                if (ret != 0) {
+                                    WOLFSSL_MSG(
+                                        "Failed to verify ECC signature");
+                                    goto exit_sske;
+                                }
+                            }
+                            #if defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
+                            FALL_THROUGH;
+                            #endif
+                        #endif /*  WOLFSSL_CHECK_SIG_FAULTS */
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                         #endif
