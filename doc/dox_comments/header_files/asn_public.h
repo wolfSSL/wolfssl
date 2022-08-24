@@ -30,7 +30,9 @@ int wc_InitCert(Cert*);
      the need to call wc_InitCert(). When the application is finish using the
      allocated cert structure wc_CertFree() must be called.
 
-     \return A pointer to the allocated cert structure.
+     \return On a successful memory allocation a pointer to the allocated cert
+     structure will be returned. On a memory allocation failure NULL will be
+     returned.
 
      \param A pointer to the heap used for dynamic allocation. Can be NULL.
 
