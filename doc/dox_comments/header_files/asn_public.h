@@ -24,15 +24,15 @@ int wc_InitCert(Cert*);
 /*!
      \ingroup ASN
 
-     \brief This function allocates a new cert structure for use during
+     \brief This function allocates a new Cert structure for use during
      cert operations without the application having to allocate the structure
-     itself. The cert structure is also initialized by this function removing
-     the need to call wc_InitCert(). When the application is finish using the
-     allocated cert structure wc_CertFree() must be called.
+     itself. The Cert structure is also initialized by this function thus
+     removing the need to call wc_InitCert(). When the application is finished
+     using the allocated Cert structure wc_CertFree() must be called.
 
-     \return On a successful memory allocation a pointer to the allocated cert
-     structure will be returned. On a memory allocation failure NULL will be
-     returned.
+     \return pointer If successful the call will return a pointer to the
+     newly allocated and initialized Cert.
+     \return NULL On a memory allocation failure.
 
      \param A pointer to the heap used for dynamic allocation. Can be NULL.
 
@@ -41,6 +41,9 @@ int wc_InitCert(Cert*);
      Cert*   myCert;
 
      myCert = wc_CertNew(NULL);
+     if (myCert == NULL) {
+         // Cert creation failure
+     }
      \endcode
 
      \sa wc_InitCert
