@@ -43,6 +43,7 @@ on the specific device platform.
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 /*
  * SHA256 Build Options:

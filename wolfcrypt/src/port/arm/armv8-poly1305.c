@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__

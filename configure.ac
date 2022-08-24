@@ -2081,11 +2081,11 @@ then
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto])
             ;;
         armv7a)
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon-vfpv3 -DWOLFSSL_ARMASM_NO_CRYPTO"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARMASM_NO_CRYPTO -DWOLFSSL_ARM_ARCH=7"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-            AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon-vfpv3])
+            AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
             ;;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"

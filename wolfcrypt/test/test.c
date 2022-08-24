@@ -5921,8 +5921,10 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
         return -4722;
 
     for (i = 0; i < 18; ++i) {
-        /* this will test all paths */
-        /* block sizes: 1 2 3 4 7 8 15 16 31 32 63 64 127 128 255 256 511 512 */
+        /* this will test all paths
+         * block sizes: 1 3 7 15 31 63 127 255 511 (i = 0- 8)
+         *              2 4 8 16 32 64 128 256 512 (i = 9-17)
+         */
         block_size = (2 << (i%9)) - (i<9?1:0);
         keySz = 32;
 
@@ -5936,16 +5938,16 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
         if (ret != 0)
             return ret;
 
-        ret |= wc_Chacha_Process(&enc, cipher_big, plain_big,  block_size);
-        ret |= wc_Chacha_Process(&dec, plain_big,  cipher_big, block_size);
+        ret |= wc_Chacha_Process(&enc, cipher_big, plain_big , block_size);
+        ret |= wc_Chacha_Process(&dec, plain_big , cipher_big, block_size);
         if (ret != 0)
             return ret;
 
         if (XMEMCMP(plain_big, input_big, block_size))
-            return -4723-i;
+            return -4740-i*2;
 
         if (XMEMCMP(cipher_big, cipher_big_result, block_size))
-            return -4724-i;
+            return -4741-i*2;
     }
 
     /* Streaming test */

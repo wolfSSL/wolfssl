@@ -987,7 +987,12 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "VMOV d4, r8, r9 \n\t"
         "STRD r10, r11, %[x_10] \n\t"
         "VMOV d5, r10, r11 \n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 8)
+        "LDR r11, [r14, #4*14] \n\t"
+        "LDR r10, [r14, #4*15] \n\t"
+#else
         "LDRD r11, r10, [r14, #4*14] \n\t"
+#endif
         "VMOV q4, q0 \n\t"
         "VMOV q5, q1 \n\t"
         "VMOV q6, q2 \n\t"
@@ -2754,11 +2759,9 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         /* XOR 8 bytes */
         "CMP        %[bytes], #8         \n\t"
         "BLT        L_chacha20_arm32_64_lt_8_%= \n\t"
-        "VLDR       d8, [%[m], #0]       \n\t"
-        "ADD        %[m], %[m], #8       \n\t"
+        "VLD1.64    { d8 }, [%[m]]!      \n\t"
         "VEOR       d8, d8, d0           \n\t"
-        "VSTR       d8, [%[c], #0]       \n\t"
-        "ADD        %[c], %[c], #8       \n\t"
+        "VST1.64    { d8 }, [%[c]]!      \n\t"
         "SUBS       %[bytes], %[bytes], #8 \n\t"
         "VMOV       d0, d1               \n\t"
         "BEQ        L_chacha20_arm32_64_done_%= \n\t"
@@ -2772,7 +2775,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "EOR        r12, r12, r14        \n\t"
         "STR        r12, [%[c]], #4      \n\t"
         "SUBS       %[bytes], %[bytes], #4 \n\t"
-        "VTRN.32    d0, d0               \n\t"
+        "VSHR.U64   d0, d0, #32          \n\t"
         "BEQ        L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_4_%=: \n\t"
