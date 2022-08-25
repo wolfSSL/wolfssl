@@ -3620,16 +3620,27 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "AESMC.8 q0, q0\n"
         "VEXT.8 q13, q13, q13, #8 \n"
         "SUB r11, r11, #2     \n"
+
+        /* Comparison value to check whether carry is going to happen */
         "VMOV.u32 q12, #0xffffffff  \n"
-        "VADD.u32 q12, q14  \n"
         "VADD.i32 q15, q13, q14 \n" /* add 1 to counter */
-        "VCEQ.i32 q13, q15, q12 \n"
-        "VEXT.8 q13, q14, q13, #12 \n"
-        "VSUB.i32 q15, q15, q13 \n"
-        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
         "VCEQ.i32 q12, q13, q12 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q13, q14, q12, #12 \n"
+        "VAND.32 d27, d27, d24 \n"
+        "VSUB.i32 q15, q15, q13 \n"
+
+        "VMOV.u32 q12, #0xffffffff  \n"
+        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
+        "VCEQ.i32 q12, q15, q12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d25, d24, d25, #4 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d24, d29, d24, #4 \n"
         "VSUB.i32 q13, q13, q12 \n"
+
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
         "VEXT.8 q15, q15, q15, #8 \n"
@@ -3689,8 +3700,6 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
 
         /* single block */
         "2:      \n"
-        "VMOV.u32 q15, #0xffffffff  \n"
-        "VADD.u32 q15, q14  \n"
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
         "AESMC.8 q0, q0\n"
@@ -3700,10 +3709,15 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "VEXT.8 q13, q13, q13, #8 \n"
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
-        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+
+        "VMOV.u32 q15, #0xffffffff  \n"
         "VCEQ.i32 q12, q13, q15 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
-        "VSUB.i32 q13, q13, q12 \n"
+        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q15, q14, q12, #12 \n"
+        "VAND.32 d31, d31, d24 \n"
+        "VSUB.i32 q13, q13, q15 \n"
+
         "AESE.8 q0, q4\n"
         "AESMC.8 q0, q0\n"
         "SUB r11, r11, #1     \n"
@@ -3770,16 +3784,26 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "AESMC.8 q0, q0\n"
         "VEXT.8 q13, q13, q13, #8 \n"
         "SUB r11, r11, #2     \n"
+
         "VMOV.u32 q12, #0xffffffff  \n"
-        "VADD.u32 q12, q14  \n"
         "VADD.i32 q15, q13, q14 \n" /* add 1 to counter */
-        "VCEQ.i32 q13, q15, q12 \n"
-        "VEXT.8 q13, q14, q13, #12 \n"
-        "VSUB.i32 q15, q15, q13 \n"
-        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
         "VCEQ.i32 q12, q13, q12 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q13, q14, q12, #12 \n"
+        "VAND.32 d27, d27, d24 \n"
+        "VSUB.i32 q15, q15, q13 \n"
+
+        "VMOV.u32 q12, #0xffffffff  \n"
+        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
+        "VCEQ.i32 q12, q15, q12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d25, d24, d25, #4 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d24, d29, d24, #4 \n"
         "VSUB.i32 q13, q13, q12 \n"
+
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
         "VEXT.8 q15, q15, q15, #8 \n"
@@ -3855,8 +3879,6 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
 
         /* single block */
         "2:      \n"
-        "VMOV.u32 q15, #0xffffffff  \n"
-        "VADD.u32 q15, q14  \n"
         "VLD1.32 {q11}, [%[Key]]! \n"
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -3867,10 +3889,15 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "VEXT.8 q13, q13, q13, #8 \n"
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
-        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+
+        "VMOV.u32 q15, #0xffffffff  \n"
         "VCEQ.i32 q12, q13, q15 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
-        "VSUB.i32 q13, q13, q12 \n"
+        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q15, q14, q12, #12 \n"
+        "VAND.32 d31, d31, d24 \n"
+        "VSUB.i32 q13, q13, q15 \n"
+
         "AESE.8 q0, q4\n"
         "AESMC.8 q0, q0\n"
         "SUB r11, r11, #1     \n"
@@ -3943,16 +3970,26 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "AESMC.8 q0, q0\n"
         "VEXT.8 q13, q13, q13, #8 \n"
         "SUB r11, r11, #2     \n"
+
         "VMOV.u32 q12, #0xffffffff  \n"
-        "VADD.u32 q12, q14  \n"
         "VADD.i32 q15, q13, q14 \n" /* add 1 to counter */
-        "VCEQ.i32 q13, q15, q12 \n"
-        "VEXT.8 q13, q14, q13, #12 \n"
-        "VSUB.i32 q15, q15, q13 \n"
-        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
         "VCEQ.i32 q12, q13, q12 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q13, q14, q12, #12 \n"
+        "VAND.32 d27, d27, d24 \n"
+        "VSUB.i32 q15, q15, q13 \n"
+
+        "VMOV.u32 q12, #0xffffffff  \n"
+        "VADD.i32 q13, q15, q14 \n" /* add 1 to counter */
+        /* Carry across 32-bit lanes */
+        "VCEQ.i32 q12, q15, q12 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d25, d24, d25, #4 \n"
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 d24, d29, d24, #4 \n"
         "VSUB.i32 q13, q13, q12 \n"
+
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
         "VEXT.8 q15, q15, q15, #8 \n"
@@ -4040,8 +4077,6 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "B 1b \n"
 
         "2:      \n"
-        "VMOV.u32 q15, #0xffffffff  \n"
-        "VADD.u32 q15, q14  \n"
         "VLD1.32 {q11}, [%[Key]]! \n"
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -4052,10 +4087,15 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         "VEXT.8 q13, q13, q13, #8 \n"
         "AESE.8 q0, q3\n"
         "AESMC.8 q0, q0\n"
-        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+
+        "VMOV.u32 q15, #0xffffffff  \n"
         "VCEQ.i32 q12, q13, q15 \n"
-        "VEXT.8 q12, q14, q12, #12 \n"
-        "VSUB.i32 q13, q13, q12 \n"
+        "VADD.i32 q13, q13, q14 \n" /* add 1 to counter */
+        "VAND.32 d25, d25, d24 \n"
+        "VEXT.8 q15, q14, q12, #12 \n"
+        "VAND.32 d31, d31, d24 \n"
+        "VSUB.i32 q13, q13, q15 \n"
+
         "AESE.8 q0, q4\n"
         "AESMC.8 q0, q0\n"
         "AESE.8 q0, q5\n"
