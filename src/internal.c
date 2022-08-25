@@ -18782,24 +18782,32 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls &&
-                    (ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR)) {
-                WOLFSSL_MSG("Silently dropping DTLS message");
-                ssl->options.processReply = doProcessInit;
-                ssl->buffers.inputBuffer.length = 0;
-                ssl->buffers.inputBuffer.idx = 0;
+            if (ssl->options.dtls) {
+                if ((ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0))
+                        || ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR) {
+                    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+                        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                                    "on established connection.");
+                    }
+                    else {
+                        WOLFSSL_MSG("Silently dropping DTLS message");
+                    }
+                    ssl->options.processReply = doProcessInit;
+                    ssl->buffers.inputBuffer.length = 0;
+                    ssl->buffers.inputBuffer.idx = 0;
 #ifdef WOLFSSL_DTLS_DROP_STATS
-                ssl->replayDropCount++;
+                    ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 
 #ifdef WOLFSSL_DTLS13
-                /* return to send ACKS and shortcut rtx timer */
-                if (IsAtLeastTLSv1_3(ssl->version)
-                    && ssl->dtls13Rtx.sendAcks)
-                    return 0;
+                    /* return to send ACKS and shortcut rtx timer */
+                    if (IsAtLeastTLSv1_3(ssl->version)
+                        && ssl->dtls13Rtx.sendAcks)
+                        return 0;
 #endif /* WOLFSSL_DTLS13 */
 
-                continue;
+                    continue;
+                }
             }
 #endif
             if (ret != 0)

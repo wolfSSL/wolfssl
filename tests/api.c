@@ -5280,6 +5280,7 @@ static int test_client_nofail(void* args, cbType cb)
     int  ret, err = 0;
     int  cipherSuite;
     int  sharedCtx = 0;
+    int  doUdp = 0;
     const char* cipherName1, *cipherName2;
 
 #ifdef WOLFSSL_TIRTOS
@@ -5307,13 +5308,19 @@ static int test_client_nofail(void* args, cbType cb)
         ctx = wolfSSL_CTX_new(method);
     }
 
+    if (cbf != NULL)
+        doUdp = cbf->doUdp;
+
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
     /* Do connect here so server detects failures */
     tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
-                0, 0, NULL);
+                doUdp, 0, NULL);
+    /* Connect the socket so that we don't have to set the peer later on */
+    if (doUdp)
+        udp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port);
 
     if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
     {
@@ -5376,9 +5383,21 @@ static int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 
-    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
-        /*err_sys("SSL_set_fd failed");*/
+    if (!doUdp) {
+        if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+            /*err_sys("SSL_set_fd failed");*/
+            goto done;
+        }
+    }
+    else {
+#ifdef WOLFSSL_DTLS
+        if (wolfSSL_set_dtls_fd_connected(ssl, sockfd) != WOLFSSL_SUCCESS) {
+            /*err_sys("SSL_set_fd failed");*/
+            goto done;
+        }
+#else
         goto done;
+#endif
     }
 
     /* call ssl setup callback */
@@ -54828,6 +54847,160 @@ static int test_wolfSSL_dtls_set_mtu(void)
     return 0;
 }
 
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
+    defined(WOLFSSL_DTLS)
+
+static WC_INLINE void generateDTLSMsg(byte* out, int outSz, word32 seq,
+        enum HandShakeType hsType, word16 length)
+{
+    size_t idx = 0;
+    byte* l;
+
+    /* record layer */
+    /* handshake type */
+    out[idx++] = handshake;
+    /* protocol version */
+    out[idx++] = 0xfe;
+    out[idx++] = 0xfd; /* DTLS 1.2 */
+    /* epoch 0 */
+    XMEMSET(out + idx, 0, 2);
+    idx += 2;
+    /* sequence number */
+    XMEMSET(out + idx, 0, 6);
+    c32toa(seq, out + idx + 2);
+    idx += 6;
+    /* length in BE */
+    if (length)
+        c16toa(length, out + idx);
+    else
+        c16toa(outSz - idx - 2, out + idx);
+    idx += 2;
+
+    /* handshake layer */
+    /* handshake type */
+    out[idx++] = (byte)hsType;
+    /* length */
+    l = out + idx;
+    idx += 3;
+    /* message seq */
+    c16toa(0, out + idx);
+    idx += 2;
+    /* frag offset */
+    c32to24(0, out + idx);
+    idx += 3;
+    /* frag length */
+    c32to24((word32)outSz - (word32)idx - 3, l);
+    c32to24((word32)outSz - (word32)idx - 3, out + idx);
+    idx += 3;
+    XMEMSET(out + idx, 0, outSz - idx);
+}
+
+static void test_wolfSSL_dtls_plaintext_server(WOLFSSL* ssl)
+{
+    byte msg[] = "This is a msg for the client";
+    byte reply[40];
+    AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)),0);
+    reply[sizeof(reply) - 1] = '\0';
+    printf("Client message: %s\n", reply);
+    AssertIntEQ(wolfSSL_write(ssl, msg, sizeof(msg)), sizeof(msg));
+}
+
+static void test_wolfSSL_dtls_plaintext_client(WOLFSSL* ssl)
+{
+    byte ch[50];
+    int fd = wolfSSL_get_fd(ssl);
+    byte msg[] = "This is a msg for the server";
+    byte reply[40];
+
+    generateDTLSMsg(ch, sizeof(ch), 20, client_hello, 0);
+    /* Server should ignore this datagram */
+    AssertIntEQ(send(fd, ch, sizeof(ch), 0), sizeof(ch));
+    generateDTLSMsg(ch, sizeof(ch), 20, client_hello, 10000);
+    /* Server should ignore this datagram */
+    AssertIntEQ(send(fd, ch, sizeof(ch), 0), sizeof(ch));
+
+    AssertIntEQ(wolfSSL_write(ssl, msg, sizeof(msg)), sizeof(msg));
+    AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)),0);
+    reply[sizeof(reply) - 1] = '\0';
+    printf("Server response: %s\n", reply);
+}
+
+static int test_wolfSSL_dtls_plaintext(void)
+{
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+    THREAD_TYPE serverThread;
+    size_t i;
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        ssl_callback on_result_server;
+        ssl_callback on_result_client;
+    } params[] = {
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+                test_wolfSSL_dtls_plaintext_server,
+                test_wolfSSL_dtls_plaintext_client},
+    };
+
+    printf(testingFmt, "test_wolfSSL_dtls_plaintext");
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        XMEMSET(&client_args, 0, sizeof(func_args));
+        XMEMSET(&server_args, 0, sizeof(func_args));
+        XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+        XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    #ifdef WOLFSSL_TIRTOS
+        fdOpenSession(Task_self());
+    #endif
+
+        StartTCP();
+        InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+        /* use RNG to get random port if using windows */
+        ready.port = GetRandomPort();
+#endif
+
+        server_args.signal = &ready;
+        server_args.callbacks = &func_cb_server;
+        client_args.signal = &ready;
+        client_args.callbacks = &func_cb_client;
+
+        func_cb_client.doUdp = func_cb_server.doUdp = 1;
+        func_cb_server.method = params[i].server_meth;
+        func_cb_client.method = params[i].client_meth;
+        func_cb_client.on_result = params[i].on_result_client;
+        func_cb_server.on_result = params[i].on_result_server;
+
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+        test_client_nofail(&client_args, NULL);
+        join_thread(serverThread);
+
+        AssertTrue(client_args.return_code);
+        AssertTrue(server_args.return_code);
+
+        FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+        fdOpenSession(Task_self());
+#endif
+    }
+
+    printf(resultFmt, passed);
+
+    return 0;
+}
+#else
+static int test_wolfSSL_dtls_plaintext(void) {
+    return 0;
+}
+#endif
+
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH))
@@ -57275,6 +57448,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_SetTmpEC_DHE_Sz),
     TEST_DECL(test_wolfSSL_CTX_get0_privatekey),
     TEST_DECL(test_wolfSSL_dtls_set_mtu),
+    TEST_DECL(test_wolfSSL_dtls_plaintext),
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_read_write),
