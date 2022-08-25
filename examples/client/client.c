@@ -2189,7 +2189,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         case 262:
             useDtlsCID = 1;
             if (myoptarg != NULL) {
-                if (strlen(myoptarg) >= DTLS_CID_BUFFER_SIZE) {
+                if (XSTRLEN(myoptarg) >= DTLS_CID_BUFFER_SIZE) {
                     err_sys("provided connection ID is too big");
                 }
                 else {
@@ -3733,8 +3733,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ret = wolfSSL_dtls_cid_use(ssl);
         if (ret != WOLFSSL_SUCCESS)
             err_sys("Can't enable DTLS ConnectionID");
-        ret =
-            wolfSSL_dtls_cid_set(ssl, (unsigned char*)dtlsCID, strlen(dtlsCID));
+        ret = wolfSSL_dtls_cid_set(ssl, (unsigned char*)dtlsCID,
+            (word32)XSTRLEN(dtlsCID));
         if (ret != WOLFSSL_SUCCESS)
             err_sys("Can't set DTLS ConnectionID");
     }
