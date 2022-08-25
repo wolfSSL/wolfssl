@@ -250,7 +250,12 @@ enum {
 #else
     NAME_SZ = 80,                   /* max one line */
 #endif
-
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+        defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_OID_DECODING) || defined(HAVE_OID_ENCODING)
+    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
+    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
+#endif
     PEM_PASS_READ  = 0,
     PEM_PASS_WRITE = 1,
 };
@@ -341,7 +346,7 @@ typedef struct CertOidField {
 } CertOidField;
 
 typedef struct CertExtension {
-    const char* oid;
+    char        oid[MAX_OID_STRING_SZ];
     byte        crit;
     const byte* val;
     int         valSz;

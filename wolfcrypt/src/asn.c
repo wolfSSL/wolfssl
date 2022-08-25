@@ -29503,6 +29503,10 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         return MEMORY_E;
     }
 
+    if (XSTRLEN(oid) >= MAX_OID_STRING_SZ) {
+        return BUFFER_E;
+    }
+
     /* Make sure we can properly parse the OID. */
     ret = EncodePolicyOID(encodedOid, &encodedOidSz, oid, NULL);
     if (ret != 0) {
@@ -29511,7 +29515,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     ext = &cert->customCertExt[cert->customCertExtCount];
 
-    ext->oid = oid;
+    XSTRNCPY(ext->oid, oid, MAX_OID_STRING_SZ);
     ext->crit = (critical == 0) ? 0 : 1;
     ext->val = der;
     ext->valSz = derSz;
