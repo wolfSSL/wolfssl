@@ -4315,7 +4315,7 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
         return;
     }
 
-    wolfSSL_sk_free(gens);
+    wolfSSL_sk_GENERAL_NAME_free(gens);
 }
 
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)

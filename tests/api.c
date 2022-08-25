@@ -41511,6 +41511,8 @@ static int test_wolfSSL_sk_GENERAL_NAME(void)
     unsigned char buf[4096];
     const unsigned char* bufPt;
     int bytes, i;
+    int j;
+
     XFILE f;
     STACK_OF(GENERAL_NAME)* sk;
 
@@ -41521,30 +41523,41 @@ static int test_wolfSSL_sk_GENERAL_NAME(void)
     AssertIntGT((bytes = (int)XFREAD(buf, 1, sizeof(buf), f)), 0);
     XFCLOSE(f);
 
-    bufPt = buf;
-    AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
+    for (j = 0; j < 2; ++j) {
+        bufPt = buf;
+        AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
 
-    AssertNotNull(sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
-                NID_subject_alt_name, NULL, NULL));
+        AssertNotNull(sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+                    NID_subject_alt_name, NULL, NULL));
 
-    AssertIntEQ(sk_GENERAL_NAME_num(sk), 1);
-    for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
-        AssertNotNull(gn = sk_GENERAL_NAME_value(sk, i));
+        AssertIntEQ(sk_GENERAL_NAME_num(sk), 1);
+        for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
+            AssertNotNull(gn = sk_GENERAL_NAME_value(sk, i));
 
-        switch (gn->type) {
-        case GEN_DNS:
-            printf("found type GEN_DNS\n");
-            break;
-        case GEN_EMAIL:
-            printf("found type GEN_EMAIL\n");
-            break;
-        case GEN_URI:
-            printf("found type GEN_URI\n");
-            break;
+            switch (gn->type) {
+            case GEN_DNS:
+                printf("found type GEN_DNS\n");
+                break;
+            case GEN_EMAIL:
+                printf("found type GEN_EMAIL\n");
+                break;
+            case GEN_URI:
+                printf("found type GEN_URI\n");
+                break;
+            }
+        }
+        X509_free(x509);
+        if (j == 0) {
+            sk_GENERAL_NAME_pop_free(sk, GENERAL_NAME_free);
+        }
+        else {
+            /*
+             * We had a bug where GENERAL_NAMES_free didn't free all the memory
+             * it was supposed to. This is a regression test for that bug.
+             */
+            GENERAL_NAMES_free(sk);
         }
     }
-    X509_free(x509);
-    sk_GENERAL_NAME_pop_free(sk, GENERAL_NAME_free);
 
     printf(resultFmt, passed);
 #endif
