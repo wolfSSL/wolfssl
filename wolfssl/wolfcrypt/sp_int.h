@@ -31,6 +31,7 @@ This library provides single precision (SP) integer math functions.
 #include <limits.h>
 #endif
 #include  <wolfssl/wolfcrypt/settings.h>
+#include  <wolfssl/wolfcrypt/hash.h>
 
 #ifdef __cplusplus
 extern "C" {
