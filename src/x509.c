@@ -5526,7 +5526,12 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
 
         /* serial is larger than int size so print off hex values */
         if ((scratchLen = XSNPRINTF(
-                 scratch, MAX_WIDTH, "%*s", indent, ""))
+                 scratch, MAX_WIDTH, 
+                #if defined(WOLFSSL_QT)
+                 "\n%*s", indent + 4, ""))
+                #else
+                 "%*s", indent, ""))
+                #endif
                 >= MAX_WIDTH) {
             WOLFSSL_MSG("buffer overrun");
             return WOLFSSL_FAILURE;
@@ -5645,7 +5650,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                      buf,
                      (wolfSSL_X509_EXTENSION_get_critical(ext)
                       ? ": Critical"
-                      : ":")))
+                      : ": ")))
                 >= MAX_WIDTH)
             {
                 ret = WOLFSSL_FAILURE;
@@ -5725,7 +5730,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                     if ((valLen = XSNPRINTF(
                              val, sizeof(val), "%02X%s",
                              x509->authKeyId[j],
-                             (j < x509->authKeyIdSz - 1) ? ":" : "\n"))
+                             (j < x509->authKeyIdSz - 1) ? ":" : "\n\n"))
                         >= (int)sizeof(val))
                     {
                         ret = WOLFSSL_FAILURE;
@@ -5822,6 +5827,7 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
     int i;
     char tmp[100];
     int tmpLen = 0;
+    int offset = 4; /* additional indent offset */
 
     if (sigSz <= 0) {
         return WOLFSSL_SUCCESS;
@@ -5871,8 +5877,11 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
         return ret;
     }
 
+#if defined(WOLFSSL_QT)
+    offset = 5;
+#endif
     if (ret == WOLFSSL_SUCCESS) {
-        if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%*s", indent + 5, ""))
+        if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), "%*s", indent + offset, ""))
             >= (int)sizeof(tmp))
         {
             ret = WOLFSSL_FAILURE;
@@ -5899,7 +5908,7 @@ static int X509PrintSignature_ex(WOLFSSL_BIO* bio, byte* sig,
                     break;
                 }
                 if ((tmpLen = XSNPRINTF(tmp, sizeof(tmp), ":\n%*s",
-                                        indent + 5, ""))
+                                        indent + offset, ""))
                     >= (int)sizeof(tmp))
                 {
                     ret = WOLFSSL_FAILURE;
@@ -6001,17 +6010,46 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     int len;
     int ret = WOLFSSL_SUCCESS;
 
-    len = XSNPRINTF(scratch, MAX_WIDTH, "%*sPublic Key:\n", indent, "");
+    if (bio == NULL || x509 == NULL)
+        return BAD_FUNC_ARG;
+
+    len = XSNPRINTF(scratch, MAX_WIDTH, "%*sSubject Public Key Info:\n", indent, "");
     if (len >= MAX_WIDTH)
         return WOLFSSL_FAILURE;
     if (wolfSSL_BIO_write(bio, scratch, len) <= 0)
         return WOLFSSL_FAILURE;
 
+    switch (x509->pubKeyOID) {
+    #ifndef NO_RSA
+        case RSAk:
+            len = XSNPRINTF(scratch, MAX_WIDTH, 
+                    "%*sPublic Key Algorithm: rsaEncryption\n", indent + 4, "");
+            if (len >= MAX_WIDTH)
+                return WOLFSSL_FAILURE;
+            if (wolfSSL_BIO_write(bio, scratch, len) <= 0)
+                return WOLFSSL_FAILURE;
+            break;
+    #endif
+    #ifdef HAVE_ECC
+        case ECDSAk:
+            len = XSNPRINTF(scratch, MAX_WIDTH, 
+                    "%*sPublic Key Algorithm: EC\n", indent + 4, "");
+            if (len >= MAX_WIDTH)
+                return WOLFSSL_FAILURE;
+            if (wolfSSL_BIO_write(bio, scratch, len) <= 0)
+                return WOLFSSL_FAILURE;
+            break;
+    #endif
+    	default:
+                WOLFSSL_MSG("Unknown key type");
+                return WOLFSSL_FAILURE;
+    }
+    
     pubKey = wolfSSL_X509_get_pubkey(x509);
     if (pubKey == NULL)
         return WOLFSSL_FAILURE;
 
-    ret = wolfSSL_EVP_PKEY_print_public(bio, pubKey, indent + 4, NULL);
+    ret = wolfSSL_EVP_PKEY_print_public(bio, pubKey, indent + 8, NULL);
 
     wolfSSL_EVP_PKEY_free(pubKey);
 
@@ -6215,8 +6253,8 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     unsigned long nmflags, unsigned long cflag)
 {
-    char issuType[] = "Issuer: ";
-    char subjType[] = "Subject: ";
+    char issuType[] = "Issuer:";
+    char subjType[] = "Subject:";
 
     WOLFSSL_ENTER("wolfSSL_X509_print_ex");
 
@@ -6337,7 +6375,7 @@ int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     }
 
     /* print out signature */
-    if (X509PrintSignature(bio, x509, 0, 8) != WOLFSSL_SUCCESS) {
+    if (X509PrintSignature(bio, x509, 0, 4) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -12077,20 +12115,35 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (len == 0 || buf == NULL)
             return WOLFSSL_FAILURE;
 
-        tmpSz = nameStrSz + len + 3; /* + 3 for '=', comma, and '\0' */
+        tmpSz = nameStrSz + len +
+        #if defined(WOLFSSL_QT)
+            4; /* + 4 for '=', comma space and '\0'*/
+        #else
+            3; /* + 3 for '=', comma, and '\0' */
+        #endif
         tmp = (char*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             return WOLFSSL_FAILURE;
         }
 
         if (i < count - 1) {
+        #if defined(WOLFSSL_QT)
+            if (XSNPRINTF(tmp, tmpSz, "%s=%s, ", buf, nameStr)
+        #else
             if (XSNPRINTF(tmp, tmpSz, "%s=%s,", buf, nameStr)
+        #endif
                 >= tmpSz)
             {
                 WOLFSSL_MSG("buffer overrun");
                 return WOLFSSL_FAILURE;
             }
-            tmpSz = len + nameStrSz + 2; /* 2 for '=', comma */
+
+            tmpSz = len + nameStrSz + 
+        #if defined(WOLFSSL_QT)
+            3; /* 3 for '=', comma space */
+        #else
+            2; /* 2 for '=', comma */
+        #endif
         }
         else {
             if (XSNPRINTF(tmp, tmpSz, "%s=%s", buf, nameStr)
@@ -12100,7 +12153,11 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 return WOLFSSL_FAILURE;
             }
             tmpSz = len + nameStrSz + 1; /* 1 for '=' */
-            if (bio->type != WOLFSSL_BIO_FILE)
+            if (bio->type != WOLFSSL_BIO_FILE 
+        #if defined(WOLFSSL_QT)
+            && bio->type != WOLFSSL_BIO_MEMORY
+        #endif
+            )
                 ++tmpSz; /* include the terminating null when not writing to a
                           * file.
                           */
