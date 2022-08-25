@@ -7021,6 +7021,8 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
  */
 static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
 {
+    int err = MP_OKAY;
+    int i;
 #ifdef WOLFSSL_SP_SMALL
     int c;
 #else
@@ -7034,15 +7036,8 @@ static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
     sp_int_digit st;
     #endif
 #endif /* WOLFSSL_SP_SMALL */
-    int err = MP_OKAY;
-    int i;
     sp_int_digit t;
     sp_int_digit dt;
-
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    a->sign = MP_ZPOS;
-    d->sign = MP_ZPOS;
-#endif /* WOLFSSL_SP_INT_NEGATIVE */
 
     r->used = a->used - d->used + 1;
     sp_clear(r);
