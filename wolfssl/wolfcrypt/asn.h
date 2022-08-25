@@ -942,12 +942,6 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
-#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
-        defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(HAVE_OID_DECODING) || defined(HAVE_OID_ENCODING)
-    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
-    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
-#endif
 #ifdef WOLFSSL_CERT_EXT
     MAX_KID_SZ          = 45,      /* Max encoded KID length (SHA-256 case) */
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */

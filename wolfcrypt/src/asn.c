@@ -29503,6 +29503,12 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
         return MEMORY_E;
     }
 
+#ifndef WOLFTPM2_NO_HEAP
+    if (XSTRLEN(oid) >= MAX_OID_STRING_SZ) {
+        return BUFFER_E;
+    }
+#endif /* !WOLFTPM2_NO_HEAP */
+
     /* Make sure we can properly parse the OID. */
     ret = EncodePolicyOID(encodedOid, &encodedOidSz, oid, NULL);
     if (ret != 0) {
@@ -29511,7 +29517,12 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
 
     ext = &cert->customCertExt[cert->customCertExtCount];
 
+#ifdef WOLFTPM2_NO_HEAP
     ext->oid = oid;
+#else
+    XSTRNCPY(ext->oid, oid, MAX_OID_STRING_SZ);
+#endif /* WOLFTPM2_NO_HEAP */
+
     ext->crit = (critical == 0) ? 0 : 1;
     ext->val = der;
     ext->valSz = derSz;
