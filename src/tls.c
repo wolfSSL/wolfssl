@@ -11507,7 +11507,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_SESSION_TICKET)
             if (ssl->options.resuming && ssl->session->ticketLen > 0) {
                 WOLFSSL_SESSION* sess = ssl->session;
-                word32           now, milli;
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
+                word32 now, milli;
+            #else
+                word64 now, milli, seen;
+            #endif
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
                     WOLFSSL_MSG("Session ticket length for PSK ext is too large");
@@ -11520,6 +11524,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
                 now = TimeNowInMilliseconds();
                 if (now < sess->ticketSeen)
                     milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
@@ -11529,10 +11534,23 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
-                                            milli, ssl->specs.mac_algorithm,
-                                            ssl->options.cipherSuite0,
-                                            ssl->options.cipherSuite, 1,
-                                            NULL);
+                    milli, ssl->specs.mac_algorithm, ssl->options.cipherSuite0,
+                    ssl->options.cipherSuite, 1, NULL);
+            #else
+                seen = (sword64)sess->ticketSeen * 1000 + sess->ticketSeenMilli;
+                now = TimeNowInMilliseconds();
+                if (now < seen)
+                    milli = (0xFFFFFFFFFFFFFFFFU - seen) + 1 + now;
+                else
+                    milli = now - seen;
+                milli += sess->ticketAdd;
+
+                /* Pre-shared key is mandatory extension for resumption. */
+                ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
+                    (word32)milli, ssl->specs.mac_algorithm,
+                    ssl->options.cipherSuite0, ssl->options.cipherSuite, 1,
+                    NULL);
+            #endif
                 if (ret != 0)
                     return ret;
 

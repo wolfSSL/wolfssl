@@ -33462,6 +33462,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else {
 #ifdef WOLFSSL_TLS13
+        #ifndef WOLFSSL_32BIT_MILLI_TIME
+            sword64 now = TimeNowInMilliseconds();
+        #endif
+
             /* Client adds to ticket age to obfuscate. */
             ret = wc_RNG_GenerateBlock(ssl->rng, it->ageAdd,
                                        sizeof(it->ageAdd));
@@ -33471,7 +33475,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             ato32(it->ageAdd, &ssl->session->ticketAdd);
             c16toa(ssl->session->namedGroup, it->namedGroup);
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
             c32toa(TimeNowInMilliseconds(), it->timestamp);
+        #else
+            c32toa((word32)(now / 1000), it->timestamp);
+            c32toa((word32)(now % 1000), it->timestampmilli);
+        #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
             XMEMCPY(&it->ticketNonce, &ssl->session->ticketNonce,
@@ -33735,6 +33744,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TLS13
                 /* Restore information to renegotiate. */
                 ato32(it->timestamp, &ssl->session->ticketSeen);
+            #ifndef WOLFSSL_32BIT_MILLI_TIME
+                ato32(it->timestampmilli, &ssl->session->ticketSeenMilli);
+            #endif
                 ato32(it->ageAdd, &ssl->session->ticketAdd);
                 ssl->session->cipherSuite0 = it->suite[0];
                 ssl->session->cipherSuite = it->suite[1];

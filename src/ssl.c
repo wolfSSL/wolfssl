@@ -25361,8 +25361,13 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     /* ticketSeen | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN;
+#else
+    /* ticketSeen | ticketSeenMilli | ticketAdd */
+    size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE32_LEN;
+#endif
     /* ticketNonce */
     size += OPAQUE8_LEN + sess->ticketNonce.len;
 #endif
@@ -25436,6 +25441,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef WOLFSSL_TLS13
     c32toa(sess->ticketSeen, data + idx);
     idx += OPAQUE32_LEN;
+#ifndef WOLFSSL_32BIT_MILLI_TIME
+    c32toa(sess->ticketSeenMilli, data + idx);
+    idx += OPAQUE32_LEN;
+#endif
     c32toa(sess->ticketAdd, data + idx);
     idx += OPAQUE32_LEN;
     data[idx++] = sess->ticketNonce.len;
@@ -25632,6 +25641,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     ato32(data + idx, &s->ticketSeen);
     idx += OPAQUE32_LEN;
+#ifndef WOLFSSL_32BIT_MILLI_TIME
+    ato32(data + idx, &s->ticketSeenMilli);
+    idx += OPAQUE32_LEN;
+#endif
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;
     if (i - idx < OPAQUE8_LEN) {
