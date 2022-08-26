@@ -37,11 +37,13 @@
 #define ERR_R_DISABLED                          NOT_COMPILED_IN
 #define ERR_R_PASSED_INVALID_ARGUMENT           BAD_FUNC_ARG
 #define RSA_R_UNKNOWN_PADDING_TYPE              RSA_PAD_E
+#define RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE       WC_KEY_SIZE_E
 #define EC_R_BUFFER_TOO_SMALL                   BUFFER_E
 
 #define ERR_TXT_MALLOCED                        1
 
 /* SSL function codes */
+#define RSA_F_RSA_PADDING_ADD_SSLV23            0
 #define RSA_F_RSA_OSSL_PRIVATE_ENCRYPT          1
 #define SSL_F_SSL_CTX_USE_CERTIFICATE_FILE      2
 #define SSL_F_SSL_USE_PRIVATEKEY                3
