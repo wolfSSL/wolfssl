@@ -33384,6 +33384,7 @@ static int test_wolfSSL_EVP_MD_rsa_signing(void)
     WOLFSSL_EVP_PKEY_CTX* keyCtx;
     const char testData[] = "Hi There";
     WOLFSSL_EVP_MD_CTX mdCtx;
+    WOLFSSL_EVP_MD_CTX mdCtxCopy;
     size_t checkSz = -1;
     int sz = 2048 / 8;
     const unsigned char* cp;
@@ -33408,6 +33409,7 @@ static int test_wolfSSL_EVP_MD_rsa_signing(void)
                                                sizeof_client_keypub_der_2048)));
 
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    wolfSSL_EVP_MD_CTX_init(&mdCtxCopy);
     AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
                                                              NULL, privKey), 1);
     AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData,
@@ -33416,6 +33418,9 @@ static int test_wolfSSL_EVP_MD_rsa_signing(void)
     AssertIntEQ((int)checkSz, sz);
     AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
     AssertIntEQ((int)checkSz,sz);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_copy_ex(&mdCtxCopy, &mdCtx), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_copy_ex(&mdCtxCopy, &mdCtx), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtxCopy), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
