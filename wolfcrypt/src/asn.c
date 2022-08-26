@@ -6060,7 +6060,7 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
     int ret = 0;
     word32 idx = 0;
     int len = 0;
-    word32 oid;
+    word32 oid = 0;
     byte tag;
     int length;
 
