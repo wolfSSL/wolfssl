@@ -3551,6 +3551,7 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
     }
     else {
         WOLFSSL_EVP_MD_CTX ctxCopy;
+        wolfSSL_EVP_MD_CTX_init(&ctxCopy);
 
         if (wolfSSL_EVP_MD_CTX_copy_ex(&ctxCopy, ctx) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
@@ -4882,6 +4883,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         if ((out == NULL) || (in == NULL)) return WOLFSSL_FAILURE;
         WOLFSSL_ENTER("EVP_CIPHER_MD_CTX_copy_ex");
+        wolfSSL_EVP_MD_CTX_cleanup(out);
         XMEMCPY(out, in, sizeof(WOLFSSL_EVP_MD_CTX));
         if (in->pctx != NULL) {
             out->pctx = wolfSSL_EVP_PKEY_CTX_new(in->pctx->pkey, NULL);
