@@ -1078,7 +1078,7 @@ fi
 AC_ARG_ENABLE([hrrcookie],
     [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state (default: disabled)])],
     [ ENABLED_SEND_HRR_COOKIE=$enableval ],
-    [ ENABLED_SEND_HRR_COOKIE=no ]
+    [ ENABLED_SEND_HRR_COOKIE=undefined ]
     )
 if test "$ENABLED_SEND_HRR_COOKIE" = "yes"
 then
@@ -3752,6 +3752,12 @@ then
         if test "x$ENABLED_DTLS" != "xyes" || test "x$ENABLED_TLS13" != "xyes"
         then
                 AC_MSG_ERROR([You need to enable both DTLS and TLSv1.3 to use DTLSv1.3])
+        fi
+        if test "x$ENABLED_SEND_HRR_COOKIE" == "xundefined"
+        then
+                AC_MSG_NOTICE([DTLSv1.3 is enabled, enabling HRR cookie])
+                AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEND_HRR_COOKIE"
+                ENABLED_SEND_HRR_COOKIE="yes"
         fi
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS13 -DWOLFSSL_W64_WRAPPER"
   if test "x$ENABLED_AES" = "xyes"

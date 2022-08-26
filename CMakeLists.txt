@@ -275,38 +275,6 @@ if("${FIPS_VERSION}" STREQUAL "v1")
     override_cache(WOLFSSL_TLS13 "no")
 endif()
 
-# DTLS v1.3
-add_option("WOLFSSL_DTLS13"
-    "Enable wolfSSL DTLS v1.3 (default: disabled)"
-    "no" "yes;no")
-
-if(WOLFSSL_DTLS13)
-    if (NOT WOLFSSL_DTLS)
-      message(FATAL_ERROR "DTLS13 requires DTLS")
-    endif()
-    if (NOT WOLFSSL_TLS13)
-      message(FATAL_ERROR "DTLS13 requires TLS13")
-    endif()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS13")
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_W64_WRAPPER")
-
-    if (WOLFSSL_AES)
-      list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_DIRECT")
-    endif()
-endif()
-
-# DTLS ConnectionID support
-add_option("WOLFSSL_DTLS_CID"
-    "Enables wolfSSL DTLS CID (default: disabled)"
-    "no" "yes;no")
-
-if(WOLFSSL_DTLS_CID)
-    if(NOT WOLFSSL_DTLS13)
-        message(FATAL_ERROR "CID are supported only for DTLSv1.3")
-    endif()
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CID")
-endif()
-
 # Post-handshake authentication
 add_option("WOLFSSL_POSTAUTH"
     "Enable wolfSSL Post-handshake Authentication (default: disabled)"
@@ -325,9 +293,9 @@ endif()
 # Hello Retry Request Cookie
 add_option("WOLFSSL_HRR_COOKIE"
     "Enable the server to send Cookie Extension in HRR with state (default: disabled)"
-    "no" "yes;no")
+    "undefined" "yes;no;undefined")
 
-if(WOLFSSL_HRR_COOKIE)
+if("${WOLFSSL_HRR_COOKIE}" STREQUAL "yes")
     if(NOT WOLFSSL_TLS13)
         message(WARNING "TLS 1.3 is disabled - disabling HRR Cookie")
         override_cache(WOLFSSL_HRR_COOKIE "no")
@@ -335,6 +303,42 @@ if(WOLFSSL_HRR_COOKIE)
         list(APPEND WOLFSSL_DEFINITIONS
             "-DWOLFSSL_SEND_HRR_COOKIE")
     endif()
+endif()
+
+# DTLS v1.3
+add_option("WOLFSSL_DTLS13"
+    "Enable wolfSSL DTLS v1.3 (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_DTLS13)
+    if (NOT WOLFSSL_DTLS)
+      message(FATAL_ERROR "DTLS13 requires DTLS")
+    endif()
+    if (NOT WOLFSSL_TLS13)
+      message(FATAL_ERROR "DTLS13 requires TLS13")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS13")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_W64_WRAPPER")
+    if ("${WOLFSSL_HRR_COOKIE}" STREQUAL "undefined")
+      message(WARNING "DTLS1.3 is enabled - enabling HRR Cookie")
+      override_cache(WOLFSSL_HRR_COOKIE "yes")
+      list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SEND_HRR_COOKIE")
+    endif()
+    if (WOLFSSL_AES)
+      list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_DIRECT")
+    endif()
+endif()
+
+# DTLS ConnectionID support
+add_option("WOLFSSL_DTLS_CID"
+    "Enables wolfSSL DTLS CID (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_DTLS_CID)
+    if(NOT WOLFSSL_DTLS13)
+        message(FATAL_ERROR "CID are supported only for DTLSv1.3")
+    endif()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DTLS_CID")
 endif()
 
 # RNG
