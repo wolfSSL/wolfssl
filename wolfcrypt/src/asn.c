@@ -18885,8 +18885,8 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        /* Set ocsp entry */
-        if (b == GENERALNAME_URI && oid == AIA_OCSP_OID) {
+        /* Set caRepo entry */
+        if (b == GENERALNAME_URI && oid == AIA_CA_REPO_OID) {
             cert->extSubjInfoAccCaRepoSz = length;
             cert->extSubjInfoAccCaRepo = input + idx;
             break;
