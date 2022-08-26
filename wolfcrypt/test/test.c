@@ -626,7 +626,9 @@ static void myFipsCb(int ok, int err, const char* hash)
 #endif /* HAVE_FIPS && !WOLFSSL_LINUXKM */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #ifdef BENCH_EMBEDDED
+    #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
+        static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
+    #elif defined(BENCH_EMBEDDED)
         static byte gTestMemory[14000];
     #elif defined(WOLFSSL_CERT_EXT)
         static byte gTestMemory[140000];

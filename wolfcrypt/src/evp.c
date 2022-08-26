@@ -7497,12 +7497,22 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_NO_REALLOC
+    derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
+    if (derBuf != NULL) {
+    	XMEMCPY(derBuf, pkey->pkey.ptr, pkey->pkey_sz);
+    	XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
+    	pkey->pkey.ptr = NULL;
+    }
+#else
     derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz,
             pkey->heap, DYNAMIC_TYPE_DER);
+#endif
     if (derBuf == NULL) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer malloc failed");
         return WOLFSSL_FAILURE;
     }
+
     /* Old pointer is invalid from this point on */
     pkey->pkey.ptr = (char*)derBuf;
 
