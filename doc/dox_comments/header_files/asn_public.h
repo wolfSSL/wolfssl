@@ -2047,6 +2047,10 @@ time_t wc_Time(time_t* t);
     \ingroup ASN
 
     \brief This function injects a custom extension in to an X.509 certificate.
+     note: The content at the address pointed to by any of the parameters that
+           are pointers must not be modified until the certificate is generated
+           and you have the der output. This function does NOT copy the
+           contents to another buffer.
 
     \return 0 Returned on success.
     \return Other negative values on failure.
