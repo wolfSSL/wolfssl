@@ -10628,7 +10628,33 @@ int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
 
     return ret;
 }
-#endif
+
+int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+#ifdef NO_WOLFSSL_SERVER
+    return SIDE_ERROR
+#else
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+    if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
+        ForceZero(ssl->buffers.tls13CookieSecret.buffer,
+            ssl->buffers.tls13CookieSecret.length);
+        XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
+            DYNAMIC_TYPE_COOKIE_PWD);
+        ssl->buffers.tls13CookieSecret.buffer = NULL;
+        ssl->buffers.tls13CookieSecret.length = 0;
+    }
+
+    ssl->options.sendCookie = 0;
+    return WOLFSSL_SUCCESS;
+#endif /* NO_WOLFSSL_SERVER */
+}
+
+#endif /* defined(WOLFSSL_SEND_HRR_COOKIE) */
 
 #ifdef HAVE_SUPPORTED_CURVES
 /* Create a key share entry from group.
