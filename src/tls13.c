@@ -10659,7 +10659,8 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
-            ssl->ctx->method->version.minor != TLSv1_3_MINOR) {
+            (ssl->ctx->method->version.minor != TLSv1_3_MINOR &&
+            ssl->ctx->method->version.minor != DTLSv1_3_MINOR)) {
             return BAD_FUNC_ARG;
         }
 
