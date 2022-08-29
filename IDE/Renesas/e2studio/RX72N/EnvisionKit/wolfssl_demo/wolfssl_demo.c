@@ -269,7 +269,7 @@ static void Tls_client_init()
         printf("ERROR: can't load client-private key\n");
         return;
     }
-    #else
+    #endif
     if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
                                 ecc_clikey_der_256,
                                 sizeof_ecc_clikey_der_256,
@@ -277,7 +277,7 @@ static void Tls_client_init()
         printf("ERROR: can't load private-key data.\n");
         return;
     }
-    #endif /* WOLFSSL_TLS13 */
+
 #else
     if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
                                 client_key_der_2048,

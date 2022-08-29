@@ -180,16 +180,15 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     }
 
     /* set client private key data */
-    #ifdef WOLFSSL_TLS13
-    #ifdef WOLFSSL_RENESAS_TSIP_TLS
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+        (WOLFSSL_RENESAS_TSIP_VER >= 115 )
     if (tsip_set_clientPrivateKeyEnc(
                         g_key_block_data.encrypted_user_ecc256_private_key,
                                                         TSIP_ECCP256) != 0) {
         printf("ERROR: can't load client-private key\n");
         return;
     }
-    #endif /* WOLFSSL_RENESAS_TSIP_TLS */
-    #else
+    #endif
     if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, 
                                 ecc_clikey_der_256,
                                 sizeof_ecc_clikey_der_256,
@@ -197,7 +196,6 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         printf("ERROR: can't load private-key data.\n");
         return;
     }
-    #endif /* WOLFSSL_TLS13 */
 
 #else
     if (wolfSSL_CTX_use_certificate_chain_buffer_format(client_ctx,
@@ -209,14 +207,6 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     }
 
     /* set client private key data */
-    #ifdef WOLFSSL_RENESAS_TSIP_TLS
-    if (tsip_set_clientPrivateKeyEnc(
-                        g_key_block_data.encrypted_user_rsa2048_private_key,
-                                            TSIP_RSA2048) != 0) {
-        printf("ERROR: can't load client-private key\n");
-        return;
-    }
-    #endif
 
     if (wolfSSL_CTX_use_PrivateKey_buffer(client_ctx, client_key_der_2048,
             sizeof_client_key_der_2048, SSL_FILETYPE_ASN1)

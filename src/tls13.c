@@ -515,13 +515,7 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_Ver >= 115)
-    (void)key;
-    ret = tsip_DeriveClientHandshakeSecret(ssl);
-    if (ret != CRYPTOCB_UNAVAILABLE) {
-        return ret;
-    }
-#endif
+    
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
