@@ -2414,6 +2414,8 @@ struct RevokedCert {
     byte         serialNumber[EXTERNAL_SERIAL_SIZE];
     int          serialSz;
     RevokedCert* next;
+    byte         revDate[MAX_DATE_SIZE];
+    byte         revDateFormat;
 };
 
 typedef struct DecodedCRL DecodedCRL;
@@ -2431,12 +2433,18 @@ struct DecodedCRL {
     byte    lastDateFormat;          /* format of last date */
     byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
+#if defined(OPENSSL_EXTRA)
+    byte*   issuer;                  /* full name including common name  */
+    word32  issuerSz;                /* length of the issuer             */
+#endif
     int          totalCerts;         /* number on list     */
+    int          version;            /* version of cert    */
     void*   heap;
 #ifndef NO_SKID
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID        */
 #endif
+    int          crlNumber;          /* CRL number extension  */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);

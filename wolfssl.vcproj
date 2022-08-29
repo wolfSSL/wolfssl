@@ -160,6 +160,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\dtls.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\internal.c"
 				>
 			</File>

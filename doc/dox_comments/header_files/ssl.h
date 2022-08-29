@@ -14347,3 +14347,167 @@ int wolfSSL_dtls13_has_pending_msg(WOLFSSL *ssl);
     \sa wolfSSL_read_early_data
  */
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *s);
+
+/*!
+    \ingroup SSL
+    \brief Get a new index for external data. This entry applies also for the
+           following API:
+           - wolfSSL_CTX_get_ex_new_index
+           - wolfSSL_get_ex_new_index
+           - wolfSSL_SESSION_get_ex_new_index
+           - wolfSSL_X509_get_ex_new_index
+
+    \param [in] All input parameters are ignored. The callback functions are not
+                supported with wolfSSL.
+
+    \return The new index value to be used with the external data API for this
+            object class.
+ */
+int wolfSSL_CRYPTO_get_ex_new_index(int, void*, void*, void*, void*);
+
+/*!
+
+\brief Enable use of ConnectionID extensions for the SSL object. See RFC 9146
+and RFC 9147
+
+ \return WOLFSSL_SUCCESS on success, error code otherwise
+
+ \param ssl A WOLFSSL object pointer
+
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_use(WOLFSSL* ssl);
+
+/*!
+
+\brief If invoked after the handshake is complete it checks if ConnectionID was
+successfully negotiated for the SSL object. See RFC 9146 and RFC 9147
+
+ \return 1 if ConnectionID was correctly negotiated, 0 otherwise
+
+ \param ssl A WOLFSSL object pointer
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_is_enabled(WOLFSSL* ssl);
+
+/*!
+
+\brief Set the ConnectionID used by the other peer to send records in this
+connection. See RFC 9146 and RFC 9147. The ConnectionID must be at maximum
+DTLS_CID_MAX_SIZE, that is an tunable compile time define, and it can't
+never be bigger than 255 bytes.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly set, error code otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param cid the ConnectionID to be used
+ \param size of the ConnectionID provided
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid,
+    unsigned int size);
+
+/*!
+
+\brief Get the size of the ConnectionID used by the other peer to send records
+in this connection. See RFC 9146 and RFC 9147. The size is stored in the
+parameter size.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly negotiated, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param size a pointer to an unsigned int where the size will be stored
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_get_rx_size(WOLFSSL* ssl,
+    unsigned int* size);
+
+/*!
+
+\brief Copy the ConnectionID used by the other peer to send records in this
+connection into the buffer pointed by the parameter buffer. See RFC 9146 and RFC
+9147. The available space in the buffer need to be provided in bufferSz.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly copied, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param buffer A buffer where the ConnectionID will be copied
+ \param bufferSz available space in buffer
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);
+
+/*!
+
+\brief Get the size of the ConnectionID used to send records in this
+connection. See RFC 9146 and RFC 9147. The size is stored in the parameter size.
+
+ \return WOLFSSL_SUCCESS if ConnectionID size was correctly stored, error
+ code otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param size a pointer to an unsigned int where the size will be stored
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl, unsigned int* size);
+
+/*!
+
+\brief Copy the ConnectionID used when sending records in this connection into
+the buffer pointer by the parameter buffer. See RFC 9146 and RFC 9147. The
+available size need to be provided in bufferSz.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly copied, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param buffer A buffer where the ConnectionID will be copied
+ \param bufferSz available space in buffer
+
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);

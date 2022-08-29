@@ -1894,6 +1894,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
          *  --waitTicket in the command line and fail */
         {"waitTicket", 0, 261},
 #endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_DTLS_CID
+        {"cid", 2, 262},
+#endif /* WOLFSSL_DTLS_CID */
         { 0, 0, 0 }
     };
 #endif
@@ -2023,6 +2026,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SESSION_TICKET
     int waitTicket = 0;
 #endif /* HAVE_SESSION_TICKET */
+#ifdef WOLFSSL_DTLS_CID
+    int useDtlsCID = 0;
+    char dtlsCID[DTLS_CID_BUFFER_SIZE] = { 0 };
+#endif /* WOLFSSL_DTLS_CID */
 
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
@@ -2178,7 +2185,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* HAVE_SESSION_TICKET */
             break;
 #endif /* WOLFSSL_DTLS13 */
-
+#ifdef WOLFSSL_DTLS_CID
+        case 262:
+            useDtlsCID = 1;
+            if (myoptarg != NULL) {
+                if (XSTRLEN(myoptarg) >= DTLS_CID_BUFFER_SIZE) {
+                    err_sys("provided connection ID is too big");
+                }
+                else {
+                    strcpy(dtlsCID, myoptarg);
+                }
+            }
+            break;
+#endif /* WOLFSSL_CID */
             case 'G' :
             #ifdef WOLFSSL_SCTP
                 doDTLS = 1;
@@ -3709,6 +3728,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         SetupAtomicUser(ctx, ssl);
 #endif
 
+#ifdef WOLFSSL_DTLS_CID
+    if (useDtlsCID) {
+        ret = wolfSSL_dtls_cid_use(ssl);
+        if (ret != WOLFSSL_SUCCESS)
+            err_sys("Can't enable DTLS ConnectionID");
+        ret = wolfSSL_dtls_cid_set(ssl, (unsigned char*)dtlsCID,
+            (word32)XSTRLEN(dtlsCID));
+        if (ret != WOLFSSL_SUCCESS)
+            err_sys("Can't set DTLS ConnectionID");
+    }
+#endif /* WOLFSSL_DTLS_CID */
+
     if (matchName && doPeerCheck)
         wolfSSL_check_domain_name(ssl, domain);
 #ifndef WOLFSSL_CALLBACKS
@@ -3921,6 +3952,32 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("Getting ALPN protocol name failed\n");
     }
 #endif
+
+#ifdef WOLFSSL_DTLS_CID
+    if (useDtlsCID && wolfSSL_dtls_cid_is_enabled(ssl)) {
+        unsigned char receivedCID[DTLS_CID_BUFFER_SIZE];
+        unsigned int receivedCIDSz;
+
+        printf("CID extension was negotiated\n");
+        ret = wolfSSL_dtls_cid_get_tx_size(ssl, &receivedCIDSz);
+        if (ret != WOLFSSL_SUCCESS)
+            err_sys("Can't get negotiated DTLS CID size\n");
+
+        if (receivedCIDSz > 0) {
+            ret = wolfSSL_dtls_cid_get_tx(ssl, receivedCID,
+                DTLS_CID_BUFFER_SIZE - 1);
+            if (ret != WOLFSSL_SUCCESS)
+                err_sys("Can't get negotiated DTLS CID\n");
+
+            printf("Sending CID is ");
+            printBuffer(receivedCID, receivedCIDSz);
+            printf("\n");
+        }
+        else {
+            printf("other peer provided empty CID\n");
+        }
+    }
+#endif /* WOLFSSL_DTLS_CID */
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr && forceScr) {

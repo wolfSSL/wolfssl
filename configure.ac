@@ -3760,6 +3760,21 @@ then
   fi
 fi
 
+# DTLS CID support
+AC_ARG_ENABLE([dtlscid],
+    [AS_HELP_STRING([--enable-dtlscid],[Enable wolfSSL DTLS ConnectionID (default: disabled)])],
+    [ ENABLED_DTLS_CID=$enableval ],
+    [ ENABLED_DTLS_CID=no ]
+    )
+if test "x$ENABLED_DTLS_CID" = "xyes"
+then
+        if test "x$ENABLED_DTLS13" != "xyes"
+        then
+                AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ConnectionID])
+        fi
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
+fi
+
 # CODING
 AC_ARG_ENABLE([coding],
     [AS_HELP_STRING([--enable-coding],[Enable Coding base 16/64 (default: enabled)])],
@@ -8077,6 +8092,7 @@ AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
 AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes"])
 AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
+AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||

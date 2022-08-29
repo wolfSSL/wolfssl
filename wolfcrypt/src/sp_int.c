@@ -7008,6 +7008,153 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+/* Divide a by d and return the quotient in r and the remainder in a.
+ *   r = a / d; a = a % d
+ *
+ * @param  [in, out] a      SP integer to be divided and remainder on out.
+ * @param  [in]      d      SP integer to divide by.
+ * @param  [out]     r      SP integer that is the quotient.
+ * @param  [out]     trial  SP integer that is product in trial division.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when operation fails - only when compiling small code.
+ */
+static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
+{
+    int err = MP_OKAY;
+    int i;
+#ifdef WOLFSSL_SP_SMALL
+    int c;
+#else
+    int j;
+    int o;
+    #ifndef SQR_MUL_ASM
+    sp_int_sword sw;
+    #else
+    sp_int_digit sl;
+    sp_int_digit sh;
+    sp_int_digit st;
+    #endif
+#endif /* WOLFSSL_SP_SMALL */
+    sp_int_digit t;
+    sp_int_digit dt;
+
+    r->used = a->used - d->used + 1;
+    sp_clear(r);
+    r->used = a->used - d->used + 1;
+    dt = d->dp[d->used-1];
+
+    for (i = d->used - 1; i > 0; i--) {
+        if (a->dp[a->used - d->used + i] != d->dp[i]) {
+            break;
+        }
+    }
+    if (a->dp[a->used - d->used + i] >= d->dp[i]) {
+        i = a->used;
+        _sp_sub_off(a, d, a, a->used - d->used);
+        /* Keep the same 'used' so that zeros will be put in. */
+        a->used = i;
+        r->dp[a->used - d->used] = 1;
+    }
+
+    for (i = a->used - 1; i >= d->used; i--) {
+        if (a->dp[i] == dt) {
+            t = SP_DIGIT_MAX;
+        }
+        else {
+            t = sp_div_word(a->dp[i], a->dp[i-1], dt);
+        }
+#ifdef WOLFSSL_SP_SMALL
+        do {
+            err = _sp_mul_d(d, t, trial, i - d->used);
+            if (err != MP_OKAY) {
+                break;
+            }
+            c = _sp_cmp_abs(trial, a);
+            if (c == MP_GT) {
+                t--;
+            }
+        }
+        while (c == MP_GT);
+
+        if (err != MP_OKAY) {
+            break;
+        }
+
+        _sp_sub_off(a, trial, a, 0);
+        r->dp[i - d->used] += t;
+        if (r->dp[i - d->used] < t) {
+            r->dp[i + 1 - d->used]++;
+        }
+#else
+        o = i - d->used;
+        do {
+        #ifndef SQR_MUL_ASM
+            sp_int_word tw = 0;
+        #else
+            sp_int_digit tl = 0;
+            sp_int_digit th = 0;
+        #endif
+            for (j = 0; j < d->used; j++) {
+            #ifndef SQR_MUL_ASM
+                tw += (sp_int_word)d->dp[j] * t;
+                trial->dp[j] = (sp_int_digit)tw;
+                tw >>= SP_WORD_SIZE;
+            #else
+                SP_ASM_MUL_ADD_NO(tl, th, d->dp[j], t);
+                trial->dp[j] = tl;
+                tl = th;
+                th = 0;
+            #endif
+            }
+          #ifndef SQR_MUL_ASM
+            trial->dp[j] = (sp_int_digit)tw;
+          #else
+            trial->dp[j] = tl;
+          #endif
+
+            for (j = d->used; j > 0; j--) {
+                if (trial->dp[j] != a->dp[j + o]) {
+                    break;
+                }
+            }
+            if (trial->dp[j] > a->dp[j + o]) {
+                t--;
+            }
+        }
+        while (trial->dp[j] > a->dp[j + o]);
+
+    #ifndef SQR_MUL_ASM
+        sw = 0;
+    #else
+        sl = 0;
+        sh = 0;
+    #endif
+        for (j = 0; j <= d->used; j++) {
+        #ifndef SQR_MUL_ASM
+            sw += a->dp[j + o];
+            sw -= trial->dp[j];
+            a->dp[j + o] = (sp_int_digit)sw;
+            sw >>= SP_WORD_SIZE;
+        #else
+            st = a->dp[j + o];
+            SP_ASM_ADDC(sl, sh, st);
+            st = trial->dp[j];
+            SP_ASM_SUBC(sl, sh, st);
+            a->dp[j + o] = sl;
+            sl = sh;
+            sh = (sp_int_digit)0 - (sl >> (SP_WORD_SIZE - 1));
+        #endif
+        }
+
+        r->dp[o] = t;
+#endif /* WOLFSSL_SP_SMALL */
+    }
+    a->used = i + 1;
+
+    return err;
+}
+
 /* Divide a by d and return the quotient in r and the remainder in rem.
  *   r = a / d; rem = a % d
  *
@@ -7028,10 +7175,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     int err = MP_OKAY;
     int ret;
     int done = 0;
-    int i;
     int s = 0;
-    sp_int_digit dt;
-    sp_int_digit t;
     sp_int* sa = NULL;
     sp_int* sd = NULL;
     sp_int* tr = NULL;
@@ -7121,52 +7265,61 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
     }
 
+    /* Allocate temprorary 'sp_int's and assign. */
     if ((!done) && (err == MP_OKAY)) {
-#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
-    !defined(WOLFSSL_SP_NO_MALLOC)
+    #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+        !defined(WOLFSSL_SP_NO_MALLOC)
         int cnt = 4;
+        /* Resuse where possible. */
         if ((rem != NULL) && (rem != d) && (rem->size > a->used)) {
+            sa = rem;
             cnt--;
         }
         if ((r != NULL) && (r != d)) {
+            tr = r;
             cnt--;
         }
         /* Macro always has code associated with it and checks err first. */
         ALLOC_SP_INT_ARRAY(td, a->used + 1, cnt, err, NULL);
-#else
+    #else
         ALLOC_SP_INT_ARRAY(td, a->used + 1, 4, err, NULL);
-#endif
+    #endif
     }
-
     if ((!done) && (err == MP_OKAY)) {
-        sd    = td[0];
-        trial = td[1];
-#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
-    !defined(WOLFSSL_SP_NO_MALLOC)
-        i = 2;
-        sa    = ((rem != NULL) && (rem != d) && (rem->size > a->used)) ? rem :
-            td[i++];
-        tr    = ((r != NULL) && (r != d)) ? r : td[i];
-#else
+    #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+        !defined(WOLFSSL_SP_NO_MALLOC)
+        int i = 2;
+
+        /* Set to temporary when not reusing. */
+        if (sa == NULL) {
+            sa = td[i++];
+        }
+        if (tr == NULL) {
+            tr = td[i];
+        }
+    #else
         sa    = td[2];
         tr    = td[3];
-#endif
+    #endif
+        sd    = td[0];
+        trial = td[1];
 
         sp_init_size(sd, d->used + 1);
         sp_init_size(trial, a->used + 1);
-#if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
-    !defined(WOLFSSL_SP_NO_MALLOC)
+    #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
+        !defined(WOLFSSL_SP_NO_MALLOC)
         if (sa != rem) {
             sp_init_size(sa, a->used + 1);
         }
         if (tr != r) {
             sp_init_size(tr, a->used - d->used + 2);
         }
-#else
+    #else
         sp_init_size(sa, a->used + 1);
         sp_init_size(tr, a->used - d->used + 2);
-#endif
+    #endif
 
+        /* Move divisor to top of word. Adjust dividend as well. */
         s = sp_count_bits(d);
         s = SP_WORD_SIZE - (s & SP_WORD_MASK);
         sp_copy(a, sa);
@@ -7180,165 +7333,37 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
     }
     if ((!done) && (err == MP_OKAY) && (d->used > 0)) {
-#ifdef WOLFSSL_SP_SMALL
-        int c;
-#else
-        int j;
-        int o;
-    #ifndef SQR_MUL_ASM
-        sp_int_sword sw;
-    #else
-        sp_int_digit sl;
-        sp_int_digit sh;
-        sp_int_digit st;
-    #endif
-#endif /* WOLFSSL_SP_SMALL */
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        sa->sign = MP_ZPOS;
-        sd->sign = MP_ZPOS;
-#endif /* WOLFSSL_SP_INT_NEGATIVE */
-
-        tr->used = sa->used - d->used + 1;
-        sp_clear(tr);
-        tr->used = sa->used - d->used + 1;
-        dt = d->dp[d->used-1];
-
-        for (i = d->used - 1; i > 0; i--) {
-            if (sa->dp[sa->used - d->used + i] != d->dp[i]) {
-                break;
-            }
-        }
-        if (sa->dp[sa->used - d->used + i] >= d->dp[i]) {
-            i = sa->used;
-            _sp_sub_off(sa, d, sa, sa->used - d->used);
-            /* Keep the same used so that 0 zeros will be put in. */
-            sa->used = i;
-            if (r != NULL) {
-                tr->dp[sa->used - d->used] = 1;
-            }
-        }
-        for (i = sa->used - 1; i >= d->used; i--) {
-            if (sa->dp[i] == dt) {
-                t = SP_DIGIT_MAX;
-            }
-            else {
-                t = sp_div_word(sa->dp[i], sa->dp[i-1], dt);
-            }
-
-#ifdef WOLFSSL_SP_SMALL
-            do {
-                err = _sp_mul_d(d, t, trial, i - d->used);
-                if (err != MP_OKAY) {
-                    break;
-                }
-                c = _sp_cmp_abs(trial, sa);
-                if (c == MP_GT) {
-                    t--;
-                }
-            }
-            while (c == MP_GT);
-
-            if (err != MP_OKAY) {
-                break;
-            }
-
-            _sp_sub_off(sa, trial, sa, 0);
-            tr->dp[i - d->used] += t;
-            if (tr->dp[i - d->used] < t) {
-                tr->dp[i + 1 - d->used]++;
-            }
-#else
-            o = i - d->used;
-            do {
-            #ifndef SQR_MUL_ASM
-                sp_int_word tw = 0;
-            #else
-                sp_int_digit tl = 0;
-                sp_int_digit th = 0;
-            #endif
-                for (j = 0; j < d->used; j++) {
-                #ifndef SQR_MUL_ASM
-                    tw += (sp_int_word)d->dp[j] * t;
-                    trial->dp[j] = (sp_int_digit)tw;
-                    tw >>= SP_WORD_SIZE;
-                #else
-                    SP_ASM_MUL_ADD_NO(tl, th, d->dp[j], t);
-                    trial->dp[j] = tl;
-                    tl = th;
-                    th = 0;
-                #endif
-                }
-              #ifndef SQR_MUL_ASM
-                trial->dp[j] = (sp_int_digit)tw;
-              #else
-                trial->dp[j] = tl;
-              #endif
-
-                for (j = d->used; j > 0; j--) {
-                    if (trial->dp[j] != sa->dp[j + o]) {
-                        break;
-                    }
-                }
-                if (trial->dp[j] > sa->dp[j + o]) {
-                    t--;
-                }
-            }
-            while (trial->dp[j] > sa->dp[j + o]);
-
-        #ifndef SQR_MUL_ASM
-            sw = 0;
-        #else
-            sl = 0;
-            sh = 0;
-        #endif
-            for (j = 0; j <= d->used; j++) {
-            #ifndef SQR_MUL_ASM
-                sw += sa->dp[j + o];
-                sw -= trial->dp[j];
-                sa->dp[j + o] = (sp_int_digit)sw;
-                sw >>= SP_WORD_SIZE;
-            #else
-                st = sa->dp[j + o];
-                SP_ASM_ADDC(sl, sh, st);
-                st = trial->dp[j];
-                SP_ASM_SUBC(sl, sh, st);
-                sa->dp[j + o] = sl;
-                sl = sh;
-                sh = (sp_int_digit)0 - (sl >> (SP_WORD_SIZE - 1));
-            #endif
-            }
-
-            tr->dp[o] = t;
-#endif /* WOLFSSL_SP_SMALL */
-        }
-        sa->used = i + 1;
-
+        /* Do division: tr = sa / d, sa = sa % d. */
+        err = _sp_div(sa, d, tr, trial);
+        /* Return the remainder if required. */
         if ((err == MP_OKAY) && (rem != NULL)) {
-#ifdef WOLFSSL_SP_INT_NEGATIVE
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
             sa->sign = (sa->used == 0) ? MP_ZPOS : aSign;
-#endif /* WOLFSSL_SP_INT_NEGATIVE */
+        #endif /* WOLFSSL_SP_INT_NEGATIVE */
+            /* Move result back down if moved up for divisor value. */
             if (s != SP_WORD_SIZE) {
                 sp_rshb(sa, s, sa);
             }
             sp_copy(sa, rem);
             sp_clamp(rem);
-#ifdef WOLFSSL_SP_INT_NEGATIVE
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
             if (sp_iszero(rem)) {
                 rem->sign = MP_ZPOS;
             }
-#endif
+        #endif
         }
+        /* Return the quotient if required. */
         if ((err == MP_OKAY) && (r != NULL)) {
             sp_copy(tr, r);
             sp_clamp(r);
-#ifdef WOLFSSL_SP_INT_NEGATIVE
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
             if (sp_iszero(r)) {
                 r->sign = MP_ZPOS;
             }
             else {
                 r->sign = (aSign == dSign) ? MP_ZPOS : MP_NEG;
             }
-#endif /* WOLFSSL_SP_INT_NEGATIVE */
+        #endif /* WOLFSSL_SP_INT_NEGATIVE */
         }
     }
 
@@ -11044,7 +11069,12 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
             if (c == 0) {
                 c = SP_WORD_SIZE;
             }
-            c -= bits % winBits;
+            if ((bits % winBits) != 0) {
+                c -= bits % winBits;
+            }
+            else {
+                c -= winBits;
+            }
             y = (int)(n >> c);
             n <<= SP_WORD_SIZE - c;
             /* Copy window number for top bits. */

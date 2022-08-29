@@ -1264,6 +1264,20 @@ typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
 #define WOLF_CRYPTO_EX_INDEX__COUNT          16
 
 #ifdef HAVE_EX_DATA
+/* Helper macro to log that input arguments should not be used */
+#define WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(a1, a2, a3, a4, a5) \
+    (void)(a1);                                                  \
+    (void)(a2);                                                  \
+    (void)(a3);                                                  \
+    (void)(a4);                                                  \
+    (void)(a5);                                                  \
+    do {                                                         \
+        if ((a3) != NULL || (a4) != NULL || (a5) != NULL) {      \
+            WOLFSSL_MSG("get_ex_new_index API does not support " \
+                        "new, dup, or free callbacks");          \
+        }                                                        \
+    } while(0)
+
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
 typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
@@ -1398,6 +1412,9 @@ WOLFSSL_API int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_retransmit(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 
+WOLFSSL_API void* wolfSSL_dtls_create_peer(int port, char* ip);
+WOLFSSL_API int   wolfSSL_dtls_free_peer(void* addr);
+
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
 WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
 
@@ -1479,7 +1496,7 @@ WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 
@@ -2848,7 +2865,21 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE file, WOLFSSL_X509_CRL **crl);
 #endif
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
+WOLFSSL_API int wolfSSL_X509_CRL_version(WOLFSSL_X509_CRL *crl);
+WOLFSSL_API int wolfSSL_X509_CRL_get_signature_type(WOLFSSL_X509_CRL* crl);
+WOLFSSL_API int wolfSSL_X509_CRL_get_signature_nid(
+                                                  const WOLFSSL_X509_CRL* crl);
+WOLFSSL_API int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
+                                               unsigned char* buf, int* bufSz);
+WOLFSSL_API int wolfSSL_X509_CRL_print(WOLFSSL_BIO* bio,
+                                       WOLFSSL_X509_CRL* crl);
+WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(
+                                                        WOLFSSL_X509_CRL *crl);
+WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
+                                                       byte* in, int* inOutSz);
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
+#endif
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_STDIO_FILESYSTEM
@@ -5076,6 +5107,21 @@ WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
                                            WOLFSSL_CRYPTO_EX_free* free_func);
 #endif /* HAVE_EX_DATA || WOLFSSL_WPAS_SMALL */
+
+#if defined(WOLFSSL_DTLS_CID)
+WOLFSSL_API int wolfSSL_dtls_cid_use(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_cid_is_enabled(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid,
+    unsigned int size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_rx_size(WOLFSSL* ssl,
+    unsigned int* size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);
+WOLFSSL_API int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl,
+    unsigned int* size);
+WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
+    unsigned int bufferSz);
+#endif /* defined(WOLFSSL_DTLS_CID) */
 
 /*  */
 #define SSL2_VERSION                     0x0002

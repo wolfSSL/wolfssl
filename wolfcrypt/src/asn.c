@@ -2569,7 +2569,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return b;
 }
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 16 bits.
  *
@@ -2614,7 +2614,7 @@ static int GetInteger16Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return n;
 }
-#endif
+#endif /* WC_RSA_PSS && !NO_RSA */
 #endif /* !NO_CERTS */
 #endif /* !WOLFSSL_ASN_TEMPLATE */
 
@@ -6060,7 +6060,7 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
     int ret = 0;
     word32 idx = 0;
     int len = 0;
-    word32 oid;
+    word32 oid = 0;
     byte tag;
     int length;
 
@@ -6514,7 +6514,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         return ASN_PARSE_E;
     idx = idx - 1; /* reset idx after finding tag */
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(NO_RSA)
     if (*algId == RSAPSSk && tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
         word32 seqIdx = idx;
         int seqLen;
@@ -6535,7 +6535,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         /* TODO: store parameters so that usage can be checked. */
         idx += seqLen;
     }
-#endif
+#endif /* WC_RSA_PSS && !NO_RSA */
 
     if (tag == ASN_OBJECT_ID) {
         if (SkipObjectId(input, &idx, sz) < 0)
@@ -18885,8 +18885,8 @@ static int DecodeSubjInfoAcc(const byte* input, int sz, DecodedCert* cert)
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        /* Set ocsp entry */
-        if (b == GENERALNAME_URI && oid == AIA_OCSP_OID) {
+        /* Set caRepo entry */
+        if (b == GENERALNAME_URI && oid == AIA_CA_REPO_OID) {
             cert->extSubjInfoAccCaRepoSz = length;
             cert->extSubjInfoAccCaRepo = input + idx;
             break;
@@ -34452,8 +34452,24 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-
 #ifdef HAVE_CRL
+
+#ifdef OPENSSL_EXTRA
+static char* GetNameFromDer(const byte* source, int sz)
+{
+    char* out;
+
+    out = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (out == NULL) {
+        WOLFSSL_MSG("Name malloc failed");
+        return NULL;
+    }
+
+    XMEMCPY(out, source, sz);
+
+    return out;
+}
+#endif
 
 /* initialize decoded CRL */
 void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
@@ -34480,6 +34496,10 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
         XFREE(tmp, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
+#ifdef OPENSSL_EXTRA
+    if (dcrl->issuer != NULL)
+        XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
 }
 
 
@@ -34514,9 +34534,11 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
                       int maxIdx)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-    int    ret, len;
+#ifndef NO_ASN_TIME
+    int ret;
+#endif
+    int len;
     word32 end;
-    byte   b;
     RevokedCert* rc;
 
     WOLFSSL_ENTER("GetRevoked");
@@ -34545,12 +34567,13 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     dcrl->totalCerts++;
 
     /* get date */
-    ret = GetDateInfo(buff, idx, NULL, &b, NULL, maxIdx);
+#ifndef NO_ASN_TIME
+    ret = GetBasicDate(buff, idx, rc->revDate, &rc->revDateFormat, maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("Expecting Date");
         return ret;
     }
-
+#endif
     /* skip extensions */
     *idx = end;
 
@@ -34559,6 +34582,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     DECL_ASNGETDATA(dataASN, revokedASN_Length);
     int ret = 0;
     word32 serialSz = EXTERNAL_SERIAL_SIZE;
+    word32 revDateSz = MAX_DATE_SIZE;
     RevokedCert* rc;
 
     /* Allocate a new revoked certificate object. */
@@ -34574,6 +34598,11 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
         /* Set buffer to place serial number into. */
         GetASN_Buffer(&dataASN[REVOKEDASN_IDX_CERT], rc->serialNumber,
                 &serialSz);
+        /* Set buffer to store revocation date. */
+        GetASN_Buffer(&dataASN[REVOKEDASN_IDX_TIME_UTC], rc->revDate,
+                &revDateSz);
+        GetASN_Buffer(&dataASN[REVOKEDASN_IDX_TIME_GT], rc->revDate,
+                &revDateSz);
         /* Decode the Revoked */
         ret = GetASN_Items(revokedASN, dataASN, revokedASN_Length, 1, buff, idx,
                 maxIdx);
@@ -34581,7 +34610,10 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     if (ret == 0) {
         /* Store size of serial number. */
         rc->serialSz = serialSz;
-        /* TODO: use revocation date */
+        rc->revDateFormat = (dataASN[REVOKEDASN_IDX_TIME_UTC].tag != 0)
+                ? dataASN[REVOKEDASN_IDX_TIME_UTC].tag
+                : dataASN[REVOKEDASN_IDX_TIME_GT].tag;
+
         /* TODO: use extensions, only v2 */
         /* Add revoked certificate to chain. */
         rc->next = dcrl->certs;
@@ -34737,7 +34769,7 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, int sz, int verify)
 {
     word32 oid, dateIdx, idx, checkIdx;
-    int version;
+    int length;
 #ifdef WOLFSSL_NO_CRL_NEXT_DATE
     int doNextDate = 1;
 #endif
@@ -34752,12 +34784,22 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
 
     checkIdx = idx;
     if (GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
-        if (GetMyVersion(buf, &idx, &version, sz) < 0)
+        if (GetMyVersion(buf, &idx, &dcrl->version, sz) < 0)
             return ASN_PARSE_E;
+        dcrl->version++;
     }
 
     if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0)
         return ASN_PARSE_E;
+
+    checkIdx = idx;
+    if (GetSequence(buf, &checkIdx, &length, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+#ifdef OPENSSL_EXTRA
+    dcrl->issuerSz = length + (checkIdx - idx);
+    dcrl->issuer   = (byte*)GetNameFromDer(buf + idx, (int)dcrl->issuerSz);
+#endif
 
     if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
@@ -34790,6 +34832,8 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
         }
+#else
+        (void)verify;
 #endif
     }
 
@@ -34963,6 +35007,62 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                 return ret;
             }
         #endif
+        }
+        else if (oid == CRL_NUMBER_OID) {
+            localIdx = idx;
+            if (GetASNTag(buf, &localIdx, &tag, sz) == 0 &&
+                    tag == ASN_INTEGER) {
+                ret = GetASNInt(buf, &idx, &length, sz);
+                if (ret < 0) {
+                    WOLFSSL_MSG("\tcouldn't parse CRL number extension");
+                    return ret;
+                }
+                else {
+                    if (length > 1) {
+                        int    i;
+                    #ifdef WOLFSSL_SMALL_STACK
+                        mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                                DYNAMIC_TYPE_BIGINT);
+                        if (m == NULL) {
+                            return MEMORY_E;
+                        }
+                    #else
+                        mp_int m[1];
+                    #endif
+
+                        if (mp_init(m) != MP_OKAY) {
+                            ret = MP_INIT_E;
+                        }
+
+                        if (ret == 0)
+                            ret = mp_read_unsigned_bin(m, buf + idx, length);
+                        if (ret != MP_OKAY)
+                            ret = BUFFER_E;
+
+                        if (ret == 0) {
+                            dcrl->crlNumber = 0;
+                            for (i = 0; i < (*m).used; ++i) {
+                                if (i > (int)sizeof(word32)) {
+                                    break;
+                                }
+                                dcrl->crlNumber |= ((word32)(*m).dp[i]) <<
+                                    (DIGIT_BIT * i);
+                            }
+                        }
+
+                        mp_free(m);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
+                    #endif
+
+                        if (ret != 0)
+                            return ret;
+                    }
+                    else {
+                        dcrl->crlNumber = buf[idx];
+                    }
+                }
+            }
         }
 
         idx += length;
@@ -35232,6 +35332,8 @@ end:
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
+        /* Store version */
+        dcrl->version = ++version;
         /* Store offset of to be signed part. */
         dcrl->certBegin = dataASN[CRLASN_IDX_TBS].offset;
         /* Store index of signature. */
@@ -35261,10 +35363,15 @@ end:
     }
     if (ret == 0) {
     #endif
+        /* Parse and store the issuer name. */
+        dcrl->issuerSz = GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER],
+                            buff);
+        dcrl->issuer   = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
+                            dataASN[CRLASN_IDX_TBS_ISSUER], buff),
+                            (int)dcrl->issuerSz);
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                dcrl->issuerHash);
+                dcrl->issuerSz, dcrl->issuerHash);
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }

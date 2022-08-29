@@ -1919,7 +1919,8 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
     int timeSz;
     PKCS7Attrib cannedAttribs[3];
 #endif
-    word32 idx = 0;
+    word32 idx    = 0;
+    word32 atrIdx = 0;
     word32 cannedAttribsCount;
 
     if (pkcs7 == NULL || esd == NULL || contentType == NULL ||
@@ -1961,10 +1962,12 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         cannedAttribs[idx].oidSz   = messageDigestOidSz;
         cannedAttribs[idx].value   = esd->contentDigest;
         cannedAttribs[idx].valueSz = hashSz + 2;  /* ASN.1 heading */
+        idx++;
 
         esd->signedAttribsCount += cannedAttribsCount;
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 3,
-                                             cannedAttribs, cannedAttribsCount);
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
+            idx, cannedAttribs, cannedAttribsCount);
+        atrIdx += idx;
     } else {
         esd->signedAttribsCount = 0;
         esd->signedAttribsSz = 0;
@@ -1974,10 +1977,12 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
     if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
     #ifdef NO_ASN_TIME
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
+                                  esd->signedAttribsCount,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
     #else
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[3], 4,
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
+                                  esd->signedAttribsCount,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
     #endif
     }

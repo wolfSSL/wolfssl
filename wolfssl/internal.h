@@ -1239,6 +1239,22 @@ enum {
     #define ENCRYPT_BASE_BITS  4096
 #endif
 
+#ifdef WOLFSSL_DTLS_CID
+#ifndef DTLS_CID_MAX_SIZE
+/* DTLSv1.3 parsing code copies the record header in a static buffer to decrypt
+ * the record. Increasing the CID max size does increase also this buffer,
+ * impacting on per-session runtime memory footprint. */
+#define DTLS_CID_MAX_SIZE 2
+#endif
+#else
+#undef DTLS_CID_MAX_SIZE
+#define DTLS_CID_MAX_SIZE 0
+#endif /* WOLFSSL_DTLS_CID */
+
+#if DTLS_CID_MAX_SIZE > 255
+#error "Max size for DTLS CID is 255 bytes"
+#endif
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -1360,7 +1376,8 @@ enum Misc {
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
     DTLS_UNIFIED_HEADER_MIN_SZ = 2,
-    DTLS_RECVD_RL_HEADER_MAX_SZ = 5, /* flags + seq_number(2) + length(20)  */
+    /* flags + seq_number(2) + length(2) + CID */
+    DTLS_RECVD_RL_HEADER_MAX_SZ = 5 + DTLS_CID_MAX_SIZE,
     DTLS_RECORD_HEADER_MAX_SZ = 13,
     DTLS_HANDSHAKE_EXTRA     = 8,  /* diff from normal */
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
@@ -1685,10 +1702,6 @@ enum Misc {
     #define MAX_HANDSHAKE_SZ MAX_CERTIFICATE_SZ
 #endif
 
-#ifndef SESSION_TICKET_LEN
-    #define SESSION_TICKET_LEN 256
-#endif
-
 #ifndef PREALLOC_SESSION_TICKET_LEN
     #define PREALLOC_SESSION_TICKET_LEN 512
 #endif
@@ -1719,9 +1732,10 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
-#define WOLFSSL_ASSERT_SIZEOF_GE(x, y)                              \
-    typedef char _args_test[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
-    (void)sizeof(_args_test)
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) do {                           \
+    typedef char _args_test_[sizeof((x)) >= sizeof((y)) ? 1 : -1];    \
+    (void)sizeof(_args_test_);                                        \
+} while(0)
 
 /* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {
@@ -2126,6 +2140,7 @@ struct CRL_Entry {
     byte    nextDateFormat;          /* next date format */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+    int     version;                 /* version of certficate */
     int     verified;
     byte*   toBeSigned;
     word32  tbsSz;
@@ -2135,6 +2150,10 @@ struct CRL_Entry {
 #if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
+#endif
+    int                   crlNumber;  /* CRL number extension */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_NAME*    issuer;     /* X509_NAME type issuer */
 #endif
 };
 
@@ -2452,6 +2471,9 @@ typedef enum {
     TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
     #endif
     TLSX_KEY_SHARE                  = 0x0033,
+    #if defined(WOLFSSL_DTLS_CID)
+    TLSX_CONNECTION_ID              = 0x0036,
+    #endif /* defined(WOLFSSL_DTLS_CID) */
     #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS         = 0x0039, /* RFC 9001, ch. 8.2 */
     #endif
@@ -2495,6 +2517,8 @@ WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
                                       word16 length, byte msgType, int* found);
 WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType, Suites *suites);
+WOLFSSL_LOCAL int TLSX_Push(TLSX** list, TLSX_Type type,
+                            const void* data, void* heap);
 
 #elif defined(HAVE_SNI)                           \
    || defined(HAVE_MAX_FRAGMENT)                  \
@@ -2703,7 +2727,61 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 /** Session Ticket - RFC 5077 (session 3.2) */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+/* Ticket nonce - for deriving PSK.
+ * Length allowed to be: 1..255. Only support 4 bytes.
+ * Defined here so that it can be included in InternalTicket.
+ */
+typedef struct TicketNonce {
+    byte len;
+    byte data[MAX_TICKET_NONCE_SZ];
+} TicketNonce;
+#endif
+
 #ifdef HAVE_SESSION_TICKET
+/* Our ticket format. All members need to be a byte or array of byte to
+ * avoid alignment issues */
+typedef struct InternalTicket {
+    ProtocolVersion pv;                    /* version when ticket created */
+    byte            suite[SUITE_LEN];      /* cipher suite when created */
+    byte            msecret[SECRET_LEN];   /* master secret */
+    byte            timestamp[TIMESTAMP_LEN];          /* born on */
+    byte            haveEMS;               /* have extended master secret */
+#ifdef WOLFSSL_TLS13
+    byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
+    byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
+    TicketNonce     ticketNonce;           /* Ticket nonce */
+#ifdef WOLFSSL_EARLY_DATA
+    byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
+                                                         * early data */
+#endif
+#endif
+#ifdef WOLFSSL_TICKET_HAVE_ID
+    byte            id[ID_LEN];
+#endif
+} InternalTicket;
+
+#ifndef WOLFSSL_TICKET_EXTRA_PADDING_SZ
+#define WOLFSSL_TICKET_EXTRA_PADDING_SZ 32
+#endif
+
+#define WOLFSSL_TICKET_ENC_SZ \
+    (sizeof(InternalTicket) + WOLFSSL_TICKET_EXTRA_PADDING_SZ)
+
+/* RFC 5077 defines this for session tickets. All members need to be a byte or
+ * array of byte to avoid alignment issues */
+typedef struct ExternalTicket {
+    byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name - 16 */
+    byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv - 16 */
+    byte enc_len[OPAQUE16_LEN];             /* encrypted length - 2 */
+    byte enc_ticket[WOLFSSL_TICKET_ENC_SZ];
+                                            /* encrypted internal ticket */
+    byte mac[WOLFSSL_TICKET_MAC_SZ];        /* total mac - 32 */
+} ExternalTicket;
+
+/* Cast to int to reduce amount of casts in code */
+#define SESSION_TICKET_LEN ((int)sizeof(ExternalTicket))
+#define WOLFSSL_TICKET_FIXED_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_ENC_SZ)
 
 typedef struct SessionTicket {
     word32 lifetime;
@@ -2788,13 +2866,6 @@ WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-/* Ticket nonce - for deriving PSK.
- * Length allowed to be: 1..255. Only support 4 bytes.
- */
-typedef struct TicketNonce {
-    byte len;
-    byte data[MAX_TICKET_NONCE_SZ];
-} TicketNonce;
 
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {
@@ -2868,6 +2939,17 @@ enum KeyUpdateRequest {
 };
 #endif /* WOLFSSL_TLS13 */
 
+#ifdef WOLFSSL_DTLS_CID
+WOLFSSL_LOCAL void TLSX_ConnectionID_Free(byte* ext, void* heap);
+WOLFSSL_LOCAL word16 TLSX_ConnectionID_Write(byte* ext, byte* output);
+WOLFSSL_LOCAL word16 TLSX_ConnectionID_GetSize(byte* ext);
+WOLFSSL_LOCAL int TLSX_ConnectionID_Use(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input,
+    word16 length, byte isRequest);
+WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
+    word16 inputSize);
+#endif /* WOLFSSL_DTLS_CID */
 
 #ifdef OPENSSL_EXTRA
 enum SetCBIO {
@@ -3597,7 +3679,7 @@ struct WOLFSSL_SESSION {
                                            * ID for TLS 1.3           */
     byte               sessionIDSz;
 
-    byte*              masterSecret;      /* stored secret            */
+    byte               masterSecret[SECRET_LEN]; /* stored secret     */
     word16             haveEMS;           /* ext master secret flag   */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_X509*      peer;              /* peer cert */
@@ -3613,11 +3695,11 @@ struct WOLFSSL_SESSION {
 #endif
 #ifndef NO_CLIENT_CACHE
     word16             idLen;             /* serverID length          */
-    byte*              serverID;          /* for easier client lookup */
+    byte               serverID[SERVER_ID_LEN]; /* for easier client lookup */
 #endif
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;      /* sessionCtx length        */
-    byte*              sessionCtx;        /* app specific context id  */
+    byte               sessionCtx[ID_LEN]; /* app specific context id */
 #endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte               peerVerifyRet;     /* cert verify error */
@@ -3636,6 +3718,7 @@ struct WOLFSSL_SESSION {
     #endif
 #endif
 #ifdef HAVE_SESSION_TICKET
+    byte               staticTicket[SESSION_TICKET_LEN];
     byte*              ticket;
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */
@@ -3649,22 +3732,6 @@ struct WOLFSSL_SESSION {
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
-
-    /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
-     * the above pointers reference the session cache for backwards
-     * compatibility. For all other session types the above pointers reference
-     * these buffers directly. Keep these buffers at the end so that they don't
-     * get copied into the WOLFSSL_SESSION_TYPE_REF object. */
-    byte               _masterSecret[SECRET_LEN];
-#ifndef NO_CLIENT_CACHE
-    byte               _serverID[SERVER_ID_LEN];
-#endif
-#ifdef HAVE_SESSION_TICKET
-    byte               _staticTicket[SESSION_TICKET_LEN];
-#endif
-#ifdef OPENSSL_EXTRA
-    byte               _sessionCtx[ID_LEN];
 #endif
 };
 
@@ -4047,6 +4114,9 @@ typedef struct Options {
 #ifdef WOLFSSL_TLS13
     byte            oldMinor;          /* client preferred version < TLS 1.3 */
 #endif
+#ifdef WOLFSSL_DTLS_CID
+    byte            useDtlsCID:1;
+#endif /* WOLFSSL_DTLS_CID */
 } Options;
 
 typedef struct Arrays {
@@ -4580,6 +4650,10 @@ typedef struct Dtls13Rtx {
 
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef WOLFSSL_DTLS_CID
+typedef struct CIDInfo CIDInfo;
+#endif /* WOLFSSL_DTLS_CID */
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -4808,6 +4882,10 @@ struct WOLFSSL {
     word16 dtls13ClientHelloSz;
 
 #endif /* WOLFSSL_DTLS13 */
+#ifdef WOLFSSL_DTLS_CID
+    CIDInfo *dtlsCidInfo;
+#endif /* WOLFSSL_DTLS_CID */
+
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -5607,8 +5685,9 @@ WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(WOLFSSL* ssl,
 
 WOLFSSL_LOCAL int Dtls13AddHeaders(byte* output, word32 length,
     enum HandShakeType hs_type, WOLFSSL* ssl);
-WOLFSSL_LOCAL word16 Dtls13GetHeadersLength(enum HandShakeType type);
-WOLFSSL_LOCAL word16 Dtls13GetRlHeaderLength(byte is_encrypted);
+WOLFSSL_LOCAL word16 Dtls13GetHeadersLength(WOLFSSL *ssl,
+    enum HandShakeType type);
+WOLFSSL_LOCAL word16 Dtls13GetRlHeaderLength(WOLFSSL *ssl, byte is_encrypted);
 WOLFSSL_LOCAL int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out,
     word16 length);
 WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
@@ -5616,7 +5695,8 @@ WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
 WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr,
     word16 recordLength);
 WOLFSSL_LOCAL int Dtls13IsUnifiedHeader(byte header_flags);
-WOLFSSL_LOCAL int Dtls13GetUnifiedHeaderSize(const byte input, word16* size);
+WOLFSSL_LOCAL int Dtls13GetUnifiedHeaderSize(WOLFSSL* ssl, const byte input,
+    word16* size);
 WOLFSSL_LOCAL int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
     word16 input_size, Dtls13UnifiedHdrInfo* hdrInfo);
 WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,

@@ -1307,7 +1307,7 @@ static TLSX* TLSX_New(TLSX_Type type, const void* data, void* heap)
  * Creates a new extension and pushes it to the provided list.
  * Checks for duplicate extensions, keeps the newest.
  */
-static int TLSX_Push(TLSX** list, TLSX_Type type, const void* data, void* heap)
+int TLSX_Push(TLSX** list, TLSX_Type type, const void* data, void* heap)
 {
     TLSX* extension = TLSX_New(type, data, heap);
 
@@ -10487,6 +10487,18 @@ static int TLSX_QuicTP_Parse(WOLFSSL *ssl, const byte *input, size_t len, int ex
 
 #endif /* WOLFSSL_QUIC */
 
+#if defined(WOLFSSL_DTLS_CID)
+#define CID_GET_SIZE  TLSX_ConnectionID_GetSize
+#define CID_WRITE  TLSX_ConnectionID_Write
+#define CID_PARSE  TLSX_ConnectionID_Parse
+#define CID_FREE  TLSX_ConnectionID_Free
+#else
+#define CID_GET_SIZE(a) 0
+#define CID_WRITE(a, b) 0
+#define CID_PARSE(a, b, c, d) 0
+#define CID_FREE(a, b) 0
+#endif /* defined(WOLFSSL_DTLS_CID) */
+
 /******************************************************************************/
 /* TLS Extensions Framework                                                   */
 /******************************************************************************/
@@ -10636,6 +10648,12 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 QTP_FREE((QuicTransportParam*)extension->data, heap);
                 break;
     #endif
+
+#ifdef WOLFSSL_DTLS_CID
+        case TLSX_CONNECTION_ID:
+            CID_FREE((byte*)extension->data, heap);
+            break;
+#endif /* WOLFSSL_DTLS_CID */
 
             default:
                 break;
@@ -10800,6 +10818,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 length += QTP_GET_SIZE(extension);
                 break;
 #endif
+#ifdef WOLFSSL_DTLS_CID
+            case TLSX_CONNECTION_ID:
+                length += CID_GET_SIZE((byte*)extension->data);
+                break;
+#endif /* WOLFSSL_DTLS_CID */
             default:
                 break;
         }
@@ -10997,6 +11020,12 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                                     output + offset);
                 break;
 #endif
+#ifdef WOLFSSL_DTLS_CID
+            case TLSX_CONNECTION_ID:
+                offset += CID_WRITE((byte*)extension->data, output+offset);
+                break;
+
+#endif /* WOLFSSL_DTLS_CID */
             default:
                 break;
         }
@@ -11912,6 +11941,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
         #endif
+        #ifdef WOLFSSL_DTLS_CID
+                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
+        #endif /* WOLFSSL_DTLS_CID */
                 }
         #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
                 else {
@@ -11965,6 +11997,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #if defined(HAVE_SERVER_RENEGOTIATION_INFO)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
+        #ifdef WOLFSSL_DTLS_CID
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
+        #endif /* WOLFSSL_DTLS_CID */
             break;
 
         #ifdef WOLFSSL_EARLY_DATA
@@ -12040,6 +12075,9 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
             #endif
+            #ifdef WOLFSSL_DTLS_CID
+                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
+            #endif /* WOLFSSL_DTLS_CID */
                 }
         #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
                 else {
@@ -12091,6 +12129,9 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #if defined(HAVE_SERVER_RENEGOTIATION_INFO)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
+        #ifdef WOLFSSL_DTLS_CID
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
+        #endif /* WOLFSSL_DTLS_CID */
                 break;
 
         #ifdef WOLFSSL_EARLY_DATA
@@ -12266,7 +12307,8 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 else
 #endif
                 {
-                    if (msgType != client_hello)
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
                         return EXT_NOT_ALLOWED;
                 }
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
@@ -12731,6 +12773,20 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 }
                 break;
 #endif /* WOLFSSL_QUIC */
+#if defined(WOLFSSL_DTLS_CID)
+            case TLSX_CONNECTION_ID:
+                /* connection ID not supported in DTLSv1.2 */
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    break;
+
+                if (msgType != client_hello && msgType != server_hello)
+                    return EXT_NOT_ALLOWED;
+
+                WOLFSSL_MSG("ConnectionID extension received");
+                ret = CID_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+#endif /* defined(WOLFSSL_DTLS_CID) */
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
         }

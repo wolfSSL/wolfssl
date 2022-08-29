@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+cleanup () {
+    echo "Cleaning up..."
+    if [ ! -z "$SERVER_PID" ];then
+        echo "Killing server $SERVER_PID"
+        kill $SERVER_PID
+    fi
+}
+
+trap cleanup err exit
+
+CCID="AA"
+SCID="BB"
+HEXCID=$(printf $CCID | od -An -tx1 | tr -d ' \n')
+HEXSCID=$(printf $SCID | od -An -tx1 | tr -d ' \n')
+WOLFSSL_ROOT=$(pwd)
+SERVER_PORT=11111
+
+(killall lt-server || true)
+(killall lt-client || true)
+
+test_cid () {
+    $WOLFSSL_ROOT/examples/server/server -v4 -u --cid $SCID 2>/tmp/serr 1>/tmp/sout &
+    SERVER_PID=$!
+    sleep 0.2
+    now=$(date +%s.%N)
+    $WOLFSSL_ROOT/examples/client/client -v4 -u --cid $CCID 2>/tmp/cerr 1>/tmp/cout
+    elapsed=$(echo $(date +%s.%N) - $now | bc)
+    echo "it took ${elapsed} sec(s)" >> /tmp/udp
+    wait $SERVER_PID
+    SERVER_PID=
+    grep "Sending CID is ${HEXSCID}" < /tmp/cout
+    grep "Sending CID is ${HEXCID}" < /tmp/sout
+}
+
+test_cid

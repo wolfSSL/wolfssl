@@ -802,6 +802,40 @@ WC_STATIC WC_INLINE byte w64LT(w64wrapper a, w64wrapper b)
 #endif /* WORD64_AVAILABLE && !WOLFSSL_W64_WRAPPER_TEST */
 #endif /* WOLFSSL_W64_WRAPPER */
 
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_CERTS) || \
+    !defined(NO_SESSION_CACHE)
+/* Make a word from the front of random hash */
+WC_STATIC WC_INLINE word32 MakeWordFromHash(const byte* hashID)
+{
+    return ((word32)hashID[0] << 24) | ((word32)hashID[1] << 16) |
+           ((word32)hashID[2] <<  8) |  (word32)hashID[3];
+}
+#endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE */
+
+
+#if !defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET)
+
+#include <wolfssl/wolfcrypt/hash.h>
+
+/* some session IDs aren't random after all, let's make them random */
+WC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len, int* error)
+{
+    byte digest[WC_MAX_DIGEST_SIZE];
+
+#ifndef NO_MD5
+    *error =  wc_Md5Hash(o, len, digest);
+#elif !defined(NO_SHA)
+    *error =  wc_ShaHash(o, len, digest);
+#elif !defined(NO_SHA256)
+    *error =  wc_Sha256Hash(o, len, digest);
+#else
+    #error "We need a digest to hash the session IDs"
+#endif
+
+    return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
+}
+#endif /* !NO_SESSION_CACHE || HAVE_SESSION_TICKET */
+
 #undef WC_STATIC
 
 #endif /* !WOLFSSL_MISC_INCLUDED && !NO_INLINE */

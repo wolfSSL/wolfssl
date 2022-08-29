@@ -496,6 +496,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_print                  wolfSSL_X509_print
 #define X509_print_ex                   wolfSSL_X509_print_ex
 #define X509_print_fp                   wolfSSL_X509_print_fp
+#define X509_CRL_print                  wolfSSL_X509_CRL_print
 #define X509_REQ_print_fp               wolfSSL_X509_print_fp
 #define X509_signature_print            wolfSSL_X509_signature_print
 #define X509_get0_signature             wolfSSL_X509_get0_signature
