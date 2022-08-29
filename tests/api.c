@@ -7669,11 +7669,28 @@ static int test_wolfSSL_UseSNI_connection(void)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     callback_functions client_cb;
     callback_functions server_cb;
+    size_t i;
 
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+    } methods[] = {
+#if defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_TLS13)
+        {wolfSSLv23_client_method, wolfSSLv23_server_method},
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method},
+#endif
+#ifdef WOLFSSL_TLS13
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method},
+#endif
+    };
+
+    for (i = 0; i < (sizeof(methods)/sizeof(*methods)); i++) {
     XMEMSET(&client_cb, 0, sizeof(callback_functions));
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
-    client_cb.method = wolfSSLv23_client_method;
-    server_cb.method = wolfSSLv23_server_method;
+    client_cb.method = methods[i].client_meth;
+    server_cb.method = methods[i].server_meth;
     client_cb.devId = testDevId;
     server_cb.devId = testDevId;
 
@@ -7726,6 +7743,7 @@ static int test_wolfSSL_UseSNI_connection(void)
     client_cb.ctx_ready = NULL;                            client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = NULL;
     server_cb.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL;                 server_cb.on_result = verify_SNI_fake_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
+    }
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
     return 0;
