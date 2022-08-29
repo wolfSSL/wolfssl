@@ -37059,6 +37059,7 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
     /* negative offset */
     offset_sec = -45 * mini;
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertNotNull(asn_time);
     AssertTrue(asn_time->type == asn_utc_time);
     XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
     date_str[CTC_DATE_SIZE] = '\0';

@@ -526,6 +526,11 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         return WOLFSSL_FAILURE;
     }
 
+    if (bio->mem_buf->data == NULL) {
+        WOLFSSL_MSG("Buffer data is NULL");
+        return WOLFSSL_FAILURE;
+    }
+
     XMEMCPY(bio->mem_buf->data + bio->wrSz, data, len);
     bio->ptr = bio->mem_buf->data;
     bio->num = (int)bio->mem_buf->max;
