@@ -12307,7 +12307,8 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 else
 #endif
                 {
-                    if (msgType != client_hello)
+                    if (msgType != client_hello &&
+                        msgType != server_hello)
                         return EXT_NOT_ALLOWED;
                 }
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
