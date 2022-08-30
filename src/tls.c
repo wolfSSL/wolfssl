@@ -6038,11 +6038,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
             set = 1;
         }
         if (!set) {
- #ifdef WOLFSSL_MYSQL_COMPATIBLE
-            SendAlert(ssl, alert_fatal, wc_protocol_version);
- #else
-            SendAlert(ssl, alert_fatal, protocol_version);
- #endif
+            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;
         }

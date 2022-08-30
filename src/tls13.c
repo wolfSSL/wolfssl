@@ -5671,11 +5671,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* this check pass for DTLS Major (0xff) */
     if (args->pv.major < SSLv3_MAJOR) {
         WOLFSSL_MSG("Legacy version field contains unsupported value");
- #ifdef WOLFSSL_MYSQL_COMPATIBLE
-        SendAlert(ssl, alert_fatal, wc_protocol_version);
- #else
-        SendAlert(ssl, alert_fatal, protocol_version);
- #endif
+        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }
 

@@ -10400,13 +10400,8 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else {
             WOLFSSL_MSG("SSL version error");
             /* send alert per RFC5246 Appendix E. Backward Compatibility */
-            if (ssl->options.side == WOLFSSL_CLIENT_END) {
-#ifdef WOLFSSL_MYSQL_COMPATIBLE
-                SendAlert(ssl, alert_fatal, wc_protocol_version);
-#else
-                SendAlert(ssl, alert_fatal, protocol_version);
-#endif
-            }
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
         }
@@ -18471,24 +18466,12 @@ const char* AlertTypeToString(int type)
                 return decrypt_error_str;
             }
 
-    #ifdef WOLFSSL_MYSQL_COMPATIBLE
-    /* catch name conflict for enum protocol with MYSQL build */
-        case wc_protocol_version:
-            {
-                static const char wc_protocol_version_str[] =
-                    "wc_protocol_version";
-                return wc_protocol_version_str;
-            }
-
-    #else
-        case protocol_version:
+        case wolfssl_alert_protocol_version:
             {
                 static const char protocol_version_str[] =
                     "protocol_version";
                 return protocol_version_str;
             }
-
-    #endif
         case insufficient_security:
             {
                 static const char insufficient_security_str[] =

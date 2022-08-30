@@ -768,6 +768,11 @@ enum AlertDescription {
     no_application_protocol         = 120
 };
 
+#ifdef WOLFSSL_MYSQL_COMPATIBLE
+#define wolfssl_alert_protocol_version wc_protocol_version
+#else
+#define wolfssl_alert_protocol_version protocol_version
+#endif
 
 enum AlertLevel {
     alert_none = 0, /* Used to indicate no alert level is set */
