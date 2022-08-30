@@ -18855,7 +18855,24 @@ static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
     WOLFSSL_MSG("DTLS: Ignoring failed decryption");
     return ret;
 }
-#endif
+
+static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
+{
+    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "on established connection.");
+        return 1;
+    }
+
+    if ((ssl->options.handShakeDone && retcode != 0)
+        || retcode == SEQUENCE_ERROR || retcode == DTLS_CID_ERROR) {
+        WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
+        return 1;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
 
 int ProcessReply(WOLFSSL* ssl)
 {
@@ -19051,16 +19068,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                if ((ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0))
-                        || ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR) {
-                    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
-                        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
-                                    "on established connection.");
-                    }
-                    else {
-                        WOLFSSL_MSG("Silently dropping DTLS message");
-                    }
+            if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                     ssl->options.processReply = doProcessInit;
                     ssl->buffers.inputBuffer.length = 0;
                     ssl->buffers.inputBuffer.idx = 0;
@@ -19076,7 +19084,6 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif /* WOLFSSL_DTLS13 */
 
                     continue;
-                }
             }
 #endif
             if (ret != 0)
