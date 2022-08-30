@@ -71,10 +71,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/example/sctp-server-dtls.c
 %{_docdir}/wolfssl/example/tls_bench.c
 %{_docdir}/wolfssl/README.txt
+%{_docdir}/wolfssl/QUIC.md
+
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.34
-%{_libdir}/libwolfssl.so.34.0.0
+%{_libdir}/libwolfssl.so.35
+%{_libdir}/libwolfssl.so.35.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -314,9 +316,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
-* Fri Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
+* Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add include of QUIC documentation
 - Add a new header dilithium.h.
-* Fri July 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
+* Wed Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
+- Add a new header dilithium.h.
+* Fri Jul 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing sp_int.h file
 * Mon May 2 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing kdf.h file
