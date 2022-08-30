@@ -4176,6 +4176,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (args->pv.major != ssl->version.major ||
         args->pv.minor != tls12minor) {
+        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
         WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         return VERSION_ERROR;
     }
@@ -4254,11 +4255,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif
         ssl->options.haveEMS = 0;
-        if (args->pv.minor < ssl->options.minDowngrade)
+        if (args->pv.minor < ssl->options.minDowngrade) {
+            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             return VERSION_ERROR;
+        }
 #ifndef WOLFSSL_NO_TLS12
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
+        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
         return VERSION_ERROR;
 #endif
     }
@@ -4283,6 +4287,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Server trying to downgrade to version less than "
                             "TLS v1.3");
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
@@ -4299,12 +4304,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.dtls &&
                 args->pv.minor < ssl->options.minDowngrade) {
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
 
             if (ssl->options.dtls &&
                 args->pv.minor > ssl->options.minDowngrade) {
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
@@ -5712,9 +5719,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (!ssl->options.downgrade) {
             WOLFSSL_MSG("Client trying to connect with lesser version than "
                         "TLS v1.3");
-#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
-            SendAlert(ssl, alert_fatal, handshake_failure);
-#endif
             ERROR_OUT(VERSION_ERROR, exit_dch);
         }
 
@@ -5722,9 +5726,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                  && args->pv.minor < ssl->options.minDowngrade) ||
             (ssl->options.dtls && args->pv.minor > ssl->options.minDowngrade)) {
             WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
-#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
-            SendAlert(ssl, alert_fatal, handshake_failure);
-#endif
             ERROR_OUT(VERSION_ERROR, exit_dch);
         }
 
@@ -6043,6 +6044,9 @@ exit_dch:
         return ret;
     }
 #endif
+
+    if (ret == VERSION_ERROR)
+        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
 
     FreeDch13Args(ssl, args);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10083,7 +10087,10 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* sanity check msg received */
     if ((ret = SanityCheckTls13MsgReceived(ssl, type)) != 0) {
         WOLFSSL_MSG("Sanity Check on handshake message type received failed");
-        SendAlert(ssl, alert_fatal, unexpected_message);
+        if (ret == VERSION_ERROR)
+            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+        else
+            SendAlert(ssl, alert_fatal, unexpected_message);
         return ret;
     }
 
@@ -11761,6 +11768,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
         case TLS13_ACCEPT_BEGIN :
             /* get client_hello */
+
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
