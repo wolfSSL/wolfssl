@@ -18870,6 +18870,28 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
         return 1;
     }
 
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END
+            && ssl->curRL.type != handshake) {
+        int beforeCookieVerified = 0;
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            beforeCookieVerified =
+                ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE;
+        }
+#ifdef WOLFSSL_DTLS13
+        else {
+            beforeCookieVerified =
+                ssl->options.acceptState < TLS13_ACCEPT_SECOND_REPLY_DONE;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
+        if (beforeCookieVerified) {
+            WOLFSSL_MSG("Drop non-handshake record before handshake");
+            return 1;
+        }
+    }
+#endif /* NO_WOLFSSL_SERVER */
+
     return 0;
 }
 #endif /* WOLFSSL_DTLS */

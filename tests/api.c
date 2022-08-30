@@ -55819,8 +55819,73 @@ static int test_wolfSSL_dtls_fragments(void)
 
     return 0;
 }
+
+static void test_wolfSSL_dtls_send_alert(WOLFSSL* ssl)
+{
+    int fd, ret;
+    byte alert_msg[] = {
+        0x15, /* alert type */
+        0xfe, 0xfd, /* version */
+        0x00, 0x00, /* epoch */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x01, /* seq number */
+        0x00, 0x02, /* length */
+        0x02, /* level: fatal */
+        0x46 /* protocol version */
+    };
+
+    fd = wolfSSL_get_fd(ssl);
+    ret = (int)send(fd, alert_msg, sizeof(alert_msg), 0);
+    AssertIntGT(ret, 0);
+}
+
+static int _test_wolfSSL_ignore_alert_before_cookie(byte version12)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.doUdp = server_cbs.doUdp = 1;
+    if (version12) {
+        client_cbs.method = wolfDTLSv1_2_client_method;
+        server_cbs.method = wolfDTLSv1_2_server_method;
+    }
+    else {
+#ifdef WOLFSSL_DTLS13
+        client_cbs.method = wolfDTLSv1_3_client_method;
+        server_cbs.method = wolfDTLSv1_3_server_method;
+#else
+        return 0;
+#endif /* WOLFSSL_DTLS13 */
+    }
+
+    client_cbs.ssl_ready = test_wolfSSL_dtls_send_alert;
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    if (!client_cbs.return_code)
+        return -1;
+    if (!server_cbs.return_code)
+        return -1;
+
+    return 0;
+}
+
+static int test_wolfSSL_ignore_alert_before_cookie(void)
+{
+    int ret;
+    ret =_test_wolfSSL_ignore_alert_before_cookie(0);
+    if (ret != 0)
+        return ret;
+    ret =_test_wolfSSL_ignore_alert_before_cookie(1);
+    if (ret != 0)
+        return ret;
+    return 0;
+}
+
 #else
 static int test_wolfSSL_dtls_fragments(void) {
+    return 0;
+}
+static int test_wolfSSL_ignore_alert_before_cookie(void) {
     return 0;
 }
 #endif
@@ -58737,6 +58802,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_DTLS_either_side),
     TEST_DECL(test_wolfSSL_dtls_fragments),
     TEST_DECL(test_wolfSSL_dtls_AEAD_limit),
+    TEST_DECL(test_wolfSSL_ignore_alert_before_cookie),
     TEST_DECL(test_generate_cookie),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
     TEST_DECL(test_wolfSSL_X509_LOOKUP_load_file),
