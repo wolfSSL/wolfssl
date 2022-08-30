@@ -2752,19 +2752,19 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 
     (void)rng;
 
-#ifdef WOLFSSL_ASYNC_CRYPT_TEST
-    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_FUNC)) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        testDev->rsaFunc.in = in;
-        testDev->rsaFunc.inSz = inLen;
-        testDev->rsaFunc.out = out;
-        testDev->rsaFunc.outSz = outLen;
-        testDev->rsaFunc.type = type;
-        testDev->rsaFunc.key = key;
-        testDev->rsaFunc.rng = rng;
+#ifdef WOLFSSL_ASYNC_CRYPT_SW
+    if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_RSA_FUNC)) {
+        WC_ASYNC_SW* sw = &key->asyncDev.sw;
+        sw->rsaFunc.in = in;
+        sw->rsaFunc.inSz = inLen;
+        sw->rsaFunc.out = out;
+        sw->rsaFunc.outSz = outLen;
+        sw->rsaFunc.type = type;
+        sw->rsaFunc.key = key;
+        sw->rsaFunc.rng = rng;
         return WC_PENDING_E;
     }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
+#endif /* WOLFSSL_ASYNC_CRYPT_SW */
 
     switch(type) {
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -2788,7 +2788,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
                                 &key->u.raw,
                                 out, outLen);
         #endif
-    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
+    #else /* WOLFSSL_ASYNC_CRYPT_SW */
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -2806,7 +2806,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
         ret = IntelQaRsaPublic(&key->asyncDev, in, inLen,
                                &key->e.raw, &key->n.raw,
                                out, outLen);
-    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
+    #else /* WOLFSSL_ASYNC_CRYPT_SW */
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
         break;
@@ -4647,12 +4647,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = IntelQaRsaKeyGen(&key->asyncDev, key, size, e, rng);
         goto out;
     #else
-        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_MAKE)) {
-            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-            testDev->rsaMake.rng = rng;
-            testDev->rsaMake.key = key;
-            testDev->rsaMake.size = size;
-            testDev->rsaMake.e = e;
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_RSA_MAKE)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->rsaMake.rng = rng;
+            sw->rsaMake.key = key;
+            sw->rsaMake.size = size;
+            sw->rsaMake.e = e;
             err = WC_PENDING_E;
             goto out;
         }

@@ -2241,19 +2241,19 @@ extern void uITRON4_free(void *p) ;
 
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
+    #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_SW)
+        #error No async backend defined with WOLFSSL_ASYNC_CRYPT!
+    #endif
+
     /* Make sure wolf events are enabled */
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
 
-    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+    #ifdef WOLFSSL_ASYNC_CRYPT_SW
         #define WC_ASYNC_DEV_SIZE 168
     #else
         #define WC_ASYNC_DEV_SIZE 336
-    #endif
-
-    #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
-        !defined(WOLFSSL_ASYNC_CRYPT_TEST)
-        #error No async hardware defined with WOLFSSL_ASYNC_CRYPT!
     #endif
 
     /* Enable ECC_CACHE_CURVE for ASYNC */
