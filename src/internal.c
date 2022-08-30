@@ -18870,6 +18870,15 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
         return 1;
     }
 
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version) && !w64IsZero(ssl->dtls13Epoch)
+            && w64IsZero(ssl->keys.curEpoch64) && ssl->curRL.type != ack) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "during encrypted handshake.");
+        return 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END
             && ssl->curRL.type != handshake) {
