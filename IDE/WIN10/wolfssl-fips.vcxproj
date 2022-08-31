@@ -268,8 +268,8 @@
     <ClCompile Include="..\..\src\ocsp.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_c32.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\sp_c64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sp_int.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_x86_64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
     <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
     <ClCompile Include="..\..\wolfcrypt\src\random.c" />
@@ -312,6 +312,22 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="wolfssl-fips.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\wolfcrypt\src\sp_x86_64_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
