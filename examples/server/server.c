@@ -2368,8 +2368,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             fprintf(stderr,
                    "WARNING: If a TLS 1.3 connection is not negotiated, you "
                    "will not be using a post-quantum group.\n");
-        } else if (version != 4) {
-            err_sys("can only use post-quantum groups with TLS 1.3");
+        } else if (version != 4 && version != -4) {
+            err_sys("can only use post-quantum groups with TLS 1.3 or DTLS 1.3");
         }
     }
 #endif
@@ -3104,7 +3104,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif
 
     #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-        if (version >= 4) {
+        if (version >= 4 || version == -4) {
             #ifdef CAN_FORCE_CURVE
             if (force_curve_group_id > 0) {
                 do {
