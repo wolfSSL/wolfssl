@@ -5038,6 +5038,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     opts->return_code = TEST_SUCCESS;
 
 done:
+    if (cbf != NULL)
+        cbf->last_err = err;
+
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
     if (!sharedCtx)
@@ -5467,6 +5470,9 @@ static int test_client_nofail(void* args, cbType cb)
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
 done:
+    if (cbf != NULL)
+        cbf->last_err = err;
+
     wolfSSL_free(ssl);
     if (!sharedCtx)
         wolfSSL_CTX_free(ctx);
@@ -55025,6 +55031,198 @@ static int test_wolfSSL_dtls_plaintext(void) {
 }
 #endif
 
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
+    defined(WOLFSSL_DTLS)
+
+static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
+{
+    byte b[1100]; /* buffer for the messages to send */
+    size_t idx = 0;
+    size_t seq_offset = 0;
+    size_t msg_offset = 0;
+    int i;
+    int fd = wolfSSL_get_fd(ssl);
+    int ret = wolfSSL_connect_cert(ssl); /* This gets us past the cookie */
+    word32 seq_number = 100; /* start high so server definitely reads this */
+    word16 msg_number = 50; /* start high so server has to buffer this */
+    AssertIntEQ(ret, 1);
+    /* Now let's start spamming the peer with fragments it needs to store */
+    XMEMSET(b, -1, sizeof(b));
+
+    /* record layer */
+    /* handshake type */
+    b[idx++] = 22;
+    /* protocol version */
+    b[idx++] = 0xfe;
+    b[idx++] = 0xfd; /* DTLS 1.2 */
+    /* epoch 0 */
+    XMEMSET(b + idx, 0, 2);
+    idx += 2;
+    /* sequence number */
+    XMEMSET(b + idx, 0, 6);
+    seq_offset = idx + 2; /* increment only the low 32 bits */
+    idx += 6;
+    /* static length in BE */
+    c16toa(42, b + idx);
+    idx += 2;
+
+    /* handshake layer */
+    /* cert type */
+    b[idx++] = 11;
+    /* length */
+    c32to24(1000, b + idx);
+    idx += 3;
+    /* message seq */
+    c16toa(0, b + idx);
+    msg_offset = idx;
+    idx += 2;
+    /* frag offset */
+    c32to24(500, b + idx);
+    idx += 3;
+    /* frag length */
+    c32to24(30, b + idx);
+    idx += 3;
+
+    for (i = 0; i < DTLS_POOL_SZ * 2 && ret > 0;
+            seq_number++, msg_number++, i++) {
+        struct timespec delay;
+        XMEMSET(&delay, 0, sizeof(delay));
+        delay.tv_nsec = 10000000; /* wait 0.01 seconds */
+        c32toa(seq_number, b + seq_offset);
+        c16toa(msg_number, b + msg_offset);
+        ret = (int)send(fd, b, 55, 0);
+        nanosleep(&delay, NULL);
+    }
+}
+
+#ifdef WOLFSSL_DTLS13
+static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
+{
+    byte b[150]; /* buffer for the messages to send */
+    size_t idx = 0;
+    size_t msg_offset = 0;
+    int fd = wolfSSL_get_fd(ssl);
+    word16 msg_number = 10; /* start high so server has to buffer this */
+    int ret = wolfSSL_connect_cert(ssl); /* This gets us past the cookie */
+    AssertIntEQ(ret, 1);
+    /* Now let's start spamming the peer with fragments it needs to store */
+    XMEMSET(b, -1, sizeof(b));
+
+    /* handshake type */
+    b[idx++] = 11;
+    /* length */
+    c32to24(10000, b + idx);
+    idx += 3;
+    /* message_seq */
+    msg_offset = idx;
+    idx += 2;
+    /* fragment_offset */
+    c32to24(5000, b + idx);
+    idx += 3;
+    /* fragment_length */
+    c32to24(100, b + idx);
+    idx += 3;
+    /* fragment contents */
+    idx += 100;
+
+    for (; ret > 0; msg_number++) {
+        byte sendBuf[150];
+        int sendSz = sizeof(sendBuf);
+        struct timespec delay;
+        XMEMSET(&delay, 0, sizeof(delay));
+        delay.tv_nsec = 10000000; /* wait 0.01 seconds */
+        c16toa(msg_number, b + msg_offset);
+        sendSz = BuildTls13Message(ssl, sendBuf, sendSz, b,
+            (int)idx, handshake, 0, 0, 0);
+        ret = (int)send(fd, sendBuf, (size_t)sendSz, 0);
+        nanosleep(&delay, NULL);
+    }
+}
+#endif
+
+static int test_wolfSSL_dtls_fragments(void)
+{
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+    THREAD_TYPE serverThread;
+    size_t i;
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        ssl_callback spammer;
+    } params[] = {
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+                test_wolfSSL_dtls12_fragments_spammer},
+#ifdef WOLFSSL_DTLS13
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
+                test_wolfSSL_dtls13_fragments_spammer},
+#endif
+    };
+
+    printf(testingFmt, "test_wolfSSL_dtls_fragments");
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        XMEMSET(&client_args, 0, sizeof(func_args));
+        XMEMSET(&server_args, 0, sizeof(func_args));
+        XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+        XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    #ifdef WOLFSSL_TIRTOS
+        fdOpenSession(Task_self());
+    #endif
+
+        StartTCP();
+        InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+        /* use RNG to get random port if using windows */
+        ready.port = GetRandomPort();
+#endif
+
+        server_args.signal = &ready;
+        server_args.callbacks = &func_cb_server;
+        client_args.signal = &ready;
+        client_args.callbacks = &func_cb_client;
+
+        func_cb_client.doUdp = func_cb_server.doUdp = 1;
+        func_cb_server.method = params[i].server_meth;
+        func_cb_client.method = params[i].client_meth;
+        func_cb_client.ssl_ready = params[i].spammer;
+
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+        test_client_nofail(&client_args, NULL);
+        join_thread(serverThread);
+
+        AssertFalse(client_args.return_code);
+        AssertFalse(server_args.return_code);
+        /* The socket should be closed by the server resulting in a
+         * socket error */
+        AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
+        /* Check the server returned an error indicating the msg buffer
+         * was full */
+        AssertIntEQ(func_cb_server.last_err, DTLS_TOO_MANY_FRAGMENTS_E);
+
+        FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+        fdOpenSession(Task_self());
+#endif
+    }
+
+    printf(resultFmt, passed);
+
+    return 0;
+}
+#else
+static int test_wolfSSL_dtls_fragments(void) {
+    return 0;
+}
+#endif
+
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH))
@@ -57600,6 +57798,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_msgCb),
     TEST_DECL(test_wolfSSL_either_side),
     TEST_DECL(test_wolfSSL_DTLS_either_side),
+    TEST_DECL(test_wolfSSL_dtls_fragments),
     TEST_DECL(test_generate_cookie),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
     TEST_DECL(test_wolfSSL_X509_LOOKUP_load_file),

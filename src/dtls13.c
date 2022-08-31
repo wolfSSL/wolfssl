@@ -1514,17 +1514,13 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     if (ret != 0)
         return PARSE_ERROR;
 
-    if (idx + fragLength > size) {
-        WOLFSSL_ERROR(INCOMPLETE_DATA);
-        return INCOMPLETE_DATA;
-    }
-
-    if (fragOff + fragLength > messageLength)
-        return BUFFER_ERROR;
-
-    if (handshakeType == client_hello &&
-        /* Only when receiving an unverified ClientHello */
-        ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->options.acceptState < TLS13_ACCEPT_FIRST_REPLY_DONE) {
+        if (handshakeType != client_hello) {
+            WOLFSSL_MSG("Ignoring other messages before we verify a ClientHello");
+            *processedSize = size;
+            return 0;
+        }
         /* To be able to operate in stateless mode, we assume the ClientHello
          * is in order and we use its Handshake Message number and Sequence
          * Number for our Tx. */
@@ -1533,6 +1529,14 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
                 ssl->keys.dtls_peer_handshake_number;
         ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
     }
+
+    if (idx + fragLength > size) {
+        WOLFSSL_ERROR(INCOMPLETE_DATA);
+        return INCOMPLETE_DATA;
+    }
+
+    if (fragOff + fragLength > messageLength)
+        return BUFFER_ERROR;
 
     ret = Dtls13RtxMsgRecvd(ssl, (enum HandShakeType)handshakeType, fragOff);
     if (ret != 0)
@@ -1554,6 +1558,16 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     isFirst = fragOff == 0;
     isComplete = isFirst && fragLength == messageLength;
+
+    if (!isComplete && !IsEncryptionOn(ssl, 0)) {
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("DTLS1.3 not accepting fragmented plaintext message");
+#endif /* WOLFSSL_DEBUG_TLS */
+        /* ignore the message */
+        *processedSize = idx + fragLength + ssl->keys.padSz;
+        return 0;
+    }
+
     usingAsyncCrypto = ssl->devId != INVALID_DEVID;
 
     /* store the message if any of the following: (a) incomplete message, (b)
@@ -1565,10 +1579,17 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
-        DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
-            ssl->keys.dtls_peer_handshake_number,
-            input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
-            fragOff, fragLength, ssl->heap);
+        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+            DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
+                ssl->keys.dtls_peer_handshake_number,
+                input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
+                fragOff, fragLength, ssl->heap);
+        }
+        else {
+            /* DTLS_POOL_SZ outstanding messages is way more than enough for any
+             * valid peer */
+            return DTLS_TOO_MANY_FRAGMENTS_E;
+        }
 
         *processedSize = idx + fragLength + ssl->keys.padSz;
         if (Dtls13NextMessageComplete(ssl))

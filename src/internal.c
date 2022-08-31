@@ -522,7 +522,7 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
     return ret;
 }
 
-static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
+int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 {
     #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
@@ -16177,6 +16177,16 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     }
 
+#if !defined(NO_WOLFSSL_SERVER)
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE &&
+            type != client_hello) {
+        WOLFSSL_MSG("Ignoring other messages before we verify a ClientHello");
+        *inOutIdx = totalSz;
+        return 0;
+    }
+#endif
+
     /* Check the handshake sequence number first. If out of order,
      * add the current message to the list. If the message is in order,
      * but it is a fragment, add the current message to the list, then
@@ -16204,12 +16214,15 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * with newer and newer cookies.) */
         if (type != client_hello) {
             WOLFSSL_MSG("Current message is out of order");
-            if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-                DtlsMsgStore(ssl, ssl->keys.curEpoch,
-                             ssl->keys.dtls_peer_handshake_number,
-                             input + *inOutIdx, size, type,
-                             fragOffset, fragSz, ssl->heap);
+            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
+                WOLFSSL_MSG("Reached rx msg limit error");
+                return DTLS_TOO_MANY_FRAGMENTS_E;
             }
+
+            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+                         ssl->keys.dtls_peer_handshake_number,
+                         input + *inOutIdx, size, type,
+                         fragOffset, fragSz, ssl->heap);
             *inOutIdx += fragSz;
             #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
@@ -16305,12 +16318,15 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             return 0;
         }
 
-        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            DtlsMsgStore(ssl, ssl->keys.curEpoch,
-                         ssl->keys.dtls_peer_handshake_number,
-                         input + *inOutIdx, size, type,
-                         fragOffset, fragSz, ssl->heap);
+        if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
+            WOLFSSL_MSG("Reached rx msg limit error");
+            WOLFSSL_ERROR(DTLS_TOO_MANY_FRAGMENTS_E);
+            return DTLS_TOO_MANY_FRAGMENTS_E;
         }
+        DtlsMsgStore(ssl, ssl->keys.curEpoch,
+                     ssl->keys.dtls_peer_handshake_number,
+                     input + *inOutIdx, size, type,
+                     fragOffset, fragSz, ssl->heap);
         *inOutIdx += fragSz;
         *inOutIdx += ssl->keys.padSz;
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -16354,6 +16370,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             /* In async mode always store the message and process it with
              * DtlsMsgDrain because in case of a WC_PENDING_E it will be
              * easier this way. */
+            if (ssl->dtls_rx_msg_list_sz >= DTLS_POOL_SZ) {
+                WOLFSSL_MSG("Reached rx msg limit error");
+                return DTLS_TOO_MANY_FRAGMENTS_E;
+            }
             DtlsMsgStore(ssl, ssl->keys.curEpoch,
                          ssl->keys.dtls_peer_handshake_number,
                          input + idx, size, type,
@@ -22862,6 +22882,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #endif
     case DTLS_CID_ERROR:
         return "DTLS ConnectionID mismatch or missing";
+    case DTLS_TOO_MANY_FRAGMENTS_E:
+        return "Received too many fragmented messages from peer error";
 
     default :
         return "unknown error number";
