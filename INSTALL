@@ -233,3 +233,22 @@
           environments. All OIDs and codepoints are temporary and expected to
           change in the future. You should have no expectation of backwards
           compatibility.
+
+16. Building with vcpkg
+
+# Building wolfssl - Using vcpkg
+
+ You can download and install wolfssl using the [vcpkg](https://github.com/Microsoft/vcpkg):
+
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    OR for Windows
+    bootstrap-vcpkg.bat
+
+    ./vcpkg integrate install
+    ./vcpkg install wolfssl
+
+The wolfssl port in vcpkg is kept up to date by wolfSSL.
+
+We also have vcpkg ports for wolftpm, wolfmqtt and curl.
