@@ -5526,7 +5526,7 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
 
         /* serial is larger than int size so print off hex values */
         if ((scratchLen = XSNPRINTF(
-                 scratch, MAX_WIDTH, "\n%*s", indent, ""))
+                 scratch, MAX_WIDTH, "%*s", indent, ""))
                 >= MAX_WIDTH) {
             WOLFSSL_MSG("buffer overrun");
             return WOLFSSL_FAILURE;
@@ -11937,6 +11937,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_initials:
             str = "initials";
             len = 8;
+            break;
+        case NID_distinguishedName:
+            str = "DN";
+            len = 2;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");
