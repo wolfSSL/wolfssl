@@ -265,6 +265,7 @@ enum {
     NID_cast5_ofb64   = 111,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
+    EVP_PKEY_CMAC     = NID_cmac,
     EVP_PKEY_HKDF     = NID_hkdf,
     EVP_PKEY_FALCON   = 300, /* Randomly picked value. */
     EVP_PKEY_DILITHIUM= 301, /* Randomly picked value. */
@@ -776,6 +777,11 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_hkdf_mode(WOLFSSL_EVP_PKEY_CTX* ctx,
 /* EVP ENGINE API's */
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
                                           const unsigned char* key, int keylen);
+
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
+                                          const unsigned char* priv, size_t len,
+                                          const WOLFSSL_EVP_CIPHER* cipher);
+
 WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
                                      WOLFSSL_ENGINE *impl);
@@ -992,6 +998,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_get0_EC_KEY           wolfSSL_EVP_PKEY_get0_EC_KEY
 #define EVP_PKEY_get0_hmac             wolfSSL_EVP_PKEY_get0_hmac
 #define EVP_PKEY_new_mac_key           wolfSSL_EVP_PKEY_new_mac_key
+#define EVP_PKEY_new_CMAC_key          wolfSSL_EVP_PKEY_new_CMAC_key
 #define EVP_MD_CTX_copy                wolfSSL_EVP_MD_CTX_copy
 #define EVP_MD_CTX_copy_ex             wolfSSL_EVP_MD_CTX_copy_ex
 #define EVP_PKEY_sign_init             wolfSSL_EVP_PKEY_sign_init

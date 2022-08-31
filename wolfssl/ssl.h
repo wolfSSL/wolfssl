@@ -89,6 +89,9 @@
     #ifndef WOLFCRYPT_ONLY
         #include <wolfssl/openssl/hmac.h>
     #endif
+    #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+        #include <wolfssl/openssl/cmac.h>
+    #endif
 
     /* We need the old SSL names */
     #ifdef NO_OLD_SSL_NAMES
@@ -410,6 +413,9 @@ struct WOLFSSL_EVP_PKEY {
     byte* hkdfInfo;
     word32 hkdfInfoSz;
     int hkdfMode;
+    #endif
+    #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    WOLFSSL_CMAC_CTX* cmacCtx;
     #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef HAVE_ECC
