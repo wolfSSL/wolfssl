@@ -28,11 +28,11 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.4.0 LANGUAGES C ASM)
+project(wolfssl VERSION 5.5.0 LANGUAGES C ASM)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 34)
+set(LIBTOOL_CURRENT 35)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
