@@ -1099,455 +1099,877 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 }
 
 
-/* when adding new option, please follow the steps below: */
-/*  1. add new option message in English section          */
-/*  2. increase the number of the second column           */
-/*  3. increase the array dimension                       */
-/*  4. add the same message into Japanese section         */
-/*     (will be translated later)                         */
-/*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][70] = {
-    /* English */
-    {
-        " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
-        "Max RSA key size in bits for build is set at : ",          /* 1 */
-#ifdef NO_RSA
-        "RSA not supported\n",                                      /* 2 */
-#elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
+
+/* when adding new option, please follow the steps below:                 */
+/* following structure of OptionMap, add an element into option's table   */
+/* NOTE: please wrap the element in OPTMSG()                              */
+/*  1. define your option's type in enum option_type                      */
+/*  2. add it to first member of the element                              */
+/*  3. add selector that is specified when using this option              */
+/*  4. add new option message in English                                  */
+/*  5. add the same message in Japanese                                   */
+
+
+#define WOLFSSL_IP "127.0.0.1"   
+#define WOLFSSL_PORT "11111"
+#define STR2(s) #s
+#define STR(s) STR2(s)  /* convert what defined as a number into string*/ 
+
+#ifndef NO_MULTIBYTE_PRINT 
+#define OPTMSG(t, s, eng, jp)  t, s, eng, jp 
+#else 
+#define OPTMSG(t, s, eng, jp)  t, s, eng, NULL 
+#endif
+
+struct OptionsMap{
+    byte  type;     
+    byte selector;
+    const char* descEN;
+    const char* descJP;
+};
+enum option_type {  
+    MSG_FIRST_NOTE,
+    MSG_MAX_RSA,
+    OPTION_TYPE_HELP,
+    OPTION_TYPE_HOST,
+    OPTION_TYPE_PORT,
+    OPTION_TYPE_SET_VERSION,
+    OPTION_TYPE_SHOW_VERSION,
+    OPTION_TYPE_CIPHER_SUITE,
+    OPTION_TYPE_CERT_FILE,
+    OPTION_TYPE_KEY_FILE,
+    OPTION_TYPE_CA_FILE,
+    OPTION_TYPE_MIN_DH,
+    OPTION_TYPE_BENCHMARK,
+    OPTION_TYPE_ALPN,
+    OPTION_TYPE_THROUGHPUT,
+    OPTION_TYPE_PSK,
+    OPTION_TYPE_DISABLE_PEER_CHECK,
+    OPTION_TYPE_OVERRIDE_DATE_ERR,
+    OPTION_TYPE_SHOW_CIPHERS,
+    OPTION_TYPE_HTTP_GET,
+    OPTION_TYPE_UDP_DTLS,
+    OPTION_TYPE_SCTP_DTLS,
+    OPTION_TYPE_MATCH_NAME,
+    OPTION_TYPE_NON_BLOCKING,
+    OPTION_TYPE_RESUME_SESSION,
+    OPTION_TYPE_WAIT_BIDIRECT_SHUTDOWN,
+    OPTION_TYPE_STARTTLS,
+    OPTION_TYPE_RENEGOTIATION,
+    OPTION_TYPE_FORCE_RENEGOTIATION,
+    OPTION_TYPE_FEWER_PACKETS,
+    OPTION_TYPE_DISABLE_CLIENT_CERT,
+    OPTION_TYPE_EXTERNAL_TEST,
+    OPTION_TYPE_USE_VERIFY_CALLBACK,
+    OPTION_TYPE_SHOW_OBJECT_SIZE,
+    OPTION_TYPE_HOSTNAME_INDICATION,
+    OPTION_TYPE_MAX_FRAGMENT,
+    OPTION_TYPE_TRUNCATED_HMAC,
+    OPTION_TYPE_DISABLE_MASTER_SECRET,
+    OPTION_TYPE_USE_OCSP,
+    OPTION_TYPE_SET_OCSP_URL,
+    OPTION_TYPE_OCSP_STAPLING,
+    OPTION_TYPE_ATOMIC_USER,
+    OPTION_TYPE_PK_CALLBACKS,
+    OPTION_TYPE_ANON_CLIENT,
+    OPTION_TYPE_DISABLE_CRL,
+    OPTION_TYPE_TRUST_PEER_CERT,
+    OPTION_TYPE_WNR_CONFIG_FILE,
+    OPTION_TYPE_INTERNAL_TESTS,
+    OPTION_TYPE_USE_HELLO_RETRY,
+    OPTION_TYPE_USE_PSK,
+    OPTION_TYPE_UPDATE_KEYS_IVS,
+    OPTION_TYPE_ONLY_KEYSHARE_FFDHE,
+    OPTION_TYPE_ONLY_KEYSHARE_ECC,
+    OPTION_TYPE_USE_X25519,
+    OPTION_TYPE_POST_HANDSHAKE,
+    OPTION_TYPE_0_RTT_HANDSHAKE,
+    OPTION_TYPE_MULTI_CAST,
+    OPTION_TYPE_SET_DISPLAY_LANG,
+    OPTION_TYPE_DISABLE_DHKEY_CHECK,
+    OPTION_TYPE_USE_RESUMPTION,
+    OPTION_TYPE_TRUSTED_CA_KEY_INDICATION,
+    OPTION_TYPE_SIMULATE_WANT_WRITE,
+    OPTION_TYPE_USE_X448,
+    OPTION_TYPE_USE_HASH_DIR,
+    OPTION_TYPE_WOLFSENTRY_CONFIG_FILE,
+    OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER,
+    OPTION_TYPE_PQC,
+    OPTION_TYPE_SRTP,
+    MSG_URL_FOR_SIMPLER_EXAMPLES
+}; 
+   
+
+const struct OptionsMap client_options[] = { 
+        {   
+            OPTMSG( 
+            MSG_FIRST_NOTE, '*',  
+            " NOTE: All files relative to wolfSSL home dir\n",
+            " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの"
+                                                                "相対です。\n"
+            )
+    },
+        {   
+            OPTMSG(
+            MSG_MAX_RSA, '*',
+            "Max RSA key size in bits for build is set at : ",
+            "RSAの最大ビットは次のように設定されております: "
+            )
+    },
+        {   OPTMSG(
+            MSG_MAX_RSA, '*', 
+#ifdef NO_RSA   
+            "RSA not supported\n",
+            "RSAはサポートされていません。\n" 
+#elif defined(WOLFSSL_SP_MATH) 
 #ifdef WOLFSSL_SP_4096
-        "4096\n",                                                   /* 2 */
+            "4096\n",
+            "4096\n"                
 #elif !defined(WOLFSSL_SP_NO_3072)
-        "3072\n",                                                   /* 2 */
+            "3072\n",
+            "3072\n"                                       
 #elif !defined(WOLFSSL_SP_NO_2048)
-        "2048\n",                                                   /* 2 */
+            "2048\n",
+            "2048\n"                                            
 #else
-        "0\n",                                                      /* 2 */
+            "0\n",
+            "0\n"                                             
 #endif
 #elif defined(USE_FAST_MATH)
 #else
-        "INFINITE\n",                                               /* 2 */
+            "INFINITE\n",
+            "無限\n"                                           
+  
 #endif
-        "-? <num>    Help, print this usage\n"
-           "            0: English, 1: Japanese\n"
-           "--help      Help, in English\n",                        /* 3 */
-        "-h <host>   Host to connect to, default",                  /* 4 */
-        "-p <num>    Port to connect on, not 0, default",           /* 5 */
+            )
 
-#ifndef WOLFSSL_TLS13
-        "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default", /* 6 */
-        "-V          Prints valid ssl version numbers"
-                                             ", SSLv3(0) - TLS1.2(3)\n", /* 7 */
-#else
-        "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default", /* 6 */
-        "-V          Prints valid ssl version numbers,"
-                                            " SSLv3(0) - TLS1.3(4)\n",   /* 7 */
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_HELP, '?',
+             "-? <num>    Help, print this usage\n"
+#ifndef NO_MULTIBYTE_PRINT
+            "            0: English, 1: Japanese\n"
+#else 
+            "            0: English\n"
 #endif
-        "-l <str>    Cipher suite list (: delimited)\n",                /* 8 */
+            "--help      Help, in English\n",
+
+            "-? <num>    ヘルプ, 使い方を表示\n"
+            "            0: 英語、 1: 日本語\n"
+            "--ヘルプ    日本語で使い方を表示\n"
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_HOST, 'h',
+            "-h <host>   Host to connect to, default ",
+            "-h <host>   接続先ホスト,規定値 "
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_HOST, 'h',
+            WOLFSSL_IP"\n",  
+            WOLFSSL_IP"\n"
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_PORT, 'p',
+            "-p <num>    Port to connect on, not 0, default ",
+            "-p <num>    接続先ポート, 0は無効, 既定値 "
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_PORT, 'p',
+            WOLFSSL_PORT"\n",
+            WOLFSSL_PORT"\n"
+            )
+    },
+#ifndef WOLFSSL_TLS13
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_VERSION, 'v',
+            "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default "
+                                                STR(CLIENT_DEFAULT_VERSION)"\n", 
+            "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
+                                                              " 既定値 "
+                                                STR(CLIENT_DEFAULT_VERSION)"\n" 
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_SHOW_VERSION, 'V',
+            "-V          Prints valid ssl version numbers"
+                                             ", SSLv3(0) - TLS1.2(3)\n",
+             "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
+                                              " TLS1.2(3)\n"   
+            )
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_VERSION, 'v',
+            "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default "
+                                            STR(CLIENT_DEFAULT_VERSION)"\n", 
+            "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
+                                                    " 既定値 "
+                                            STR(CLIENT_DEFAULT_VERSION)"\n"
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_SHOW_VERSION, 'V',
+            "-V          Prints valid ssl version numbers,"
+                                                " SSLv3(0) - TLS1.3(4)\n", 
+            "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
+                                                 " TLS1.3(4)\n"
+            )
+    },            
+#endif      
+
+        {
+            OPTMSG(
+            OPTION_TYPE_CIPHER_SUITE, 'l',
+            "-l <str>    Cipher suite list (: delimited)\n", 
+            "-l <str>    暗号スイートリスト (区切り文字 :)\n"
+            )
+    },
+
 #ifndef NO_CERTS
-        "-c <file>   Certificate file,           default",              /* 9 */
-        "-k <file>   Key file,                   default",              /* 10 */
-        "-A <file>   Certificate Authority file, default",              /* 11 */
+        {
+            OPTMSG(
+            OPTION_TYPE_CERT_FILE, 'c',
+            "-c <file>   Certificate file,           default "cliCertFile"\n",
+            "-c <file>   証明書ファイル,  既定値 "cliCertFile"\n"
+            )
+    },
+
+        {   
+            OPTMSG(
+            OPTION_TYPE_KEY_FILE,'k',
+            "-k <file>   Key file,                   default "cliKeyFile"\n",
+            "-k <file>   鍵ファイル,      既定値 "cliKeyFile"\n"
+            )
+
+    },
+        {   
+            OPTMSG(
+           OPTION_TYPE_CA_FILE, 'A',
+           "-A <file>   Certificate Authority file, default "caCertFile"\n",
+           "-A <file>   認証局ファイル,  既定値 "caCertFile"\n"
+            )
+    },
 #endif
 #ifndef NO_DH
-        "-Z <num>    Minimum DH key bits,        default",              /* 12 */
-#endif
-        "-b <num>    Benchmark <num> connections and print stats\n",    /* 13 */
+        {
+            OPTMSG(
+            OPTION_TYPE_MIN_DH, 'Z',
+            "-Z <num>    Minimum DH key bits,        default "
+                                                STR(DEFAULT_MIN_DHKEY_BITS)"\n",
+            "-Z <num>    最小 DH 鍵 ビット, 既定値 "
+                                                STR(DEFAULT_MIN_DHKEY_BITS)"\n"
+            )
+    },
+#endif 
+        {
+            OPTMSG(
+            OPTION_TYPE_BENCHMARK, 'b',
+            "-b <num>    Benchmark <num> connections and print stats\n",
+            "-b <num>    ベンチマーク <num> 接続及び結果出力する\n"
+            )
+    },
 #ifdef HAVE_ALPN
-        "-L <str>    Application-Layer Protocol"
-                                      " Negotiation ({C,F}:<list>)\n",  /* 14 */
+        {   
+            OPTMSG(
+            OPTION_TYPE_ALPN, 'L',
+             "-L <str>    Application-Layer Protocol"
+                                      " Negotiation ({C,F}:<list>)\n",
+            "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
+                                                 " ({C,F}:<list>)\n"
+            )
+    },
 #endif
-        "-B <num>    Benchmark throughput"
-                                " using <num> bytes and print stats\n", /* 15 */
+        {
+            OPTMSG(
+            OPTION_TYPE_THROUGHPUT, 'B',
+            "-B <num>    Benchmark throughput"
+                                " using <num> bytes and print stats\n",
+            "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定"
+                                                  "と結果を出力する\n"
+            )
+    },
 #ifndef NO_PSK
-        "-s          Use pre Shared keys\n",                            /* 16 */
+        {
+            OPTMSG(
+            OPTION_TYPE_PSK, 's',
+            "-s          Use pre Shared keys\n",
+            "-s          事前共有鍵を使用する\n"
+            )
+    },
 #endif
-        "-d          Disable peer checks\n",                            /* 17 */
-        "-D          Override Date Errors example\n",                   /* 18 */
-        "-e          List Every cipher suite available, \n",            /* 19 */
-        "-g          Send server HTTP GET\n",                           /* 20 */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_PEER_CHECK, 'd',
+            "-d          Disable peer checks\n",
+            "-d          ピア確認を無効とする\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_OVERRIDE_DATE_ERR, 'D',
+            "-D          Override Date Errors example\n",
+            "-D          日付エラー用コールバック例の上書きを行う\n"
+            )
+    },
+        {   
+            OPTMSG(
+            OPTION_TYPE_SHOW_CIPHERS, 'e',
+            "-e          List Every cipher suite available, \n",
+            "-e          利用可能な全ての暗号スイートをリスト, \n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_HTTP_GET, 'g',
+            "-g          Send server HTTP GET\n",
+            "-g          サーバーへ HTTP GET を送信\n"
+            )
+
+    },
 #ifndef WOLFSSL_DTLS13
-        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default)\n",                                             /* 21 */
+        {
+            OPTMSG(
+            OPTION_TYPE_UDP_DTLS, 'u',
+            "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default)\n", 
+            "-u          UDP DTLSを使用する。\n"
+            "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値)\n"
+            )
+
+    },
+
 #else
-        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default), -v 4 for DTLSv1.3\n",                          /* 21 */
-#endif /* !WOLFSSL_DTLS13 */
+        {
+            OPTMSG(
+            OPTION_TYPE_UDP_DTLS, 'u',
+            "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default), -v 4 for DTLSv1.3\n",   
+            "-u          UDP DTLSを使用する。\n"
+            "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
+        "           -v 4 を追加指定すると DTLSv1.3\n"
+            )
+
+    },
+#endif
+
 #ifdef WOLFSSL_SCTP
-        "-G          Use SCTP DTLS,"
-                " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",  /* 22 */
+        {
+            OPTMSG(
+            OPTION_TYPE_SCTP_DTLS, 'G',
+            "-G          Use SCTP DTLS,"
+                " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",
+            "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
+                " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n"
+            )
+    },
 #endif
 #ifndef NO_CERTS
-        "-m          Match domain name in cert\n",                      /* 23 */
+        {
+            OPTMSG(
+            OPTION_TYPE_MATCH_NAME, 'm',
+            "-m          Match domain name in cert\n",
+            "-m          証明書内のドメイン名一致を確認する\n"
+            )
+    },
 #endif
-        "-N          Use Non-blocking sockets\n",                       /* 24 */
+        {
+            OPTMSG(
+            OPTION_TYPE_NON_BLOCKING, 'N',
+            "-N          Use Non-blocking sockets\n",
+            "-N          ノンブロッキング・ソケットを使用する\n"
+            )
+    },
 #ifndef NO_SESSION_CACHE
-        "-r          Resume session\n",                                 /* 25 */
+        {
+            OPTMSG(
+            OPTION_TYPE_RESUME_SESSION, 'r',
+            "-r          Resume session\n", 
+            "-r          セッションを継続する\n"
+            )
+    },
 #endif
-        "-w          Wait for bidirectional shutdown\n",                /* 26 */
-        "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",     /* 27 */
+        {
+            OPTMSG(
+            OPTION_TYPE_WAIT_BIDIRECT_SHUTDOWN, 'w',
+            "-w          Wait for bidirectional shutdown\n",
+            "-w          双方向シャットダウンを待つ\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_STARTTLS, 'M',
+            "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",
+            "-M <prot>   STARTTLSを使用する, <prot>プロトコル(smtp)を"
+                                              "使用する\n"
+            )
+
+    },
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-R          Allow Secure Renegotiation\n",                     /* 28 */
-        "-i <str>    Force client Initiated Secure Renegotiation. If the\n"
+        {
+            OPTMSG(
+            OPTION_TYPE_RENEGOTIATION, 'R',
+            "-R          Allow Secure Renegotiation\n",
+            "-R          セキュアな再ネゴシエーションを許可する\n"
+            )
+
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_FORCE_RENEGOTIATION, 'i',
+            "-i <str>    Force client Initiated Secure Renegotiation. If the\n"
         "            string 'scr-app-data' is passed in as the value and\n"
         "            Non-blocking sockets are enabled ('-N') then wolfSSL\n"
         "            sends a test message during the secure renegotiation.\n"
-        "            The string parameter is optional.\n", /* 29 */
-#endif
-        "-f          Fewer packets/group messages\n",                   /* 30 */
-#ifndef NO_CERTS
-        "-x          Disable client cert/key loading\n",                /* 31 */
-#endif
-        "-X          Driven by eXternal test case\n",                   /* 32 */
-        "-j          Use verify callback override\n",                   /* 33 */
-#ifdef SHOW_SIZES
-        "-z          Print structure sizes\n",                          /* 34 */
-#endif
-#ifdef HAVE_SNI
-        "-S <str>    Use Host Name Indication\n",                       /* 35 */
-#endif
-#ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    Use Maximum Fragment Length [1-6]\n",              /* 36 */
-#endif
-#ifdef HAVE_TRUNCATED_HMAC
-        "-T          Use Truncated HMAC\n",                             /* 37 */
-#endif
-#ifdef HAVE_EXTENDED_MASTER
-        "-n          Disable Extended Master Secret\n",                 /* 38 */
-#endif
-#ifdef HAVE_OCSP
-        "-o          Perform OCSP lookup on peer certificate\n",        /* 39 */
-        "-O <url>    Perform OCSP lookup using <url> as responder\n",   /* 40 */
-#endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",     /* 41 */
-        "            With 'm' at end indicates MUST staple\n",          /* 42 */
-#endif
-#if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-        "-U          Atomic User Record Layer Callbacks\n",             /* 43 */
-#endif
-#ifdef HAVE_PK_CALLBACKS
-        "-P          Public Key Callbacks\n",                           /* 44 */
-#endif
-#ifdef HAVE_ANON
-        "-a          Anonymous client\n",                               /* 45 */
-#endif
-#ifdef HAVE_CRL
-        "-C          Disable CRL\n",                                    /* 46 */
-#endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   Path to load trusted peer cert\n",                 /* 47 */
-#endif
-#ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",           /* 48 */
-#endif
-        "-H <arg>    Internal tests"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
-#ifdef WOLFSSL_TLS13
-        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 51 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 52 */
-        "-I          Update keys and IVs before sending data\n",        /* 53 */
-#ifndef NO_DH
-        "-y          Key Share with FFDHE named groups only\n",         /* 54 */
-#endif
-#ifdef HAVE_ECC
-        "-Y          Key Share with ECC named groups only\n",           /* 55 */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef HAVE_CURVE25519
-        "-t          Use X25519 for key exchange\n",                    /* 56 */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          Support requesting certificate post-handshake\n",  /* 57 */
-#endif
-#ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data sent to server (0-RTT handshake)\n",    /* 58 */
-#endif
-#ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 59 */
-#endif
-        "-1 <num>    Display a result by specified language.\n"
-                               "            0: English, 1: Japanese\n", /* 60 */
-#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          Disable DH Prime check\n",                         /* 61 */
-#endif
-#ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          Use resumption for renegotiation\n",               /* 62 */
-#endif
-#ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 63 */
-#endif
-        "-6          Simulate WANT_WRITE errors on every other IO send\n",
-#ifdef HAVE_CURVE448
-        "-8          Use X448 for key exchange\n",                      /* 66 */
-#endif
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-        "-9          Use hash dir look up for certificate loading\n"
-        "            loading from <wolfSSL home>/certs folder\n"
-        "            files in the folder would have the form \"hash.N\" file name\n"
-        "            e.g symbolic link to the file at certs folder\n"
-        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
-#endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSENTRY_NO_JSON)
-        "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                        /* 68 */
-#endif
-#ifndef WOLFSSL_TLS13
-        "-7          Set minimum downgrade protocol version [0-3] "
-        " SSLv3(0) - TLS1.2(3)\n",
-#else
-        "-7          Set minimum downgrade protocol version [0-4] "
-           " SSLv3(0) - TLS1.3(4)\n",                                   /* 69 */
-#endif
-#ifdef HAVE_PQC
-        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                         /* 70 */
-#endif
-#ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
-#endif
-        "\n"
-           "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
-        NULL,
+        "            The string parameter is optional.\n", 
+        "-i <str>    クライアント主導のネゴシエーションを強制する\n"
+            )
+
     },
-#ifndef NO_MULTIBYTE_PRINT
-    /* Japanese */
+#endif
         {
-        " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの相対です。"
-                                                               "\n",     /* 0 */
-        "RSAの最大ビットは次のように設定されています: ",                 /* 1 */
-#ifdef NO_RSA
-        "RSAはサポートされていません。\n",                               /* 2 */
-#elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
-#ifndef WOLFSSL_SP_NO_3072
-        "3072\n",                                                        /* 2 */
-#elif !defined(WOLFSSL_SP_NO_2048)
-        "2048\n",                                                        /* 2 */
-#else
-        "0\n",                                                           /* 2 */
-#endif
-#elif defined(USE_FAST_MATH)
-#else
-        "無限\n",                                                        /* 2 */
-#endif
-        "-? <num>    ヘルプ, 使い方を表示\n"
-        "            0: 英語、 1: 日本語\n"
-        "--ヘルプ    日本語で使い方を表示\n",                            /* 3 */
-        "-h <host>   接続先ホスト, 既定値",                              /* 4 */
-        "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 5 */
-
-#ifndef WOLFSSL_TLS13
-        "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
-                                                              " 既定値", /* 6 */
-        "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
-                                                 " TLS1.2(3)\n",         /* 7 */
-#else
-        "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
-                                                    " 既定値",           /* 6 */
-        "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
-                                                 " TLS1.3(4)\n",         /* 7 */
-#endif
-        "-l <str>    暗号スイートリスト (区切り文字 :)\n",               /* 8 */
+            OPTMSG(
+            OPTION_TYPE_FEWER_PACKETS, 'f',
+            "-f          Fewer packets/group messages\n", 
+            "-f          より少ないパケット/グループメッセージを使用する\n"
+            )
+    },
 #ifndef NO_CERTS
-        "-c <file>   証明書ファイル,  既定値",                           /* 9 */
-        "-k <file>   鍵ファイル,      既定値",                          /* 10 */
-        "-A <file>   認証局ファイル,  既定値",                          /* 11 */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_CLIENT_CERT, 'x',
+            "-x          Disable client cert/key loading\n",
+            "-x          クライアントの証明書/鍵のロードを無効する\n"
+            )
+    },
 #endif
-#ifndef NO_DH
-        "-Z <num>    最小 DH 鍵 ビット, 既定値",                        /* 12 */
-#endif
-        "-b <num>    ベンチマーク <num> 接続及び結果出力する\n",        /* 13 */
-#ifdef HAVE_ALPN
-        "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
-                                                 " ({C,F}:<list>)\n",   /* 14 */
-#endif
-        "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定"
-                                                  "と結果を出力する\n", /* 15 */
-#ifndef NO_PSK
-        "-s          事前共有鍵を使用する\n",                           /* 16 */
-#endif
-        "-d          ピア確認を無効とする\n",                           /* 17 */
-        "-D          日付エラー用コールバック例の上書きを行う\n",       /* 18 */
-        "-e          利用可能な全ての暗号スイートをリスト, \n",         /* 19 */
-        "-g          サーバーへ HTTP GET を送信\n",                     /* 20 */
-        "-u          UDP DTLSを使用する。\n"
-#ifndef WOLFSSL_DTLS13
-        "           -v 2 を追加指定するとDTLSv1, "
-                    "-v 3 を追加指定すると DTLSv1.2 (既定値)\n",        /* 21 */
-#else
-        "           -v 2 を追加指定するとDTLSv1, "
-                    "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
-        "           -v 4 を追加指定すると DTLSv1.3\n",                    /* 21 */
-#endif /* !WOLFSSL_DTLS13 */
-#ifdef WOLFSSL_SCTP
-        "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
-                " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",   /* 22 */
-#endif
-#ifndef NO_CERTS
-        "-m          証明書内のドメイン名一致を確認する\n",             /* 23 */
-#endif
-        "-N          ノンブロッキング・ソケットを使用する\n",           /* 24 */
-#ifndef NO_SESSION_CACHE
-        "-r          セッションを継続する\n",                           /* 25 */
-#endif
-        "-w          双方向シャットダウンを待つ\n",                     /* 26 */
-        "-M <prot>   STARTTLSを使用する, <prot>プロトコル(smtp)を"
-                                              "使用する\n",             /* 27 */
-#ifdef HAVE_SECURE_RENEGOTIATION
-        "-R          セキュアな再ネゴシエーションを許可する\n",         /* 28 */
-        "-i <str>    クライアント主導のネゴシエーションを強制する\n",   /* 29 */
-#endif
-        "-f          より少ないパケット/グループメッセージを使用する\n",/* 30 */
-#ifndef NO_CERTS
-        "-x          クライアントの証明書/鍵のロードを無効する\n",      /* 31 */
-#endif
-        "-X          外部テスト・ケースにより動作する\n",               /* 32 */
-        "-j          コールバック・オーバーライドの検証を使用する\n",   /* 33 */
+        {
+            OPTMSG(
+            OPTION_TYPE_EXTERNAL_TEST, 'X',
+            "-X          Driven by eXternal test case\n",
+            "-X          外部テスト・ケースにより動作する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_VERIFY_CALLBACK, 'j',
+            "-j          Use verify callback override\n", 
+            "-j          コールバック・オーバーライドの検証を使用する\n"
+            )
+    },
 #ifdef SHOW_SIZES
-        "-z          構造体のサイズを表示する\n",                       /* 34 */
+        {
+            OPTMSG(
+            OPTION_TYPE_SHOW_OBJECT_SIZE, 'z',
+            "-z          Print structure sizes\n",
+            "-z          構造体のサイズを表示する\n"
+            )
+    },
 #endif
 #ifdef HAVE_SNI
-        "-S <str>    ホスト名表示を使用する\n",                         /* 35 */
+        {
+            OPTMSG(
+            OPTION_TYPE_HOSTNAME_INDICATION, 'S',
+            "-S <str>    Use Host Name Indication\n", 
+            "-S <str>    ホスト名表示を使用する\n"
+            )
+    },
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    最大フラグメント長[1-6]を設定する\n",              /* 36 */
+        {
+            OPTMSG(
+            OPTION_TYPE_MAX_FRAGMENT, 'F',
+            "-F <num>    Use Maximum Fragment Length [1-6]\n",
+            "-F <num>    最大フラグメント長[1-6]を設定する\n"
+            )
+
+    },
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
-        "-T          Truncated HMACを使用する\n",                       /* 37 */
+        {
+            OPTMSG(
+            OPTION_TYPE_TRUNCATED_HMAC, 'T',
+            "-T          Use Truncated HMAC\n", 
+            "-T          Truncated HMACを使用する\n"
+            )
+    },
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-        "-n          マスターシークレット拡張を無効にする\n",           /* 38 */
+        {   
+            OPTMSG(
+            OPTION_TYPE_DISABLE_MASTER_SECRET, 'n',
+            "-n          Disable Extended Master Secret\n",
+            "-n          マスターシークレット拡張を無効にする\n"
+            )
+    },
 #endif
 #ifdef HAVE_OCSP
-        "-o          OCSPルックアップをピア証明書で実施する\n",         /* 39 */
-        "-O <url>    OCSPルックアップを、<url>を使用し"
-                                   "応答者として実施する\n",            /* 40 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_OCSP, 'o',
+            "-o          Perform OCSP lookup on peer certificate\n", 
+            "-o          OCSPルックアップをピア証明書で実施する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_OCSP_URL, 'O',
+            "-O <url>    Perform OCSP lookup using <url> as responder\n",
+            "-O <url>    OCSPルックアップを、<url>を使用し"
+                                   "応答者として実施する\n"
+            )  
+    },
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        "-W <num>    OCSP Staplingを使用する"
-                                         " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
-        "            'm' を最後に指定すると必ず staple を使用する\n"    /* 42 */
+        {
+            OPTMSG(
+            OPTION_TYPE_OCSP_STAPLING, 'W',
+            "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n"  
+            "            With 'm' at end indicates MUST staple\n",
+            "-W <num>    OCSP Staplingを使用する"
+                                            " (1 v1, 2 v2, 3 v2 multi)\n" 
+            "            'm' を最後に指定すると必ず staple を使用する\n"  
+            )
+    },      
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-        "-U          アトミック・ユーザー記録の"
-                                           "コールバックを利用する\n",  /* 43 */
+        {
+            OPTMSG(
+            OPTION_TYPE_ATOMIC_USER, 'U',
+            "-U          Atomic User Record Layer Callbacks\n",
+            "-U          アトミック・ユーザー記録の"
+                                           "コールバックを利用する\n"
+            )
+    },
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                             /* 44 */
+        {
+            OPTMSG(
+            OPTION_TYPE_PK_CALLBACKS, 'P',
+            "-P          Public Key Callbacks\n",
+            "-P          公開鍵コールバック\n"
+            )
+    },
 #endif
 #ifdef HAVE_ANON
-        "-a          匿名クライアント\n",                               /* 45 */
+        {
+            OPTMSG(
+            OPTION_TYPE_ANON_CLIENT, 'a',
+            "-a          Anonymous client\n", 
+            "-a          匿名クライアント\n"
+            )
+    },
 #endif
 #ifdef HAVE_CRL
-        "-C          CRLを無効\n",                                      /* 46 */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_CRL, 'C',
+            "-C          Disable CRL\n",
+            "-C          CRLを無効\n"
+            )
+    },
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 47 */
+        {
+            OPTMSG(
+            OPTION_TYPE_TRUST_PEER_CERT, 'E',
+            "-E <file>   Path to load trusted peer cert\n",
+            "-E <file>   信頼出来るピアの証明書ロードの為のパス\n"
+            )
+    },
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 48 */
+        {
+            OPTMSG(
+            OPTION_TYPE_WNR_CONFIG_FILE, 'q',
+            "-q <file>   Whitewood config file,      defaults "wnrConfig,
+            "-q <file>   Whitewood コンフィグファイル,      既定値 "wnrConfig
+            )
+    },
 #endif
-        "-H <arg>    内部テスト"
-        " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
+        {
+            OPTMSG(
+            OPTION_TYPE_INTERNAL_TESTS, 'H',
+            "-H <arg>    Internal tests"
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",
+            "-H <arg>    内部テスト"
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n"
+            )      
+    },
 #ifdef WOLFSSL_TLS13
-        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 51 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 52 */
-        "-I          データ送信前に、鍵とIVを更新する\n",               /* 53 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_HELLO_RETRY,'J',
+            "-J          Use HelloRetryRequest to choose group for KE\n",
+            "-J          HelloRetryRequestをKEのグループ選択に使用する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_PSK, 'K',
+            "-K          Key Exchange for PSK not using (EC)DHE\n",
+            "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_UPDATE_KEYS_IVS, 'I',
+            "-I          Update keys and IVs before sending data\n",
+            "-I          データ送信前に、鍵とIVを更新する\n"
+            )
+    },
 #ifndef NO_DH
-        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 54 */
+        {
+            OPTMSG(
+            OPTION_TYPE_ONLY_KEYSHARE_FFDHE, 'y',
+            "-y          Key Share with FFDHE named groups only\n",
+            "-y          FFDHE名前付きグループとの鍵共有のみ\n"
+            )
+
+    },
 #endif
 #ifdef HAVE_ECC
-        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 55 */
+        {
+            OPTMSG(
+            OPTION_TYPE_ONLY_KEYSHARE_ECC, 'Y',
+            "-Y          Key Share with ECC named groups only\n",
+            "-Y          ECC名前付きグループとの鍵共有のみ\n"
+            )
+    },
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          X25519を鍵交換に使用する\n",                       /* 56 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_X25519, 't',
+            "-t          Use X25519 for key exchange\n",
+            "-t          X25519を鍵交換に使用する\n"
+            )
+    },  
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 57 */
+        {
+            OPTMSG(
+            OPTION_TYPE_POST_HANDSHAKE, 'Q',
+            "-Q          Support requesting certificate post-handshake\n",
+            "-Q          ポストハンドシェークの証明要求をサポートする\n"
+            )
+    },
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data をサーバーへ送信する"
-                            "（0-RTTハンドシェイク）\n",                /* 58 */
+        {
+            OPTMSG(
+            OPTION_TYPE_0_RTT_HANDSHAKE, '0',
+            "-0          Early data sent to server (0-RTT handshake)\n",
+            "-0          Early data をサーバーへ送信する"
+                            "（0-RTTハンドシェイク）\n"
+            )   
+    },
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 59 */
+        {
+            OPTMSG(
+            OPTION_TYPE_MULTI_CAST, '3',
+            "-3 <grpid>  Multicast, grpid < 256\n",
+            "-3 <grpid>  マルチキャスト, grpid < 256\n"
+            )
+    },
 #endif
-        "-1 <num>    指定された言語で結果を表示します。\n"
-                                   "            0: 英語、 1: 日本語\n", /* 60 */
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_DISPLAY_LANG, '1',
+            "-1 <num>    Display a result by specified language.\n"
+#ifndef NO_MULTIBYTE_PRINT
+                               "            0: English, 1: Japanese\n",
+#else 
+                                "            0: English\n",
+#endif
+            "-1 <num>    指定された言語で結果を表示します。\n"
+                                   "            0: 英語、 1: 日本語\n"
+            )
+    },
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          DHプライム番号チェックを無効にする\n",             /* 61 */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_DHKEY_CHECK, '2',
+            "-2          Disable DH Prime check\n",
+            "-2          DHプライム番号チェックを無効にする\n"
+            )
+    },
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          再交渉に再開を使用\n",                             /* 62 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_RESUMPTION, '4',
+            "-4          Use resumption for renegotiation\n"
+            "-4          再交渉に再開を使用\n"
+            )
+    },
 #endif
 #ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
+        {
+            OPTMSG(
+            OPTION_TYPE_TRUSTED_CA_KEY_INDICATION, '5',
+            "-5          Use Trusted CA Key Indication\n",
+            "-5          信頼できる認証局の鍵表示を使用する\n"
+            ) 
+    },
 #endif
-        "-6          WANT_WRITE エラーを全てのIO 送信でシュミレートします\n",
+        {
+            OPTMSG(
+            OPTION_TYPE_SIMULATE_WANT_WRITE, '6',
+            "-6          Simulate WANT_WRITE errors on every other IO send\n",
+            "-6          WANT_WRITE エラーを全てのIO 送信でシュミレートします\n"
+            )
+    },
 #ifdef HAVE_CURVE448
-        "-8          鍵交換に X448 を使用する\n",                      /* 66 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_X448, '8',
+            "-8          Use X448 for key exchange\n",
+            "-8          鍵交換に X448 を使用する\n"
+            )
+    },
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-        "-9          証明書の読み込みに hash dir 機能を使用する\n"
-        "            <wolfSSL home>/certs フォルダーからロードします\n"
-        "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である必要があります\n"
-        "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
-        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_HASH_DIR, '9',
+            "-9          Use hash dir look up for certificate loading\n"
+            "            loading from <wolfSSL home>/certs folder\n"
+            "            files in the folder would have the form \"hash.N\" "
+                                                                "file name\n"
+            "            e.g symbolic link to the file at certs folder\n"
+            "            ln -s ca-cert.pem  "
+                        "`openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+
+            "-9          証明書の読み込みに hash dir 機能を使用する\n"
+            "            <wolfSSL home>/certs フォルダーからロードします\n"
+            "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である"
+                                                            "必要があります\n"
+            "            以下の例ではca-cert.pemにシンボリックリンクを"
+                                                                "設定します\n"
+            "            ln -s ca-cert.pem  "
+                        "`openssl x509 -in ca-cert.pem -hash -noout`.0\n"
+            )
+    },
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
-        "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
-                                                                      /* 68 */
-#endif
-#ifndef WOLFSSL_TLS13
-        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
-        " SSLv3(0) - TLS1.2(3)\n",
-#else
-        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
-#endif
-#ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
-#endif
-#ifdef WOLFSSL_SRTP
-        "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 71 */
-#endif
-        "\n"
-        "より簡単なwolfSSL TSL クライアントの例については"
-                                         "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
-        NULL,
+        {
+            OPTMSG(
+            OPTION_TYPE_WOLFSENTRY_CONFIG_FILE, '--wolfsentry-config',
+            "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
+            "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n"
+            )
     },
 #endif
+#ifndef WOLFSSL_TLS13
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER, '7',
+            "-7          Set minimum downgrade protocol version [0-3] "
+            " SSLv3(0) - TLS1.2(3)\n",
+            "-7          最小ダウングレード可能なプロトコルバージョン"
+                                                        "を設定します [0-3] "
+            " SSLv3(0) - TLS1.2(3)\n"
+            )
 
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER, '7',
+            "-7          Set minimum downgrade protocol version [0-4] "
+           " SSLv3(0) - TLS1.3(4)\n",
+            "-7          最小ダウングレード可能なプロトコルバージョン"
+                                                        "を設定します [0-4] "
+            " SSLv3(0) - TLS1.3(4)\n"
+            )
+    },
+#endif
+#ifdef HAVE_PQC
+        {
+            OPTMSG(
+            OPTION_TYPE_PQC, '--pqc',
+            "--pqc <alg> Key Share with specified post-quantum algorithm only "
+                        "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
+            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, "
+                        "KYBER_90S_LEVEL5,\n"
+            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, "
+                        "NTRU_HRSS_LEVEL3,\n"
+            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, "
+                        "P256_NTRU_HPS_LEVEL1,\n"
+            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, "
+                        "P384_NTRU_HRSS_LEVEL3,\n"
+            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, "
+                        "P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5,"
+                        " P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
+            "            P521_KYBER_90S_LEVEL5]\n", 
+
+            "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ "
+                        "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
+            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, "
+                        "KYBER_90S_LEVEL5,\n"
+            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, "
+                        "NTRU_HRSS_LEVEL3,\n"
+            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, "
+                        "P256_NTRU_HPS_LEVEL1,\n"
+            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, "
+                        "P384_NTRU_HRSS_LEVEL3,\n"
+            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, "
+                        "P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, "
+                        "P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
+            "            P521_KYBER_90S_LEVEL5]\n"
+            )
+    },
+#endif
+#ifdef WOLFSSL_SRTP
+        {
+            OPTMSG(
+            OPTION_TYPE_SRTP, '--srtp',
+            "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",
+            "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n"
+            )
+    },
+#endif
+        {
+            OPTMSG(
+            MSG_URL_FOR_SIMPLER_EXAMPLES, '*',
+            "\n"
+            "For simpler wolfSSL TLS client examples, visit\n"
+            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
+            "\n"
+            "より簡単なwolfSSL TSL クライアントの例については"
+                                            "下記にアクセスしてください\n"
+            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n"
+            )
+
+    }
 };
+#define CLIENT_OPTIONS_SIZE (sizeof(client_options)/sizeof(struct OptionsMap))
 
 static void showPeerPEM(WOLFSSL* ssl)
 {
@@ -1580,193 +2002,25 @@ static void showPeerPEM(WOLFSSL* ssl)
 }
 
 
-static void Usage(void)
-{
-    int msgid = 0;
-    const char** msg = client_usage_msg[lng_index];
+static void Usage(void){
+    int msgid;
 
-    printf("%s%s%s", "wolfSSL client ",    LIBWOLFSSL_VERSION_STRING,
-           msg[msgid]);
+    printf("%s%s", "wolfSSL client ",    LIBWOLFSSL_VERSION_STRING );
 
-    /* print out so that scripts can know what the max supported key size is */
-    printf("%s", msg[++msgid]);
-#ifdef NO_RSA
-    printf("%s", msg[++msgid]);
-#elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
-    #ifndef WOLFSSL_SP_NO_3072
-        printf("%s", msg[++msgid]);
-    #elif !defined(WOLFSSL_SP_NO_2048)
-        printf("%s", msg[++msgid]);
-    #else
-        printf("%s", msg[++msgid]);
-    #endif
-#elif defined(USE_FAST_MATH)
-    #if !defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_SP_MATH)
-    printf("%d\n", FP_MAX_BITS/2);
-    #else
-    printf("%d\n", SP_INT_MAX_BITS/2);
-    #endif
-#else
-    /* normal math has unlimited max size */
-    printf("%s", msg[++msgid]);
+    switch (lng_index){
+        case 0:     /* English */
+            for (msgid = 0; msgid < (int)CLIENT_OPTIONS_SIZE; msgid++){
+                printf("%s", client_options[msgid].descEN); 
+            }
+            break;
+#ifndef NO_MULTIBYTE_PRINT
+        case 1:     /* Japanese */
+            for (msgid = 0; msgid < (int)CLIENT_OPTIONS_SIZE; msgid++){
+                printf("%s", client_options[msgid].descJP);
+            }
+            break;   
 #endif
-
-    printf("%s", msg[++msgid]); /* ? */
-    printf("%s %s\n", msg[++msgid], wolfSSLIP);   /* -h */
-    printf("%s %d\n", msg[++msgid], wolfSSLPort); /* -p */
-#ifndef WOLFSSL_TLS13
-    printf("%s %d\n", msg[++msgid], CLIENT_DEFAULT_VERSION); /* -v */
-    printf("%s", msg[++msgid]); /* -V */
-#else
-    printf("%s %d\n", msg[++msgid], CLIENT_DEFAULT_VERSION); /* -v */
-    printf("%s", msg[++msgid]);                              /* -V */
-#endif
-    printf("%s", msg[++msgid]); /* -l */
-#ifndef NO_CERTS
-    printf("%s %s\n", msg[++msgid], cliCertFile); /* -c */
-    printf("%s %s\n", msg[++msgid], cliKeyFile);  /* -k */
-    printf("%s %s\n", msg[++msgid], caCertFile);  /* -A */
-#endif
-#ifndef NO_DH
-    printf("%s %d\n", msg[++msgid], DEFAULT_MIN_DHKEY_BITS);
-#endif
-    printf("%s", msg[++msgid]); /* -b */
-#ifdef HAVE_ALPN
-    printf("%s", msg[++msgid]); /* -L <str> */
-#endif
-    printf("%s", msg[++msgid]); /* -B <num> */
-#ifndef NO_PSK
-    printf("%s", msg[++msgid]); /* -s */
-#endif
-    printf("%s", msg[++msgid]); /* -d */
-    printf("%s", msg[++msgid]); /* -D */
-    printf("%s", msg[++msgid]); /* -e */
-    printf("%s", msg[++msgid]); /* -g */
-    printf("%s", msg[++msgid]); /* -u */
-#ifdef WOLFSSL_SCTP
-    printf("%s", msg[++msgid]); /* -G */
-#endif
-#ifndef NO_CERTS
-    printf("%s", msg[++msgid]); /* -m */
-#endif
-    printf("%s", msg[++msgid]); /* -N */
-#ifndef NO_SESSION_CACHE
-    printf("%s", msg[++msgid]); /* -r */
-#endif
-    printf("%s", msg[++msgid]); /* -w */
-    printf("%s", msg[++msgid]); /* -M */
-#ifdef HAVE_SECURE_RENEGOTIATION
-    printf("%s", msg[++msgid]); /* -R */
-    printf("%s", msg[++msgid]); /* -i */
-#endif
-    printf("%s", msg[++msgid]); /* -f */
-#ifndef NO_CERTS
-    printf("%s", msg[++msgid]); /* -x */
-#endif
-    printf("%s", msg[++msgid]); /* -X */
-    printf("%s", msg[++msgid]); /* -j */
-#ifdef SHOW_SIZES
-    printf("%s", msg[++msgid]); /* -z */
-#endif
-#ifdef HAVE_SNI
-    printf("%s", msg[++msgid]); /* -S */
-#endif
-#ifdef HAVE_MAX_FRAGMENT
-    printf("%s", msg[++msgid]); /* -F */
-#endif
-#ifdef HAVE_TRUNCATED_HMAC
-    printf("%s", msg[++msgid]); /* -T */
-#endif
-#ifdef HAVE_EXTENDED_MASTER
-    printf("%s", msg[++msgid]); /* -n */
-#endif
-#ifdef HAVE_OCSP
-    printf("%s", msg[++msgid]); /* -o */
-    printf("%s", msg[++msgid]); /* -O */
-#endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    printf("%s", msg[++msgid]); /* -W */
-    printf("%s", msg[++msgid]); /* note for -W */
-#endif
-#if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-    printf("%s", msg[++msgid]); /* -U */
-#endif
-#ifdef HAVE_PK_CALLBACKS
-    printf("%s", msg[++msgid]); /* -P */
-#endif
-#ifdef HAVE_ANON
-    printf("%s", msg[++msgid]); /* -a */
-#endif
-#ifdef HAVE_CRL
-    printf("%s", msg[++msgid]); /* -C */
-#endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-    printf("%s", msg[++msgid]); /* -E */
-#endif
-#ifdef HAVE_WNR
-    printf("%s %s\n", msg[++msgid], wnrConfig); /* -q */
-#endif
-    printf("%s", msg[++msgid]);                /* -H  */
-    printf("%s", msg[++msgid]);                /* more -H options  */
-#ifdef WOLFSSL_TLS13
-    printf("%s", msg[++msgid]); /* -J */
-    printf("%s", msg[++msgid]); /* -K */
-    printf("%s", msg[++msgid]); /* -I */
-#ifndef NO_DH
-    printf("%s", msg[++msgid]); /* -y */
-#endif
-#ifdef HAVE_ECC
-    printf("%s", msg[++msgid]); /* -Y */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef HAVE_CURVE25519
-    printf("%s", msg[++msgid]); /* -t */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    printf("%s", msg[++msgid]); /* -Q */
-#endif
-#ifdef WOLFSSL_EARLY_DATA
-    printf("%s", msg[++msgid]); /* -0 */
-#endif
-#ifdef WOLFSSL_MULTICAST
-    printf("%s", msg[++msgid]); /* -3 */
-#endif
-    printf("%s", msg[++msgid]);  /* -1 */
-#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-    printf("%s", msg[++msgid]);  /* -2 */
-#endif
-#ifdef HAVE_SECURE_RENEGOTIATION
-    printf("%s", msg[++msgid]);  /* -4 */
-#endif
-#ifdef HAVE_TRUSTED_CA
-    printf("%s", msg[++msgid]);  /* -5 */
-#endif
-    printf("%s", msg[++msgid]);  /* -6 */
-#ifdef HAVE_CURVE448
-    printf("%s", msg[++msgid]); /* -8 */
-#endif
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    printf("%s", msg[++msgid]); /* -9 */
-#endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSENTRY_NO_JSON)
-    printf("%s", msg[++msgid]); /* --wolfsentry-config */
-#endif
-    printf("%s", msg[++msgid]); /* -7 */
-    printf("%s", msg[++msgid]); /* Examples repo link */
-#ifdef HAVE_PQC
-    printf("%s", msg[++msgid]);     /* --pqc */
-    printf("%s", msg[++msgid]);     /* --pqc options */
-    printf("%s", msg[++msgid]);     /* more --pqc options */
-    printf("%s", msg[++msgid]);     /* more --pqc options */
-#endif
-#ifdef WOLFSSL_SRTP
-    printf("%s", msg[++msgid]);     /* dtls-srtp */
-#endif
+    }
 }
 
 #ifdef WOLFSSL_SRTP
