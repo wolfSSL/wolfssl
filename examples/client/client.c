@@ -1264,7 +1264,7 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_HOST, 'h',
             "-h <host>   Host to connect to, default ",
-            "-h <host>   接続先ホスト,規定値 "
+            "-h <host>   接続先ホスト,既定値 "
             )
     },
         {   
@@ -1293,10 +1293,10 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_SET_VERSION, 'v',
             "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default "
-                                                STR(CLIENT_DEFAULT_VERSION)"\n", 
+                                                STR(CLIENT_DEFAULT_VERSION) "\n", 
             "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
                                                               " 既定値 "
-                                                STR(CLIENT_DEFAULT_VERSION)"\n" 
+                                                STR(CLIENT_DEFAULT_VERSION) "\n" 
             )
     },
         {
@@ -1313,10 +1313,10 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_SET_VERSION, 'v',
             "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default "
-                                            STR(CLIENT_DEFAULT_VERSION)"\n", 
+                                            STR(CLIENT_DEFAULT_VERSION) "\n", 
             "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
                                                     " 既定値 "
-                                            STR(CLIENT_DEFAULT_VERSION)"\n"
+                                            STR(CLIENT_DEFAULT_VERSION) "\n"
             )
     },
         {   
@@ -1342,24 +1342,24 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_CERT_FILE, 'c',
-            "-c <file>   Certificate file,           default "cliCertFile"\n",
-            "-c <file>   証明書ファイル,  既定値 "cliCertFile"\n"
+            "-c <file>   Certificate file,           default " cliCertFile "\n",
+            "-c <file>   証明書ファイル,  既定値 " cliCertFile "\n"
             )
     },
 
         {   
             OPTMSG(
             OPTION_TYPE_KEY_FILE,'k',
-            "-k <file>   Key file,                   default "cliKeyFile"\n",
-            "-k <file>   鍵ファイル,      既定値 "cliKeyFile"\n"
+            "-k <file>   Key file,                   default " cliKeyFile "\n",
+            "-k <file>   鍵ファイル,      既定値 " cliKeyFile "\n"
             )
 
     },
         {   
             OPTMSG(
            OPTION_TYPE_CA_FILE, 'A',
-           "-A <file>   Certificate Authority file, default "caCertFile"\n",
-           "-A <file>   認証局ファイル,  既定値 "caCertFile"\n"
+           "-A <file>   Certificate Authority file, default " caCertFile "\n",
+           "-A <file>   認証局ファイル,  既定値 " caCertFile "\n"
             )
     },
 #endif
@@ -1368,9 +1368,9 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_MIN_DH, 'Z',
             "-Z <num>    Minimum DH key bits,        default "
-                                                STR(DEFAULT_MIN_DHKEY_BITS)"\n",
+                                                STR(DEFAULT_MIN_DHKEY_BITS) "\n",
             "-Z <num>    最小 DH 鍵 ビット, 既定値 "
-                                                STR(DEFAULT_MIN_DHKEY_BITS)"\n"
+                                                STR(DEFAULT_MIN_DHKEY_BITS) "\n"
             )
     },
 #endif 
@@ -1697,8 +1697,8 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_WNR_CONFIG_FILE, 'q',
-            "-q <file>   Whitewood config file,      defaults "wnrConfig,
-            "-q <file>   Whitewood コンフィグファイル,      既定値 "wnrConfig
+            "-q <file>   Whitewood config file,      defaults " wnrConfig "\n",
+            "-q <file>   Whitewood コンフィグファイル,      既定値 " wnrConfig "\n"
             )
     },
 #endif
@@ -1819,7 +1819,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_USE_RESUMPTION, '4',
-            "-4          Use resumption for renegotiation\n"
+            "-4          Use resumption for renegotiation\n",
             "-4          再交渉に再開を使用\n"
             )
     },
