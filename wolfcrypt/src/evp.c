@@ -4864,8 +4864,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
-            #ifndef WOLFSSL_NO_SHAKE256
+            #ifndef WOLFSSL_NO_SHAKE128
                 case WC_HASH_TYPE_SHAKE128:
+            #endif
+            #ifndef WOLFSSL_NO_SHAKE256
                 case WC_HASH_TYPE_SHAKE256:
             #endif
                 default:
@@ -5389,8 +5391,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
-            #ifndef WOLFSSL_NO_SHAKE256
+            #ifndef WOLFSSL_NO_SHAKE128
                 case WC_HASH_TYPE_SHAKE128:
+            #endif
+            #ifndef WOLFSSL_NO_SHAKE256
                 case WC_HASH_TYPE_SHAKE256:
             #endif
                 default:
@@ -7248,8 +7252,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #ifndef WOLFSSL_NO_SHAKE256
+        #ifndef WOLFSSL_NO_SHAKE128
             case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
             case WC_HASH_TYPE_SHAKE256:
         #endif
             default:
@@ -7359,8 +7365,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #ifndef WOLFSSL_NO_SHAKE256
+        #ifndef WOLFSSL_NO_SHAKE128
             case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
             case WC_HASH_TYPE_SHAKE256:
         #endif
             default:

@@ -2605,6 +2605,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3_SMALL"
 fi
 
+# SHAKE128
+AC_ARG_ENABLE([shake128],
+    [AS_HELP_STRING([--enable-shake128],[Enable wolfSSL SHAKE128 support (default: disabled)])],
+    [ ENABLED_SHAKE128=$enableval ],
+    [ ENABLED_SHAKE128=no ]
+    )
+
 # SHAKE256
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
@@ -4009,6 +4016,10 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_WOLFSSH" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ssh" != "no")],
             [enable_ssh="yes"])
 
+        # Shake128 is a SHA-3 algorithm not in our FIPS algorithm list
+        AS_IF([test "$ENABLED_SHAKE128" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake128" != "yes")],
+            [ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
+
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AS_IF([test "$ENABLED_SHAKE256" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake256" != "yes")],
             [ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
@@ -4162,6 +4173,21 @@ AS_CASE([$SELFTEST_VERSION],
 if test "$ENABLED_SHA3" != "no" && test "$ENABLED_32BIT" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
+fi
+
+# Set SHAKE128 flags
+# FIPS does not support SHAKE 128
+AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE128="no"])
+
+if test "$ENABLED_SHAKE128" != "no" && test "$ENABLED_32BIT" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE128"
+    if test "$ENABLED_SHA3" = "no"
+    then
+        AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
+    fi
+else
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"
 fi
 
 # Set SHAKE256 flags
@@ -8361,6 +8387,7 @@ echo "   * SHA-224:                    $ENABLED_SHA224"
 echo "   * SHA-384:                    $ENABLED_SHA384"
 echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * SHA3:                       $ENABLED_SHA3"
+echo "   * SHAKE128:                   $ENABLED_SHAKE128"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
