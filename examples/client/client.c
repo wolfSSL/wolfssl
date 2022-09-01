@@ -1110,25 +1110,25 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  5. add the same message in Japanese                                   */
 
 
-#define WOLFSSL_IP "127.0.0.1"   
+#define WOLFSSL_IP "127.0.0.1"
 #define WOLFSSL_PORT "11111"
 #define STR2(s) #s
-#define STR(s) STR2(s)  /* convert what defined as a number into string*/ 
+#define STR(s) STR2(s)  /* convert what defined as a number into string*/
 #define NOT_OPTION '*'
 
-#ifndef NO_MULTIBYTE_PRINT 
-#define OPTMSG(t, s, eng, jp)  t, s, eng, jp 
-#else 
-#define OPTMSG(t, s, eng, jp)  t, s, eng, NULL 
+#ifndef NO_MULTIBYTE_PRINT
+#define OPTMSG(t, s, eng, jp)  t, s, eng, jp
+#else
+#define OPTMSG(t, s, eng, jp)  t, s, eng, NULL
 #endif
 
 struct OptionsMap{
-    byte  type;     
+    byte  type;
     byte selector;
     const char* descEN;
     const char* descJP;
 };
-enum option_type {  
+enum option_type {
     MSG_FIRST_NOTE,
     MSG_MAX_RSA,
     OPTION_TYPE_HELP,
@@ -1198,105 +1198,117 @@ enum option_type {
     OPTION_TYPE_PQC,
     OPTION_TYPE_SRTP,
     MSG_URL_FOR_SIMPLER_EXAMPLES
-}; 
-   
+};
 
-const struct OptionsMap client_options[] = { 
-        {   
-            OPTMSG( 
-            MSG_FIRST_NOTE, NOT_OPTION,  
+
+const struct OptionsMap client_options[] = {
+        {
+            OPTMSG(
+            MSG_FIRST_NOTE, NOT_OPTION,
             " NOTE: All files relative to wolfSSL home dir\n",
             " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの"
                                                                 "相対です。\n"
             )
     },
-        {   
+        {
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "Max RSA key size in bits for build is set at : ",
             "RSAの最大ビットは次のように設定されております: "
             )
     },
-        {   
-            
-#ifdef NO_RSA   
+        {
+
+#ifdef NO_RSA
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "RSA not supported\n",
             "RSAはサポートされていません。\n"
-            ) 
-#elif defined(WOLFSSL_SP_MATH) 
+            )
+#elif defined(WOLFSSL_SP_MATH)
 #ifdef WOLFSSL_SP_4096
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "4096\n",
-            "4096\n"         
-            )       
+            "4096\n"
+            )
 #elif !defined(WOLFSSL_SP_NO_3072)
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "3072\n",
             "3072\n"
-            )                                       
+            )
 #elif !defined(WOLFSSL_SP_NO_2048)
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "2048\n",
-            "2048\n"         
-            )                                   
+            "2048\n"
+            )
 #else
             "0\n",
-            "0\n"                                             
+            "0\n"
 #endif
 #elif defined(USE_FAST_MATH)
-#else       
+#else
             OPTMSG(
             MSG_MAX_RSA, NOT_OPTION,
             "INFINITE\n",
-            "無限\n"                 
-            )                          
-  
+            "無限\n"
+            )
+
 #endif
 
     },
-        {   
+        {
+
+#ifndef NO_MULTIBYTE_PRINT
             OPTMSG(
             OPTION_TYPE_HELP, '?',
              "-? <num>    Help, print this usage\n"
-#ifndef NO_MULTIBYTE_PRINT
             "            0: English, 1: Japanese\n"
-#else 
-            "            0: English\n"
-#endif
             "--help      Help, in English\n",
 
             "-? <num>    ヘルプ, 使い方を表示\n"
             "            0: 英語、 1: 日本語\n"
             "--ヘルプ    日本語で使い方を表示\n"
             )
+#else
+        OPTMSG(
+            OPTION_TYPE_HELP, '?',
+             "-? <num>    Help, print this usage\n"
+            "            0: English\n"
+            "--help      Help, in English\n",
+
+            "-? <num>    ヘルプ, 使い方を表示\n"
+            "            0: 英語、 1: 日本語\n"
+            "--ヘルプ    日本語で使い方を表示\n"
+            )
+#endif
+
+
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_HOST, 'h',
             "-h <host>   Host to connect to, default ",
             "-h <host>   接続先ホスト,既定値 "
             )
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_HOST, 'h',
-            WOLFSSL_IP"\n",  
+            WOLFSSL_IP"\n",
             WOLFSSL_IP"\n"
             )
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_PORT, 'p',
             "-p <num>    Port to connect on, not 0, default ",
             "-p <num>    接続先ポート, 0は無効, 既定値 "
             )
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_PORT, 'p',
             WOLFSSL_PORT"\n",
@@ -1308,10 +1320,10 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_SET_VERSION, 'v',
             "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default "
-                                                STR(CLIENT_DEFAULT_VERSION) "\n", 
+                                                STR(CLIENT_DEFAULT_VERSION) "\n",
             "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
                                                               " 既定値 "
-                                                STR(CLIENT_DEFAULT_VERSION) "\n" 
+                                                STR(CLIENT_DEFAULT_VERSION) "\n"
             )
     },
         {
@@ -1320,7 +1332,7 @@ const struct OptionsMap client_options[] = {
             "-V          Prints valid ssl version numbers"
                                              ", SSLv3(0) - TLS1.2(3)\n",
              "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
-                                              " TLS1.2(3)\n"   
+                                              " TLS1.2(3)\n"
             )
     },
 #else
@@ -1328,27 +1340,27 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_SET_VERSION, 'v',
             "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default "
-                                            STR(CLIENT_DEFAULT_VERSION) "\n", 
+                                            STR(CLIENT_DEFAULT_VERSION) "\n",
             "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
                                                     " 既定値 "
                                             STR(CLIENT_DEFAULT_VERSION) "\n"
             )
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_SHOW_VERSION, 'V',
             "-V          Prints valid ssl version numbers,"
-                                                " SSLv3(0) - TLS1.3(4)\n", 
+                                                " SSLv3(0) - TLS1.3(4)\n",
             "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
                                                  " TLS1.3(4)\n"
             )
-    },            
-#endif      
+    },
+#endif
 
         {
             OPTMSG(
             OPTION_TYPE_CIPHER_SUITE, 'l',
-            "-l <str>    Cipher suite list (: delimited)\n", 
+            "-l <str>    Cipher suite list (: delimited)\n",
             "-l <str>    暗号スイートリスト (区切り文字 :)\n"
             )
     },
@@ -1362,7 +1374,7 @@ const struct OptionsMap client_options[] = {
             )
     },
 
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_KEY_FILE,'k',
             "-k <file>   Key file,                   default " cliKeyFile "\n",
@@ -1370,7 +1382,7 @@ const struct OptionsMap client_options[] = {
             )
 
     },
-        {   
+        {
             OPTMSG(
            OPTION_TYPE_CA_FILE, 'A',
            "-A <file>   Certificate Authority file, default " caCertFile "\n",
@@ -1388,7 +1400,7 @@ const struct OptionsMap client_options[] = {
                                                 STR(DEFAULT_MIN_DHKEY_BITS) "\n"
             )
     },
-#endif 
+#endif
         {
             OPTMSG(
             OPTION_TYPE_BENCHMARK, 'b',
@@ -1397,7 +1409,7 @@ const struct OptionsMap client_options[] = {
             )
     },
 #ifdef HAVE_ALPN
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_ALPN, 'L',
              "-L <str>    Application-Layer Protocol"
@@ -1439,7 +1451,7 @@ const struct OptionsMap client_options[] = {
             "-D          日付エラー用コールバック例の上書きを行う\n"
             )
     },
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_SHOW_CIPHERS, 'e',
             "-e          List Every cipher suite available, \n",
@@ -1459,7 +1471,7 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_UDP_DTLS, 'u',
             "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default)\n", 
+            " (default)\n",
             "-u          UDP DTLSを使用する。\n"
             "           -v 2 を追加指定するとDTLSv1, "
                     "-v 3 を追加指定すると DTLSv1.2 (既定値)\n"
@@ -1472,7 +1484,7 @@ const struct OptionsMap client_options[] = {
             OPTMSG(
             OPTION_TYPE_UDP_DTLS, 'u',
             "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default), -v 4 for DTLSv1.3\n",   
+            " (default), -v 4 for DTLSv1.3\n",
             "-u          UDP DTLSを使用する。\n"
             "           -v 2 を追加指定するとDTLSv1, "
                     "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
@@ -1513,7 +1525,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_RESUME_SESSION, 'r',
-            "-r          Resume session\n", 
+            "-r          Resume session\n",
             "-r          セッションを継続する\n"
             )
     },
@@ -1550,7 +1562,7 @@ const struct OptionsMap client_options[] = {
         "            string 'scr-app-data' is passed in as the value and\n"
         "            Non-blocking sockets are enabled ('-N') then wolfSSL\n"
         "            sends a test message during the secure renegotiation.\n"
-        "            The string parameter is optional.\n", 
+        "            The string parameter is optional.\n",
         "-i <str>    クライアント主導のネゴシエーションを強制する\n"
             )
 
@@ -1559,7 +1571,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_FEWER_PACKETS, 'f',
-            "-f          Fewer packets/group messages\n", 
+            "-f          Fewer packets/group messages\n",
             "-f          より少ないパケット/グループメッセージを使用する\n"
             )
     },
@@ -1582,7 +1594,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_USE_VERIFY_CALLBACK, 'j',
-            "-j          Use verify callback override\n", 
+            "-j          Use verify callback override\n",
             "-j          コールバック・オーバーライドの検証を使用する\n"
             )
     },
@@ -1599,7 +1611,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_HOSTNAME_INDICATION, 'S',
-            "-S <str>    Use Host Name Indication\n", 
+            "-S <str>    Use Host Name Indication\n",
             "-S <str>    ホスト名表示を使用する\n"
             )
     },
@@ -1618,13 +1630,13 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_TRUNCATED_HMAC, 'T',
-            "-T          Use Truncated HMAC\n", 
+            "-T          Use Truncated HMAC\n",
             "-T          Truncated HMACを使用する\n"
             )
     },
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-        {   
+        {
             OPTMSG(
             OPTION_TYPE_DISABLE_MASTER_SECRET, 'n',
             "-n          Disable Extended Master Secret\n",
@@ -1636,7 +1648,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_USE_OCSP, 'o',
-            "-o          Perform OCSP lookup on peer certificate\n", 
+            "-o          Perform OCSP lookup on peer certificate\n",
             "-o          OCSPルックアップをピア証明書で実施する\n"
             )
     },
@@ -1646,7 +1658,7 @@ const struct OptionsMap client_options[] = {
             "-O <url>    Perform OCSP lookup using <url> as responder\n",
             "-O <url>    OCSPルックアップを、<url>を使用し"
                                    "応答者として実施する\n"
-            )  
+            )
     },
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
@@ -1654,13 +1666,13 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_OCSP_STAPLING, 'W',
-            "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n"  
+            "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n"
             "            With 'm' at end indicates MUST staple\n",
             "-W <num>    OCSP Staplingを使用する"
-                                            " (1 v1, 2 v2, 3 v2 multi)\n" 
-            "            'm' を最後に指定すると必ず staple を使用する\n"  
+                                            " (1 v1, 2 v2, 3 v2 multi)\n"
+            "            'm' を最後に指定すると必ず staple を使用する\n"
             )
-    },      
+    },
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
         {
@@ -1685,7 +1697,7 @@ const struct OptionsMap client_options[] = {
         {
             OPTMSG(
             OPTION_TYPE_ANON_CLIENT, 'a',
-            "-a          Anonymous client\n", 
+            "-a          Anonymous client\n",
             "-a          匿名クライアント\n"
             )
     },
@@ -1726,7 +1738,7 @@ const struct OptionsMap client_options[] = {
             "-H <arg>    内部テスト"
             " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
             "                            loadSSL, disallowETM]\n"
-            )      
+            )
     },
 #ifdef WOLFSSL_TLS13
         {
@@ -1777,7 +1789,7 @@ const struct OptionsMap client_options[] = {
             "-t          Use X25519 for key exchange\n",
             "-t          X25519を鍵交換に使用する\n"
             )
-    },  
+    },
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         {
@@ -1795,7 +1807,7 @@ const struct OptionsMap client_options[] = {
             "-0          Early data sent to server (0-RTT handshake)\n",
             "-0          Early data をサーバーへ送信する"
                             "（0-RTTハンドシェイク）\n"
-            )   
+            )
     },
 #endif
 #ifdef WOLFSSL_MULTICAST
@@ -1808,17 +1820,23 @@ const struct OptionsMap client_options[] = {
     },
 #endif
         {
+#ifndef NO_MULTIBYTE_PRINT
             OPTMSG(
             OPTION_TYPE_SET_DISPLAY_LANG, '1',
             "-1 <num>    Display a result by specified language.\n"
-#ifndef NO_MULTIBYTE_PRINT
                                "            0: English, 1: Japanese\n",
-#else 
-                                "            0: English\n",
-#endif
             "-1 <num>    指定された言語で結果を表示します。\n"
                                    "            0: 英語、 1: 日本語\n"
             )
+#else
+            OPTMSG(
+            OPTION_TYPE_SET_DISPLAY_LANG, '1',
+            "-1 <num>    Display a result by specified language.\n"
+                               "            0: English\n",
+            "-1 <num>    指定された言語で結果を表示します。\n"
+                                   "            0: 英語、 1: 日本語\n"
+            )
+#endif
     },
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
@@ -1845,7 +1863,7 @@ const struct OptionsMap client_options[] = {
             OPTION_TYPE_TRUSTED_CA_KEY_INDICATION, '5',
             "-5          Use Trusted CA Key Indication\n",
             "-5          信頼できる認証局の鍵表示を使用する\n"
-            ) 
+            )
     },
 #endif
         {
@@ -1926,7 +1944,7 @@ const struct OptionsMap client_options[] = {
 #ifdef HAVE_PQC
         {
             OPTMSG(
-            OPTION_TYPE_PQC, '--pqc',
+            OPTION_TYPE_PQC, '*',  /* --pqc */
             "--pqc <alg> Key Share with specified post-quantum algorithm only "
                         "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
             "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, "
@@ -1941,7 +1959,7 @@ const struct OptionsMap client_options[] = {
                         "P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
             "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5,"
                         " P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n", 
+            "            P521_KYBER_90S_LEVEL5]\n",
 
             "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ "
                         "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
@@ -1964,7 +1982,7 @@ const struct OptionsMap client_options[] = {
 #ifdef WOLFSSL_SRTP
         {
             OPTMSG(
-            OPTION_TYPE_SRTP, '--srtp',
+            OPTION_TYPE_SRTP, '*',      /* --srtp */
             "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",
             "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n"
             )
@@ -2025,7 +2043,7 @@ static void Usage(void){
     switch (lng_index){
         case 0:     /* English */
             for (msgid = 0; msgid < (int)CLIENT_OPTIONS_SIZE; msgid++){
-                printf("%s", client_options[msgid].descEN); 
+                printf("%s", client_options[msgid].descEN);
             }
             break;
 #ifndef NO_MULTIBYTE_PRINT
@@ -2033,7 +2051,7 @@ static void Usage(void){
             for (msgid = 0; msgid < (int)CLIENT_OPTIONS_SIZE; msgid++){
                 printf("%s", client_options[msgid].descJP);
             }
-            break;   
+            break;
 #endif
     }
 }
