@@ -7071,6 +7071,14 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         #endif /* ! NO_RSA */
         #ifdef HAVE_ECC
             case DYNAMIC_TYPE_ECC:
+            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_ECC)
+                if (((ecc_key*)*pKey)->nb_ctx != NULL) {
+                    XFREE(((ecc_key*)*pKey)->nb_ctx, ((ecc_key*)*pKey)->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_ECC */
                 wc_ecc_free((ecc_key*)*pKey);
                 break;
         #endif /* HAVE_ECC */
@@ -7125,6 +7133,13 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 {
     int ret = BAD_FUNC_ARG;
     int sz = 0;
+#ifdef HAVE_ECC
+    ecc_key* eccKey;
+#endif /* HAVE_ECC */
+#if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_ECC)
+    ecc_nb_ctx_t* nbCtx;
+#endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW && WC_ASYNC_ENABLE_ECC*/
 
     if (ssl == NULL || pKey == NULL) {
         return BAD_FUNC_ARG;
@@ -7204,7 +7219,25 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* ! NO_RSA */
     #ifdef HAVE_ECC
         case DYNAMIC_TYPE_ECC:
-            ret = wc_ecc_init_ex((ecc_key*)*pKey, ssl->heap, ssl->devId);
+            eccKey = (ecc_key*)*pKey;
+            ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
+            if (ret == 0) {
+            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_ECC)
+                nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
+                            eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (nbCtx == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_ecc_set_nonblock(eccKey, nbCtx);
+                    if (ret != 0) {
+                        XFREE(nbCtx, eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                }
+            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_ECC */
+            }
             break;
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519

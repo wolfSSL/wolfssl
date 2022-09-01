@@ -15080,6 +15080,14 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         #endif
         #ifdef HAVE_ECC
             case ECDSAk:
+            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_ECC)
+                if (sigCtx->key.ecc->nb_ctx != NULL) {
+                    XFREE(sigCtx->key.ecc->nb_ctx, sigCtx->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_ECC */
                 wc_ecc_free(sigCtx->key.ecc);
                 XFREE(sigCtx->key.ecc, sigCtx->heap, DYNAMIC_TYPE_ECC);
                 sigCtx->key.ecc = NULL;
@@ -15568,6 +15576,11 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case ECDSAk:
                 {
                     word32 idx = 0;
+            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_ECC)
+                    ecc_nb_ctx_t* nbCtx;
+            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_ECC */
 
                     sigCtx->verify = 0;
                     sigCtx->key.ecc = (ecc_key*)XMALLOC(sizeof(ecc_key),
@@ -15579,6 +15592,21 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                                           sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
+            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_ECC)
+                    nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
+                                sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (nbCtx == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_cs);
+                    }
+                    else {
+                        ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
+                        if (ret != 0) {
+                            goto exit_cs;
+                        }
+                    }
+            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                      WC_ASYNC_ENABLE_ECC */
                     ret = wc_EccPublicKeyDecode(key, &idx, sigCtx->key.ecc,
                                                                          keySz);
                     if (ret < 0) {
