@@ -494,12 +494,12 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
     else if (dtlsCtx->userSet) {
         /* Truncate peer size */
-        if (peerSz > sizeof(lclPeer))
+        if (peerSz > (XSOCKLENT)sizeof(lclPeer))
             peerSz = sizeof(lclPeer);
     }
     else {
         /* Truncate peer size */
-        if (peerSz > dtlsCtx->peer.bufSz)
+        if (peerSz > (XSOCKLENT)dtlsCtx->peer.bufSz)
             peerSz = dtlsCtx->peer.bufSz;
     }
 
