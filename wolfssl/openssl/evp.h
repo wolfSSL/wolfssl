@@ -431,6 +431,9 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     byte*   gcmAuthIn;
     int     gcmAuthInSz;
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    byte*   key;                 /* used in partial Init()s */
+#endif
 #if defined(HAVE_AESGCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 #ifdef HAVE_AESGCM
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
