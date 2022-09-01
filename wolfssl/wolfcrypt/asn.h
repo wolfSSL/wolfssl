@@ -798,7 +798,7 @@ enum
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 1020,             /* id-pe 24 */
     NID_buildingName = 1494,
-
+    NID_distinguishedName = 25,
 
     NID_dnQualifier = 174,             /* 2.5.4.46 */
     NID_commonName = 14,               /* CN Changed to not conflict
