@@ -5615,6 +5615,14 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     }
 #endif /* ALT_ECC_SIZE */
 #endif /* WOLFSSL_ATECC508A */
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+    ret = mp_init(&key->sign_k);
+    if (ret != MP_OKAY) {
+        return MEMORY_E;
+    }
+#endif
 
 #ifdef WOLFSSL_HEAP_TEST
     key->heap = (void*)WOLFSSL_HEAP_TEST;
@@ -6070,33 +6078,14 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
     }
 
     if (err == MP_OKAY) {
-        /* if key->sign_k is NULL then create a buffer for the mp_int
-         * if not NULL then assume the user correctly set deterministic flag and
-         *    that the key->sign_k holds a previously malloc'd mp_int buffer */
-        if (key->sign_k == NULL) {
-            key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
-                                                            DYNAMIC_TYPE_ECC);
-        }
-
-        if (key->sign_k != NULL) {
-            /* currently limiting to SHA256 for auto create */
-            if (mp_init(key->sign_k) != MP_OKAY ||
-                wc_ecc_gen_deterministic_k(in, inlen,
-                        WC_HASH_TYPE_SHA256, &key->k, key->sign_k,
-                        curve->order, key->heap) != 0) {
-                mp_free(key->sign_k);
-                XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
-                key->sign_k = NULL;
-                err = ECC_PRIV_KEY_E;
-            }
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            else {
-                mp_memzero_add("deterministic_sign_helper sign_k", key->sign_k);
-            }
-        #endif
+        key->sign_k_set = 0;
+        /* currently limiting to SHA256 for auto create */
+        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_SHA256, &key->k,
+                &key->sign_k, curve->order, key->heap) != 0) {
+            err = ECC_PRIV_KEY_E;
         }
         else {
-            err = MEMORY_E;
+            key->sign_k_set = 1;
         }
     }
 
@@ -6172,21 +6161,19 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-        if (key->sign_k != NULL) {
+        if (key->sign_k_set) {
             if (loop_check > 1) {
                err = RNG_FAILURE_E;
                break;
             }
 
             /* use provided sign_k */
-            err = mp_copy(key->sign_k, &pubkey->k);
+            err = mp_copy(&key->sign_k, &pubkey->k);
             if (err != MP_OKAY) break;
 
             /* free sign_k, so only used once */
-            mp_forcezero(key->sign_k);
-            mp_free(key->sign_k);
-            XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
-            key->sign_k = NULL;
+            mp_forcezero(&key->sign_k);
+            key->sign_k_set = 0;
     #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
             loop_check = 64;
     #endif
@@ -6368,7 +6355,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) \
         || defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-        mp_int* sign_k = key->sign_k;
+        mp_int* sign_k = &key->sign_k;
     #else
         mp_int* sign_k = NULL;
     #endif
@@ -6981,22 +6968,14 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
         return ret;
     }
 
-    if (key->sign_k == NULL) {
-        key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
-                                                            DYNAMIC_TYPE_ECC);
-        if (key->sign_k) {
-            ret = mp_init(key->sign_k);
-        }
-        else {
-            ret = MEMORY_E;
-        }
-    }
-
     if (ret == 0) {
-        ret = mp_read_unsigned_bin(key->sign_k, k, klen);
+        ret = mp_read_unsigned_bin(&key->sign_k, k, klen);
     }
-    if (ret == 0 && mp_cmp(key->sign_k, curve->order) != MP_LT) {
+    if (ret == 0 && mp_cmp(&key->sign_k, curve->order) != MP_LT) {
         ret = MP_VAL;
+    }
+    if (ret == 0) {
+        key->sign_k_set = 1;
     }
 
     wc_ecc_curve_free(curve);
@@ -7044,11 +7023,8 @@ int wc_ecc_free(ecc_key* key)
     }
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
-    if (key->sign_k != NULL) {
-        mp_forcezero(key->sign_k);
-        mp_free(key->sign_k);
-        XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
-    }
+    mp_forcezero(&key->sign_k);
+    mp_free(&key->sign_k);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
