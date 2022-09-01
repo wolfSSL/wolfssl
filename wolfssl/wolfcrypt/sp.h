@@ -329,18 +329,35 @@ WOLFSSL_LOCAL int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 #endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #ifdef WOLFSSL_SP_NONBLOCK
+WOLFSSL_LOCAL int sp_ecc_make_key_256_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng,
+    mp_int* priv, ecc_point* pub, void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx,
+    const mp_int* priv, const ecc_point* pub, byte* out, word32* outLen,
+    void* heap);
 WOLFSSL_LOCAL int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash,
     word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
     mp_int* km, void* heap);
 WOLFSSL_LOCAL int sp_ecc_verify_256_nb(sp_ecc_ctx_t* ctx, const byte* hash,
     word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
     const mp_int* r, const mp_int* sm, int* res, void* heap);
+
+WOLFSSL_LOCAL int sp_ecc_make_key_384_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng,
+    mp_int* priv, ecc_point* pub, void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx,
+    const mp_int* priv, const ecc_point* pub, byte* out, word32* outLen,
+    void* heap);
 WOLFSSL_LOCAL int sp_ecc_sign_384_nb(sp_ecc_ctx_t* ctx, const byte* hash,
     word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
     mp_int* km, void* heap);
 WOLFSSL_LOCAL int sp_ecc_verify_384_nb(sp_ecc_ctx_t* ctx, const byte* hash,
     word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
     const mp_int* r, const mp_int* sm, int* res, void* heap);
+
+WOLFSSL_LOCAL int sp_ecc_make_key_521_nb(sp_ecc_ctx_t* sp_ctx, WC_RNG* rng,
+    mp_int* priv, ecc_point* pub, void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx,
+    const mp_int* priv, const ecc_point* pub, byte* out, word32* outLen,
+    void* heap);
 WOLFSSL_LOCAL int sp_ecc_sign_521_nb(sp_ecc_ctx_t* ctx, const byte* hash,
     word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
     mp_int* km, void* heap);
