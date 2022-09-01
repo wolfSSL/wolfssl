@@ -12858,20 +12858,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             goto exit_ppc;
     }
     else
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_NONBLOCK_OCSP
     if (ssl->error == OCSP_WANT_READ) {
         /* Re-entry after non-blocking OCSP */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* if async operationg not pending, reset error code */
+        if (ret == WC_NOT_PENDING_E)
+            ret = 0;
+    #endif
     }
     else
-#endif
+#endif /* WOLFSSL_NONBLOCK_OCSP */
 #elif defined(WOLFSSL_SMALL_STACK)
     args = (ProcPeerCertArgs*)XMALLOC(
         sizeof(ProcPeerCertArgs), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (args == NULL) {
         ERROR_OUT(MEMORY_E, exit_ppc);
     }
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
     {
         /* Reset state */
         ret = 0;
