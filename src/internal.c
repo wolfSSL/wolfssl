@@ -33473,7 +33473,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         et = (ExternalTicket*)ssl->session->ticket;
         it = (InternalTicket*)et->enc_ticket;
 
-        XMEMSET(et, 0, sizeof(*et));
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ssl->error != WC_PENDING_E)
+    #endif
+        {
+            XMEMSET(et, 0, sizeof(*et));
+        }
 
         /* build internal */
         it->pv.major = ssl->version.major;

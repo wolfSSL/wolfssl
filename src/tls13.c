@@ -9127,8 +9127,13 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         ssl->session->ticketNonce.len = DEF_TICKET_NONCE_SZ;
         ssl->session->ticketNonce.data[0] = 0;
     }
-    else
-        ssl->session->ticketNonce.data[0]++;
+    else 
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ssl->error != WC_PENDING_E)
+    #endif
+    {
+            ssl->session->ticketNonce.data[0]++;
+    }
 
     if (!ssl->options.noTicketTls13) {
         if ((ret = CreateTicket(ssl)) != 0)
