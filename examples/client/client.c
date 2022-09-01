@@ -1216,7 +1216,8 @@ const struct OptionsMap client_options[] = {
             "RSAの最大ビットは次のように設定されております: "
             )
     },
-        {   OPTMSG(
+        {   
+            OPTMSG(
             MSG_MAX_RSA, '*', 
 #ifdef NO_RSA   
             "RSA not supported\n",
