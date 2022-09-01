@@ -1114,6 +1114,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 #define WOLFSSL_PORT "11111"
 #define STR2(s) #s
 #define STR(s) STR2(s)  /* convert what defined as a number into string*/ 
+#define NOT_OPTION '*'
 
 #ifndef NO_MULTIBYTE_PRINT 
 #define OPTMSG(t, s, eng, jp)  t, s, eng, jp 
@@ -1203,7 +1204,7 @@ enum option_type {
 const struct OptionsMap client_options[] = { 
         {   
             OPTMSG( 
-            MSG_FIRST_NOTE, '*',  
+            MSG_FIRST_NOTE, NOT_OPTION,  
             " NOTE: All files relative to wolfSSL home dir\n",
             " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの"
                                                                 "相対です。\n"
@@ -1211,38 +1212,51 @@ const struct OptionsMap client_options[] = {
     },
         {   
             OPTMSG(
-            MSG_MAX_RSA, '*',
+            MSG_MAX_RSA, NOT_OPTION,
             "Max RSA key size in bits for build is set at : ",
             "RSAの最大ビットは次のように設定されております: "
             )
     },
         {   
-            OPTMSG(
-            MSG_MAX_RSA, '*', 
+            
 #ifdef NO_RSA   
+            OPTMSG(
+            MSG_MAX_RSA, NOT_OPTION,
             "RSA not supported\n",
-            "RSAはサポートされていません。\n" 
+            "RSAはサポートされていません。\n"
+            ) 
 #elif defined(WOLFSSL_SP_MATH) 
 #ifdef WOLFSSL_SP_4096
+            OPTMSG(
+            MSG_MAX_RSA, NOT_OPTION,
             "4096\n",
-            "4096\n"                
+            "4096\n"         
+            )       
 #elif !defined(WOLFSSL_SP_NO_3072)
+            OPTMSG(
+            MSG_MAX_RSA, NOT_OPTION,
             "3072\n",
-            "3072\n"                                       
+            "3072\n"
+            )                                       
 #elif !defined(WOLFSSL_SP_NO_2048)
+            OPTMSG(
+            MSG_MAX_RSA, NOT_OPTION,
             "2048\n",
-            "2048\n"                                            
+            "2048\n"         
+            )                                   
 #else
             "0\n",
             "0\n"                                             
 #endif
 #elif defined(USE_FAST_MATH)
-#else
+#else       
+            OPTMSG(
+            MSG_MAX_RSA, NOT_OPTION,
             "INFINITE\n",
-            "無限\n"                                           
+            "無限\n"                 
+            )                          
   
 #endif
-            )
 
     },
         {   
@@ -1958,7 +1972,7 @@ const struct OptionsMap client_options[] = {
 #endif
         {
             OPTMSG(
-            MSG_URL_FOR_SIMPLER_EXAMPLES, '*',
+            MSG_URL_FOR_SIMPLER_EXAMPLES, NOT_OPTION,
             "\n"
             "For simpler wolfSSL TLS client examples, visit\n"
             "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
