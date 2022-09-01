@@ -13052,10 +13052,13 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \ingroup Setup
 
     \brief This function is called on the server side to indicate that a
-    HelloRetryRequest message must contain a Cookie.
-    The Cookie holds a hash of the current transcript so that another server
-    process can handle the ClientHello in reply.
-    The secret is used when generting the integrity check on the Cookie data.
+    HelloRetryRequest message must contain a Cookie and, in case of using
+    protocol DTLS v1.3, that the handshake will always include a cookie
+    exchange. Please note that when using protocol DTLS v1.3, the cookie
+    exchange is enabled by default. The Cookie holds a hash of the current
+    transcript so that another server process can handle the ClientHello in
+    reply.  The secret is used when generting the integrity check on the Cookie
+    data.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [in] secret a pointer to a buffer holding the secret.
@@ -13082,9 +13085,30 @@ int  wolfSSL_connect(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_new
+    \sa wolfSSL_disable_hrr_cookie
 */
 int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
+
+/*!
+
+    \ingroup Setup
+
+    \brief This function is called on the server side to indicate that a
+    HelloRetryRequest message must NOT contain a Cookie and that, if using
+    protocol DTLS v1.3, a cookie exchange will not be included in the
+    handshake. Please note that not doing a cookie exchange when using protocol
+    DTLS v1.3 can make the server susceptible to DoS/Amplification attacks.
+
+    \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    \return WOLFSSL_SUCCESS if successful
+    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3
+    \return SIDE_ERROR if invoked on client
+
+    \sa wolfSSL_send_hrr_cookie
+*/
+int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
