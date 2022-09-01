@@ -6633,8 +6633,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
              * since wc_ChaCha20Poly1305_Init() does not. */
             if (key != NULL) {
                 if (!ctx->key) {
-                    ctx->key = XMALLOC(ctx->keyLen, NULL,
-                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    ctx->key = (byte*)XMALLOC(ctx->keyLen, NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
                     if (!ctx->key) {
                         return MEMORY_E;
                     }
