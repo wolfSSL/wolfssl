@@ -6634,7 +6634,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             if (key != NULL) {
                 if (!ctx->key) {
                     ctx->key = (byte*)XMALLOC(ctx->keyLen, NULL,
-                                              DYNAMIC_TYPE_TMP_BUFFER);
+                                              DYNAMIC_TYPE_OPENSSL);
                     if (!ctx->key) {
                         return MEMORY_E;
                     }
