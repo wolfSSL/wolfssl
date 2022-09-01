@@ -5625,6 +5625,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
 #endif /* not FIPS or FIPS v2+ */
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            if (ctx->key) {
+                ForceZero(ctx->key, ctx->keyLen);
+                XFREE(ctx->key, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->key = NULL;
+            }
+#endif
             ctx->keyLen     = 0;
 #ifdef HAVE_AESGCM
             if (ctx->gcmBuffer) {
@@ -6619,8 +6626,23 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 ctx->enc    = (byte) enc;
             }
 
-            if (key != NULL && iv != NULL && wc_ChaCha20Poly1305_Init(
-                    &ctx->cipher.chachaPoly, key, iv, enc) != 0) {
+            /* wolfSSL_EVP_CipherInit() may be called multiple times to
+             * set key or iv alone. A common use case is to set key
+             * and then init with another iv again and again after
+             * update/finals. We need to preserve the key for those calls
+             * since wc_ChaCha20Poly1305_Init() does not. */
+            if (key != NULL) {
+                if (!ctx->key) {
+                    ctx->key = XMALLOC(ctx->keyLen, NULL,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    if (!ctx->key) {
+                        return MEMORY_E;
+                    }
+                }
+                XMEMCPY(ctx->key, key, ctx->keyLen);
+            }
+            if ((ctx->key != NULL && iv != NULL) && wc_ChaCha20Poly1305_Init(
+                    &ctx->cipher.chachaPoly, ctx->key, iv, ctx->enc) != 0) {
                 WOLFSSL_MSG("wc_ChaCha20Poly1305_Init() failed");
                 return WOLFSSL_FAILURE;
             }

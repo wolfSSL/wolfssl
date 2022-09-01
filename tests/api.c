@@ -52052,7 +52052,6 @@ static int test_wolfssl_EVP_chacha20_poly1305(void)
     /* Test partial Inits. CipherInit() allow setting of key and iv
      * in separate calls. */
     AssertNotNull((ctx = EVP_CIPHER_CTX_new()));
-    EVP_CIPHER_CTX_free(ctx);
     AssertIntEQ(wolfSSL_EVP_CipherInit(ctx, EVP_chacha20_poly1305(),
                 key, NULL, 1), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 1),
