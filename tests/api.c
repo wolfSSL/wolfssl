@@ -55082,6 +55082,7 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
     /* frag length */
     c32to24(30, b + idx);
     idx += 3;
+    (void)idx; /* inhibit clang-analyzer-deadcode.DeadStores */
 
     for (i = 0; i < DTLS_POOL_SZ * 2 && ret > 0;
             seq_number++, msg_number++, i++) {
