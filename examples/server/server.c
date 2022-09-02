@@ -821,536 +821,777 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 #endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 
-/* when adding new option, please follow the steps below: */
-/*  1. add new option message in English section          */
-/*  2. increase the number of the second column           */
-/*  3. increase the array dimension                       */
-/*  4. add the same message into Japanese section         */
-/*     (will be translated later)                         */
-/*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][65] = {
-    /* English */
-    {
-        " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
-        "-? <num>    Help, print this usage\n"
-           "            0: English, 1: Japanese\n"
-           "--help      Help, in English\n",                             /* 1 */
-        "-p <num>    Port to listen on, not 0, default",                 /* 2 */
-#ifndef WOLFSSL_TLS13
-        "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default", /* 3 */
-#else
-        "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default", /* 3 */
-#endif
-        "-l <str>    Cipher suite list (: delimited)\n",                 /* 4 */
-        "-c <file>   Certificate file,           default",               /* 5 */
-        "-k <file>   Key file,                   default",               /* 6 */
-        "-A <file>   Certificate Authority file, default",               /* 7 */
-        "-R <file>   Create Ready file for external monitor"
-                                                     " default none\n",  /* 8 */
-#ifndef NO_DH
-        "-D <file>   Diffie-Hellman Params file, default",               /* 9 */
-        "-Z <num>    Minimum DH key bits,        default",              /* 10 */
-#endif
-#ifdef HAVE_ALPN
-        "-L <str>    Application-Layer Protocol Negotiation"
-                                                  " ({C,F}:<list>)\n",  /* 11 */
-#endif
-        "-d          Disable client cert check\n",                      /* 12 */
-        "-b          Bind to any interface instead of localhost only\n",/* 13 */
-        "-s          Use pre Shared keys\n",                            /* 14 */
-#ifndef WOLFSSL_DTLS13
-        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default)\n",                                             /* 15 */
-#else
-        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
-            " (default), -v 4 for DTLSv1.3\n",                          /* 15 */
-#endif /* !WOLFSSL_DTLS13 */
-#ifdef WOLFSSL_SCTP
-        "-G          Use SCTP DTLS,"
-           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",       /* 16 */
-#endif
-        "-f          Fewer packets/group messages\n",                   /* 17 */
-        "-r          Allow one client Resumption\n",                    /* 18 */
-        "-N          Use Non-blocking sockets\n",                       /* 19 */
-        "-S <str>    Use Host Name Indication\n",                       /* 20 */
-        "-w          Wait for bidirectional shutdown\n",                /* 21 */
-#ifdef HAVE_OCSP
-        "-o          Perform OCSP lookup on peer certificate\n",        /* 22 */
-        "-O <url>    Perform OCSP lookup using <url> as responder\n",   /* 23 */
-#endif
-#ifdef HAVE_PK_CALLBACKS
-        "-P          Public Key Callbacks\n",                           /* 24 */
-#endif
-#ifdef HAVE_ANON
-        "-a          Anonymous server\n",                               /* 25 */
-#endif
-#ifndef NO_PSK
-        "-I          Do not send PSK identity hint\n",                  /* 26 */
-#endif
-        "-x          Print server errors but do not close connection\n",/* 27 */
-        "-i          Loop indefinitely (allow repeated connections)\n", /* 28 */
-        "-e          Echo data mode (return raw bytes received)\n",     /* 29 */
-        "-B <num>    Benchmark throughput"
-                            " using <num> bytes and print stats\n",     /* 31 */
-#ifdef HAVE_CRL
-        "-V          Disable CRL\n",                                    /* 32 */
-#endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   Path to load trusted peer cert\n",                 /* 33 */
-#endif
-#ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      default",              /* 34 */
-#endif
-        "-g          Return basic HTML web page\n",                     /* 35 */
-        "-C <num>    The number of connections to accept, default: 1\n",/* 36 */
-        "-H <arg>    Internal tests"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 37 */
-        "                            loadSSL, disallowETM]\n",          /* 38 */
-#ifdef WOLFSSL_TLS13
-        "-U          Update keys and IVs before sending\n",             /* 39 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 40 */
-#ifndef NO_DH
-        "-y          Pre-generate Key Share using FFDHE_2048 only\n",   /* 41 */
-#endif
-#ifdef HAVE_ECC
-        "-Y          Pre-generate Key Share using P-256 only \n",       /* 42 */
-#endif
-#ifdef HAVE_CURVE25519
-        "-t          Pre-generate Key share using Curve25519 only\n",   /* 43 */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef HAVE_SESSION_TICKET
-#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS)
-        "-T          Do not generate session ticket\n",                 /* 44 */
-#else
-        "-T [aon]    Do not generate session ticket\n",                 /* 44 */
-        "            No option affects TLS 1.3 only, 'a' affects all"
-            " protocol versions,\n",                                    /* 45 */
-        "            'o' affects TLS 1.2 and below only\n",             /* 46 */
-        "            'n' affects TLS 1.3 only\n",                       /* 47 */
-#endif
-#endif
-#ifdef WOLFSSL_TLS13
-        "-F          Send alert if no mutual authentication\n",         /* 48 */
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-        "-Q          Request certificate from client post-handshake\n", /* 49 */
-#endif
-#ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J [n]      Server sends Cookie Extension containing state (n to "
-        "disable)\n", /* 50 */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data read from client (0-RTT handshake)\n",  /* 51 */
-#endif
-#ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 52 */
-#endif
-        "-1 <num>    Display a result by specified language."
-                             "\n            0: English, 1: Japanese\n", /* 53 */
-#ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 54 */
-#endif
-        "-6          Simulate WANT_WRITE errors on every other IO send\n",
-                                                                        /* 55 */
-#ifdef HAVE_CURVE448
-        "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
-#endif
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-        "-9          Use hash dir look up for certificate loading\n"
-        "            loading from <wolfSSL home>/certs folder\n"
-        "            files in the folder would have the form \"hash.N\" file name\n"
-        "            e.g symbolic link to the file at certs folder\n"
-        "            ln -s client-ca.pem  `openssl x509 -in client-ca.pem -hash -noout`.0\n",
-                                                                        /* 57 */
-#endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
-        "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                        /* 58 */
-#endif
-#ifndef WOLFSSL_TLS13
-        "-7          Set minimum downgrade protocol version [0-3] "
-        " SSLv3(0) - TLS1.2(3)\n",
-#else
-        "-7          Set minimum downgrade protocol version [0-4] "
-           " SSLv3(0) - TLS1.3(4)\n",                                   /* 59 */
-#endif
-#ifdef HAVE_PQC
-        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
-#endif
-#ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 61 */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        "--send-ticket    Send a new session ticket during application data\n",
-                                                                        /* 62 */
-#endif
-#ifdef CAN_FORCE_CURVE
-        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
-            "                        Leave <curve> blank to list all curves.\n"
-            "                        Note: requires TLS1.3\n",
-                                                                        /* 63 */
-#endif
-        "\n"
-           "For simpler wolfSSL TLS server examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 64 */
-        NULL,
-    },
+/* when adding new option, please follow the steps below:                 */
+/* following structure of OptionMap, add an element into option's table   */
+/* NOTE: please wrap the element in OPTMSG()                              */
+/*  1. define your option's type in enum option_Type                      */
+/*  2. add it to first member of the element                              */
+/*  3. add selector that is specified when using this option              */
+/*  4. add new option message in English                                  */
+/*  5. add the same message in Japanese                                   */
+
+
+#define WOLFSSL_IP "127.0.0.1"
+#define WOLFSSL_PORT "11111"
+#define STR2(s) #s
+#define STR(s) STR2(s)  /* convert what defined as a number into string*/
+#define NOT_OPTION '*'
 #ifndef NO_MULTIBYTE_PRINT
-    /* Japanese */
-    {
-        " 注意 : 全てのファイルは"
-        " wolfSSL ホーム・ディレクトリからの相対です。\n",               /* 0 */
-        "-? <num>    ヘルプ, 使い方を表示\n"
-        "            0: 英語、 1: 日本語\n"
-        "--ヘルプ    日本語で使い方を表示\n",                            /* 1 */
-        "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 2 */
-#ifndef WOLFSSL_TLS13
-        "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
-                                                            " 既定値",   /* 3 */
+#define OPTMSG(t, s, eng, jp)  t, s, eng, jp
 #else
-        "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
-                                                            " 既定値",   /* 3 */
+#define OPTMSG(t, s, eng, jp)  t, s, eng, NULL
 #endif
-        "-l <str>    暗号スイートリスト (区切り文字 :)\n",               /* 4 */
-        "-c <file>   証明書ファイル,  既定値",                           /* 5 */
-        "-k <file>   鍵ファイル,      既定値",                           /* 6 */
-        "-A <file>   認証局ファイル,  既定値",                           /* 7 */
-        "-R <file>   外部モニタ用の準備完了ファイルを作成する。"
-                                                      "既定値  なし\n",  /* 8 */
-#ifndef NO_DH
-        "-D <file>   ディフィー・ヘルマンのパラメータファイル,"
-                                                     " 既定値",          /* 9 */
-        "-Z <num>    最小 DH 鍵 ビット, 既定値",                        /* 10 */
-#endif
-#ifdef HAVE_ALPN
-        "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
-                                                  " ({C,F}:<list>)\n",  /* 11 */
-#endif
-        "-d          クライアント認証を無効とする\n",                   /* 12 */
-        "-b          ローカルホスト以外のインターフェースへも"
-                                                "バインドする\n",       /* 13 */
-        "-s          事前共有鍵を使用する\n",                           /* 14 */
-        "-u          UDP DTLSを使用する。\n"
-
-#ifndef WOLFSSL_DTLS13
-        "           -v 2 を追加指定するとDTLSv1, "
-                    "-v 3 を追加指定すると DTLSv1.2 (既定値)\n",        /* 15 */
-#else
-        "           -v 2 を追加指定するとDTLSv1, "
-                    "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
-        "           -v 4 を追加指定すると DTLSv1.3\n",                  /* 15 */
-#endif /* !WOLFSSL_DTLS13 */
-#ifdef WOLFSSL_SCTP
-        "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
-              " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",     /* 16 */
-#endif
-        "-f          より少ないパケット/グループメッセージを使用する\n",/* 17 */
-        "-r          クライアントの再開を許可する\n",                   /* 18 */
-        "-N          ノンブロッキング・ソケットを使用する\n",           /* 19 */
-        "-S <str>    ホスト名表示を使用する\n",                         /* 20 */
-        "-w          双方向シャットダウンを待つ\n",                     /* 21 */
-#ifdef HAVE_OCSP
-        "-o          OCSPルックアップをピア証明書で実施する\n",         /* 22 */
-        "-O <url>    OCSPルックアップを、"
-                        "<url>を使用し応答者として実施する\n",          /* 23 */
-#endif
-#ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                             /* 24 */
-#endif
-#ifdef HAVE_ANON
-        "-a          匿名サーバー\n",                                   /* 25 */
-#endif
-#ifndef NO_PSK
-        "-I          PSKアイデンティティのヒントを送信しない\n",        /* 26 */
-#endif
-        "-x          サーバーエラーを出力するが接続を切断しない\n",     /* 27 */
-        "-i          無期限にループする(繰り返し接続を許可)\n",         /* 28 */
-        "-e          エコー・データモード"
-                                   "(受け取ったバイトデータを返す)\n",  /* 29 */
-        "-B <num>    <num> バイトを用いてのベンチマーク・スループット"
-                                          "測定と結果を出力する\n",     /* 31 */
-#ifdef HAVE_CRL
-        "-V          CRLを無効とする\n",                                /* 32 */
-#endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n\n",       /* 33 */
-#endif
-#ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値",        /* 34 */
-#endif
-        "-g          基本的な Web ページを返す\n",                      /* 35 */
-        "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n",    /* 36 */
-        "-H <arg>    内部テスト"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 37 */
-        "                            loadSSL, disallowETM]\n",          /* 38 */
-#ifdef WOLFSSL_TLS13
-        "-U          データ送信前に、鍵とIVを更新する\n",               /* 39 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 40 */
-#ifndef NO_DH
-        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n",   /* 41 */
-#endif
-#ifdef HAVE_ECC
-        "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 42 */
-#endif
-#ifdef HAVE_CURVE25519
-        "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 43 */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS)
-        "-T          セッションチケットを生成しない\n",                 /* 44 */
-#else
-        "-T [aon]    セッションチケットを生成しない\n",                 /* 44 */
-        "            オプション指定なしの場合、TLS 1.3 にだけ有効\n"
-        "           'a' を指定した場合、"
-                    "全てのプロトコルバージョンに有効\n"                /* 45 */
-        "           'o' を指定した場合、TLS 1.2 及び"
-                               "それ以下のプロトコルバージョンに有効\n" /* 46 */
-        "           'n' を指定した場合、TLS 1.3 にのみ有効\n",          /* 47 */
-
-#endif
-#ifdef WOLFSSL_TLS13
-        "-F          相互認証が無い場合にalert を送信\n",               /* 48 */
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-        "-Q          クライアントのポストハンドシェイクから"
-                                              "証明書を要求する\n",     /* 49 */
-#endif
-#ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 50 */
-#endif
-#endif /* WOLFSSL_TLS13 */
-#ifdef WOLFSSL_EARLY_DATA
-        "-0          クライアントからの Early Data 読み取り"
-                                      "（0-RTTハンドシェイク）\n",      /* 51 */
-#endif
-#ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 52 */
-#endif
-        "-1 <num>    指定された言語で結果を表示します。"
-                                 "\n            0: 英語、 1: 日本語\n", /* 53 */
-#ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 54 */
-#endif
-        "-6          交互の IO 送信で WANT_WRITE エラー"
-                                           "をシュミレート\n",
-                                                                        /* 55 */
-#ifdef HAVE_CURVE448
-        "-8          Curve448のみを使用して鍵共有を事前生成する\n",     /* 56 */
-#endif
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-        "-9          証明書の読み込みに hash dir 機能を使用する\n"
-        "            <wolfSSL home>/certs フォルダーからロードします\n"
-        "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である必要があります\n"
-        "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
-        "            ln -s client-ca.pem  `openssl x509 -in client-ca.pem -hash -noout`.0\n",
-                                                                        /* 57 */
-#endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
-        "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
-                                                                       /* 58 */
-#endif
-#ifndef WOLFSSL_TLS13
-        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
-        " SSLv3(0) - TLS1.2(3)\n",
-#else
-        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                          /* 59 */
-#endif
-#ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n"
-            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
-            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-            "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
-#endif
-#ifdef WOLFSSL_SRTP
-        "--srtp <profile> (デフォルトはSRTP_AES128_CM_SHA1_80)\n",       /* 61 */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        "--send-ticket    Application data 中に新しい"
-                                             "セッションチケットを送信します\n",
-                                                                        /* 62 */
-#endif
-#ifdef CAN_FORCE_CURVE
-        /* TODO: Need Japanese translation */
-        "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
-            "                        Leave <curve> blank to list all curves.\n"
-            "                        Note: requires TLS1.3\n",
-                                                                        /* 63 */
-#endif
-        "\n"
-        "より簡単なwolfSSL TSL クライアントの例については"
-                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
-        NULL,
-    },
-#endif
+struct OptionsMap{
+    byte  type;
+    byte selector;
+    const char* descEN;
+    const char* descJP;
 };
 
-static void Usage(void)
-{
-    int msgId = 0;
-    const char** msg = server_usage_msg[lng_index];
+enum option_Type {
+    MSG_NOTE,
+    OPTION_TYPE_HELP,
+    OPTION_TYPE_PORT,
+    OPTION_TYPE_VERSION,
+    OPTION_TYPE_CIPHER_LIST,
+    OPTION_TYPE_CERT_FILE,
+    OPTION_TYPE_KEY_FILE,
+    OPTION_TYPE_CA_FILE,
+    OPTION_TYPE_CREATE_READY_FILE,
+    OPTION_TYPE_DH_PRAMS_FILE,
+    OPTION_TYPE_MIN_DH_KEY_BITS,
+    OPTION_TYPE_ALPN,
+    OPTION_TYPE_DISABLE_CLI_CERT_CHECK,
+    OPTION_TYPE_USE_ANY_ADDR,
+    OPTION_TYPE_USE_PSK,
+    OPTION_TYPE_USE_DTLS,
+    OPTION_TYPE_USE_SCTP,
+    OPTION_TYPE_FEWER_PACKETS,
+    OPTION_TYPE_ALLOW_RESUMPTION,
+    OPTION_TYPE_USE_NON_BLOCKING,
+    OPTION_TYPE_HOSTNAME_INDICATION,
+    OPTION_TYPE_WAIT_BIDIRECT_SHUTDOWN,
+    OPTION_TYPE_USE_OCSP,
+    OPTION_TYPE_SET_OCSP_URL,
+    OPTION_TYPE_PK_CALLBACKS,
+    OPTION_TYPE_ANON_SERVER,
+    OPTION_TYPE_DONT_SEND_PSK_HINT,
+    OPTION_TYPE_RUN_WITH_ERRORS,
+    OPTION_TYPE_LOOP_INDEFINITELY,
+    OPTION_TYPE_ECHO_DATA_MODE,
+    OPTION_TYPE_THROUGHPUT,
+    OPTION_TYPE_DISABLE_CRL,
+    OPTION_TYPE_TRUST_PEER_CERT_FILE,
+    OPTION_TYPE_WNR_CONFIG_FILE,
+    OPTION_TYPE_RETURN_WEB_PAGE,
+    OPTION_TYPE_SET_NUM_OF_CONN_TO_ACCEPT,
+    OPTION_TYPE_INTERNAL_TESTS,
+    OPTION_TYPE_UPDATE_KEYS_IVS,
+    OPTION_TYPE_KEY_EXCHANGE_FOR_PSK,
+    OPTION_TYPE_FFDHE_FOR_PSK,
+    OPTION_TYPE_PRE_GEN_KEY_SHARE_FFDHE_2048,
+    OPTION_TYPE_PRE_GEN_KEY_SHARE_P_256,
+    OPTION_TYPE_PRE_GEN_KEY_SHARE_CURVE25519,
+    OPTION_TYPE_NO_TICKET,
+    OPTION_TYPE_MATUAL_AUTH,
+    OPTION_TYPE_REQUEST_CERT_FROM_POST_HANDSHAKE,
+    OPTION_TYPE_SEND_COOKIE_EXTENTION,
+    OPTION_TYPE_0_RTT_HANDSHAKE,
+    OPTION_TYPE_MULTI_CAST,
+    OPTION_TYPE_SET_DISPLAY_LANG,
+    OPTION_TYPE_USE_TRUSTED_CA_INDICATION,
+    OPTION_TYPE_SIMULATE_WANT_WRITE,
+    OPTION_TYPE_PRE_GEN_KEY_SHARE_CURVE448,
+    OPTION_TYPE_USE_HASH_DIR,
+    OPTION_TYPE_WOLFSENTRY_CONFIG_FILE,
+    OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER,
+    OPTION_TYPE_PQC,
+    OPTION_TYPE_SRTP,
+    OPTION_TYPE_SEND_TICKET,
+    OPTION_TYPE_FORCE_CURVE,
+    MSG_URL_FOR_SIMPLER_EXAMPLES
+};
 
-    printf("%s%s%s", "server ", LIBWOLFSSL_VERSION_STRING,
-           msg[msgId]);
-    printf("%s", msg[++msgId]);                     /* ? */
-    printf("%s %d\n", msg[++msgId], wolfSSLPort);   /* -p */
-#ifndef WOLFSSL_TLS13
-    printf("%s %d\n", msg[++msgId], SERVER_DEFAULT_VERSION); /* -v */
+const struct OptionsMap server_options[] = {
+        {
+            OPTMSG(
+            MSG_NOTE, NOT_OPTION,
+            " NOTE: All files relative to wolfSSL home dir\n",
+            " 注意 : 全てのファイルは"
+            " wolfSSL ホーム・ディレクトリからの相対です。\n"
+            )
+    },
+        {
+#ifndef NO_MULTIBYTE_PRINT
+            OPTMSG(
+            OPTION_TYPE_HELP, '?',
+            "-? <num>    Help, print this usage\n"
+            "            0: English, 1: Japanese\n"
+            "--help      Help, in English\n",
+            "-? <num>    ヘルプ, 使い方を表示\n"
+            "            0: 英語、 1: 日本語\n"
+            "--ヘルプ    日本語で使い方を表示\n"
+            )
 #else
-    printf("%s %d\n", msg[++msgId], SERVER_DEFAULT_VERSION); /* -v */
+            OPTMSG(
+            OPTION_TYPE_HELP, '?',
+            "-? <num>    Help, print this usage\n"
+            "            0: English\n"
+            "--help      Help, in English\n",
+            "-? <num>    ヘルプ, 使い方を表示\n"
+            "            0: 英語、 1: 日本語\n"
+            "--ヘルプ    日本語で使い方を表示\n"
+            )
 #endif
-    printf("%s", msg[++msgId]);     /* -l */
-    printf("%s %s\n", msg[++msgId], svrCertFile);    /* -c */
-    printf("%s %s\n", msg[++msgId], svrKeyFile);     /* -k */
-    printf("%s %s\n", msg[++msgId], cliCertFile);    /* -A */
-    printf("%s", msg[++msgId]);     /* -R */
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_PORT, 'p',
+            "-p <num>    Port to listen on, not 0, default " WOLFSSL_PORT "\n",
+            "-p <num>    接続先ポート, 0は無効, 既定値 " WOLFSSL_PORT "\n"
+            )
+    },
+#ifndef WOLFSSL_TLS13
+        {
+            OPTMSG(
+            OPTION_TYPE_VERSION, 'v',
+            "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default "
+                                            STR(SERVER_DEFAULT_VERSION) "\n",
+            "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
+                                                            " 既定値 "
+                                            STR(SERVER_DEFAULT_VERSION) "\n"
+            )
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_VERSION, 'v',
+            "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default "
+                                            STR(SERVER_DEFAULT_VERSION) "\n",
+            "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
+                                                            " 既定値 "
+                                            STR(SERVER_DEFAULT_VERSION) "\n"
+            )
+    },
+#endif
+        {
+            OPTMSG(
+            OPTION_TYPE_CIPHER_LIST, 'l',
+            "-l <str>    Cipher suite list (: delimited)\n",
+            "-l <str>    暗号スイートリスト (区切り文字 :)\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_CERT_FILE, 'c',
+            "-c <file>   Certificate file,           default " svrCertFile "\n",
+            "-c <file>   証明書ファイル,  既定値 " svrCertFile "\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_KEY_FILE, 'k',
+            "-k <file>   Key file,                   default " svrKeyFile "\n",
+            "-k <file>   鍵ファイル,      既定値 " svrKeyFile "\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_CA_FILE, 'A',
+            "-A <file>   Certificate Authority file, default " cliCertFile "\n",
+            "-A <file>   認証局ファイル,  既定値 " cliCertFile "\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_CREATE_READY_FILE, 'R',
+            "-R <file>   Create Ready file for external monitor"
+                                                     " default none\n",
+            "-R <file>   外部モニタ用の準備完了ファイルを作成する。"
+                                                      "既定値  なし\n"
+            )
+    },
 #ifndef NO_DH
-    printf("%s %s\n", msg[++msgId], dhParamFile);           /* -D */
-    printf("%s %d\n", msg[++msgId], DEFAULT_MIN_DHKEY_BITS);/* -Z */
+        {
+            OPTMSG(
+            OPTION_TYPE_DH_PRAMS_FILE, 'D',
+            "-D <file>   Diffie-Hellman Params file, default " dhParamFile "\n",
+            "-D <file>   ディフィー・ヘルマンのパラメータファイル,"
+                                                     " 既定値 " dhParamFile "\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_MIN_DH_KEY_BITS, 'Z',
+            "-Z <num>    Minimum DH key bits,        default "
+                                            STR(DEFAULT_MIN_DHKEY_BITS) "\n",
+            "-Z <num>    最小 DH 鍵 ビット, 既定値 "
+                                            STR(DEFAULT_MIN_DHKEY_BITS) "\n"
+            )
+    },
 #endif
 #ifdef HAVE_ALPN
-    printf("%s", msg[++msgId]);     /* -L */
+        {
+            OPTMSG(
+            OPTION_TYPE_ALPN, 'L',
+            "-L <str>    Application-Layer Protocol Negotiation"
+                                                  " ({C,F}:<list>)\n",
+            "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
+                                                  " ({C,F}:<list>)\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]);     /* -d */
-    printf("%s", msg[++msgId]);     /* -b */
-    printf("%s", msg[++msgId]);     /* -s */
-    printf("%s", msg[++msgId]);     /* -u */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_CLI_CERT_CHECK, 'd',
+            "-d          Disable client cert check\n",
+            "-d          クライアント認証を無効とする\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_ANY_ADDR, 'b',
+            "-b          Bind to any interface instead of localhost only\n",
+            "-b          ローカルホスト以外のインターフェースへも"
+                                                "バインドする\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_PSK, 's',
+            "-s          Use pre Shared keys\n",
+            "-s          事前共有鍵を使用する\n"
+            )
+    },
+#ifndef Wolfssl_dtls13
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_DTLS, 'u',
+            "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default)\n",
+            "-u          UDP DTLSを使用する。\n"
+            "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値)\n"
+            )
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_DTLS, 'u',
+            "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
+            " (default), -v 4 for DTLSv1.3\n",
+            "-u          UDP DTLSを使用する。\n"
+            "           -v 2 を追加指定するとDTLSv1, "
+                    "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
+        "           -v 4 を追加指定すると DTLSv1.3\n"
+
+            )
+    },
+#endif
 #ifdef WOLFSSL_SCTP
-    printf("%s", msg[++msgId]);     /* -G */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_SCTP, 'G',
+            "-G          Use SCTP DTLS,"
+            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",
+            "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
+              " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]);     /* -f */
-    printf("%s", msg[++msgId]);     /* -r */
-    printf("%s", msg[++msgId]);     /* -N */
-    printf("%s", msg[++msgId]);     /* -S */
-    printf("%s", msg[++msgId]);     /* -w */
-#ifdef HAVE_SECURE_RENEGOTIATION
-    printf("-M          Allow Secure Renegotiation\n");
-    printf("-m          Force Server Initiated Secure Renegotiation\n");
-#endif /* HAVE_SECURE_RENEGOTIATION */
+        {
+            OPTMSG(
+            OPTION_TYPE_FEWER_PACKETS, 'f',
+            "-f          Fewer packets/group messages\n",
+            "-f          より少ないパケット/グループメッセージを使用する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_ALLOW_RESUMPTION,'r',
+            "-r          Allow one client Resumption\n",
+            "-r          クライアントの再開を許可する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_NON_BLOCKING, 'N',
+            "-N          Use Non-blocking sockets\n",
+            "-N          ノンブロッキング・ソケットを使用する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_HOSTNAME_INDICATION, 'S',
+            "-S <str>    Use Host Name Indication\n",
+            "-S <str>    ホスト名表示を使用する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_WAIT_BIDIRECT_SHUTDOWN, 'w',
+            "-w          Wait for bidirectional shutdown\n",
+            "-w          双方向シャットダウンを待つ\n"
+            )
+    },
 #ifdef HAVE_OCSP
-    printf("%s", msg[++msgId]);     /* -o */
-    printf("%s", msg[++msgId]);     /* -O */
+        {
+            OPTMSG(
+            OPTION_TYPE_USE_OCSP, 'o',
+            "-o          Perform OCSP lookup on peer certificate\n",
+            "-o          OCSPルックアップをピア証明書で実施する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_OCSP_URL, 'O',
+            "-O <url>    Perform OCSP lookup using <url> as responder\n",
+            "-O <url>    OCSPルックアップを、<url>を使用し"
+                                   "応答者として実施する\n"
+            )
+    },
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    printf("%s", msg[++msgId]);     /* -P */
+        {
+            OPTMSG(
+            OPTION_TYPE_PK_CALLBACKS, 'P',
+            "-P          Public Key Callbacks\n",
+            "-P          公開鍵コールバック\n"
+            )
+    },
 #endif
 #ifdef HAVE_ANON
-    printf("%s", msg[++msgId]);     /* -a */
+        {
+            OPTMSG(
+            OPTION_TYPE_ANON_SERVER, 'a',
+            "-a          Anonymous server\n",
+            "-a          匿名サーバー\n"
+            )
+    },
 #endif
 #ifndef NO_PSK
-    printf("%s", msg[++msgId]);     /* -I */
+        {
+            OPTMSG(
+            OPTION_TYPE_DONT_SEND_PSK_HINT, 'I',
+            "-I          Do not send PSK identity hint\n",
+            "-I          PSKアイデンティティのヒントを送信しない\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]);     /* -x */
-    printf("%s", msg[++msgId]);     /* -i */
-    printf("%s", msg[++msgId]);     /* -e */
-    printf("%s", msg[++msgId]);     /* -B */
+        {
+            OPTMSG(
+            OPTION_TYPE_RUN_WITH_ERRORS, 'x',
+            "-x          Print server errors but do not close connection\n",
+            "-x          サーバーエラーを出力するが接続を切断しない\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_LOOP_INDEFINITELY, 'i',
+            "-i          Loop indefinitely (allow repeated connections)\n",
+            "-i          無期限にループする(繰り返し接続を許可)\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_ECHO_DATA_MODE, 'e',
+            "-e          Echo data mode (return raw bytes received)\n",
+            "-e          エコー・データモード"
+                                   "(受け取ったバイトデータを返す)\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_THROUGHPUT, 'B',
+            "-B <num>    Benchmark throughput"
+                            " using <num> bytes and print stats\n",
+            "-B <num>    <num> バイトを用いてのベンチマーク・スループット"
+                                          "測定と結果を出力する\n"
+            )
+    },
 #ifdef HAVE_CRL
-    printf("%s", msg[++msgId]);     /* -V */
+        {
+            OPTMSG(
+            OPTION_TYPE_DISABLE_CRL, 'V',
+            "-V          Disable CRL\n",
+            "-V          CRLを無効とする\n"
+            )
+    },
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-    printf("%s", msg[++msgId]);     /* -E */
+        {
+            OPTMSG(
+            OPTION_TYPE_TRUST_PEER_CERT_FILE, 'E',
+            "-E <file>   Path to load trusted peer cert\n",
+            "-E <file>   信頼出来るピアの証明書ロードの為のパス\n\n"
+            )
+    },
 #endif
 #ifdef HAVE_WNR
-    printf("%s %s\n", msg[++msgId], wnrConfig);  /* -q */
+        {
+            OPTMSG(
+            OPTION_TYPE_WNR_CONFIG_FILE, 'q',
+            "-q <file>   Whitewood config file,      defaults " wnrConfig "\n",
+            "-q <file>   Whitewood コンフィグファイル,      既定値 " wnrConfig "\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]);     /* -g */
-    printf("%s", msg[++msgId]);     /* -C */
-    printf("%s", msg[++msgId]);     /* -H */
-    printf("%s", msg[++msgId]);     /* more -H options */
+        {
+            OPTMSG(
+            OPTION_TYPE_RETURN_WEB_PAGE, 'g',
+            "-g          Return basic HTML web page\n",
+            "-g          基本的な Web ページを返す\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_NUM_OF_CONN_TO_ACCEPT, 'C',
+            "-C <num>    The number of connections to accept, default: 1\n",
+            "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_INTERNAL_TESTS, 'H',
+            "-H <arg>    Internal tests"
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",
+            "-H <arg>    内部テスト"
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n"
+            )
+    },
 #ifdef WOLFSSL_TLS13
-    printf("%s", msg[++msgId]);     /* -U */
-    printf("%s", msg[++msgId]);     /* -K */
+        {
+            OPTMSG(
+            OPTION_TYPE_UPDATE_KEYS_IVS, 'U',
+            "-U          Update keys and IVs before sending\n",
+            "-U          データ送信前に、鍵とIVを更新する\n"
+            )
+    },
+        {
+            OPTMSG(
+            OPTION_TYPE_KEY_EXCHANGE_FOR_PSK, 'K',
+            "-K          Key Exchange for PSK not using (EC)DHE\n",
+            "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n"
+            )
+    },
 #ifndef NO_DH
-    printf("%s", msg[++msgId]);     /* -y */
+        {
+            OPTMSG(
+            OPTION_TYPE_PRE_GEN_KEY_SHARE_FFDHE_2048, 'y',
+            "-y          Pre-generate Key Share using FFDHE_2048 only\n",
+            "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n"
+            )
+    },
 #endif
 #ifdef HAVE_ECC
-    printf("%s", msg[++msgId]);     /* -Y */
+        {
+            OPTMSG(
+            OPTION_TYPE_PRE_GEN_KEY_SHARE_P_256, 'Y',
+            "-Y          Pre-generate Key Share using P-256 only \n",
+            "-Y          P-256のみを使用したキー共有の事前生成\n"
+            )
+    },
 #endif
 #ifdef HAVE_CURVE25519
-    printf("%s", msg[++msgId]);     /* -t */
+        {
+            OPTMSG(
+            OPTION_TYPE_PRE_GEN_KEY_SHARE_CURVE25519, 't',
+            "-t          Pre-generate Key share using Curve25519 only\n",
+            "-t          Curve25519のみを使用して鍵共有を事前生成する\n"
+            )
+    },
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_SESSION_TICKET
-    printf("%s", msg[++msgId]);     /* -T */
-    #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
-    printf("%s", msg[++msgId]);     /* -T */
-    printf("%s", msg[++msgId]);     /* -T */
-    printf("%s", msg[++msgId]);     /* -T */
-    #endif
+#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS)
+        {
+            OPTMSG(
+            OPTION_TYPE_NO_TICKET, 'T',
+            "-T          Do not generate session ticket\n",
+            "-T          セッションチケットを生成しない\n"
+            )
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_NO_TICKET, 'T',
+            "-T [aon]    Do not generate session ticket\n"
+            "            No option affects TLS 1.3 only, 'a' affects all"
+            " protocol versions,\n"
+            "            'o' affects TLS 1.2 and below only\n"
+            "            'n' affects TLS 1.3 only\n",
+
+            "-T [aon]    セッションチケットを生成しない\n"
+            "            オプション指定なしの場合、TLS 1.3 にだけ有効\n"
+            "           'a' を指定した場合、"
+                    "全てのプロトコルバージョンに有効\n"
+            "           'o' を指定した場合、TLS 1.2 及び"
+                               "それ以下のプロトコルバージョンに有効\n"
+            "           'n' を指定した場合、TLS 1.3 にのみ有効\n"
+            )
+    },
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
-    printf("%s", msg[++msgId]);     /* -F */
+            {
+                OPTMSG(
+                OPTION_TYPE_MATUAL_AUTH, 'F',
+                "-F          Send alert if no mutual authentication\n",
+                "-F          相互認証が無い場合にalert を送信\n"
+                )
+        },
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    printf("%s", msg[++msgId]);     /* -Q */
+            {
+                OPTMSG(
+                OPTION_TYPE_REQUEST_CERT_FROM_POST_HANDSHAKE, 'Q',
+                "-Q          Request certificate from client post-handshake\n",
+                "-Q          クライアントのポストハンドシェイクから"
+                                              "証明書を要求する\n"
+                )
+        },
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    printf("%s", msg[++msgId]);     /* -J */
+            {
+                OPTMSG(
+                OPTION_TYPE_SEND_COOKIE_EXTENTION, 'J',
+                "-J          Server sends Cookie Extension containing state\n",
+                "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n"
+                )
+        },
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
-    printf("%s", msg[++msgId]);     /* -0 */
-#endif
-#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-    printf("-2          Disable DH Prime check\n");
-#endif
-#ifdef WOLFSSL_DTLS
-    printf("-4 <seq>    DTLS fake would-block for message seq\n");
+        {
+            OPTMSG(
+            OPTION_TYPE_0_RTT_HANDSHAKE, '0',
+            "-0          Early data read from client (0-RTT handshake)\n",
+            "-0          クライアントからの Early Data 読み取り"
+                                      "（0-RTTハンドシェイク）\n"
+            )
+    },
 #endif
 #ifdef WOLFSSL_MULTICAST
-    printf("%s", msg[++msgId]);     /* -3 */
+        {
+            OPTMSG(
+            OPTION_TYPE_MULTI_CAST, '3',
+            "-3 <grpid>  Multicast, grpid < 256\n",
+            "-3 <grpid>  マルチキャスト, grpid < 256\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]);     /* -1 */
+        {
+#ifndef NO_MULTIBYTE_PRINT
+            OPTMSG(
+            OPTION_TYPE_SET_DISPLAY_LANG, '1',
+            "-1 <num>    Display a result by specified language."
+                             "\n            0: English, 1: Japanese\n",
+            "-1 <num>    指定された言語で結果を表示します"
+                                 "\n            0: 英語、 1: 日本語\n"
+            )
+#else
+            OPTMSG(
+            OPTION_TYPE_SET_DISPLAY_LANG, '1',
+            "-1 <num>    Display a result by specified language."
+                             "\n            0: English\n",
+            "-1 <num>    指定された言語で結果を表示します。"
+                                 "\n            0: 英語、 1: 日本語\n"
+            )
+#endif
+    },
 #ifdef HAVE_TRUSTED_CA
-    printf("%s", msg[++msgId]);     /* -5 */
-#endif /* HAVE_TRUSTED_CA */
-    printf("%s", msg[++msgId]);     /* -6 */
+            {
+                OPTMSG(
+                OPTION_TYPE_USE_TRUSTED_CA_INDICATION, '5',
+                "-5          Use Trusted CA Key Indication\n",
+                "-5          信頼できる認証局の鍵表示を使用する\n"
+                )
+        },
+#endif
+            {
+                OPTMSG(
+                OPTION_TYPE_SIMULATE_WANT_WRITE, '6',
+                "-6          Simulate WANT_WRITE errors on every other IO send\n",
+                "-6          交互の IO 送信で WANT_WRITE エラー"
+                                           "をシュミレート\n"
+                )
+        },
 #ifdef HAVE_CURVE448
-    printf("%s", msg[++msgId]);     /* -8 */
+            {
+                OPTMSG(
+                OPTION_TYPE_PRE_GEN_KEY_SHARE_CURVE448, '8',
+                "-8          Pre-generate Key share using Curve448 only\n",
+                "-8          Curve448のみを使用して鍵共有を事前生成する\n"
+                )
+        },
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    printf("%s", msg[++msgId]); /* -9 */
+            {
+                OPTMSG(
+                OPTION_TYPE_USE_HASH_DIR, '9',
+                "-9          Use hash dir look up for certificate loading\n"
+                "            loading from <wolfSSL home>/certs folder\n"
+                "            files in the folder would have the form \"hash.N\" "
+                                                                    "file name\n"
+                "            e.g symbolic link to the file at certs folder\n"
+                "            ln -s ca-cert.pem  "
+                            "`openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+
+                "-9          証明書の読み込みに hash dir 機能を使用する\n"
+                "            <wolfSSL home>/certs フォルダーからロードします\n"
+                "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である"
+                                                                "必要があります\n"
+                "            以下の例ではca-cert.pemにシンボリックリンクを"
+                                                                    "設定します\n"
+                "            ln -s ca-cert.pem  "
+                            "`openssl x509 -in ca-cert.pem -hash -noout`.0\n"
+                )
+        },
 #endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSENTRY_NO_JSON)
-    printf("%s", msg[++msgId]); /* --wolfsentry-config */
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+            {
+                OPTMSG(
+                OPTION_TYPE_WOLFSENTRY_CONFIG_FILE, '--wolfsentry-config',
+                "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
+                "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n"
+                )
+        },                                                                       /* 58 */
 #endif
-    printf("%s", msg[++msgId]); /* -7 */
+#ifndef WOLFSSL_TLS13
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER, '7',
+            "-7          Set minimum downgrade protocol version [0-3] "
+            " SSLv3(0) - TLS1.2(3)\n",
+            "-7          最小ダウングレード可能なプロトコルバージョン"
+                                                        "を設定します [0-3] "
+            " SSLv3(0) - TLS1.2(3)\n"
+            )
+
+    },
+#else
+        {
+            OPTMSG(
+            OPTION_TYPE_SET_MIN_DOWNGRADE_PROTOCOL_VER, '7',
+            "-7          Set minimum downgrade protocol version [0-4] "
+           " SSLv3(0) - TLS1.3(4)\n",
+            "-7          最小ダウングレード可能なプロトコルバージョン"
+                                                        "を設定します [0-4] "
+            " SSLv3(0) - TLS1.3(4)\n"
+            )
+    },
+#endif
 #ifdef HAVE_PQC
-    printf("%s", msg[++msgId]);     /* --pqc */
-    printf("%s", msg[++msgId]);     /* --pqc options */
-    printf("%s", msg[++msgId]);     /* more --pqc options */
-    printf("%s", msg[++msgId]);     /* more --pqc options */
+        {
+            OPTMSG(
+            OPTION_TYPE_PQC, '*',  /* --pqc */
+            "--pqc <alg> Key Share with specified post-quantum algorithm only "
+                        "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
+            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, "
+                        "KYBER_90S_LEVEL5,\n"
+            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, "
+                        "NTRU_HRSS_LEVEL3,\n"
+            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, "
+                        "P256_NTRU_HPS_LEVEL1,\n"
+            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, "
+                        "P384_NTRU_HRSS_LEVEL3,\n"
+            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, "
+                        "P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5,"
+                        " P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
+            "            P521_KYBER_90S_LEVEL5]\n",
+
+            "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ "
+                        "[KYBER_LEVEL1, KYBER_LEVEL3,\n"
+            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, "
+                        "KYBER_90S_LEVEL5,\n"
+            "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, "
+                        "NTRU_HRSS_LEVEL3,\n"
+            "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, "
+                        "P256_NTRU_HPS_LEVEL1,\n"
+            "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, "
+                        "P384_NTRU_HRSS_LEVEL3,\n"
+            "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, "
+                        "P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, "
+                        "P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
+            "            P521_KYBER_90S_LEVEL5]\n"
+            )
+    },
 #endif
 #ifdef WOLFSSL_SRTP
-    printf("%s", msg[++msgId]);     /* dtls-srtp */
+        {
+            OPTMSG(
+            OPTION_TYPE_SRTP, '*',      /* --srtp */
+            "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",
+            "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n"
+            )
+    },
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    printf("%s", msg[++msgId]);     /* send-ticket */
+        {
+            OPTMSG(
+            OPTION_TYPE_SEND_TICKET, '*',  /* --send-ticket */
+            "--send-ticket    Send a new session ticket "
+                                                "during application data\n",
+            "--send-ticket    Application data 中に新しい"
+                                             "セッションチケットを送信します\n"
+
+            )
+    },
 #endif
 #ifdef CAN_FORCE_CURVE
-    printf("%s", msg[++msgId]);     /* force-curve */
+        {
+            OPTMSG(
+            OPTION_TYPE_FORCE_CURVE, '*',  /* --force-curve */
+            "--force-curve [<curve>] Pre-generate a Key Share using <curve>.\n"
+            "                        Leave <curve> blank to list all curves.\n"
+            "                        Note: requires TLS1.3\n",
+
+            "--force-curve [<curve>] 指定された楕円曲線を用いて鍵共有"
+                                                        "を事前生成する\n"
+            "                        指定が無い場合、利用可能な楕円曲線を表示\n"
+            "                        注意 : TLS1.3が必要です\n"
+            )
+    },
 #endif
-    printf("%s", msg[++msgId]); /* Examples repo link */
+        {
+            OPTMSG(
+            MSG_URL_FOR_SIMPLER_EXAMPLES, NOT_OPTION,
+            "\n"
+            "For simpler wolfSSL TLS client examples, visit\n"
+            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
+            "\n"
+            "より簡単なwolfSSL TSL クライアントの例については"
+                                            "下記にアクセスしてください\n"
+            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n"
+            )
+
+    }
+};
+#define SERVER_OPTIONS_SIZE (sizeof(server_options)/sizeof(struct OptionsMap))
+
+static void Usage(void){
+    int msgId;
+
+    printf("%s%s", "wolfSSL server ",    LIBWOLFSSL_VERSION_STRING );
+    switch (lng_index){
+        case 0:     /* English */
+            for (msgId = 0; msgId < (int)SERVER_OPTIONS_SIZE; msgId++){
+                printf("%s", server_options[msgId].descEN);
+            }
+            break;
+#ifndef NO_MULTIBYTE_PRINT
+        case 1:     /* Japanese */
+            for (msgId = 0; msgId < (int)SERVER_OPTIONS_SIZE; msgId++){
+                printf("%s", server_options[msgId].descJP);
+            }
+            break;
+#endif
+    }
 }
 
 #ifdef WOLFSSL_SRTP

@@ -1099,7 +1099,6 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 }
 
 
-
 /* when adding new option, please follow the steps below:                 */
 /* following structure of OptionMap, add an element into option's table   */
 /* NOTE: please wrap the element in OPTMSG()                              */
@@ -1115,7 +1114,6 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 #define STR2(s) #s
 #define STR(s) STR2(s)  /* convert what defined as a number into string*/
 #define NOT_OPTION '*'
-
 #ifndef NO_MULTIBYTE_PRINT
 #define OPTMSG(t, s, eng, jp)  t, s, eng, jp
 #else
@@ -1431,7 +1429,7 @@ const struct OptionsMap client_options[] = {
 #ifndef NO_PSK
         {
             OPTMSG(
-            OPTION_TYPE_PSK, 's',
+            OPTION_TYPE_USE_PSK, 's',
             "-s          Use pre Shared keys\n",
             "-s          事前共有鍵を使用する\n"
             )
