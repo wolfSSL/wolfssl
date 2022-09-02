@@ -1041,8 +1041,10 @@ typedef struct w64wrapper {
 #undef _WC_HASH_TYPE_MAX
 #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_256
         #endif
-        #ifndef WOLFSSL_NO_SHAKE256
+        #ifndef WOLFSSL_NO_SHAKE128
             WC_HASH_TYPE_SHAKE128 = 18,
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
             WC_HASH_TYPE_SHAKE256 = 19,
 #undef _WC_HASH_TYPE_MAX
 #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
