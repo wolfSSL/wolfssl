@@ -9127,7 +9127,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         ssl->session->ticketNonce.len = DEF_TICKET_NONCE_SZ;
         ssl->session->ticketNonce.data[0] = 0;
     }
-    else 
+    else
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->error != WC_PENDING_E)
     #endif
