@@ -375,8 +375,9 @@ static int sockAddrEqual(
 static int isDGramSock(int sfd)
 {
     int type = 0;
-    XSOCKLENT length = sizeof(int); /* optvalue 'type' is of size int */
-
+    /* optvalue 'type' is of size int */
+    XSOCKLENT length = (XSOCKLENT)sizeof(int);
+    
     if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
             type != SOCK_DGRAM) {
         return 0;
@@ -494,13 +495,13 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
     else if (dtlsCtx->userSet) {
         /* Truncate peer size */
-        if (peerSz > sizeof(lclPeer))
-            peerSz = sizeof(lclPeer);
+        if (peerSz > (XSOCKLENT)sizeof(lclPeer))
+            peerSz = (XSOCKLENT)sizeof(lclPeer);
     }
     else {
         /* Truncate peer size */
-        if (peerSz > dtlsCtx->peer.bufSz)
-            peerSz = dtlsCtx->peer.bufSz;
+        if (peerSz > (XSOCKLENT)dtlsCtx->peer.bufSz)
+            peerSz = (XSOCKLENT)dtlsCtx->peer.bufSz;
     }
 
     recvd = TranslateReturnCode(recvd, sd);
