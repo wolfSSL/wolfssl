@@ -6812,14 +6812,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minRsaKeySz < 0 ||
-                          keySz < (int)ssl->options.minRsaKeySz) {
+                          keySz < (int)ssl->options.minRsaKeySz ||
+                          keySz > (RSA_MAX_SIZE / 8)) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minRsaKeySz < 0 ||
-                                  keySz < (int)ctx->minRsaKeySz) {
+                            keySz < (int)ctx->minRsaKeySz ||
+                            keySz > (RSA_MAX_SIZE / 8)) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
