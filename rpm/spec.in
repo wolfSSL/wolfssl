@@ -269,6 +269,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/falcon.h
 %{_includedir}/wolfssl/wolfcrypt/dilithium.h
+%{_includedir}/wolfssl/wolfcrypt/sphincs.h
 %{_includedir}/wolfssl/wolfcrypt/fe_448.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
@@ -318,8 +319,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %changelog
 * Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add include of QUIC documentation
-- Add a new header dilithium.h.
-* Wed Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
+* Wed Aug 17 2022 Anthony Hu <anthony@wolfssl.com>
+- Add a new header sphincs.h.
+* Fri Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
 - Add a new header dilithium.h.
 * Fri Jul 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing sp_int.h file

@@ -945,6 +945,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_FALCON       = 95,
         DYNAMIC_TYPE_SESSION      = 96,
         DYNAMIC_TYPE_DILITHIUM    = 97,
+        DYNAMIC_TYPE_SPHINCS      = 98,
         DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
         DYNAMIC_TYPE_SNIFFER_PB         = 1002,
