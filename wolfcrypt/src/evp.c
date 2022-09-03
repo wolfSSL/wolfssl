@@ -3436,7 +3436,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
             if (len) {
                 XMEMCPY(pkey->pkey.ptr, priv, len);
             }
-            pkey->pkey_sz = len;
+            pkey->pkey_sz = (int)len;
             pkey->type = pkey->save_type = EVP_PKEY_CMAC;
             pkey->cmacCtx = ctx;
         }
