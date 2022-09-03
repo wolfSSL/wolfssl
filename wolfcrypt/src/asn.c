@@ -33475,7 +33475,7 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
 
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && !defined(WOLFCRYPT_ONLY)
 
 /* Get raw Date only, no processing, 0 on success */
 static int GetBasicDate(const byte* source, word32* idx, byte* date,
@@ -33499,7 +33499,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY)
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
@@ -35391,7 +35391,7 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(WOLFCRYPT_ONLY)
 
 #ifdef OPENSSL_EXTRA
 static char* GetNameFromDer(const byte* source, int sz)
@@ -35469,8 +35469,8 @@ enum {
 #endif
 
 /* Get Revoked Cert list, 0 on success */
-static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
-                      int maxIdx)
+static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
+                      DecodedCRL* dcrl, int maxIdx)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
 #ifndef NO_ASN_TIME
@@ -35479,13 +35479,30 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     int len;
     word32 end;
     RevokedCert* rc;
-
+#ifdef CRL_STATIC_REVOKED_LIST
+    int totalCerts = 0;
+#endif
     WOLFSSL_ENTER("GetRevoked");
 
     if (GetSequence(buff, idx, &len, maxIdx) < 0)
         return ASN_PARSE_E;
 
     end = *idx + len;
+
+#ifdef CRL_STATIC_REVOKED_LIST
+    totalCerts = dcrl->totalCerts;
+
+    if (totalCerts >= CRL_MAX_REVOKED_CERTS) {
+        return MEMORY_E;
+    }
+
+    rc = &rcert[totalCerts];
+
+    if (wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
+                                                                maxIdx) < 0) {
+        return ASN_PARSE_E;
+    }
+#else
 
     rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), dcrl->heap,
                                                           DYNAMIC_TYPE_REVOKED);
@@ -35503,8 +35520,10 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     /* add to list */
     rc->next = dcrl->certs;
     dcrl->certs = rc;
-    dcrl->totalCerts++;
 
+    (void)rcert;
+#endif /* CRL_STATIC_REVOKED_LIST */
+    dcrl->totalCerts++;
     /* get date */
 #ifndef NO_ASN_TIME
     ret = GetBasicDate(buff, idx, rc->revDate, &rc->revDateFormat, maxIdx);
@@ -35523,13 +35542,23 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     word32 serialSz = EXTERNAL_SERIAL_SIZE;
     word32 revDateSz = MAX_DATE_SIZE;
     RevokedCert* rc;
+#ifdef CRL_STATIC_REVOKED_LIST
+    int totalCerts = dcrl->totalCerts;
 
+    if (totalCerts >= CRL_MAX_REVOKED_CERTS) {
+        return MEMORY_E;
+    }
+
+    rc = &rcert[totalCerts];
+
+#else
     /* Allocate a new revoked certificate object. */
     rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), dcrl->heap,
             DYNAMIC_TYPE_CRL);
     if (rc == NULL) {
         ret = MEMORY_E;
     }
+#endif /* CRL_STATIC_REVOKED_LIST */
 
     CALLOC_ASNGETDATA(dataASN, revokedASN_Length, ret, dcrl->heap);
 
@@ -35555,15 +35584,20 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
         /* TODO: use extensions, only v2 */
         /* Add revoked certificate to chain. */
+#ifndef CRL_STATIC_REVOKED_LIST
         rc->next = dcrl->certs;
         dcrl->certs = rc;
+#endif
         dcrl->totalCerts++;
     }
 
     FREE_ASNGETDATA(dataASN, dcrl->heap);
+#ifndef CRL_STATIC_REVOKED_LIST
     if ((ret != 0) && (rc != NULL)) {
         XFREE(rc, dcrl->heap, DYNAMIC_TYPE_CRL);
     }
+    (void)rcert;
+#endif
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -35578,15 +35612,15 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
  * @return  0 on success.
  * @return  ASN_PARSE_E on failure.
  */
-static int ParseCRL_RevokedCerts(DecodedCRL* dcrl, const byte* buff, word32 idx,
-    word32 maxIdx)
+static int ParseCRL_RevokedCerts(RevokedCert* rcert, DecodedCRL* dcrl,
+                                 const byte* buff, word32 idx, word32 maxIdx)
 {
     int ret = 0;
 
     /* Parse each revoked cerificate. */
     while ((ret == 0) && (idx < maxIdx)) {
         /* Parse a revoked certificate. */
-        if (GetRevoked(buff, &idx, dcrl, maxIdx) < 0) {
+        if (GetRevoked(rcert, buff, &idx, dcrl, maxIdx) < 0) {
             ret = ASN_PARSE_E;
         }
     }
@@ -35704,8 +35738,8 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
 #endif
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
-        word32* inOutIdx, int sz, int verify)
+static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
+                           const byte* buf,word32* inOutIdx, int sz, int verify)
 {
     word32 oid, dateIdx, idx, checkIdx;
     int length;
@@ -35787,7 +35821,7 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         len += idx;
 
         while (idx < (word32)len) {
-            if (GetRevoked(buf, &idx, dcrl, len) < 0)
+            if (GetRevoked(rcert, buf, &idx, dcrl, len) < 0)
                 return ASN_PARSE_E;
         }
     }
@@ -36137,8 +36171,8 @@ enum {
 #endif
 
 /* parse crl buffer into decoded state, 0 on success */
-int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, int verify,
-        void* cm)
+int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
+             int verify, void* cm)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     Signer*      ca = NULL;
@@ -36167,7 +36201,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, int verify,
         return ASN_PARSE_E;
     dcrl->sigIndex = len + idx;
 
-    if (ParseCRL_CertList(dcrl, buff, &idx, dcrl->sigIndex, verify) < 0)
+    if (ParseCRL_CertList(rcert, dcrl, buff, &idx, dcrl->sigIndex, verify) < 0)
         return ASN_PARSE_E;
 
     if (ParseCRL_Extensions(dcrl, buff, &idx, dcrl->sigIndex) < 0)
@@ -36303,6 +36337,7 @@ end:
     }
     if (ret == 0) {
     #endif
+#if defined(OPENSSL_EXTRA)
         /* Parse and store the issuer name. */
         dcrl->issuerSz = GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER],
                             buff);
@@ -36315,10 +36350,12 @@ end:
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }
+#endif
     }
+
     if ((ret == 0) && (dataASN[CRLASN_IDX_TBS_REVOKEDCERTS].tag != 0)) {
         /* Parse revoked cerificates - starting after SEQUENCE OF. */
-        ret = ParseCRL_RevokedCerts(dcrl, buff,
+        ret = ParseCRL_RevokedCerts(rcert, dcrl, buff,
             GetASNItem_DataIdx(dataASN[CRLASN_IDX_TBS_REVOKEDCERTS], buff),
             GetASNItem_EndIdx(dataASN[CRLASN_IDX_TBS_REVOKEDCERTS], buff));
     }

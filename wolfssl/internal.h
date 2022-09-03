@@ -2198,7 +2198,13 @@ typedef struct CRL_Entry CRL_Entry;
 #ifdef NO_ASN
     typedef struct RevokedCert RevokedCert;
 #endif
-
+#ifdef CRL_STATIC_REVOKED_LIST
+    #ifndef CRL_MAX_REVOKED_CERTS
+        #define CRL_MAX_REVOKED_CERTS 4
+    #elif CRL_MAX_REVOKED_CERTS > 22000
+        #error CRL_MAX_REVOKED_CERTS too big, max is 22000
+    #endif
+#endif
 /* Complete CRL */
 struct CRL_Entry {
     CRL_Entry* next;                      /* next entry */
@@ -2209,7 +2215,11 @@ struct CRL_Entry {
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* last date format */
     byte    nextDateFormat;          /* next date format */
+#ifdef CRL_STATIC_REVOKED_LIST
+    RevokedCert certs[CRL_MAX_REVOKED_CERTS];
+#else
     RevokedCert* certs;              /* revoked cert list  */
+#endif
     int          totalCerts;         /* number on list     */
     int     version;                 /* version of certficate */
     int     verified;
@@ -2245,6 +2255,7 @@ struct CRL_Monitor {
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+    CRL_Entry*            currentEntry;  /* Current CRL entry being processed */
     CRL_Entry*            crlList;       /* our CRL list */
 #ifdef HAVE_CRL_IO
     CbCrlIO               crlIOCb;
