@@ -1294,7 +1294,11 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_32BIT_MILLI_TIME)
     TIMESTAMP_LEN   = 4,        /* timestamp size in ticket */
+#else
+    TIMESTAMP_LEN   = 8,        /* timestamp size in ticket */
+#endif
 #ifdef WOLFSSL_TLS13
     AGEADD_LEN      = 4,        /* ageAdd size in ticket */
     NAMEDGROUP_LEN  = 2,        /* namedGroup size in ticket */
@@ -2753,9 +2757,6 @@ typedef struct InternalTicket {
     byte            suite[SUITE_LEN];      /* cipher suite when created */
     byte            msecret[SECRET_LEN];   /* master secret */
     byte            timestamp[TIMESTAMP_LEN];          /* born on */
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_32BIT_MILLI_TIME)
-    byte            timestampmilli[TIMESTAMP_LEN];     /* born on milli */
-#endif
     byte            haveEMS;               /* have extended master secret */
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
@@ -3722,8 +3723,7 @@ struct WOLFSSL_SESSION {
 #ifdef WOLFSSL_32BIT_MILLI_TIME
     word32             ticketSeen;        /* Time ticket seen (ms) */
 #else
-    word32             ticketSeen;        /* Time ticket seen (s) */
-    word32             ticketSeenMilli;   /* Time ticket seen ms */
+    sword64            ticketSeen;        /* Time ticket seen (ms) */
 #endif
     word32             ticketAdd;         /* Added by client */
     TicketNonce        ticketNonce;       /* Nonce used to derive PSK */

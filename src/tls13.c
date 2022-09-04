@@ -1621,7 +1621,7 @@ end:
     {
         struct timeval now;
         if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1647,7 +1647,7 @@ end:
         struct timeval now;
 
         if (gettimeofday(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1904,7 +1904,7 @@ end:
     {
         struct timeval now;
         if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return (sword64)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
@@ -1930,7 +1930,7 @@ end:
         struct timeval now;
 
         if (gettimeofday(&now, 0) < 0)
-            return (sword64)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
@@ -4926,8 +4926,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             sword64 diff;
 
             now = TimeNowInMilliseconds();
-            if (now == (word32)GETTIME_ERROR)
-                return now;
+            if (now == 0)
+                return GETTIME_ERROR;
             /* Difference between now and time ticket constructed
              * (from decrypted ticket). */
             diff = now;
@@ -4941,12 +4941,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             sword64 diff;
 
             diff = TimeNowInMilliseconds();
-            if (diff == (sword64)GETTIME_ERROR)
-                return (word32)diff;
+            if (diff == 0)
+                return GETTIME_ERROR;
             /* Difference between now and time ticket constructed
              * (from decrypted ticket). */
-            diff -= (word64)ssl->session->ticketSeen * 1000;
-            diff -= ssl->session->ticketSeenMilli;
+            diff -= ssl->session->ticketSeen;
             if (diff > (sword64)ssl->timeout * 1000 ||
                 diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
                 current = current->next;
@@ -9242,26 +9241,15 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         return ret;
     *inOutIdx += length;
 
-#ifdef WOLFSSL_32BIT_MILLI_TIME
     now = TimeNowInMilliseconds();
-    if (now == (word32)GETTIME_ERROR)
-        return now;
-#else
-    now = TimeNowInMilliseconds();
-    if (now == (sword64)GETTIME_ERROR)
-        return (int)now;
-#endif
+    if (now == 0)
+        return GETTIME_ERROR;
     /* Copy in ticket data (server identity). */
     ssl->timeout                  = lifetime;
     ssl->session->timeout         = lifetime;
     ssl->session->cipherSuite0    = ssl->options.cipherSuite0;
     ssl->session->cipherSuite     = ssl->options.cipherSuite;
-#ifdef WOLFSSL_32BIT_MILLI_TIME
     ssl->session->ticketSeen      = now;
-#else
-    ssl->session->ticketSeen      = (word32)(now / 1000);
-    ssl->session->ticketSeenMilli = now % 1000;
-#endif
     ssl->session->ticketAdd       = ageAdd;
     #ifdef WOLFSSL_EARLY_DATA
     ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;

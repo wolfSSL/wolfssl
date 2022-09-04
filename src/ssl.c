@@ -25365,7 +25365,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     /* ticketSeen | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN;
 #else
-    /* ticketSeen | ticketSeenMilli | ticketAdd */
+    /* ticketSeen Hi 32 bits | ticketSeen Lo 32 bits | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE32_LEN;
 #endif
     /* ticketNonce */
@@ -25439,17 +25439,20 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifdef WOLFSSL_TLS13
-    c32toa(sess->ticketSeen, data + idx);
-    idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_32BIT_MILLI_TIME
-    c32toa(sess->ticketSeenMilli, data + idx);
-    idx += OPAQUE32_LEN;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+        c32toa(sess->ticketSeen, data + idx);
+        idx += OPAQUE32_LEN;
+#else
+        c32toa((word32)(sess->ticketSeen >> 32), data + idx);
+        idx += OPAQUE32_LEN;
+        c32toa((word32)sess->ticketSeen, data + idx);
+        idx += OPAQUE32_LEN;
 #endif
-    c32toa(sess->ticketAdd, data + idx);
-    idx += OPAQUE32_LEN;
-    data[idx++] = sess->ticketNonce.len;
-    XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
-    idx += sess->ticketNonce.len;
+        c32toa(sess->ticketAdd, data + idx);
+        idx += OPAQUE32_LEN;
+        data[idx++] = sess->ticketNonce.len;
+        XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
+        idx += sess->ticketNonce.len;
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         c32toa(sess->maxEarlyDataSz, data + idx);
@@ -25639,11 +25642,19 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         ret = BUFFER_ERROR;
         goto end;
     }
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     ato32(data + idx, &s->ticketSeen);
     idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_32BIT_MILLI_TIME
-    ato32(data + idx, &s->ticketSeenMilli);
-    idx += OPAQUE32_LEN;
+#else
+    {
+        word32 seenHi, seenLo;
+
+        ato32(data + idx, &seenHi);
+        idx += OPAQUE32_LEN;
+        ato32(data + idx, &seenLo);
+        idx += OPAQUE32_LEN;
+        s->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+    }
 #endif
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;

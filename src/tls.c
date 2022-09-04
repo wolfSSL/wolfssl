@@ -11510,7 +11510,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #ifdef WOLFSSL_32BIT_MILLI_TIME
                 word32 now, milli;
             #else
-                word64 now, milli, seen;
+                word64 now, milli;
             #endif
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
@@ -11524,8 +11524,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
-            #ifdef WOLFSSL_32BIT_MILLI_TIME
                 now = TimeNowInMilliseconds();
+                if (now == 0)
+                    return GETTIME_ERROR;
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
                 if (now < sess->ticketSeen)
                     milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
                 else
@@ -11537,13 +11539,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     milli, ssl->specs.mac_algorithm, ssl->options.cipherSuite0,
                     ssl->options.cipherSuite, 1, NULL);
             #else
-                seen = (sword64)sess->ticketSeen * 1000 + sess->ticketSeenMilli;
-                now = TimeNowInMilliseconds();
-                if (now < seen)
-                    milli = (0xFFFFFFFFFFFFFFFFU - seen) + 1 + now;
-                else
-                    milli = now - seen;
-                milli += sess->ticketAdd;
+                milli = now - sess->ticketSeen + sess->ticketAdd;
 
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
