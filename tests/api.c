@@ -32943,20 +32943,19 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
 
     const char *priv = "ABCDEFGHIJKLMNOP";
-    int len = strlen(priv);
     const WOLFSSL_EVP_CIPHER* cipher = EVP_aes_128_cbc();
     WOLFSSL_EVP_PKEY* key = NULL;
     printf(testingFmt, "wolfSSL_EVP_PKEY_new_CMAC_key()");
 
     AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
-        NULL, NULL, len, cipher));
+        NULL, NULL, AES_128_KEY_SIZE, cipher));
     AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
         NULL, (const unsigned char *)priv, 0, cipher));
     AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
-        NULL, (const unsigned char *)priv, len, NULL));
+        NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, NULL));
 
     AssertNotNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
-        NULL, (const unsigned char *)priv, len, cipher));
+        NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, cipher));
 
     printf(resultFmt, passed);
 #endif /* defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) */
