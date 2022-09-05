@@ -81,6 +81,9 @@
  *    Verifies the ECC signature after signing in case of faults in the
  *    calculation of the signature. Useful when signature fault injection is a
  *    possible attack.
+ * WOLFSSL_32BIT_MILLI_TIME
+ *    Function TimeNowInMilliseconds() returns an unsigned 32-bit value.
+ *    Default behavior is to return a signed 64-bit value.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1372,6 +1375,7 @@ end:
 }
 
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#ifdef WOLFSSL_32BIT_MILLI_TIME
 #ifndef NO_ASN_TIME
 #if defined(USER_TICKS)
 #if 0
@@ -1617,7 +1621,7 @@ end:
     {
         struct timeval now;
         if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1643,7 +1647,7 @@ end:
         struct timeval now;
 
         if (gettimeofday(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1655,6 +1659,290 @@ end:
      * The response is milliseconds elapsed
      */
 #endif /* !NO_ASN_TIME */
+#else
+#ifndef NO_ASN_TIME
+#if defined(USER_TICKS)
+#if 0
+    sword64 TimeNowInMilliseconds(void)
+    {
+        /*
+        write your own clock tick function if don't want gettimeofday()
+        needs millisecond accuracy but doesn't have to correlated to EPOCH
+        */
+    }
+#endif
+
+#elif defined(TIME_OVERRIDES)
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) wc_Time(0) * 1000;
+    }
+#else
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 32-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) XTIME(0) * 1000;
+    }
+#endif
+
+#elif defined(XTIME_MS)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)XTIME_MS(0);
+    }
+
+#elif defined(USE_WINDOWS_API)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        static int           init = 0;
+        static LARGE_INTEGER freq;
+        LARGE_INTEGER        count;
+
+        if (!init) {
+            QueryPerformanceFrequency(&freq);
+            init = 1;
+        }
+
+        QueryPerformanceCounter(&count);
+
+        return (sword64)(count.QuadPart / (freq.QuadPart / 1000));
+    }
+
+#elif defined(HAVE_RTP_SYS)
+    #include "rtptime.h"
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)rtp_get_system_sec() * 1000;
+    }
+#elif defined(WOLFSSL_DEOS)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        word32 *systemTickPtr = systemTickPointer();
+
+        return (sword64) (*systemTickPtr/systemTickTimeInHz) * 1000;
+    }
+#elif defined(MICRIUM)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        OS_TICK ticks = 0;
+        OS_ERR  err;
+
+        ticks = OSTimeGet(&err);
+
+        return (sword64) (ticks / OSCfg_TickRate_Hz) * 1000;
+    }
+#elif defined(MICROCHIP_TCPIP_V5)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) (TickGet() / (TICKS_PER_SECOND / 1000));
+    }
+#elif defined(MICROCHIP_TCPIP)
+    #if defined(MICROCHIP_MPLAB_HARMONY)
+        #include <system/tmr/sys_tmr.h>
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)SYS_TMR_TickCountGet() /
+                        (SYS_TMR_TickCounterFrequencyGet() / 1000);
+    }
+    #else
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)SYS_TICK_Get() / (SYS_TICK_TicksPerSecondGet() / 1000);
+    }
+
+    #endif
+
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        TIME_STRUCT mqxTime;
+
+        _time_get_elapsed(&mqxTime);
+
+        return (sword64) mqxTime.SECONDS * 1000;
+    }
+#elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
+    #include "include/task.h"
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)xTaskGetTickCount() / (configTICK_RATE_HZ / 1000);
+    }
+#elif defined(FREESCALE_KSDK_BM)
+    #include "lwip/sys.h" /* lwIP */
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return sys_now();
+    }
+#elif defined(WOLFSSL_TIRTOS)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) Seconds_get() * 1000;
+    }
+#elif defined(WOLFSSL_UTASKER)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)(uTaskerSystemTick / (TICK_RESOLUTION / 1000));
+    }
+#elif defined(WOLFSSL_LINUXKM)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        s64 t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        struct timespec ts;
+        getnstimeofday(&ts);
+        t = ts.tv_sec * (s64)1000;
+        t += ts.tv_nsec / (s64)1000000;
+#else
+        struct timespec64 ts;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        ts = current_kernel_time64();
+#else
+        ktime_get_coarse_real_ts64(&ts);
+#endif
+        t = ts.tv_sec * 1000L;
+        t += ts.tv_nsec / 1000000L;
+#endif
+        return (sword64)t;
+    }
+#elif defined(WOLFSSL_QNX_CAAM)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        return (sword64)(now.tv_sec * 1000 + now.tv_nsec / 1000000);
+    }
+#elif defined(FUSION_RTOS)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
+    }
+#elif defined(WOLFSSL_ZEPHYR)
+    sword64 TimeNowInMilliseconds(void)
+    {
+    #if defined(CONFIG_ARCH_POSIX)
+        k_cpu_idle();
+    #endif
+        return (sword64)k_uptime_get() / 1000;
+    }
+
+#else
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+
+        if (gettimeofday(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
+    }
+#endif
+#else
+    /* user must supply time in milliseconds function:
+     *   sword64 TimeNowInMilliseconds(void);
+     * The response is milliseconds elapsed
+     */
+#endif /* !NO_ASN_TIME */
+#endif /* WOLFSSL_32BIT_MILLI_TIME */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
 
@@ -4633,12 +4921,13 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
 
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            word32  now;
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+            word32 now;
             sword64 diff;
 
             now = TimeNowInMilliseconds();
-            if (now == (word32)GETTIME_ERROR)
-                return now;
+            if (now == 0)
+                return GETTIME_ERROR;
             /* Difference between now and time ticket constructed
              * (from decrypted ticket). */
             diff = now;
@@ -4648,6 +4937,21 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 current = current->next;
                 continue;
             }
+        #else
+            sword64 diff;
+
+            diff = TimeNowInMilliseconds();
+            if (diff == 0)
+                return GETTIME_ERROR;
+            /* Difference between now and time ticket constructed
+             * (from decrypted ticket). */
+            diff -= ssl->session->ticketSeen;
+            if (diff > (sword64)ssl->timeout * 1000 ||
+                diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
+                current = current->next;
+                continue;
+            }
+        #endif
             /* Subtract client's ticket age and unobfuscate. */
             diff -= current->ticketAge;
             diff += ssl->session->ticketAdd;
@@ -8883,7 +9187,11 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     word32 lifetime;
     word32 ageAdd;
     word16 length;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 now;
+#else
+    sword64 now;
+#endif
     const byte* nonce;
     byte        nonceLength;
 
@@ -8934,22 +9242,22 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += length;
 
     now = TimeNowInMilliseconds();
-    if (now == (word32)GETTIME_ERROR)
-        return now;
+    if (now == 0)
+        return GETTIME_ERROR;
     /* Copy in ticket data (server identity). */
-    ssl->timeout                = lifetime;
-    ssl->session->timeout        = lifetime;
-    ssl->session->cipherSuite0   = ssl->options.cipherSuite0;
-    ssl->session->cipherSuite    = ssl->options.cipherSuite;
-    ssl->session->ticketSeen     = now;
-    ssl->session->ticketAdd      = ageAdd;
+    ssl->timeout                  = lifetime;
+    ssl->session->timeout         = lifetime;
+    ssl->session->cipherSuite0    = ssl->options.cipherSuite0;
+    ssl->session->cipherSuite     = ssl->options.cipherSuite;
+    ssl->session->ticketSeen      = now;
+    ssl->session->ticketAdd       = ageAdd;
     #ifdef WOLFSSL_EARLY_DATA
-    ssl->session->maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+    ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;
     #endif
     ssl->session->ticketNonce.len = nonceLength;
     if (nonceLength > 0)
         XMEMCPY(&ssl->session->ticketNonce.data, nonce, nonceLength);
-    ssl->session->namedGroup     = ssl->namedGroup;
+    ssl->session->namedGroup      = ssl->namedGroup;
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)
         return BUFFER_ERROR;

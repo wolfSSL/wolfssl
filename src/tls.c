@@ -11507,7 +11507,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_SESSION_TICKET)
             if (ssl->options.resuming && ssl->session->ticketLen > 0) {
                 WOLFSSL_SESSION* sess = ssl->session;
-                word32           now, milli;
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
+                word32 now, milli;
+            #else
+                word64 now, milli;
+            #endif
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
                     WOLFSSL_MSG("Session ticket length for PSK ext is too large");
@@ -11521,6 +11525,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 if (ret != 0)
                     return ret;
                 now = TimeNowInMilliseconds();
+                if (now == 0)
+                    return GETTIME_ERROR;
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
                 if (now < sess->ticketSeen)
                     milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
                 else
@@ -11529,10 +11536,17 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
-                                            milli, ssl->specs.mac_algorithm,
-                                            ssl->options.cipherSuite0,
-                                            ssl->options.cipherSuite, 1,
-                                            NULL);
+                    milli, ssl->specs.mac_algorithm, ssl->options.cipherSuite0,
+                    ssl->options.cipherSuite, 1, NULL);
+            #else
+                milli = now - sess->ticketSeen + sess->ticketAdd;
+
+                /* Pre-shared key is mandatory extension for resumption. */
+                ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
+                    (word32)milli, ssl->specs.mac_algorithm,
+                    ssl->options.cipherSuite0, ssl->options.cipherSuite, 1,
+                    NULL);
+            #endif
                 if (ret != 0)
                     return ret;
 

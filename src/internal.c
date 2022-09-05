@@ -33505,6 +33505,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else {
 #ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+            word32 now = TimeNowInMilliseconds();
+        #else
+            sword64 now = TimeNowInMilliseconds();
+        #endif
+            if (now == 0) {
+                ret = GETTIME_ERROR;
+                goto error;
+            }
+
             /* Client adds to ticket age to obfuscate. */
             ret = wc_RNG_GenerateBlock(ssl->rng, it->ageAdd,
                                        sizeof(it->ageAdd));
@@ -33514,7 +33524,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             ato32(it->ageAdd, &ssl->session->ticketAdd);
             c16toa(ssl->session->namedGroup, it->namedGroup);
-            c32toa(TimeNowInMilliseconds(), it->timestamp);
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+            c32toa(now, it->timestamp);
+        #else
+            c32toa((word32)(now >> 32), it->timestamp);
+            c32toa((word32)now        , it->timestamp + OPAQUE32_LEN);
+        #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
             XMEMCPY(&it->ticketNonce, &ssl->session->ticketNonce,
@@ -33777,7 +33792,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             else {
 #ifdef WOLFSSL_TLS13
                 /* Restore information to renegotiate. */
+            #ifdef WOLFSSL_32BIT_MILLI_TIME
                 ato32(it->timestamp, &ssl->session->ticketSeen);
+            #else
+                word32 seenHi, seenLo;
+
+                ato32(it->timestamp               , &seenHi);
+                ato32(it->timestamp + OPAQUE32_LEN, &seenLo);
+                ssl->session->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+            #endif
                 ato32(it->ageAdd, &ssl->session->ticketAdd);
                 ssl->session->cipherSuite0 = it->suite[0];
                 ssl->session->cipherSuite = it->suite[1];

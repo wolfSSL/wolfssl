@@ -1255,6 +1255,15 @@ enum {
 #error "Max size for DTLS CID is 255 bytes"
 #endif
 
+#ifndef MAX_TICKET_AGE_DIFF
+/* maximum ticket age difference in seconds, 10 seconds */
+#define MAX_TICKET_AGE_DIFF     10
+#endif
+#ifndef TLS13_MAX_TICKET_AGE
+/* max ticket age in seconds, 7 days */
+#define TLS13_MAX_TICKET_AGE    (7*24*60*60)
+#endif
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -1285,7 +1294,11 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_32BIT_MILLI_TIME)
     TIMESTAMP_LEN   = 4,        /* timestamp size in ticket */
+#else
+    TIMESTAMP_LEN   = 8,        /* timestamp size in ticket */
+#endif
 #ifdef WOLFSSL_TLS13
     AGEADD_LEN      = 4,        /* ageAdd size in ticket */
     NAMEDGROUP_LEN  = 2,        /* namedGroup size in ticket */
@@ -1555,8 +1568,6 @@ enum Misc {
     MAX_PSK_KEY_LEN      =  64,  /* max psk key supported */
     MIN_PSK_ID_LEN       =   6,  /* min length of identities */
     MIN_PSK_BINDERS_LEN  =  33,  /* min length of binders */
-    MAX_TICKET_AGE_DIFF  =  10,  /* maximum ticket age difference in seconds */
-    TLS13_MAX_TICKET_AGE =  7*24*60*60,  /* max ticket age in seconds, 7 days */
 
 #ifndef MAX_WOLFSSL_FILE_SIZE
     MAX_WOLFSSL_FILE_SIZE = 1024UL * 1024UL * 4,  /* 4 mb file size alloc limit */
@@ -3709,14 +3720,18 @@ struct WOLFSSL_SESSION {
     word16             namedGroup;
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32             ticketSeen;        /* Time ticket seen (ms) */
+#else
+    sword64            ticketSeen;        /* Time ticket seen (ms) */
+#endif
     word32             ticketAdd;         /* Added by client */
     TicketNonce        ticketNonce;       /* Nonce used to derive PSK */
-    #endif
-    #ifdef WOLFSSL_EARLY_DATA
+#endif
+#ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
-    #endif
+#endif
 #endif
 #ifdef HAVE_SESSION_TICKET
     byte               staticTicket[SESSION_TICKET_LEN];
@@ -5488,7 +5503,11 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
+#else
+    WOLFSSL_LOCAL sword64 TimeNowInMilliseconds(void);
+#endif
 
     WOLFSSL_LOCAL int FindSuiteMac(WOLFSSL* ssl, byte* suite);
 #endif
