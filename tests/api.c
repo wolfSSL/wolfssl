@@ -843,7 +843,10 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
 {
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC))
+    const char* testCertFile;
+    const char* testKeyFile;
     WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
 
     const byte cipherList[] =
     {
@@ -987,6 +990,14 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
         /* TLS_SHA384_SHA384 */ 0xC0, 0xB5
     };
 
+#ifndef NO_RSA
+    testCertFile = svrCertFile;
+    testKeyFile = svrKeyFile;
+#elif defined(HAVE_ECC)
+    testCertFile = eccCertFile;
+    testKeyFile = eccKeyFile;
+#endif
+
 #ifndef NO_WOLFSSL_SERVER
     ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertNotNull(ctx);
@@ -998,6 +1009,28 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     AssertTrue(wolfSSL_CTX_set_cipher_list_bytes(ctx, &cipherList[0U],
                                                            sizeof(cipherList)));
 
+    wolfSSL_CTX_free(ctx);
+
+#ifndef NO_WOLFSSL_SERVER
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
+#else
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+#endif
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
+
+    AssertTrue(wolfSSL_set_cipher_list_bytes(ssl, &cipherList[0U],
+                                                           sizeof(cipherList)));
+
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
 #endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && (!NO_RSA || HAVE_ECC) */
