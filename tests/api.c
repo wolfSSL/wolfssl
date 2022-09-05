@@ -52113,7 +52113,7 @@ static int test_wolfssl_EVP_chacha20(void)
                 NULL), WOLFSSL_SUCCESS);
     /* Any tag length must fail - not an AEAD cipher. */
     AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
-                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, NULL), WOLFSSL_FAILURE);
+                16, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
     AssertIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
                 sizeof(plainText)), WOLFSSL_SUCCESS);
