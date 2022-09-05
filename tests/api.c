@@ -21426,10 +21426,20 @@ static int test_wc_ed25519_make_key(void)
 #if defined(HAVE_ED25519)
     ed25519_key     key;
     WC_RNG          rng;
+    unsigned char   pubkey[ED25519_PUB_KEY_SIZE];
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ed25519_init(&key);
+    }
+    if (ret == 0) {
+        ret = wc_ed25519_make_public(&key, pubkey, sizeof(pubkey));
+        if (ret == ECC_PRIV_KEY_E) {
+            ret = 0;
+        }
+        else if (ret == 0) {
+            ret = -1;
+        }
     }
     printf(testingFmt, "wc_ed25519_make_key()");
     if (ret == 0) {
@@ -23249,10 +23259,20 @@ static int test_wc_ed448_make_key(void)
 #if defined(HAVE_ED448)
     ed448_key     key;
     WC_RNG        rng;
+    unsigned char pubkey[ED448_PUB_KEY_SIZE];
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ed448_init(&key);
+    }
+    if (ret == 0) {
+        ret = wc_ed448_make_public(&key, pubkey, sizeof(pubkey));
+        if (ret == ECC_PRIV_KEY_E) {
+            ret = 0;
+        }
+        else if (ret == 0) {
+            ret = -1;
+        }
     }
     printf(testingFmt, "wc_ed448_make_key()");
     if (ret == 0) {

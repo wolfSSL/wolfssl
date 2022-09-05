@@ -185,6 +185,10 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
         ret = BAD_FUNC_ARG;
     }
 
+    if ((ret == 0) && (!key->privKeySet)) {
+        ret = ECC_PRIV_KEY_E;
+    }
+
     if (ret == 0)
         ret = ed448_hash(key, key->k, ED448_KEY_SIZE, az, sizeof(az));
 
@@ -196,6 +200,8 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
 
         ge448_scalarmult_base(&A, az);
         ge448_to_bytes(pubKey, &A);
+
+        key->pubKeySet = 1;
     }
 
     return ret;
@@ -225,20 +231,22 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
     }
 
     if (ret == 0) {
+        key->pubKeySet = 0;
+        key->privKeySet = 0;
+
         ret = wc_RNG_GenerateBlock(rng, key->k, ED448_KEY_SIZE);
     }
     if (ret == 0) {
         key->privKeySet = 1;
         ret = wc_ed448_make_public(key, key->p, ED448_PUB_KEY_SIZE);
         if (ret != 0) {
+            key->privKeySet = 0;
             ForceZero(key->k, ED448_KEY_SIZE);
         }
     }
     if (ret == 0) {
         /* put public key after private key, on the same buffer */
         XMEMMOVE(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
-
-        key->pubKeySet = 1;
     }
 
     return ret;
