@@ -5286,7 +5286,7 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
         0x95, 0x03, 0x17, 0xd1, 0x0f, 0xf6, 0x08, 0xe5, 0xec
     };
 #define CHACHA_BIG_TEST_SIZE 1305
-#ifndef WOLFSSL_SMALL_STACK
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     byte   cipher_big[CHACHA_BIG_TEST_SIZE] = {0};
     byte   plain_big[CHACHA_BIG_TEST_SIZE] = {0};
     byte   input_big[CHACHA_BIG_TEST_SIZE] = {0};
@@ -5294,7 +5294,7 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
     byte*  cipher_big;
     byte*  plain_big;
     byte*  input_big;
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
     int    block_size;
 #endif /* BENCH_EMBEDDED */
 
@@ -5311,7 +5311,7 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
     test_chacha[3] = d;
 
 #ifndef BENCH_EMBEDDED
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     cipher_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, HEAP_HINT,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (cipher_big == NULL) {
@@ -5330,7 +5330,7 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
     XMEMSET(cipher_big, 0, CHACHA_BIG_TEST_SIZE);
     XMEMSET(plain_big, 0, CHACHA_BIG_TEST_SIZE);
     XMEMSET(input_big, 0, CHACHA_BIG_TEST_SIZE);
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 #endif /* BENCH_EMBEDDED */
 
     for (i = 0; i < times; ++i) {
@@ -5489,11 +5489,11 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
             return -4734;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cipher_big, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(plain_big, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(input_big, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 #endif /* BENCH_EMBEDDED */
 
     return 0;
@@ -6460,7 +6460,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
         const byte* iv, const byte* plain, int plainSz,
         const byte* expected, int expectedSz)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     EVP_CIPHER_CTX *ctx = NULL;
 #else
     EVP_CIPHER_CTX ctx[1];
@@ -6468,7 +6468,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
     int idx, ret = 0, cipherSz;
     byte* cipher;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((ctx = wolfSSL_EVP_CIPHER_CTX_new()) == NULL)
         return MEMORY_E;
 #endif
@@ -6531,7 +6531,7 @@ EVP_TEST_END:
     if (cipher)
         XFREE(cipher, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     (void)cipherSz;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wolfSSL_EVP_CIPHER_CTX_free(ctx);
 #endif
 
@@ -6625,14 +6625,14 @@ EVP_TEST_END:
         };
     #endif /* WOLFSSL_AES_192 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *enc = NULL;
 #else
         Aes enc[1];
 #endif
         byte cipher[AES_BLOCK_SIZE * 4];
     #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
@@ -6641,7 +6641,7 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-1, out);
 #ifdef HAVE_AES_DECRYPT
@@ -6891,7 +6891,7 @@ EVP_TEST_END:
 
         wc_AesFree(enc);
         wc_AesFree(dec);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -6910,7 +6910,7 @@ EVP_TEST_END:
     /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
     static int aescfb_test(void)
     {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *enc = NULL;
 #else
         Aes enc[1];
@@ -6918,7 +6918,7 @@ EVP_TEST_END:
         int enc_inited = 0;
         byte cipher[AES_BLOCK_SIZE * 4];
     #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
@@ -7030,7 +7030,7 @@ EVP_TEST_END:
         };
 #endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-1, out);
 #ifdef HAVE_AES_DECRYPT
@@ -7218,7 +7218,7 @@ EVP_TEST_END:
     if (dec_inited)
         wc_AesFree(dec);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -7233,7 +7233,7 @@ EVP_TEST_END:
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     static int aescfb1_test(void)
     {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *enc = NULL;
 #else
         Aes enc[1];
@@ -7241,7 +7241,7 @@ EVP_TEST_END:
         int enc_inited = 0;
         byte cipher[AES_BLOCK_SIZE];
     #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
@@ -7321,7 +7321,7 @@ EVP_TEST_END:
         };
 #endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-1, out);
 #ifdef HAVE_AES_DECRYPT
@@ -7466,7 +7466,7 @@ EVP_TEST_END:
         wc_AesFree(dec);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -7481,7 +7481,7 @@ EVP_TEST_END:
 
     static int aescfb8_test(void)
     {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *enc = NULL;
 #else
         Aes enc[1];
@@ -7489,7 +7489,7 @@ EVP_TEST_END:
         int enc_inited = 0;
         byte cipher[AES_BLOCK_SIZE];
     #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         Aes *dec = NULL;
 #else
         Aes dec[1];
@@ -7571,7 +7571,7 @@ EVP_TEST_END:
         };
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-5238, out);
 #ifdef HAVE_AES_DECRYPT
@@ -7679,7 +7679,7 @@ EVP_TEST_END:
             wc_AesFree(dec);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -7699,7 +7699,7 @@ EVP_TEST_END:
 static int aes_key_size_test(void)
 {
     int    ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes    *aes;
 #else
     Aes    aes[1];
@@ -7720,7 +7720,7 @@ static int aes_key_size_test(void)
     word32 keySize;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (Aes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         return -5315;
 #endif
@@ -7822,7 +7822,7 @@ static int aes_key_size_test(void)
   out:
 
     wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
 
@@ -7834,7 +7834,7 @@ static int aes_key_size_test(void)
 #ifdef WOLFSSL_AES_128
 static int aes_xts_128_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XtsAes *aes = NULL;
 #else
     XtsAes aes[1];
@@ -7900,7 +7900,7 @@ static int aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-5417, out);
 #endif
@@ -8012,7 +8012,7 @@ static int aes_xts_128_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -8025,7 +8025,7 @@ static int aes_xts_128_test(void)
 #ifdef WOLFSSL_AES_256
 static int aes_xts_256_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XtsAes *aes = NULL;
 #else
     XtsAes aes[1];
@@ -8107,7 +8107,7 @@ static int aes_xts_256_test(void)
         0xc3, 0xea, 0xd8, 0x10, 0xe9, 0xc0, 0xaf, 0x92
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-5515, out);
 #endif
@@ -8204,7 +8204,7 @@ static int aes_xts_256_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -8218,7 +8218,7 @@ static int aes_xts_256_test(void)
 /* both 128 and 256 bit key test */
 static int aes_xts_sector_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XtsAes *aes = NULL;
 #else
     XtsAes aes[1];
@@ -8273,7 +8273,7 @@ static int aes_xts_sector_test(void)
     };
     word64 s2 = 187;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-5612, out);
 #endif
@@ -8343,7 +8343,7 @@ static int aes_xts_sector_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -8357,7 +8357,7 @@ static int aes_xts_sector_test(void)
 /* testing of bad arguments */
 static int aes_xts_args_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XtsAes *aes = NULL;
 #else
     XtsAes aes[1];
@@ -8385,7 +8385,7 @@ static int aes_xts_args_test(void)
     };
     word64 s1 = 141;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-5708, out);
 #endif
@@ -8443,7 +8443,7 @@ static int aes_xts_args_test(void)
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (aes)
         XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -8501,14 +8501,14 @@ static int aes_cbc_test(void)
 #if defined(HAVE_AES_ECB) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 static int aesecb_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #else
     Aes enc[1];
 #endif
     byte cipher[AES_BLOCK_SIZE * 4];
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
 #else
     Aes dec[1];
@@ -8572,7 +8572,7 @@ static int aesecb_test(void)
 #endif
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -9193,14 +9193,14 @@ out:
 WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 {
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #else
     Aes enc[1];
 #endif
     byte cipher[AES_BLOCK_SIZE * 4];
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
 #else
     Aes dec[1];
@@ -9227,7 +9227,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
     WOLFSSL_SMALL_STACK_STATIC const byte key[] = "0123456789abcdef   ";  /* align */
     WOLFSSL_SMALL_STACK_STATIC const byte iv[]  = "1234567890abcdef   ";  /* align */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     if (enc == NULL)
         ERROR_OUT(-5990, out);
@@ -9332,7 +9332,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         };
         WOLFSSL_SMALL_STACK_STATIC const byte bigKey[] = "0123456789abcdeffedcba9876543210";
         word32 keySz, msgSz;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         byte *bigCipher = (byte *)XMALLOC(sizeof(bigMsg), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         byte *bigPlain = (byte *)XMALLOC(sizeof(bigMsg), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -9394,7 +9394,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
                 break;
         }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(bigCipher, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(bigPlain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -9608,7 +9608,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
   out:
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc) {
         if (ret != -5900) /* note this must match ERRROR_OUT() code
                            * for wc_AesInit(enc, ...) failure above.
@@ -9622,7 +9622,7 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 #endif
     (void)cipher;
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (dec) {
         if ((ret != -5900) && (ret != -5901))
             /* note these codes must match the ERRROR_OUT() codes for
@@ -9646,14 +9646,14 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 WOLFSSL_TEST_SUBROUTINE int aes192_test(void)
 {
 #ifdef HAVE_AES_CBC
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = NULL;
 #else
     Aes enc[1];
 #endif
     byte cipher[AES_BLOCK_SIZE];
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *dec = NULL;
 #else
     Aes dec[1];
@@ -9688,7 +9688,7 @@ WOLFSSL_TEST_SUBROUTINE int aes192_test(void)
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-6008, out);
 #ifdef HAVE_AES_DECRYPT
@@ -9742,7 +9742,7 @@ WOLFSSL_TEST_SUBROUTINE int aes192_test(void)
 #endif
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -9760,14 +9760,14 @@ WOLFSSL_TEST_SUBROUTINE int aes192_test(void)
 WOLFSSL_TEST_SUBROUTINE int aes256_test(void)
 {
 #ifdef HAVE_AES_CBC
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = NULL;
 #else
     Aes enc[1];
 #endif
     byte cipher[AES_BLOCK_SIZE];
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *dec = NULL;
 #else
     Aes dec[1];
@@ -9802,7 +9802,7 @@ WOLFSSL_TEST_SUBROUTINE int aes256_test(void)
         0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-6108, out);
 #ifdef HAVE_AES_DECRYPT
@@ -9856,7 +9856,7 @@ WOLFSSL_TEST_SUBROUTINE int aes256_test(void)
 #endif
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #ifdef HAVE_AES_DECRYPT
@@ -9879,7 +9879,7 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
                 byte* aad, int aadSz, byte* tag, int tagSz)
 {
     int ret, enc_inited = 0, dec_inited = 0;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = NULL;
     Aes *dec = NULL;
 #else
@@ -9892,7 +9892,7 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
     byte resultC[AES_BLOCK_SIZE * 3];
     int  result;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-6118, out);
     if ((dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
@@ -9961,7 +9961,7 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
     if (dec_inited)
         wc_AesFree(dec);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
     if (dec)
@@ -10079,7 +10079,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_default_test(void)
 
 WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc = NULL;
     Aes *dec = NULL;
 #else
@@ -10257,6 +10257,8 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
     #if !defined(BENCH_AESGCM_LARGE)
         #define BENCH_AESGCM_LARGE 1024
     #endif
+
+#ifndef WOLFSSL_NO_MALLOC
     byte *large_input = (byte *)XMALLOC(BENCH_AESGCM_LARGE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *large_output = (byte *)XMALLOC(BENCH_AESGCM_LARGE + AES_BLOCK_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *large_outdec = (byte *)XMALLOC(BENCH_AESGCM_LARGE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10264,12 +10266,18 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
     if ((! large_input) || (! large_output) || (! large_outdec))
         ERROR_OUT(MEMORY_E, out);
 
+#else
+    byte large_input[BENCH_AESGCM_LARGE];
+    byte large_output[BENCH_AESGCM_LARGE];
+    byte large_outdec[BENCH_AESGCM_LARGE];
+#endif
+
     XMEMSET(large_input, 0, BENCH_AESGCM_LARGE);
     XMEMSET(large_output, 0, BENCH_AESGCM_LARGE + AES_BLOCK_SIZE);
     XMEMSET(large_outdec, 0, BENCH_AESGCM_LARGE);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         ERROR_OUT(-6342, out);
     if ((dec = (Aes *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
@@ -10722,7 +10730,8 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 
   out:
 
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    !defined(WOLFSSL_NO_MALLOC)
     if (large_input)
         XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (large_output)
@@ -10732,7 +10741,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 #endif
 
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
     if (dec)
@@ -10746,7 +10755,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Gmac *gmac;
 #else
     Gmac gmac[1];
@@ -10802,7 +10811,7 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 
     byte tag[16];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((gmac = (Gmac *)XMALLOC(sizeof *gmac, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         return -6409;
 #endif
@@ -10870,7 +10879,7 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 
   out:
     wc_AesFree(&gmac->aes);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(gmac, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
 
@@ -10883,7 +10892,7 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes *enc;
 #else
     Aes enc[1];
@@ -10980,7 +10989,7 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
 
     int result;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((enc = (Aes *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
         return -6521;
 #endif
@@ -11146,7 +11155,7 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
     ret = 0;
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
 
@@ -14462,7 +14471,7 @@ exit_rsa_even_mod:
 #ifdef WOLFSSL_CERT_GEN
 static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     RsaKey      *caKey = (RsaKey *)XMALLOC(sizeof *caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_TEST_CERT
     DecodedCert *decode = (DecodedCert *)XMALLOC(sizeof *decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14490,7 +14499,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 
     (void)keypub;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (caKey == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #ifdef WOLFSSL_TEST_CERT
@@ -14754,7 +14763,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 
 exit_rsa:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (caKey != NULL) {
         wc_FreeRsaKey(caKey);
         XFREE(caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14778,7 +14787,7 @@ exit_rsa:
 /* Make Cert / Sign example for ECC cert and RSA CA */
 static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     RsaKey      *caKey = (RsaKey *)XMALLOC(sizeof *caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key     *caEccKey = (ecc_key *)XMALLOC(sizeof *caEccKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key     *caEccKeyPub = (ecc_key *)XMALLOC(sizeof *caEccKeyPub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14804,7 +14813,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 #endif
     int ret;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((caKey == NULL) || (caEccKey == NULL) || (caEccKeyPub == NULL)
 #ifdef WOLFSSL_TEST_CERT
         || (decode == NULL)
@@ -14975,7 +14984,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 
 exit_rsa:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (caKey != NULL) {
         wc_FreeRsaKey(caKey);
         XFREE(caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15012,7 +15021,7 @@ exit_rsa:
 #ifdef WOLFSSL_KEY_GEN
 static int rsa_keygen_test(WC_RNG* rng)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     RsaKey *genKey = (RsaKey *)XMALLOC(sizeof *genKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     RsaKey genKey[1];
@@ -15029,7 +15038,7 @@ static int rsa_keygen_test(WC_RNG* rng)
     int    keySz = 2048;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (! genKey)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
@@ -15099,7 +15108,7 @@ static int rsa_keygen_test(WC_RNG* rng)
 
 exit_rsa:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (genKey) {
         wc_FreeRsaKey(genKey);
         XFREE(genKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15459,7 +15468,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     int    ret;
     size_t bytes;
     WC_RNG rng;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte*  tmp = NULL;
     byte*  der = NULL;
     RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15468,7 +15477,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     byte tmp[FOURK_BUF];
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     RsaKey *keypub = (RsaKey *)XMALLOC(sizeof *keypub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     RsaKey keypub[1];
@@ -15492,7 +15501,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #endif
 #ifdef WOLFSSL_TEST_CERT
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     DecodedCert *cert = (DecodedCert *)XMALLOC(sizeof *cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     DecodedCert cert[1];
@@ -15516,7 +15525,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
     XMEMCPY(in, inStr, inLen);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
@@ -15527,7 +15536,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (cert == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
     /* initialize stack structures */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -15562,7 +15571,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     bytes = FOURK_BUF;
 #endif
 
-#if defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         ERROR_OUT(-7900, exit_rsa);
@@ -16080,7 +16089,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 
 #if defined(WOLFSSL_HAVE_SP_RSA) && defined(USE_FAST_MATH)
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* New key to be loaded in rsa_even_mod_test(). */
     if (key != NULL)
 #endif
@@ -16091,7 +16100,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
 exit_rsa:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_FreeRsaKey(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16113,7 +16122,7 @@ exit_rsa:
     #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     wc_FreeRsaKey(keypub);
     #endif
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
     wc_FreeRng(&rng);
 
@@ -16151,7 +16160,7 @@ exit_rsa:
 static int dh_fips_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     DhKey  *key = (DhKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     DhKey  key[1];
@@ -16242,7 +16251,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
     word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL)
         ERROR_OUT(MEMORY_E, exit_gen_test);
 #endif
@@ -16357,7 +16366,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
 
 exit_gen_test:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key) {
         wc_FreeDhKey(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16372,7 +16381,7 @@ exit_gen_test:
 static int dh_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     DhKey  *smallKey = NULL;
 #else
     DhKey  smallKey[1];
@@ -16393,7 +16402,7 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
     int smallKey_inited = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((smallKey = (DhKey *)XMALLOC(sizeof(*smallKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         return -8019;
 #endif
@@ -16485,7 +16494,7 @@ exit_gen_test:
     if (smallKey_inited)
         wc_FreeDhKey(smallKey);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (smallKey != NULL)
         XFREE(smallKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -16584,7 +16593,7 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
 {
     int    ret;
     word32 privSz, pubSz, privSz2, pubSz2;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte   *priv = (byte*)XMALLOC(MAX_DH_PRIV_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte   *pub = (byte*)XMALLOC(MAX_DH_KEY_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte   *priv2 = (byte*)XMALLOC(MAX_DH_PRIV_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16606,7 +16615,7 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
     word32 agreeSz = MAX_DH_KEY_SZ;
     word32 agreeSz2 = MAX_DH_KEY_SZ;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((priv == NULL) ||
         (pub == NULL) ||
         (priv2 == NULL) ||
@@ -16730,7 +16739,8 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
 
 done:
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_RNG)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WC_NO_RNG)
     if (priv)
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pub)
@@ -16783,7 +16793,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     word32 agreeSz2 = DH_TEST_BUF_SIZE;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     DhKey *key = (DhKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     DhKey *key2 = (DhKey *)XMALLOC(sizeof *key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte  *tmp = (byte *)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16794,7 +16804,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #endif
 
 #ifndef WC_NO_RNG
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *priv = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *pub = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *priv2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16815,7 +16825,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #endif
 #endif /* !WC_NO_RNG */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL || key2 == NULL || tmp == NULL) {
         ERROR_OUT(-8100, done);
     }
@@ -16992,7 +17002,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #ifndef NO_ASN
     {
         /* DH Private - Key Export / Import */
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         byte *tmp2;
     #else
         byte  tmp2[DH_TEST_TMP_SIZE];
@@ -17003,7 +17013,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
         XFCLOSE(file);
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         tmp2 = (byte*)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp2 == NULL)
             ERROR_OUT(-8131, done);
@@ -17052,7 +17062,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
             ERROR_OUT(-8134, done);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(tmp2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
@@ -17146,7 +17156,7 @@ done:
     wc_FreeRng(&rng);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key) {
         if (keyInit)
             wc_FreeDhKey(key);
@@ -17204,7 +17214,7 @@ WOLFSSL_TEST_SUBROUTINE int dsa_test(void)
     byte*  der = 0;
 #endif
 #define DSA_TEST_TMP_SIZE 1024
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte   *tmp = (byte *)XMALLOC(DSA_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     DsaKey *key = (DsaKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_KEY_GEN
@@ -17343,12 +17353,12 @@ WOLFSSL_TEST_SUBROUTINE int dsa_test(void)
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key) {
 #endif
         if (wc_InitDsaKey_h(key, NULL) != 0)
             ret = -8215;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     }
 #endif
 
@@ -17357,7 +17367,7 @@ WOLFSSL_TEST_SUBROUTINE int dsa_test(void)
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (tmp)
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (key)
@@ -17373,7 +17383,7 @@ WOLFSSL_TEST_SUBROUTINE int dsa_test(void)
     }
 #endif
 
-#else /* !WOLFSSL_SMALL_STACK */
+#else /* !WOLFSSL_SMALL_STACK || WOLFSSL_NO_MALLOC */
 
 #ifdef WOLFSSL_KEY_GEN
     wc_FreeDsaKey(derIn);
@@ -17461,7 +17471,7 @@ static int srp_test_digest(SrpType dgstType)
 
     word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
     word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Srp *cli = (Srp *)XMALLOC(sizeof *cli, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     Srp *srv = (Srp *)XMALLOC(sizeof *srv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *clientProof = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, HEAP_HINT,
@@ -17537,7 +17547,7 @@ static int srp_test_digest(SrpType dgstType)
     wc_SrpTerm(cli);
     wc_SrpTerm(srv);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   out:
 
     if (cli)
@@ -17611,7 +17621,7 @@ static int openssl_aes_test(void)
 
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *en = wolfSSL_EVP_CIPHER_CTX_new();
         EVP_CIPHER_CTX *de = wolfSSL_EVP_CIPHER_CTX_new();
 #else
@@ -17622,7 +17632,7 @@ static int openssl_aes_test(void)
         int total = 0;
         int i;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if ((en == NULL) || (de == NULL))
             return MEMORY_E;
 #endif
@@ -17819,7 +17829,7 @@ static int openssl_aes_test(void)
             }
         }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(en);
         wolfSSL_EVP_CIPHER_CTX_free(de);
 #endif
@@ -17850,7 +17860,7 @@ static int openssl_aes_test(void)
         byte cipher[EVP_TEST_BUF_SZ];
         byte plain [EVP_TEST_BUF_SZ];
         byte padded[EVP_TEST_BUF_PAD];
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *en = wolfSSL_EVP_CIPHER_CTX_new();
         EVP_CIPHER_CTX *de = wolfSSL_EVP_CIPHER_CTX_new();
 #else
@@ -17860,7 +17870,7 @@ static int openssl_aes_test(void)
         int outlen ;
         int total = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if ((en == NULL) || (de == NULL))
             return MEMORY_E;
 #endif
@@ -17943,14 +17953,14 @@ static int openssl_aes_test(void)
         if (XMEMCMP(padded, cbcPlain, EVP_TEST_BUF_SZ))
             return -8468;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(en);
         wolfSSL_EVP_CIPHER_CTX_free(de);
 #endif
     }
 
     {  /* evp_cipher test: EVP_aes_128_cbc */
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
 #else
         EVP_CIPHER_CTX ctx[1];
@@ -17976,7 +17986,7 @@ static int openssl_aes_test(void)
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (ctx == NULL)
             return MEMORY_E;
 #endif
@@ -18001,7 +18011,7 @@ static int openssl_aes_test(void)
         if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
             return -8474;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(ctx);
 #endif
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
@@ -18010,7 +18020,7 @@ static int openssl_aes_test(void)
 
 #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_256)
     {  /* evp_cipher test: EVP_aes_256_ecb*/
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
 #else
         EVP_CIPHER_CTX ctx[1];
@@ -18039,7 +18049,7 @@ static int openssl_aes_test(void)
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (ctx == NULL)
             return MEMORY_E;
 #endif
@@ -18064,7 +18074,7 @@ static int openssl_aes_test(void)
         if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
             return -8480;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(ctx);
 #endif
     }  /* end evp_cipher test */
@@ -18074,7 +18084,7 @@ static int openssl_aes_test(void)
     /* enable HAVE_AES_DECRYPT for AES_encrypt/decrypt */
     {
         /* Test: AES_encrypt/decrypt/set Key */
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         AES_KEY *enc = (AES_KEY *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
         #ifdef HAVE_AES_DECRYPT
         AES_KEY *dec = (AES_KEY *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
@@ -18109,7 +18119,7 @@ static int openssl_aes_test(void)
         byte plain[sizeof(msg)];
         byte cipher[sizeof(msg)];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (enc == NULL)
             return MEMORY_E;
         #ifdef HAVE_AES_DECRYPT
@@ -18132,7 +18142,7 @@ static int openssl_aes_test(void)
         if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
             return -8482;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
         #ifdef HAVE_AES_DECRYPT
         XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
@@ -18253,7 +18263,7 @@ static int openssl_aes_test(void)
         };
 #endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *en = wolfSSL_EVP_CIPHER_CTX_new();
         EVP_CIPHER_CTX *de = wolfSSL_EVP_CIPHER_CTX_new();
 #else
@@ -18262,12 +18272,12 @@ static int openssl_aes_test(void)
 #endif
 #ifdef WOLFSSL_AES_128
 
-#ifndef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *p_en;
         EVP_CIPHER_CTX *p_de;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if ((en == NULL) || (de == NULL))
             return MEMORY_E;
 #endif
@@ -18293,7 +18303,7 @@ static int openssl_aes_test(void)
         if (XMEMCMP(plainBuff, ctrPlain, AES_BLOCK_SIZE*4))
             return -8488;
 
-#ifndef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         p_en = wolfSSL_EVP_CIPHER_CTX_new();
         if (p_en == NULL)
             return -8489;
@@ -18317,7 +18327,7 @@ static int openssl_aes_test(void)
 
         wolfSSL_EVP_CIPHER_CTX_free(p_en);
         wolfSSL_EVP_CIPHER_CTX_free(p_de);
-#endif /* !WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
         if (XMEMCMP(cipherBuff, ctrCipher, AES_BLOCK_SIZE*4))
             return -8495;
@@ -18402,7 +18412,7 @@ static int openssl_aes_test(void)
         if (XMEMCMP(ctr256Cipher, cipherBuff, sizeof(ctr256Cipher)))
             return -8518;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(en);
         wolfSSL_EVP_CIPHER_CTX_free(de);
 #endif
@@ -18413,7 +18423,7 @@ static int openssl_aes_test(void)
 
 #if defined(WOLFSSL_AES_CFB) && defined(WOLFSSL_AES_128)
     {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         AES_KEY *enc = (AES_KEY *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
         AES_KEY *dec = (AES_KEY *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
 #else
@@ -18452,7 +18462,7 @@ static int openssl_aes_test(void)
         byte iv[AES_BLOCK_SIZE]; /* iv buffer is updeated by API */
         int  num = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if ((enc == NULL) || (dec == NULL))
             return MEMORY_E;
 #endif
@@ -18480,7 +18490,7 @@ static int openssl_aes_test(void)
         if (num != 0)
             return -8522;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
         XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -18879,7 +18889,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     }
 #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
     {   /* evp_cipher test: EVP_aes_128_cbc */
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
 #else
         EVP_CIPHER_CTX ctx[1];
@@ -18909,7 +18919,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (ctx == NULL)
             return MEMORY_E;
 #endif
@@ -18994,7 +19004,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (cipherSz != (int)sizeof(verify2) || XMEMCMP(cipher, verify2, cipherSz))
             return -8624;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(ctx);
 #endif
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
@@ -19002,7 +19012,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
 #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_256)
     {   /* evp_cipher test: EVP_aes_256_ecb*/
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
 #else
         EVP_CIPHER_CTX ctx[1];
@@ -19024,7 +19034,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if (ctx == NULL)
             return MEMORY_E;
 #endif
@@ -19049,7 +19059,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
             return -8628;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(ctx);
 #endif
     }  /* end evp_cipher test */
@@ -19063,7 +19073,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 {
 
   /* Test: AES_encrypt/decrypt/set Key */
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   AES_KEY *enc = (AES_KEY *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_AES);
   #ifdef HAVE_AES_DECRYPT
   AES_KEY *dec = (AES_KEY *)XMALLOC(sizeof *dec, HEAP_HINT, DYNAMIC_TYPE_AES);
@@ -19100,7 +19110,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
   printf("openSSL extra test\n") ;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   if (enc == NULL)
       return MEMORY_E;
   #ifdef HAVE_AES_DECRYPT
@@ -19123,7 +19133,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
   if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
       return OPENSSL_TEST_ERROR-61;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
   #ifdef HAVE_AES_DECRYPT
   XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
@@ -19244,7 +19254,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     };
 #endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     EVP_CIPHER_CTX *en = wolfSSL_EVP_CIPHER_CTX_new();
     EVP_CIPHER_CTX *de = wolfSSL_EVP_CIPHER_CTX_new();
     if ((en == NULL) || (de == NULL))
@@ -19256,7 +19266,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
 #ifdef WOLFSSL_AES_128
 
-#ifndef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     EVP_CIPHER_CTX *p_en;
     EVP_CIPHER_CTX *p_de;
 #endif
@@ -19282,7 +19292,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     if (XMEMCMP(plainBuff, ctrPlain, AES_BLOCK_SIZE*4))
         return -8634;
 
-#ifndef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     p_en = wolfSSL_EVP_CIPHER_CTX_new();
     if(p_en == NULL)return -8635;
     p_de = wolfSSL_EVP_CIPHER_CTX_new();
@@ -19304,7 +19314,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
     wolfSSL_EVP_CIPHER_CTX_free(p_en);
     wolfSSL_EVP_CIPHER_CTX_free(p_de);
-#endif /* !WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
     if (XMEMCMP(cipherBuff, ctrCipher, AES_BLOCK_SIZE*4))
         return -8641;
@@ -19390,7 +19400,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         return -8664;
 #endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wolfSSL_EVP_CIPHER_CTX_free(en);
     wolfSSL_EVP_CIPHER_CTX_free(de);
 #endif
@@ -19419,7 +19429,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         EVP_CIPHER_CTX *en = wolfSSL_EVP_CIPHER_CTX_new();
         EVP_CIPHER_CTX *de = wolfSSL_EVP_CIPHER_CTX_new();
 #else
@@ -19429,7 +19439,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         int outlen ;
         int total = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         if ((en == NULL) || (de == NULL))
             return MEMORY_E;
 #endif
@@ -19638,7 +19648,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (EVP_CIPHER_CTX_set_padding(en, 1) != WOLFSSL_SUCCESS)
             return -8721;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(en);
         wolfSSL_EVP_CIPHER_CTX_free(de);
 #endif
@@ -19977,7 +19987,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_pkey1_test(void)
     long cliKeySz;
     size_t outlen;
     int keyLenBits = 2048;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     unsigned char *tmp = (unsigned char *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     unsigned char *cipher = (unsigned char *)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     unsigned char *plain = (unsigned char *)XMALLOC(RSA_TEST_BYTES, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -20142,7 +20152,7 @@ openssl_pkey1_test_done:
         X509_free(x509);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (tmp != NULL)
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (cipher != NULL)
@@ -21750,7 +21760,7 @@ static int ecc_test_vector_item(const eccVector* vector)
 {
     int ret = 0, verify = 0;
     word32  sigSz;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key userA[1];
@@ -21772,7 +21782,7 @@ static int ecc_test_vector_item(const eccVector* vector)
 #endif
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (userA == NULL)
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -21831,7 +21841,7 @@ static int ecc_test_vector_item(const eccVector* vector)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (userA != NULL) {
         wc_ecc_free(userA);
         XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -22344,7 +22354,7 @@ done:
 static int ecc_test_sign_vectors(WC_RNG* rng)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = NULL;
 #else
     ecc_key key[1];
@@ -22369,7 +22379,7 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
         0xe1, 0xd4, 0x5e, 0x9d, 0x97, 0xfe, 0x81
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((key = (ecc_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         return MEMORY_E;
 #endif
@@ -22429,7 +22439,7 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
 done:
     if (key_inited)
         wc_ecc_free(key);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -22441,7 +22451,7 @@ done:
 static int ecc_test_cdh_vectors(WC_RNG* rng)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *pub_key = (ecc_key *)XMALLOC(sizeof *pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *priv_key = (ecc_key *)XMALLOC(sizeof *priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
@@ -22457,7 +22467,7 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     WOLFSSL_SMALL_STACK_STATIC const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
     WOLFSSL_SMALL_STACK_STATIC const char* ZIUT =   "46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b";
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((pub_key == NULL) ||
         (priv_key == NULL)) {
         ret = MEMORY_E;
@@ -22521,7 +22531,7 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (priv_key) {
         wc_ecc_free(priv_key);
         XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -22831,7 +22841,7 @@ done:
 static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *eccKey = (ecc_key *)XMALLOC(sizeof *eccKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *tmpBuf = (byte *)XMALLOC(ECC_BUFSIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
@@ -22841,7 +22851,7 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
     word32 tmpSz;
     word32 idx;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((eccKey == NULL) || (tmpBuf == NULL))
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -22892,7 +22902,7 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 
   done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (eccKey != NULL) {
         wc_ecc_free(eccKey);
         XFREE(eccKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -22917,7 +22927,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 #ifdef HAVE_PKCS8
     word32 pkcs8Sz;
 #endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *der = (byte *)XMALLOC(ECC_BUFSIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
@@ -22925,7 +22935,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     ecc_key userA[1];
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((der == NULL) || (userA == NULL))
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -23003,7 +23013,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (der != NULL)
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (userA != NULL) {
@@ -23044,7 +23054,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
     int     ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *userB = (ecc_key *)XMALLOC(sizeof *userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *pubKey = (ecc_key *)XMALLOC(sizeof *pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -23073,13 +23083,13 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (sig == NULL || digest == NULL)
         ERROR_OUT(-9902, done);
 #endif
-#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SMALL_STACK && !WOLFSSL_NO_MALLOC */
 
     (void)testVerifyCount;
     (void)dp;
     (void)x;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((userA == NULL) ||
         (userB == NULL) ||
         (pubKey == NULL))
@@ -23421,7 +23431,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (userA != NULL) {
         wc_ecc_free(userA);
         XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -23824,7 +23834,7 @@ static int ecc_exp_imp_test(ecc_key* key)
 {
     int        ret;
     int        curve_id;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key    *keyImp = (ecc_key *)XMALLOC(sizeof *keyImp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key    keyImp[1];
@@ -23840,7 +23850,7 @@ static int ecc_exp_imp_test(ecc_key* key)
     const char d[]  = "8c14b793cb19137e323a6d2e2a870bca"
                       "2e7a493ec1153b3a95feb8a4873f8d08";
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (keyImp == NULL)
         ERROR_OUT(-10050, done);
 #endif
@@ -23935,7 +23945,7 @@ static int ecc_exp_imp_test(ecc_key* key)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (keyImp != NULL) {
         wc_ecc_free(keyImp);
         XFREE(keyImp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -23953,7 +23963,7 @@ done:
 static int ecc_mulmod_test(ecc_key* key1)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key    *key2 = (ecc_key *)XMALLOC(sizeof *key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key    *key3 = (ecc_key *)XMALLOC(sizeof *key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
@@ -23961,7 +23971,7 @@ static int ecc_mulmod_test(ecc_key* key1)
     ecc_key    key3[1];
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((key2 == NULL) || (key3 == NULL))
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -23995,7 +24005,7 @@ static int ecc_mulmod_test(ecc_key* key1)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key2 != NULL) {
         wc_ecc_free(key2);
         XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24065,7 +24075,7 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 static int ecc_def_curve_test(WC_RNG *rng)
 {
     int     ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key key[1];
@@ -24075,7 +24085,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
     word32 idx = 0;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL)
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -24164,7 +24174,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
 done:
 
     wc_ecc_free(key);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -24181,7 +24191,7 @@ static int ecc_decode_test(void)
     int        ret;
     word32     inSz;
     word32     inOutIdx;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key    *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key    key[1];
@@ -24222,7 +24232,7 @@ static int ecc_decode_test(void)
             0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
             0x03, 0x03, 0x00, 0x04, 0x01 };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL)
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -24335,7 +24345,7 @@ static int ecc_decode_test(void)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24387,7 +24397,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 {
     int     ret;
     word32  inOutIdx;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key key[1];
@@ -24426,7 +24436,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
     };
 #endif /* HAVE_ECC_BRAINPOOL */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (! key) {
         ret = MEMORY_E;
         goto done;
@@ -24475,7 +24485,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 
   done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key) {
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24496,7 +24506,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 static int ecc_test_cert_gen(WC_RNG* rng)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Cert        *myCert = (Cert *)XMALLOC(sizeof *myCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #ifdef WOLFSSL_TEST_CERT
     DecodedCert *decode = (DecodedCert *)XMALLOC(sizeof *decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24517,13 +24527,13 @@ static int ecc_test_cert_gen(WC_RNG* rng)
 #ifndef USE_CERT_BUFFERS_256
     XFILE       file;
 #endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* der = NULL;
 #else
     byte der[FOURK_BUF];
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((myCert == NULL)
     #ifdef WOLFSSL_TEST_CERT
         || (decode == NULL)
@@ -24535,7 +24545,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     XMEMSET(caEccKey, 0, sizeof *caEccKey);
     XMEMSET(certPubKey, 0, sizeof *certPubKey);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ERROR_OUT(-10130, exit);
@@ -24698,11 +24708,11 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     }
 
 exit:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (myCert != NULL)
         XFREE(myCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_TEST_CERT
@@ -25423,14 +25433,14 @@ static int ecc_encrypt_kat(WC_RNG *rng)
 {
     int ret = 0;
 #ifdef WOLFSSL_ECIES_OLD
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key* userA = NULL;
 #else
     ecc_key  userA[1];
 #endif
     int      userAInit = 0;
 #endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key* userB = NULL;
 #else
     ecc_key  userB[1];
@@ -25552,7 +25562,7 @@ static int ecc_encrypt_kat(WC_RNG *rng)
         0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     userB = (ecc_key *)XMALLOC(sizeof(*userB), HEAP_HINT,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (userB == NULL) {
@@ -25642,7 +25652,7 @@ static int ecc_encrypt_kat(WC_RNG *rng)
     if (userAInit)
         wc_ecc_free(userA);
 #endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (userB != NULL) {
         XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -25689,14 +25699,14 @@ static int ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* userB,
 #endif
     word32  outSz2   = sizeof(out2);
     word32  plainSz2 = sizeof(plain2);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *tmpKey = (ecc_key *)XMALLOC(sizeof(ecc_key), HEAP_HINT,
                                          DYNAMIC_TYPE_TMP_BUFFER);
 #else
     ecc_key tmpKey[1];
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (tmpKey == NULL) {
         ERROR_OUT(MEMORY_E, done);
     }
@@ -25914,7 +25924,7 @@ done:
     wc_ecc_ctx_free(srvCtx);
     wc_ecc_ctx_free(cliCtx);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (tmpKey != NULL) {
         wc_ecc_free(tmpKey);
         XFREE(tmpKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -25932,7 +25942,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
 {
     WC_RNG  rng;
     int     ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *userA;
     ecc_key *userB;
 #else
@@ -25948,7 +25958,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     if (ret != 0)
         return -10400;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT,
                                DYNAMIC_TYPE_TMP_BUFFER);
     userB = (ecc_key *)XMALLOC(sizeof *userB, HEAP_HINT,
@@ -26043,7 +26053,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 done:
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (userA != NULL) {
         wc_ecc_free(userA);
         XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -26071,7 +26081,7 @@ done:
 WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
 {
     size_t bytes;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *cliKey = (ecc_key *)XMALLOC(sizeof *cliKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *servKey = (ecc_key *)XMALLOC(sizeof *servKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *tmpKey = (ecc_key *)XMALLOC(sizeof *tmpKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -26091,7 +26101,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
     int verify = 0;
     word32 x;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((cliKey == NULL) || (servKey == NULL) || (tmpKey == NULL))
         ERROR_OUT(MEMORY_E, done);
 #endif
@@ -26217,7 +26227,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
 
   done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (cliKey != NULL) {
         wc_ecc_free(cliKey);
         XFREE(cliKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28586,7 +28596,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
     word32 keySz, sigSz;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ed448_key *key = NULL;
     ed448_key *key2 = NULL;
 #else
@@ -29048,14 +29058,14 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ed448_key *key3 = NULL;
 #else
     ed448_key key3[1];
 #endif
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     key = (ed448_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     key2 = (ed448_key *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
@@ -29256,7 +29266,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key) {
         wc_ed448_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -29813,7 +29823,7 @@ static int eccsi_enc_dec_pair_test(EccsiKey* priv, mp_int* ssk, ecc_point* pvt)
     byte data[32 * 3];
     word32 sz;
     ecc_point* decPvt = NULL;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *decSsk = (mp_int *)XMALLOC(sizeof(*decSsk), HEAP_HINT,
                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (decSsk == NULL)
@@ -29896,7 +29906,7 @@ static int eccsi_enc_dec_pair_test(EccsiKey* priv, mp_int* ssk, ecc_point* pvt)
 out:
 
     mp_free(decSsk);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(decSsk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -31614,7 +31624,7 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
 #endif
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Cmac *cmac;
 #else
     Cmac cmac[1];
@@ -31624,7 +31634,7 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
     word32 i, tagSz;
     int ret;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, HEAP_HINT, DYNAMIC_TYPE_CMAC)) == NULL)
         ERROR_OUT(-12009, out);
 #endif
@@ -31678,7 +31688,7 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (cmac)
         XFREE(cmac, HEAP_HINT, DYNAMIC_TYPE_CMAC);
 #endif
@@ -32740,7 +32750,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     word32 keyIdSz = 8;
     const byte*  key;
     byte   keyIdRaw[8];
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     Aes    *aes;
 #else
     Aes    aes[1];
@@ -32772,7 +32782,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
         return -12160;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (Aes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         return -12164;
 #endif
@@ -32854,7 +32864,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -34849,7 +34859,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7compressed_test(void)
     int i, testSz;
     int compressedSz, decodedSz;
     PKCS7* pkcs7;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte  *compressed;
     byte  *decoded;
 #else
@@ -34874,7 +34884,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7compressed_test(void)
             "pkcs7compressedData_firmwarePkgData_zlib.der"},
     };
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     compressed = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! compressed) || (! decoded)) {
@@ -34943,7 +34953,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7compressed_test(void)
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (compressed)
         XFREE(compressed, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded)
@@ -38957,7 +38967,7 @@ static const unsigned char testOne[] = { 1 };
 static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *ki = (mp_int *)XMALLOC(sizeof(*ki), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ki == NULL)
@@ -38977,7 +38987,7 @@ static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
         ret = mp_add_d(p2, 1, p2);
     mp_clear(ki);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(ki, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -38989,14 +38999,14 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
                 const pairs_t* ecPairs, int ecPairsSz,
                 const int* k)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *x = NULL, *y = NULL;
 #else
     mp_int x[1], y[1];
 #endif
     int ret, i;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (((x = (mp_int *)XMALLOC(sizeof(*x), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
         ((y = (mp_int *)XMALLOC(sizeof(*x), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)) {
         ret = MEMORY_E;
@@ -39031,7 +39041,7 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (x != NULL) {
         mp_clear(x);
         XFREE(x, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -39050,7 +39060,7 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
 
 WOLFSSL_TEST_SUBROUTINE int prime_test(void)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *n = (mp_int *)XMALLOC(sizeof *n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
         *p1 = (mp_int *)XMALLOC(sizeof *p1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
         *p2 = (mp_int *)XMALLOC(sizeof *p2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
@@ -39064,7 +39074,7 @@ WOLFSSL_TEST_SUBROUTINE int prime_test(void)
     int ret, isPrime = 0;
     WC_RNG rng;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((n == NULL) ||
         (p1 == NULL) ||
         (p2 == NULL) ||
@@ -39147,7 +39157,7 @@ WOLFSSL_TEST_SUBROUTINE int prime_test(void)
 
   out:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (n != NULL) {
         mp_clear(n);
         XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -39642,7 +39652,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
     int     ret = 0;
 #if !defined(NO_RSA)
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     RsaKey *key = (RsaKey *)XMALLOC(sizeof *key,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte*  tmp = NULL;
@@ -39688,7 +39698,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
     bytes = FOURK_BUF;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         ERROR_OUT(-8000, exit_onlycb);
@@ -39778,7 +39788,7 @@ static int rsa_onlycb_test(myCryptoDevCtx *ctx)
 
 exit_onlycb:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_FreeRsaKey(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -39805,7 +39815,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
      int     ret = 0;
 #if defined(HAVE_ECC)
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key* key = (ecc_key *)XMALLOC(sizeof *key,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub,
@@ -39875,7 +39885,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     word32 outLen;
     int    verify;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL || pub == NULL) {
         ERROR_OUT(-8008, exit_onlycb);
     }
@@ -40089,7 +40099,7 @@ static int ecc_onlycb_test(myCryptoDevCtx *ctx)
     (void)encInfo;
 
 exit_onlycb:
-#if defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
