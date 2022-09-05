@@ -614,7 +614,7 @@ static int InitSha3(wc_Sha3* sha3)
     if (!cpuid_flags_set) {
         cpuid_flags = cpuid_get_flags();
         cpuid_flags_set = 1;
-        if (IS_INTEL_BMI2(cpuid_flags)) {
+        if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block = sha3_block_bmi2;
             sha3_block_n = sha3_block_n_bmi2;
         }
@@ -719,7 +719,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 #endif
     sha3->t[sha3->i ]  = padChar;
     sha3->t[rate - 1] |= 0x80;
-    XMEMSET(sha3->t + sha3->i + 1, 0, rate - 1 - sha3->i - 1);
+    if (rate - 1 > (word32)sha3->i + 1) {
+        XMEMSET(sha3->t + sha3->i + 1, 0, rate - 1 - (sha3->i + 1));
+    }
     for (i = 0; i < p; i++) {
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
     }

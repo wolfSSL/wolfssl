@@ -405,9 +405,12 @@
 #define BENCH_SHA3_512           0x00000800
 #define BENCH_SHA3               (BENCH_SHA3_224 | BENCH_SHA3_256 | \
                                   BENCH_SHA3_384 | BENCH_SHA3_512)
-#define BENCH_RIPEMD             0x00001000
-#define BENCH_BLAKE2B            0x00002000
-#define BENCH_BLAKE2S            0x00004000
+#define BENCH_SHAKE128           0x00001000
+#define BENCH_SHAKE256           0x00002000
+#define BENCH_SHAKE              (BENCH_SHAKE128 | BENCH_SHAKE256)
+#define BENCH_RIPEMD             0x00004000
+#define BENCH_BLAKE2B            0x00008000
+#define BENCH_BLAKE2S            0x00010000
 
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
@@ -619,6 +622,15 @@ static const bench_alg bench_digest_opt[] = {
     #endif
     #ifndef WOLFSSL_NOSHA3_512
     { "-sha3-512",           BENCH_SHA3_512          },
+    #endif
+    #if !defined(WOLFSSL_NO_SHAKE128) || !defined(WOLFSSL_NO_SHAKE256)
+    { "-shake",              BENCH_SHAKE             },
+    #endif
+    #ifndef WOLFSSL_NO_SHAKE128
+    { "-shake128",           BENCH_SHAKE128          },
+    #endif
+    #ifndef WOLFSSL_NO_SHAKE256
+    { "-shake256",           BENCH_SHAKE256          },
     #endif
 #endif
 #ifdef WOLFSSL_RIPEMD
@@ -2065,6 +2077,28 @@ static void* benchmarks_do(void* args)
     #endif
     }
     #endif /* WOLFSSL_NOSHA3_512 */
+    #ifndef WOLFSSL_NO_SHAKE128
+    if (bench_all || (bench_digest_algs & BENCH_SHAKE128)) {
+    #ifndef NO_SW_BENCH
+        bench_shake128(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
+        bench_shake128(1);
+    #endif
+    }
+    #endif /* WOLFSSL_NO_SHAKE128 */
+    #ifndef WOLFSSL_NO_SHAKE256
+    if (bench_all || (bench_digest_algs & BENCH_SHAKE256)) {
+    #ifndef NO_SW_BENCH
+        bench_shake256(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
+        bench_shake256(1);
+    #endif
+    }
+    #endif /* WOLFSSL_NO_SHAKE256 */
 #endif
 #ifdef WOLFSSL_RIPEMD
     if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
@@ -4645,6 +4679,184 @@ exit:
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_NOSHA3_512 */
+
+#ifndef WOLFSSL_NO_SHAKE128
+void bench_shake128(int useDeviceID)
+{
+    wc_Shake hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret = 0, i, count = 0, times, pending = 0;
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_128_BLOCK_SIZE, HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_128_BLOCK_SIZE, HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (digest_stream) {
+        /* init keys */
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            ret = wc_InitShake128(&hash[i], HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("InitShake128 failed, ret = %d\n", ret);
+                goto exit;
+            }
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Shake128_Update(&hash[i], bench_plain,
+                            BENCH_SIZE);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_shake128;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Shake128_Final(&hash[i], digest[i],
+                            WC_SHA3_128_BLOCK_SIZE);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_shake128;
+                        }
+                    }
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_sym_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks; times++) {
+                ret = wc_InitShake128(hash, HEAP_HINT, INVALID_DEVID);
+                if (ret == 0)
+                    ret = wc_Shake128_Update(hash, bench_plain, BENCH_SIZE);
+                if (ret == 0)
+                    ret = wc_Shake128_Final(hash, digest[0],
+                        WC_SHA3_128_BLOCK_SIZE);
+                if (ret != 0)
+                    goto exit_shake128;
+            } /* for times */
+            count += times;
+        } while (bench_stats_sym_check(start));
+    }
+exit_shake128:
+    bench_stats_sym_finish("SHAKE128", useDeviceID, count, bench_size, start, ret);
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Shake128_Free(&hash[i]);
+    }
+
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
+#endif /* WOLFSSL_NO_SHAKE128 */
+
+#ifndef WOLFSSL_NO_SHAKE256
+void bench_shake256(int useDeviceID)
+{
+    wc_Shake hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret = 0, i, count = 0, times, pending = 0;
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_256_BLOCK_SIZE, HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_256_BLOCK_SIZE, HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (digest_stream) {
+        /* init keys */
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            ret = wc_InitShake256(&hash[i], HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("InitShake256 failed, ret = %d\n", ret);
+                goto exit;
+            }
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Shake256_Update(&hash[i], bench_plain,
+                            BENCH_SIZE);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_shake256;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                              0, &times, numBlocks, &pending)) {
+                        ret = wc_Shake256_Final(&hash[i], digest[i],
+                            WC_SHA3_256_BLOCK_SIZE);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, &pending)) {
+                            goto exit_shake256;
+                        }
+                    }
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_sym_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks; times++) {
+                ret = wc_InitShake256(hash, HEAP_HINT, INVALID_DEVID);
+                if (ret == 0)
+                    ret = wc_Shake256_Update(hash, bench_plain, BENCH_SIZE);
+                if (ret == 0)
+                    ret = wc_Shake256_Final(hash, digest[0],
+                        WC_SHA3_256_BLOCK_SIZE);
+                if (ret != 0)
+                    goto exit_shake256;
+            } /* for times */
+            count += times;
+        } while (bench_stats_sym_check(start));
+    }
+exit_shake256:
+    bench_stats_sym_finish("SHAKE256", useDeviceID, count, bench_size, start, ret);
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Shake256_Free(&hash[i]);
+    }
+
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
+#endif /* WOLFSSL_NO_SHAKE256 */
 #endif
 
 
