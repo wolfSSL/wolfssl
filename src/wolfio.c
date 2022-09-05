@@ -377,7 +377,7 @@ static int isDGramSock(int sfd)
     int type = 0;
     /* optvalue 'type' is of size int */
     XSOCKLENT length = (XSOCKLENT)sizeof(int);
-    
+
     if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
             type != SOCK_DGRAM) {
         return 0;
