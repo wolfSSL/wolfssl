@@ -9064,7 +9064,7 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
     #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Sha256");
         wc_Sha256GetHash(&ssl->hsHashes->hashSha256, digest);
-        WOLFSSL_BUFFER(digest, WC_SHA256_DIGEST_SIZE);
+        WOLFSSL_BUFFER(digest, WC_SHA224_DIGEST_SIZE);
     #endif
     #endif
     #ifdef WOLFSSL_SHA384
