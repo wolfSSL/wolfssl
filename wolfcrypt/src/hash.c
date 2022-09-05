@@ -396,10 +396,10 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             break;
 
         /* Not Supported */
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -509,10 +509,10 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
             break;
 
         /* Not Supported */
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -627,10 +627,10 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -725,10 +725,10 @@ int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -831,10 +831,10 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -928,10 +928,10 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -1037,10 +1037,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -1113,10 +1113,10 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         default:
@@ -1185,10 +1185,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE128
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:

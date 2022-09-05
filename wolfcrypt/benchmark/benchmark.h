@@ -68,6 +68,8 @@ void bench_sha3_224(int useDeviceID);
 void bench_sha3_256(int useDeviceID);
 void bench_sha3_384(int useDeviceID);
 void bench_sha3_512(int useDeviceID);
+void bench_shake128(int useDeviceID);
+void bench_shake256(int useDeviceID);
 int  bench_ripemd(void);
 void bench_cmac(void);
 void bench_scrypt(void);
