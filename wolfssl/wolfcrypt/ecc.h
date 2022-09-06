@@ -494,7 +494,12 @@ struct ecc_key {
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-    mp_int *sign_k;
+#ifndef WOLFSSL_NO_MALLOC
+    mp_int* sign_k;
+#else
+    mp_int sign_k[1];
+    byte sign_k_set:1;
+#endif
 #endif
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
