@@ -4374,7 +4374,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS_CID
-    if (ssl->options.useDtlsCID)
+    if (ssl->options.useDtlsCID && *extMsgType == server_hello)
         DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -5826,11 +5826,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         goto exit_dch;
     }
 
-#ifdef WOLFSSL_DTLS_CID
-    if (ssl->options.useDtlsCID)
-        DtlsCIDOnExtensionsParsed(ssl);
-#endif /* WOLFSSL_DTLS_CID */
-
 #ifdef HAVE_SNI
         if ((ret = SNI_Callback(ssl)) != 0)
             return ret;
@@ -6025,6 +6020,15 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
     }
 #endif /* WOLFSSL_DTLS13 */
+
+#ifdef WOLFSSL_DTLS_CID
+    /* do not modify CID state if we are sending an HRR  */
+    if (ssl->options.useDtlsCID &&
+            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+        DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
+
+
 
 exit_dch:
 
