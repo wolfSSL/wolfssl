@@ -712,7 +712,6 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 #endif
 #ifdef HAVE_CHACHA
         case CHACHA20_TYPE:
-        /* CHACHAFIXME */
             if (wc_Chacha_Process(&ctx->cipher.chacha, out, in, inl) != 0) {
                 WOLFSSL_MSG("wc_ChaCha_Process failed");
                 return WOLFSSL_FAILURE;
@@ -6735,7 +6734,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                     return WOLFSSL_FAILURE;
                 }
             }
-/* CHACHAFIXME */
         }
 #endif
 #ifndef NO_DES3
