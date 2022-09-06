@@ -139,6 +139,11 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void);
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20_poly1305(void);
 #endif
+#ifdef HAVE_CHACHA
+/* ChaCha IV + counter is set as one IV in EVP */
+#define WOLFSSL_EVP_CHACHA_IV_BYTES     (CHACHA_IV_BYTES + sizeof(word32))
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void);
+#endif
 
 
 typedef union {
@@ -212,6 +217,9 @@ typedef union {
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ChaChaPoly_Aead chachaPoly;
 #endif
+#ifdef HAVE_CHACHA
+    ChaCha chacha;
+#endif
 } WOLFSSL_Cipher;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -282,7 +290,8 @@ enum {
     AES_256_OFB_TYPE = 35,
     AES_128_XTS_TYPE = 36,
     AES_256_XTS_TYPE = 37,
-    CHACHA20_POLY1305_TYPE = 38
+    CHACHA20_POLY1305_TYPE = 38,
+    CHACHA20_TYPE    = 39
 };
 
 enum {
@@ -357,7 +366,8 @@ enum {
     NID_aes_256_xts = 914,
     NID_camellia_128_cbc = 751,
     NID_camellia_256_cbc = 753,
-    NID_chacha20_poly1305 = 1018
+    NID_chacha20_poly1305 = 1018,
+    NID_chacha20 = 1019
 };
 
 enum {
@@ -898,6 +908,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_des_ede3_cbc      wolfSSL_EVP_des_ede3_cbc
 #define EVP_des_ede3_ecb      wolfSSL_EVP_des_ede3_ecb
 #define EVP_rc4               wolfSSL_EVP_rc4
+#define EVP_chacha20          wolfSSL_EVP_chacha20
 #define EVP_chacha20_poly1305 wolfSSL_EVP_chacha20_poly1305
 #define EVP_enc_null          wolfSSL_EVP_enc_null
 

@@ -38918,6 +38918,11 @@ int wolfSSL_RAND_poll(void)
                 break;
 #endif
 
+#ifdef HAVE_CHACHA
+            case CHACHA20_TYPE:
+                break;
+#endif
+
             case NULL_CIPHER_TYPE :
                 WOLFSSL_MSG("NULL");
                 break;
@@ -39004,6 +39009,11 @@ int wolfSSL_RAND_poll(void)
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case CHACHA20_POLY1305_TYPE:
+                break;
+#endif
+
+#ifdef HAVE_CHACHA
+            case CHACHA20_TYPE:
                 break;
 #endif
 

@@ -1006,7 +1006,7 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case TLS_CHACHA20_POLY1305_SHA256:
-            evp_cipher = wolfSSL_EVP_chacha20_poly1305();
+            evp_cipher = wolfSSL_EVP_chacha20();
             break;
 #endif
 #if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)

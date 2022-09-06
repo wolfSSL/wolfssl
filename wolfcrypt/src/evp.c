@@ -166,6 +166,10 @@
     static const char EVP_CHACHA20_POLY1305[] = "CHACHA20-POLY1305";
 #endif
 
+#ifdef HAVE_CHACHA
+    static const char EVP_CHACHA20[] = "CHACHA20";
+#endif
+
 static const char EVP_NULL[] = "NULL";
 
 #define EVP_CIPHER_TYPE_MATCHES(x, y) (XSTRCMP(x,y) == 0)
@@ -246,6 +250,9 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
   #endif
   #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
       case CHACHA20_POLY1305_TYPE: return 32;
+  #endif
+  #ifdef HAVE_CHACHA
+      case CHACHA20_TYPE: return CHACHA_MAX_KEY_SZ;
   #endif
       default:
           return 0;
@@ -702,6 +709,15 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                     return WOLFSSL_SUCCESS;
                 }
             }
+#endif
+#ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            if (wc_Chacha_Process(&ctx->cipher.chacha, out, in, inl) != 0) {
+                WOLFSSL_MSG("wc_ChaCha_Process failed");
+                return WOLFSSL_FAILURE;
+            }
+            *outl = inl;
+            return WOLFSSL_SUCCESS;
 #endif
         default:
             /* fall-through */
@@ -1298,6 +1314,11 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return CHACHA20_POLY1305_TYPE;
 #endif
 
+#ifdef HAVE_CHACHA
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_CHACHA20))
+        return CHACHA20_TYPE;
+#endif
+
       else return 0;
 }
 
@@ -1371,6 +1392,12 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case CHACHA20_POLY1305_TYPE:
           return 1;
 #endif
+
+#ifdef HAVE_CHACHA
+      case CHACHA20_TYPE:
+          return 1;
+#endif
+
       default:
           return 0;
       }
@@ -1443,6 +1470,10 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case CHACHA20_POLY1305_TYPE:
             return WOLFSSL_EVP_CIPH_STREAM_CIPHER |
                     WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
+    #endif
+    #ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            return WOLFSSL_EVP_CIPH_STREAM_CIPHER;
     #endif
         default:
             return 0;
@@ -4176,6 +4207,10 @@ static const struct cipher{
     {CHACHA20_POLY1305_TYPE, EVP_CHACHA20_POLY1305, NID_chacha20_poly1305},
 #endif
 
+#ifdef HAVE_CHACHA
+    {CHACHA20_TYPE, EVP_CHACHA20, NID_chacha20},
+#endif
+
     { 0, NULL, 0}
 };
 
@@ -4275,6 +4310,9 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         {EVP_CHACHA20_POLY1305, "chacha20-poly1305"},
+#endif
+#ifdef HAVE_CHACHA
+        {EVP_CHACHA20, "chacha20"},
 #endif
         { NULL, NULL}
     };
@@ -4392,6 +4430,11 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case NID_chacha20_poly1305:
             return wolfSSL_EVP_chacha20_poly1305();
+#endif
+
+#ifdef HAVE_CHACHA
+        case NID_chacha20:
+            return wolfSSL_EVP_chacha20();
 #endif
 
         default:
@@ -5295,6 +5338,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_chacha20_poly1305");
         return EVP_CHACHA20_POLY1305;
+    }
+#endif
+
+#ifdef HAVE_CHACHA
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_chacha20");
+        return EVP_CHACHA20;
     }
 #endif
 
@@ -6649,6 +6700,39 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                     &ctx->cipher.chachaPoly, ctx->key, iv, ctx->enc) != 0) {
                 WOLFSSL_MSG("wc_ChaCha20Poly1305_Init() failed");
                 return WOLFSSL_FAILURE;
+            }
+        }
+#endif
+#ifdef HAVE_CHACHA
+        if (ctx->cipherType == CHACHA20_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_CHACHA20))) {
+            WOLFSSL_MSG("EVP_CHACHA20");
+            ctx->cipherType = CHACHA20_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->keyLen     = CHACHA_MAX_KEY_SZ;
+            ctx->block_size = 1;
+            ctx->ivSz       = WOLFSSL_EVP_CHACHA_IV_BYTES;
+            if (enc == 0 || enc == 1) {
+                ctx->enc    = (byte) enc;
+            }
+            if (key != NULL && wc_Chacha_SetKey(&ctx->cipher.chacha,
+                                                key, ctx->keyLen) != 0) {
+                WOLFSSL_MSG("wc_Chacha_SetKey() failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (iv != NULL) {
+                /* a bit silly. chacha takes an iv+counter and internally
+                 * combines them to a new iv. EVP is given exactly *one* iv,
+                 * so to pass it into chacha, we have to revert that first.
+                 * The counter comes first in little-endian */
+                word32 counter = (uint32_t)iv[0] + (uint32_t)(iv[1] << 8) +
+                    (uint32_t)(iv[2] << 16) + (uint32_t)(iv[3] << 24);
+                if (wc_Chacha_SetIV(&ctx->cipher.chacha,
+                                    iv + sizeof(counter), counter) != 0) {
+
+                    WOLFSSL_MSG("wc_Chacha_SetIV() failed");
+                    return WOLFSSL_FAILURE;
+                }
             }
         }
 #endif
@@ -8423,6 +8507,11 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("CHACHA20 POLY1305");
             return CHACHA20_POLY1305_AEAD_IV_SIZE;
 #endif /* HAVE_CHACHA HAVE_POLY1305 */
+#ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            WOLFSSL_MSG("CHACHA20");
+            return WOLFSSL_EVP_CHACHA_IV_BYTES;
+#endif /* HAVE_CHACHA */
 
         case NULL_CIPHER_TYPE :
             WOLFSSL_MSG("NULL");
@@ -8510,6 +8599,11 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     if (XSTRCMP(name, EVP_CHACHA20_POLY1305) == 0)
         return CHACHA20_POLY1305_AEAD_IV_SIZE;
+#endif
+
+#ifdef HAVE_CHACHA
+    if (XSTRCMP(name, EVP_CHACHA20) == 0)
+        return WOLFSSL_EVP_CHACHA_IV_BYTES;
 #endif
 
     (void)name;
