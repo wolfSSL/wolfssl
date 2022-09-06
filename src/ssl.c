@@ -11655,11 +11655,12 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ctx, ctx->suites, list);
 #else
-    return (SetCipherList(ctx, ctx->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return (SetCipherList(ctx, ctx->suites, list)) ?
+        WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 #endif
 }
 
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
 int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
                                       const int listSz)
 {
@@ -11679,15 +11680,19 @@ int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
         XMEMSET(ctx->suites, 0, sizeof(Suites));
     }
 
-    return (SetCipherListFromBytes(ctx, ctx->suites, list, listSz))
-           ? WOLFSSL_SUCCESS
-           : WOLFSSL_FAILURE;
+    return (SetCipherListFromBytes(ctx, ctx->suites, list, listSz)) ?
+        WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
-
+#endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
 
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
+
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
 #ifdef SINGLE_THREADED
     if (ssl->ctx->suites == ssl->suites) {
         ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
@@ -11704,15 +11709,22 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ssl->ctx, ssl->suites, list);
 #else
-    return (SetCipherList(ssl->ctx, ssl->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return (SetCipherList(ssl->ctx, ssl->suites, list)) ?
+        WOLFSSL_SUCCESS :
+        WOLFSSL_FAILURE;
 #endif
 }
 
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
 int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
                                   const int listSz)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list_bytes");
+
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
 #ifdef SINGLE_THREADED
     if (ssl->ctx->suites == ssl->suites) {
         ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
@@ -11730,6 +11742,8 @@ int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
            ? WOLFSSL_SUCCESS
            : WOLFSSL_FAILURE;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
+
 
 #ifdef HAVE_KEYING_MATERIAL
 

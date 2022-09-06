@@ -24086,7 +24086,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     return ret;
 }
 
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
 int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
                            const int listSz)
 {
@@ -24099,7 +24099,6 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
     int haveFalconSig    = 0;
     int haveDilithiumSig = 0;
     int haveAnon         = 0;
-
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherListFromBytes parameter error");
@@ -24194,6 +24193,8 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
 
     return ret;
 }
+#endif /* OPENSSL_EXTRA */
+
 
 #ifdef OPENSSL_EXTRA
 

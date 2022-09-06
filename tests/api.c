@@ -841,7 +841,8 @@ static int test_for_double_Free(void)
 
 static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
 {
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     (!defined(NO_RSA) || defined(HAVE_ECC))
     const char* testCertFile;
     const char* testKeyFile;
@@ -1033,7 +1034,8 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && (!NO_RSA || HAVE_ECC) */
+#endif /* (OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES) &&
+    (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && (!NO_RSA || HAVE_ECC) */
 
     return 0;
 }
