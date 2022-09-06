@@ -1231,7 +1231,7 @@ enum {
         #error "MySQL needs SP_INT_BITS at least at 8192"
     #endif
 
-    #if WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
+    #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
         #error "SP_INT_BITS too small for WOLFSSL_MAX_RSA_BITS"
     #endif
 #else
