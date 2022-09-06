@@ -17540,7 +17540,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             int strLen;
             word32 lenStartIdx = idx;
             word32 oid = 0;
-            int    ret;
+            int    ret = 0;
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 WOLFSSL_MSG("\tfail: other name length");
