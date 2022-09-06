@@ -5481,15 +5481,18 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
-    WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg* head, void* heap);
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API void DtlsMsgListDelete(DtlsMsg* head, void* heap);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,
                                   word32 fragOffset, word32 fragSz, void* heap,
                                   word32 totalLen);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
-    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
