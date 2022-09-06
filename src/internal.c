@@ -8143,7 +8143,7 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
 
     if (item != NULL) {
         while (item->fragBucketList != NULL) {
-            DtlsFragBucket* next = item->fragBucketList->next;
+            DtlsFragBucket* next = item->fragBucketList->m.m.next;
             DtlsMsgDestroyFragBucket(item->fragBucketList, heap);
             item->fragBucketList = next;
         }
@@ -8195,9 +8195,9 @@ static DtlsFragBucket* DtlsMsgCreateFragBucket(word32 offset, const byte* data,
                                      DYNAMIC_TYPE_DTLS_FRAG);
     if (bucket != NULL) {
         XMEMSET(bucket, 0, sizeof(*bucket));
-        bucket->next = NULL;
-        bucket->offset = offset;
-        bucket->sz = dataSz;
+        bucket->m.m.next = NULL;
+        bucket->m.m.offset = offset;
+        bucket->m.m.sz = dataSz;
         if (data != NULL)
             XMEMCPY(bucket->buf, data, dataSz);
     }
@@ -8219,27 +8219,27 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
         const byte* data, word32 dataSz, void* heap)
 {
     word32 offsetEnd = offset + dataSz;
-    word32 newOffset = min(cur->offset, offset);
+    word32 newOffset = min(cur->m.m.offset, offset);
     word32 newOffsetEnd;
     word32 newSz;
-    word32 overlapSz = cur->sz;
+    word32 overlapSz = cur->m.m.sz;
     DtlsFragBucket** chosenBucket;
     DtlsFragBucket* newBucket;
     DtlsFragBucket* otherBucket;
     byte combineNext = FALSE;
 
-    if (next != NULL && offsetEnd >= next->offset)
+    if (next != NULL && offsetEnd >= next->m.m.offset)
         combineNext = TRUE;
 
     if (combineNext)
-        newOffsetEnd = next->offset + next->sz;
+        newOffsetEnd = next->m.m.offset + next->m.m.sz;
     else
-        newOffsetEnd = max(cur->offset + cur->sz, offsetEnd);
+        newOffsetEnd = max(cur->m.m.offset + cur->m.m.sz, offsetEnd);
 
     newSz = newOffsetEnd - newOffset;
 
     /* Expand the larger bucket if data bridges the gap between cur and next */
-    if (!combineNext || cur->sz >= next->sz) {
+    if (!combineNext || cur->m.m.sz >= next->m.m.sz) {
         chosenBucket = &cur;
         otherBucket = next;
     }
@@ -8256,9 +8256,9 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
         if (chosenBucket == &next) {
             /* Update the link */
             DtlsFragBucket* beforeNext = cur;
-            while (beforeNext->next != next)
-                beforeNext = beforeNext->next;
-            beforeNext->next = tmp;
+            while (beforeNext->m.m.next != next)
+                beforeNext = beforeNext->m.m.next;
+            beforeNext->m.m.next = tmp;
         }
         newBucket = *chosenBucket = tmp;
     }
@@ -8266,10 +8266,10 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
     if (combineNext) {
         /* Put next first since it will always be at the end. Use memmove since
          * newBucket may be next. */
-        XMEMMOVE(newBucket->buf + (next->offset - newOffset), next->buf,
-                next->sz);
+        XMEMMOVE(newBucket->buf + (next->m.m.offset - newOffset), next->buf,
+                next->m.m.sz);
         /* memory after newOffsetEnd is already copied. Don't do extra work. */
-        newOffsetEnd = next->offset;
+        newOffsetEnd = next->m.m.offset;
     }
 
     if (newOffset == offset) {
@@ -8282,16 +8282,16 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
         else {
             /* data -> cur. memcpy as much possible as its faster. */
             XMEMMOVE(newBucket->buf + dataSz, cur->buf,
-                    cur->sz - (offsetEnd - cur->offset));
+                    cur->m.m.sz - (offsetEnd - cur->m.m.offset));
             XMEMCPY(newBucket->buf, data, dataSz);
         }
     }
     else {
         /* cur -> data */
-        word32 curOffsetEnd = cur->offset + cur->sz;
+        word32 curOffsetEnd = cur->m.m.offset + cur->m.m.sz;
         if (newBucket != cur)
-            XMEMCPY(newBucket->buf, cur->buf, cur->sz);
-        XMEMCPY(newBucket->buf + cur->sz,
+            XMEMCPY(newBucket->buf, cur->buf, cur->m.m.sz);
+        XMEMCPY(newBucket->buf + cur->m.m.sz,
                 data + (curOffsetEnd - offset),
                 newOffsetEnd - curOffsetEnd);
     }
@@ -8299,36 +8299,36 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
 
     /* All buckets up to and including next (if combining) have to be free'd */
     {
-        DtlsFragBucket* toFree = cur->next;
+        DtlsFragBucket* toFree = cur->m.m.next;
         while (toFree != next) {
-            DtlsFragBucket* n = toFree->next;
-            overlapSz += toFree->sz;
+            DtlsFragBucket* n = toFree->m.m.next;
+            overlapSz += toFree->m.m.sz;
             DtlsMsgDestroyFragBucket(toFree, heap);
             msg->fragBucketListCount--;
             toFree = n;
         }
         if (combineNext) {
-            newBucket->next = next->next;
-            overlapSz += next->sz;
+            newBucket->m.m.next = next->m.m.next;
+            overlapSz += next->m.m.sz;
             DtlsMsgDestroyFragBucket(otherBucket, heap);
             msg->fragBucketListCount--;
         }
         else {
-            newBucket->next = next;
+            newBucket->m.m.next = next;
         }
     }
     /* Adjust size in msg */
     msg->bytesReceived += newSz - overlapSz;
-    newBucket->offset = newOffset;
-    newBucket->sz = newSz;
+    newBucket->m.m.offset = newOffset;
+    newBucket->m.m.sz = newSz;
     return newBucket;
 }
 
 static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 {
     /* We have received all necessary fragments. Reconstruct the header. */
-    if (msg->fragBucketListCount != 1 || msg->fragBucketList->offset != 0 ||
-            msg->fragBucketList->sz != msg->sz) {
+    if (msg->fragBucketListCount != 1 || msg->fragBucketList->m.m.offset != 0 ||
+            msg->fragBucketList->m.m.sz != msg->sz) {
         WOLFSSL_MSG("Major error in fragment assembly logic");
         return;
     }
@@ -8395,9 +8395,9 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
         DtlsFragBucket* prev = NULL;
         DtlsFragBucket* cur = msg->fragBucketList;
         byte done = 0;
-        for (; cur != NULL; prev = cur, cur = cur->next) {
-            word32 curOffset = cur->offset;
-            word32 curEnd    = cur->offset + cur->sz;
+        for (; cur != NULL; prev = cur, cur = cur->m.m.next) {
+            word32 curOffset = cur->m.m.offset;
+            word32 curEnd    = cur->m.m.offset + cur->m.m.sz;
 
             if (fragOffset >= curOffset && fragOffsetEnd <= curEnd) {
                 /* We already have this fragment */
@@ -8417,13 +8417,14 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
                     return DTLS_TOO_MANY_FRAGMENTS_E;
                 }
-                prev->next = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
-                if (prev->next != NULL) {
+                prev->m.m.next =
+                        DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
+                if (prev->m.m.next != NULL) {
                     msg->bytesReceived += fragSz;
                     msg->fragBucketListCount++;
                 }
             }
-            else if (prev == NULL && fragOffsetEnd < cur->offset) {
+            else if (prev == NULL && fragOffsetEnd < cur->m.m.offset) {
                     /* This is the new first fragment we have received */
                     if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
                         WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
@@ -8432,7 +8433,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
                     msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data,
                             fragSz, heap);
                     if (msg->fragBucketList != NULL) {
-                        msg->fragBucketList->next = cur;
+                        msg->fragBucketList->m.m.next = cur;
                         msg->bytesReceived += fragSz;
                         msg->fragBucketListCount++;
                     }
@@ -8443,12 +8444,12 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
             }
             else {
                 /* Find if this fragment overlaps with any more */
-                DtlsFragBucket* next = cur->next;
+                DtlsFragBucket* next = cur->m.m.next;
                 DtlsFragBucket** prev_next = prev != NULL
-                        ? &prev->next : &msg->fragBucketList;
+                        ? &prev->m.m.next : &msg->fragBucketList;
                 while (next != NULL &&
-                        (next->offset + next->sz) <= fragOffsetEnd)
-                    next = next->next;
+                        (next->m.m.offset + next->m.m.sz) <= fragOffsetEnd)
+                    next = next->m.m.next;
                 /* We can combine the buckets */
                 *prev_next = DtlsMsgCombineFragBuckets(msg, cur, next,
                         fragOffset, data, fragSz, heap);

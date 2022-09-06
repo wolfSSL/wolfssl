@@ -57684,8 +57684,8 @@ static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
         DtlsFragBucket* fb;
         if (cur->fragBucketList == NULL)
             return -800;
-        for (fb = cur->fragBucketList; fb != NULL; fb = fb->next) {
-            if (XMEMCMP(fb->buf, msg + fb->offset, fb->sz) != 0)
+        for (fb = cur->fragBucketList; fb != NULL; fb = fb->m.m.next) {
+            if (XMEMCMP(fb->buf, msg + fb->m.m.offset, fb->m.m.sz) != 0)
                 return -900;
         }
     }

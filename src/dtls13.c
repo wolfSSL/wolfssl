@@ -679,11 +679,11 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
        peer retransmission) */
     if (ssl->dtls_rx_msg_list != NULL) {
         DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
-        while (last != NULL && last->next != NULL)
-            last = last->next;
+        while (last != NULL && last->m.m.next != NULL)
+            last = last->m.m.next;
         /* Does this fragment start right after the last fragment we
          * have stored? */
-        if (last != NULL && (last->offset + last->sz) != fragOffset)
+        if (last != NULL && (last->m.m.offset + last->m.m.sz) != fragOffset)
             return 1;
     }
     else {

@@ -4439,20 +4439,19 @@ typedef struct DtlsRecordLayerHeader {
     byte            length[2];
 } DtlsRecordLayerHeader;
 
-
-/* Padding necessary to fit DTLS_HANDSHAKE_HEADER_SZ bytes before the buf member
- * of the DtlsFragBucket struct. */
-#define WOLFSSL_DTLS_FRAG_BUCKET_PADDING                             \
-    ((DTLS_HANDSHAKE_HEADER_SZ > (sizeof(struct DtlsFragBucket*) +   \
-        sizeof(word32) + sizeof(word32))) ?                           \
-        (DTLS_HANDSHAKE_HEADER_SZ - sizeof(struct DtlsFragBucket*) - \
-                sizeof(word32) - sizeof(word32)) : 0)
-
 typedef struct DtlsFragBucket {
-    struct DtlsFragBucket* next;
-    word32 offset;
-    word32 sz;
-    byte padding[WOLFSSL_DTLS_FRAG_BUCKET_PADDING];
+    /* m stands for meta */
+    union {
+        struct {
+            struct DtlsFragBucket* next;
+            word32 offset;
+            word32 sz;
+        } m;
+        /* Make sure we have at least DTLS_HANDSHAKE_HEADER_SZ bytes before the
+         * buf so that we can reconstruct the header in the allocated
+         * DtlsFragBucket buffer. */
+        byte padding[DTLS_HANDSHAKE_HEADER_SZ];
+    } m;
     byte buf[];
     /* Add new member initialization to CreateFragBucket */
 } DtlsFragBucket;
