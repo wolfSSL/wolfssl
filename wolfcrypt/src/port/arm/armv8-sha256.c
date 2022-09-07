@@ -45,7 +45,7 @@
 #endif
 
 
-#ifndef WOLFSSL_ARMASM_NO_CRYPTO
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 static const ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
     0x59F111F1L, 0x923F82A4L, 0xAB1C5ED5L, 0xD807AA98L, 0x12835B01L,
@@ -96,7 +96,7 @@ static WC_INLINE void AddLength(wc_Sha256* sha256, word32 len)
 }
 
 
-#ifndef WOLFSSL_ARMASM_NO_CRYPTO
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
 #ifdef __aarch64__
 
@@ -1411,7 +1411,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     return 0;
 }
 
-#endif /* !WOLFSSL_ARMASM_NO_CRYPTO */
+#endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 
 #ifndef NO_SHA256
@@ -1537,7 +1537,7 @@ int wc_Sha256Transform(wc_Sha256* sha256, const unsigned char* data)
 #else
     XMEMCPY(sha256->buffer, data, WC_SHA256_BLOCK_SIZE);
 #endif
-#ifndef WOLFSSL_ARMASM_NO_CRYPTO
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
     Sha256Transform(sha256, data, 1);
 #else
     Transform_Sha256_Len(sha256, data, WC_SHA256_BLOCK_SIZE);
