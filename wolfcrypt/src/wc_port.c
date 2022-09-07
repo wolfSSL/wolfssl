@@ -2464,6 +2464,15 @@ time_t deos_time(time_t* timer)
 }
 #endif /* WOLFSSL_DEOS */
 
+#if defined(FREESCALE_RTC)
+#include "fsl_rtc.h"
+time_t fsl_time(time_t* t)
+{
+    *t = RTC_GetSecondsTimerCount(RTC);
+    return *t;
+}
+#endif
+
 #if defined(MICRIUM)
 
 time_t micrium_time(time_t* timer)

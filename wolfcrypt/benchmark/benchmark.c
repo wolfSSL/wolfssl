@@ -1331,7 +1331,9 @@ static THREAD_LS_T byte* bench_key = NULL;
 static THREAD_LS_T byte* bench_iv = NULL;
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #ifdef BENCH_EMBEDDED
+    #ifdef WOLFSSL_STATIC_MEMORY_TEST_SZ
+        static byte gBenchMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
+    #elif defined(BENCH_EMBEDDED)
         static byte gBenchMemory[50000];
     #else
         static byte gBenchMemory[400000];
