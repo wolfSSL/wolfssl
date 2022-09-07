@@ -668,6 +668,7 @@ static void armv8_32_poly1305_blocks(Poly1305* ctx,
         /*  r14:r12 = r6 * r4 +  r8 * r3 +  r9 * r2 +  r10 * r1 +  r11 * r0       */
 
         /* d4 */
+#if 0
         "UMULL	r12, r14, r6, r4        \n\t"
         "UMLAL	r12, r14, r8, r3        \n\t"
         "UMLAL	r12, r14, r9, r2        \n\t"
@@ -675,6 +676,18 @@ static void armv8_32_poly1305_blocks(Poly1305* ctx,
         "UMLAL	r12, r14, r11, r0        \n\t"
 
         "VMOV	s12, s13, r12, r14        \n\t"
+#else
+        "VMOV	s20, s21, r4, r3        \n\t"
+        "VMOV	s22, s23, r2, r1        \n\t"
+        "VMOV	s24, s25, r6, r8        \n\t"
+        "VMOV	s26, s27, r9, r10       \n\t"
+        "UMULL	r12, r14, r11, r0        \n\t"
+        "VMULL.U32	q14, d12, d10   \n\t"
+        "VMLAL.U32	q14, d13, d11   \n\t"
+        "VMOV	s28, s29, r12, r14       \n\t"
+        "VADD.U64	d28, d28, d29        \n\t"
+        "VADD.U64	d6, d28, d14        \n\t"
+#endif
 
         /* 8F852 C3AB3DA1 */
 
@@ -893,8 +906,9 @@ static void armv8_32_poly1305_blocks(Poly1305* ctx,
             "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10",
             "r11", "r12", "lr",
             "s2", "s4", "s6", "s7", "s8", "s9", "s10", "s12", "s13", "s14",
-            "s15", "s16", "s17", "s18", "s19",
-            "d2"
+            "s15", "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23",
+            "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31",
+            "d2", "q14", "q15"
     );
 
     memcpy(ctx->r, r, 5 * sizeof(word32));
