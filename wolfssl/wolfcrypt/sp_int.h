@@ -425,10 +425,10 @@ typedef struct sp_ecc_ctx {
      * numbers in bits that will be used.
      * Double the size to hold multiplication result.
      * Add one to accommodate extra digit used by sp_mul(), sp_mulmod(),
-     * sp_sqr(), and sp_sqrmod().
+     * sp_sqr(), sp_sqrmod() and sp_mont_red().
      */
     #define SP_INT_DIGITS                                                      \
-        (((SP_INT_BITS * 2 + SP_WORD_SIZE - 1) / SP_WORD_SIZE) + 1)
+        (((SP_INT_BITS + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
 #endif
 
 #ifndef SP_INT_MAX_BITS
