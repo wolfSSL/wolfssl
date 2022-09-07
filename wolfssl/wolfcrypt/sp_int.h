@@ -884,7 +884,7 @@ MP_API int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
 MP_API int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
 #endif
 
-#ifdef WOLFSSL_SP_MATH_ALL
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_ALL)
 MP_API int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem);
 MP_API int sp_mod_2d(sp_int* a, int e, sp_int* r);
 MP_API int sp_mul_2d(sp_int* a, int e, sp_int* r);
