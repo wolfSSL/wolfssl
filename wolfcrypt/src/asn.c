@@ -6309,13 +6309,15 @@ static int DecodeRsaPssParams(const byte* params, word32 sz,
 size_t rsaIntOffset[] = {
     OFFSETOF(RsaKey, n),
     OFFSETOF(RsaKey, e),
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_KEY_GEN)
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     OFFSETOF(RsaKey, d),
     OFFSETOF(RsaKey, p),
     OFFSETOF(RsaKey, q),
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     OFFSETOF(RsaKey, dP),
     OFFSETOF(RsaKey, dQ),
     OFFSETOF(RsaKey, u)
+#endif
 #endif
 };
 
