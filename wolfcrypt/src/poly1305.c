@@ -221,6 +221,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
     }
 #endif/* WOLFSSL_ARMASM */
 #else /* if not 64 bit then use 32 bit */
+#ifndef WOLFSSL_ARMASM
 
     static word32 U8TO32(const byte *p)
     {
@@ -237,6 +238,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
         p[2] = (byte)((v >> 16) & 0xff);
         p[3] = (byte)((v >> 24) & 0xff);
     }
+#endif
 #endif
 
 
@@ -427,9 +429,9 @@ static int poly1305_block(Poly1305* ctx, const unsigned char *m)
     return poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
 #endif
 }
-#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
+#endif /* !WOLFSSL_ARMASM */
 
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
+#ifndef WOLFSSL_ARMASM
 int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 {
 #if defined(POLY130564) && !defined(USE_INTEL_SPEEDUP)
@@ -700,7 +702,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
-#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
+#endif /* !WOLFSSL_ARMASM */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
@@ -795,7 +797,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
             size_t want = (bytes & ~(POLY1305_BLOCK_SIZE - 1));
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
+#ifndef WOLFSSL_ARMASM
             int ret;
             ret = poly1305_blocks(ctx, m, want);
             if (ret != 0)
