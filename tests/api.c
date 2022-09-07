@@ -39202,6 +39202,9 @@ static int test_wolfSSL_HMAC(void)
             test_openssl_hmac(EVP_sha3_512(), (int)WC_SHA3_512_DIGEST_SIZE);
         #endif
     #endif
+    #ifndef NO_SHA
+        test_openssl_hmac(EVP_sha1(), (int)WC_SHA_DIGEST_SIZE);
+    #endif
 
     printf(resultFmt, passed);
 #endif
