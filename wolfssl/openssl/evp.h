@@ -945,9 +945,6 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_DigestVerifyFinal  wolfSSL_EVP_DigestVerifyFinal
 #define EVP_BytesToKey         wolfSSL_EVP_BytesToKey
 
-#define EVP_get_cipherbyname wolfSSL_EVP_get_cipherbyname
-#define EVP_get_digestbyname wolfSSL_EVP_get_digestbyname
-
 #define EVP_CIPHER_CTX_init           wolfSSL_EVP_CIPHER_CTX_init
 #define EVP_CIPHER_CTX_cleanup        wolfSSL_EVP_CIPHER_CTX_cleanup
 #define EVP_CIPHER_CTX_iv_length      wolfSSL_EVP_CIPHER_CTX_iv_length
