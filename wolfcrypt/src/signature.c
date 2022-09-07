@@ -192,6 +192,9 @@ int wc_SignatureVerifyHash(
             ret = cc310_RsaSSL_Verify(hash_data, hash_len, (byte*)sig,
                 (RsaKey*)key, cc310_hashModeRSA(hash_type, 1));
         }
+        if (ret != 0) {
+            ret = SIG_VERIFY_E;
+        }
     #else
 
             word32 plain_len = hash_len;
@@ -242,8 +245,7 @@ int wc_SignatureVerifyHash(
             }
     #endif /* WOLFSSL_CRYPTOCELL */
             if (ret != 0) {
-                WOLFSSL_MSG("RSA Signature Verify difference!");
-                ret = SIG_VERIFY_E;
+                WOLFSSL_MSG("RSA Signature Verify failed!");
             }
 #else
             ret = SIG_TYPE_E;
