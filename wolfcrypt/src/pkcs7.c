@@ -8651,7 +8651,8 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                     return ASN_PARSE_E;
 
                 if (encOID != pkcs7->publicKeyOID) {
-                    WOLFSSL_MSG("public key OID found in KTRI doesn't match OID stored earlier.");
+                    WOLFSSL_MSG("public key OID found in KTRI doesn't match "
+                                "OID stored earlier.");
                     WOLFSSL_ERROR(ALGO_ID_E);
                     return ALGO_ID_E;
                 }
