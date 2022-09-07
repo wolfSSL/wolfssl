@@ -8469,7 +8469,6 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 {
     int length, encryptedKeySz = 0, ret = 0;
     int keySz, version, sidType = 0;
-    word32 encOID;
     word32 keyIdx;
     byte   issuerHash[KEYID_SIZE];
     byte*  outKey   = NULL;
@@ -8483,9 +8482,6 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 #endif
 #ifdef WC_RSA_BLINDING
     WC_RNG rng;
-#endif
-#ifndef WC_NO_RSA_OAEP
-    word32 outLen;
 #endif
 
     byte* encryptedKey = NULL;
@@ -8648,19 +8644,29 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                 (*idx) += KEYID_SIZE;
             }
 
-            if (GetAlgoId(pkiMsg, idx, &encOID, oidKeyType, pkiMsgSz) < 0)
-                return ASN_PARSE_E;
+            {
+                word32 encOID = 0;
+
+                if (GetAlgoId(pkiMsg, idx, &encOID, oidKeyType, pkiMsgSz) < 0)
+                    return ASN_PARSE_E;
+
+                if (encOID != pkcs7->publicKeyOID) {
+                    WOLFSSL_MSG("public key OID found in KTRI doesn't match OID stored earlier.");
+                    WOLFSSL_ERROR(ALGO_ID_E);
+                    return ALGO_ID_E;
+                }
+            }
 
             /* key encryption algorithm must be RSA for now */
-            if (encOID != RSAk
+            if (pkcs7->publicKeyOID != RSAk
             #ifndef WC_NO_RSA_OAEP
-                && encOID != RSAESOAEPk 
+                && pkcs7->publicKeyOID != RSAESOAEPk
             #endif
                 )
                 return ALGO_ID_E;
 
         #ifndef WC_NO_RSA_OAEP
-            if (encOID == RSAESOAEPk) {
+            if (pkcs7->publicKeyOID == RSAESOAEPk) {
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0) {
                     return ASN_PARSE_E;
                 }
@@ -8697,6 +8703,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             FALL_THROUGH;
 
         case WC_PKCS7_DECRYPT_KTRI_3:
+
         #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, idx)) != 0) {
@@ -8770,7 +8777,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             #endif
                 {
             #ifndef WC_NO_RSA_OAEP
-                    if (encOID != RSAESOAEPk) {
+                    if (pkcs7->publicKeyOID != RSAESOAEPk) {
             #endif
                         keySz = wc_RsaPrivateDecryptInline(encryptedKey,
                                                         encryptedKeySz, &outKey,
@@ -8778,25 +8785,25 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             #ifndef WC_NO_RSA_OAEP
                     }
                     else {
-                        outLen =  wc_RsaEncryptSize(privKey);
-                        outKey = (byte*)XMALLOC(outLen, pkcs7->heap, 
+                        word32 outLen = wc_RsaEncryptSize(privKey);
+                        outKey = (byte*)XMALLOC(outLen, pkcs7->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                         if (!outKey) {
                             WOLFSSL_MSG("Failed to allocate out key buffer");
                             wc_FreeRsaKey(privKey);
-                            XFREE(encryptedKey, pkcs7->heap, 
+                            XFREE(encryptedKey, pkcs7->heap,
                                                     DYNAMIC_TYPE_WOLF_BIGINT);
                             #ifdef WOLFSSL_SMALL_STACK
-                                    XFREE(privKey, pkcs7->heap, 
+                                    XFREE(privKey, pkcs7->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                             #endif
                             WOLFSSL_ERROR_VERBOSE(MEMORY_E);
                             return MEMORY_E;
                         }
 
-                        keySz = wc_RsaPrivateDecrypt_ex(encryptedKey, 
-                                encryptedKeySz, outKey, outLen, privKey, 
-                                WC_RSA_OAEP_PAD, 
+                        keySz = wc_RsaPrivateDecrypt_ex(encryptedKey,
+                                encryptedKeySz, outKey, outLen, privKey,
+                                WC_RSA_OAEP_PAD,
                                 WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
                     }
             #endif
@@ -8819,7 +8826,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                 XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
         #ifndef WC_NO_RSA_OAEP
-                if (encOID == RSAESOAEPk) {
+                if (pkcs7->publicKeyOID == RSAESOAEPk) {
                     if (!outKey) {
                         XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     }
@@ -8837,7 +8844,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             XFREE(privKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
         #ifndef WC_NO_RSA_OAEP
-            if (encOID == RSAESOAEPk) {
+            if (pkcs7->publicKeyOID == RSAESOAEPk) {
                 if (!outKey) {
                     XFREE(outKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 }
