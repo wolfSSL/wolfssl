@@ -975,7 +975,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
                    # If AX_PTHREAD is adding -Qunused-arguments, need to prepend with -Xcompiler libtool will use it. Newer
                    # versions of clang don't need the -Q flag when using pthreads.
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
-                   AM_CFLAGS="$AM_CFLAGS -D_POSIX_THREADS $PTHREAD_CFLAGS"
+                   AM_CFLAGS="$AM_CFLAGS $PTHREAD_CFLAGS"
                    LIBS="$LIBS $PTHREAD_LIBS"
                    ],[
                       ENABLED_SINGLETHREADED=yes

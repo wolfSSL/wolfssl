@@ -2637,6 +2637,13 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_TLS13
 #endif
 
+/* FIPS v2 does not support WOLFSSL_PSS_LONG_SALT */
+#if FIPS_VERSION_EQ(2,0)
+    #ifdef WOLFSSL_PSS_LONG_SALT
+        #undef WOLFSSL_PSS_LONG_SALT
+    #endif
+#endif
+
 /* For FIPSv2 make sure the ECDSA encoding allows extra bytes
  * but make sure users consider enabling it */
 #if !defined(NO_STRICT_ECDSA_LEN) && FIPS_VERSION_GE(2,0)
