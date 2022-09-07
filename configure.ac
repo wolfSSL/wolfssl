@@ -2000,19 +2000,6 @@ then
 fi
 
 
-AC_ARG_ENABLE([no-neon],
-    [AS_HELP_STRING([--enable-no-neon],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto or sha3-crypto to use SHA512 and SHA3 instructions with Aarch64 CPU.])],
-    [ ENABLED_ARMASM_NO_NEON=$enableval ],
-    [ ENABLED_ARMASM_NO_NEON=no ]
-    )
-
-if test "$ENABLED_ARMASM_NO_NEON" != "no"
-then
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_NO_NEON2"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_NEON2"
-fi
-
-
 ENABLED_ARMASM_INLINE="no"
 ENABLED_ARMASM_SHA3="no"
 # ARM Assembly
@@ -2022,9 +2009,6 @@ AC_ARG_ENABLE([armasm],
     [ ENABLED_ARMASM=$enableval ],
     [ ENABLED_ARMASM=no ]
     )
-
-
-
 if test "$ENABLED_ARMASM" != "no" && test "$ENABLED_ASM" = "yes"
 then
 
@@ -2061,11 +2045,6 @@ then
         break;; #Do not override user set values
     *)
         case $host_cpu in
-	*arm*)
-	    ENABLED_ARM32ASM=yes
-	    ;;
-	esac
-	case $host_cpu in
         *aarch64*)
             case $host_os in
             *darwin*)
@@ -7974,7 +7953,6 @@ AM_CONDITIONAL([BUILD_SNIFFTEST],[ test "x$ENABLED_SNIFFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
-AM_CONDITIONAL([BUILD_ARM32ASM],[test "x$ENABLED_ARM32ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])

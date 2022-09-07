@@ -241,7 +241,6 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
 #endif
 #endif
 
-
 /* convert 32-bit unsigned to little endian 64 bit type as byte array */
 static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 {
@@ -259,20 +258,8 @@ static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 #endif
 }
 
-void armv8_32_poly1305_blocks(Poly1305* ctx, 
-			const unsigned char *msgData,
-                     	size_t msgDataLen);
 
-#if defined (WOLFSSL_ARMASM) && !defined(__aarch64__)
-static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
-                     size_t bytes)
-{
-	armv8_32_poly1305_blocks(ctx, m, bytes);
-	return 0;
-}
-#endif
-
-#if !defined(WOLFSSL_ARMASM)
+#ifndef WOLFSSL_ARMASM
 /*
 This local function operates on a message with a given number of bytes
 with a given ctx pointer to a Poly1305 structure.
@@ -280,7 +267,6 @@ with a given ctx pointer to a Poly1305 structure.
 static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
                      size_t bytes)
 {
-
 #ifdef USE_INTEL_SPEEDUP
     /* AVX2 is handled in wc_Poly1305Update. */
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -347,6 +333,7 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     word64 d0,d1,d2,d3,d4;
     word32 c;
 
+
     r0 = ctx->r[0];
     r1 = ctx->r[1];
     r2 = ctx->r[2];
@@ -365,7 +352,6 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     h4 = ctx->h[4];
 
     while (bytes >= POLY1305_BLOCK_SIZE) {
-
         /* h += m[i] */
         h0 += (U8TO32(m+ 0)     ) & 0x3ffffff;
         h1 += (U8TO32(m+ 3) >> 2) & 0x3ffffff;
@@ -408,10 +394,6 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 
 #endif /* end of 64 bit cpu blocks or 32 bit cpu */
 }
-#endif
-
-
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
 
 /*
 This local function is used for the last call when a message with a given
@@ -521,7 +503,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 }
 
 int wc_Poly1305Final(Poly1305* ctx, byte* mac)
-{ 
+{
 #ifdef USE_INTEL_SPEEDUP
 #elif defined(POLY130564)
 
@@ -895,7 +877,7 @@ int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz)
 }
 #endif
 
-/*  Takes in an initialized Poly1305 struct that has a key loadedarm32_poly1305 and creates
+/*  Takes in an initialized Poly1305 struct that has a key loaded and creates
     a MAC (tag) using recent TLS AEAD padding scheme.
     ctx        : Initialized Poly1305 struct to use
     additional : Additional data to use
