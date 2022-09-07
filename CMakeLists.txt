@@ -575,6 +575,11 @@ add_option("WOLFSSL_SHAKE256"
     "Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)"
     "no" "yes;no;small")
 
+# SHAKE128
+add_option("WOLFSSL_SHAKE128"
+    "Enable wolfSSL SHAKE128 support (default: enabled on x86_64/aarch64)"
+    "no" "yes;no;small")
+
 # SHA512
 add_option("WOLFSSL_SHA512"
     "Enable wolfSSL SHA-512 support (default: enabled)"
@@ -1147,6 +1152,21 @@ if(WOLFSSL_SHAKE256)
             message(FATAL_ERROR "Must have SHA-3 enabled: --enable-sha3")
         endif()
     endif()
+else()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_SHAKE256")
+endif()
+
+# SHAKE128
+if(WOLFSSL_SHAKE128)
+    if(NOT WOLFSSL_32BIT)
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE128")
+
+        if(NOT WOLFSSL_SHA3)
+            message(FATAL_ERROR "Must have SHA-3 enabled: --enable-sha3")
+        endif()
+    endif()
+else()
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_NO_SHAKE128")
 endif()
 
 # POLY1305

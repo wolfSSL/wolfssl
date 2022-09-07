@@ -3828,7 +3828,8 @@ exit:
 #endif
 
 #ifdef WOLFSSL_SHAKE256
-static int shake256_absorb_test(wc_Shake* sha)
+static int shake256_absorb_test(wc_Shake* sha, byte *large_input_buf,
+                                size_t large_input_buf_size)
 {
     byte  hash[WC_SHA3_256_BLOCK_SIZE*2];
 
@@ -3837,7 +3838,6 @@ static int shake256_absorb_test(wc_Shake* sha)
     int ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
-    byte large_input[1024];
     const char* large_digest =
         "\x21\x25\x8e\xae\x6e\x4f\xa7\xe1\xb9\x6d\xa7\xc9\x7d\x46\x03\x69"
         "\x29\x0d\x81\x49\xba\x5d\xaf\x37\xfd\xeb\x25\x52\x1d\xd9\xbd\x65"
@@ -3965,15 +3965,15 @@ static int shake256_absorb_test(wc_Shake* sha)
     }
 
     /* BEGIN LARGE HASH TEST */ {
-    for (i = 0; i < (int)sizeof(large_input); i++) {
-        large_input[i] = (byte)(i & 0xFF);
+    for (i = 0; i < (int)large_input_buf_size; i++) {
+        large_input_buf[i] = (byte)(i & 0xFF);
     }
     ret = wc_InitShake256(sha, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(-3104, exit);
     /* Absorb is non-incremental. */
-    ret = wc_Shake256_Absorb(sha, (byte*)large_input,
-        (word32)sizeof(large_input));
+    ret = wc_Shake256_Absorb(sha, large_input_buf,
+        (word32)large_input_buf_size);
     if (ret != 0)
         ERROR_OUT(-3105, exit);
     /* Able to squeeze out blocks incrementally. */
@@ -4002,7 +4002,12 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
     int ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
-    byte large_input[1024];
+#define SHAKE256_LARGE_INPUT_BUFSIZ 1024
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte *large_input = NULL;
+#else
+    byte large_input[SHAKE256_LARGE_INPUT_BUFSIZ];
+#endif
     const char* large_digest =
         "\x90\x32\x4a\xcc\xd1\xdf\xb8\x0b\x79\x1f\xb8\xc8\x5b\x54\xc8\xe7"
         "\x45\xf5\x60\x6b\x38\x26\xb2\x0a\xee\x38\x01\xf3\xd9\xfa\x96\x9f"
@@ -4112,14 +4117,21 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
             ERROR_OUT(-3103 - i, exit);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    large_input = (byte *)XMALLOC(SHAKE256_LARGE_INPUT_BUFSIZ, NULL,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+    if (large_input == NULL)
+        ERROR_OUT(-3107, exit);
+#endif
+
     /* BEGIN LARGE HASH TEST */ {
-    for (i = 0; i < (int)sizeof(large_input); i++) {
+    for (i = 0; i < SHAKE256_LARGE_INPUT_BUFSIZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
     times = 100;
     for (i = 0; i < times; ++i) {
         ret = wc_Shake256_Update(&sha, (byte*)large_input,
-            (word32)sizeof(large_input));
+            SHAKE256_LARGE_INPUT_BUFSIZ);
         if (ret != 0)
             ERROR_OUT(-3104, exit);
     }
@@ -4130,9 +4142,14 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
         ERROR_OUT(-3106, exit);
     } /* END LARGE HASH TEST */
 
-    ret = shake256_absorb_test(&sha);
+    ret = shake256_absorb_test(&sha, large_input, SHAKE256_LARGE_INPUT_BUFSIZ);
 exit:
     wc_Shake256_Free(&sha);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (large_input != NULL)
+        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -19692,6 +19709,12 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
         0xc2
     };
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    EVP_CIPHER_CTX *p_en;
+    EVP_CIPHER_CTX *p_de;
+#endif
+
 #endif /* WOLFSSL_AES_128 */
 
 #ifdef WOLFSSL_AES_192
@@ -19767,11 +19790,6 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
 #ifdef WOLFSSL_AES_128
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    EVP_CIPHER_CTX *p_en;
-    EVP_CIPHER_CTX *p_de;
-#endif
-
     EVP_CIPHER_CTX_init(en);
     if (EVP_CipherInit(en, EVP_aes_128_ctr(),
             (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
@@ -19795,9 +19813,11 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     p_en = wolfSSL_EVP_CIPHER_CTX_new();
-    if(p_en == NULL)return -8635;
+    if (p_en == NULL)
+        return -8635;
     p_de = wolfSSL_EVP_CIPHER_CTX_new();
-    if(p_de == NULL)return -8636;
+    if (p_de == NULL)
+        return -8636;
 
     if (EVP_CipherInit(p_en, EVP_aes_128_ctr(),
             (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
