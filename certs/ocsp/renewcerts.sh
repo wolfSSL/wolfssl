@@ -68,6 +68,7 @@ update_cert() {
     cat "$3"-cert.pem >> "$1"-cert.pem
 }
 
+SIGOPT=""
 update_cert intermediate1-ca "wolfSSL intermediate CA 1"       root-ca          v3_ca   01
 update_cert intermediate2-ca "wolfSSL intermediate CA 2"       root-ca          v3_ca   02
 update_cert intermediate3-ca "wolfSSL REVOKED intermediate CA" root-ca          v3_ca   03 # REVOKED
@@ -87,6 +88,15 @@ PID=$!
 
 openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der
 openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-nointern.der -no_intern
+kill $PID
+wait $PID
+
+
+# now start up a responder that signs using rsa-pss
+openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -rsigopt rsa_padding_mode:pss &
+PID=$!
+
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate4-ca-rsapss-cert.pem -url http://localhost:22221/ -rsigopt rsa_mode:pss -rsigopt rsa_padding_mode:pss -rsigopt rsa_pss_saltlen:-1 -respout test-response-rsapss.der
 # can verify with the following command
 # openssl ocsp -respin test-response-nointern.der -CAfile root-ca-cert.pem -issuer intermediate1-ca-cert.pem
 

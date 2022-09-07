@@ -1403,12 +1403,15 @@ static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
     return 0;
 }
 
-static void test_wolfSSL_CheckOCSPResponse(void)
+static int test_wolfSSL_CheckOCSPResponse(void)
 {
 #if defined(HAVE_OCSP) && !defined(NO_RSA) && defined(OPENSSL_ALL)
     const char* responseFile = "./certs/ocsp/test-response.der";
     const char* responseNoInternFile = "./certs/ocsp/test-response-nointern.der";
     const char* caFile = "./certs/ocsp/root-ca-cert.pem";
+#if defined(WC_RSA_PSS)
+    const char* responsePssFile = "./certs/ocsp/test-response-rsapss.der";
+#endif
     OcspResponse* res = NULL;
     byte data[4096];
     const unsigned char* pt;
@@ -1455,8 +1458,23 @@ static void test_wolfSSL_CheckOCSPResponse(void)
     AssertNotNull(res);
     wolfSSL_OCSP_RESPONSE_free(res);
 
+#if defined(WC_RSA_PSS)
+    /* check loading a response with RSA-PSS signature */
+    f = XFOPEN(responsePssFile, "rb");
+    AssertTrue(f != XBADFILE);
+    dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+    AssertIntGT(dataSz, 0);
+    XFCLOSE(f);
+
+    pt = data;
+    res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+    AssertNotNull(res);
+    wolfSSL_OCSP_RESPONSE_free(res);
+#endif
+
     printf(resultFmt, passed);
 #endif /* HAVE_OCSP */
+    return 0;
 }
 
 static int test_wolfSSL_CertManagerLoadCABuffer(void)
