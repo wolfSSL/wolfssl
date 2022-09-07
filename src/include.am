@@ -485,7 +485,12 @@ if !BUILD_FIPS_RAND
 
 if BUILD_POLY1305
 if BUILD_ARMASM
+if !BUILD_ARM32ASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-poly1305.c
+endif
+if BUILD_ARM32ASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-poly1305.c
+endif
 endif
 src_libwolfssl_la_SOURCES += wolfcrypt/src/poly1305.c
 if BUILD_INTELASM
