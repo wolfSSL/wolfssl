@@ -1409,9 +1409,6 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     const char* responseFile = "./certs/ocsp/test-response.der";
     const char* responseNoInternFile = "./certs/ocsp/test-response-nointern.der";
     const char* caFile = "./certs/ocsp/root-ca-cert.pem";
-#if defined(WC_RSA_PSS)
-    const char* responsePssFile = "./certs/ocsp/test-response-rsapss.der";
-#endif
     OcspResponse* res = NULL;
     byte data[4096];
     const unsigned char* pt;
@@ -1459,17 +1456,34 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     wolfSSL_OCSP_RESPONSE_free(res);
 
 #if defined(WC_RSA_PSS)
-    /* check loading a response with RSA-PSS signature */
-    f = XFOPEN(responsePssFile, "rb");
-    AssertTrue(f != XBADFILE);
-    dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
-    AssertIntGT(dataSz, 0);
-    XFCLOSE(f);
+    {
+        const char* responsePssFile = "./certs/ocsp/test-response-rsapss.der";
 
-    pt = data;
-    res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
-    AssertNotNull(res);
-    wolfSSL_OCSP_RESPONSE_free(res);
+        /* check loading a response with RSA-PSS signature */
+        f = XFOPEN(responsePssFile, "rb");
+        AssertTrue(f != XBADFILE);
+        dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+        AssertIntGT(dataSz, 0);
+        XFCLOSE(f);
+
+        pt = data;
+        res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+        AssertNotNull(res);
+
+        /* try to verify the response */
+        issuer = wolfSSL_X509_load_certificate_file(caFile, SSL_FILETYPE_PEM);
+        AssertNotNull(issuer);
+        st = wolfSSL_X509_STORE_new();
+        AssertNotNull(st);
+        AssertIntEQ(wolfSSL_X509_STORE_add_cert(st, issuer), WOLFSSL_SUCCESS);
+        bs = wolfSSL_OCSP_response_get1_basic(res);
+        AssertNotNull(bs);
+        AssertIntEQ(wolfSSL_OCSP_basic_verify(bs, NULL, st, 0), WOLFSSL_SUCCESS);
+        wolfSSL_OCSP_BASICRESP_free(bs);
+        wolfSSL_OCSP_RESPONSE_free(res);
+        wolfSSL_X509_STORE_free(st);
+        wolfSSL_X509_free(issuer);
+    }
 #endif
 
     printf(resultFmt, passed);

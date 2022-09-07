@@ -33414,6 +33414,10 @@ static const ASNItem ocspBasicRespASN[] = {
 /* SIGALGO      */     { 1, ASN_SEQUENCE, 1, 1, 0, },
 /* SIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* SIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                            /* parameters */
+#ifdef WC_RSA_PSS
+/* SIGALGO_PARAMS      */  { 2, ASN_SEQUENCE, 1, 0, 1 },
+#endif
                                             /* signature */
 /* SIGNATURE    */     { 1, ASN_BIT_STRING, 0, 0, 0 },
                                             /* certs */
@@ -33426,6 +33430,9 @@ enum {
     OCSPBASICRESPASN_IDX_SIGALGO,
     OCSPBASICRESPASN_IDX_SIGALGO_OID,
     OCSPBASICRESPASN_IDX_SIGALGO_NULL,
+#ifdef WC_RSA_PSS
+    OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS,
+#endif
     OCSPBASICRESPASN_IDX_SIGNATURE,
     OCSPBASICRESPASN_IDX_CERTS,
     OCSPBASICRESPASN_IDX_CERTS_SEQ,
@@ -33607,6 +33614,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspBasicRespASN_Length);
     int ret = 0;
     word32 idx = *ioIndex;
+    const byte*   sigParams = NULL;
+    word32        sigParamsSz = 0;
 #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* cert = NULL;
@@ -33639,6 +33648,16 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = ASN_PARSE_E;
         }
     }
+#ifdef WC_RSA_PSS
+    if (ret == 0 && (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)) {
+        sigParams = GetASNItem_Addr(
+                dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
+                source);
+        sigParamsSz =
+               GetASNItem_Length(dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
+               source);
+    }
+#endif
     if (ret == 0) {
         /* Get the signature OID and signature. */
         resp->sigOID = dataASN[OCSPBASICRESPASN_IDX_SIGALGO_OID].data.oid.sum;
@@ -33711,7 +33730,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             /* Check the signature of the response CA public key. */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
                 resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
+                NULL);
         }
         if ((ca == NULL) || (sigValid != 0)) {
             /* Didn't find certificate or signature verificate failed. */
