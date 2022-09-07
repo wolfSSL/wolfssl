@@ -374,9 +374,9 @@ static int sockAddrEqual(
 
 static int isDGramSock(int sfd)
 {
-    int type = 0;
+    char type = 0;
     /* optvalue 'type' is of size int */
-    XSOCKLENT length = (XSOCKLENT)sizeof(int);
+    XSOCKLENT length = (XSOCKLENT)sizeof(char);
 
     if (getsockopt(sfd, SOL_SOCKET, SO_TYPE, &type, &length) == 0 &&
             type != SOCK_DGRAM) {
@@ -399,7 +399,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     byte doDtlsTimeout;
     SOCKADDR_S lclPeer;
     SOCKADDR_S* peer;
-    XSOCKLENT peerSz;
+    XSOCKLENT peerSz = 0;
 
     WOLFSSL_ENTER("EmbedReceiveFrom()");
 

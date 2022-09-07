@@ -8376,16 +8376,15 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 
     /* frag->padding makes sure we can fit the entire DTLS handshake header
      * before frag->buf */
-    dtls = (DtlsHandShakeHeader*)(void *)((char *)msg->fragBucketList
-                                          + OFFSETOF(DtlsFragBucket,buf)
-                                          - DTLS_HANDSHAKE_HEADER_SZ);
+    dtls = (DtlsHandShakeHeader*)(msg->fragBucketList->buf -
+                                    DTLS_HANDSHAKE_HEADER_SZ);
 
     msg->fragBucketList = NULL;
     msg->fragBucketListCount = 0;
 
     dtls->type = msg->type;
     c32to24(msg->sz, dtls->length);
-    c16toa(msg->seq, dtls->message_seq);
+    c16toa((word16)msg->seq, dtls->message_seq);
     c32to24(0, dtls->fragment_offset);
     c32to24(msg->sz, dtls->fragment_length);
 }
@@ -9303,7 +9302,7 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         if (IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_DTLS13
             word16 dtls_record_extra;
-            dtls_record_extra = Dtls13GetRlHeaderLength(ssl, IsEncryptionOn(ssl, 1));
+            dtls_record_extra = Dtls13GetRlHeaderLength(ssl, (byte)IsEncryptionOn(ssl, 1));
             dtls_record_extra -= RECORD_HEADER_SZ;
 
             adj += dtls_record_extra;
@@ -9339,7 +9338,7 @@ int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 
 #ifdef WOLFSSL_DTLS13
         if (IsAtLeastTLSv1_3(ssl->version))
-            return Dtls13HashHandshake(ssl, adj, sz);
+            return Dtls13HashHandshake(ssl, adj, (word16)sz);
 #endif /* WOLFSSL_DTLS13 */
 
     }
@@ -10161,7 +10160,7 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, const byte* input,
             return ret;
     }
 
-    ret = Dtls13ParseUnifiedRecordLayer(ssl, input + *inOutIdx, readSize,
+    ret = Dtls13ParseUnifiedRecordLayer(ssl, input + *inOutIdx, (word16)readSize,
         &hdrInfo);
 
     if (ret != 0)
@@ -20681,6 +20680,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             if (sizeOnly)
                 goto exit_buildmsg;
 
+			{
     #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
             /* If we want the PREV_ORDER then modify CUR_ORDER sequence number
              * for all encryption algos that use it for encryption parameters */
@@ -20721,6 +20721,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 ssl->keys.dtls_sequence_number_lo = dtls_sequence_number_lo;
             }
     #endif
+			}
+
             if (ret != 0)
                 goto exit_buildmsg;
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPTED_VERIFY_MAC;

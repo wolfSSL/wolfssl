@@ -1217,7 +1217,7 @@ void* wolfSSL_dtls_create_peer(int port, char* ip)
     }
 
     addr->sin_family = AF_INET;
-    addr->sin_port = htons(port);
+    addr->sin_port = XHTONS((word16)port);
     if (XINET_PTON(AF_INET, ip, &addr->sin_addr) < 1) {
         XFREE(addr, NULL, DYNAMIC_TYPE_SOCKADDR);
         return NULL;
