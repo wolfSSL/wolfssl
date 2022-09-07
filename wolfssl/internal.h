@@ -4452,8 +4452,12 @@ typedef struct DtlsFragBucket {
          * DtlsFragBucket buffer. */
         byte padding[DTLS_HANDSHAKE_HEADER_SZ];
     } m;
+/* Ignore "nonstandard extension used : zero-sized array in struct/union"
+ * MSVC warning */
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
     byte buf[];
-    /* Add new member initialization to CreateFragBucket */
 } DtlsFragBucket;
 
 typedef struct DtlsMsg {
