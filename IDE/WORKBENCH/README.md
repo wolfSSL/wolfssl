@@ -25,15 +25,25 @@ then "Browse" and select:
     ```
     Click "OK" then "OK" again.
 
-4. In `<path_to_wolfssl>/wolfssl/wolfcrypt/settings.h`, uncomment
+4. Create a new `<path_to_wolfssl>/user_settings.h` file and add your custom 
+settings. Below is an example but you can expand the settings. For more details,
+see https://github.com/wolfSSL/wolfssl/blob/master/examples/configs/user_settings_template.h
+
 
     ```c
     #define WOLFSSL_VXWORKS
+    #define WOLFSSL_VXWORKS_6_x  /* Add for VxWorks 6.x only */
+    #define BIG_ENDIAN_ORDER     /* Required for a big-endian target */
     ```
 
     **Note:** pthreads defined by default
 
-5. If using the VxWorks simulator add the following to `EXTRA_DEFINE`:
+
+5. Define a preprocessor symbol WOLFSSL_USER_SETTINGS in your Workbench IDE so
+that `settings.h` pulls in your `user_settings.h`
+
+
+6. If using the VxWorks simulator add the following to `EXTRA_DEFINE`:
 
     ```
     -DVXWORKS_SIM /* only if using the VxWorks simulator */
@@ -43,10 +53,10 @@ then "Browse" and select:
     Build Properties and selecting the "Variables" tab. Highlight EXTRA\_DEFINE and
     click "Edit". Enter the above define to the end of the line.
 
-6. Copy the certs folder in `<path_to_wolfssl>/` to the Wind River Workbench
+7. Copy the certs folder in `<path_to_wolfssl>/` to the Wind River Workbench
 workspace folder. This is where the simulator looks for the filesystem.
 
-7. Include Entropy:
+8. Include Entropy:
 
     - Create a new project, similar to step 1 but choose VxWorks Source Build
     Project as the type of project instead of VxWorks Image Project.
