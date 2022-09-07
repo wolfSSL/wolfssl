@@ -781,8 +781,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(FREESCALE_RTC)
     #include <time.h>
-	#include "fsl_rtc.h"
-	#ifndef XTIME
+        #include "fsl_rtc.h"
+        #ifndef XTIME
         #define XTIME(t1) fsl_time((t1))
     #endif
 

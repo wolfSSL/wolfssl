@@ -7616,9 +7616,9 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 #ifdef WOLFSSL_NO_REALLOC
     derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
     if (derBuf != NULL) {
-    	XMEMCPY(derBuf, pkey->pkey.ptr, pkey->pkey_sz);
-    	XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
-    	pkey->pkey.ptr = NULL;
+        XMEMCPY(derBuf, pkey->pkey.ptr, pkey->pkey_sz);
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
+        pkey->pkey.ptr = NULL;
     }
 #else
     derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz,
