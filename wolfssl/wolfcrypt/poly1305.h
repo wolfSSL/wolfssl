@@ -124,8 +124,9 @@ WOLFSSL_API int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz,
 WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
     word32 addSz, const byte* input, word32 sz, byte* tag, word32 tagSz);
 
-#ifdef WOLFSSL_ARMASM
-void poly1305_blocks(Poly1305* ctx, const unsigned char *m, size_t bytes);
+#if defined(__aarch64__ ) && defined(WOLFSSL_ARMASM)
+void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+                            size_t bytes);
 void poly1305_block(Poly1305* ctx, const unsigned char *m);
 #endif
 
