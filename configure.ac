@@ -6497,6 +6497,10 @@ do
     ENABLED_SP_ASM=yes
     ;;
 
+  noasm)
+    ENABLED_SP_ASM=no
+    ;;
+
   *)
     AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 384, 521, 1024, 2048, 3072, 4096]: $ENABLED_SP.])
     break;;
