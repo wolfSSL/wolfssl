@@ -104,6 +104,14 @@ if BUILD_ECC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
 
+if BUILD_WC_KYBER
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_poly.c
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_asm.S
+endif
+endif
+
 if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 endif
@@ -183,6 +191,14 @@ endif
 
 if BUILD_ECC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
+endif
+
+if BUILD_WC_KYBER
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_poly.c
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_asm.S
+endif
 endif
 
 if BUILD_AES
@@ -584,6 +600,14 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/eccsi.c
 endif
 if BUILD_SAKKE
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sakke.c
+endif
+endif
+
+if BUILD_WC_KYBER
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_poly.c
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_kyber_asm.S
 endif
 endif
 

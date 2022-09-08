@@ -2722,6 +2722,10 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifdef WOLFSSL_HAVE_KYBER
+#define HAVE_PQC
+#endif
+
 /* Enable Post-Quantum Cryptography if we have liboqs from the OpenQuantumSafe
  * group */
 #ifdef HAVE_LIBOQS
@@ -2737,7 +2741,8 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_KYBER
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4)
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
+    !defined(WOLFSSL_HAVE_KYBER)
 #error Please do not define HAVE_PQC yourself.
 #endif
 
