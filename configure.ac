@@ -6985,6 +6985,13 @@ then
     AC_MSG_ERROR([please use --with-libz if enabling mcapi.])
 fi
 
+# Asynchronous Crypto
+AC_ARG_ENABLE([asynccrypt],
+    [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
+    [ ENABLED_ASYNCCRYPT=$enableval ],
+    [ ENABLED_ASYNCCRYPT=no ]
+    )
+
 # Asynchronous crypto using software (i.e. not hardware). Required for
 # non-blocking crypto with TLS/DTLS.
 AC_ARG_ENABLE([asynccrypt-sw],
@@ -6995,14 +7002,8 @@ AC_ARG_ENABLE([asynccrypt-sw],
 if test "$ENABLED_ASYNCCRYPT_SW" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_SW"
+    ENABLED_ASYNCCRYPT=yes
 fi
-
-# Asynchronous Crypto
-AC_ARG_ENABLE([asynccrypt],
-    [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
-    [ ENABLED_ASYNCCRYPT=$enableval ],
-    [ ENABLED_ASYNCCRYPT=no ]
-    )
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
