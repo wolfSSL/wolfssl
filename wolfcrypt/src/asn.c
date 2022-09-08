@@ -33649,7 +33649,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
     }
 #ifdef WC_RSA_PSS
-    if (ret == 0 && (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)) {
+    if (ret == 0 && (dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS].tag != 0)) {
         sigParams = GetASNItem_Addr(
                 dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
                 source);

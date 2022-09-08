@@ -85,8 +85,8 @@ update_cert server5          "www5.wolfssl.com"                intermediate3-ca 
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem &
 PID=$!
 
-openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der
-openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-nointern.der -no_intern
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der &> /dev/null
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-nointern.der -no_intern &> /dev/null
 kill $PID
 wait $PID
 
@@ -95,7 +95,7 @@ wait $PID
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -rsigopt rsa_padding_mode:pss &
 PID=$!
 
-openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-rsapss.der
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-rsapss.der &> /dev/null
 # can verify with the following command
 # openssl ocsp -respin test-response-nointern.der -CAfile root-ca-cert.pem -issuer intermediate1-ca-cert.pem
 
