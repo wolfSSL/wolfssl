@@ -19312,7 +19312,6 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
     sk->num        += 1;
 
 #ifdef OPENSSL_ALL
-    node->comp = sk->comp;
     node->hash_fn = sk->hash_fn;
     node->hash = sk->hash;
     sk->hash = 0;

@@ -4217,7 +4217,6 @@ struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
     #if defined(OPENSSL_ALL)
-    wolf_sk_compare_cb comp;
     wolf_sk_hash_cb hash_fn;
     unsigned long hash;
     #endif

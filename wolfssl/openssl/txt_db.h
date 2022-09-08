@@ -32,18 +32,19 @@ struct WOLFSSL_TXT_DB {
     long error;
     long arg1;
     long arg2;
-    wolf_sk_compare_cb comp[WOLFSSL_TXT_DB_MAX_FIELDS];
     wolf_sk_hash_cb hash_fn[WOLFSSL_TXT_DB_MAX_FIELDS];
 };
 
 typedef struct WOLFSSL_TXT_DB WOLFSSL_TXT_DB;
+typedef int (*wolf_lh_compare_cb)(const void* a,
+                                  const void* b);
 
 WOLFSSL_API WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num);
 WOLFSSL_API long wolfSSL_TXT_DB_write(WOLFSSL_BIO  *out, WOLFSSL_TXT_DB *db);
 WOLFSSL_API int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row);
 WOLFSSL_API void wolfSSL_TXT_DB_free(WOLFSSL_TXT_DB *db);
 WOLFSSL_API int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
-        void* qual, wolf_sk_hash_cb hash, wolf_sk_compare_cb cmp);
+        void* qual, wolf_sk_hash_cb hash, wolf_lh_compare_cb cmp);
 WOLFSSL_API WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db,
         int idx, WOLFSSL_STRING *value);
 

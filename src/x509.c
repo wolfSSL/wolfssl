@@ -11542,7 +11542,8 @@ error:
         defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
         defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)
 
-WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb)
+WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
+        WOLF_SK_COMPARE_CB(WOLFSSL_X509_NAME, cb))
 {
     WOLFSSL_STACK* sk;
     (void)cb;
@@ -11552,9 +11553,6 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb
     sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {
         sk->type = STACK_TYPE_X509_NAME;
-#ifdef OPENSSL_ALL
-        sk->comp = cb;
-#endif
     }
 
     return sk;
@@ -11656,16 +11654,12 @@ int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
 
 /* Name Entry */
 WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* wolfSSL_sk_X509_NAME_ENTRY_new(
-    wolf_sk_compare_cb cb)
+    WOLF_SK_COMPARE_CB(WOLFSSL_X509_NAME_ENTRY, cb))
 {
     WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {
         sk->type = STACK_TYPE_X509_NAME_ENTRY;
-    #ifdef OPENSSL_ALL
-        sk->comp = cb;
-    #else
         (void)cb;
-    #endif
     }
     return sk;
 }
@@ -11827,7 +11821,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
 
     WOLFSSL_ENTER("wolfSSL_dup_CA_list");
 
-    copy = wolfSSL_sk_X509_NAME_new(sk->comp);
+    copy = wolfSSL_sk_X509_NAME_new(NULL);
     if (copy == NULL) {
         WOLFSSL_MSG("Memory error");
         return NULL;
@@ -11867,14 +11861,15 @@ int wolfSSL_sk_X509_OBJECT_num(const WOLF_STACK_OF(WOLFSSL_X509_OBJECT) *s)
 }
 
 int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
-    wolf_sk_compare_cb cb)
+    WOLF_SK_COMPARE_CB(WOLFSSL_X509_NAME, cb))
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_set_cmp_func");
 
     if (sk == NULL)
         return BAD_FUNC_ARG;
 
-    sk->comp = cb;
+    WOLFSSL_MSG("Stack comparison not used in wolfSSL");
+    (void)cb;
     return 0;
 }
 #endif /* OPENSSL_ALL */

@@ -248,10 +248,11 @@ void wolfSSL_TXT_DB_free(WOLFSSL_TXT_DB *db)
 }
 
 int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
-        void* qual, wolf_sk_hash_cb hash, wolf_sk_compare_cb cmp)
+        void* qual, wolf_sk_hash_cb hash, wolf_lh_compare_cb cmp)
 {
     WOLFSSL_ENTER("wolfSSL_TXT_DB_create_index");
     (void)qual;
+    (void)cmp;
 
     if (!db || !hash || !cmp || field >= db->num_fields || field < 0) {
         WOLFSSL_MSG("Bad parameter");
@@ -259,7 +260,6 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
     }
 
     db->hash_fn[field] = hash;
-    db->comp[field] = cmp;
 
     return WOLFSSL_SUCCESS;
 }
@@ -274,21 +274,18 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
         return NULL;
     }
 
-    if (!db->hash_fn[idx] || !db->comp[idx]) {
-        WOLFSSL_MSG("Missing hash or cmp functions");
+    if (!db->hash_fn[idx]) {
+        WOLFSSL_MSG("Missing hash functions");
         return NULL;
     }
 
-    /* If first data struct has correct hash and cmp function then
-     * assume others do too */
-    if (db->data->hash_fn != db->hash_fn[idx] ||
-            db->data->comp != db->comp[idx]) {
+    /* If first data struct has correct hash function
+     * then assume others do too */
+    if (db->data->hash_fn != db->hash_fn[idx]) {
         /* Set the hash and comp functions */
         WOLF_STACK_OF(WOLFSSL_STRING)* data = db->data;
         while (data) {
-            if (data->comp != db->comp[idx] ||
-                    data->hash_fn != db->hash_fn[idx]) {
-                data->comp = db->comp[idx];
+            if (data->hash_fn != db->hash_fn[idx]) {
                 data->hash_fn = db->hash_fn[idx];
                 data->hash = 0;
             }
@@ -331,32 +328,6 @@ static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
                 wolfSSL_LH_strhash(val->name);
     else
         return 0;
-}
-
-static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
-                                  const WOLFSSL_CONF_VALUE *b)
-{
-    int cmp_val;
-
-    if (!a || !b) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (a->section != b->section) {
-        if ((cmp_val = XSTRCMP(a->section, b->section)) != 0) {
-            return cmp_val;
-        }
-    }
-
-    if (a->name && b->name) {
-        return XSTRCMP(a->name, b->name);
-    }
-    else if (a->name == b->name) {
-        return 0;
-    }
-    else {
-        return a->name ? 1 : -1;
-    }
 }
 
 /* Use SHA for hashing as OpenSSL uses a hash algorithm that is
@@ -1012,16 +983,17 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
     }
 }
 
-WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc)
+WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(
+    WOLF_SK_COMPARE_CB(WOLFSSL_CONF_VALUE, compFunc))
 {
     WOLFSSL_STACK* ret;
     WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_new");
     ret = wolfSSL_sk_new_node(NULL);
     if (!ret)
         return NULL;
-    ret->comp = compFunc ? compFunc : (wolf_sk_compare_cb)wolfssl_conf_value_cmp;
     ret->hash_fn = (wolf_sk_hash_cb)wolfSSL_CONF_VALUE_hash;
     ret->type = STACK_TYPE_CONF_VALUE;
+    (void)compFunc;
     return ret;
 }
 
