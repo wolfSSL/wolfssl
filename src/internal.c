@@ -8109,7 +8109,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
  * has the headers, and will include those headers in the hash. The store
  * routines need to take that into account as well. New will allocate
  * extra space for the headers. */
-DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
+DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
 {
     DtlsMsg* msg;
     WOLFSSL_ENTER("DtlsMsgNew()");
@@ -8119,16 +8119,17 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 
     if (msg != NULL) {
         XMEMSET(msg, 0, sizeof(DtlsMsg));
-        msg->buf = (byte*)XMALLOC(sz + DTLS_HANDSHAKE_HEADER_SZ,
-                                                heap, DYNAMIC_TYPE_DTLS_BUFFER);
-        if (msg->buf != NULL) {
-            msg->sz = sz;
-            msg->type = no_shake;
-            msg->msg = msg->buf + DTLS_HANDSHAKE_HEADER_SZ;
-        }
-        else {
-            XFREE(msg, heap, DYNAMIC_TYPE_DTLS_MSG);
-            msg = NULL;
+        msg->sz = sz;
+        msg->type = no_shake;
+        if (tx) {
+            msg->raw = msg->fullMsg =
+                    (byte*)XMALLOC(sz + DTLS_HANDSHAKE_HEADER_SZ, heap,
+                            DYNAMIC_TYPE_DTLS_FRAG);
+            msg->ready = 1;
+            if (msg->raw == NULL) {
+                DtlsMsgDelete(msg, heap);
+                msg = NULL;
+            }
         }
     }
 
@@ -8141,14 +8142,13 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
     WOLFSSL_ENTER("DtlsMsgDelete()");
 
     if (item != NULL) {
-        DtlsFrag* cur = item->fragList;
-        while (cur != NULL) {
-            DtlsFrag* next = cur->next;
-            XFREE(cur, heap, DYNAMIC_TYPE_DTLS_FRAG);
-            cur = next;
+        while (item->fragBucketList != NULL) {
+            DtlsFragBucket* next = item->fragBucketList->m.m.next;
+            DtlsMsgDestroyFragBucket(item->fragBucketList, heap);
+            item->fragBucketList = next;
         }
-        if (item->buf != NULL)
-            XFREE(item->buf, heap, DYNAMIC_TYPE_DTLS_BUFFER);
+        if (item->raw != NULL)
+            XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }
@@ -8187,131 +8187,280 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
     ssl->dtls_tx_msg_list = head;
 }
 
-/* Create a DTLS Fragment from *begin - end, adjust new *begin and bytesLeft */
-static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
-                                byte* buf, word32* bytesLeft, void* heap)
+static DtlsFragBucket* DtlsMsgCreateFragBucket(word32 offset, const byte* data,
+                                               word32 dataSz, void* heap)
 {
-    DtlsFrag* newFrag;
-    word32 added = end - *begin + 1;
-
-    WOLFSSL_ENTER("CreateFragment()");
-
-    (void)heap;
-    newFrag = (DtlsFrag*)XMALLOC(sizeof(DtlsFrag), heap,
-                                 DYNAMIC_TYPE_DTLS_FRAG);
-    if (newFrag != NULL) {
-        newFrag->next = NULL;
-        newFrag->begin = *begin;
-        newFrag->end = end;
-
-        XMEMCPY(buf + *begin, data, added);
-        *bytesLeft -= added;
-        *begin = newFrag->end + 1;
+    DtlsFragBucket* bucket =
+            (DtlsFragBucket*)XMALLOC(sizeof(DtlsFragBucket) + dataSz, heap,
+                                     DYNAMIC_TYPE_DTLS_FRAG);
+    if (bucket != NULL) {
+        XMEMSET(bucket, 0, sizeof(*bucket));
+        bucket->m.m.next = NULL;
+        bucket->m.m.offset = offset;
+        bucket->m.m.sz = dataSz;
+        if (data != NULL)
+            XMEMCPY(bucket->buf, data, dataSz);
     }
-
-    return newFrag;
+    return bucket;
 }
 
-
-int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
-                                   word32 fragOffset, word32 fragSz, void* heap)
+void DtlsMsgDestroyFragBucket(DtlsFragBucket* fragBucket, void* heap)
 {
-    WOLFSSL_ENTER("DtlsMsgSet()");
-    if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-        fragSz <= msg->sz && fragOffset <= msg->sz &&
-        (fragOffset + fragSz) <= msg->sz) {
-        DtlsFrag* cur = msg->fragList;
-        DtlsFrag* prev = cur;
-        DtlsFrag* newFrag;
-        word32 bytesLeft = fragSz; /* could be overlapping fragment */
-        word32 startOffset = fragOffset;
-        word32 added;
+    (void)heap;
+    XFREE(fragBucket, heap, DYNAMIC_TYPE_DTLS_FRAG);
+}
 
-        msg->seq = seq;
-        msg->epoch = epoch;
-        msg->type = type;
+/*
+ * data overlaps with cur but is before next.
+ * data + dataSz has to end before or inside next. next can be NULL.
+ */
+static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
+        DtlsFragBucket* cur, DtlsFragBucket* next, word32 offset,
+        const byte* data, word32 dataSz, void* heap)
+{
+    word32 offsetEnd = offset + dataSz;
+    word32 newOffset = min(cur->m.m.offset, offset);
+    word32 newOffsetEnd;
+    word32 newSz;
+    word32 overlapSz = cur->m.m.sz;
+    DtlsFragBucket** chosenBucket;
+    DtlsFragBucket* newBucket;
+    DtlsFragBucket* otherBucket;
+    byte combineNext = FALSE;
 
-        if (fragOffset == 0) {
-            XMEMCPY(msg->buf, data - DTLS_HANDSHAKE_HEADER_SZ,
-                    DTLS_HANDSHAKE_HEADER_SZ);
-            c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
+    if (next != NULL && offsetEnd >= next->m.m.offset)
+        combineNext = TRUE;
+
+    if (combineNext)
+        newOffsetEnd = next->m.m.offset + next->m.m.sz;
+    else
+        newOffsetEnd = max(cur->m.m.offset + cur->m.m.sz, offsetEnd);
+
+    newSz = newOffsetEnd - newOffset;
+
+    /* Expand the larger bucket if data bridges the gap between cur and next */
+    if (!combineNext || cur->m.m.sz >= next->m.m.sz) {
+        chosenBucket = &cur;
+        otherBucket = next;
+    }
+    else {
+        chosenBucket = &next;
+        otherBucket = cur;
+    }
+
+    {
+        DtlsFragBucket* tmp = (DtlsFragBucket*)XREALLOC(*chosenBucket,
+                sizeof(DtlsFragBucket) + newSz, heap, DYNAMIC_TYPE_DTLS_FRAG);
+        if (tmp == NULL)
+            return NULL;
+        if (chosenBucket == &next) {
+            /* Update the link */
+            DtlsFragBucket* beforeNext = cur;
+            while (beforeNext->m.m.next != next)
+                beforeNext = beforeNext->m.m.next;
+            beforeNext->m.m.next = tmp;
         }
+        newBucket = *chosenBucket = tmp;
+    }
 
-        /* if no message data, just return */
-        if (fragSz == 0)
-            return 0;
+    if (combineNext) {
+        /* Put next first since it will always be at the end. Use memmove since
+         * newBucket may be next. */
+        XMEMMOVE(newBucket->buf + (next->m.m.offset - newOffset), next->buf,
+                next->m.m.sz);
+        /* memory after newOffsetEnd is already copied. Don't do extra work. */
+        newOffsetEnd = next->m.m.offset;
+    }
 
-        /* if list is empty add full fragment to front */
-        if (cur == NULL) {
-            newFrag = CreateFragment(&fragOffset, fragOffset + fragSz - 1, data,
-                                     msg->msg, &bytesLeft, heap);
-            if (newFrag == NULL)
-                return MEMORY_E;
-
-            msg->fragSz = fragSz;
-            msg->fragList = newFrag;
-
-            return 0;
+    if (newOffset == offset) {
+        /* data comes first */
+        if (newOffsetEnd <= offsetEnd) {
+            /* data encompasses cur. only copy data */
+            XMEMCPY(newBucket->buf, data,
+                    min(dataSz, newOffsetEnd - newOffset));
         }
-
-        /* add to front if before current front, up to next->begin */
-        if (fragOffset < cur->begin) {
-            word32 end = fragOffset + fragSz - 1;
-
-            if (end >= cur->begin)
-                end = cur->begin - 1;
-
-            added = end - fragOffset + 1;
-            newFrag = CreateFragment(&fragOffset, end, data, msg->msg,
-                                     &bytesLeft, heap);
-            if (newFrag == NULL)
-                return MEMORY_E;
-
-            msg->fragSz += added;
-
-            newFrag->next = cur;
-            msg->fragList = newFrag;
-        }
-
-        /* while we have bytes left, try to find a gap to fill */
-        while (bytesLeft > 0) {
-            /* get previous packet in list */
-            while (cur && (fragOffset >= cur->begin)) {
-                prev = cur;
-                cur = cur->next;
-            }
-
-            /* don't add duplicate data */
-            if (prev->end >= fragOffset) {
-                if ( (fragOffset + bytesLeft - 1) <= prev->end)
-                    return 0;
-                fragOffset = prev->end + 1;
-                bytesLeft = startOffset + fragSz - fragOffset;
-            }
-
-            if (cur == NULL)
-                /* we're at the end */
-                added = bytesLeft;
-            else
-                /* we're in between two frames */
-                added = min(bytesLeft, cur->begin - fragOffset);
-
-            /* data already there */
-            if (added == 0)
-                continue;
-
-            newFrag = CreateFragment(&fragOffset, fragOffset + added - 1,
-                                     data + fragOffset - startOffset,
-                                     msg->msg, &bytesLeft, heap);
-            if (newFrag == NULL)
-                return MEMORY_E;
-
-            msg->fragSz += added;
-
-            newFrag->next = prev->next;
-            prev->next = newFrag;
+        else {
+            /* data -> cur. memcpy as much possible as its faster. */
+            XMEMMOVE(newBucket->buf + dataSz, cur->buf,
+                    cur->m.m.sz - (offsetEnd - cur->m.m.offset));
+            XMEMCPY(newBucket->buf, data, dataSz);
         }
     }
+    else {
+        /* cur -> data */
+        word32 curOffsetEnd = cur->m.m.offset + cur->m.m.sz;
+        if (newBucket != cur)
+            XMEMCPY(newBucket->buf, cur->buf, cur->m.m.sz);
+        XMEMCPY(newBucket->buf + cur->m.m.sz,
+                data + (curOffsetEnd - offset),
+                newOffsetEnd - curOffsetEnd);
+    }
+    /* FINALLY the newBucket is populated correctly */
+
+    /* All buckets up to and including next (if combining) have to be free'd */
+    {
+        DtlsFragBucket* toFree = cur->m.m.next;
+        while (toFree != next) {
+            DtlsFragBucket* n = toFree->m.m.next;
+            overlapSz += toFree->m.m.sz;
+            DtlsMsgDestroyFragBucket(toFree, heap);
+            msg->fragBucketListCount--;
+            toFree = n;
+        }
+        if (combineNext) {
+            newBucket->m.m.next = next->m.m.next;
+            overlapSz += next->m.m.sz;
+            DtlsMsgDestroyFragBucket(otherBucket, heap);
+            msg->fragBucketListCount--;
+        }
+        else {
+            newBucket->m.m.next = next;
+        }
+    }
+    /* Adjust size in msg */
+    msg->bytesReceived += newSz - overlapSz;
+    newBucket->m.m.offset = newOffset;
+    newBucket->m.m.sz = newSz;
+    return newBucket;
+}
+
+static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
+{
+    /* We have received all necessary fragments. Reconstruct the header. */
+    if (msg->fragBucketListCount != 1 || msg->fragBucketList->m.m.offset != 0 ||
+            msg->fragBucketList->m.m.sz != msg->sz) {
+        WOLFSSL_MSG("Major error in fragment assembly logic");
+        return;
+    }
+
+    /* Re-cycle the DtlsFragBucket as the buffer that holds the complete
+     * handshake message and the header. */
+    msg->raw = (byte*)msg->fragBucketList;
+    msg->fullMsg = msg->fragBucketList->buf;
+    msg->ready = 1;
+
+    /* frag->padding makes sure we can fit the entire DTLS handshake header
+     * before frag->buf */
+    DtlsHandShakeHeader* dtls =
+            (DtlsHandShakeHeader*)(msg->fragBucketList->buf -
+                                    DTLS_HANDSHAKE_HEADER_SZ);
+
+    msg->fragBucketList = NULL;
+    msg->fragBucketListCount = 0;
+
+    dtls->type = msg->type;
+    c32to24(msg->sz, dtls->length);
+    c16toa(msg->seq, dtls->message_seq);
+    c32to24(0, dtls->fragment_offset);
+    c32to24(msg->sz, dtls->fragment_length);
+}
+
+int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
+               word32 fragOffset, word32 fragSz, void* heap, word32 totalLen)
+{
+    word32 fragOffsetEnd = fragOffset + fragSz;
+
+    WOLFSSL_ENTER("DtlsMsgSet()");
+
+    if (msg == NULL || data == NULL || msg->sz != totalLen ||
+            fragOffsetEnd > totalLen) {
+        WOLFSSL_ERROR_VERBOSE(BAD_FUNC_ARG);
+        return BAD_FUNC_ARG;
+    }
+
+    if (msg->ready)
+        return 0; /* msg is already complete */
+
+    if (msg->type != no_shake) {
+        /* msg is already populated with the correct seq, epoch, and type */
+        if (msg->type != type || msg->epoch != epoch || msg->seq != seq) {
+            WOLFSSL_ERROR_VERBOSE(SEQUENCE_ERROR);
+            return SEQUENCE_ERROR;
+        }
+    }
+    else {
+        msg->type = type;
+        msg->epoch = epoch;
+        msg->seq = seq;
+    }
+
+    if (msg->fragBucketList == NULL) {
+        /* Clean list. Create first fragment. */
+        msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
+        msg->bytesReceived = fragSz;
+        msg->fragBucketListCount++;
+    }
+    else {
+        /* See if we can expand any existing bucket to fit this new data into */
+        DtlsFragBucket* prev = NULL;
+        DtlsFragBucket* cur = msg->fragBucketList;
+        byte done = 0;
+        for (; cur != NULL; prev = cur, cur = cur->m.m.next) {
+            word32 curOffset = cur->m.m.offset;
+            word32 curEnd    = cur->m.m.offset + cur->m.m.sz;
+
+            if (fragOffset >= curOffset && fragOffsetEnd <= curEnd) {
+                /* We already have this fragment */
+                done = 1;
+                break;
+            }
+            else if (fragOffset <= curEnd) {
+                /* found place to store fragment */
+                break;
+            }
+        }
+        if (!done) {
+            if (cur == NULL) {
+                /* We reached the end of the list. data is after and disjointed
+                 * from anything we have received so far. */
+                if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
+                    WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
+                    return DTLS_TOO_MANY_FRAGMENTS_E;
+                }
+                prev->m.m.next =
+                        DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
+                if (prev->m.m.next != NULL) {
+                    msg->bytesReceived += fragSz;
+                    msg->fragBucketListCount++;
+                }
+            }
+            else if (prev == NULL && fragOffsetEnd < cur->m.m.offset) {
+                    /* This is the new first fragment we have received */
+                    if (msg->fragBucketListCount >= DTLS_FRAG_POOL_SZ) {
+                        WOLFSSL_ERROR_VERBOSE(DTLS_TOO_MANY_FRAGMENTS_E);
+                        return DTLS_TOO_MANY_FRAGMENTS_E;
+                    }
+                    msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data,
+                            fragSz, heap);
+                    if (msg->fragBucketList != NULL) {
+                        msg->fragBucketList->m.m.next = cur;
+                        msg->bytesReceived += fragSz;
+                        msg->fragBucketListCount++;
+                    }
+                    else {
+                        /* reset on error */
+                        msg->fragBucketList = cur;
+                    }
+            }
+            else {
+                /* Find if this fragment overlaps with any more */
+                DtlsFragBucket* next = cur->m.m.next;
+                DtlsFragBucket** prev_next = prev != NULL
+                        ? &prev->m.m.next : &msg->fragBucketList;
+                while (next != NULL &&
+                        (next->m.m.offset + next->m.m.sz) <= fragOffsetEnd)
+                    next = next->m.m.next;
+                /* We can combine the buckets */
+                *prev_next = DtlsMsgCombineFragBuckets(msg, cur, next,
+                        fragOffset, data, fragSz, heap);
+                if (*prev_next == NULL) /* reset on error */
+                    *prev_next = cur;
+            }
+        }
+    }
+
+    if (msg->bytesReceived == msg->sz)
+        DtlsMsgAssembleCompleteMessage(msg);
 
     return 0;
 }
@@ -8353,10 +8502,10 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
         if (cur == NULL) {
-            cur = DtlsMsgNew(dataSz, heap);
+            cur = DtlsMsgNew(dataSz, 0, heap);
             if (cur != NULL) {
                 if (DtlsMsgSet(cur, seq, epoch, data, type,
-                                               fragOffset, fragSz, heap) < 0) {
+                                       fragOffset, fragSz, heap, dataSz) < 0) {
                     DtlsMsgDelete(cur, heap);
                 }
                 else {
@@ -8368,13 +8517,13 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
         else {
             /* If this fails, the data is just dropped. */
             DtlsMsgSet(cur, seq, epoch, data, type, fragOffset,
-                    fragSz, heap);
+                    fragSz, heap, dataSz);
         }
     }
     else {
-        head = DtlsMsgNew(dataSz, heap);
+        head = DtlsMsgNew(dataSz, 0, heap);
         if (DtlsMsgSet(head, seq, epoch, data, type, fragOffset,
-                    fragSz, heap) < 0) {
+                    fragSz, heap, dataSz) < 0) {
             DtlsMsgDelete(head, heap);
             head = NULL;
         }
@@ -8439,12 +8588,12 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
         return DTLS_POOL_SZ_E;
     }
 
-    item = DtlsMsgNew(dataSz, ssl->heap);
+    item = DtlsMsgNew(dataSz, 1, ssl->heap);
 
     if (item != NULL) {
         DtlsMsg* cur = ssl->dtls_tx_msg_list;
 
-        XMEMCPY(item->buf, data, dataSz);
+        XMEMCPY(item->raw, data, dataSz);
         item->sz = dataSz;
         item->epoch = ssl->keys.dtls_epoch;
         item->seq = ssl->keys.dtls_handshake_number;
@@ -8580,7 +8729,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
             if (pool->epoch == 0) {
                 DtlsRecordLayerHeader* dtls;
 
-                dtls = (DtlsRecordLayerHeader*)pool->buf;
+                dtls = (DtlsRecordLayerHeader*)pool->raw;
                 /* If the stored record's epoch is 0, and the currently set
                  * epoch is 0, use the "current order" sequence number.
                  * If the stored record's epoch is 0 and the currently set
@@ -8599,7 +8748,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                 XMEMCPY(ssl->buffers.outputBuffer.buffer +
                         ssl->buffers.outputBuffer.idx +
                         ssl->buffers.outputBuffer.length,
-                        pool->buf, pool->sz);
+                        pool->raw, pool->sz);
                 ssl->buffers.outputBuffer.length += pool->sz;
             }
             else {
@@ -8608,7 +8757,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                 byte*  output;
                 int    inputSz, sendSz;
 
-                input = pool->buf;
+                input = pool->raw;
                 inputSz = pool->sz;
                 sendSz = inputSz + cipherExtraData(ssl);
 
@@ -9380,8 +9529,8 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             if (ssl->options.dtls) {
                 data   -= DTLS_HANDSHAKE_HEADER_SZ;
                 dataSz += DTLS_HANDSHAKE_HEADER_SZ;
-                AddHandShakeHeader(data,
-                        inputSz, ssl->fragOffset, fragSz, type, ssl);
+                AddHandShakeHeader(data, inputSz, ssl->fragOffset, fragSz,
+                                   type, ssl);
                 ssl->keys.dtls_handshake_number--;
             }
             if (IsDtlsNotSctpMode(ssl) &&
@@ -16112,15 +16261,14 @@ int DtlsMsgDrain(WOLFSSL* ssl)
      * last message... */
     while (item != NULL &&
             ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
-            item->fragSz == item->sz &&
-            ret == 0) {
+            item->ready && ret == 0) {
         word32 idx = 0;
 
     #ifdef WOLFSSL_NO_TLS12
-        ret = DoTls13HandShakeMsgType(ssl, item->msg, &idx, item->type,
+        ret = DoTls13HandShakeMsgType(ssl, item->fullMsg, &idx, item->type,
                                       item->sz, item->sz);
     #else
-        ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
+        ret = DoHandShakeMsgType(ssl, item->fullMsg, &idx, item->type,
                                       item->sz, item->sz);
     #endif
         if (ret == 0) {
@@ -16356,8 +16504,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
 #endif
         ret = 0;
-        if (ssl->dtls_rx_msg_list != NULL &&
-            ssl->dtls_rx_msg_list->fragSz >= ssl->dtls_rx_msg_list->sz)
+        if (ssl->dtls_rx_msg_list != NULL && ssl->dtls_rx_msg_list->ready)
             ret = DtlsMsgDrain(ssl);
     }
     else {

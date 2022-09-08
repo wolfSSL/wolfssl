@@ -1115,6 +1115,9 @@ enum {
     #define WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER 500
 #endif /* WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER */
 
+#ifndef WOLFSSL_DTLS_FRAG_POOL_SZ
+    #define WOLFSSL_DTLS_FRAG_POOL_SZ 10
+#endif
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
@@ -1398,6 +1401,8 @@ enum Misc {
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
     DTLS_POOL_SZ             = 20, /* allowed number of list items in TX and
                                     * RX pool */
+    DTLS_FRAG_POOL_SZ        = WOLFSSL_DTLS_FRAG_POOL_SZ,
+                                   /* allowed number of fragments per msg */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
@@ -4434,24 +4439,40 @@ typedef struct DtlsRecordLayerHeader {
     byte            length[2];
 } DtlsRecordLayerHeader;
 
-
-typedef struct DtlsFrag {
-    word32 begin;
-    word32 end;
-    struct DtlsFrag* next;
-} DtlsFrag;
-
+typedef struct DtlsFragBucket {
+    /* m stands for meta */
+    union {
+        struct {
+            struct DtlsFragBucket* next;
+            word32 offset;
+            word32 sz;
+        } m;
+        /* Make sure we have at least DTLS_HANDSHAKE_HEADER_SZ bytes before the
+         * buf so that we can reconstruct the header in the allocated
+         * DtlsFragBucket buffer. */
+        byte padding[DTLS_HANDSHAKE_HEADER_SZ];
+    } m;
+/* Ignore "nonstandard extension used : zero-sized array in struct/union"
+ * MSVC warning */
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
+    byte buf[];
+} DtlsFragBucket;
 
 typedef struct DtlsMsg {
     struct DtlsMsg* next;
-    byte*           buf;
-    byte*           msg;
-    DtlsFrag*       fragList;
-    word32          fragSz;    /* Length of fragments received */
+    byte*           raw;
+    byte*           fullMsg;   /* for TX fullMsg == raw. For RX this points to
+                                * the start of the message after headers. */
+    DtlsFragBucket* fragBucketList;
+    word32          bytesReceived;
     word16          epoch;     /* Epoch that this message belongs to */
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
+    byte            fragBucketListCount;
+    byte            ready:1;
 } DtlsMsg;
 
 
@@ -5462,16 +5483,20 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifdef WOLFSSL_DTLS
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, void* heap);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
-    WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg* head, void* heap);
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API void DtlsMsgListDelete(DtlsMsg* head, void* heap);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,
-                                  word32 fragOffset, word32 fragSz, void* heap);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
+                                  word32 fragOffset, word32 fragSz, void* heap,
+                                  word32 totalLen);
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
-    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
+    /* Use WOLFSSL_API to enable src/api.c testing */
+    WOLFSSL_API void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
                                     void* heap);
@@ -5485,6 +5510,7 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
+    WOLFSSL_LOCAL void DtlsMsgDestroyFragBucket(DtlsFragBucket* fragBucket, void* heap);
     WOLFSSL_LOCAL int GetDtlsHandShakeHeader(WOLFSSL *ssl, const byte *input,
         word32 *inOutIdx, byte *type, word32 *size, word32 *fragOffset,
         word32 *fragSz, word32 totalSz);

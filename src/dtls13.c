@@ -345,11 +345,11 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
             break;
 
         /* message not complete */
-        if (msg->fragSz != msg->sz)
+        if (!msg->ready)
             break;
 
-        ret = DoTls13HandShakeMsgType(ssl, msg->msg, &idx, msg->type, msg->sz,
-            msg->sz);
+        ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                msg->sz, msg->sz);
 
         /* processing certificate_request triggers a connect. The error came
          * from there, the message can be considered processed successfully */
@@ -375,7 +375,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
     return ssl->dtls_rx_msg_list != NULL &&
-           ssl->dtls_rx_msg_list->fragSz == ssl->dtls_rx_msg_list->sz &&
+           ssl->dtls_rx_msg_list->ready &&
            ssl->dtls_rx_msg_list->seq ==
                ssl->keys.dtls_expected_peer_handshake_number;
 }
@@ -677,8 +677,18 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
     /* is not the next fragment in the message (the check is not 100% perfect,
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
-    if (ssl->dtls_rx_msg_list == NULL ||
-        ssl->dtls_rx_msg_list->fragSz != fragOffset) {
+    if (ssl->dtls_rx_msg_list != NULL) {
+        DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
+        while (last != NULL && last->m.m.next != NULL)
+            last = last->m.m.next;
+        /* Does this fragment start right after the last fragment we
+         * have stored? */
+        if (last != NULL && (last->m.m.offset + last->m.m.sz) != fragOffset)
+            return 1;
+    }
+    else {
+        /* ssl->dtls_rx_msg_list is NULL and fragOffset != 0 so this is not in
+         * order */
         return 1;
     }
 
