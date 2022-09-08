@@ -2752,14 +2752,13 @@ extern void uITRON4_free(void *p) ;
 
 /* Are we using an external private key store like:
  *     PKCS11 / HSM / crypto callback / PK callback */
-#if !defined(WOLF_PRIVATE_KEY_ID) && \
-    (defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS) || \
-     defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_KCAPI))
-     /* Enables support for using wolfSSL_CTX_use_PrivateKey_Id and
-      *   wolfSSL_CTX_use_PrivateKey_Label */
-    #define WOLF_PRIVATE_KEY_ID
+#if !defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_WOLF_PRIVATE_KEY_ID) && \
+	(defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS) || \
+	 defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_KCAPI))
+	 /* Enables support for using wolfSSL_CTX_use_PrivateKey_Id and
+	  *   wolfSSL_CTX_use_PrivateKey_Label */
+	#define WOLF_PRIVATE_KEY_ID
 #endif
-
 
 /* With titan cache size there is too many sessions to fit with the default
  * multiplier of 8 */
