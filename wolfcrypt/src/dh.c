@@ -1434,15 +1434,15 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 #elif defined(HAVE_CAVIUM)
     /* TODO: Not implemented - use software for now */
 
-#else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_DH_GEN)) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        testDev->dhGen.key = key;
-        testDev->dhGen.rng = rng;
-        testDev->dhGen.priv = priv;
-        testDev->dhGen.privSz = privSz;
-        testDev->dhGen.pub = pub;
-        testDev->dhGen.pubSz = pubSz;
+#else /* WOLFSSL_ASYNC_CRYPT_SW */
+    if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_DH_GEN)) {
+        WC_ASYNC_SW* sw = &key->asyncDev.sw;
+        sw->dhGen.key = key;
+        sw->dhGen.rng = rng;
+        sw->dhGen.priv = priv;
+        sw->dhGen.privSz = privSz;
+        sw->dhGen.pub = pub;
+        sw->dhGen.pubSz = pubSz;
         return WC_PENDING_E;
     }
 #endif
@@ -2187,16 +2187,16 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
 #elif defined(HAVE_CAVIUM)
     /* TODO: Not implemented - use software for now */
 
-#else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_DH_AGREE)) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        testDev->dhAgree.key = key;
-        testDev->dhAgree.agree = agree;
-        testDev->dhAgree.agreeSz = agreeSz;
-        testDev->dhAgree.priv = priv;
-        testDev->dhAgree.privSz = privSz;
-        testDev->dhAgree.otherPub = otherPub;
-        testDev->dhAgree.pubSz = pubSz;
+#else /* WOLFSSL_ASYNC_CRYPT_SW */
+    if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_DH_AGREE)) {
+        WC_ASYNC_SW* sw = &key->asyncDev.sw;
+        sw->dhAgree.key = key;
+        sw->dhAgree.agree = agree;
+        sw->dhAgree.agreeSz = agreeSz;
+        sw->dhAgree.priv = priv;
+        sw->dhAgree.privSz = privSz;
+        sw->dhAgree.otherPub = otherPub;
+        sw->dhAgree.pubSz = pubSz;
         return WC_PENDING_E;
     }
 #endif
