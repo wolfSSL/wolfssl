@@ -985,8 +985,6 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
 #define EVP_MD_nid                    wolfSSL_EVP_MD_type
-#define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
-#define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 
 #define EVP_PKEY_assign                wolfSSL_EVP_PKEY_assign
 #define EVP_PKEY_assign_RSA            wolfSSL_EVP_PKEY_assign_RSA

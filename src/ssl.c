@@ -18299,10 +18299,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
 #endif
 #ifndef NO_SHA
-        if (XSTRCMP(evp_md, "SHA") == 0) {
+        if (XSTRCMP(evp_md, "SHA") == 0 || XSTRCMP(evp_md, "SHA1") == 0) {
             type = WC_SHA;
             mdlen = WC_SHA_DIGEST_SIZE;
-        } else
+        }
+        else
 #endif
         {
             return NULL;
