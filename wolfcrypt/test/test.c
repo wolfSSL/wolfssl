@@ -271,6 +271,9 @@
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
 #endif
+#if defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
+#endif
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     #include <wolfssl/wolfcrypt/eccsi.h>
@@ -29855,6 +29858,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* HAVE_ED448 */
 
 #ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER /* OQS and PQM4 do not support KATs */
 #ifdef WOLFSSL_KYBER512
 static int kyber512_kat(void)
 {
@@ -33701,6 +33705,7 @@ static int kyber1024_kat(void)
     return 0;
 }
 #endif /* WOLFSSL_KYBER1024 */
+#endif /* WOLFSSL_WC_KYBER */
 
 WOLFSSL_TEST_SUBROUTINE int kyber_test(void)
 {
@@ -33801,6 +33806,7 @@ WOLFSSL_TEST_SUBROUTINE int kyber_test(void)
 
     wc_FreeRng(&rng);
 
+#ifdef WOLFSSL_WC_KYBER
 #ifdef WOLFSSL_KYBER512
     ret = kyber512_kat();
     if (ret != 0)
@@ -33816,6 +33822,7 @@ WOLFSSL_TEST_SUBROUTINE int kyber_test(void)
     if (ret != 0)
         return ret;
 #endif
+#endif /* WOLFSSL_WC_KYBER */
 
     return 0;
 }

@@ -687,6 +687,7 @@ if BUILD_LIBOQS
 src_libwolfssl_la_SOURCES += wolfcrypt/src/falcon.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/dilithium.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sphincs.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ext_kyber.c
 endif
 
 if BUILD_LIBZ

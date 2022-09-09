@@ -53,15 +53,17 @@
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#endif
 #elif defined(HAVE_LIBOQS)
     #include <oqs/kem.h>
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
 #elif defined(HAVE_PQM4)
     #include "api_kyber.h"
     #define PQM4_PUBLIC_KEY_LENGTH    CRYPTO_PUBLICKEYBYTES
     #define PQM4_PRIVATE_KEY_LENGTH   CRYPTO_SECRETKEYBYTES
     #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
     #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
+#endif
 #endif
 #endif
 
@@ -7058,7 +7060,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 }
 
 #ifdef HAVE_PQC
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER
 static int kyber_id2type(int id, int *type)
 {
     int ret = 0;
@@ -7183,7 +7185,7 @@ static void findEccPqc(int *ecc, int *pqc, int group)
  * kse   The key share entry object.
  * returns 0 on success, otherwise failure.
  */
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER
 static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 {
     int ret = 0;
@@ -8084,7 +8086,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 }
 
 #ifdef HAVE_PQC
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER
 /* Process the Kyber key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
@@ -8881,7 +8883,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
 }
 
 #ifdef HAVE_PQC
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER
 static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     KeyShareEntry* keyShareEntry, byte* data, word16 len)
 {
@@ -9534,7 +9536,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         #endif
     #endif
     #ifdef HAVE_PQC
-    #ifdef WOLFSSL_HAVE_KYBER
+    #ifdef WOLFSSL_WC_KYBER
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
         #endif
@@ -9651,7 +9653,7 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
             /* For the liboqs groups we need to do a runtime check because
              * liboqs could be compiled to make an algorithm unavailable.
              */
-    #ifdef WOLFSSL_HAVE_KYBER
+    #ifdef WOLFSSL_WC_KYBER
         #ifdef WOLFSSL_KYBER512
             if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_LEVEL1))
                 ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_LEVEL1;
@@ -11733,7 +11735,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #endif
 
 #ifdef HAVE_PQC
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_WC_KYBER
 #ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1,

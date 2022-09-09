@@ -963,6 +963,53 @@ then
 fi
 
 
+# liboqs
+ENABLED_LIBOQS="no"
+tryliboqsdir=""
+AC_ARG_WITH([liboqs],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
+    [
+        AC_MSG_CHECKING([for liboqs])
+        CPPFLAGS="$CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
+        LIBS="$LIBS -loqs"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
+
+        if test "x$liboqs_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryliboqsdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                tryliboqsdir="/usr/local"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
+            CPPFLAGS="$CPPFLAGS -I$tryliboqsdir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
+
+            if test "x$liboqs_linked" = "xno" ; then
+                AC_MSG_ERROR([liboqs isn't found.
+                If it's already installed, specify its path using --with-liboqs=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+        then
+            ENABLED_OPENSSLEXTRA="yes"
+            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
+        ENABLED_LIBOQS="yes"
+    ]
+)
+
+
 # KYBER
 # Used:
 #  - SHA3, Shake128 and Shake256, or
@@ -1013,24 +1060,33 @@ done
 if test "$ENABLED_KYBER" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
-    if test "$ENABLED_KYBER512" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
-    fi
-    if test "$ENABLED_KYBER768" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
-    fi
-    if test "$ENABLED_KYBER1024" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
-    fi
+    if test "$ENABLED_WC_KYBER" = "yes"
+    then
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+        fi
 
-    if test "$ENABLED_KYBER_90S" != "yes"; then
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
+        if test "$ENABLED_KYBER_90S" != "yes"; then
+            test "$enable_sha3" = "" && enable_sha3=yes
+            test "$enable_shake128" = "" && enable_shake128=yes
+            test "$enable_shake256" = "" && enable_shake256=yes
+        else
+            test "$enable_sha256" = "" && enable_sha256=yes
+            test "$enable_sha512" = "" && enable_sha512=yes
+            test "$enable_aesctr" = "" && enable_aesctr=yes
+        fi
     else
-        test "$enable_sha256" = "" && enable_sha256=yes
-        test "$enable_sha512" = "" && enable_sha512=yes
-        test "$enable_aesctr" = "" && enable_aesctr=yes
+        # Default is to use liboqs. Make sure its enabled.
+        if test "$ENABLED_LIBOQS" = "no"; then
+            AC_MSG_ERROR([The default implementation for kyber is liboqs.
+            Please use --with-liboqs.])
+        fi
     fi
 fi
 
@@ -4603,52 +4659,6 @@ if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
 then
     AC_MSG_ERROR([cannot enable user crypto and fips, user crypto posibility of using code in fips boundary.])
 fi
-
-# liboqs
-ENABLED_LIBOQS="no"
-tryliboqsdir=""
-AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
-    [
-        AC_MSG_CHECKING([for liboqs])
-        CPPFLAGS="$CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
-        LIBS="$LIBS -loqs"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-        if test "x$liboqs_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryliboqsdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                tryliboqsdir="/usr/local"
-            fi
-
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
-            CPPFLAGS="$CPPFLAGS -I$tryliboqsdir/include"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
-
-            if test "x$liboqs_linked" = "xno" ; then
-                AC_MSG_ERROR([liboqs isn't found.
-                If it's already installed, specify its path using --with-liboqs=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-        then
-            ENABLED_OPENSSLEXTRA="yes"
-            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
-        ENABLED_LIBOQS="yes"
-    ]
-)
 
 # Whitewood netRandom client library
 ENABLED_WNR="no"

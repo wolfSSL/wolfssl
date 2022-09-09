@@ -269,6 +269,7 @@
 #ifdef HAVE_LIBOQS
     #include <oqs/kem.h>
     #include <oqs/sig.h>
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 
 #if defined(HAVE_PQC)
@@ -290,6 +291,7 @@
     #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
     #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
     typedef char OQS_KEM;
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
