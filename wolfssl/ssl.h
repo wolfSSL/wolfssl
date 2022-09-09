@@ -4578,7 +4578,7 @@ WOLFSSL_API void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*
 WOLFSSL_API void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
 
 #define WOLF_SK_COMPARE_CB(type, arg) \
-    int (*arg) (const type* const* a, const type* const* b)
+    int (*(arg)) (const type* const* a, const type* const* b)
 typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
     WOLF_SK_COMPARE_CB(WOLFSSL_X509_NAME, cb));
