@@ -5496,6 +5496,49 @@ done:
     return 0;
 }
 
+void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
+                                       callback_functions* server_cb)
+{
+    func_args client_args;
+    func_args server_args;
+    tcp_ready ready;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    server_args.callbacks = server_cb;
+    client_args.signal = &ready;
+    client_args.callbacks = client_cb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    client_cb->return_code = client_args.return_code;
+    server_cb->return_code = server_args.return_code;
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
 static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
@@ -55058,12 +55101,8 @@ static void test_wolfSSL_dtls_plaintext_client(WOLFSSL* ssl)
 
 static int test_wolfSSL_dtls_plaintext(void)
 {
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
     callback_functions func_cb_client;
     callback_functions func_cb_server;
-    THREAD_TYPE serverThread;
     size_t i;
     struct test_params {
         method_provider client_meth;
@@ -55079,27 +55118,8 @@ static int test_wolfSSL_dtls_plaintext(void)
     printf(testingFmt, "test_wolfSSL_dtls_plaintext");
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        XMEMSET(&client_args, 0, sizeof(func_args));
-        XMEMSET(&server_args, 0, sizeof(func_args));
         XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
         XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
-
-    #ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-    #endif
-
-        StartTCP();
-        InitTcpReady(&ready);
-
-#if defined(USE_WINDOWS_API)
-        /* use RNG to get random port if using windows */
-        ready.port = GetRandomPort();
-#endif
-
-        server_args.signal = &ready;
-        server_args.callbacks = &func_cb_server;
-        client_args.signal = &ready;
-        client_args.callbacks = &func_cb_client;
 
         func_cb_client.doUdp = func_cb_server.doUdp = 1;
         func_cb_server.method = params[i].server_meth;
@@ -55107,19 +55127,10 @@ static int test_wolfSSL_dtls_plaintext(void)
         func_cb_client.on_result = params[i].on_result_client;
         func_cb_server.on_result = params[i].on_result_server;
 
-        start_thread(test_server_nofail, &server_args, &serverThread);
-        wait_tcp_ready(&server_args);
-        test_client_nofail(&client_args, NULL);
-        join_thread(serverThread);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-        AssertTrue(client_args.return_code);
-        AssertTrue(server_args.return_code);
-
-        FreeTcpReady(&ready);
-
-#ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-#endif
+        AssertTrue(func_cb_client.return_code);
+        AssertTrue(func_cb_server.return_code);
     }
 
     printf(resultFmt, passed);
@@ -55244,12 +55255,8 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 
 static int test_wolfSSL_dtls_fragments(void)
 {
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
     callback_functions func_cb_client;
     callback_functions func_cb_server;
-    THREAD_TYPE serverThread;
     size_t i;
     struct test_params {
         method_provider client_meth;
@@ -55267,52 +55274,26 @@ static int test_wolfSSL_dtls_fragments(void)
     printf(testingFmt, "test_wolfSSL_dtls_fragments");
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        XMEMSET(&client_args, 0, sizeof(func_args));
-        XMEMSET(&server_args, 0, sizeof(func_args));
         XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
         XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
-    #ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-    #endif
-
-        StartTCP();
-        InitTcpReady(&ready);
-
-#if defined(USE_WINDOWS_API)
-        /* use RNG to get random port if using windows */
-        ready.port = GetRandomPort();
-#endif
-
-        server_args.signal = &ready;
-        server_args.callbacks = &func_cb_server;
-        client_args.signal = &ready;
-        client_args.callbacks = &func_cb_client;
 
         func_cb_client.doUdp = func_cb_server.doUdp = 1;
         func_cb_server.method = params[i].server_meth;
         func_cb_client.method = params[i].client_meth;
         func_cb_client.ssl_ready = params[i].spammer;
 
-        start_thread(test_server_nofail, &server_args, &serverThread);
-        wait_tcp_ready(&server_args);
-        test_client_nofail(&client_args, NULL);
-        join_thread(serverThread);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-        AssertFalse(client_args.return_code);
-        AssertFalse(server_args.return_code);
+        AssertFalse(func_cb_client.return_code);
+        AssertFalse(func_cb_server.return_code);
+
         /* The socket should be closed by the server resulting in a
          * socket error */
         AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
         /* Check the server returned an error indicating the msg buffer
          * was full */
         AssertIntEQ(func_cb_server.last_err, DTLS_TOO_MANY_FRAGMENTS_E);
-
-        FreeTcpReady(&ready);
-
-#ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-#endif
     }
 
     printf(resultFmt, passed);
