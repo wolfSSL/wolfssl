@@ -8326,6 +8326,8 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
 
 static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 {
+    DtlsHandShakeHeader* dtls;
+
     /* We have received all necessary fragments. Reconstruct the header. */
     if (msg->fragBucketListCount != 1 || msg->fragBucketList->m.m.offset != 0 ||
             msg->fragBucketList->m.m.sz != msg->sz) {
@@ -8341,9 +8343,9 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 
     /* frag->padding makes sure we can fit the entire DTLS handshake header
      * before frag->buf */
-    DtlsHandShakeHeader* dtls =
-            (DtlsHandShakeHeader*)(msg->fragBucketList->buf -
-                                    DTLS_HANDSHAKE_HEADER_SZ);
+    dtls = (DtlsHandShakeHeader*)(void *)((char *)msg->fragBucketList
+                                          + OFFSETOF(DtlsFragBucket,buf)
+                                          - DTLS_HANDSHAKE_HEADER_SZ);
 
     msg->fragBucketList = NULL;
     msg->fragBucketListCount = 0;
