@@ -213,7 +213,9 @@ extern "C" {
  * with compiler.
  */
 #ifndef SP_WORD_SIZE
-    #if defined(NO_64BIT) || !defined(HAVE___UINT128_T)
+    #ifdef NO_64BIT
+        #define SP_WORD_SIZE 16
+    #elif !defined(HAVE___UINT128_T)
         #define SP_WORD_SIZE 32
     #else
         #define SP_WORD_SIZE 64
