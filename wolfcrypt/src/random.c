@@ -2240,9 +2240,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #else
         #include <randomNumGen.h>
+        #include <tickLib.h>
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
-            STATUS        status;
+            STATUS                status   = ERROR;
+            RANDOM_NUM_GEN_STATUS r_status = RANDOM_NUM_GEN_ERROR;
+            _Vx_ticks_t           seed = 0;
 
             #ifdef VXWORKS_SIM
                 /* cannot generate true entropy with VxWorks simulator */
@@ -2254,7 +2257,34 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 }
             #endif
 
+            /*
+              wolfSSL can request 52 Bytes of random bytes. We need to add
+              buffer to the entropy pool to ensure we can get more than 32 Bytes.
+              Because VxWorks has entropy limits (ENTROPY_MIN and ENTROPY_MAX)
+              defined as 256 and 1024 bits, see randomSWNumGenLib.c.
+
+              randStatus() can return the following status:
+              RANDOM_NUM_GEN_NO_ENTROPY when entropy is 0
+              RANDOM_NUM_GEN_ERROR, entropy is not initialized
+              RANDOM_NUM_GEN_NOT_ENOUGH_ENTROPY if entropy < 32 Bytes
+              RANDOM_NUM_GEN_ENOUGH_ENTROPY if entropy is between 32 and 128 Bytes
+              RANDOM_NUM_GEN_MAX_ENTROPY if entropy is greater than 128 Bytes
+            */
+
+            do {
+                seed = tickGet();
+                status = randAdd(&seed, sizeof(_Vx_ticks_t), 2);
+                if (status == OK)
+                    r_status = randStatus();
+
+            } while (r_status != RANDOM_NUM_GEN_MAX_ENTROPY &&
+                     r_status != RANDOM_NUM_GEN_ERROR && status == OK);
+
+            if (r_status == RANDOM_NUM_GEN_ERROR)
+                return RNG_FAILURE_E;
+
             status = randBytes (output, sz);
+
             if (status == ERROR) {
                 return RNG_FAILURE_E;
             }
