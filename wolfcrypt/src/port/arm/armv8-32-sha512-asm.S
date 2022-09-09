@@ -4219,6 +4219,7 @@ Transform_Sha512_Len:
 L_SHA512_transform_neon_len_begin:
 	# Load W
 	vldm.64	r1!, {d16-d31}
+#ifndef WOLFSSL_ARM_ARCH_NO_VREV
 	vrev64.8	q8, q8
 	vrev64.8	q9, q9
 	vrev64.8	q10, q10
@@ -4227,6 +4228,56 @@ L_SHA512_transform_neon_len_begin:
 	vrev64.8	q13, q13
 	vrev64.8	q14, q14
 	vrev64.8	q15, q15
+#else
+	vshl.i16	q4, q8, #8
+	vshl.i16	q5, q9, #8
+	vsri.i16	q4, q8, #8
+	vsri.i16	q5, q9, #8
+	vshl.i32	q6, q4, #16
+	vshl.i32	q7, q5, #16
+	vsri.i32	q6, q4, #16
+	vsri.i32	q7, q5, #16
+	vshl.i64	q8, q6, #32
+	vshl.i64	q9, q7, #32
+	vsri.i64	q8, q6, #32
+	vsri.i64	q9, q7, #32
+	vshl.i16	q4, q10, #8
+	vshl.i16	q5, q11, #8
+	vsri.i16	q4, q10, #8
+	vsri.i16	q5, q11, #8
+	vshl.i32	q6, q4, #16
+	vshl.i32	q7, q5, #16
+	vsri.i32	q6, q4, #16
+	vsri.i32	q7, q5, #16
+	vshl.i64	q10, q6, #32
+	vshl.i64	q11, q7, #32
+	vsri.i64	q10, q6, #32
+	vsri.i64	q11, q7, #32
+	vshl.i16	q4, q12, #8
+	vshl.i16	q5, q13, #8
+	vsri.i16	q4, q12, #8
+	vsri.i16	q5, q13, #8
+	vshl.i32	q6, q4, #16
+	vshl.i32	q7, q5, #16
+	vsri.i32	q6, q4, #16
+	vsri.i32	q7, q5, #16
+	vshl.i64	q12, q6, #32
+	vshl.i64	q13, q7, #32
+	vsri.i64	q12, q6, #32
+	vsri.i64	q13, q7, #32
+	vshl.i16	q4, q14, #8
+	vshl.i16	q5, q15, #8
+	vsri.i16	q4, q14, #8
+	vsri.i16	q5, q15, #8
+	vshl.i32	q6, q4, #16
+	vshl.i32	q7, q5, #16
+	vsri.i32	q6, q4, #16
+	vsri.i32	q7, q5, #16
+	vshl.i64	q14, q6, #32
+	vshl.i64	q15, q7, #32
+	vsri.i64	q14, q6, #32
+	vsri.i64	q15, q7, #32
+#endif /* WOLFSSL_ARM_ARCH_NO_VREV */
 	adr	r3, L_SHA512_transform_neon_len_k
 	mov	r12, #4
 	# Start of 16 rounds
