@@ -24287,6 +24287,116 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
+                           const int listSz)
+{
+    int ret = 0;
+    int idx = 0;
+    int i;
+
+    int haveRSAsig       = 0;
+    int haveECDSAsig     = 0;
+    int haveFalconSig    = 0;
+    int haveDilithiumSig = 0;
+    int haveAnon         = 0;
+
+    if (suites == NULL || list == NULL) {
+        WOLFSSL_MSG("SetCipherListFromBytes parameter error");
+        return 0;
+    }
+
+    for (i = 0; (i + 1) < listSz; i += 2) {
+        const byte firstByte = list[i];
+        const byte secondByte = list[i + 1];
+        const char* name = NULL;
+
+        name = GetCipherNameInternal(firstByte, secondByte);
+        if (XSTRCMP(name, "None") == 0) {
+            /* bytes don't match any known cipher */
+            continue;
+        }
+
+    #ifdef WOLFSSL_DTLS
+        /* don't allow stream ciphers with DTLS */
+        if (ctx->method->version.major == DTLS_MAJOR) {
+            if (XSTRSTR(name, "RC4")) {
+                WOLFSSL_MSG("Stream ciphers not supported with DTLS");
+                continue;
+            }
+        }
+    #endif /* WOLFSSL_DTLS */
+
+        if (idx + 1 >= WOLFSSL_MAX_SUITE_SZ) {
+            WOLFSSL_MSG("WOLFSSL_MAX_SUITE_SZ set too low");
+            return 0; /* suites buffer not large enough, error out */
+        }
+
+        suites->suites[idx++] = firstByte;
+        suites->suites[idx++] = secondByte;
+
+        /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
+         * suites don't necessarily have RSA in the name. */
+    #ifdef WOLFSSL_TLS13
+        if (firstByte == TLS13_BYTE || (firstByte == ECC_BYTE &&
+                                        (secondByte == TLS_SHA256_SHA256 ||
+                                         secondByte == TLS_SHA384_SHA384))) {
+        #ifndef NO_RSA
+            haveRSAsig = 1;
+        #endif
+        #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+            haveECDSAsig = 1;
+        #endif
+        #if defined(HAVE_PQC)
+        #ifdef HAVE_FALCON
+            haveFalconSig = 1;
+        #endif /* HAVE_FALCON */
+        #ifdef HAVE_DILITHIUM
+            haveDilithiumSig = 1;
+        #endif /* HAVE_DILITHIUM */
+        #endif /* HAVE_PQC */
+        }
+        else
+    #endif /* WOLFSSL_TLS13 */
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+        if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
+            haveECDSAsig = 1;
+        else
+    #endif
+    #ifdef HAVE_ANON
+        if (XSTRSTR(name, "ADH"))
+            haveAnon = 1;
+        else
+    #endif
+        if (haveRSAsig == 0
+        #ifndef NO_PSK
+            && (XSTRSTR(name, "PSK") == NULL)
+        #endif
+        ) {
+            haveRSAsig = 1;
+        }
+
+        ret = 1; /* found at least one */
+    }
+
+    if (ret) {
+        int keySz = 0;
+    #ifndef NO_CERTS
+        keySz = ctx->privateKeySz;
+    #endif
+        suites->suiteSz = (word16)idx;
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveFalconSig,
+                              haveDilithiumSig, haveAnon, 1, keySz);
+        suites->setSuites = 1;
+    }
+
+    (void)ctx;
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA */
+
+
 #ifdef OPENSSL_EXTRA
 
 struct mac_algs {

@@ -1352,6 +1352,10 @@ WOLFSSL_API int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list);
 
+/* supports 2 byte code from cipher_name[] */
+WOLFSSL_API int  wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list, const int listSz);
+WOLFSSL_API int  wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list, const int listSz);
+
 #ifdef HAVE_KEYING_MATERIAL
 /* Keying Material Exporter for TLS */
 WOLFSSL_API int wolfSSL_export_keying_material(WOLFSSL *ssl,
