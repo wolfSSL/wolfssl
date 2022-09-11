@@ -778,6 +778,19 @@ typedef struct sp_int {
     sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
+typedef struct sp_int_minimal {
+    int used;
+    int size;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    int sign;
+#endif
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT raw;
+#endif
+    /** First digit of number.  */
+    sp_int_digit dp[1];
+} sp_int_minimal;
+
 /* Multi-precision integer type is SP integer type. */
 typedef sp_int       mp_int;
 /* Multi-precision integer digit type is SP integer digit type.

@@ -4352,10 +4352,10 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
  */
 static void _sp_zero(sp_int* a)
 {
-    a->used = 0;
-    a->dp[0] = 0;
+    ((sp_int_minimal *)a)->used = 0;
+    ((sp_int_minimal *)a)->dp[0] = 0;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    a->sign = MP_ZPOS;
+    ((sp_int_minimal *)a)->sign = MP_ZPOS;
 #endif
 }
 
@@ -4394,10 +4394,20 @@ int sp_init(sp_int* a)
  */
 int sp_init_size(sp_int* a, int size)
 {
-    int err = sp_init(a);
+    int err = MP_OKAY;
+
+    if (a == NULL) {
+        err = MP_VAL;
+    }
+    if (err == MP_OKAY) {
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&a->raw);
+    #endif
+        _sp_zero(a);
+    }
 
     if (err == MP_OKAY) {
-        a->size = size;
+        ((sp_int_minimal *)a)->size = size;
     }
 
     return err;
