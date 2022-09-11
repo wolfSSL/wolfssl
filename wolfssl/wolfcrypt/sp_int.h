@@ -877,7 +877,7 @@ MP_API int sp_addmod_ct (sp_int* a, sp_int* b, sp_int* c, sp_int* d);
 
 MP_API int sp_lshd(sp_int* a, int s);
 MP_API void sp_rshd(sp_int* a, int c);
-MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
+MP_API int sp_rshb(sp_int* a, int n, sp_int* r);
 
 #ifdef WOLFSSL_SP_MATH_ALL
 MP_API int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem);
