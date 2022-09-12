@@ -1268,6 +1268,14 @@ enum {
 #endif
 
 
+/* Limit is 2^24.5
+ * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ * Without the fraction is 23726566 (0x016A09E6) */
+#define AEAD_AES_LIMIT                           w64From32(0x016A, 0x09E6)
+/* Limit is 2^23
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits */
+#define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 22)
+
 /* Limit is 2^36
  * https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits */
 #define DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT      w64From32(1 << 3, 0)

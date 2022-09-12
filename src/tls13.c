@@ -2103,7 +2103,7 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
         Dtls13GetSeq(ssl, verifyOrder, seq, 1);
 #endif /* WOLFSSL_DTLS13 */
     }
-    else if (verifyOrder) {
+    else if (verifyOrder == PEER_ORDER) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
         seq[1] = ssl->keys.peer_sequence_number_lo++;
         /* handle rollover */

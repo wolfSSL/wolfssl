@@ -1534,7 +1534,7 @@ int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
     else {
         ret = WOLFSSL_SUCCESS;
         if (macDropCount != NULL)
-            *macDropCount = ssl->macDropCount;
+            *macDropCount = w64GetLow32(ssl->macDropCount);
         if (replayDropCount != NULL)
             *replayDropCount = ssl->replayDropCount;
     }

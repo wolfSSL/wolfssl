@@ -18818,6 +18818,9 @@ static int checkDTLS13AEADFailLimit(byte bulk_cipher_algorithm,
             }
             break;
 #endif
+        case wolfssl_cipher_null:
+            /* No encryption being done. The MAC failed must have failed. */
+            return 0;
         default:
             WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
             return AEAD_LIMIT_FAIL;
@@ -22031,6 +22034,66 @@ static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
 }
 #endif /* WOLFSSL_DTLS */
 
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+/*
+ * Enforce limits specified in
+ * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ */
+static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
+{
+    w64wrapper seq;
+    w64wrapper limit;
+
+    switch (ssl->specs.bulk_cipher_algorithm) {
+#ifdef BUILD_AESGCM
+        case wolfssl_aes_gcm:
+            /* Limit is 2^24.5 */
+            limit = AEAD_AES_LIMIT;
+            break;
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        case wolfssl_chacha:
+            /* For ChaCha20/Poly1305, the record sequence number would wrap
+             * before the safety limit is reached. */
+            return 0;
+#endif
+#ifdef HAVE_AESCCM
+        case wolfssl_aes_ccm:
+            /* Use the limits calculated in the DTLS 1.3 spec
+             * https://www.rfc-editor.org/rfc/rfc9147.html#name-analysis-of-limits-on-ccm-u */
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                limit = DTLS_AEAD_AES_CCM_LIMIT; /* Limit is 2^23 */
+            else
+#endif
+                limit = AEAD_AES_LIMIT; /* Limit is 2^24.5 */
+            break;
+#endif
+        case wolfssl_cipher_null:
+            /* No encryption being done */
+            return 0;
+        default:
+            WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
+            return BAD_STATE_E;
+
+    }
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
+    }
+    else
+#endif
+    {
+        seq = w64From32(ssl->keys.sequence_number_hi,
+                ssl->keys.sequence_number_lo);
+    }
+
+    if (w64GTE(seq, limit))
+        return Tls13UpdateKeys(ssl); /* Need to generate new keys */
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
 
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
@@ -22168,6 +22231,16 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             }
         }
 #endif /* WOLFSSL_DTLS13 */
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            ret = CheckTLS13AEADSendLimit(ssl);
+            if (ret != 0) {
+                ssl->error = ret;
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
