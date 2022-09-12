@@ -29,11 +29,8 @@ The In Core Memory test calculates a checksum (HMAC-SHA256) of the wolfCrypt
 FIPS library code and constant data and compares it with a known value in
 the code.
 
-The Randomized Base Address setting needs to be disabled on the 32-bit builds
-but can be enabled on the 64-bit builds. In the 32-bit mode the addresses
-being different throws off the in-core memory calculation. It looks like in
-64-bit mode the library uses all offsets, so the core hash calculation
-is the same every time.
+The Randomized Base Address setting needs to be disabled on all builds as the 
+feature throws off the in-core memory calculation causing the test to fail.
 
 The "verifyCore" check value in the source fips_test.c needs to be updated when
 building the code. The POS performs this check and the default failure callback
