@@ -1559,29 +1559,21 @@ Transform_Sha256_Len:
 L_SHA256_transform_neon_len_begin:
 	# Load W
 	vldm.32	r1!, {d0-d7}
-#ifndef WOLFSSL_ARM_ARCH_NO_VREV
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	vrev32.8	q0, q0
 	vrev32.8	q1, q1
 	vrev32.8	q2, q2
 	vrev32.8	q3, q3
 #else
-	vshl.i16	q4, q0, #8
-	vshl.i16	q5, q1, #8
-	vsri.i16	q4, q0, #8
-	vsri.i16	q5, q1, #8
-	vshl.i32	q0, q4, #16
-	vshl.i32	q1, q5, #16
-	vsri.i32	q0, q4, #16
-	vsri.i32	q1, q5, #16
-	vshl.i16	q4, q2, #8
-	vshl.i16	q5, q3, #8
-	vsri.i16	q4, q2, #8
-	vsri.i16	q5, q3, #8
-	vshl.i32	q2, q4, #16
-	vshl.i32	q3, q5, #16
-	vsri.i32	q2, q4, #16
-	vsri.i32	q3, q5, #16
-#endif /* WOLFSSL_ARM_ARCH_NO_VREV */
+	vrev32.8	d0, d0
+	vrev32.8	d1, d1
+	vrev32.8	d2, d2
+	vrev32.8	d3, d3
+	vrev32.8	d4, d4
+	vrev32.8	d5, d5
+	vrev32.8	d6, d6
+	vrev32.8	d7, d7
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	str	r1, [sp, #4]
 	mov	lr, #3
 	# Start of 16 rounds

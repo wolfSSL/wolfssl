@@ -4219,7 +4219,7 @@ Transform_Sha512_Len:
 L_SHA512_transform_neon_len_begin:
 	# Load W
 	vldm.64	r1!, {d16-d31}
-#ifndef WOLFSSL_ARM_ARCH_NO_VREV
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	vrev64.8	q8, q8
 	vrev64.8	q9, q9
 	vrev64.8	q10, q10
@@ -4229,55 +4229,23 @@ L_SHA512_transform_neon_len_begin:
 	vrev64.8	q14, q14
 	vrev64.8	q15, q15
 #else
-	vshl.i16	q4, q8, #8
-	vshl.i16	q5, q9, #8
-	vsri.i16	q4, q8, #8
-	vsri.i16	q5, q9, #8
-	vshl.i32	q6, q4, #16
-	vshl.i32	q7, q5, #16
-	vsri.i32	q6, q4, #16
-	vsri.i32	q7, q5, #16
-	vshl.i64	q8, q6, #32
-	vshl.i64	q9, q7, #32
-	vsri.i64	q8, q6, #32
-	vsri.i64	q9, q7, #32
-	vshl.i16	q4, q10, #8
-	vshl.i16	q5, q11, #8
-	vsri.i16	q4, q10, #8
-	vsri.i16	q5, q11, #8
-	vshl.i32	q6, q4, #16
-	vshl.i32	q7, q5, #16
-	vsri.i32	q6, q4, #16
-	vsri.i32	q7, q5, #16
-	vshl.i64	q10, q6, #32
-	vshl.i64	q11, q7, #32
-	vsri.i64	q10, q6, #32
-	vsri.i64	q11, q7, #32
-	vshl.i16	q4, q12, #8
-	vshl.i16	q5, q13, #8
-	vsri.i16	q4, q12, #8
-	vsri.i16	q5, q13, #8
-	vshl.i32	q6, q4, #16
-	vshl.i32	q7, q5, #16
-	vsri.i32	q6, q4, #16
-	vsri.i32	q7, q5, #16
-	vshl.i64	q12, q6, #32
-	vshl.i64	q13, q7, #32
-	vsri.i64	q12, q6, #32
-	vsri.i64	q13, q7, #32
-	vshl.i16	q4, q14, #8
-	vshl.i16	q5, q15, #8
-	vsri.i16	q4, q14, #8
-	vsri.i16	q5, q15, #8
-	vshl.i32	q6, q4, #16
-	vshl.i32	q7, q5, #16
-	vsri.i32	q6, q4, #16
-	vsri.i32	q7, q5, #16
-	vshl.i64	q14, q6, #32
-	vshl.i64	q15, q7, #32
-	vsri.i64	q14, q6, #32
-	vsri.i64	q15, q7, #32
-#endif /* WOLFSSL_ARM_ARCH_NO_VREV */
+	vrev64.8	d16, d16
+	vrev64.8	d17, d17
+	vrev64.8	d18, d18
+	vrev64.8	d19, d19
+	vrev64.8	d20, d20
+	vrev64.8	d21, d21
+	vrev64.8	d22, d22
+	vrev64.8	d23, d23
+	vrev64.8	d24, d24
+	vrev64.8	d25, d25
+	vrev64.8	d26, d26
+	vrev64.8	d27, d27
+	vrev64.8	d28, d28
+	vrev64.8	d29, d29
+	vrev64.8	d30, d30
+	vrev64.8	d31, d31
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	adr	r3, L_SHA512_transform_neon_len_k
 	mov	r12, #4
 	# Start of 16 rounds
@@ -4340,6 +4308,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d2, d6
 	vadd.i64	d6, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[0]-W[1]
 	vext.8	q6, q8, q9, #8
 	vshl.u64	q4, q15, #45
@@ -4360,6 +4329,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q8, q5
+#else
+	# Calc new W[0]-W[1]
+	vmov	d12, d17
+	vmov	d13, d18
+	vshl.u64	d8, d30, #45
+	vshl.u64	d9, d31, #45
+	vsri.u64	d8, d30, #19
+	vsri.u64	d9, d31, #19
+	vshl.u64	d10, d30, #3
+	vshl.u64	d11, d31, #3
+	vsri.u64	d10, d30, #61
+	vsri.u64	d11, d31, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d30, #6
+	vshr.u64	d9, d31, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d16, d10
+	vadd.i64	d17, d11
+	vmov	d14, d25
+	vmov	d15, d26
+	vadd.i64	d16, d14
+	vadd.i64	d17, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d16, d10
+	vadd.i64	d17, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 2
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d2, #50
@@ -4418,6 +4428,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d0, d4
 	vadd.i64	d4, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[2]-W[3]
 	vext.8	q6, q9, q10, #8
 	vshl.u64	q4, q8, #45
@@ -4438,6 +4449,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q9, q5
+#else
+	# Calc new W[2]-W[3]
+	vmov	d12, d19
+	vmov	d13, d20
+	vshl.u64	d8, d16, #45
+	vshl.u64	d9, d17, #45
+	vsri.u64	d8, d16, #19
+	vsri.u64	d9, d17, #19
+	vshl.u64	d10, d16, #3
+	vshl.u64	d11, d17, #3
+	vsri.u64	d10, d16, #61
+	vsri.u64	d11, d17, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d16, #6
+	vshr.u64	d9, d17, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d18, d10
+	vadd.i64	d19, d11
+	vmov	d14, d27
+	vmov	d15, d28
+	vadd.i64	d18, d14
+	vadd.i64	d19, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d18, d10
+	vadd.i64	d19, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 4
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d0, #50
@@ -4496,6 +4548,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d6, d2
 	vadd.i64	d2, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[4]-W[5]
 	vext.8	q6, q10, q11, #8
 	vshl.u64	q4, q9, #45
@@ -4516,6 +4569,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q10, q5
+#else
+	# Calc new W[4]-W[5]
+	vmov	d12, d21
+	vmov	d13, d22
+	vshl.u64	d8, d18, #45
+	vshl.u64	d9, d19, #45
+	vsri.u64	d8, d18, #19
+	vsri.u64	d9, d19, #19
+	vshl.u64	d10, d18, #3
+	vshl.u64	d11, d19, #3
+	vsri.u64	d10, d18, #61
+	vsri.u64	d11, d19, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d18, #6
+	vshr.u64	d9, d19, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d20, d10
+	vadd.i64	d21, d11
+	vmov	d14, d29
+	vmov	d15, d30
+	vadd.i64	d20, d14
+	vadd.i64	d21, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d20, d10
+	vadd.i64	d21, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 6
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d6, #50
@@ -4574,6 +4668,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d4, d0
 	vadd.i64	d0, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[6]-W[7]
 	vext.8	q6, q11, q12, #8
 	vshl.u64	q4, q10, #45
@@ -4594,6 +4689,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q11, q5
+#else
+	# Calc new W[6]-W[7]
+	vmov	d12, d23
+	vmov	d13, d24
+	vshl.u64	d8, d20, #45
+	vshl.u64	d9, d21, #45
+	vsri.u64	d8, d20, #19
+	vsri.u64	d9, d21, #19
+	vshl.u64	d10, d20, #3
+	vshl.u64	d11, d21, #3
+	vsri.u64	d10, d20, #61
+	vsri.u64	d11, d21, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d20, #6
+	vshr.u64	d9, d21, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d22, d10
+	vadd.i64	d23, d11
+	vmov	d14, d31
+	vmov	d15, d16
+	vadd.i64	d22, d14
+	vadd.i64	d23, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d22, d10
+	vadd.i64	d23, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 8
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d4, #50
@@ -4652,6 +4788,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d2, d6
 	vadd.i64	d6, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[8]-W[9]
 	vext.8	q6, q12, q13, #8
 	vshl.u64	q4, q11, #45
@@ -4672,6 +4809,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q12, q5
+#else
+	# Calc new W[8]-W[9]
+	vmov	d12, d25
+	vmov	d13, d26
+	vshl.u64	d8, d22, #45
+	vshl.u64	d9, d23, #45
+	vsri.u64	d8, d22, #19
+	vsri.u64	d9, d23, #19
+	vshl.u64	d10, d22, #3
+	vshl.u64	d11, d23, #3
+	vsri.u64	d10, d22, #61
+	vsri.u64	d11, d23, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d22, #6
+	vshr.u64	d9, d23, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d24, d10
+	vadd.i64	d25, d11
+	vmov	d14, d17
+	vmov	d15, d18
+	vadd.i64	d24, d14
+	vadd.i64	d25, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d24, d10
+	vadd.i64	d25, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 10
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d2, #50
@@ -4730,6 +4908,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d0, d4
 	vadd.i64	d4, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[10]-W[11]
 	vext.8	q6, q13, q14, #8
 	vshl.u64	q4, q12, #45
@@ -4750,6 +4929,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q13, q5
+#else
+	# Calc new W[10]-W[11]
+	vmov	d12, d27
+	vmov	d13, d28
+	vshl.u64	d8, d24, #45
+	vshl.u64	d9, d25, #45
+	vsri.u64	d8, d24, #19
+	vsri.u64	d9, d25, #19
+	vshl.u64	d10, d24, #3
+	vshl.u64	d11, d25, #3
+	vsri.u64	d10, d24, #61
+	vsri.u64	d11, d25, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d24, #6
+	vshr.u64	d9, d25, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d26, d10
+	vadd.i64	d27, d11
+	vmov	d14, d19
+	vmov	d15, d20
+	vadd.i64	d26, d14
+	vadd.i64	d27, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d26, d10
+	vadd.i64	d27, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 12
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d0, #50
@@ -4808,6 +5028,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d6, d2
 	vadd.i64	d2, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[12]-W[13]
 	vext.8	q6, q14, q15, #8
 	vshl.u64	q4, q13, #45
@@ -4828,6 +5049,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q14, q5
+#else
+	# Calc new W[12]-W[13]
+	vmov	d12, d29
+	vmov	d13, d30
+	vshl.u64	d8, d26, #45
+	vshl.u64	d9, d27, #45
+	vsri.u64	d8, d26, #19
+	vsri.u64	d9, d27, #19
+	vshl.u64	d10, d26, #3
+	vshl.u64	d11, d27, #3
+	vsri.u64	d10, d26, #61
+	vsri.u64	d11, d27, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d26, #6
+	vshr.u64	d9, d27, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d28, d10
+	vadd.i64	d29, d11
+	vmov	d14, d21
+	vmov	d15, d22
+	vadd.i64	d28, d14
+	vadd.i64	d29, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d28, d10
+	vadd.i64	d29, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	# Round 14
 	vld1.64	{d12}, [r3:64]!
 	vshl.u64	d8, d6, #50
@@ -4886,6 +5148,7 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d10, d9
 	vadd.i64	d4, d0
 	vadd.i64	d0, d10
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	# Calc new W[14]-W[15]
 	vext.8	q6, q15, q8, #8
 	vshl.u64	q4, q14, #45
@@ -4906,6 +5169,47 @@ L_SHA512_transform_neon_len_start:
 	vshr.u64	q6, #7
 	veor	q5, q6
 	vadd.i64	q15, q5
+#else
+	# Calc new W[14]-W[15]
+	vmov	d12, d31
+	vmov	d13, d16
+	vshl.u64	d8, d28, #45
+	vshl.u64	d9, d29, #45
+	vsri.u64	d8, d28, #19
+	vsri.u64	d9, d29, #19
+	vshl.u64	d10, d28, #3
+	vshl.u64	d11, d29, #3
+	vsri.u64	d10, d28, #61
+	vsri.u64	d11, d29, #61
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d8, d28, #6
+	vshr.u64	d9, d29, #6
+	veor	d10, d8
+	veor	d11, d9
+	vadd.i64	d30, d10
+	vadd.i64	d31, d11
+	vmov	d14, d23
+	vmov	d15, d24
+	vadd.i64	d30, d14
+	vadd.i64	d31, d15
+	vshl.u64	d8, d12, #63
+	vshl.u64	d9, d13, #63
+	vsri.u64	d8, d12, #1
+	vsri.u64	d9, d13, #1
+	vshl.u64	d10, d12, #56
+	vshl.u64	d11, d13, #56
+	vsri.u64	d10, d12, #8
+	vsri.u64	d11, d13, #8
+	veor	d10, d8
+	veor	d11, d9
+	vshr.u64	d12, #7
+	vshr.u64	d13, #7
+	veor	d10, d12
+	veor	d11, d13
+	vadd.i64	d30, d10
+	vadd.i64	d31, d11
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	subs	r12, r12, #1
 	bne	L_SHA512_transform_neon_len_start
 	# Round 0
@@ -5374,10 +5678,21 @@ L_SHA512_transform_neon_len_start:
 	vadd.i64	d0, d10
 	# Add in digest from start
 	vldm.64	r0, {d8-d15}
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	vadd.i64	q0, q0, q4
 	vadd.i64	q1, q1, q5
 	vadd.i64	q2, q2, q6
 	vadd.i64	q3, q3, q7
+#else
+	vadd.i64	d0, d0, d8
+	vadd.i64	d1, d1, d9
+	vadd.i64	d2, d2, d10
+	vadd.i64	d3, d3, d11
+	vadd.i64	d4, d4, d12
+	vadd.i64	d5, d5, d13
+	vadd.i64	d6, d6, d14
+	vadd.i64	d7, d7, d15
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
 	vstm.64	r0, {d0-d7}
 	subs	r2, r2, #0x80
 	bne	L_SHA512_transform_neon_len_begin

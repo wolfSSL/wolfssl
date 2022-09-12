@@ -1554,29 +1554,21 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
     "L_SHA256_transform_neon_len_begin_%=: \n\t"
         /* Load W */
         "vldm.32	%[data]!, {d0-d7}\n\t"
-#ifndef WOLFSSL_ARM_ARCH_NO_VREV
+#ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
         "vrev32.8	q0, q0\n\t"
         "vrev32.8	q1, q1\n\t"
         "vrev32.8	q2, q2\n\t"
         "vrev32.8	q3, q3\n\t"
 #else
-        "vshl.i16	q4, q0, #8\n\t"
-        "vshl.i16	q5, q1, #8\n\t"
-        "vsri.i16	q4, q0, #8\n\t"
-        "vsri.i16	q5, q1, #8\n\t"
-        "vshl.i32	q0, q4, #16\n\t"
-        "vshl.i32	q1, q5, #16\n\t"
-        "vsri.i32	q0, q4, #16\n\t"
-        "vsri.i32	q1, q5, #16\n\t"
-        "vshl.i16	q4, q2, #8\n\t"
-        "vshl.i16	q5, q3, #8\n\t"
-        "vsri.i16	q4, q2, #8\n\t"
-        "vsri.i16	q5, q3, #8\n\t"
-        "vshl.i32	q2, q4, #16\n\t"
-        "vshl.i32	q3, q5, #16\n\t"
-        "vsri.i32	q2, q4, #16\n\t"
-        "vsri.i32	q3, q5, #16\n\t"
-#endif /* WOLFSSL_ARM_ARCH_NO_VREV */
+        "vrev32.8	d0, d0\n\t"
+        "vrev32.8	d1, d1\n\t"
+        "vrev32.8	d2, d2\n\t"
+        "vrev32.8	d3, d3\n\t"
+        "vrev32.8	d4, d4\n\t"
+        "vrev32.8	d5, d5\n\t"
+        "vrev32.8	d6, d6\n\t"
+        "vrev32.8	d7, d7\n\t"
+#endif /* WOLFSSL_ARM_ARCH_NEON_64BIT */
         "str	%[data], [sp, #4]\n\t"
         "mov	lr, #3\n\t"
         /* Start of 16 rounds */
