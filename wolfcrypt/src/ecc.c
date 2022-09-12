@@ -6389,12 +6389,25 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+       defined(WOLFSSL_ASYNC_CRYPT_SW)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_SIGN)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->eccSign.in = in;
+            sw->eccSign.inSz = inlen;
+            sw->eccSign.rng = rng;
+            sw->eccSign.key = key;
+            sw->eccSign.r = r;
+            sw->eccSign.s = s;
+            return WC_PENDING_E;
+        }
+    }
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_ECC)
-    if (key->idx != ECC_CUSTOM_IDX
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-        && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
-    #endif
-    ) {
+    if (key->idx != ECC_CUSTOM_IDX) {
     #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) \
         || defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
@@ -6493,23 +6506,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    (void)inlen;
 #endif
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-       defined(WOLFSSL_ASYNC_CRYPT_SW)
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_SIGN)) {
-            WC_ASYNC_SW* sw = &key->asyncDev.sw;
-            sw->eccSign.in = in;
-            sw->eccSign.inSz = inlen;
-            sw->eccSign.rng = rng;
-            sw->eccSign.key = key;
-            sw->eccSign.r = r;
-            sw->eccSign.s = s;
-            return WC_PENDING_E;
-        }
-    }
-#endif
-
 
 #if !defined(WOLFSSL_SP_MATH)
 
@@ -8010,11 +8006,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif
 
 #if defined(WOLFSSL_HAVE_SP_ECC)
-    if (key->idx != ECC_CUSTOM_IDX
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-        && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
-    #endif
-    ) {
+    if (key->idx != ECC_CUSTOM_IDX) {
     #if defined(WC_ECC_NONBLOCK) && defined(WC_ECC_NONBLOCK_ONLY)
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
