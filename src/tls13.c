@@ -4459,6 +4459,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_MSG("session id doesn't match client random");
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
+        }
     }
     else
 #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
