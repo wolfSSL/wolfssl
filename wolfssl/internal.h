@@ -1165,81 +1165,88 @@ enum {
     #define MAX_EARLY_DATA_SZ  4096
 #endif
 
-#ifndef WOLFSSL_MAX_RSA_BITS
-    #ifdef USE_FAST_MATH
-        /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
-        #define WOLFSSL_MAX_RSA_BITS    (FP_MAX_BITS / 2)
+#ifndef NO_RSA
+    #ifndef WOLFSSL_MAX_RSA_BITS
+        #ifdef USE_FAST_MATH
+            /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
+            #define WOLFSSL_MAX_RSA_BITS    (FP_MAX_BITS / 2)
+        #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+            /* SP implementation supports numbers of SP_INT_BITS bits. */
+            #define WOLFSSL_MAX_RSA_BITS    (((SP_INT_BITS + 7) / 8) * 8)
+        #else
+            /* Integer maths is dynamic but we only go up to 4096 bits. */
+            #define WOLFSSL_MAX_RSA_BITS 4096
+        #endif
+    #endif
+    #if (WOLFSSL_MAX_RSA_BITS % 8)
+        #error RSA maximum bit size must be multiple of 8
+    #endif
+#endif
+
+
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
+    /* MySQL wants to be able to use 8192-bit numbers. */
+    #if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
+        /* Use the FP size up to 8192-bit and down to a min of 1024-bit. */
+        #if FP_MAX_BITS >= 16384
+            #define ENCRYPT_BASE_BITS  8192
+        #elif defined(HAVE_ECC)
+            #if FP_MAX_BITS > 2224
+                #define ENCRYPT_BASE_BITS  (FP_MAX_BITS / 2)
+            #else
+                /* 521-bit ASN.1 signature - 3 + 2 * (2 + 66) bytes. */
+                #define ENCRYPT_BASE_BITS  1112
+            #endif
+        #else
+            #if FP_MAX_BITS > 2048
+                #define ENCRYPT_BASE_BITS  (FP_MAX_BITS / 2)
+            #else
+                #define ENCRYPT_BASE_BITS  1024
+            #endif
+        #endif
+
+        /* Check MySQL size requirements met. */
+        #if defined(WOLFSSL_MYSQL_COMPATIBLE) && ENCRYPT_BASE_BITS < 8192
+            #error "MySQL needs FP_MAX_BITS at least at 16384"
+        #endif
+
+        #if WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
+            #error "FP_MAX_BITS too small for WOLFSSL_MAX_RSA_BITS"
+        #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
-        /* SP implementation supports numbers of SP_INT_BITS bits. */
-        #define WOLFSSL_MAX_RSA_BITS    (((SP_INT_BITS + 7) / 8) * 8)
-    #else
-        /* Integer maths is dynamic but we only go up to 4096 bits. */
-        #define WOLFSSL_MAX_RSA_BITS 4096
-    #endif
-#endif
-#if (WOLFSSL_MAX_RSA_BITS % 8)
-    #error RSA maximum bit size must be multiple of 8
-#endif
-
-
-/* MySQL wants to be able to use 8192-bit numbers. */
-#if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
-    /* Use the FP size up to 8192-bit and down to a min of 1024-bit. */
-    #if FP_MAX_BITS >= 16384
-        #define ENCRYPT_BASE_BITS  8192
-    #elif defined(HAVE_ECC)
-        #if FP_MAX_BITS > 2224
-            #define ENCRYPT_BASE_BITS  (FP_MAX_BITS / 2)
+        /* Use the SP size up to 8192-bit and down to a min of 1024-bit. */
+        #if SP_INT_BITS >= 8192
+            #define ENCRYPT_BASE_BITS  8192
+        #elif defined(HAVE_ECC)
+            #if SP_INT_BITS > 1112
+                #define ENCRYPT_BASE_BITS  SP_INT_BITS
+            #else
+                /* 521-bit ASN.1 signature - 3 + 2 * (2 + 66) bytes. */
+                #define ENCRYPT_BASE_BITS  1112
+            #endif
         #else
-            /* 521-bit ASN.1 signature - 3 + 2 * (2 + 66) bytes. */
-            #define ENCRYPT_BASE_BITS  1112
+            #if SP_INT_BITS > 1024
+                #define ENCRYPT_BASE_BITS  SP_INT_BITS
+            #else
+                #define ENCRYPT_BASE_BITS  1024
+            #endif
+        #endif
+
+        /* Check MySQL size requirements met. */
+        #if defined(WOLFSSL_MYSQL_COMPATIBLE) && ENCRYPT_BASE_BITS < 8192
+            #error "MySQL needs SP_INT_BITS at least at 8192"
+        #endif
+
+        #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
+            #error "SP_INT_BITS too small for WOLFSSL_MAX_RSA_BITS"
         #endif
     #else
-        #if FP_MAX_BITS > 2048
-            #define ENCRYPT_BASE_BITS  (FP_MAX_BITS / 2)
-        #else
-            #define ENCRYPT_BASE_BITS  1024
-        #endif
-    #endif
-
-    /* Check MySQL size requirements met. */
-    #if defined(WOLFSSL_MYSQL_COMPATIBLE) && ENCRYPT_BASE_BITS < 8192
-        #error "MySQL needs FP_MAX_BITS at least at 16384"
-    #endif
-
-    #if WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
-        #error "FP_MAX_BITS too small for WOLFSSL_MAX_RSA_BITS"
-    #endif
-#elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
-    /* Use the SP size up to 8192-bit and down to a min of 1024-bit. */
-    #if SP_INT_BITS >= 8192
-        #define ENCRYPT_BASE_BITS  8192
-    #elif defined(HAVE_ECC)
-        #if SP_INT_BITS > 1112
-            #define ENCRYPT_BASE_BITS  SP_INT_BITS
-        #else
-            /* 521-bit ASN.1 signature - 3 + 2 * (2 + 66) bytes. */
-            #define ENCRYPT_BASE_BITS  1112
-        #endif
-    #else
-        #if SP_INT_BITS > 1024
-            #define ENCRYPT_BASE_BITS  SP_INT_BITS
-        #else
-            #define ENCRYPT_BASE_BITS  1024
-        #endif
-    #endif
-
-    /* Check MySQL size requirements met. */
-    #if defined(WOLFSSL_MYSQL_COMPATIBLE) && ENCRYPT_BASE_BITS < 8192
-        #error "MySQL needs SP_INT_BITS at least at 8192"
-    #endif
-
-    #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
-        #error "SP_INT_BITS too small for WOLFSSL_MAX_RSA_BITS"
+        /* Integer/heap maths - support 4096-bit. */
+        #define ENCRYPT_BASE_BITS  4096
     #endif
 #else
-    /* Integer/heap maths - support 4096-bit. */
-    #define ENCRYPT_BASE_BITS  4096
+    /* No secret from public key operation but PSK key plus length used. */
+    #define ENCRYPT_BASE_BITS  ((MAX_PSK_ID_LEN + 2) * 8)
 #endif
 
 #ifdef WOLFSSL_DTLS_CID
