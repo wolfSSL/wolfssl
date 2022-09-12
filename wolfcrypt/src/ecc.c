@@ -7319,15 +7319,15 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-  #ifdef WOLFSSL_SMALL_STACK_CACHE
+#ifdef WOLFSSL_SMALL_STACK_CACHE
   key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (key == NULL) {
      XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
      return GEN_MEM_ERR;
   }
-  #endif
+#endif
+#ifdef WOLFSSL_SMALL_STACK
   precomp = (ecc_point**)XMALLOC(sizeof(ecc_point*) * SHAMIR_PRECOMP_SZ, heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
   if (precomp == NULL) {
@@ -7343,20 +7343,20 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   key->t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
   key->t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #ifdef ALT_ECC_SIZE
-  key.x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
-  key.y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
-  key.z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #endif
 
   if (key->t1 == NULL || key->t2 == NULL
 #ifdef ALT_ECC_SIZE
-     || key.x == NULL || key.y == NULL || key.z == NULL
+     || key->x == NULL || key->y == NULL || key->z == NULL
 #endif
   ) {
 #ifdef ALT_ECC_SIZE
-      XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
-      XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
-      XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
       XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
       XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
@@ -7575,9 +7575,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   ForceZero(tB, ECC_BUFSIZE);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
 #ifdef ALT_ECC_SIZE
-  XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
-  XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
-  XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
   XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
   XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
