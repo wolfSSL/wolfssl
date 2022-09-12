@@ -33926,20 +33926,34 @@ int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 curve_id)
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
 static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
 {
-    int idx, start = 0, len;
+    int idx, start = 0, len, i, ret = WOLFSSL_FAILURE;
     word16 curve;
     word32 disabled;
     char name[MAX_CURVE_NAME_SZ];
+    byte groups_len = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    void *heap = ssl? ssl->heap : ctx->heap;
+    int *groups;
+#else
+    int groups[WOLFSSL_MAX_GROUP_COUNT];
+#endif
 
-    /* Disable all curves so that only the ones the user wants are enabled. */
-    disabled = 0xFFFFFFFFUL;
+#ifdef WOLFSSL_SMALL_STACK
+    groups = (byte*)XMALLOC(sizeof(int)*WOLFSSL_MAX_GROUP_COUNT,
+                            heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (groups == NULL) {
+        ret = MEMORY_E;
+        goto leave;
+    }
+#endif
+
     for (idx = 1; names[idx-1] != '\0'; idx++) {
         if (names[idx] != ':' && names[idx] != '\0')
             continue;
 
         len = idx - start;
         if (len > MAX_CURVE_NAME_SZ - 1)
-            return WOLFSSL_FAILURE;
+            goto leave;
 
         XMEMCPY(name, names + start, len);
         name[len] = 0;
@@ -33974,25 +33988,25 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     #endif
         else {
         #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-            int   ret;
+            int   nret;
             const ecc_set_type *eccSet;
 
-            ret = wc_ecc_get_curve_idx_from_name(name);
-            if (ret < 0) {
+            nret = wc_ecc_get_curve_idx_from_name(name);
+            if (nret < 0) {
                 WOLFSSL_MSG("Could not find name in set");
-                return WOLFSSL_FAILURE;
+                goto leave;
             }
 
             eccSet = wc_ecc_get_curve_params(ret);
             if (eccSet == NULL) {
                 WOLFSSL_MSG("NULL set returned");
-                return WOLFSSL_FAILURE;
+                goto leave;
             }
 
             curve = GetCurveByOID(eccSet->oidSum);
         #else
             WOLFSSL_MSG("API not present to search farther using name");
-            return WOLFSSL_FAILURE;
+            goto leave;
         #endif
         }
 
@@ -34000,32 +34014,70 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             /* shift left more than size of ctx->disabledCurves causes static
              * analysis report */
             WOLFSSL_MSG("curve value is too large for upcoming shift");
-            return WOLFSSL_FAILURE;
+            goto leave;
         }
 
-    #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
+        for (i = 0; i < groups_len; ++i) {
+            if (groups[i] == curve) {
+                /* silently drop duplicates */
+                break;
+            }
+        }
+        if (i >= groups_len) {
+            if (groups_len >= WOLFSSL_MAX_GROUP_COUNT) {
+                WOLFSSL_MSG_EX("setting %d or more supported "
+                               "curves is not permitted", groups_len);
+                goto leave;
+            }
+            groups[groups_len++] = (int)curve;
+        }
+
+        start = idx + 1;
+    }
+
+    /* Disable all curves so that only the ones the user wants are enabled. */
+    disabled = 0xFFFFFFFFUL;
+    for (i = 0; i < groups_len; ++i) {
+        /* Switch the bit to off and therefore is enabled. */
+        curve = (word16)groups[i];
+        disabled &= ~(1U << curve);
+
+    #ifndef WOLFSSL_OLD_SET_CURVES_LIST
+        /* using the wolfSSL API to set the groups, this will populate
+         * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
+         * The order in (ssl|ctx)->groups will then be respected
+         * when TLSX_KEY_SHARE needs to be established */
+        if ((ssl && wolfSSL_set_groups(ssl, groups, groups_len)
+                        != WOLFSSL_SUCCESS)
+            || (ctx && wolfSSL_CTX_set_groups(ctx, groups, groups_len)
+                           != WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG("Unable to set supported curve");
+            goto leave;
+        }
+    #elif defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
         /* set the supported curve so client TLS extension contains only the
          * desired curves */
-        if ((ssl
-             && wolfSSL_UseSupportedCurve(ssl, curve) != WOLFSSL_SUCCESS)
-            || (ctx
-            && wolfSSL_CTX_UseSupportedCurve(ctx, curve) != WOLFSSL_SUCCESS)) {
+        if ((ssl && wolfSSL_UseSupportedCurve(ssl, curve) != WOLFSSL_SUCCESS)
+            || (ctx && wolfSSL_CTX_UseSupportedCurve(ctx, curve)
+                           != WOLFSSL_SUCCESS)) {
             WOLFSSL_MSG("Unable to set supported curve");
-            return WOLFSSL_FAILURE;
+            goto leave;
         }
     #endif
-
-        /* Switch the bit to off and therefore is enabled. */
-        disabled &= ~(1U << curve);
-        start = idx + 1;
     }
 
     if (ssl)
         ssl->disabledCurves = disabled;
     else
         ctx->disabledCurves = disabled;
+    ret = WOLFSSL_SUCCESS;
 
-    return WOLFSSL_SUCCESS;
+leave:
+#ifdef WOLFSSL_SMALL_STACK
+    if (groups)
+        XFREE((void*)groups, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
 }
 
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
