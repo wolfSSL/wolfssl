@@ -8195,7 +8195,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = wc_KyberKey_Decapsulate(kem, sharedSecret + outlen,
             keyShareEntry->ke + keyShareEntry->keLen - ctSz, ctSz);
         if (ret != 0) {
-            WOLFSSL_MSG("Kyber decapsulation failure.");
+            WOLFSSL_MSG("wc_KyberKey decapsulation failure.");
             ret = BAD_FUNC_ARG;
         }
     }
@@ -9015,7 +9015,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         ret = wc_KyberKey_Encapsulate(kem, ciphertext + ecc_kse->pubKeyLen,
             sharedSecret + outlen, ssl->rng);
         if (ret != 0) {
-            WOLFSSL_MSG("OQS Encapsulation failure.");
+            WOLFSSL_MSG("wc_KyberKey encapsulation failure.");
         }
     }
 

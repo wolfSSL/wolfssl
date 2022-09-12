@@ -8529,10 +8529,14 @@ int main(int argc, char** argv)
             }
         #if defined(HAVE_LIBOQS)
             /* Both bench_pq_asym_opt and bench_pq_asym_opt2 are looking for
-             * -pq, so we need to reset optMatched in case it was set to 1 just
-             * above. */
-            optMatched = 0;
-            for (i=0; !optMatched && bench_pq_asym_opt2[i].str != NULL; i++) {
+             * -pq, so we need to do a special case for -pq since optMatched
+             * was set to 1 just above. */
+            if (string_matches(argv[1], bench_pq_asym_opt[0].str)) {
+                bench_pq_asym_algs2 |= bench_pq_asym_opt2[0].val;
+                bench_all = 0;
+                optMatched = 1;
+            }
+            for (i=1; !optMatched && bench_pq_asym_opt2[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt2[i].str)) {
                     bench_pq_asym_algs2 |= bench_pq_asym_opt2[i].val;
                     bench_all = 0;
