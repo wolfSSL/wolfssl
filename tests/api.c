@@ -55306,6 +55306,148 @@ static int test_wolfSSL_dtls_fragments(void) {
 }
 #endif
 
+#ifdef WOLFSSL_DTLS13
+static byte test_AEAD_fail_decryption = 0;
+static byte test_AEAD_done = 0;
+
+static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    int ret = recv(wolfSSL_get_fd(ssl), buf, sz, 0);
+    if (ret > 0) {
+        if (test_AEAD_fail_decryption) {
+            /* Modify the packet to trigger a decryption failure */
+            buf[ret/2] ^= 0xFF;
+            if (test_AEAD_fail_decryption == 1)
+                test_AEAD_fail_decryption = 0;
+        }
+    }
+    (void)ctx;
+    return ret;
+}
+
+static void test_AEAD_limit_client(WOLFSSL* ssl)
+{
+    int ret;
+    int i;
+    int didReKey = 0;
+    char msgBuf[20];
+    w64wrapper hardLimit;
+    w64wrapper keyUpdateLimit;
+    w64wrapper counter;
+
+    switch (ssl->specs.bulk_cipher_algorithm) {
+        case wolfssl_aes_gcm:
+        case wolfssl_chacha:
+            hardLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT;
+            keyUpdateLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT;
+            break;
+        case wolfssl_aes_ccm:
+            if (ssl->specs.aead_mac_size == AES_CCM_8_AUTH_SZ) {
+                hardLimit = DTLS_AEAD_AES_CCM_8_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT;
+            }
+            else {
+                hardLimit = DTLS_AEAD_AES_CCM_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
+            }
+            break;
+        default:
+            fprintf(stderr, "Unrecognized bulk cipher");
+            AssertFalse(1);
+            break;
+    }
+
+    w64Zero(&counter);
+    AssertTrue(w64Equal(ssl->macDropCount, counter));
+
+    wolfSSL_SSLSetIORecv(ssl, test_AEAD_cbiorecv);
+
+    for (i = 0; i < 10; i++) {
+        /* Test some failed decryptions */
+        test_AEAD_fail_decryption = 1;
+        w64Increment(&counter);
+        ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        /* Should succeed since decryption failures are dropped */
+        AssertIntGT(ret, 0);
+        AssertTrue(w64Equal(ssl->macDropCount, counter));
+    }
+
+    test_AEAD_fail_decryption = 1;
+    ssl->macDropCount = keyUpdateLimit;
+    w64Increment(&ssl->macDropCount);
+    /* 100 read calls should be enough to complete the key update */
+    for (i = 0; i < 100; i++) {
+        /* Key update should be sent and negotiated */
+        ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        AssertIntGT(ret, 0);
+        /* Epoch after one key update is 4 */
+        if (w64Equal(ssl->dtls13Epoch, w64From32(0, 4))) {
+            didReKey = 1;
+            break;
+        }
+    }
+    AssertTrue(didReKey);
+    w64Zero(&counter);
+    AssertTrue(w64Equal(ssl->macDropCount, counter));
+
+    test_AEAD_fail_decryption = 2;
+    ssl->macDropCount = hardLimit;
+    w64Decrement(&ssl->macDropCount);
+    /* Connection should fail with a DECRYPT_ERROR */
+    ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+    AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl, ret), DECRYPT_ERROR);
+
+    test_AEAD_done = 1;
+}
+
+static void test_AEAD_limit_server(WOLFSSL* ssl)
+{
+    char msgBuf[] = "Sending data";
+    int ret = WOLFSSL_SUCCESS;
+    SOCKET_T fd = wolfSSL_get_fd(ssl);
+    struct timespec delay;
+    XMEMSET(&delay, 0, sizeof(delay));
+    delay.tv_nsec = 50000000; /* wait 0.05 seconds */
+    tcp_set_nonblocking(&fd); /* So that read doesn't block */
+    while (!test_AEAD_done && ret > 0) {
+        (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
+        nanosleep(&delay, NULL);
+    }
+}
+
+static int test_wolfSSL_dtls_AEAD_limit(void)
+{
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    printf(testingFmt, "test_wolfSSL_dtls_AEAD_limit");
+
+    func_cb_client.doUdp = func_cb_server.doUdp = 1;
+    func_cb_server.method = wolfDTLSv1_3_server_method;
+    func_cb_client.method = wolfDTLSv1_3_client_method;
+    func_cb_server.on_result = test_AEAD_limit_server;
+    func_cb_client.on_result = test_AEAD_limit_client;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    AssertTrue(func_cb_client.return_code);
+    AssertTrue(func_cb_server.return_code);
+
+    printf(resultFmt, passed);
+
+    return 0;
+}
+#else
+static int test_wolfSSL_dtls_AEAD_limit(void)
+{
+    return 0;
+}
+#endif
+
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH))
@@ -58015,6 +58157,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_either_side),
     TEST_DECL(test_wolfSSL_DTLS_either_side),
     TEST_DECL(test_wolfSSL_dtls_fragments),
+    TEST_DECL(test_wolfSSL_dtls_AEAD_limit),
     TEST_DECL(test_generate_cookie),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
     TEST_DECL(test_wolfSSL_X509_LOOKUP_load_file),

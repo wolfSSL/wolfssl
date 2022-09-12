@@ -3183,10 +3183,12 @@ static int _Rehandshake(WOLFSSL* ssl)
         return SECURE_RENEGOTIATION_E;
     }
 
-    if (ssl->keys.dtls_epoch == 0xFFFF) {
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && ssl->keys.dtls_epoch == 0xFFFF) {
         WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
         return SECURE_RENEGOTIATION_E;
     }
+#endif
 
     /* If the client started the renegotiation, the server will already
      * have processed the client's hello. */
@@ -3281,6 +3283,11 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     }
     /* CLIENT/SERVER: Reset peer authentication for full secure handshake. */
     ssl->options.peerAuthGood = 0;
+
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    if (ssl->options.dtls)
+        w64Zero(&ssl->macDropCount);
+#endif
 
 #ifdef HAVE_SESSION_TICKET
     if (ret == WOLFSSL_SUCCESS)

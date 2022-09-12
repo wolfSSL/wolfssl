@@ -1998,6 +1998,13 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
             return BAD_STATE_E;
     }
 
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    /* We are updating the receiving keys for this connection. We can restart
+     * the failed decryption counter. */
+    if (side == ENCRYPT_AND_DECRYPT_SIDE || side == DECRYPT_SIDE_ONLY)
+        w64Zero(&ssl->macDropCount);
+#endif
+
     Dtls13EpochCopyKeys(ssl, e, &ssl->keys, side);
 
     if (!e->isValid) {
@@ -2372,6 +2379,13 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
     }
 
     ssl->dtls13SendingAckOrRtx = 0;
+
+    if (ssl->dtls13DoKeyUpdate) {
+        ssl->dtls13DoKeyUpdate = 0;
+        ret = Tls13UpdateKeys(ssl);
+        if (ret != 0)
+            return ret;
+    }
 
     return 0;
 }
