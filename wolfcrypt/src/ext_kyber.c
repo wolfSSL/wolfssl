@@ -19,12 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/ext_kyber.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if defined(WOLFSSL_KYBER_90S) && defined(HAVE_PQM4)
 #error "KYBER-90s is not supported when building PQM4"
 #endif
+
+#ifdef WOLFSSL_HAVE_KYBER
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -674,3 +681,4 @@ int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
     return ret;
 }
 
+#endif /* WOLFSSL_HAVE_KYBER */

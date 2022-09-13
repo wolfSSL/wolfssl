@@ -2734,7 +2734,6 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_DILITHIUM
 #define HAVE_SPHINCS
 #define HAVE_KYBER
-#define WOLFSSL_HAVE_KYBER
 #endif
 
 #ifdef HAVE_PQM4

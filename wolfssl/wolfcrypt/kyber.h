@@ -21,8 +21,7 @@
 
 /*!
     \file wolfssl/wolfcrypt/kyber.h
-*/
-
+ */
 
 #ifndef WOLF_CRYPT_KYBER_H
 #define WOLF_CRYPT_KYBER_H
@@ -152,17 +151,15 @@
 #define KYBER_MAX_CIPHER_TEXT_SIZE  KYBER512_CIPHER_TEXT_SIZE
 #endif
 
-
-
 enum {
     /* Types of Kyber keys. */
     KYBER512  = 0,
     KYBER768  = 1,
     KYBER1024 = 2,
 
-    KYBER_LEVEL1  = KYBER512,
-    KYBER_LEVEL3  = KYBER768,
-    KYBER_LEVEL5  = KYBER1024,
+    KYBER_LEVEL1 = KYBER512,
+    KYBER_LEVEL3 = KYBER768,
+    KYBER_LEVEL5 = KYBER1024,
 
     /* Symmetric data size. */
     KYBER_SYM_SZ            = 32,
@@ -174,53 +171,47 @@ enum {
     KYBER_ENC_RAND_SZ       = KYBER_SYM_SZ,
 
     /* Encoded polynomial size. */
-    KYBER_POLY_SIZE     = 384,
+    KYBER_POLY_SIZE         = 384,
 };
 
+
+/* Different structures for different implementations. */
 typedef struct KyberKey KyberKey;
+
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-WOLFSSL_API
-int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId);
-WOLFSSL_API
-void wc_KyberKey_Free(KyberKey* key);
+WOLFSSL_API int wc_KyberKey_Init(int type, KyberKey* key, void* heap,
+    int devId);
+WOLFSSL_API void wc_KyberKey_Free(KyberKey* key);
 
-WOLFSSL_API
-int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng);
-WOLFSSL_API
-int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
-    int len);
+WOLFSSL_API int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_KyberKey_MakeKeyWithRandom(KyberKey* key,
+    const unsigned char* rand, int len);
 
-WOLFSSL_API
-int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len);
-WOLFSSL_API
-int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len);
 
-WOLFSSL_API
-int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct,
+WOLFSSL_API int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct,
     unsigned char* ss, WC_RNG* rng);
-int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
-    unsigned char* ss, const unsigned char* rand, int len);
+WOLFSSL_API int wc_KyberKey_EncapsulateWithRandom(KyberKey* key,
+    unsigned char* ct, unsigned char* ss, const unsigned char* rand, int len);
 WOLFSSL_API int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len);
 
-WOLFSSL_API
-int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len);
-WOLFSSL_API
-int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in, word32 len);
+WOLFSSL_API int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in,
+    word32 len);
+WOLFSSL_API int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in,
+    word32 len);
 
-WOLFSSL_API
-int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len);
-WOLFSSL_API
-int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len);
-WOLFSSL_API
-int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len);
-WOLFSSL_API
-int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len);
-
+WOLFSSL_API int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out,
+    word32 len);
+WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
+    word32 len);
 
 #ifdef __cplusplus
     } /* extern "C" */
