@@ -33939,8 +33939,8 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    groups = (byte*)XMALLOC(sizeof(int)*WOLFSSL_MAX_GROUP_COUNT,
-                            heap, DYNAMIC_TYPE_TMP_BUFFER);
+    groups = (int*)XMALLOC(sizeof(int)*WOLFSSL_MAX_GROUP_COUNT,
+                           heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (groups == NULL) {
         ret = MEMORY_E;
         goto leave;
@@ -34042,7 +34042,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         curve = (word16)groups[i];
         disabled &= ~(1U << curve);
 
-    #ifndef WOLFSSL_OLD_SET_CURVES_LIST
+    #if defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate
          * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
          * The order in (ssl|ctx)->groups will then be respected
