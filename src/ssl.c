@@ -34041,8 +34041,8 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         /* Switch the bit to off and therefore is enabled. */
         curve = (word16)groups[i];
         disabled &= ~(1U << curve);
-
-    #if defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
+    #ifdef HAVE_SUPPORTED_CURVES
+    #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate
          * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
          * The order in (ssl|ctx)->groups will then be respected
@@ -34054,7 +34054,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             WOLFSSL_MSG("Unable to set supported curve");
             goto leave;
         }
-    #elif defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
+    #elif !defined(NO_WOLFSSL_CLIENT)
         /* set the supported curve so client TLS extension contains only the
          * desired curves */
         if ((ssl && wolfSSL_UseSupportedCurve(ssl, curve) != WOLFSSL_SUCCESS)
@@ -34064,6 +34064,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             goto leave;
         }
     #endif
+    #endif /* HAVE_SUPPORTED_CURVES */
     }
 
     if (ssl)
