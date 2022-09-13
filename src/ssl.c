@@ -18718,7 +18718,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-        InitSSL_Suites(ssl);
+        if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
 
         if (InitHandshakeHashes(ssl) != 0)
             return WOLFSSL_FAILURE;

@@ -4764,26 +4764,30 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
         /* Server order refining. */
         for (i = 0; i < ssl->suites->suiteSz; i += 2) {
             for (j = 0; j < peerSuites->suiteSz; j += 2) {
-                if (ssl->suites->suites[i+0] == peerSuites->suites[j+0] &&
-                    ssl->suites->suites[i+1] == peerSuites->suites[j+1]) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
                     suites[suiteSz++] = peerSuites->suites[j+0];
                     suites[suiteSz++] = peerSuites->suites[j+1];
                     break;
                 }
             }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
         }
     }
     else {
         /* Client order refining. */
         for (j = 0; j < peerSuites->suiteSz; j += 2) {
             for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-                if (ssl->suites->suites[i+0] == peerSuites->suites[j+0] &&
-                    ssl->suites->suites[i+1] == peerSuites->suites[j+1]) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
                     suites[suiteSz++] = peerSuites->suites[j+0];
                     suites[suiteSz++] = peerSuites->suites[j+1];
                     break;
                 }
             }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
         }
     }
 
@@ -5788,6 +5792,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     ato16(&input[args->idx], &args->clSuites->suiteSz);
     args->idx += OPAQUE16_LEN;
+    if ((args->clSuites->suiteSz % 2) != 0) {
+        ERROR_OUT(INVALID_PARAMETER, exit_dch);
+    }
     /* suites and compression length check */
     if ((args->idx - args->begin) + args->clSuites->suiteSz + OPAQUE8_LEN > helloSz)
         ERROR_OUT(BUFFER_ERROR, exit_dch);

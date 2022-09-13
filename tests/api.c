@@ -51033,6 +51033,19 @@ static int test_tls13_cipher_suites(void)
     const int csOff = 78;
     /* Server cipher list. */
     const char* serverCs = "TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256";
+    /* Suite list with duplicates. */
+    const char* dupCs = "TLS13-AES128-GCM-SHA256:"
+                        "TLS13-AES128-GCM-SHA256:"
+                        "TLS13-AES256-GCM-SHA384:"
+                        "TLS13-AES256-GCM-SHA384:"
+                        "TLS13-AES128-GCM-SHA256";
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+    const byte dupCsBytes[] = { TLS13_BYTE, TLS_AES_256_GCM_SHA384,
+                                TLS13_BYTE, TLS_AES_256_GCM_SHA384,
+                                TLS13_BYTE, TLS_AES_128_GCM_SHA256,
+                                TLS13_BYTE, TLS_AES_128_GCM_SHA256,
+                                TLS13_BYTE, TLS_AES_256_GCM_SHA384 };
+#endif
 
     printf(testingFmt, "test_tls13_cipher_suites");
 
@@ -51076,14 +51089,11 @@ static int test_tls13_cipher_suites(void)
     msg.length = (unsigned int)sizeof(clientHello);
     wolfSSL_SetIOReadCtx(ssl, &msg);
     /* Server order: TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256 */
-#ifdef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), WOLFSSL_SUCCESS);
-#else
-    AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), 1);
-#endif
     /* Negotiate cipher suites in server order: TLS13-AES256-GCM-SHA384 */
     wolfSSL_accept_TLSv13(ssl);
     /* Check refined order - server order. */
+    AssertIntEQ(ssl->suites->suiteSz, 4);
     AssertIntEQ(ssl->suites->suites[0], TLS13_BYTE);
     AssertIntEQ(ssl->suites->suites[1], TLS_AES_256_GCM_SHA384);
     AssertIntEQ(ssl->suites->suites[2], TLS13_BYTE);
@@ -51096,20 +51106,35 @@ static int test_tls13_cipher_suites(void)
     msg.length = (unsigned int)sizeof(clientHello);
     wolfSSL_SetIOReadCtx(ssl, &msg);
     /* Server order: TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256 */
-#ifdef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), WOLFSSL_SUCCESS);
-#else
-    AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), 1);
-#endif
     AssertIntEQ(wolfSSL_UseClientSuites(ssl), 0);
     /* Negotiate cipher suites in client order: TLS13-AES128-GCM-SHA256 */
     wolfSSL_accept_TLSv13(ssl);
     /* Check refined order - client order. */
+    AssertIntEQ(ssl->suites->suiteSz, 4);
     AssertIntEQ(ssl->suites->suites[0], TLS13_BYTE);
     AssertIntEQ(ssl->suites->suites[1], TLS_AES_128_GCM_SHA256);
     AssertIntEQ(ssl->suites->suites[2], TLS13_BYTE);
     AssertIntEQ(ssl->suites->suites[3], TLS_AES_256_GCM_SHA384);
     wolfSSL_free(ssl);
+
+    /* Check duplicate detection is working. */
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, dupCs), WOLFSSL_SUCCESS);
+    AssertIntEQ(ctx->suites->suiteSz, 4);
+    AssertIntEQ(ctx->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[1], TLS_AES_128_GCM_SHA256);
+    AssertIntEQ(ctx->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[3], TLS_AES_256_GCM_SHA384);
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list_bytes(ctx, dupCsBytes,
+        sizeof(dupCsBytes)), WOLFSSL_SUCCESS);
+    AssertIntEQ(ctx->suites->suiteSz, 4);
+    AssertIntEQ(ctx->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[1], TLS_AES_256_GCM_SHA384);
+    AssertIntEQ(ctx->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[3], TLS_AES_128_GCM_SHA256);
+#endif
 
     wolfSSL_CTX_free(ctx);
 

@@ -24208,6 +24208,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     #endif /* OPENSSL_EXTRA */
 
         for (i = 0; i < suiteSz; i++) {
+            int j;
+
             if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0
             #ifndef NO_ERROR_STRINGS
                 || XSTRNCMP(name, cipher_names[i].name_iana, sizeof(name)) == 0
@@ -24224,6 +24226,17 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
                 }
             #endif /* WOLFSSL_DTLS */
+
+                for (j = 0; j < idx; j += 2) {
+                    if ((suites->suites[j+0] == cipher_names[i].cipherSuite0) &&
+                        (suites->suites[j+1] == cipher_names[i].cipherSuite)) {
+                        break;
+                    }
+                }
+                /* Silently drop duplicates from list. */
+                if (j != idx) {
+                    break;
+                }
 
                 if (idx + 1 >= WOLFSSL_MAX_SUITE_SZ) {
                     WOLFSSL_MSG("WOLFSSL_MAX_SUITE_SZ set too low");
@@ -24341,10 +24354,15 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         return 0;
     }
 
+    if ((listSz % 2) != 0) {
+        return 0;
+    }
+
     for (i = 0; (i + 1) < listSz; i += 2) {
         const byte firstByte = list[i];
         const byte secondByte = list[i + 1];
         const char* name = NULL;
+        int j;
 
         name = GetCipherNameInternal(firstByte, secondByte);
         if (XSTRCMP(name, "None") == 0) {
@@ -24361,6 +24379,17 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
             }
         }
     #endif /* WOLFSSL_DTLS */
+
+        for (j = 0; j < idx; j += 2) {
+            if ((suites->suites[j+0] == firstByte) &&
+                    (suites->suites[j+1] == secondByte)) {
+                break;
+            }
+        }
+        /* Silently drop duplicates from list. */
+        if (j != idx) {
+            continue;
+        }
 
         if (idx + 1 >= WOLFSSL_MAX_SUITE_SZ) {
             WOLFSSL_MSG("WOLFSSL_MAX_SUITE_SZ set too low");
