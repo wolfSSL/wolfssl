@@ -826,6 +826,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     OcspResponse *resp = NULL;
     word32 idx = 0;
     int length = 0;
+    int ret;
 
     if (data == NULL)
         return NULL;
@@ -867,7 +868,10 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     XMEMCPY(resp->source, *data, len);
     resp->maxIdx = len;
 
-    if (OcspResponseDecode(resp, NULL, NULL, 1) != 0) {
+    ret = OcspResponseDecode(resp, NULL, NULL, 1);
+    if (ret != 0 && ret != ASN_OCSP_CONFIRM_E) {
+        /* for just converting from a DER to an internal structure the CA may
+         * not yet be known to this function for signature verification */
         wolfSSL_OCSP_RESPONSE_free(resp);
         return NULL;
     }

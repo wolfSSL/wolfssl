@@ -34264,6 +34264,10 @@ static const ASNItem ocspBasicRespASN[] = {
 /* SIGALGO      */     { 1, ASN_SEQUENCE, 1, 1, 0, },
 /* SIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* SIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                            /* parameters */
+#ifdef WC_RSA_PSS
+/* SIGALGO_PARAMS      */  { 2, ASN_SEQUENCE, 1, 0, 1 },
+#endif
                                             /* signature */
 /* SIGNATURE    */     { 1, ASN_BIT_STRING, 0, 0, 0 },
                                             /* certs */
@@ -34276,6 +34280,9 @@ enum {
     OCSPBASICRESPASN_IDX_SIGALGO,
     OCSPBASICRESPASN_IDX_SIGALGO_OID,
     OCSPBASICRESPASN_IDX_SIGALGO_NULL,
+#ifdef WC_RSA_PSS
+    OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS,
+#endif
     OCSPBASICRESPASN_IDX_SIGNATURE,
     OCSPBASICRESPASN_IDX_CERTS,
     OCSPBASICRESPASN_IDX_CERTS_SEQ,
@@ -34291,9 +34298,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;
     word32 idx = *ioIndex;
+    #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     word32 end_index;
+    #endif
     int    ret;
     int    sigLength;
+    const byte*   sigParams = NULL;
+    word32        sigParamsSz = 0;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
@@ -34303,14 +34314,34 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
     if (idx + length > size)
         return ASN_INPUT_E;
+    #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     end_index = idx + length;
+    #endif
 
     if ((ret = DecodeResponseData(source, &idx, resp, size)) < 0)
         return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
 
     /* Get the signature algorithm */
-    if (GetAlgoId(source, &idx, &resp->sigOID, oidSigType, size) < 0)
+    if (GetAlgoId(source, &idx, &resp->sigOID, oidSigType, size) < 0) {
         return ASN_PARSE_E;
+    }
+#ifdef WC_RSA_PSS
+    else if (resp->sigOID == CTC_RSASSAPSS) {
+        word32 sz;
+        int len;
+        const byte* params;
+
+        sz = idx;
+        params = source + idx;
+        if (GetSequence(source, &idx, &len, size) < 0)
+            ret = ASN_PARSE_E;
+        if (ret == 0) {
+            idx += len;
+            sigParams = params;
+            sigParamsSz = idx - sz;
+        }
+    }
+#endif
 
     ret = CheckBitString(source, &idx, &sigLength, size, 1, NULL);
     if (ret != 0)
@@ -34378,7 +34409,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                 &cert->sigCtx,
                 resp->response, resp->responseSz,
                 cert->publicKey, cert->pubKeySize, cert->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
+                NULL);
 
             if (ret != 0) {
                 WOLFSSL_MSG("\tOCSP Confirm signature failed");
@@ -34415,7 +34447,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             /* ConfirmSignature is blocking here */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
                 resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
+                NULL);
         }
         if (ca == NULL || sigValid != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
@@ -34431,6 +34464,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspBasicRespASN_Length);
     int ret = 0;
     word32 idx = *ioIndex;
+    const byte*   sigParams = NULL;
+    word32        sigParamsSz = 0;
 #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* cert = NULL;
@@ -34463,6 +34498,16 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = ASN_PARSE_E;
         }
     }
+#ifdef WC_RSA_PSS
+    if (ret == 0 && (dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS].tag != 0)) {
+        sigParams = GetASNItem_Addr(
+                dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
+                source);
+        sigParamsSz =
+               GetASNItem_Length(dataASN[OCSPBASICRESPASN_IDX_SIGNATURE_PARAMS],
+               source);
+    }
+#endif
     if (ret == 0) {
         /* Get the signature OID and signature. */
         resp->sigOID = dataASN[OCSPBASICRESPASN_IDX_SIGALGO_OID].data.oid.sum;
@@ -34535,7 +34580,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             /* Check the signature of the response CA public key. */
             sigValid = ConfirmSignature(&sigCtx, resp->response,
                 resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, NULL, 0, NULL);
+                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
+                NULL);
         }
         if ((ca == NULL) || (sigValid != 0)) {
             /* Didn't find certificate or signature verificate failed. */

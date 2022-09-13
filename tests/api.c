@@ -1605,6 +1605,94 @@ static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
     return 0;
 }
 
+static int test_wolfSSL_CheckOCSPResponse(void)
+{
+#if defined(HAVE_OCSP) && !defined(NO_RSA) && defined(OPENSSL_ALL)
+    const char* responseFile = "./certs/ocsp/test-response.der";
+    const char* responseNoInternFile = "./certs/ocsp/test-response-nointern.der";
+    const char* caFile = "./certs/ocsp/root-ca-cert.pem";
+    OcspResponse* res = NULL;
+    byte data[4096];
+    const unsigned char* pt;
+    int  dataSz;
+    XFILE f;
+    WOLFSSL_OCSP_BASICRESP* bs;
+    WOLFSSL_X509_STORE* st;
+    WOLFSSL_X509* issuer;
+
+
+    printf(testingFmt, "wolfSSL_CheckOCSPResponse()");
+
+    f = XFOPEN(responseFile, "rb");
+    AssertTrue(f != XBADFILE);
+    dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+    AssertIntGT(dataSz, 0);
+    XFCLOSE(f);
+
+    pt = data;
+    res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+    AssertNotNull(res);
+    issuer = wolfSSL_X509_load_certificate_file(caFile, SSL_FILETYPE_PEM);
+    AssertNotNull(issuer);
+    st = wolfSSL_X509_STORE_new();
+    AssertNotNull(st);
+    AssertIntEQ(wolfSSL_X509_STORE_add_cert(st, issuer), WOLFSSL_SUCCESS);
+    bs = wolfSSL_OCSP_response_get1_basic(res);
+    AssertNotNull(bs);
+    AssertIntEQ(wolfSSL_OCSP_basic_verify(bs, NULL, st, 0), WOLFSSL_SUCCESS);
+    wolfSSL_OCSP_BASICRESP_free(bs);
+    wolfSSL_OCSP_RESPONSE_free(res);
+    wolfSSL_X509_STORE_free(st);
+    wolfSSL_X509_free(issuer);
+
+    /* check loading a response with optional certs */
+    f = XFOPEN(responseNoInternFile, "rb");
+    AssertTrue(f != XBADFILE);
+    dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+    AssertIntGT(dataSz, 0);
+    XFCLOSE(f);
+
+    pt = data;
+    res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+    AssertNotNull(res);
+    wolfSSL_OCSP_RESPONSE_free(res);
+
+#if defined(WC_RSA_PSS)
+    {
+        const char* responsePssFile = "./certs/ocsp/test-response-rsapss.der";
+
+        /* check loading a response with RSA-PSS signature */
+        f = XFOPEN(responsePssFile, "rb");
+        AssertTrue(f != XBADFILE);
+        dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+        AssertIntGT(dataSz, 0);
+        XFCLOSE(f);
+
+        pt = data;
+        res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
+        AssertNotNull(res);
+
+        /* try to verify the response */
+        issuer = wolfSSL_X509_load_certificate_file(caFile, SSL_FILETYPE_PEM);
+        AssertNotNull(issuer);
+        st = wolfSSL_X509_STORE_new();
+        AssertNotNull(st);
+        AssertIntEQ(wolfSSL_X509_STORE_add_cert(st, issuer), WOLFSSL_SUCCESS);
+        bs = wolfSSL_OCSP_response_get1_basic(res);
+        AssertNotNull(bs);
+        AssertIntEQ(wolfSSL_OCSP_basic_verify(bs, NULL, st, 0), WOLFSSL_SUCCESS);
+        wolfSSL_OCSP_BASICRESP_free(bs);
+        wolfSSL_OCSP_RESPONSE_free(res);
+        wolfSSL_X509_STORE_free(st);
+        wolfSSL_X509_free(issuer);
+    }
+#endif
+
+    printf(resultFmt, passed);
+#endif /* HAVE_OCSP */
+    return 0;
+}
+
 static int test_wolfSSL_CertManagerLoadCABuffer(void)
 {
     int ret;
@@ -58080,6 +58168,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey_file),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
+    TEST_DECL(test_wolfSSL_CheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer),
     TEST_DECL(test_wolfSSL_CertManagerGetCerts),
     TEST_DECL(test_wolfSSL_CertManagerSetVerify),
