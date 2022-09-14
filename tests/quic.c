@@ -1029,6 +1029,8 @@ static void QuicConversation_do(QuicConversation *conv)
     }
 }
 
+#ifdef HAVE_SESSION_TICKET
+
 static void QuicConversation_fail(QuicConversation *conv)
 {
     if (!conv->started) {
@@ -1044,6 +1046,8 @@ static void QuicConversation_fail(QuicConversation *conv)
         }
     }
 }
+
+#endif /* HAVE_SESSION_TICKET */
 
 static int test_quic_client_hello(int verbose) {
     WOLFSSL_CTX *ctx;
