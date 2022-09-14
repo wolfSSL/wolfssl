@@ -1388,7 +1388,7 @@ enum Misc {
     SESSION_ADD_SZ = 4,        /* session age add */
     TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
-    MAX_TICKET_NONCE_SZ = 8,   /* maximum ticket nonce size */
+    MAX_TICKET_NONCE_STATIC_SZ = 8,   /* maximum ticket nonce static size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
 
     RAN_LEN      = 32,         /* random length           */
@@ -1752,6 +1752,10 @@ enum Misc {
 
 #ifndef PREALLOC_SESSION_TICKET_LEN
     #define PREALLOC_SESSION_TICKET_LEN 512
+#endif
+
+#ifndef PREALLOC_SESSION_TICKET_NONCE_LEN
+    #define PREALLOC_SESSION_TICKET_NONCE_LEN 32
 #endif
 
 #ifndef SESSION_TICKET_HINT_DEFAULT
@@ -2789,7 +2793,7 @@ typedef struct InternalTicket {
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
     byte            ticketNonceLen;
-    byte            ticketNonce[MAX_TICKET_NONCE_SZ];
+    byte            ticketNonce[MAX_TICKET_NONCE_STATIC_SZ];
 #ifdef WOLFSSL_EARLY_DATA
     byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
                                                          * early data */
@@ -3693,8 +3697,15 @@ WOLFSSL_LOCAL int wolfSSL_quic_add_transport_extensions(WOLFSSL *ssl, int msg_ty
  */
 typedef struct TicketNonce {
     byte len;
-    byte data[MAX_TICKET_NONCE_SZ];
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    byte *data;
+    byte dataStatic[MAX_TICKET_NONCE_STATIC_SZ];
+#else
+    byte data[MAX_TICKET_NONCE_STATIC_SZ];
+#endif /* WOLFSSL_TICKET_NONCE_MALLOC  && FIPS_VERSION_GE(5,3) */
 } TicketNonce;
+
 #endif
 
 /* wolfSSL session type */
@@ -3789,6 +3800,13 @@ struct WOLFSSL_SESSION {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 };
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
+        defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+WOLFSSL_LOCAL int SessionTicketNoncePopulate(WOLFSSL_SESSION *session,
+    const byte* nonce, byte len);
+#endif /* WOLFSSL_TLS13 &&  */
 
 WOLFSSL_LOCAL int wolfSSL_RAND_Init(void);
 

@@ -1340,6 +1340,15 @@ if(WOLFSSL_SESSION_TICKET)
         "-DHAVE_SESSION_TICKET")
 endif()
 
+add_option("WOLFSSL_TICKET_NONCE_MALLOC"
+    "Enable dynamic allocation of ticket nonces (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_TICKET_NONCE_MALLOC)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_TICKET_NONCE_MALLOC")
+endif()
+
 # Extended master secret extension
 add_option("WOLFSSL_EXTENDED_MASTER"
     "Enable Extended Master Secret (default: enabled)"

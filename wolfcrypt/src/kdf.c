@@ -437,6 +437,13 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         int    idx = 0;
         byte   data[MAX_TLS13_HKDF_LABEL_SZ];
 
+        /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
+         * labellen + infolen */
+        idx = 4 + protocolLen + labelLen + infoLen;
+        if (idx > MAX_TLS13_HKDF_LABEL_SZ)
+            return BUFFER_E;
+        idx = 0;
+
         /* Output length. */
         data[idx++] = (byte)(okmLen >> 8);
         data[idx++] = (byte)okmLen;
@@ -480,6 +487,95 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     #endif
         return ret;
     }
+
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    /* Expand data using HMAC, salt and label and info.
+     * TLS v1.3 defines this function.
+     *
+     * okm          The generated pseudorandom key - output key material.
+     * okmLen       The length of generated pseudorandom key -
+     *              output key material.
+     * prk          The salt - pseudo-random key.
+     * prkLen       The length of the salt - pseudo-random key.
+     * protocol     The TLS protocol label.
+     * protocolLen  The length of the TLS protocol label.
+     * info         The information to expand.
+     * infoLen      The length of the information.
+     * digest       The type of digest to use.
+     *
+     * This functions is very similar to wc_Tls13_HKDF_Expand_Label() but it
+     * allocate memory if the stack space usually used isn't enough.
+     *
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
+        const byte* prk, word32 prkLen, const byte* protocol,
+        word32 protocolLen, const byte* label, word32 labelLen,
+        const byte* info, word32 infoLen, int digest, void* heap)
+    {
+        int    ret = 0;
+        int    idx = 0;
+        int    len;
+        byte   *data;
+
+        (void)heap;
+        /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
+         * labellen + infolen */
+        len = 4 + protocolLen + labelLen + infoLen;
+
+        data = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (data == NULL)
+            return BUFFER_E;
+
+        /* Output length. */
+        data[idx++] = (byte)(okmLen >> 8);
+        data[idx++] = (byte)okmLen;
+        /* Length of protocol | label. */
+        data[idx++] = (byte)(protocolLen + labelLen);
+        /* Protocol */
+        XMEMCPY(&data[idx], protocol, protocolLen);
+        idx += protocolLen;
+        /* Label */
+        XMEMCPY(&data[idx], label, labelLen);
+        idx += labelLen;
+        /* Length of hash of messages */
+        data[idx++] = (byte)infoLen;
+        /* Hash of messages */
+        XMEMCPY(&data[idx], info, infoLen);
+        idx += infoLen;
+
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Add("wc_Tls13_HKDF_Expand_Label data", data, idx);
+    #endif
+
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("  PRK");
+        WOLFSSL_BUFFER(prk, prkLen);
+        WOLFSSL_MSG("  Info");
+        WOLFSSL_BUFFER(data, idx);
+        WOLFSSL_MSG_EX("  Digest %d", digest);
+#endif
+
+        ret = wc_HKDF_Expand(digest, prk, prkLen, data, idx, okm, okmLen);
+
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("  OKM");
+        WOLFSSL_BUFFER(okm, okmLen);
+#endif
+
+        ForceZero(data, idx);
+
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(data, len);
+    #endif
+        XFREE(data, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+#endif
+/* defined(WOLFSSL_TICKET_NONCE_MALLOC) && (!defined(HAVE_FIPS) ||
+ *  FIPS_VERSION_GE(5,3)) */
 
 #endif /* HAVE_HKDF && !NO_HMAC */
 

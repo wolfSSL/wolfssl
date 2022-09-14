@@ -1036,6 +1036,7 @@ int DeriveMasterSecret(WOLFSSL* ssl)
 #define RESUMPTION_LABEL_SZ         10
 /* Resumption label for generating PSK associated with the ticket. */
 static const byte resumptionLabel[RESUMPTION_LABEL_SZ+1] = "resumption";
+
 /* Derive the PSK associated with the ticket.
  *
  * ssl       The SSL/TLS object.
@@ -1078,10 +1079,17 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
     }
 
     PRIVATE_KEY_UNLOCK();
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    ret = wc_Tls13_HKDF_Expand_Label_Alloc(secret, ssl->specs.hash_size,
+        ssl->session->masterSecret, ssl->specs.hash_size, protocol, protocolLen,
+        resumptionLabel, RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg,
+        ssl->heap);
+#else
     ret = wc_Tls13_HKDF_Expand_Label(secret, ssl->specs.hash_size,
-                             ssl->session->masterSecret, ssl->specs.hash_size,
-                             protocol, protocolLen, resumptionLabel,
-                             RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+        ssl->session->masterSecret, ssl->specs.hash_size, protocol, protocolLen,
+        resumptionLabel, RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+#endif /* !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3) */
     PRIVATE_KEY_LOCK();
     return ret;
 }
@@ -9181,6 +9189,31 @@ static int DoTls13EndOfEarlyData(WOLFSSL* ssl, const byte* input,
 #endif /* !NO_WOLFSSL_SERVER */
 #endif /* WOLFSSL_EARLY_DATA */
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+int SessionTicketNoncePopulate(WOLFSSL_SESSION *session, const byte *nonce,
+    byte len)
+{
+    if (session->ticketNonce.data
+            != session->ticketNonce.dataStatic) {
+         XFREE(session->ticketNonce.data, heap,
+             DYNAMIC_TYPE_SESSION_TICK);
+         session->ticketNonce.data = session->ticketNonce.dataStatic;
+         session->ticketNonce.len = 0;
+    }
+
+    if (len > MAX_TICKET_NONCE_STATIC_SZ) {
+        WOLFSSL_MSG("Using dynamic nonce buffer");
+        session->ticketNonce.data = (byte*)XMALLOC(len,
+            session->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (session->ticketNonce.data == NULL)
+            return MEMORY_ERROR;
+    }
+    XMEMCPY(session->ticketNonce.data, nonce, len);
+    session->ticketNonce.len = len;
+    return 0;
+}
+#endif
 #ifndef NO_WOLFSSL_CLIENT
 /* Handle a New Session Ticket handshake message.
  * Message contains the information required to perform resumption.
@@ -9232,11 +9265,14 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     if ((*inOutIdx - begin) + 1 > size)
         return BUFFER_ERROR;
     nonceLength = input[*inOutIdx];
-    if (nonceLength > MAX_TICKET_NONCE_SZ) {
+#if !defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+    if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
         WOLFSSL_MSG("Nonce length not supported");
         WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
         return INVALID_PARAMETER;
     }
+#endif /* WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3) */
     *inOutIdx += 1;
     if ((*inOutIdx - begin) + nonceLength > size)
         return BUFFER_ERROR;
@@ -9268,9 +9304,22 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     #ifdef WOLFSSL_EARLY_DATA
     ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;
     #endif
+
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    ret = SessionTicketNoncePopulate(ssl->session, nonce, nonceLength);
+    if (ret != 0)
+        return ret;
+#else
     ssl->session->ticketNonce.len = nonceLength;
+    if (nonceLength > MAX_TICKET_NONCE_STATIC_SZ) {
+        ret = BUFFER_ERROR;
+        return ret;
+    }
     if (nonceLength > 0)
-        XMEMCPY(&ssl->session->ticketNonce.data, nonce, nonceLength);
+        XMEMCPY(ssl->session->ticketNonce.data, nonce, nonceLength);
+#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
+
     ssl->session->namedGroup      = ssl->namedGroup;
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)

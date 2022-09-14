@@ -13555,6 +13555,40 @@ static int SslSessionCacheOff(const WOLFSSL* ssl, const WOLFSSL_SESSION* session
                 ;
 }
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+/**
+ * SessionTicketNoncePrealloc() - prealloc a buffer for ticket nonces
+ * @output: [in] pointer to WOLFSSL_SESSION object that will soon be a
+ * destination of a session duplication
+ * @buf: [out] address of the preallocated buf
+ * @len: [out] len of the preallocated buf
+ *
+ * prealloc a buffer that will likely suffice to contain a ticket nonce. It's
+ * used when copying session under lock, when syscalls need to be avoided. If
+ * output already has a dynamic buffer, it's reused.
+ */
+static int SessionTicketNoncePrealloc(byte** buf, byte* len, void *heap)
+{
+    (void)heap;
+
+    *buf = (byte*)XMALLOC(PREALLOC_SESSION_TICKET_NONCE_LEN, heap,
+        DYNAMIC_TYPE_SESSION_TICK);
+    if (*buf == NULL) {
+        WOLFSSL_MSG("Failed to preallocate ticket nonce buffer");
+        *len = 0;
+        return WOLFSSL_FAILURE;
+    }
+
+    *len = PREALLOC_SESSION_TICKET_NONCE_LEN;
+    return 0;
+}
+#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 */
+
+static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
+    WOLFSSL_SESSION* output, int avoidSysCalls, byte* ticketNonceBuf,
+    byte* ticketNonceLen, byte* preallocUsed);
 
 int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 {
@@ -13571,6 +13605,11 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #else
     byte*        tmpTicket = NULL;
 #endif
+#ifdef WOLFSSL_TLS13
+    byte *preallocNonce = NULL;
+    byte preallocNonceLen = 0;
+    byte preallocNonceUsed = 0;
+#endif /* WOLFSSL_TLS13 */
     byte         tmpBufSet = 0;
 #endif
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -13678,6 +13717,30 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (output->ticketNonce.data != output->ticketNonce.dataStatic) {
+        XFREE(output->ticketNonce.data, output->heap,
+            DYNAMIC_TYPE_SESSION_TICK);
+        output->ticketNonce.data = output->ticketNonce.dataStatic;
+        output->ticketNonce.len = 0;
+    }
+    error = SessionTicketNoncePrealloc(&preallocNonce, &preallocNonceLen,
+        output->heap);
+    if (error != 0) {
+        if (tmpBufSet) {
+            output->ticket = output->staticTicket;
+            output->ticketLenAlloc = 0;
+        }
+#ifdef WOLFSSL_SMALL_STACK
+        if (tmpTicket != NULL)
+            XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return WOLFSSL_FAILURE;
+    }
+#endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET*/
+
     /* lock row */
     sessRow = &SessionCache[row];
     if (SESSION_ROW_LOCK(sessRow) != 0) {
@@ -13687,6 +13750,10 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
+#ifdef WOLFSSL_TLS13
+        if (preallocNonce != NULL)
+            XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_SMALL_STACK
         if (tmpTicket != NULL)
             XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13731,7 +13798,13 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             sess->peer = NULL;
         }
 #endif
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+        error = wolfSSL_DupSessionEx(sess, output, 1,
+            preallocNonce, &preallocNonceLen, &preallocNonceUsed);
+#else
         error = wolfSSL_DupSession(sess, output, 1);
+#endif /* WOLFSSL_TSL */
+
 #ifdef HAVE_EX_DATA
         output->ownExData = 0; /* Session cache owns external data */
 #endif
@@ -13780,6 +13853,45 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     if (tmpTicket != NULL)
         XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (error == WOLFSSL_SUCCESS && preallocNonceUsed) {
+        if (preallocNonceLen < PREALLOC_SESSION_TICKET_NONCE_LEN) {
+            /* buffer bigger than needed */
+#ifndef XREALLOC
+            output->ticketNonce.data = (byte*)XMALLOC(preallocNonceLen,
+                output->heap, DYNAMIC_TYPE_SESSION_TICK);
+            if (output->ticketNonce.data != NULL)
+                XMEMCPY(output->ticketNonce.data, preallocNonce,
+                    preallocNonceLen);
+            XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+            preallocNonce = NULL;
+#else
+            output->ticketNonce.data = XREALLOC(preallocNonce,
+                preallocNonceLen, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+            if (output->ticketNonce.data != NULL) {
+                /* don't free the reallocated pointer */
+                preallocNonce = NULL;
+            }
+#endif /* !XREALLOC */
+            if (output->ticketNonce.data == NULL) {
+                output->ticketNonce.data = output->ticketNonce.dataStatic;
+                output->ticketNonce.len = 0;
+                error = WOLFSSL_FAILURE;
+                /* preallocNonce will be free'd after the if */
+            }
+        }
+        else {
+            output->ticketNonce.data = preallocNonce;
+            output->ticketNonce.len = preallocNonceLen;
+            preallocNonce = NULL;
+        }
+    }
+    if (preallocNonce != NULL)
+        XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
+
 #endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -14091,7 +14203,14 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     byte   ticBuffUsed = 0;
     byte*  ticBuff = NULL;
     int    ticLen  = 0;
-#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    byte *preallocNonce = NULL;
+    byte preallocNonceLen = 0;
+    byte preallocNonceUsed = 0;
+    byte *toFree = NULL;
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC */
+#endif /* HAVE_SESSION_TICKET */
     int ret = 0;
     int row;
     int i;
@@ -14113,7 +14232,6 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         return MEMORY_E;
     }
 
-    /* Find a position for the new session in cache and use that */
 #ifdef HAVE_SESSION_TICKET
     ticLen = addSession->ticketLen;
     /* Alloc Memory here to avoid syscalls during lock */
@@ -14124,13 +14242,35 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
             return MEMORY_E;
         }
     }
-#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (addSession->ticketNonce.data != addSession->ticketNonce.dataStatic) {
+        /* use the AddSession->heap even if the buffer maybe saved in
+         * CachedSession objects. CachedSession heap and AddSession heap should
+         * be the same */
+        preallocNonce = (byte*)XMALLOC(addSession->ticketNonce.len,
+            addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (preallocNonce == NULL) {
+            if (ticBuff != NULL)
+                XFREE(ticBuff, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+            return MEMORY_E;
+        }
+        preallocNonceLen = addSession->ticketNonce.len;
+    }
+#endif /* WOLFSSL_TLS13 && WOLFSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3) */
+#endif /* HAVE_SESSION_TICKET */
+
+    /* Find a position for the new session in cache and use that */
     /* Use the session object in the cache for external cache if required */
     row = (int)(HashObject(id, ID_LEN, &ret) % SESSION_ROWS);
     if (ret != 0) {
         WOLFSSL_MSG("Hash session failed");
     #ifdef HAVE_SESSION_TICKET
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
+        if (preallocNonce != NULL)
+            XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    #endif
     #endif
         return ret;
     }
@@ -14139,6 +14279,10 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (SESSION_ROW_LOCK(sessRow) != 0) {
     #ifdef HAVE_SESSION_TICKET
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKE_NONCE_MALLOC)
+        if (preallocNonce != NULL)
+            XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    #endif
     #endif
         WOLFSSL_MSG("Session row lock failed");
         return BAD_MUTEX_E;
@@ -14193,6 +14337,19 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         cacheSession->ticket = ticBuff;
         cacheSession->ticketLenAlloc = (word16) ticLen;
     }
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    /* cache entry never used */
+    if (cacheSession->ticketNonce.data == NULL)
+        cacheSession->ticketNonce.data = cacheSession->ticketNonce.dataStatic;
+
+    if (cacheSession->ticketNonce.data !=
+            cacheSession->ticketNonce.dataStatic) {
+        toFree = cacheSession->ticketNonce.data;
+        cacheSession->ticketNonce.data = cacheSession->ticketNonce.dataStatic;
+        cacheSession->ticketNonce.len = 0;
+    }
+#endif /* WOFLSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
 #ifdef SESSION_CERTS
     if (overwrite &&
@@ -14206,7 +14363,15 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #endif /* SESSION_CERTS */
     cacheSession->heap = NULL;
     /* Copy data into the cache object */
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    ret = wolfSSL_DupSessionEx(addSession, cacheSession, 1, preallocNonce,
+        &preallocNonceLen, &preallocNonceUsed) == WOLFSSL_FAILURE;
+#else
     ret = wolfSSL_DupSession(addSession, cacheSession, 1) == WOLFSSL_FAILURE;
+#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC
+          && FIPS_VERSION_GE(5,3)*/
 
     if (ret == 0) {
         /* Increment the totalCount and the nextIdx */
@@ -14226,6 +14391,17 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
             cacheSession->rem_sess_cb = ctx->rem_sess_cb;
         }
 #endif
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        if (preallocNonce != NULL && preallocNonceUsed) {
+            cacheSession->ticketNonce.data = preallocNonce;
+            cacheSession->ticketNonce.len = preallocNonceLen;
+            preallocNonce = NULL;
+            preallocNonceLen = 0;
+        }
+#endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC
+        * && FIPS_VERSION_GE(5,3)*/
     }
 #ifdef HAVE_SESSION_TICKET
     else if (ticBuffUsed) {
@@ -14253,6 +14429,13 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
     if (cacheTicBuff != NULL)
         XFREE(cacheTicBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&         \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (preallocNonce != NULL)
+        XFREE(preallocNonce, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+    if (toFree != NULL)
+        XFREE(toFree, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -20024,6 +20207,10 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
 #endif
     #ifdef HAVE_SESSION_TICKET
         ret->ticket = ret->staticTicket;
+        #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&  \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        ret->ticketNonce.data = ret->ticketNonce.dataStatic;
+        #endif
     #endif
 #ifdef HAVE_STUNNEL
         /* stunnel has this funny mechanism of storing the "is_authenticated"
@@ -20086,11 +20273,16 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
  *                      sessions from cache. When a cache row is locked, we
  *                      don't want to block other threads with long running
  *                      system calls.
+ * @param ticketNonceBuf If not null and @avoidSysCalls is true, the copy of the
+ *                      ticketNonce will happen in this pre allocated buffer
+ * @param ticketNonceLen @ticketNonceBuf len as input, used length on output
+ * @param ticketNonceUsed if @ticketNonceBuf was used to copy the ticket noncet
  * @return              WOLFSSL_SUCCESS on success
  *                      WOLFSSL_FAILURE on failure
  */
-int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
-        int avoidSysCalls)
+static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
+    WOLFSSL_SESSION* output, int avoidSysCalls, byte* ticketNonceBuf,
+    byte* ticketNonceLen, byte* preallocUsed)
 {
 #ifdef HAVE_SESSION_TICKET
     int   ticLenAlloc = 0;
@@ -20100,6 +20292,9 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
     int ret = WOLFSSL_SUCCESS;
 
     (void)avoidSysCalls;
+    (void)ticketNonceBuf;
+    (void)ticketNonceLen;
+    (void)preallocUsed;
 
     input = ClientSessionToSession(input);
     output = ClientSessionToSession(output);
@@ -20114,7 +20309,27 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         ticBuff = output->ticket;
         ticLenAlloc = output->ticketLenAlloc;
     }
-#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        /* free the data, it would be better to re-use the buffer but this
+         * maintain the code simpler. A smart allocator should re-use the free'd
+         * buffer in the next malloc without much performance penalties. */
+    if (output->ticketNonce.data != output->ticketNonce.dataStatic) {
+
+        /*  Callers that avoid syscall should never calls this with
+         * output->tickeNonce.data being a dynamic buffer.*/
+        if (avoidSysCalls) {
+            WOLFSSL_MSG("can't avoid syscalls with dynamic TicketNonce buffer");
+            return WOLFSSL_FAILURE;
+        }
+
+        XFREE(output->ticketNonce.data,
+            output->heap, DYNAMIC_TYPE_SESSION_TICK);
+        output->ticketNonce.data = output->ticketNonce.dataStatic;
+        output->ticketNonce.len = 0;
+    }
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
+#endif /* HAVE_SESSION_TICKET */
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     if (output->peer != NULL) {
@@ -20130,6 +20345,12 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
     XMEMCPY((byte*)output + copyOffset, (byte*)input + copyOffset,
             sizeof(WOLFSSL_SESSION) - copyOffset);
 
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    /* fix pointer to static after the copy  */
+    output->ticketNonce.data = output->ticketNonce.dataStatic;
+#endif
     /* Set sane values for copy */
 #ifndef NO_SESSION_CACHE
     if (output->type != WOLFSSL_SESSION_TYPE_CACHE)
@@ -20223,8 +20444,72 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         }
     }
     ticBuff = NULL;
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (preallocUsed != NULL)
+        *preallocUsed = 0;
+
+    if (input->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ &&
+        ret == WOLFSSL_SUCCESS) {
+        /* TicketNonce does not fit in the static buffer */
+        if (!avoidSysCalls) {
+            output->ticketNonce.data = (byte*)XMALLOC(input->ticketNonce.len,
+                output->heap, DYNAMIC_TYPE_SESSION_TICK);
+
+            if (output->ticketNonce.data == NULL) {
+                WOLFSSL_MSG("Failed to allocate space for ticket nonce");
+                output->ticketNonce.data = output->ticketNonce.dataStatic;
+                output->ticketNonce.len = 0;
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                output->ticketNonce.len = input->ticketNonce.len;
+                XMEMCPY(output->ticketNonce.data, input->ticketNonce.data,
+                    input->ticketNonce.len);
+                ret = WOLFSSL_SUCCESS;
+            }
+        }
+        /* we can't do syscalls. Use prealloc buffers if provided from the
+         * caller. */
+        else if (ticketNonceBuf != NULL &&
+                 *ticketNonceLen >= input->ticketNonce.len) {
+            XMEMCPY(ticketNonceBuf, input->ticketNonce.data,
+                input->ticketNonce.len);
+            *ticketNonceLen = input->ticketNonce.len;
+            if (preallocUsed != NULL)
+                *preallocUsed = 1;
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            WOLFSSL_MSG("TicketNonce bigger than static buffer, and we can't "
+                        "do syscalls");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
+
 #endif /* HAVE_SESSION_TICKET */
     return ret;
+}
+
+/**
+ * Deep copy the contents from input to output.
+ * @param input         The source of the copy.
+ * @param output        The destination of the copy.
+ * @param avoidSysCalls If true, then system calls will be avoided or an error
+ *                      will be returned if it is not possible to proceed
+ *                      without a system call. This is useful for fetching
+ *                      sessions from cache. When a cache row is locked, we
+ *                      don't want to block other threads with long running
+ *                      system calls.
+ * @return              WOLFSSL_SUCCESS on success
+ *                      WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
+        int avoidSysCalls)
+{
+    return wolfSSL_DupSessionEx(input, output, avoidSysCalls, NULL, NULL, NULL);
 }
 
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
@@ -20316,6 +20601,13 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     if (session->ticketLenAlloc > 0) {
         XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
     }
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (session->ticketNonce.data != session->ticketNonce.dataStatic) {
+        XFREE(session->ticketNonce.data, session->heap,
+            DYNAMIC_TYPE_SESSION_TICK);
+    }
+#endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 #endif
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -25764,7 +26056,19 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         ret = BUFFER_ERROR;
         goto end;
     }
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                     \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    ret = SessionTicketNoncePopulate(s, data + idx, s->ticketNonce.len);
+    if (ret != 0)
+        goto end;
+#else
+    if (s->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
     XMEMCPY(s->ticketNonce.data, data + idx, s->ticketNonce.len);
+#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
+
     idx += s->ticketNonce.len;
 #endif
 #ifdef WOLFSSL_EARLY_DATA

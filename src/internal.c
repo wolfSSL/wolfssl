@@ -33986,6 +33986,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
+            if (ssl->session->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
+                WOLFSSL_MSG("Bad ticket nonce value");
+                ret = BAD_TICKET_MSG_SZ;
+                goto error;
+            }
             XMEMCPY(it->ticketNonce, ssl->session->ticketNonce.data,
                 ssl->session->ticketNonce.len);
             it->ticketNonceLen = ssl->session->ticketNonce.len;
@@ -34264,6 +34269,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
+                if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+                    WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
+                    return BAD_TICKET_ENCRYPT;
+                }
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+                if (ssl->session->ticketNonce.data
+                       != ssl->session->ticketNonce.dataStatic) {
+                    XFREE(ssl->session->ticketNonce.data, ssl->heap,
+                        DYNAMIC_TYPE_SESSION_TICK);
+                    ssl->session->ticketNonce.data =
+                        ssl->session->ticketNonce.dataStatic;
+                }
+#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
                 XMEMCPY(ssl->session->ticketNonce.data, it->ticketNonce,
                     it->ticketNonceLen);
                 ssl->session->ticketNonce.len = it->ticketNonceLen;

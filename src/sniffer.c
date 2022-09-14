@@ -3292,7 +3292,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
         /* ticket nonce */
         len = input[0];
-        if (len > MAX_TICKET_NONCE_SZ) {
+        if (len > MAX_TICKET_NONCE_STATIC_SZ) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
@@ -3302,7 +3302,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         /* store nonce in server for DeriveResumptionPSK */
         session->sslServer->session->ticketNonce.len = len;
         if (len > 0)
-            XMEMCPY(&session->sslServer->session->ticketNonce.data, input, len);
+            XMEMCPY(session->sslServer->session->ticketNonce.data, input, len);
     #endif
         input += len;
         *sslBytes -= len;
