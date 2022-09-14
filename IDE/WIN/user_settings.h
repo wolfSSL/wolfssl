@@ -7,6 +7,7 @@
 #endif
 
 #define USE_WOLFSSL_IO
+#define HAVE_AESGCM
 #define WOLFSSL_TLS13
 #define HAVE_HKDF
 #define HAVE_FFDHE_4096
@@ -21,7 +22,6 @@
     #define OPENSSL_EXTRA
     #define HAVE_THREAD_LS
     #define WOLFSSL_KEY_GEN
-    #define HAVE_AESGCM
     #define HAVE_HASHDRBG
     #define WOLFSSL_SHA384
     #define WOLFSSL_SHA512

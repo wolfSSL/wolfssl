@@ -245,7 +245,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #if defined(CYASSL_SNIFFER)
     /* Only set if not running testsuite */
-    if (XSTRSTR(argv[0], "testsuite") != 0) {
+    if (XSTRSTR(argv[0], "testsuite") == NULL) {
         /* don't use EDH, can't sniff tmp keys */
         CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
     }
