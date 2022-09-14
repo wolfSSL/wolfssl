@@ -50928,6 +50928,222 @@ static int test_tls13_apis(void)
     return 0;
 }
 
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
+/* Called when writing. */
+static int CsSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+
+    /* Force error return from wolfSSL_accept_TLSv13(). */
+    return WANT_WRITE;
+}
+/* Called when reading. */
+static int CsRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    WOLFSSL_BUFFER_INFO* msg = (WOLFSSL_BUFFER_INFO*)ctx;
+    int len = (int)msg->length;
+
+    (void)ssl;
+    (void)sz;
+
+    /* Pass back as much of message as will fit in buffer. */
+    if (len > sz)
+        len = sz;
+    XMEMCPY(buf, msg->buffer, len);
+    /* Move over returned data. */
+    msg->buffer += len;
+    msg->length -= len;
+
+    /* Amount actually copied. */
+    return len;
+}
+#endif
+
+static int test_tls13_cipher_suites(void)
+{
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && defined(BUILD_TLS_AES_128_GCM_SHA256) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
+    WOLFSSL_CTX* ctx;
+    WOLFSSL *ssl;
+    int i;
+    byte clientHello[] = {
+        0x16, 0x03, 0x03, 0x01, 0x9b, 0x01, 0x00, 0x01,
+        0x97, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
+        0x6e, 0xab, 0x66, 0xdd, 0xcf, 0xe9, 0x65, 0x55,
+        0xe8, 0xdf, 0xc3, 0x8e, 0x4b, 0x00, 0xbc, 0xf8,
+        0x23, 0x57, 0x1b, 0xa0, 0xc8, 0xa9, 0xe2, 0x8c,
+        0x91, 0x6e, 0xf9, 0x20, 0xf7, 0x5c, 0xc5, 0x5b,
+        0x75, 0x8c, 0x47, 0x0a, 0x0e, 0xc4, 0x1a, 0xda,
+        0xef, 0x75, 0xe5, 0x21, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+        /* Cipher suites: 0x13, 0x01 = TLS13-AES128-GCM-SHA256, twice. */
+                                            0x13, 0x01,
+        0x13, 0x01, 0x01, 0x00, 0x01, 0x4a, 0x00, 0x2d,
+        0x00, 0x03, 0x02, 0x00, 0x01, 0x00, 0x33, 0x00,
+        0x47, 0x00, 0x45, 0x00, 0x17, 0x00, 0x41, 0x04,
+        0x90, 0xfc, 0xe2, 0x97, 0x05, 0x7c, 0xb5, 0x23,
+        0x5d, 0x5f, 0x5b, 0xcd, 0x0c, 0x1e, 0xe0, 0xe9,
+        0xab, 0x38, 0x6b, 0x1e, 0x20, 0x5c, 0x1c, 0x90,
+        0x2a, 0x9e, 0x68, 0x8e, 0x70, 0x05, 0x10, 0xa8,
+        0x02, 0x1b, 0xf9, 0x5c, 0xef, 0xc9, 0xaf, 0xca,
+        0x1a, 0x3b, 0x16, 0x8b, 0xe4, 0x1b, 0x3c, 0x15,
+        0xb8, 0x0d, 0xbd, 0xaf, 0x62, 0x8d, 0xa7, 0x13,
+        0xa0, 0x7c, 0xe0, 0x59, 0x0c, 0x4f, 0x8a, 0x6d,
+        0x00, 0x2b, 0x00, 0x03, 0x02, 0x03, 0x04, 0x00,
+        0x0d, 0x00, 0x20, 0x00, 0x1e, 0x06, 0x03, 0x05,
+        0x03, 0x04, 0x03, 0x02, 0x03, 0x08, 0x06, 0x08,
+        0x0b, 0x08, 0x05, 0x08, 0x0a, 0x08, 0x04, 0x08,
+        0x09, 0x06, 0x01, 0x05, 0x01, 0x04, 0x01, 0x03,
+        0x01, 0x02, 0x01, 0x00, 0x0a, 0x00, 0x04, 0x00,
+        0x02, 0x00, 0x17, 0x00, 0x16, 0x00, 0x00, 0x00,
+        0x23, 0x00, 0x00, 0x00, 0x29, 0x00, 0xb9, 0x00,
+        0x94, 0x00, 0x8e, 0x0f, 0x12, 0xfa, 0x84, 0x1f,
+        0x76, 0x94, 0xd7, 0x09, 0x5e, 0xad, 0x08, 0x51,
+        0xb6, 0x80, 0x28, 0x31, 0x8b, 0xfd, 0xc6, 0xbd,
+        0x9e, 0xf5, 0x3b, 0x4d, 0x02, 0xbe, 0x1d, 0x73,
+        0xea, 0x13, 0x68, 0x00, 0x4c, 0xfd, 0x3d, 0x48,
+        0x51, 0xf9, 0x06, 0xbb, 0x92, 0xed, 0x42, 0x9f,
+        0x7f, 0x2c, 0x73, 0x9f, 0xd9, 0xb4, 0xef, 0x05,
+        0x26, 0x5b, 0x60, 0x5c, 0x0a, 0xfc, 0xa3, 0xbd,
+        0x2d, 0x2d, 0x8b, 0xf9, 0xaa, 0x5c, 0x96, 0x3a,
+        0xf2, 0xec, 0xfa, 0xe5, 0x57, 0x2e, 0x87, 0xbe,
+        0x27, 0xc5, 0x3d, 0x4f, 0x5d, 0xdd, 0xde, 0x1c,
+        0x1b, 0xb3, 0xcc, 0x27, 0x27, 0x57, 0x5a, 0xd9,
+        0xea, 0x99, 0x27, 0x23, 0xa6, 0x0e, 0xea, 0x9c,
+        0x0d, 0x85, 0xcb, 0x72, 0xeb, 0xd7, 0x93, 0xe3,
+        0xfe, 0xf7, 0x5c, 0xc5, 0x5b, 0x75, 0x8c, 0x47,
+        0x0a, 0x0e, 0xc4, 0x1a, 0xda, 0xef, 0x75, 0xe5,
+        0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0xfb, 0x92, 0xce, 0xaa, 0x00, 0x21, 0x20,
+        0xcb, 0x73, 0x25, 0x80, 0x46, 0x78, 0x4f, 0xe5,
+        0x34, 0xf6, 0x91, 0x13, 0x7f, 0xc8, 0x8d, 0xdc,
+        0x81, 0x04, 0xb7, 0x0d, 0x49, 0x85, 0x2e, 0x12,
+        0x7a, 0x07, 0x23, 0xe9, 0x13, 0xa4, 0x6d, 0x8c
+    };
+    WOLFSSL_BUFFER_INFO msg;
+    /* Offset into ClientHello message data of first cipher suite. */
+    const int csOff = 78;
+    /* Server cipher list. */
+    const char* serverCs = "TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256";
+    /* Suite list with duplicates. */
+    const char* dupCs = "TLS13-AES128-GCM-SHA256:"
+                        "TLS13-AES128-GCM-SHA256:"
+                        "TLS13-AES256-GCM-SHA384:"
+                        "TLS13-AES256-GCM-SHA384:"
+                        "TLS13-AES128-GCM-SHA256";
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+    const byte dupCsBytes[] = { TLS13_BYTE, TLS_AES_256_GCM_SHA384,
+                                TLS13_BYTE, TLS_AES_256_GCM_SHA384,
+                                TLS13_BYTE, TLS_AES_128_GCM_SHA256,
+                                TLS13_BYTE, TLS_AES_128_GCM_SHA256,
+                                TLS13_BYTE, TLS_AES_256_GCM_SHA384 };
+#endif
+
+    printf(testingFmt, "test_tls13_cipher_suites");
+
+    /* Set up wolfSSL context. */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, CsRecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, CsSend);
+
+    /* Test cipher suite list with many copies of a cipher suite. */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientHello;
+    msg.length = (unsigned int)sizeof(clientHello);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+    /* Force server to have as many occurrences of same cipher suite as
+     * possible. */
+    ssl->suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
+    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+        ssl->suites->suites[i + 0] = TLS13_BYTE;
+        ssl->suites->suites[i + 1] = TLS_AES_128_GCM_SHA256;
+    }
+    /* Test multiple occurrences of same cipher suite. */
+    wolfSSL_accept_TLSv13(ssl);
+    wolfSSL_free(ssl);
+
+    /* Set client order opposite to server order:
+     *   TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384 */
+    clientHello[csOff + 0] = TLS13_BYTE;
+    clientHello[csOff + 1] = TLS_AES_128_GCM_SHA256;
+    clientHello[csOff + 2] = TLS13_BYTE;
+    clientHello[csOff + 3] = TLS_AES_256_GCM_SHA384;
+
+    /* Test server order negotiation. */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientHello;
+    msg.length = (unsigned int)sizeof(clientHello);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+    /* Server order: TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256 */
+    AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), WOLFSSL_SUCCESS);
+    /* Negotiate cipher suites in server order: TLS13-AES256-GCM-SHA384 */
+    wolfSSL_accept_TLSv13(ssl);
+    /* Check refined order - server order. */
+    AssertIntEQ(ssl->suites->suiteSz, 4);
+    AssertIntEQ(ssl->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ssl->suites->suites[1], TLS_AES_256_GCM_SHA384);
+    AssertIntEQ(ssl->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ssl->suites->suites[3], TLS_AES_128_GCM_SHA256);
+    wolfSSL_free(ssl);
+
+    /* Test client order negotiation. */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    msg.buffer = clientHello;
+    msg.length = (unsigned int)sizeof(clientHello);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+    /* Server order: TLS13-AES256-GCM-SHA384:TLS13-AES128-GCM-SHA256 */
+    AssertIntEQ(wolfSSL_set_cipher_list(ssl, serverCs), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_UseClientSuites(ssl), 0);
+    /* Negotiate cipher suites in client order: TLS13-AES128-GCM-SHA256 */
+    wolfSSL_accept_TLSv13(ssl);
+    /* Check refined order - client order. */
+    AssertIntEQ(ssl->suites->suiteSz, 4);
+    AssertIntEQ(ssl->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ssl->suites->suites[1], TLS_AES_128_GCM_SHA256);
+    AssertIntEQ(ssl->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ssl->suites->suites[3], TLS_AES_256_GCM_SHA384);
+    wolfSSL_free(ssl);
+
+    /* Check duplicate detection is working. */
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, dupCs), WOLFSSL_SUCCESS);
+    AssertIntEQ(ctx->suites->suiteSz, 4);
+    AssertIntEQ(ctx->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[1], TLS_AES_128_GCM_SHA256);
+    AssertIntEQ(ctx->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[3], TLS_AES_256_GCM_SHA384);
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list_bytes(ctx, dupCsBytes,
+        sizeof(dupCsBytes)), WOLFSSL_SUCCESS);
+    AssertIntEQ(ctx->suites->suiteSz, 4);
+    AssertIntEQ(ctx->suites->suites[0], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[1], TLS_AES_256_GCM_SHA384);
+    AssertIntEQ(ctx->suites->suites[2], TLS13_BYTE);
+    AssertIntEQ(ctx->suites->suites[3], TLS_AES_128_GCM_SHA256);
+#endif
+
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+
+   return 0;
+}
+
 #endif
 
 #if defined(HAVE_PK_CALLBACKS) && (!defined(WOLFSSL_NO_TLS12) || \
@@ -58674,6 +58890,7 @@ TEST_CASE testCases[] = {
 #ifdef WOLFSSL_TLS13
     /* TLS v1.3 API tests */
     TEST_DECL(test_tls13_apis),
+    TEST_DECL(test_tls13_cipher_suites),
 #endif
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \

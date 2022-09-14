@@ -4755,17 +4755,39 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     word16 suiteSz = 0;
-    word16 i, j;
+    word16 i;
+    word16 j;
 
     XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
 
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        for (j = 0; j < peerSuites->suiteSz; j += 2) {
-            if (ssl->suites->suites[i+0] == peerSuites->suites[j+0] &&
-                ssl->suites->suites[i+1] == peerSuites->suites[j+1]) {
-                suites[suiteSz++] = peerSuites->suites[j+0];
-                suites[suiteSz++] = peerSuites->suites[j+1];
+    if (!ssl->options.useClientOrder) {
+        /* Server order refining. */
+        for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+            for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
+                    suites[suiteSz++] = peerSuites->suites[j+0];
+                    suites[suiteSz++] = peerSuites->suites[j+1];
+                    break;
+                }
             }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
+        }
+    }
+    else {
+        /* Client order refining. */
+        for (j = 0; j < peerSuites->suiteSz; j += 2) {
+            for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
+                    suites[suiteSz++] = peerSuites->suites[j+0];
+                    suites[suiteSz++] = peerSuites->suites[j+1];
+                    break;
+                }
+            }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
         }
     }
 
@@ -5105,7 +5127,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     int    first = 0;
 #ifndef WOLFSSL_PSK_ONE_ID
     int    i;
-    int    j;
 #else
     byte   suite[2];
 #endif
@@ -5148,25 +5169,13 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (usingPSK == NULL)
         return BAD_FUNC_ARG;
 
-    if (!ssl->options.useClientOrder) {
-        /* Server order - server list has only common suites from refining. */
-        for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
-                ssl->suites->suites + i, usingPSK, &first);
-            if (ret != 0) {
-                return ret;
-            }
-        }
-    }
-    else {
-        /* Client order */
-        for (j = 0; !(*usingPSK) && j < clSuites->suiteSz; j += 2) {
-            for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
-                ssl->suites->suites + i, usingPSK, &first);
-                if (ret != 0)
-                    return ret;
-            }
+    /* Server list has only common suites from refining in server or client
+     * order. */
+    for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
+        ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
+            ssl->suites->suites + i, usingPSK, &first);
+        if (ret != 0) {
+            return ret;
         }
     }
 #else
@@ -5783,6 +5792,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     ato16(&input[args->idx], &args->clSuites->suiteSz);
     args->idx += OPAQUE16_LEN;
+    if ((args->clSuites->suiteSz % 2) != 0) {
+        ERROR_OUT(INVALID_PARAMETER, exit_dch);
+    }
     /* suites and compression length check */
     if ((args->idx - args->begin) + args->clSuites->suiteSz + OPAQUE8_LEN > helloSz)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
