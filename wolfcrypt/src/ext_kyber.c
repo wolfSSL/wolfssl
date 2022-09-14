@@ -356,6 +356,8 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
         ForceZero(key, sizeof(*key));
     }
 
+    OQS_KEM_free(kem);
+
     return ret;
 }
 
@@ -431,6 +433,8 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
         }
     }
 #endif /* HAVE_PQM4 */
+
+    OQS_KEM_free(kem);
 
     return ret;
 }
@@ -518,6 +522,8 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
         }
     }
 #endif /* HAVE_PQM4 */
+
+    OQS_KEM_free(kem);
 
     return ret;
 

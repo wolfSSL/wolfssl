@@ -1,4 +1,4 @@
-/* ext_kyber.c
+/* ext_kyber.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
