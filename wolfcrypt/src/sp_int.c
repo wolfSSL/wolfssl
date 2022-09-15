@@ -4352,11 +4352,43 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
  */
 static void _sp_zero(sp_int* a)
 {
-    a->used = 0;
-    a->dp[0] = 0;
+    sp_int_minimal* am = (sp_int_minimal *)a;
+    am->used = 0;
+    am->dp[0] = 0;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    a->sign = MP_ZPOS;
+    am->sign = MP_ZPOS;
 #endif
+}
+
+
+/* Initialize the multi-precision number to be zero with a given max size.
+ *
+ * @param  [out]  a     SP integer.
+ * @param  [in]   size  Number of words to say are available.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a is NULL.
+ */
+int sp_init_size(sp_int* a, int size)
+{
+    sp_int_minimal* am = (sp_int_minimal *)a;
+    int err = MP_OKAY;
+
+    if (a == NULL) {
+        err = MP_VAL;
+    }
+    if (err == MP_OKAY) {
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&am->raw);
+    #endif
+        _sp_zero(a);
+    }
+
+    if (err == MP_OKAY) {
+        am->size = size;
+    }
+
+    return err;
 }
 
 /* Initialize the multi-precision number to be zero.
@@ -4368,39 +4400,7 @@ static void _sp_zero(sp_int* a)
  */
 int sp_init(sp_int* a)
 {
-    int err = MP_OKAY;
-
-    if (a == NULL) {
-        err = MP_VAL;
-    }
-    if (err == MP_OKAY) {
-    #ifdef HAVE_WOLF_BIGINT
-        wc_bigint_init(&a->raw);
-    #endif
-        _sp_zero(a);
-        a->size = SP_INT_DIGITS;
-    }
-
-    return err;
-}
-
-/* Initialize the multi-precision number to be zero and have a maximum size.
- *
- * @param  [out]  a     SP integer.
- * @param  [in]   size  Number of words to say are available.
- *
- * @return  MP_OKAY on success.
- * @return  MP_VAL when a is NULL.
- */
-int sp_init_size(sp_int* a, int size)
-{
-    int err = sp_init(a);
-
-    if (err == MP_OKAY) {
-        a->size = size;
-    }
-
-    return err;
+    return sp_init_size(a, SP_INT_DIGITS);
 }
 
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(NO_DH) || defined(HAVE_ECC)
