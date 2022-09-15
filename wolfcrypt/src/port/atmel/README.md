@@ -21,6 +21,7 @@ Requires the Microchip CryptoAuthLib library. The examples in `wolfcrypt/src/por
 * `WOLFSSL_ATECC_ECDH_ENC`: Enable use of atcab_ecdh_enc() for encrypted ECDH.
 * `WOLFSSL_ATECC_ECDH_IOENC`: Enable use of atcab_ecdh_ioenc() for encrypted ECDH.
 * `WOLFSSL_ATECC_TNGTLS`: Enable support for Microchip Trust&GO module configuration.
+* `WOLFSSL_ATECC_TFLXTLS`: Enable support for Microchip TrustFLEX with custom PKI module configuration
 * `WOLFSSL_ATECC_DEBUG`: Enable wolfSSL ATECC debug messages.
 * `WOLFSSL_ATMEL`: Enables ASF hooks seeding random data using the `atmel_get_random_number` function.
 * `WOLFSSL_ATMEL_TIME`: Enables the built-in `atmel_get_curr_time_and_date` function get getting time from ASF RTC. 
