@@ -55129,8 +55129,10 @@ static int test_wolfSSL_dtls_plaintext(void)
 
         test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-        AssertTrue(func_cb_client.return_code);
-        AssertTrue(func_cb_server.return_code);
+        if (!func_cb_client.return_code)
+            return -1;
+        if (!func_cb_server.return_code)
+            return -2;
     }
 
     printf(resultFmt, passed);
@@ -55397,42 +55399,43 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     ssl->macDropCount = keyUpdateLimit;
     w64Increment(&ssl->macDropCount);
     /* 100 read calls should be enough to complete the key update */
+    w64Zero(&counter);
     for (i = 0; i < 100; i++) {
         /* Key update should be sent and negotiated */
         ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
         /* Epoch after one key update is 4 */
-        if (w64Equal(ssl->dtls13Epoch, w64From32(0, 4))) {
+        if (w64Equal(ssl->dtls13PeerEpoch, w64From32(0, 4)) &&
+                w64Equal(ssl->macDropCount, counter)) {
             didReKey = 1;
             break;
         }
     }
     AssertTrue(didReKey);
-    w64Zero(&counter);
-    AssertTrue(w64Equal(ssl->macDropCount, counter));
 
     if (!w64IsZero(sendLimit)) {
         /* Test the sending limit for AEAD ciphers */
-        didReKey = 0;
-        AssertNotNull(ssl->dtls13EncryptEpoch);
-        ssl->dtls13EncryptEpoch->nextSeqNumber = sendLimit;
+        Dtls13Epoch* e = Dtls13GetEpoch(ssl, ssl->dtls13Epoch);
+        AssertNotNull(e);
+        e->nextSeqNumber = sendLimit;
         test_AEAD_seq_num = 1;
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
+        didReKey = 0;
+        w64Zero(&counter);
         /* 100 read calls should be enough to complete the key update */
         for (i = 0; i < 100; i++) {
             /* Key update should be sent and negotiated */
             ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
             AssertIntGT(ret, 0);
             /* Epoch after another key update is 5 */
-            if (w64Equal(ssl->dtls13Epoch, w64From32(0, 5))) {
+            if (w64Equal(ssl->dtls13Epoch, w64From32(0, 5)) &&
+                    w64Equal(ssl->macDropCount, counter)) {
                 didReKey = 1;
                 break;
             }
         }
         AssertTrue(didReKey);
-        w64Zero(&counter);
-        AssertTrue(w64Equal(ssl->macDropCount, counter));
     }
 
     test_AEAD_fail_decryption = 2;
@@ -55463,9 +55466,10 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
         if (test_AEAD_seq_num) {
             /* We need to update the seq number so that we can understand the
              * peer. Otherwise we will incorrectly interpret the seq number. */
-            AssertNotNull(ssl->dtls13DecryptEpoch);
-            ssl->dtls13DecryptEpoch->nextPeerSeqNumber = sendLimit;
-            test_AEAD_seq_num = 1;
+            Dtls13Epoch* e = Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch);
+            AssertNotNull(e);
+            e->nextPeerSeqNumber = sendLimit;
+            test_AEAD_seq_num = 0;
         }
         (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
@@ -55490,8 +55494,10 @@ static int test_wolfSSL_dtls_AEAD_limit(void)
 
     test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-    AssertTrue(func_cb_client.return_code);
-    AssertTrue(func_cb_server.return_code);
+    if (!func_cb_client.return_code)
+        return -1;
+    if (!func_cb_server.return_code)
+        return -2;
 
     printf(resultFmt, passed);
 
