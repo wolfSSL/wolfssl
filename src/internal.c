@@ -34008,9 +34008,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
         }
-        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE) {
-            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
-            return WOLFSSL_TICKET_RET_REJECT;
+        if (ret != WOLFSSL_TICKET_RET_OK) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                return ret;
+            }
+        #endif /* WOLFSSL_ASYNC_CRYPT */
+            if (ret != WOLFSSL_TICKET_RET_CREATE) {
+                WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
+                return WOLFSSL_TICKET_RET_REJECT;
+            }
         }
         if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
