@@ -7593,7 +7593,7 @@ int wolfSSL_X509_CRL_get_signature_nid(const WOLFSSL_X509_CRL* crl)
 }
 
 /* Retrieve signature from CRL
- * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_SUCCESS on success and negative values on failure
  */
 int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
     unsigned char* buf, int* bufSz)
@@ -7636,7 +7636,7 @@ int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
 const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
                                                       WOLFSSL_X509_REVOKED *rev)
 {
-    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get0_serial_number");
+    WOLFSSL_STUB("wolfSSL_X509_REVOKED_get0_serial_number");
 
     if (rev != NULL) {
         return rev->serialNumber;
@@ -7655,6 +7655,7 @@ const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
     return NULL;
 }
 #endif
+
 
 /* print serial number out
 *  return WOLFSSL_SUCCESS on success
