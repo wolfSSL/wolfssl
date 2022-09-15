@@ -1,6 +1,32 @@
+/* armv8-32-poly1305.c
+ *
+ * Copyright (C) 2006-2022 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+
+
 /*****************************************************************
 
-   The test data in this code matches the test data in RFC 7539.
+   This code can be built as a standalone application, the test
+   code to support that is at the bottom of the file.  One of
+   the test cases matches the test data in RFC 7539.  The 
+   standalone test output is similar to RFC 7539.
 
    The poly1305 algorithm takes two inputs, they are as follows.
 	1. the message data
@@ -199,47 +225,43 @@ void calculateRsquared(unsigned *r, unsigned *rsquared)
 			into the r and s subcomponents.
 **********************************************************/
 /* variable assembly code creates on stack */
+#define BYTES_SP_OFF              20
+#define HIBIT_LOCAL_SP_OFF        24
 
-#define BYTES_SP_OFF		20
-#define HIBIT_LOCAL_SP_OFF	24
-#define TEST1_SP_OFF		28
 void armv8_32_poly1305_blocks(Poly1305* ctx, 
-			const unsigned char *msgData,
-                     	size_t msgDataLen);
+                              const unsigned char *msgData,
+                              size_t msgDataLen);
 
 /* WOLFSSL_ARMASM_NO_NEON is used in armv8-32-sha512-asm.S */
 #ifdef WOLFSSL_ARMASM_NO_NEON2
 void armv8_32_poly1305_blocks(Poly1305* ctx, 
-			const unsigned char *msgData,
-                     	size_t msgDataLen)
+                              const unsigned char *msgData,
+                              size_t msgDataLen)
 {
-	/* these variables will be referenced via r7 in the assembly */
-	unsigned r[5], *r_ptrLocal, h[5], *h_ptrLocal;
-	unsigned msgDataOnStack = (unsigned)msgData;
-	unsigned msgDataLenOnStack = msgDataLen;
- 	unsigned hibitOnStack = (ctx->finished) ? 0 : ((unsigned) 1 << 24); /* 1 << 128 */
+        /* these variables will be referenced via r7 in the assembly */
+        unsigned r[5], *r_ptrLocal, h[5], *h_ptrLocal;
+        unsigned msgDataOnStack = (unsigned)msgData;
+        unsigned msgDataLenOnStack = msgDataLen;
+        unsigned hibitOnStack = (ctx->finished) ? 0 : ((unsigned) 1 << 24);
 
-	unsigned test1Array[10*2], test1OnStack;
-	test1OnStack = (unsigned )test1Array;
+        memcpy(r, ctx->r, 5 * sizeof(unsigned));
+        memcpy(h, ctx->h, 5 * sizeof(unsigned));
 
-	memcpy(r, ctx->r, 5 * sizeof(unsigned));
-	memcpy(h, ctx->h, 5 * sizeof(unsigned));
-
-	/* 32 bit pointer, this is necessary to pass the pointer value
+        /* 32 bit pointer, this is necessary to pass the pointer value
            into the assembly code */
-	r_ptrLocal = (unsigned *) r;
-	h_ptrLocal = (unsigned *) h;
+        r_ptrLocal = (unsigned *) r;
+        h_ptrLocal = (unsigned *) h;
 
 #ifdef POLY1305_VERBOSE
-	int i;
-	for (i=0;i<5;++i) printf("h%d %07X ", i, h[i]);
-	printf("\n");
+        int i;
+        for (i=0;i<5;++i) printf("h%d %07X ", i, h[i]);
+        printf("\n");
 
-	printf("armv8_32_poly1305_blocks() data len %d\n", msgDataLen);
+        printf("armv8_32_poly1305_blocks() data len %d\n", msgDataLen);
 #endif
 
-	__asm__ __volatile__ (
-             ".align        8                                \n\t"
+        __asm__ __volatile__ (
+                ".align        8                                \n\t"
                 
                 /* valid registers are r0..r12, sp, lr, pc, cpsr, fpscr */
                 
@@ -255,10 +277,9 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
                 "LDR        r1, %[r_ptr]                        \n\t"
                 "LDR        r2, %[hibit]                        \n\t"
                 "LDR        r5, %[m]                            \n\t"
-		"LDR	    r3, %[test1]			\n\t"
 
                 "PUSH       { r7 }                              \n\t"
-                "SUB        sp, #32                             \n\t"
+                "SUB        sp, #28                             \n\t"
                 
                 /* -O2 gcc parameters means r7 is not used for local
                    variables, but sp is used for local variables */
@@ -266,7 +287,6 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
                    via r7 to recently allocated stack space */
                 "STR        r0, [sp, %[BYTES_STORE]]            \n\t"
                 "STR        r2, [sp, %[HIBIT_LOCAL]]            \n\t"
-		"STR        r3, [sp, %[TEST1_LOCAL]]		\n\t"
 
                 "LDM        r1, { r0, r1, r2, r3, r4 }          \n\t"
                 "STM        sp, { r0, r1, r2, r3, r4 }          \n\t"
@@ -335,8 +355,6 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
                 "ADD        r10, r10, r12                       \n\t"
                 /* h4 += r3 >> 8                   */
                 "ADD        r11, r11, r3, LSR #8                \n\t"  /* 8+32+32+32 = 104 */
-
-		/* r6 = 0797243  r8 = 1DBDD1C  r9 = 3061000  r10 = 18DA5A1  r11 = 16F4620 */
 
                 /* pull in the 26 bit components of the r key */
                 "LDM        sp, { r0, r1, r2, r3, r4 }          \n\t"   /* mem 5 */
@@ -415,6 +433,7 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
 
                 /* 29DD73 07661C87 */
 
+
                 /* registers r6, r8, r9, r10, r11 must be 
                    populated with above results after accounting 
                    for overflow past 26 bit. */
@@ -426,16 +445,6 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
 
                 /* d0 overflow to d1 */
                 "POP        { r0, r1, r2, r3, r4, r9, r10, r11 } \n\t"  /* mem 10 */
-
-		/* r12 D10FA341 r14 02929E2 
-	 	   r0  14380FCE  r1 0071FD6 r2 14E3B1DB r3 00CA7F3 
-		   r4  BD0D158C  r9 00BC46F r10 DE32A7D5 r11 0048496 */
-
-		/* r12 CB2EA8BD r14 06165D0
-		   r0 F0475619 r1 044A41C r2 79EE3BD7 r3 02B9EA1 
-                   r4 ED6D017F r9 017E1B1 r10 9C3DCCF2 r11 011E440  */
-
-
 
                 "ADDS       r0, r0, r12, LSR #26                \n\t"
                 "ADC        r1, r1, #0                          \n\t"
@@ -575,7 +584,7 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
         
         "armv8_32_poly1305_done:                                \n\t"
 
-                "ADD        sp, #32                             \n\t"
+                "ADD        sp, #28                             \n\t"
                 "POP        { r7 }                              \n\t"
 
                 /* store final result */
@@ -586,68 +595,27 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
                   [r_ptr]          "+m" (r_ptrLocal),            /* input */
                   [h_ptr]          "+m" (h_ptrLocal),            /* input, output */
                   [bytes]          "+m" (msgDataLenOnStack),     /* input */
-                  [hibit]          "+m" (hibitOnStack),          /* input */
-		  [test1]	   "+m" (test1OnStack)
+                  [hibit]          "+m" (hibitOnStack)           /* input */
+                  
                 : [BYTES_STORE]    "I" (BYTES_SP_OFF),
-                  [HIBIT_LOCAL]    "I" (HIBIT_LOCAL_SP_OFF),
-		  [TEST1_LOCAL]    "I" (TEST1_SP_OFF)
+                  [HIBIT_LOCAL]    "I" (HIBIT_LOCAL_SP_OFF)
                 : "memory", "cc", 
                         "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10",
                         "r11", "r12", "lr"
         );
 
-	/* do reduction */
-	int over;
-	
-	over = h[0]>>26;
-	h[0] = h[0] & 0x3FFFFFF;
-	h[1] += over;
-
-	over = h[1]>>26;
-	h[1] = h[1] & 0x3FFFFFF;
-	h[2] += over;
-	
-	over = h[2]>>26;
-	h[2] = h[2] & 0x3FFFFFF;
-	h[3] += over;
-
-	over = h[3]>>26;
-	h[3] = h[3] & 0x3FFFFFF;
-	h[4] += over;
-
-	over = h[4]>>26;
-	h[4] = h[4] & 0x3FFFFFF;
-
-	h[0] += (over * 5);
-	over = h[0]>>26;
-	h[0] = h[0] & 0x3FFFFFF;
-
-	h[1] += over;
-
-	printf("\nH values  ");
-
-	for (i=0;i<5;++i)
-	{
-//		ctx->h[i] = h1[i];
-		printf("  %X  ", h[i]);
-	}
-	printf("\n\n");
-
-	memcpy(ctx->h, h, 5 * sizeof(unsigned));
+        memcpy(ctx->r, r, 5 * sizeof(unsigned));
+        memcpy(ctx->h, h, 5 * sizeof(unsigned));
 
 #ifdef POLY1305_VERBOSE
+        for (i=0;i<5;++i) printf("h%d %07X ", i, ctx->h[i]);
+        printf("\n");
 
-	printf("\n\ntest array\n\n");
-	for (i=0;i<5;++i) printf("%d %07X ", i, test1Array[i]);
-	printf("\n\n");
-
-	for (i=0;i<5;++i) printf("h%d %07X ", i, ctx->h[i]);
-	printf("\n");
-
-	printf("armv8_32_poly1305_blocks() leaving\n");
+        printf("armv8_32_poly1305_blocks() leaving\n");
 #endif
 
 }
+
 #else
 
 void armv8_32_poly1305_blocks(Poly1305* ctx, 
@@ -712,8 +680,6 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
 		".align	8	 				\n\t"
 
 		/* valid registers are d0..d31 */
-
-		//"PUSH		{ r11, r12 }			\n\t"
 
 		/* load r values into d0..d4 */
 		"LDR		r11, %[r_ptr]			\n\t"
@@ -1282,8 +1248,6 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
                 "LDR    r10, %[h_ptr1]                   \n\t"
                 "STM    r10, { r0, r1, r2, r3, r4 }      \n\t"
 
-		//"POP	{ r11, r12 }			 \n\t"
-
 		: [m] 		  "+m" (msgDataOnStack),	/* input */
 		  [r_ptr]  	  "+m" (r_ptrLocal),		/* input */
 		  [r2_ptr]	  "+m" (r2_ptrLocal),		/* input */
@@ -1304,6 +1268,8 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
 			"d28", "d29", "d30", "d31"
 	);
 
+	/* testing with testsuite/testsuite.test demonstrates that the
+	   below reduction is necessary. */
 
 	/* do reduction */
 	int over;
@@ -1333,14 +1299,7 @@ void armv8_32_poly1305_blocks(Poly1305* ctx,
 
 	h1[1] += over;
 
-	printf("\nH values  ");
-	for (i=0;i<5;++i)
-	{
-		ctx->h[i] = h1[i];
-		printf("  %X  ", h1[i]);
-	}
-	printf("\n\n");
-	
+	memcpy(ctx->h, h1, 5 * sizeof(unsigned));
 
 #ifdef POLY1305_VERBOSE
 	printf("\narmv8_32_poly1305_blocks() leaving\n");
@@ -1617,13 +1576,13 @@ unsigned char testData[]="Cryptographic Forum Research set1234567890123456111111
 unsigned char resultCheck[]="\xF8\x2E\xC4\xEF\x9B\x3C\x6A\xC1\x61\x73\xD4\xE9\x3C\x65\x93\x3B";  
 #endif
 
-#if 1
+#if 0
 /* two 16 byte blocks + an under sized block */
 unsigned char testData[]="Cryptographic Forum Research set1234"; 
 unsigned char resultCheck[]="\xA2\x0F\x7A\xD8\xE8\x9A\x60\xF6\x7C\x80\x5E\x28\x04\x86\x8D\xCA";
 #endif
 
-#if 0
+#if 1
 /* eight 16 byte blocks */
 unsigned char testData[]="Cryptographic Forum Research setCryptographic Forum Research setCryptographic Forum Research setCryptographic Forum Research set"; 
 unsigned char resultCheck[]="\xAE\xF7\x74\x3B\x69\x72\x8A\x4F\xD7\x32\x60\xB6\x7E\x0B\x60\x88";
@@ -1688,9 +1647,12 @@ int main(void)
 	   with the 16 byte chunks and the updated h value. */
 	memset(ctx.h, 0, 5 * sizeof(unsigned));
 
-	/* for the sake of testing ... */
-	for (i=0;i<5;++i)
-		ctx.h[i] = i;
+	/* Some of the test cases found in 
+           wolfcrypt/test/test.c : poly1305_test() start with a
+	   non-zero h vector. */
+
+	/* for (i=0;i<5;++i)
+		ctx.h[i] = i; */
 
 #if 0
 	unsigned r_1[5], r_2[5];
@@ -1764,7 +1726,6 @@ int main(void)
 	printf("\n\n");
 #endif
 	
-//return 0;
 	convert26BitValuesTo17Byte(ctx.h, acc);
 
 	/* make output match what is seen in RFC */
