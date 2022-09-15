@@ -335,6 +335,11 @@
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_RENESAS_RX64_HASH)
+
+/* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
+
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
@@ -865,6 +870,13 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);
 #endif
+#if defined(WOLFSSL_RENESAS_RX64_HASH)
+    wolfssl_RX64_HW_Hash* hw_sha = (wolfssl_RX64_HW_Hash*)sha;
+    if (hw_sha->msg != NULL) {
+        XFREE(hw_sha->msg, hw_sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        hw_sha->msg = NULL;
+    }
+#endif
 }
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
@@ -875,6 +887,7 @@ void wc_ShaFree(wc_Sha* sha)
 
 #if !defined(WOLFSSL_RENESAS_TSIP_CRYPT) || \
     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+#if !defined(WOLFSSL_RENESAS_RX64_HASH)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
@@ -944,6 +957,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #endif
     return ret;
 }
+#endif /* WOLFSSL_RENESAS_RX64_HASH */
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
 #endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */

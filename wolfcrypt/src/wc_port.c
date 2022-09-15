@@ -176,6 +176,10 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #if defined(WOLFSSL_RENESAS_RX64_HASH)
+        rx64_hw_Open();
+    #endif
+
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
         ret = wc_sce_Open( );
         if( ret != FSP_SUCCESS ) {
@@ -421,6 +425,10 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_RENESAS_TSIP
         tsip_Close();
+    #endif
+
+    #if defined(WOLFSSL_RENESAS_RX64_HASH)
+        rx64_hw_Close();
     #endif
 
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
