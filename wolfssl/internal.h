@@ -1298,6 +1298,22 @@ enum {
 #define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
 #define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
 
+#define TLS13_TICKET_NONCE_MAX_SZ 255
+
+#if (defined(HAVE_FIPS) &&                                                     \
+    !(defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))) &&                    \
+    defined(TLS13_TICKET_NONCE_STATIC_SZ)
+#error "TLS13_TICKET_NONCE_STATIC_SZ is not supported in this FIPS version"
+#endif
+
+#ifndef TLS13_TICKET_NONCE_STATIC_SZ
+#define TLS13_TICKET_NONCE_STATIC_SZ 8
+#endif
+
+#if TLS13_TICKET_NONCE_STATIC_SZ > TLS13_TICKET_NONCE_MAX_SZ
+#error "Max size for ticket nonce is 255 bytes"
+#endif
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -1388,7 +1404,8 @@ enum Misc {
     SESSION_ADD_SZ = 4,        /* session age add */
     TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
-    MAX_TICKET_NONCE_STATIC_SZ = 8,   /* maximum ticket nonce static size */
+    MAX_TICKET_NONCE_STATIC_SZ = TLS13_TICKET_NONCE_STATIC_SZ,
+                               /* maximum ticket nonce static size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
 
     RAN_LEN      = 32,         /* random length           */
