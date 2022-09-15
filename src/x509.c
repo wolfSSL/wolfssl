@@ -7633,6 +7633,45 @@ int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
     return WOLFSSL_SUCCESS;
 }
 
+/* Retrieve the revocation date from RevokedCert
+ * return WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_REVOKED_get_revocationDate(RevokedCert* rev,
+    byte* in, int* inOutSz)
+{
+    char tmp[MAX_DATE_SIZE];
+
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get_revocationDate");
+
+    if ((rev == NULL) || (in == NULL) || (inOutSz == NULL)) {
+        return (BAD_FUNC_ARG);
+    }
+
+    if (*inOutSz < MAX_DATE_SIZE) {
+        return (BAD_FUNC_ARG);
+    }
+
+    if (rev->revDate[0] != 0) {
+        if (GetTimeString(rev->revDate, ASN_UTC_TIME,
+            tmp, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
+                if (GetTimeString(rev->revDate, ASN_GENERALIZED_TIME,
+                              tmp, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("Error getting revocation date");
+
+                        return (WOLFSSL_FAILURE);
+                }
+        }
+    }
+    else {
+        XSTRNCPY(tmp, "Not Set", MAX_DATE_SIZE-1);
+    }
+
+    *inOutSz = XSTRLEN (tmp);
+    XMEMCPY(in, tmp, *inOutSz);
+
+    return (WOLFSSL_SUCCESS);
+}
+
 /* print serial number out
 * return WOLFSSL_SUCCESS on success
 */
