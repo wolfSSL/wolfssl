@@ -9149,7 +9149,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         idx = 0;
         XMEMSET(buff, 0, sizeof(buff));
         Indent(out, indent);
-        XSTRNCPY(line, "RSA Public-Key: (", sizeof(line));
+        XSTRNCPY(line, "Public-Key: (", sizeof(line));
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
@@ -9181,13 +9181,8 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             nSz++;
         }
 
-        if (PrintHexWithColon(out, n, nSz, indent + 4,
-                                    #if defined(WOLFSSL_QT)
-                                        1/* lower case */
-                                    #else
-                                        0/* upper case */
-                                    #endif
-                                        ) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, n, nSz, 
+                    indent + 4, 1/* lower case */) != WOLFSSL_SUCCESS) {
             break;
         }
         /* print public Exponent */
