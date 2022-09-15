@@ -2012,15 +2012,6 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
             return BAD_STATE_E;
     }
 
-#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
-    /* We are updating the receiving keys for this connection. We can restart
-     * the failed decryption counter if we haven't reached the key update
-     * limit. */
-    if ((side == ENCRYPT_AND_DECRYPT_SIDE || side == DECRYPT_SIDE_ONLY) &&
-            w64IsZero(ssl->dtls13InvalidateBefore))
-        w64Zero(&ssl->macDropCount);
-#endif
-
     Dtls13EpochCopyKeys(ssl, e, &ssl->keys, side);
 
     if (!e->isValid) {
@@ -2691,13 +2682,20 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
             WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
             return DECRYPT_ERROR;
     }
-    if (w64GT(ssl->macDropCount, hardLimit)) {
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Dtls13CheckAEADFailLimit: ssl->dtls13DecryptEpoch should "
+                    "not be NULL");
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
+    }
+    w64Increment(&ssl->dtls13DecryptEpoch->dropCount);
+    if (w64GT(ssl->dtls13DecryptEpoch->dropCount, hardLimit)) {
         /* We have reached the hard limit for failed decryptions. */
         WOLFSSL_MSG("Connection exceeded hard AEAD limit");
         WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
         return DECRYPT_ERROR;
     }
-    else if (w64GT(ssl->macDropCount, keyUpdateLimit)) {
+    else if (w64GT(ssl->dtls13DecryptEpoch->dropCount, keyUpdateLimit)) {
         WOLFSSL_MSG("Connection exceeded key update limit. Issuing key update");
         /* If not waiting for a response then request a key update. */
         if (!ssl->keys.updateResponseReq) {

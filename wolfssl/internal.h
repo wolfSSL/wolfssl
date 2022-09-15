@@ -4651,6 +4651,10 @@ typedef struct Dtls13Epoch {
     w64wrapper nextSeqNumber;
     w64wrapper nextPeerSeqNumber;
 
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    w64wrapper dropCount; /* Amount of records that failed decryption */
+#endif
+
     word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
 
     /* key material for the epoch */
@@ -4912,10 +4916,8 @@ struct WOLFSSL {
 #ifdef WOLFSSL_MULTICAST
     void*           mcastHwCbCtx;       /* Multicast highwater callback ctx */
 #endif /* WOLFSSL_MULTICAST */
-#if defined(WOLFSSL_DTLS_DROP_STATS) || defined(WOLFSSL_DTLS13)
-    w64wrapper macDropCount;
-#endif
 #ifdef WOLFSSL_DTLS_DROP_STATS
+    word32 macDropCount;
     word32 replayDropCount;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 #ifdef WOLFSSL_SRTP

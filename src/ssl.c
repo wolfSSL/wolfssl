@@ -1534,7 +1534,7 @@ int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
     else {
         ret = WOLFSSL_SUCCESS;
         if (macDropCount != NULL)
-            *macDropCount = w64GetLow32(ssl->macDropCount);
+            *macDropCount = ssl->macDropCount;
         if (replayDropCount != NULL)
             *replayDropCount = ssl->replayDropCount;
     }
@@ -3283,11 +3283,6 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     }
     /* CLIENT/SERVER: Reset peer authentication for full secure handshake. */
     ssl->options.peerAuthGood = 0;
-
-#ifdef WOLFSSL_DTLS_DROP_STATS
-    if (ssl->options.dtls)
-        w64Zero(&ssl->macDropCount);
-#endif
 
 #ifdef HAVE_SESSION_TICKET
     if (ret == WOLFSSL_SUCCESS)

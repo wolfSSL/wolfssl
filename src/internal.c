@@ -18206,7 +18206,6 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
             Dtls13SetOlderEpochSide(ssl, ssl->dtls13InvalidateBefore,
                                     ENCRYPT_SIDE_ONLY);
             w64Zero(&ssl->dtls13InvalidateBefore);
-            w64Zero(&ssl->macDropCount);
         }
     }
 #endif
@@ -18799,15 +18798,14 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
 static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
 {
     int ret = 0;
-#if defined(WOLFSSL_DTLS_DROP_STATS) || \
-    (defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS))
-    w64Increment(&ssl->macDropCount);
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    ssl->macDropCount++;
+#endif
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
     /* Handle AEAD limits specified by the RFC for failed decryption */
     if (IsAtLeastTLSv1_3(ssl->version))
         ret = Dtls13CheckAEADFailLimit(ssl);
-#endif
 #endif
 
     (void)ssl;

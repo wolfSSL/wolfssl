@@ -55381,7 +55381,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     test_AEAD_get_limits(ssl, &hardLimit, &keyUpdateLimit, &sendLimit);
 
     w64Zero(&counter);
-    AssertTrue(w64Equal(ssl->macDropCount, counter));
+    AssertTrue(w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->dropCount, counter));
 
     wolfSSL_SSLSetIORecv(ssl, test_AEAD_cbiorecv);
 
@@ -55392,12 +55392,12 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         /* Should succeed since decryption failures are dropped */
         AssertIntGT(ret, 0);
-        AssertTrue(w64Equal(ssl->macDropCount, counter));
+        AssertTrue(w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter));
     }
 
     test_AEAD_fail_decryption = 1;
-    ssl->macDropCount = keyUpdateLimit;
-    w64Increment(&ssl->macDropCount);
+    Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount = keyUpdateLimit;
+    w64Increment(&Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount);
     /* 100 read calls should be enough to complete the key update */
     w64Zero(&counter);
     for (i = 0; i < 100; i++) {
@@ -55406,7 +55406,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         AssertIntGT(ret, 0);
         /* Epoch after one key update is 4 */
         if (w64Equal(ssl->dtls13PeerEpoch, w64From32(0, 4)) &&
-                w64Equal(ssl->macDropCount, counter)) {
+                w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter)) {
             didReKey = 1;
             break;
         }
@@ -55415,9 +55415,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
 
     if (!w64IsZero(sendLimit)) {
         /* Test the sending limit for AEAD ciphers */
-        Dtls13Epoch* e = Dtls13GetEpoch(ssl, ssl->dtls13Epoch);
-        AssertNotNull(e);
-        e->nextSeqNumber = sendLimit;
+        Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->nextSeqNumber = sendLimit;
         test_AEAD_seq_num = 1;
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
@@ -55430,7 +55428,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
             AssertIntGT(ret, 0);
             /* Epoch after another key update is 5 */
             if (w64Equal(ssl->dtls13Epoch, w64From32(0, 5)) &&
-                    w64Equal(ssl->macDropCount, counter)) {
+                    w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->dropCount, counter)) {
                 didReKey = 1;
                 break;
             }
@@ -55439,8 +55437,8 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     }
 
     test_AEAD_fail_decryption = 2;
-    ssl->macDropCount = hardLimit;
-    w64Decrement(&ssl->macDropCount);
+    Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount = hardLimit;
+    w64Decrement(&Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount);
     /* Connection should fail with a DECRYPT_ERROR */
     ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
     AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
