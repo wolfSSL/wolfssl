@@ -6,13 +6,22 @@
 #error This user_settings.h header is only designed for Windows
 #endif
 
+#define USE_WOLFSSL_IO
+#define HAVE_AESGCM
+#define WOLFSSL_TLS13
+#define HAVE_HKDF
+#define HAVE_FFDHE_4096
+#define WC_RSA_PSS
+#define WOLFSSL_DTLS
+#define WOLFSSL_DTLS13
+#define WOLFSSL_DTLS_CID
+
 /* Configurations */
 #if defined(HAVE_FIPS)
     /* FIPS */
     #define OPENSSL_EXTRA
     #define HAVE_THREAD_LS
     #define WOLFSSL_KEY_GEN
-    #define HAVE_AESGCM
     #define HAVE_HASHDRBG
     #define WOLFSSL_SHA384
     #define WOLFSSL_SHA512

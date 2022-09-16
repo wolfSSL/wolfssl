@@ -2994,7 +2994,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_DTLS13
                 if (ret == 0 && ssl->options.dtls) {
                     /* AAD points to the header. Reuse the variable  */
-                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, args->sz);
+                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, (word16)args->sz);
                 }
 #endif /* WOLFSSL_DTLS13 */
             }
@@ -3954,7 +3954,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         if (ssl->options.dtls)
             ret = Dtls13HashHandshake(ssl,
                 args->output + Dtls13GetRlHeaderLength(ssl, 0),
-                args->idx - Dtls13GetRlHeaderLength(ssl, 0));
+                (word16)args->idx - Dtls13GetRlHeaderLength(ssl, 0));
         else
 #endif /* WOLFSSL_DTLS13 */
                 ret = HashOutput(ssl, args->output, args->idx, 0);
@@ -3975,8 +3975,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     ssl->options.buildingMsg = 0;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, args->output, args->sendSz,
-                                  args->idx, client_hello, 0);
+        ret = Dtls13HandshakeSend(ssl, args->output, (word16)args->sendSz,
+                                  (word16)args->idx, client_hello, 0);
 
         WOLFSSL_LEAVE("SendTls13ClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_SEND);
@@ -4035,7 +4035,7 @@ static int Dtls13DoDowngrade(WOLFSSL* ssl)
     ssl->dtls13ClientHello = NULL;
     ssl->dtls13ClientHelloSz = 0;
     ssl->keys.dtls_sequence_number_hi =
-        w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+        (word16)w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     ssl->keys.dtls_sequence_number_lo =
         w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     return ret;
@@ -6176,8 +6176,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls) {
             ret = Dtls13HashHandshake(ssl,
-                                      output + Dtls13GetRlHeaderLength(ssl, 0) ,
-                                      sendSz - Dtls13GetRlHeaderLength(ssl, 0));
+									output + Dtls13GetRlHeaderLength(ssl, 0) ,
+                            (word16)sendSz - Dtls13GetRlHeaderLength(ssl, 0));
         }
         else
 #endif /* WOLFSSL_DTLS13 */
@@ -6204,7 +6204,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     ssl->options.buildingMsg = 0;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, output, sendSz, sendSz,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)sendSz,
             (enum HandShakeType)extMsgType, 0);
 
         WOLFSSL_LEAVE("SendTls13ServerHello", ret);
@@ -6345,7 +6345,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         ssl->options.buildingMsg = 0;
-        ret = Dtls13HandshakeSend(ssl, output, sendSz, idx,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)idx,
                                   encrypted_extensions, 1);
 
         if (ret == 0)
@@ -6457,7 +6457,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ssl->options.dtls) {
         ssl->options.buildingMsg = 0;
         ret =
-            Dtls13HandshakeSend(ssl, output, sendSz, i, certificate_request, 1);
+            Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)i,
+								certificate_request, 1);
 
         WOLFSSL_LEAVE("SendTls13CertificateRequest", ret);
         WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
@@ -7267,7 +7268,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             /* DTLS1.3 uses a separate variable and logic for fragments */
             ssl->options.buildingMsg = 0;
             ssl->fragOffset = 0;
-            ret = Dtls13HandshakeSend(ssl, output, sendSz, i, certificate, 1);
+            ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)i,
+									  certificate, 1);
         }
         else
 #endif /* WOLFSSL_DTLS13 */
@@ -7804,7 +7806,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ssl->options.buildingMsg = 0;
                 ret = Dtls13HandshakeSend(ssl, args->output,
                     MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA + MAX_MSG_EXTRA,
-                    args->sendSz, certificate_verify, 1);
+                    (word16)args->sendSz, certificate_verify, 1);
                 if (ret != 0)
                     goto exit_scv;
 
@@ -8731,8 +8733,8 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (isDtls) {
-        dtlsRet = Dtls13HandshakeSend(ssl, output, outputSz,
-            Dtls13GetRlHeaderLength(ssl, 1) + headerSz + finishedSz, finished,
+        dtlsRet = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
+            (word16)(Dtls13GetRlHeaderLength(ssl, 1) + headerSz + finishedSz), finished,
             1);
         if (dtlsRet != 0 && dtlsRet != WANT_WRITE)
             return ret;
@@ -8943,7 +8945,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, output, outputSz,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
             OPAQUE8_LEN + Dtls13GetRlHeaderLength(ssl, 1) +
                 DTLS_HANDSHAKE_HEADER_SZ,
             key_update, 0);

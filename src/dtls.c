@@ -33,6 +33,11 @@
 
 typedef struct ConnectionID {
     byte length;
+/* Ignore "nonstandard extension used : zero-sized array in struct/union"
+ * MSVC warning */
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
     byte id[];
 } ConnectionID;
 

@@ -5937,7 +5937,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
     ProtocolVersion pv = ssl->ctx->method->version;
     int i;
     int len;
-    int newMinor = 0;
+    byte newMinor = 0;
     int set = 0;
     int ret;
     byte major, minor;

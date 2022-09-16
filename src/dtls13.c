@@ -206,7 +206,7 @@ static int Dtls13HandshakeAddHeaderFrag(WOLFSSL* ssl, byte* output,
 
 static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
 {
-    int ret = 0;
+    byte ret = 0;
 
     switch (hs_type) {
     case hello_request:
@@ -240,7 +240,6 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
     enum rnDirection dir)
 {
     RecordNumberCiphers* c;
-    int ret;
 
     if (dir == PROTECT)
         c = &ssl->dtlsRecordNumberEncrypt;
@@ -260,6 +259,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
 #ifdef HAVE_CHACHA
     if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
         word32 counter;
+		int ret;
 
         if (c->chacha == NULL)
             return BAD_STATE_E;
@@ -886,7 +886,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
 
         ret = Dtls13SendOneFragmentRtx(ssl,
             (enum HandShakeType)ssl->dtls13FragHandshakeType,
-            recordLength + MAX_MSG_EXTRA, output, recordLength, 0);
+            (word16)recordLength + MAX_MSG_EXTRA, output, (word32)recordLength, 0);
         if (ret == WANT_WRITE) {
             ssl->dtls13FragOffset += fragLength;
             return ret;
@@ -930,7 +930,7 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
        hash now pretending fragmentation will not happen */
     if (hash_output) {
         ret = Dtls13HashHandshake(ssl, message + rlHeaderLength,
-            length - rlHeaderLength);
+            length - (word16)rlHeaderLength);
         if (ret != 0)
             return ret;
     }
@@ -1022,7 +1022,7 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
         if (ret != WOLFSSL_SUCCESS)
             return ret;
 
-        *idx += _cidSz;
+        *idx += (word16)_cidSz;
         return 0;
     }
 
@@ -1256,7 +1256,7 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
 {
     w64wrapper _epoch;
     Dtls13Epoch* e;
-    byte found;
+    byte found = 0;
     int i;
 
     if (Dtls13GetEpochBits(ssl->dtls13PeerEpoch) == epochBits) {
@@ -1465,7 +1465,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
 
         seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
 
-        ret = Dtls13SendFragment(ssl, output, sendSz, r->length + headerLength,
+        ret = Dtls13SendFragment(ssl, output, (word16)sendSz, r->length + headerLength,
             (enum HandShakeType)r->handshakeType, 0,
             isLast || !ssl->options.groupMessages);
         if (ret != 0 && ret != WANT_WRITE)
@@ -1590,7 +1590,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
+            DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
                 ssl->keys.dtls_peer_handshake_number,
                 input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
                 fragOff, fragLength, ssl->heap);
@@ -1672,7 +1672,7 @@ int Dtls13AddHeaders(byte* output, word32 length, enum HandShakeType hsType,
     WOLFSSL* ssl)
 {
     word16 handshakeOffset;
-    int isEncrypted;
+    byte isEncrypted;
 
     isEncrypted = Dtls13TypeIsEncrypted(hsType);
     handshakeOffset = Dtls13GetRlHeaderLength(ssl, isEncrypted);
@@ -2004,7 +2004,7 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
         /* fresh epoch, initialize fields */
         e->epochNumber = epochNumber;
         e->isValid = 1;
-        e->side = side;
+        e->side = (byte)side;
     }
     else if (e->side != side) {
         /* epoch used for the other side already. update side */
@@ -2212,7 +2212,7 @@ static int Dtls13GetAckListLength(Dtls13RecordNumber* list, word16* length)
         numberElements++;
     }
 
-    *length = DTLS13_RN_SIZE * numberElements;
+    *length = (word16)(DTLS13_RN_SIZE * numberElements);
     return 0;
 }
 
@@ -2525,7 +2525,7 @@ int SendDtls13Ack(WOLFSSL* ssl)
         output =
             ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
 
-        ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, length);
+        ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, (word16)length);
         if (ret != 0)
             return ret;
 
