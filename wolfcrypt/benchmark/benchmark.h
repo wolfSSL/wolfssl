@@ -85,6 +85,7 @@ void bench_rsaKeyGen_size(int useDeviceID, int keySz);
 void bench_rsa(int useDeviceID);
 void bench_rsa_key(int useDeviceID, int keySz);
 void bench_dh(int useDeviceID);
+void bench_kyber(int type);
 void bench_ecc_curve(int curveId);
 void bench_eccMakeKey(int useDeviceID, int curveId);
 void bench_ecc(int useDeviceID, int curveId);

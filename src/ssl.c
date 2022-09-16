@@ -225,6 +225,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("KYBER_LEVEL1"), "KYBER_LEVEL1", WOLFSSL_KYBER_LEVEL1},
     {XSTR_SIZEOF("KYBER_LEVEL3"), "KYBER_LEVEL3", WOLFSSL_KYBER_LEVEL3},
     {XSTR_SIZEOF("KYBER_LEVEL5"), "KYBER_LEVEL5", WOLFSSL_KYBER_LEVEL5},
+#ifdef HAVE_LIBOQS
     {XSTR_SIZEOF("NTRU_HPS_LEVEL1"), "NTRU_HPS_LEVEL1", WOLFSSL_NTRU_HPS_LEVEL1},
     {XSTR_SIZEOF("NTRU_HPS_LEVEL3"), "NTRU_HPS_LEVEL3", WOLFSSL_NTRU_HPS_LEVEL3},
     {XSTR_SIZEOF("NTRU_HPS_LEVEL5"), "NTRU_HPS_LEVEL5", WOLFSSL_NTRU_HPS_LEVEL5},
@@ -248,6 +249,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("P256_KYBER_90S_LEVEL1"), "P256_KYBER_90S_LEVEL1", WOLFSSL_P256_KYBER_90S_LEVEL1},
     {XSTR_SIZEOF("P384_KYBER_90S_LEVEL3"), "P384_KYBER_90S_LEVEL3", WOLFSSL_P384_KYBER_90S_LEVEL3},
     {XSTR_SIZEOF("P521_KYBER_90S_LEVEL5"), "P521_KYBER_90S_LEVEL5", WOLFSSL_P521_KYBER_90S_LEVEL5},
+#endif
 #endif
     {0, NULL, 0},
 };
@@ -2879,6 +2881,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
+    #ifdef HAVE_LIBOQS
         case WOLFSSL_NTRU_HPS_LEVEL1:
         case WOLFSSL_NTRU_HPS_LEVEL3:
         case WOLFSSL_NTRU_HPS_LEVEL5:
@@ -2902,6 +2905,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_P256_KYBER_90S_LEVEL1:
         case WOLFSSL_P384_KYBER_90S_LEVEL3:
         case WOLFSSL_P521_KYBER_90S_LEVEL5:
+    #endif
 #endif
             return 1;
 
@@ -6689,7 +6693,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-        defined(HAVE_PQC) || !defined(NO_RSA)
+        (defined(HAVE_PQC) && defined(HAVE_LIBOQS)) || !defined(NO_RSA)
         if (ssl) {
         #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
             (defined(HAVE_CURVE448) && defined(HAVE_ED448))
@@ -20754,6 +20758,19 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #elif defined(HAVE_PQM4)
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
+#elif defined(WOLFSSL_WC_KYBER)
+    #ifdef WOLFSSL_KYBER512
+        case WOLFSSL_KYBER_LEVEL1:
+            return "KYBER_LEVEL1";
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        case WOLFSSL_KYBER_LEVEL3:
+            return "KYBER_LEVEL3";
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        case WOLFSSL_KYBER_LEVEL5:
+            return "KYBER_LEVEL5";
+    #endif
 #endif
         }
     }

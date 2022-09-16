@@ -50380,7 +50380,11 @@ static int test_tls13_apis(void)
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
 #ifdef HAVE_PQC
+    #ifndef WOLFSSL_WC_KYBER
                                WOLFSSL_SABER_LEVEL3
+    #else
+                               WOLFSSL_KYBER_LEVEL1
+    #endif
 #else
                                WOLFSSL_ECC_SECP256R1
 #endif
@@ -50402,7 +50406,11 @@ static int test_tls13_apis(void)
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
 #ifdef HAVE_PQC
+    #ifndef WOLFSSL_WC_KYBER
             ":P256_SABER_LEVEL1"
+    #else
+            ":P256_KYBER_LEVEL1"
+    #endif
 #endif
 #endif
 #ifdef HAVE_PQC
