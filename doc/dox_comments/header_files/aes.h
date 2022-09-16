@@ -455,10 +455,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     \code
     Gmac gmac;
     key[] = { some 16, 24, or 32 byte length key };
+    wc_AesInit(gmac.aes, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
     wc_GmacSetKey(&gmac, key, sizeof(key));
     \endcode
 
     \sa wc_GmacUpdate
+    \sa wc_AesInit
 */
 int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
 
@@ -486,6 +488,7 @@ int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
     key[] = { some 16, 24, or 32 byte length key };
     iv[] = { some 16 byte length iv };
 
+    wc_AesInit(gmac.aes, HEAP_HINT, INVALID_DEVID); // Make sure devId updated
     wc_GmacSetKey(&gmac, key, sizeof(key));
     authIn[] = { some 16 byte authentication input };
     tag[AES_BLOCK_SIZE]; // will store authentication code
@@ -495,6 +498,7 @@ int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
     \endcode
 
     \sa wc_GmacSetKey
+    \sa wc_AesInit
 */
 int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
