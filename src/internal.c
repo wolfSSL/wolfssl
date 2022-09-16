@@ -8147,6 +8147,11 @@ DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
     DtlsMsg* msg;
     WOLFSSL_ENTER("DtlsMsgNew()");
 
+    if (sz == 0) {
+        WOLFSSL_MSG("DtlsMsgNew: sz == 0 not allowed");
+        return NULL;
+    }
+
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
@@ -8422,8 +8427,13 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
     if (msg->fragBucketList == NULL) {
         /* Clean list. Create first fragment. */
         msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
-        msg->bytesReceived = fragSz;
-        msg->fragBucketListCount++;
+        if (msg->fragBucketList != NULL) {
+            msg->bytesReceived = fragSz;
+            msg->fragBucketListCount++;
+        }
+        else {
+            return MEMORY_ERROR;
+        }
     }
     else {
         /* See if we can expand any existing bucket to fit this new data into */
@@ -8629,7 +8639,6 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
         DtlsMsg* cur = ssl->dtls_tx_msg_list;
 
         XMEMCPY(item->raw, data, dataSz);
-        item->sz = dataSz;
         item->epoch = ssl->keys.dtls_epoch;
         item->seq = ssl->keys.dtls_handshake_number;
         item->type = type;
