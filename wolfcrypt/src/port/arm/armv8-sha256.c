@@ -322,6 +322,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
 static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 {
     byte* local;
+    const word32* k;
 
     local = (byte*)sha256->buffer;
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
@@ -333,6 +334,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
         XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
+        k = K;
         __asm__ volatile (
             "LD1 {v4.2d-v7.2d}, %[buffer]          \n"
             "MOV v0.16b, v4.16b                    \n"
@@ -474,8 +476,8 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
             "ADD v17.4s, v17.4s, v21.4s \n"
             "STP q16, q17, %[out] \n"
 
-            : [out] "=m" (sha256->digest)
-            : [k] "r" (K), [digest] "m" (sha256->digest),
+            : [out] "=m" (sha256->digest), [k] "+r" (k)
+            : [digest] "m" (sha256->digest),
               [buffer] "m" (sha256->buffer)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10", "v11"
                             , "v12", "v13", "v14", "v15", "v16", "v17", "v18"
@@ -510,6 +512,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
+    k = K;
     __asm__ volatile (
         "#load in message and schedule updates \n"
         "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
@@ -652,8 +655,8 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         "REV32 v17.16b, v17.16b \n"
     #endif
         "ST1 {v17.16b}, [%[hashOut]] \n"
-        : [hashOut] "=r" (hash)
-        : [k] "r" (K), [digest] "m" (sha256->digest),
+        : [hashOut] "=r" (hash), [k] "+r" (k)
+        : [digest] "m" (sha256->digest),
           [buffer] "m" (sha256->buffer),
           "0" (hash)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
