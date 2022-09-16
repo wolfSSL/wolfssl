@@ -8427,8 +8427,13 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
     if (msg->fragBucketList == NULL) {
         /* Clean list. Create first fragment. */
         msg->fragBucketList = DtlsMsgCreateFragBucket(fragOffset, data, fragSz, heap);
-        msg->bytesReceived = fragSz;
-        msg->fragBucketListCount++;
+        if (msg->fragBucketList != NULL) {
+            msg->bytesReceived = fragSz;
+            msg->fragBucketListCount++;
+        }
+        else {
+            return MEMORY_ERROR;
+        }
     }
     else {
         /* See if we can expand any existing bucket to fit this new data into */
