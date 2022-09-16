@@ -1282,6 +1282,8 @@ add_option(WOLFSSL_CRL
 
 set(WOLFSSL_SNI_HELP_STRING "Enable SNI (default: disabled)")
 add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} "no" "yes;no")
+add_option(WOLFSSL_EX_DATA "Enable app data" "no" "yes;no")
+add_option(WOLFSSL_NO_STUB "Remove stub functions" "no" "yes;no")
 
 set(WOLFSSL_TLSX_HELP_STRING "Enable all TLS Extensions (default: disabled)")
 add_option(WOLFSSL_TLSX ${WOLFSSL_TLSX_HELP_STRING} "no" "yes;no")
@@ -1728,6 +1730,14 @@ endif()
 
 if (WOLFSSL_SNI)
    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SNI")
+endif()
+
+if (WOLFSSL_EX_DATA)
+	list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_EX_DATA")
+endif()
+
+if (WOLFSSL_NO_STUB)
+	list(APPEND WOLFSSL_DEFINITIONS "-DNO_WOLFSSL_STUB")
 endif()
 
 if (WOLFSSL_TLSX)
