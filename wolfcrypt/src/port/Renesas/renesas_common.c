@@ -66,7 +66,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
                                 const unsigned char* keyDer, unsigned int keySz,
                                 void* ctx)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     WOLFSSL_ENTER("Renesas_cmn_RsaSignCb");
 
     /* This is just a stub function that provides no logic */
@@ -81,7 +81,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
                                 const unsigned char* keyDer, unsigned int keySz,
                                 void* ctx)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     WOLFSSL_ENTER("Renesas_cmn_EccSignCb");
 
     /* This is just a stub function that provides no logic */
@@ -118,6 +118,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP)
+    ret = CRYPTOCB_UNAVAILABLE;
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 
@@ -327,7 +328,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     (void)devIdArg;
     (void)ctx;
-
+    WOLFSSL_LEAVE("Renesas_cmn_CryptoDevCb", ret);
     return ret;
 }
 

@@ -4922,6 +4922,11 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
         }
         ret = ssl->ctx->EccSignCb(ssl, in, inSz, out, outSz, keyBuf,
             keySz, ctx);
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+        if (ret == CRYPTOCB_UNAVAILABLE) {
+            ret = wc_ecc_sign_hash(in, inSz, out, outSz, ssl->rng, key);
+        }
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
