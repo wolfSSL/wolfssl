@@ -36359,7 +36359,7 @@ end:
     }
     if (ret == 0) {
     #endif
-#if defined(OPENSSL_EXTRA)
+    #ifdef OPENSSL_EXTRA
         /* Parse and store the issuer name. */
         dcrl->issuerSz = GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER],
                             buff);
@@ -36372,7 +36372,7 @@ end:
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }
-#endif
+    #endif
     }
 
     if ((ret == 0) && (dataASN[CRLASN_IDX_TBS_REVOKEDCERTS].tag != 0)) {
