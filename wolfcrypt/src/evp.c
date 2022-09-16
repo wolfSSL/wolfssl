@@ -46,7 +46,6 @@
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/kdf.h>
 #include <wolfssl/wolfcrypt/integer.h>
-#include <stdint.h> // for uint32_t
 
 #ifndef NO_AES
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
