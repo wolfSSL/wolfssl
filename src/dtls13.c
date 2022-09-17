@@ -259,7 +259,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
 #ifdef HAVE_CHACHA
     if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
         word32 counter;
-		int ret;
+        int ret;
 
         if (c->chacha == NULL)
             return BAD_STATE_E;
