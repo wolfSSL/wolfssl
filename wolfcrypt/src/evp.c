@@ -8868,6 +8868,16 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* HAVE_HKDF */
 
+                #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+                    defined(WOLFSSL_AES_DIRECT)
+                case EVP_PKEY_CMAC:
+                    if (key->cmacCtx != NULL) {
+                        wolfSSL_CMAC_CTX_free(key->cmacCtx);
+                        key->cmacCtx = NULL;
+                    }
+                    break;
+                #endif /* defined(WOLFSSL_CMAC) ... */
+
                 default:
                     break;
             }

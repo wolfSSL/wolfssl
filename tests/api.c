@@ -32956,6 +32956,7 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
 
     AssertNotNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
         NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, cipher));
+    wolfSSL_EVP_PKEY_free(key);
 
     printf(resultFmt, passed);
 #endif /* defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) */
