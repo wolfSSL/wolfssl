@@ -9149,7 +9149,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         idx = 0;
         XMEMSET(buff, 0, sizeof(buff));
         Indent(out, indent);
-        XSTRNCPY(line, "Public-Key: (", sizeof(line));
+        XSTRNCPY(line, "RSA Public-Key: (", sizeof(line));
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }

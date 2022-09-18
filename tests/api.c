@@ -3951,7 +3951,7 @@ static int test_wolfSSL_EVP_PKEY_print_public(void)
     AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "   Public-Key: (1024 bit)\n");
+    strcpy(line1, "   RSA Public-Key: (1024 bit)\n");
     AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
@@ -53375,13 +53375,13 @@ static int test_wolfSSL_X509_print(void)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
   #if defined(WC_DISABLE_RADIX_ZERO_PAD)
      /* Will print IP address subject alt name. */
-     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3345);
+     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3349);
   #else
       /* Will print IP address subject alt name. */
-     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3346);
+     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3350);
   #endif
 #else
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3324);
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3328);
 #endif
     BIO_free(bio);
 
