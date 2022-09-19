@@ -8152,13 +8152,6 @@ DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
     DtlsMsg* msg;
     WOLFSSL_ENTER("DtlsMsgNew()");
 
-#ifndef WOLFSSL_ASYNC_CRYPT
-    if (sz == 0) {
-        WOLFSSL_MSG("DtlsMsgNew: sz == 0 not allowed");
-        return NULL;
-    }
-#endif
-
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
