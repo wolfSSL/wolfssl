@@ -15076,7 +15076,7 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
     }
     if (err == MP_OKAY) {
         bits = sp_count_bits(m);
-        if (bits == m->size * SP_WORD_SIZE) {
+        if (bits >= norm->size * SP_WORD_SIZE) {
             err = MP_VAL;
         }
     }
