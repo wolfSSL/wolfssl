@@ -10600,11 +10600,16 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     else if (err != MP_OKAY) {
     }
     else {
-        sp_init_size(u, m->used + 1);
-        sp_init_size(v, m->used + 1);
-        sp_init_size(b, m->used + 1);
-        sp_init_size(c, 2 * m->used + 1);
+        err = sp_init_size(u, m->used + 1);
+        if (err == MP_OKAY)
+            err = sp_init_size(v, m->used + 1);
+        if (err == MP_OKAY)
+            err = sp_init_size(b, m->used + 1);
+        if (err == MP_OKAY)
+            err = sp_init_size(c, 2 * m->used + 1);
+    }
 
+    if ((err == MP_OKAY) && !sp_isone(a)) {
         if (sp_iseven(m)) {
             /* a^-1 mod m = m + ((1 - m*(m^-1 % a)) / a) */
             mm = a;
@@ -16363,10 +16368,14 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
             u = d[0];
             v = d[1];
             t = d[2];
-            sp_init_size(u, used);
-            sp_init_size(v, used);
-            sp_init_size(t, used);
+            err = sp_init_size(u, used);
+        }
+        if (err == MP_OKAY)
+            err = sp_init_size(v, used);
+        if (err == MP_OKAY)
+            err = sp_init_size(t, used);
 
+        if (err == MP_OKAY) {
             if (_sp_cmp(a, b) != MP_LT) {
                 sp_copy(b, u);
                 /* First iteration - u = a, v = b */

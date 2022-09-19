@@ -240,7 +240,7 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
     }
 
 #ifdef HAVE_LIBOQS
-    /* NOTE: SHAKE and AES variants have the same length ciphertext. */ 
+    /* NOTE: SHAKE and AES variants have the same length ciphertext. */
     if (ret == 0) {
         switch (key->type) {
         case KYBER_LEVEL1:
@@ -534,7 +534,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
 /**
  * Decode the private key.
- * 
+ *
  * We store the whole thing in the private key buffer. Note this means we cannot
  * do the encapsulation operation with the private key. But generally speaking
  * this is never done.
@@ -614,7 +614,7 @@ int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in, word32 len)
 
 /**
  * Encode the private key.
- * 
+ *
  * We stored it as a blob so we can just copy it over.
  *
  * @param  [in]   key  Kyber key object.
@@ -664,7 +664,7 @@ int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
  */
 int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
 {
-    int ret = 0; 
+    int ret = 0;
     unsigned int pubLen = 0;
 
     if ((key == NULL) || (out == NULL)) {

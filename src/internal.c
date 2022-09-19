@@ -8152,10 +8152,12 @@ DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
     DtlsMsg* msg;
     WOLFSSL_ENTER("DtlsMsgNew()");
 
+#ifndef WOLFSSL_ASYNC_CRYPT
     if (sz == 0) {
         WOLFSSL_MSG("DtlsMsgNew: sz == 0 not allowed");
         return NULL;
     }
+#endif
 
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
@@ -8386,8 +8388,18 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
 
     /* frag->padding makes sure we can fit the entire DTLS handshake header
      * before frag->buf */
-    dtls = (DtlsHandShakeHeader*)(msg->fragBucketList->buf -
-                                    DTLS_HANDSHAKE_HEADER_SZ);
+
+    /* note the dtls pointer needs to be computed from msg->fragBucketList, not
+     * from msg->fragBucketList->buf, to avoid a pointerOutOfBounds access
+     * detected by cppcheck.
+     *
+     * also note, the (void *) intermediate cast is necessary to avoid a
+     * potential -Wcast-align around alignment of DtlsHandShakeHeader exceeding
+     * alignment of char.
+     */
+    dtls = (DtlsHandShakeHeader*)(void *)((char *)msg->fragBucketList
+                                          + OFFSETOF(DtlsFragBucket,buf)
+                                          - DTLS_HANDSHAKE_HEADER_SZ);
 
     msg->fragBucketList = NULL;
     msg->fragBucketListCount = 0;
@@ -19839,6 +19851,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                              ssl->keys.padSz, &processedSize);
                     ssl->buffers.inputBuffer.idx += processedSize;
                     ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                    if (ret != 0)
+                        return ret;
                     break;
                 }
                 FALL_THROUGH;
@@ -20694,7 +20708,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             if (sizeOnly)
                 goto exit_buildmsg;
 
-			{
+            {
     #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
             /* If we want the PREV_ORDER then modify CUR_ORDER sequence number
              * for all encryption algos that use it for encryption parameters */
@@ -20735,7 +20749,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 ssl->keys.dtls_sequence_number_lo = dtls_sequence_number_lo;
             }
     #endif
-			}
+            }
 
             if (ret != 0)
                 goto exit_buildmsg;
