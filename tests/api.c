@@ -5786,6 +5786,49 @@ done:
     return 0;
 }
 
+void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
+                                       callback_functions* server_cb)
+{
+    func_args client_args;
+    func_args server_args;
+    tcp_ready ready;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    server_args.callbacks = server_cb;
+    client_args.signal = &ready;
+    client_args.callbacks = client_cb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    client_cb->return_code = client_args.return_code;
+    server_cb->return_code = server_args.return_code;
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+}
+
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
 static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
@@ -55575,12 +55618,8 @@ static void test_wolfSSL_dtls_plaintext_client(WOLFSSL* ssl)
 
 static int test_wolfSSL_dtls_plaintext(void)
 {
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
     callback_functions func_cb_client;
     callback_functions func_cb_server;
-    THREAD_TYPE serverThread;
     size_t i;
     struct test_params {
         method_provider client_meth;
@@ -55596,27 +55635,8 @@ static int test_wolfSSL_dtls_plaintext(void)
     printf(testingFmt, "test_wolfSSL_dtls_plaintext");
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        XMEMSET(&client_args, 0, sizeof(func_args));
-        XMEMSET(&server_args, 0, sizeof(func_args));
         XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
         XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
-
-    #ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-    #endif
-
-        StartTCP();
-        InitTcpReady(&ready);
-
-#if defined(USE_WINDOWS_API)
-        /* use RNG to get random port if using windows */
-        ready.port = GetRandomPort();
-#endif
-
-        server_args.signal = &ready;
-        server_args.callbacks = &func_cb_server;
-        client_args.signal = &ready;
-        client_args.callbacks = &func_cb_client;
 
         func_cb_client.doUdp = func_cb_server.doUdp = 1;
         func_cb_server.method = params[i].server_meth;
@@ -55624,19 +55644,12 @@ static int test_wolfSSL_dtls_plaintext(void)
         func_cb_client.on_result = params[i].on_result_client;
         func_cb_server.on_result = params[i].on_result_server;
 
-        start_thread(test_server_nofail, &server_args, &serverThread);
-        wait_tcp_ready(&server_args);
-        test_client_nofail(&client_args, NULL);
-        join_thread(serverThread);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-        AssertTrue(client_args.return_code);
-        AssertTrue(server_args.return_code);
-
-        FreeTcpReady(&ready);
-
-#ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-#endif
+        if (!func_cb_client.return_code)
+            return -1;
+        if (!func_cb_server.return_code)
+            return -2;
     }
 
     printf(resultFmt, passed);
@@ -55761,12 +55774,8 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 
 static int test_wolfSSL_dtls_fragments(void)
 {
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
     callback_functions func_cb_client;
     callback_functions func_cb_server;
-    THREAD_TYPE serverThread;
     size_t i;
     struct test_params {
         method_provider client_meth;
@@ -55784,52 +55793,26 @@ static int test_wolfSSL_dtls_fragments(void)
     printf(testingFmt, "test_wolfSSL_dtls_fragments");
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
-        XMEMSET(&client_args, 0, sizeof(func_args));
-        XMEMSET(&server_args, 0, sizeof(func_args));
         XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
         XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
-    #ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-    #endif
-
-        StartTCP();
-        InitTcpReady(&ready);
-
-#if defined(USE_WINDOWS_API)
-        /* use RNG to get random port if using windows */
-        ready.port = GetRandomPort();
-#endif
-
-        server_args.signal = &ready;
-        server_args.callbacks = &func_cb_server;
-        client_args.signal = &ready;
-        client_args.callbacks = &func_cb_client;
 
         func_cb_client.doUdp = func_cb_server.doUdp = 1;
         func_cb_server.method = params[i].server_meth;
         func_cb_client.method = params[i].client_meth;
         func_cb_client.ssl_ready = params[i].spammer;
 
-        start_thread(test_server_nofail, &server_args, &serverThread);
-        wait_tcp_ready(&server_args);
-        test_client_nofail(&client_args, NULL);
-        join_thread(serverThread);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-        AssertFalse(client_args.return_code);
-        AssertFalse(server_args.return_code);
+        AssertFalse(func_cb_client.return_code);
+        AssertFalse(func_cb_server.return_code);
+
         /* The socket should be closed by the server resulting in a
          * socket error */
         AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
         /* Check the server returned an error indicating the msg buffer
          * was full */
         AssertIntEQ(func_cb_server.last_err, DTLS_TOO_MANY_FRAGMENTS_E);
-
-        FreeTcpReady(&ready);
-
-#ifdef WOLFSSL_TIRTOS
-        fdOpenSession(Task_self());
-#endif
     }
 
     printf(resultFmt, passed);
@@ -55838,6 +55821,206 @@ static int test_wolfSSL_dtls_fragments(void)
 }
 #else
 static int test_wolfSSL_dtls_fragments(void) {
+    return 0;
+}
+#endif
+
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+static byte test_AEAD_fail_decryption = 0;
+static byte test_AEAD_seq_num = 0;
+static byte test_AEAD_done = 0;
+
+static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    int ret = recv(wolfSSL_get_fd(ssl), buf, sz, 0);
+    if (ret > 0) {
+        if (test_AEAD_fail_decryption) {
+            /* Modify the packet to trigger a decryption failure */
+            buf[ret/2] ^= 0xFF;
+            if (test_AEAD_fail_decryption == 1)
+                test_AEAD_fail_decryption = 0;
+        }
+    }
+    (void)ctx;
+    return ret;
+}
+
+static void test_AEAD_get_limits(WOLFSSL* ssl, w64wrapper* hardLimit,
+        w64wrapper* keyUpdateLimit, w64wrapper* sendLimit)
+{
+    if (sendLimit)
+        w64Zero(sendLimit);
+    switch (ssl->specs.bulk_cipher_algorithm) {
+        case wolfssl_aes_gcm:
+            if (sendLimit)
+                *sendLimit = AEAD_AES_LIMIT;
+            FALL_THROUGH;
+        case wolfssl_chacha:
+            if (hardLimit)
+                *hardLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT;
+            if (keyUpdateLimit)
+                *keyUpdateLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT;
+            break;
+        case wolfssl_aes_ccm:
+            if (sendLimit)
+                *sendLimit = DTLS_AEAD_AES_CCM_LIMIT;
+            if (ssl->specs.aead_mac_size == AES_CCM_8_AUTH_SZ) {
+                if (hardLimit)
+                    *hardLimit = DTLS_AEAD_AES_CCM_8_FAIL_LIMIT;
+                if (keyUpdateLimit)
+                    *keyUpdateLimit = DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT;
+            }
+            else {
+                if (hardLimit)
+                    *hardLimit = DTLS_AEAD_AES_CCM_FAIL_LIMIT;
+                if (keyUpdateLimit)
+                    *keyUpdateLimit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
+            }
+            break;
+        default:
+            fprintf(stderr, "Unrecognized bulk cipher");
+            AssertFalse(1);
+            break;
+    }
+}
+
+static void test_AEAD_limit_client(WOLFSSL* ssl)
+{
+    int ret;
+    int i;
+    int didReKey = 0;
+    char msgBuf[20];
+    w64wrapper hardLimit;
+    w64wrapper keyUpdateLimit;
+    w64wrapper counter;
+    w64wrapper sendLimit;
+
+    test_AEAD_get_limits(ssl, &hardLimit, &keyUpdateLimit, &sendLimit);
+
+    w64Zero(&counter);
+    AssertTrue(w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->dropCount, counter));
+
+    wolfSSL_SSLSetIORecv(ssl, test_AEAD_cbiorecv);
+
+    for (i = 0; i < 10; i++) {
+        /* Test some failed decryptions */
+        test_AEAD_fail_decryption = 1;
+        w64Increment(&counter);
+        ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        /* Should succeed since decryption failures are dropped */
+        AssertIntGT(ret, 0);
+        AssertTrue(w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter));
+    }
+
+    test_AEAD_fail_decryption = 1;
+    Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount = keyUpdateLimit;
+    w64Increment(&Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount);
+    /* 100 read calls should be enough to complete the key update */
+    w64Zero(&counter);
+    for (i = 0; i < 100; i++) {
+        /* Key update should be sent and negotiated */
+        ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        AssertIntGT(ret, 0);
+        /* Epoch after one key update is 4 */
+        if (w64Equal(ssl->dtls13PeerEpoch, w64From32(0, 4)) &&
+                w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter)) {
+            didReKey = 1;
+            break;
+        }
+    }
+    AssertTrue(didReKey);
+
+    if (!w64IsZero(sendLimit)) {
+        /* Test the sending limit for AEAD ciphers */
+        Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->nextSeqNumber = sendLimit;
+        test_AEAD_seq_num = 1;
+        ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
+        AssertIntGT(ret, 0);
+        didReKey = 0;
+        w64Zero(&counter);
+        /* 100 read calls should be enough to complete the key update */
+        for (i = 0; i < 100; i++) {
+            /* Key update should be sent and negotiated */
+            ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+            AssertIntGT(ret, 0);
+            /* Epoch after another key update is 5 */
+            if (w64Equal(ssl->dtls13Epoch, w64From32(0, 5)) &&
+                    w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->dropCount, counter)) {
+                didReKey = 1;
+                break;
+            }
+        }
+        AssertTrue(didReKey);
+    }
+
+    test_AEAD_fail_decryption = 2;
+    Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount = hardLimit;
+    w64Decrement(&Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount);
+    /* Connection should fail with a DECRYPT_ERROR */
+    ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+    AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl, ret), DECRYPT_ERROR);
+
+    test_AEAD_done = 1;
+}
+
+int counter = 0;
+static void test_AEAD_limit_server(WOLFSSL* ssl)
+{
+    char msgBuf[] = "Sending data";
+    int ret = WOLFSSL_SUCCESS;
+    w64wrapper sendLimit;
+    SOCKET_T fd = wolfSSL_get_fd(ssl);
+    struct timespec delay;
+    XMEMSET(&delay, 0, sizeof(delay));
+    delay.tv_nsec = 100000000; /* wait 0.1 seconds */
+    tcp_set_nonblocking(&fd); /* So that read doesn't block */
+    test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
+    while (!test_AEAD_done && ret > 0) {
+        counter++;
+        if (test_AEAD_seq_num) {
+            /* We need to update the seq number so that we can understand the
+             * peer. Otherwise we will incorrectly interpret the seq number. */
+            Dtls13Epoch* e = Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch);
+            AssertNotNull(e);
+            e->nextPeerSeqNumber = sendLimit;
+            test_AEAD_seq_num = 0;
+        }
+        (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
+        nanosleep(&delay, NULL);
+    }
+}
+
+static int test_wolfSSL_dtls_AEAD_limit(void)
+{
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    printf(testingFmt, "test_wolfSSL_dtls_AEAD_limit");
+
+    func_cb_client.doUdp = func_cb_server.doUdp = 1;
+    func_cb_server.method = wolfDTLSv1_3_server_method;
+    func_cb_client.method = wolfDTLSv1_3_client_method;
+    func_cb_server.on_result = test_AEAD_limit_server;
+    func_cb_client.on_result = test_AEAD_limit_client;
+
+    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+    if (!func_cb_client.return_code)
+        return -1;
+    if (!func_cb_server.return_code)
+        return -2;
+
+    printf(resultFmt, passed);
+
+    return 0;
+}
+#else
+static int test_wolfSSL_dtls_AEAD_limit(void)
+{
     return 0;
 }
 #endif
@@ -58553,6 +58736,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_either_side),
     TEST_DECL(test_wolfSSL_DTLS_either_side),
     TEST_DECL(test_wolfSSL_dtls_fragments),
+    TEST_DECL(test_wolfSSL_dtls_AEAD_limit),
     TEST_DECL(test_generate_cookie),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
     TEST_DECL(test_wolfSSL_X509_LOOKUP_load_file),

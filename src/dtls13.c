@@ -1846,6 +1846,20 @@ struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl, w64wrapper epochNumber)
     return NULL;
 }
 
+void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
+                                    int side)
+{
+    Dtls13Epoch* e;
+    int i;
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
+        e = &ssl->dtls13Epochs[i];
+        if (e->isValid && w64LT(e->epochNumber, epochNumber)) {
+            e->side = (byte)side;
+        }
+    }
+}
+
 static void Dtls13EpochCopyKeys(WOLFSSL* ssl, Dtls13Epoch* e, Keys* k, int side)
 {
     byte clientWrite, serverWrite;
@@ -2009,6 +2023,14 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
     else if (e->side != side) {
         /* epoch used for the other side already. update side */
         e->side = ENCRYPT_AND_DECRYPT_SIDE;
+    }
+
+    /* Once handshake is done. Mark epochs older than the last one as encrypt
+     * only so that they can't be used for decryption. */
+    if (ssl->options.handShakeDone && (e->side == ENCRYPT_AND_DECRYPT_SIDE ||
+            e->side == DECRYPT_SIDE_ONLY)) {
+        w64Decrement(&epochNumber);
+        Dtls13SetOlderEpochSide(ssl, epochNumber, ENCRYPT_SIDE_ONLY);
     }
 
     return 0;
@@ -2373,6 +2395,13 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
 
     ssl->dtls13SendingAckOrRtx = 0;
 
+    if (ssl->dtls13DoKeyUpdate) {
+        ssl->dtls13DoKeyUpdate = 0;
+        ret = Tls13UpdateKeys(ssl);
+        if (ret != 0)
+            return ret;
+    }
+
     return 0;
 }
 
@@ -2609,5 +2638,74 @@ int wolfSSL_dtls13_has_pending_msg(WOLFSSL* ssl)
 {
     return ssl->dtls13Rtx.rtxRecords != NULL;
 }
+
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+/* Limits specified by
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
+ * We specify the limit by which we need to do a key update as the halfway point
+ * to the hard decryption fail limit. */
+int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
+{
+    w64wrapper keyUpdateLimit;
+    w64wrapper hardLimit;
+    switch (ssl->specs.bulk_cipher_algorithm) {
+#if defined(BUILD_AESGCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+        case wolfssl_aes_gcm:
+        case wolfssl_chacha:
+            hardLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT;
+            keyUpdateLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT;
+            break;
+#endif
+#ifdef HAVE_AESCCM
+        case wolfssl_aes_ccm:
+            if (ssl->specs.aead_mac_size == AES_CCM_8_AUTH_SZ) {
+                /* Limit is 2^7. The RFC recommends that
+                 * "TLS_AES_128_CCM_8_SHA256 is not suitable for general use".
+                 * We still should enforce the limit. */
+                hardLimit = DTLS_AEAD_AES_CCM_8_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT;
+            }
+            else {
+                /* Limit is 2^23.5.
+                 * Without the fraction is 11863283 (0x00B504F3)
+                 * Half of this value is    5931641 (0x005A8279) */
+                hardLimit = DTLS_AEAD_AES_CCM_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
+            }
+            break;
+#endif
+        case wolfssl_cipher_null:
+            /* No encryption being done. The MAC check must have failed. */
+            return 0;
+        default:
+            WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
+            WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+            return DECRYPT_ERROR;
+    }
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Dtls13CheckAEADFailLimit: ssl->dtls13DecryptEpoch should "
+                    "not be NULL");
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
+    }
+    w64Increment(&ssl->dtls13DecryptEpoch->dropCount);
+    if (w64GT(ssl->dtls13DecryptEpoch->dropCount, hardLimit)) {
+        /* We have reached the hard limit for failed decryptions. */
+        WOLFSSL_MSG("Connection exceeded hard AEAD limit");
+        WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+        return DECRYPT_ERROR;
+    }
+    else if (w64GT(ssl->dtls13DecryptEpoch->dropCount, keyUpdateLimit)) {
+        WOLFSSL_MSG("Connection exceeded key update limit. Issuing key update");
+        /* If not waiting for a response then request a key update. */
+        if (!ssl->keys.updateResponseReq) {
+            ssl->dtls13DoKeyUpdate = 1;
+            ssl->dtls13InvalidateBefore = ssl->dtls13PeerEpoch;
+            w64Increment(&ssl->dtls13InvalidateBefore);
+        }
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_DTLS13 */

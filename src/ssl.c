@@ -3172,6 +3172,11 @@ static int _Rehandshake(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        WOLFSSL_MSG("Secure Renegotiation not supported in TLS 1.3");
+        return SECURE_RENEGOTIATION_E;
+    }
+
     if (ssl->secure_renegotiation == NULL) {
         WOLFSSL_MSG("Secure Renegotiation not forced on by user");
         return SECURE_RENEGOTIATION_E;
@@ -3181,6 +3186,13 @@ static int _Rehandshake(WOLFSSL* ssl)
         WOLFSSL_MSG("Secure Renegotiation not enabled at extension level");
         return SECURE_RENEGOTIATION_E;
     }
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && ssl->keys.dtls_epoch == 0xFFFF) {
+        WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
+        return SECURE_RENEGOTIATION_E;
+    }
+#endif
 
     /* If the client started the renegotiation, the server will already
      * have processed the client's hello. */

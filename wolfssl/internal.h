@@ -1274,6 +1274,30 @@ enum {
 #define TLS13_MAX_TICKET_AGE    (7*24*60*60)
 #endif
 
+
+/* Limit is 2^24.5
+ * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ * Without the fraction is 23726566 (0x016A09E6) */
+#define AEAD_AES_LIMIT                           w64From32(0x016A, 0x09E6)
+/* Limit is 2^23
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits */
+#define DTLS_AEAD_AES_CCM_LIMIT                  w64From32(0, 1 << 22)
+
+/* Limit is 2^36
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits */
+#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT      w64From32(1 << 3, 0)
+#define DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT   w64From32(1 << 2, 0)
+/* Limit is 2^7
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-limits-for-aead_aes_128_ccm */
+#define DTLS_AEAD_AES_CCM_8_FAIL_LIMIT           w64From32(0, 1 << 6)
+#define DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT        w64From32(0, 1 << 5)
+/* Limit is 2^23.5.
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-integrity-limits
+ * Without the fraction is 11863283 (0x00B504F3)
+ * Half of this value is    5931641 (0x005A8279) */
+#define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
+#define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -4035,6 +4059,10 @@ typedef struct Options {
 #endif
 #endif
 #ifdef WOLFSSL_DTLS
+#ifdef HAVE_SECURE_RENEGOTIATION
+    word16            dtlsDoSCR:1;        /* Enough packets were dropped. We
+                                           * need to re-key. */
+#endif
     word16            dtlsUseNonblock:1;  /* are we using nonblocking socket */
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
     word16            haveMcast:1;        /* using multicast ? */
@@ -4632,6 +4660,10 @@ typedef struct Dtls13Epoch {
     w64wrapper nextSeqNumber;
     w64wrapper nextPeerSeqNumber;
 
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+    w64wrapper dropCount; /* Amount of records that failed decryption */
+#endif
+
     word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
 
     /* key material for the epoch */
@@ -4687,10 +4719,10 @@ typedef struct Dtls13Rtx {
     Dtls13RtxRecord *rtxRecords;
     Dtls13RtxRecord **rtxRecordTailPtr;
     Dtls13RecordNumber *seenRecords;
+    word32 lastRtx;
     byte triggeredRtxs;
     byte sendAcks:1;
     byte retransmit:1;
-    word32 lastRtx;
 } Dtls13Rtx;
 
 #endif /* WOLFSSL_DTLS13 */
@@ -4910,6 +4942,7 @@ struct WOLFSSL {
     Dtls13Epoch *dtls13DecryptEpoch;
     w64wrapper dtls13Epoch;
     w64wrapper dtls13PeerEpoch;
+    w64wrapper dtls13InvalidateBefore;
     byte dtls13CurRL[DTLS_RECVD_RL_HEADER_MAX_SZ];
     word16 dtls13CurRlLength;
 
@@ -4919,6 +4952,7 @@ struct WOLFSSL {
     byte dtls13SendingAckOrRtx:1;
     byte dtls13FastTimeout:1;
     byte dtls13WaitKeyUpdateAck:1;
+    byte dtls13DoKeyUpdate:1;
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
@@ -5666,6 +5700,7 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
+WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
 #endif
 
 WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
@@ -5726,8 +5761,11 @@ WOLFSSL_API int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
 
 #ifdef WOLFSSL_DTLS13
 
-WOLFSSL_LOCAL struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
+/* Use WOLFSSL_API to use this function in tests/api.c */
+WOLFSSL_API struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
+WOLFSSL_LOCAL void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
+    int side);
 WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber,
     int side);
 WOLFSSL_LOCAL int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
@@ -5779,6 +5817,7 @@ WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output,
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13CheckAEADFailLimit(WOLFSSL* ssl);
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL

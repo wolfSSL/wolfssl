@@ -80,6 +80,12 @@
  *     Verifies the ECC signature after signing in case of faults in the
  *     calculation of the signature. Useful when signature fault injection is a
  *     possible attack.
+ * WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+ *     Ignore the AEAD limits for messages specified in the RFC. After
+ *     reaching the limit, we initiate a key update. We enforce the AEAD limits
+ *     by default.
+ *     https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ *     https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
  */
 
 
@@ -18247,6 +18253,23 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
         return OUT_OF_ORDER_E;
     }
 
+
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+    /* Check if we want to invalidate old epochs. If
+     * ssl->dtls13InvalidateBefore is set then we want to mark all old
+     * epochs as encrypt only. This is done when we detect too many failed
+     * decryptions. We do this here to confirm that the peer has updated its
+     * keys and we can stop using the old keys. */
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        if (!w64IsZero(ssl->dtls13InvalidateBefore) &&
+                w64Equal(ssl->keys.curEpoch64, ssl->dtls13InvalidateBefore)) {
+            Dtls13SetOlderEpochSide(ssl, ssl->dtls13InvalidateBefore,
+                                    ENCRYPT_SIDE_ONLY);
+            w64Zero(&ssl->dtls13InvalidateBefore);
+        }
+    }
+#endif
+
 #ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         if (ssl->options.tls1_1)
@@ -18831,6 +18854,26 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
     return 0;
 }
 
+#ifdef WOLFSSL_DTLS
+static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
+{
+    int ret = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    ssl->macDropCount++;
+#endif
+
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+    /* Handle AEAD limits specified by the RFC for failed decryption */
+    if (IsAtLeastTLSv1_3(ssl->version))
+        ret = Dtls13CheckAEADFailLimit(ssl);
+#endif
+
+    (void)ssl;
+    WOLFSSL_MSG("DTLS: Ignoring failed decryption");
+    return ret;
+}
+#endif
+
 int ProcessReply(WOLFSSL* ssl)
 {
     return ProcessReplyEx(ssl, 0);
@@ -19137,17 +19180,14 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             #endif
                 if (ret < 0) {
                     WOLFSSL_MSG("VerifyMacEnc failed");
-                    WOLFSSL_ERROR(ret);
                 #ifdef WOLFSSL_DTLS
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
-                                        ssl->buffers.inputBuffer.length;
-                        #ifdef WOLFSSL_DTLS_DROP_STATS
-                            ssl->macDropCount++;
-                        #endif /* WOLFSSL_DTLS_DROP_STATS */
+                                ssl->buffers.inputBuffer.length;
+                        return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
                 #ifdef WOLFSSL_EXTRA_ALERTS
@@ -19304,14 +19344,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        WOLFSSL_MSG("DTLS: Ignoring failed decryption");
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
-                                        ssl->buffers.inputBuffer.length;
-                    #ifdef WOLFSSL_DTLS_DROP_STATS
-                        ssl->macDropCount++;
-                    #endif /* WOLFSSL_DTLS_DROP_STATS */
-                        return 0;
+                                ssl->buffers.inputBuffer.length;
+                        return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
                 #ifdef WOLFSSL_EARLY_DATA
@@ -19374,24 +19410,21 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                         return ret;
                 #endif
                     if (ret < 0) {
-                        WOLFSSL_MSG("VerifyMac failed");
-                        WOLFSSL_ERROR(ret);
                     #ifdef WOLFSSL_DTLS
                         /* If in DTLS mode, if the decrypt fails for any
                          * reason, pretend the datagram never happened. */
                         if (ssl->options.dtls) {
                             ssl->options.processReply = doProcessInit;
                             ssl->buffers.inputBuffer.idx =
-                                            ssl->buffers.inputBuffer.length;
-                            #ifdef WOLFSSL_DTLS_DROP_STATS
-                                ssl->macDropCount++;
-                            #endif /* WOLFSSL_DTLS_DROP_STATS */
+                                    ssl->buffers.inputBuffer.length;
+                            return HandleDTLSDecryptFailed(ssl);
                         }
                     #endif /* WOLFSSL_DTLS */
                     #ifdef WOLFSSL_EXTRA_ALERTS
                         if (!ssl->options.dtls)
                             SendAlert(ssl, alert_fatal, bad_record_mac);
                     #endif
+                        WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
                         return DECRYPT_ERROR;
                     }
@@ -22021,6 +22054,66 @@ static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
 }
 #endif /* WOLFSSL_DTLS */
 
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+/*
+ * Enforce limits specified in
+ * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
+ */
+static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
+{
+    w64wrapper seq;
+    w64wrapper limit;
+
+    switch (ssl->specs.bulk_cipher_algorithm) {
+#ifdef BUILD_AESGCM
+        case wolfssl_aes_gcm:
+            /* Limit is 2^24.5 */
+            limit = AEAD_AES_LIMIT;
+            break;
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        case wolfssl_chacha:
+            /* For ChaCha20/Poly1305, the record sequence number would wrap
+             * before the safety limit is reached. */
+            return 0;
+#endif
+#ifdef HAVE_AESCCM
+        case wolfssl_aes_ccm:
+            /* Use the limits calculated in the DTLS 1.3 spec
+             * https://www.rfc-editor.org/rfc/rfc9147.html#name-analysis-of-limits-on-ccm-u */
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                limit = DTLS_AEAD_AES_CCM_LIMIT; /* Limit is 2^23 */
+            else
+#endif
+                limit = AEAD_AES_LIMIT; /* Limit is 2^24.5 */
+            break;
+#endif
+        case wolfssl_cipher_null:
+            /* No encryption being done */
+            return 0;
+        default:
+            WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
+            return BAD_STATE_E;
+
+    }
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
+    }
+    else
+#endif
+    {
+        seq = w64From32(ssl->keys.sequence_number_hi,
+                ssl->keys.sequence_number_lo);
+    }
+
+    if (w64GTE(seq, limit))
+        return Tls13UpdateKeys(ssl); /* Need to generate new keys */
+
+    return 0;
+}
+#endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
 
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
@@ -22121,6 +22214,16 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         int   outputSz;
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
+#endif
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            ret = CheckTLS13AEADSendLimit(ssl);
+            if (ret != 0) {
+                ssl->error = ret;
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
 #endif
 
 #ifdef WOLFSSL_DTLS13

@@ -2097,7 +2097,7 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
         Dtls13GetSeq(ssl, verifyOrder, seq, 1);
 #endif /* WOLFSSL_DTLS13 */
     }
-    else if (verifyOrder) {
+    else if (verifyOrder == PEER_ORDER) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
         seq[1] = ssl->keys.peer_sequence_number_lo++;
         /* handle rollover */
@@ -11130,6 +11130,26 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
     return 0;
 }
 
+
+int Tls13UpdateKeys(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_DTLS13
+    /* we are already waiting for the ack of a sent key update message. We can't
+       send another one before receiving its ack. Either wolfSSL_update_keys()
+       was invoked multiple times over a short period of time or we replied to a
+       KeyUpdate with update request. We'll just ignore sending this
+       KeyUpdate. */
+    /* TODO: add WOLFSSL_ERROR_ALREADY_IN_PROGRESS type of error here */
+    if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck)
+        return 0;
+#endif /* WOLFSSL_DTLS13 */
+
+    return SendTls13KeyUpdate(ssl);
+}
+
 /* Update the keys for encryption and decryption.
  * If using non-blocking I/O and WOLFSSL_ERROR_WANT_WRITE is returned then
  * calling wolfSSL_write() will have the message sent when ready.
@@ -11142,22 +11162,7 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
 int wolfSSL_update_keys(WOLFSSL* ssl)
 {
     int ret;
-
-    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
-        return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_DTLS13
-    /* we are already waiting for the ack of a sent key update message. We can't
-       send another one before receiving its ack. Either wolfSSL_update_keys()
-       was invoked multiple times over a short period of time or we replied to a
-       KeyUpdate with update request. We'll just ignore sending this
-       KeyUpdate. */
-    /* TODO: add WOLFSSL_ERROR_ALREADY_IN_PROGRESS type of error here */
-    if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck)
-            return WOLFSSL_SUCCESS;
-#endif /* WOLFSSL_DTLS13 */
-
-    ret = SendTls13KeyUpdate(ssl);
+    ret = Tls13UpdateKeys(ssl);
     if (ret == WANT_WRITE)
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
