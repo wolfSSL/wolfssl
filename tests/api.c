@@ -55308,7 +55308,7 @@ static int test_wolfSSL_dtls_fragments(void) {
 }
 #endif
 
-#ifdef WOLFSSL_DTLS13
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
 static byte test_AEAD_fail_decryption = 0;
 static byte test_AEAD_seq_num = 0;
 static byte test_AEAD_done = 0;
