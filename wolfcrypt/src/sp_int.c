@@ -5181,10 +5181,13 @@ int sp_set_int(sp_int* a, unsigned long n)
         else {
             int i;
 
-            for (i = 0; n > 0; i++,n >>= SP_WORD_SIZE) {
+            for (i = 0; (i < a->size) && (n > 0); i++,n >>= SP_WORD_SIZE) {
                 a->dp[i] = (sp_int_digit)n;
             }
             a->used = i;
+            if ((i == a->size) && (n != 0)) {
+                err = MP_VAL;
+            }
         }
     #endif
     #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -15078,7 +15081,7 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
     }
     if (err == MP_OKAY) {
         bits = sp_count_bits(m);
-        if (bits == m->size * SP_WORD_SIZE) {
+        if (bits >= norm->size * SP_WORD_SIZE) {
             err = MP_VAL;
         }
     }
