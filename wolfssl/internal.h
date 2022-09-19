@@ -3831,7 +3831,8 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
-WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_CTX* ssl,
+/* use wolfSSL_API visibility to be able to test in tests/api.c */
+WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ssl,
     WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
     int side, word16 useTicket, ClientSession** clientCacheEntry);
 #ifndef NO_CLIENT_CACHE
@@ -3841,7 +3842,8 @@ WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
 #endif
 WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
-WOLFSSL_LOCAL int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
+/* WOLFSSL_API to test it in tests/api.c */
+WOLFSSL_API int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
         WOLFSSL_SESSION* session);
