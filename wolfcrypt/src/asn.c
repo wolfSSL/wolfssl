@@ -32056,8 +32056,14 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             SkipObjectId(input, inOutIdx, inSz);
             ret = ASNToHexString(input, inOutIdx, &p, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            if (ret == 0)
+            if (ret == 0) {
+#ifndef WOLFSSL_ECC_CURVE_STATIC
                 ret = EccKeyParamCopy((char**)&curve->prime, p);
+#else
+                const char *_tmp_ptr = &curve->prime[0];
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, p);
+#endif
+            }
         }
         if (ret == 0) {
             curve->size = (int)XSTRLEN(curve->prime) / 2;
@@ -32069,15 +32075,27 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             char* af = NULL;
             ret = ASNToHexString(input, inOutIdx, &af, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            if (ret == 0)
+            if (ret == 0) {
+#ifndef WOLFSSL_ECC_CURVE_STATIC
                 ret = EccKeyParamCopy((char**)&curve->Af, af);
+#else
+                const char *_tmp_ptr = &curve->Af[0];
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, af);
+#endif
+            }
         }
         if (ret == 0) {
             char* bf = NULL;
             ret = ASNToHexString(input, inOutIdx, &bf, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            if (ret == 0)
+            if (ret == 0) {
+#ifndef WOLFSSL_ECC_CURVE_STATIC
                 ret = EccKeyParamCopy((char**)&curve->Bf, bf);
+#else
+                const char *_tmp_ptr = &curve->Bf[0];
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, bf);
+#endif
+            }
         }
         if (ret == 0) {
             localIdx = *inOutIdx;
@@ -32130,8 +32148,14 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
             ret = ASNToHexString(input, inOutIdx, &o, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            if (ret == 0)
+            if (ret == 0) {
+#ifndef WOLFSSL_ECC_CURVE_STATIC
                 ret = EccKeyParamCopy((char**)&curve->order, o);
+#else
+                const char *_tmp_ptr = &curve->order[0];
+                ret = EccKeyParamCopy((char**)&_tmp_ptr, o);
+#endif
+            }
         }
         if (ret == 0) {
             curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
