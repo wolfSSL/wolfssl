@@ -273,16 +273,23 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v2 - FIPS 140-2 Cert 3389
 #   cert3389 - alias for v2
 #   rand - wolfRand
-#   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8)
-#   v5-RC9 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC9)
-#   v5-RC10 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC10
-#   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
 #   v5-RC12 - FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
 #   v5 - currently, alias for v5-RC12
-#   v5-ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
-#   v5-dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
-#   ready - currently, same as v5-ready
-#   dev - currently, same as v5-dev
+#   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
+#   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
+#
+# These options have been retired, but are listed here for historical reference:
+#   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8).
+#            HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 0.
+#   v5-RC9 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC9)
+#            HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 1.
+#   v5-RC10 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC10
+#             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
+#   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
+#             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
+#   v5-ready - Alias for ready. HAVE_FIPS_VERSION = 5,
+#              HAVE_FIPS_VERSION_MINOR = 3.
+#   v5-dev - Alias for dev. HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 3.
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
@@ -315,38 +322,6 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH="no"
         DEF_FAST_MATH="no"
     ],
-    [v5-RC8],[
-        FIPS_VERSION="v5-RC8"
-        HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=0
-        ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
-    ],
-    [v5-RC9],[
-        FIPS_VERSION="v5-RC9"
-        HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=1
-        ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
-    ],
-    [v5-RC10],[
-        FIPS_VERSION="v5-RC10"
-        HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=2
-        ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
-    ],
-    [v5-RC11],[
-        FIPS_VERSION="v5-RC11"
-        HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=2
-        ENABLED_FIPS="yes"
-        DEF_SP_MATH="no"
-        DEF_FAST_MATH="yes"
-    ],
     [v5|v5-RC12],[
         FIPS_VERSION="v5-RC12"
         HAVE_FIPS_VERSION=5
@@ -355,20 +330,20 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [ready|v5-ready],[
-        FIPS_VERSION="v5-ready"
+    [ready],[
+        FIPS_VERSION="ready"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [dev|v5-dev],[
-        FIPS_VERSION="v5-dev"
+    [dev],[
+        FIPS_VERSION="dev"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
-        # for v5-dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
@@ -802,7 +777,7 @@ then
         fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "v5-dev"; then
+    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "dev"; then
         test "$enable_aessiv" = "" && enable_aessiv=yes
     fi
 
@@ -938,7 +913,7 @@ then
         fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "v5-dev"; then
+    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "dev"; then
         test "$enable_aessiv" = "" && enable_aessiv=yes
     fi
 
@@ -4104,7 +4079,7 @@ fi
 
 # FIPS feature and macro setup
 AS_CASE([$FIPS_VERSION],
-    [v5*], [ # FIPS 140-3
+    [v5*|ready|dev], [ # FIPS 140-3
 
         AM_CFLAGS="$AM_CFLAGS \
             -DHAVE_FIPS \
@@ -4135,58 +4110,58 @@ AS_CASE([$FIPS_VERSION],
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
 
-        # force various features to FIPS 140-3 defaults, unless overridden with v5-dev:
+        # force various features to FIPS 140-3 defaults, unless overridden with dev:
 
-        AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
+        AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
-        AS_IF([test "$ENABLED_COMPKEY" = "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_compkey" != "yes")],
+        AS_IF([test "$ENABLED_COMPKEY" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_compkey" != "yes")],
             [ENABLED_COMPKEY="no"])
 
-        AS_IF([test "$ENABLED_SHA224" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
+        AS_IF([test "$ENABLED_SHA224" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_sha224" != "no")],
             [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
 
-        AS_IF([test "$ENABLED_WOLFSSH" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ssh" != "no")],
+        AS_IF([test "$ENABLED_WOLFSSH" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_ssh" != "no")],
             [enable_ssh="yes"])
 
         # Shake128 is a SHA-3 algorithm not in our FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE128" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake128" != "yes")],
+        AS_IF([test "$ENABLED_SHAKE128" != "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_shake128" != "yes")],
             [ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
 
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE256" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake256" != "yes")],
+        AS_IF([test "$ENABLED_SHAKE256" != "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_shake256" != "yes")],
             [ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
 
         # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
 
-        AS_IF([test "$ENABLED_AESCCM" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesccm" != "no")],
+        AS_IF([test "$ENABLED_AESCCM" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesccm" != "no")],
             [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
 
-        AS_IF([test "$ENABLED_RSAPSS" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_rsapss" != "no")],
+        AS_IF([test "$ENABLED_RSAPSS" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_rsapss" != "no")],
             [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
 
-        AS_IF([test "$ENABLED_ECC" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ecc" != "no")],
+        AS_IF([test "$ENABLED_ECC" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_ecc" != "no")],
             [ENABLED_ECC="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
-             AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_eccshamir" != "no")],
+             AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_eccshamir" != "no")],
                  [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
 
-        AS_IF([test "$ENABLED_AESCTR" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesctr" != "no")],
+        AS_IF([test "$ENABLED_AESCTR" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesctr" != "no")],
             [ENABLED_AESCTR="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
 
-        AS_IF([test "$ENABLED_CMAC" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_cmac" != "no")],
+        AS_IF([test "$ENABLED_CMAC" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_cmac" != "no")],
             [ENABLED_CMAC="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
 
-        AS_IF([test "$ENABLED_HKDF" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_hkdf" != "no")],
+        AS_IF([test "$ENABLED_HKDF" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_hkdf" != "no")],
             [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
 
         AS_IF([test "$ENABLED_INTELASM" = "yes"],
             [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
 
-        AS_IF([test "$ENABLED_SHA512" = "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha512" != "no")],
+        AS_IF([test "$ENABLED_SHA512" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_sha512" != "no")],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
 
-        AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesgcm" != "no")],
+        AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
 
         # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
@@ -4194,7 +4169,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
 
         AS_IF([test $HAVE_FIPS_VERSION_MINOR -ge 2],
-            [AS_IF([test "x$ENABLED_AESOFB" = "xno" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesofb" != "no")],
+            [AS_IF([test "x$ENABLED_AESOFB" = "xno" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesofb" != "no")],
                 [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
