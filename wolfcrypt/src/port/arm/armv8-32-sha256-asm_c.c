@@ -2499,7 +2499,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k), [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k)
+        : [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k)
         : "memory", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11"
     );
 }
