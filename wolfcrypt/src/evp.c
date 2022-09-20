@@ -3420,6 +3420,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
 
     ret = wolfSSL_CMAC_Init(ctx, priv, len, cipher, e);
     if (ret == WOLFSSL_FAILURE) {
+        wolfSSL_CMAC_CTX_free(ctx);
         WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
         return NULL;
     }
@@ -3440,6 +3441,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
             pkey->type = pkey->save_type = EVP_PKEY_CMAC;
             pkey->cmacCtx = ctx;
         }
+    }
+    else {
+        wolfSSL_CMAC_CTX_free(ctx);
     }
 
     WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
