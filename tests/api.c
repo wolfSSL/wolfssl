@@ -55881,11 +55881,89 @@ static int test_wolfSSL_ignore_alert_before_cookie(void)
     return 0;
 }
 
+static void test_wolfSSL_send_bad_record(WOLFSSL* ssl)
+{
+    int ret;
+    int fd;
+
+    byte bad_msg[] = {
+        0x17, /* app data  */
+        0xaa, 0xfd, /* bad version */
+        0x00, 0x01, /* epoch 1 */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x55, /* not seen seq number */
+        0x00, 0x26, /* length: 38 bytes */
+        0xae, 0x30, 0x31, 0xb1, 0xf1, 0xb9, 0x6f, 0xda, 0x17, 0x19, 0xd9, 0x57,
+        0xa9, 0x9d, 0x5c, 0x51, 0x9b, 0x53, 0x63, 0xa5, 0x24, 0x70, 0xa1,
+        0xae, 0xdf, 0x1c, 0xb9, 0xfc, 0xe3, 0xd7, 0x77, 0x6d, 0xb6, 0x89, 0x0f,
+        0x03, 0x18, 0x72
+    };
+
+    fd = wolfSSL_get_fd(ssl);
+    AssertIntGE(fd, 0);
+    ret = (int)send(fd, bad_msg, sizeof(bad_msg), 0);
+    AssertIntEQ(ret, sizeof(bad_msg));
+    ret = wolfSSL_write(ssl, "badrecordtest", sizeof("badrecordtest"));
+    AssertIntEQ(ret, sizeof("badrecordtest"));
+}
+
+static void test_wolfSSL_read_string(WOLFSSL* ssl)
+{
+    byte buf[100];
+    int ret;
+
+    ret = wolfSSL_read(ssl, buf, sizeof(buf));
+    AssertIntGT(ret, 0);
+    AssertIntEQ(strcmp((char*)buf, "badrecordtest"), 0);
+}
+
+static int _test_wolfSSL_dtls_bad_record(
+    method_provider client_method, method_provider server_method)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+    client_cbs.doUdp = server_cbs.doUdp = 1;
+    client_cbs.method = client_method;
+    server_cbs.method = server_method;
+
+    client_cbs.on_result = test_wolfSSL_send_bad_record;
+    server_cbs.on_result = test_wolfSSL_read_string;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    if (!client_cbs.return_code)
+        return -1;
+    if (!server_cbs.return_code)
+        return -1;
+
+    return 0;
+}
+
+static int test_wolfSSL_dtls_bad_record(void)
+{
+    int ret;
+    ret = _test_wolfSSL_dtls_bad_record(wolfDTLSv1_2_client_method,
+        wolfDTLSv1_2_server_method);
+    if (ret != 0)
+        return ret;
+#ifdef WOLFSSL_DTLS13
+    return _test_wolfSSL_dtls_bad_record(wolfDTLSv1_3_client_method,
+        wolfDTLSv1_3_server_method);
+#else
+    return 0;
+#endif /* WOLFSSL_DTLS13 */
+
+}
+
 #else
 static int test_wolfSSL_dtls_fragments(void) {
     return 0;
 }
 static int test_wolfSSL_ignore_alert_before_cookie(void) {
+    return 0;
+}
+static int test_wolfSSL_dtls_bad_record(void) {
     return 0;
 }
 #endif
@@ -58898,6 +58976,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_dtls_fragments),
     TEST_DECL(test_wolfSSL_dtls_AEAD_limit),
     TEST_DECL(test_wolfSSL_ignore_alert_before_cookie),
+    TEST_DECL(test_wolfSSL_dtls_bad_record),
     TEST_DECL(test_wolfSSL_dtls_stateless),
     TEST_DECL(test_generate_cookie),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
