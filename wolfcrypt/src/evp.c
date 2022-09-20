@@ -3428,6 +3428,60 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
 }
 
 
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
+        const unsigned char* priv, size_t len, const WOLFSSL_EVP_CIPHER *cipher)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_CMAC_CTX* ctx;
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_CMAC_key");
+
+    if (priv == NULL || len == 0 || cipher == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", BAD_FUNC_ARG);
+        return NULL;
+    }
+
+    ctx = wolfSSL_CMAC_CTX_new();
+    if (ctx == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+        return NULL;
+    }
+
+    ret = wolfSSL_CMAC_Init(ctx, priv, len, cipher, e);
+    if (ret == WOLFSSL_FAILURE) {
+        wolfSSL_CMAC_CTX_free(ctx);
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+        return NULL;
+    }
+
+    pkey = wolfSSL_EVP_PKEY_new();
+    if (pkey != NULL) {
+        pkey->pkey.ptr = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pkey->pkey.ptr == NULL && len > 0) {
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+            wolfSSL_CMAC_CTX_free(ctx);
+        }
+        else {
+            if (len) {
+                XMEMCPY(pkey->pkey.ptr, priv, len);
+            }
+            pkey->pkey_sz = (int)len;
+            pkey->type = pkey->save_type = EVP_PKEY_CMAC;
+            pkey->cmacCtx = ctx;
+        }
+    }
+    else {
+        wolfSSL_CMAC_CTX_free(ctx);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+    return pkey;
+}
+#endif /* defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) */
+
 const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
                                                 size_t* len)
 {
@@ -8951,6 +9005,16 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     key->hkdfInfoSz = 0;
                     break;
                 #endif /* HAVE_HKDF */
+
+                #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+                    defined(WOLFSSL_AES_DIRECT)
+                case EVP_PKEY_CMAC:
+                    if (key->cmacCtx != NULL) {
+                        wolfSSL_CMAC_CTX_free(key->cmacCtx);
+                        key->cmacCtx = NULL;
+                    }
+                    break;
+                #endif /* defined(WOLFSSL_CMAC) ... */
 
                 default:
                     break;

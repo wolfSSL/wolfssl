@@ -33295,6 +33295,36 @@ static int test_wolfSSL_EVP_PKEY_new_mac_key(void)
 
     return 0;
 }
+
+
+static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
+{
+#ifdef OPENSSL_EXTRA
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+
+    const char *priv = "ABCDEFGHIJKLMNOP";
+    const WOLFSSL_EVP_CIPHER* cipher = EVP_aes_128_cbc();
+    WOLFSSL_EVP_PKEY* key = NULL;
+    printf(testingFmt, "wolfSSL_EVP_PKEY_new_CMAC_key()");
+
+    AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
+        NULL, NULL, AES_128_KEY_SIZE, cipher));
+    AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
+        NULL, (const unsigned char *)priv, 0, cipher));
+    AssertNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
+        NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, NULL));
+
+    AssertNotNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
+        NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, cipher));
+    wolfSSL_EVP_PKEY_free(key);
+
+    printf(resultFmt, passed);
+#endif /* defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) */
+#endif /* OPENSSL_EXTRA */
+
+    return 0;
+}
+
 static int test_wolfSSL_EVP_Digest(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_PWDBASED)
@@ -58701,6 +58731,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_Digest),
     TEST_DECL(test_wolfSSL_EVP_Digest_all),
     TEST_DECL(test_wolfSSL_EVP_PKEY_new_mac_key),
+    TEST_DECL(test_wolfSSL_EVP_PKEY_new_CMAC_key),
     TEST_DECL(test_wolfSSL_EVP_MD_hmac_signing),
     TEST_DECL(test_wolfSSL_EVP_MD_rsa_signing),
     TEST_DECL(test_wolfSSL_EVP_MD_ecc_signing),
