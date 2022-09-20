@@ -10133,7 +10133,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 #ifdef WOLFSSL_DTLS13
 static int GetInputData(WOLFSSL *ssl, word32 size);
 static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
-                                 RecordLayerHeader* rh, word16* size)
+    RecordLayerHeader* rh, word16* size)
 {
 
     Dtls13UnifiedHdrInfo hdrInfo;
@@ -10231,7 +10231,7 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
 static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
-                               RecordLayerHeader* rh, word16* size)
+    RecordLayerHeader* rh, word16* size)
 {
 
 #ifdef HAVE_FUZZER
@@ -10448,7 +10448,7 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         case no_type:
         default:
 #ifdef OPENSSL_ALL
-            {
+            if (!ssl->options.dtls) {
                 char *method = (char*)ssl->buffers.inputBuffer.buffer + start;
                 /* Attempt to identify if this is a plain HTTP request.
                  * No size checks because this function assumes at least
