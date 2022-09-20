@@ -1362,6 +1362,8 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
        to create record number xor mask). (draft 43 - Sec 4.2.3) */
     if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
         return LENGTH_ERROR;
+    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+        return BUFFER_ERROR;
 
     ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
         DEPROTECT);
