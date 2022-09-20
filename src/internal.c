@@ -10176,13 +10176,15 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
-    if (readSize < ssl->dtls13CurRlLength) {
+    if (readSize < ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE) {
         /* when using DTLS over a medium that does not guarantee that a full
          * message is received in a single read, we may end up without the full
-         * header */
-        ret = GetInputData(ssl, ssl->dtls13CurRlLength - readSize);
+         * header and minimum ciphertext to decrypt record sequence numbers */
+        ret = GetInputData(ssl, ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE);
         if (ret != 0)
             return ret;
+
+        readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
     }
 
     ret = Dtls13ParseUnifiedRecordLayer(ssl,
@@ -10234,10 +10236,7 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 #endif
 
 #ifdef WOLFSSL_DTLS13
-    word32 read_size;
     int ret;
-
-    read_size = ssl->buffers.inputBuffer.length - *inOutIdx;
 
     if (Dtls13IsUnifiedHeader(*(ssl->buffers.inputBuffer.buffer + *inOutIdx))) {
 
@@ -10263,8 +10262,8 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 
     /* not a unified header, check that we have at least
      * DTLS_RECORD_HEADER_SZ */
-    if (read_size < DTLS_RECORD_HEADER_SZ) {
-        ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ - read_size);
+    if (ssl->buffers.inputBuffer.length - *inOutIdx < DTLS_RECORD_HEADER_SZ) {
+        ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ);
         if (ret != 0)
             return LENGTH_ERROR;
     }

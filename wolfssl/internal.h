@@ -4640,6 +4640,9 @@ typedef enum EarlyDataState {
 
 #ifdef WOLFSSL_DTLS13
 
+/* size of the mask used to encrypt/decrypt Record Number  */
+#define DTLS13_RN_MASK_SIZE 16
+
 typedef struct Dtls13UnifiedHdrInfo {
     word16 recordLength;
     byte seqLo;
