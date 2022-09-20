@@ -5004,7 +5004,9 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 #endif /* WOLFSSL_ASYNC_CRYPT */
     {
         if (ret != 0 || ssl->eccVerifyRes == 0) {
-            ret = VERIFY_SIGN_ERROR;
+            if (ret == 0) {
+                ret = VERIFY_SIGN_ERROR;
+            }
             WOLFSSL_ERROR_VERBOSE(ret);
         }
         else {
