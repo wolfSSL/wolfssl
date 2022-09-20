@@ -50,10 +50,7 @@ struct WOLFSSL_DH {
      * lighttpd src code.
      */
     int length;
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex refMutex;      /* ref count mutex */
-#endif
-    int refCount;                /* reference count */
+    wolfSSL_Ref ref;             /* Reference count information. */
 };
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,

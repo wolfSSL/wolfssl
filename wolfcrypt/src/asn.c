@@ -10114,7 +10114,7 @@ int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
         ret = LENGTH_ONLY_E;
     }
     /* Check buffer is big enough for encoding. */
-    if ((ret == 0) && ((int)*outSz < sz)) {
+    if ((ret == 0) && (*outSz < (word32)sz)) {
         ret = BUFFER_E;
     }
     if (ret == 0) {
@@ -22726,6 +22726,11 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
         case ECC_PUBLICKEY_TYPE:
             if (header) *header = BEGIN_PUB_KEY;
             if (footer) *footer = END_PUB_KEY;
+            ret = 0;
+            break;
+        case RSA_PUBLICKEY_TYPE:
+            if (header) *header = BEGIN_RSA_PUB;
+            if (footer) *footer = END_RSA_PUB;
             ret = 0;
             break;
     #ifndef NO_DH

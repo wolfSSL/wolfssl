@@ -7277,7 +7277,7 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
 #endif
         }
         wolfSSL_sk_X509_INFO_pop_free(info, wolfSSL_X509_INFO_free);
-    #else
+    #elif defined(HAVE_CRL)
         /* Only supports one certificate or CRL in the file. */
         WOLFSSL_X509_CRL* crl = NULL;
         XFILE fp = XFOPEN(file, "rb");
@@ -7659,6 +7659,7 @@ const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
 #endif
 
 
+#ifndef NO_BIO
 /* print serial number out
 *  return WOLFSSL_SUCCESS on success
 */
@@ -7718,7 +7719,9 @@ static int X509CRLPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !NO_BIO */
 
+#if !defined(NO_BIO) && defined(XSNPRINTF)
 /* print out the extensions in human readable format for use with
  * wolfSSL_X509_CRL_print()
  * return WOLFSSL_SUCCESS on success
@@ -7959,7 +7962,6 @@ static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 }
 #endif
 
-#if !defined(NO_BIO) && defined(XSNPRINTF)
 /* Writes the human readable form of x509 to bio.
  *
  * bio  WOLFSSL_BIO to write to.
