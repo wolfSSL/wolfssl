@@ -165,4 +165,5 @@ if [ ! -z $DTLS13_DO_DELAY_TEST ];then
    test_time_delays
 fi
 
-
+echo
+echo "All tests SUCCEEDED!!!"

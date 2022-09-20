@@ -6080,7 +6080,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     WOLFSSL_ENTER("SendTls13ServerHello");
 
     if (extMsgType == hello_retry_request) {
-        WOLFSSL_MSG("wolfSSL Doing HelloRetryRequest");
+        WOLFSSL_MSG("wolfSSL Sending HelloRetryRequest");
         if ((ret = RestartHandshakeHash(ssl)) < 0)
             return ret;
     }
@@ -10592,7 +10592,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls)
-                ssl->dtls13SendingAckOrRtx =0;
+                ssl->dtls13SendingAckOrRtx = 0;
 #endif /* WOLFSSL_DTLS13 */
 
         }
