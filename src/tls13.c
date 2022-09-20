@@ -11632,8 +11632,7 @@ static int DtlsAcceptStateless(WOLFSSL *ssl)
         if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
             ret = SendTls13ServerHello(ssl, hello_retry_request);
-            if (ret == 0 || ret == WANT_WRITE)
-                DtlsResetState(ssl);
+            DtlsResetState(ssl);
             return ret;
         }
 
