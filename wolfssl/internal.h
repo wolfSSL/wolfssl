@@ -1304,6 +1304,8 @@ enum {
 #define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
 #define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
 
+#if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
+
 #define TLS13_TICKET_NONCE_MAX_SZ 255
 
 #if (defined(HAVE_FIPS) &&                                                     \
@@ -1319,6 +1321,19 @@ enum {
 #if TLS13_TICKET_NONCE_STATIC_SZ > TLS13_TICKET_NONCE_MAX_SZ
 #error "Max size for ticket nonce is 255 bytes"
 #endif
+
+#endif /* WOLFSSL_TLS13 || !NO_PSK */
+
+#ifdef WOLFSSL_TLS13
+/* The length of the certificate verification label - client and server. */
+#define CERT_VFY_LABEL_SZ    34
+/* The number of prefix bytes for signature data. */
+#define SIGNING_DATA_PREFIX_SZ     64
+/* Maximum length of the signature data. */
+#define MAX_SIG_DATA_SZ            (SIGNING_DATA_PREFIX_SZ + \
+                                    CERT_VFY_LABEL_SZ      + \
+                                    WC_MAX_DIGEST_SIZE)
+#endif /* WOLFSSL_TLS13 */
 
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
@@ -1410,8 +1425,10 @@ enum Misc {
     SESSION_ADD_SZ = 4,        /* session age add */
     TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
+#if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
     MAX_TICKET_NONCE_STATIC_SZ = TLS13_TICKET_NONCE_STATIC_SZ,
                                /* maximum ticket nonce static size */
+#endif /* WOLFSSL_TLS13 || !NO_PSK */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
 
     RAN_LEN      = 32,         /* random length           */
@@ -1956,6 +1973,10 @@ WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx);
 #endif
 #endif
+WOLFSSL_LOCAL int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
+                                int check);
+WOLFSSL_LOCAL int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
+                                      int sigAlgo, int hashAlgo);
 #ifdef WOLFSSL_ASYNC_IO
 WOLFSSL_LOCAL void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync);
 #endif
@@ -2001,7 +2022,7 @@ WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int Tls13DeriveKey(WOLFSSL *ssl, byte *output, int outputLen,
     const byte *secret, const byte *label, word32 labelLen, int hashAlgo,
-    int includeMsgs);
+    int includeMsgs, int side);
 #endif
 int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
                     int pLen, int content);
@@ -2759,6 +2780,13 @@ WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
 
+#if defined(WOLFSSL_PUBLIC_ASN) && defined(HAVE_PK_CALLBACKS)
+/* Internal callback guarded by WOLFSSL_PUBLIC_ASN because of DecodedCert. */
+typedef int (*CallbackProcessPeerCert)(WOLFSSL* ssl, DecodedCert* p_cert);
+WOLFSSL_API void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
+       CallbackProcessPeerCert cb);
+#endif /* DecodedCert && HAVE_PK_CALLBACKS */
+
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
@@ -3378,28 +3406,55 @@ struct WOLFSSL_CTX {
         CallbackX448SharedSecret X448SharedSecretCb;
     #endif
     #ifndef NO_DH
-        CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
+        /* User DH KeyGen Callback handler*/
+        CallbackDhGenerateKeyPair DhGenerateKeyPairCb;
+        /* User DH Agree Callback handler */
+        CallbackDhAgree DhAgreeCb;
     #endif
     #ifndef NO_RSA
-        CallbackRsaSign   RsaSignCb;      /* User RsaSign Callback handler (priv key) */
-        CallbackRsaVerify RsaVerifyCb;    /* User RsaVerify Callback handler (pub key) */
-        CallbackRsaVerify RsaSignCheckCb; /* User VerifyRsaSign Callback handler (priv key) */
+        /* User RsaSign Callback handler (priv key) */
+        CallbackRsaSign   RsaSignCb;
+        /* User RsaVerify Callback handler (pub key) */
+        CallbackRsaVerify RsaVerifyCb;
+        /* User VerifyRsaSign Callback handler (priv key) */
+        CallbackRsaVerify RsaSignCheckCb;
         #ifdef WC_RSA_PSS
-            CallbackRsaPssSign   RsaPssSignCb;       /* User RsaSign (priv key) */
-            CallbackRsaPssVerify RsaPssVerifyCb;     /* User RsaVerify (pub key) */
-            CallbackRsaPssVerify RsaPssSignCheckCb; /* User VerifyRsaSign (priv key) */
+            /* User RsaSign (priv key) */
+            CallbackRsaPssSign   RsaPssSignCb;
+            /* User RsaVerify (pub key) */
+            CallbackRsaPssVerify RsaPssVerifyCb;
+            /* User VerifyRsaSign (priv key) */
+            CallbackRsaPssVerify RsaPssSignCheckCb;
         #endif
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
-    CallbackGenPreMaster        GenPreMasterCb;     /* Use generate pre-master handler */
-    CallbackGenMasterSecret     GenMasterCb;        /* Use generate master secret handler */
-    CallbackGenSessionKey       GenSessionKeyCb;    /* Use generate session key handler */
-    CallbackEncryptKeys         EncryptKeysCb;/* Use setting encrypt keys handler */
-    CallbackTlsFinished         TlsFinishedCb;      /* Use Tls finished handler */
+
+    /* User generate pre-master handler */
+    CallbackGenPreMaster        GenPreMasterCb;
+    /* User generate master secret handler */
+    CallbackGenMasterSecret     GenMasterCb;
+    /* User generate session key handler */
+    CallbackGenSessionKey       GenSessionKeyCb;
+    /* User setting encrypt keys handler */
+    CallbackEncryptKeys         EncryptKeysCb;
+    /* User Tls finished handler */
+    CallbackTlsFinished         TlsFinishedCb;
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
-    CallbackVerifyMac           VerifyMacCb;        /* Use Verify mac handler */
+    /* User Verify mac handler */
+    CallbackVerifyMac           VerifyMacCb;
 #endif
+#if defined(WOLFSSL_PUBLIC_ASN)
+    /* User handler to process a certificate */
+    CallbackProcessPeerCert ProcessPeerCertCb;
+#endif
+    /* User handler to process the server's key exchange public key */
+    CallbackProcessServerSigKex ProcessServerSigKexCb;
+    /* User handler to process the TLS record */
+    CallbackPerformTlsRecordProcessing PerformTlsRecordProcessingCb;
+    /* User handler to do HKDF expansions */
+    CallbackHKDFExpandLabel HKDFExpandLabelCb;
+
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_WOLF_EVENT
     WOLF_EVENT_QUEUE event_queue;
@@ -5219,6 +5274,9 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
+#endif
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    maxq_ssl_t maxq_ctx;
 #endif
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     /* Added in libest port: allow applications to get the 'tls-unique' Channel

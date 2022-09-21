@@ -200,3 +200,8 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_aes.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_pkcbs.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/psa/README.md
+
+if BUILD_MAXQ10XX
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/maxim/maxq10xx.c
+endif
+EXTRA_DIST += wolfcrypt/src/port/maxim/README.md

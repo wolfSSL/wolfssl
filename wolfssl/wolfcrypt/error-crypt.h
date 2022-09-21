@@ -252,8 +252,9 @@ enum {
 
     IO_FAILED_E = -291,          /* Input/output failure */
     SYSLIB_FAILED_E = -292,      /* System/library call failed */
+    USE_HW_PSK = -293,           /* Callback return to indicate HW has PSK */
 
-    WC_LAST_E           = -292,  /* Update this to indicate last error */
+    WC_LAST_E           = -293,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

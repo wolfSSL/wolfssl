@@ -11372,6 +11372,9 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 #endif
     cert->pubKeySize = pubLen;
     cert->publicKey = source + pubIdx;
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    cert->publicKeyIndex = pubIdx;
+#endif
     *srcIdx += length;
 
 #ifdef HAVE_OCSP
@@ -11393,6 +11396,10 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
          * SEQUENCE. */
         GetASN_GetConstRef(&dataASN[RSACERTKEYASN_IDX_STR],
                 &cert->publicKey, &cert->pubKeySize);
+
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    cert->publicKeyIndex = dataASN[RSACERTKEYASN_IDX_SEQ].offset;
+#endif
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
         /* Start of SEQUENCE. */
@@ -11493,6 +11500,10 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         cert->sigCtx.CertAtt.pubkey_e_len   =
                 cert->sigCtx.CertAtt.pubkey_n_len;
     #endif
+    #ifdef WOLFSSL_MAXQ10XX_TLS
+        cert->publicKeyIndex = *srcIdx + 1;
+    #endif
+
     #ifdef HAVE_OCSP
         ret = CalcHashId(source + *srcIdx, length, cert->subjectKeyHash);
         if (ret != 0)
@@ -11529,6 +11540,12 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             cert->pkCurveOID = dataASN[ECCCERTKEYASN_IDX_OID].data.oid.sum;
         }
         /* Ignore explicit parameters. */
+
+    #ifdef WOLFSSL_MAXQ10XX_TLS
+        cert->publicKeyIndex =
+            GetASNItem_DataIdx(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY], source)
+            + 1;
+    #endif
 
     #ifdef HAVE_OCSP
         /* Calculate the hash of the subject public key for OCSP. */

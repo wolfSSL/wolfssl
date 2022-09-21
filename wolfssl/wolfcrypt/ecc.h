@@ -471,6 +471,9 @@ struct ecc_key {
      */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
 #endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    maxq_ecc_t maxq_ctx;
+#endif
 #ifdef WOLFSSL_KCAPI_ECC
     struct kcapi_handle* handle;
     byte pubkey_raw[MAX_ECC_BYTES * 2];

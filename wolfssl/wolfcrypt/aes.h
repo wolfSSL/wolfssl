@@ -122,6 +122,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h>
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    #include <wolfssl/wolfcrypt/port/maxim/maxq10xx.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -298,6 +302,9 @@ struct Aes {
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     silabs_aes_t ctx;
+#endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    maxq_aes_t maxq_ctx;
 #endif
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     psa_key_id_t key_id;

@@ -50,6 +50,10 @@
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
+#ifdef MAXQ10XX_MODULE_INIT
+    #include <wolfssl/wolfcrypt/port/maxim/maxq10xx.h>
+#endif
+
 #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
     defined(WOLFSSL_ATECC608A)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
@@ -253,6 +257,14 @@ int wolfCrypt_Init(void)
         ret = psoc6_crypto_port_init();
         if (ret != 0) {
             WOLFSSL_MSG("PSoC6 crypto engine init failed");
+            return ret;
+        }
+    #endif
+
+    #ifdef MAXQ10XX_MODULE_INIT
+        ret = maxq10xx_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("MAXQ10xx port init failed");
             return ret;
         }
     #endif
@@ -1311,6 +1323,223 @@ int wolfSSL_CryptHwMutexUnLock(void)
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
         LeaveCriticalSection(m);
+        return 0;
+    }
+
+#elif defined(MAXQ10XX_MUTEX)
+    static pthread_mutex_t *wcCryptHwSharedMutexPtr;
+    static pthread_once_t key_once_own_hw_mutex = PTHREAD_ONCE_INIT;
+    static pthread_key_t key_own_hw_mutex;
+
+    static void destruct_key(void *buf)
+    {
+        if (buf != NULL) {
+            free(buf);
+        }
+    }
+
+    static void make_key_own_hw_mutex(void)
+    {
+        (void)pthread_key_create(&key_own_hw_mutex, destruct_key);
+    }
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        int created = 0;
+        void *addr = NULL;
+
+        if (m != &wcCryptHwMutex) {
+            if (pthread_mutex_init(m, 0) == 0) {
+                return 0;
+            }
+            return BAD_MUTEX_E;
+        }
+
+        /* try to open mutex memory */
+        int shm_fd = shm_open("/maxq-mutex", O_RDWR, 0666);
+        if (shm_fd < 0) {
+            /* create mutex memory */
+            shm_fd = shm_open("/maxq-mutex", O_RDWR | O_CREAT | O_EXCL, 0666);
+            created = 1;
+        }
+
+        if (shm_fd < 0) {
+            WOLFSSL_MSG("wc_InitMutex: shm_open() failed");
+            return BAD_MUTEX_E;
+        }
+
+        if (ftruncate(shm_fd, sizeof(pthread_mutex_t))) {
+            WOLFSSL_MSG("wc_InitMutex: ftruncate() failed");
+            return BAD_MUTEX_E;
+        }
+
+        addr = mmap(NULL, sizeof(pthread_mutex_t), PROT_READ | PROT_WRITE,
+                    MAP_SHARED, shm_fd, 0);
+
+        if (addr == MAP_FAILED) {
+            WOLFSSL_MSG("wc_InitMutex: mmap() failed");
+            return BAD_MUTEX_E;
+        }
+
+        wcCryptHwSharedMutexPtr = (pthread_mutex_t *)addr;
+
+        if (close(shm_fd)) {
+            WOLFSSL_MSG("wc_InitMutex: close() failed");
+            return BAD_MUTEX_E;
+        }
+
+        if (created) {
+            /* initialize mutex */
+            pthread_mutexattr_t attr;
+            if (pthread_mutexattr_init(&attr)) {
+                WOLFSSL_MSG("wc_InitMutex: pthread_mutexattr_init() failed");
+                return BAD_MUTEX_E;
+            }
+
+            if (pthread_mutexattr_setpshared(&attr,
+                                             PTHREAD_PROCESS_SHARED)) {
+                WOLFSSL_MSG(
+                    "wc_InitMutex: pthread_mutexattr_setpshared() failed");
+                return BAD_MUTEX_E;
+            }
+
+            if (pthread_mutex_init(wcCryptHwSharedMutexPtr, &attr)) {
+                WOLFSSL_MSG("wc_InitMutex: pthread_mutex_init() failed");
+                return BAD_MUTEX_E;
+            }
+        }
+
+        if (pthread_once(&key_once_own_hw_mutex, make_key_own_hw_mutex)) {
+            WOLFSSL_MSG("wc_InitMutex: pthread_once() failed");
+            return BAD_MUTEX_E;
+        }
+
+        return 0;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        void *key_ptr = NULL;
+        if (m != &wcCryptHwMutex) {
+            if (pthread_mutex_destroy(m) == 0) {
+                return 0;
+            }
+            return BAD_MUTEX_E;
+        }
+
+        if (wcCryptHwSharedMutexPtr) {
+            if (munmap((void *)wcCryptHwSharedMutexPtr,
+                       sizeof(pthread_mutex_t))) {
+                WOLFSSL_MSG("wc_FreeMutex: munmap() failed");
+                return BAD_MUTEX_E;
+            }
+
+            wcCryptHwSharedMutexPtr = NULL;
+        }
+
+        key_ptr = pthread_getspecific(key_own_hw_mutex);
+        if (key_ptr) {
+            *((int *)key_ptr) = 0;
+        }
+
+        return 0;
+    }
+
+    static int maxq_LockMutex(wolfSSL_Mutex* m, int trylock)
+    {
+        void *key_ptr = NULL;
+        int ret = 0;
+
+        if (m != &wcCryptHwMutex) {
+            if (pthread_mutex_lock(m) == 0) {
+                return 0;
+            }
+            return BAD_MUTEX_E;
+        }
+
+        if (wcCryptHwSharedMutexPtr == NULL) {
+            return BAD_MUTEX_E;
+        }
+
+        key_ptr = pthread_getspecific(key_own_hw_mutex);
+        if (key_ptr == NULL) {
+            key_ptr = malloc(sizeof(int));
+            if (key_ptr == NULL) {
+                return MEMORY_E;
+            }
+
+            memset(key_ptr, 0, sizeof(int));
+
+            if (pthread_setspecific(key_own_hw_mutex, key_ptr)) {
+                return THREAD_STORE_SET_E;
+            }
+        }
+        else {
+            if ((trylock == 0) && (*((int *)key_ptr) > 0)) {
+                *((int *)key_ptr) = *((int *)key_ptr) + 1;
+                return 0;
+            }
+        }
+
+        if (trylock) {
+            ret = pthread_mutex_trylock(wcCryptHwSharedMutexPtr);
+        }
+        else {
+            ret = pthread_mutex_lock(wcCryptHwSharedMutexPtr);
+        }
+
+        if (ret != 0) {
+            return BAD_MUTEX_E;
+        }
+
+        *((int *)key_ptr) = 1;
+        return 0;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        return maxq_LockMutex(m, 0);
+    }
+
+    int maxq_CryptHwMutexTryLock()
+    {
+        int ret = BAD_MUTEX_E;
+        /* Make sure HW Mutex has been initialized */
+        ret = wolfSSL_CryptHwMutexInit();
+        if (ret == 0) {
+            ret = maxq_LockMutex(&wcCryptHwMutex, 1);
+        }
+        return ret;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        void *key_ptr = NULL;
+
+        if (m != &wcCryptHwMutex) {
+            if (pthread_mutex_unlock(m) == 0) {
+                return 0;
+            }
+            return BAD_MUTEX_E;
+        }
+
+        if (wcCryptHwSharedMutexPtr == NULL) {
+            return BAD_MUTEX_E;
+        }
+
+        key_ptr = pthread_getspecific(key_own_hw_mutex);
+        if (key_ptr) {
+            if (*((int *)key_ptr) > 0) {
+                *((int *)key_ptr) = *((int *)key_ptr) - 1;
+                if (*((int *)key_ptr) > 0) {
+                    return 0;
+                }
+            }
+        }
+
+        if (pthread_mutex_unlock(wcCryptHwSharedMutexPtr) != 0) {
+            return BAD_MUTEX_E;
+        }
         return 0;
     }
 

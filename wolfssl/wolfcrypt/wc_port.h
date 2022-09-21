@@ -217,6 +217,12 @@
         } wolfSSL_Mutex;
     #elif defined(USE_WINDOWS_API)
         typedef CRITICAL_SECTION wolfSSL_Mutex;
+    #elif defined(MAXQ10XX_MUTEX)
+        #include <sys/mman.h>
+        #include <fcntl.h>
+        #include <pthread.h>
+        typedef pthread_mutex_t wolfSSL_Mutex;
+        int maxq_CryptHwMutexTryLock(void);
     #elif defined(WOLFSSL_PTHREADS)
         typedef pthread_mutex_t wolfSSL_Mutex;
     #elif defined(THREADX)

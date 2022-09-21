@@ -574,6 +574,9 @@ const char* wc_GetErrorString(int error)
     case SYSLIB_FAILED_E:
         return "System/library call failed";
 
+    case USE_HW_PSK:
+        return "Callback indicates that HW has PSK";
+
     default:
         return "unknown error number";
 

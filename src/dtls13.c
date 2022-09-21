@@ -1777,7 +1777,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         WOLFSSL_MSG("Derive SN Client key");
         ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
             ssl->clientSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
-            0);
+            0, WOLFSSL_CLIENT_END);
         if (ret != 0)
             goto end;
 
@@ -1788,7 +1788,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         WOLFSSL_MSG("Derive SN Server key");
         ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
             ssl->serverSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
-            0);
+            0, WOLFSSL_SERVER_END);
         if (ret != 0)
             goto end;
 
