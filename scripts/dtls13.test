@@ -18,7 +18,9 @@ cleanup () {
 trap cleanup err exit
 
 WOLFSSL_ROOT=$(pwd)
+if [ -z $UDP_PROXY_PATH ];then
 UDP_PROXY_PATH=$WOLFSSL_ROOT/../udp-proxy/udp_proxy
+fi
 PROXY_PORT=12345
 SERVER_PORT=11111
 NEW_SESSION_TICKET_SIZE=200
