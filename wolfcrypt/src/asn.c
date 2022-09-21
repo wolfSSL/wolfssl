@@ -15395,7 +15395,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         case SIG_STATE_HASH:
         {
         #if !defined(NO_RSA) && defined(WC_RSA_PSS)
-            if (keyOID == RSAPSSk) {
+            if (sigOID == RSAPSSk) {
                 word32 fakeSigOID = 0;
                 ret = DecodeRsaPssParams(sigParams, sigParamsSz, &sigCtx->hash,
                     &sigCtx->mgf, &sigCtx->saltLen);
@@ -16061,15 +16061,17 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         {
             switch (keyOID) {
             #ifndef NO_RSA
+                case RSAk:
                 #ifdef WC_RSA_PSS
                 case RSAPSSk:
+                if (sigOID == RSAPSSk) {
                     /* TODO: pkCbRsaPss - RSA PSS callback. */
                     ret = wc_RsaPSS_VerifyInline_ex(sigCtx->sigCpy, sigSz,
                         &sigCtx->out, sigCtx->hash, sigCtx->mgf,
                         sigCtx->saltLen, sigCtx->key.rsa);
-                    break;
+                }
+                else
                 #endif
-                case RSAk:
                 {
                 #if defined(HAVE_PK_CALLBACKS)
                     if (sigCtx->pkCbRsa) {
@@ -16089,8 +16091,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         ret = wc_RsaSSL_VerifyInline(sigCtx->sigCpy, sigSz,
                                                  &sigCtx->out, sigCtx->key.rsa);
                     }
-                    break;
                 }
+                break;
             #endif /* !NO_RSA */
             #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
                 case DSAk:
@@ -16208,8 +16210,10 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         {
             switch (keyOID) {
             #ifndef NO_RSA
+                case RSAk:
                 #ifdef WC_RSA_PSS
                 case RSAPSSk:
+                if (sigOID == RSAPSSk) {
                 #if (defined(HAVE_SELFTEST) && \
                      (!defined(HAVE_SELFTEST_VERSION) || \
                       (HAVE_SELFTEST_VERSION < 2))) || \
@@ -16232,8 +16236,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         sigCtx->heap);
                 #endif
                     break;
+                }
+                else
                 #endif
-                case RSAk:
                 {
                     int encodedSigSz, verifySz;
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
