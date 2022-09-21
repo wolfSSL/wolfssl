@@ -33986,8 +33986,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
-            XMEMCPY(&it->ticketNonce, &ssl->session->ticketNonce,
-                                                           sizeof(TicketNonce));
+            XMEMCPY(it->ticketNonce, ssl->session->ticketNonce.data,
+                ssl->session->ticketNonce.len);
+            it->ticketNonceLen = ssl->session->ticketNonce.len;
 #endif
         }
 
@@ -34263,8 +34264,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
-                XMEMCPY(&ssl->session->ticketNonce, &it->ticketNonce,
-                                                           sizeof(TicketNonce));
+                XMEMCPY(ssl->session->ticketNonce.data, it->ticketNonce,
+                    it->ticketNonceLen);
+                ssl->session->ticketNonce.len = it->ticketNonceLen;
                 ato16(it->namedGroup, &ssl->session->namedGroup);
 #endif
             }
