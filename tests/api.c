@@ -3959,7 +3959,7 @@ static int test_wolfSSL_EVP_PKEY_print_public(void)
     AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n");
+    strcpy(line1, "       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n");
     AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
 
@@ -30803,13 +30803,13 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     X509* x509 = NULL;
     X509_NAME* name = NULL;
 
-    const char* expNormal  = "C=US,CN=wolfssl.com";
-    const char* expReverse = "CN=wolfssl.com,C=US";
+    const char* expNormal  = "C=US, CN=wolfssl.com";
+    const char* expReverse = "CN=wolfssl.com, C=US";
 
-    const char* expNotEscaped = "C= US,+\"\\ ,CN=#wolfssl.com<>;";
-    const char* expNotEscapedRev = "CN=#wolfssl.com<>;,C= US,+\"\\ ";
+    const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
+    const char* expNotEscapedRev = "CN=#wolfssl.com<>;, C= US,+\"\\ ";
     const char* expRFC5523 =
-        "CN=\\#wolfssl.com\\<\\>\\;,C=\\ US\\,\\+\\\"\\\\\\ ";
+        "CN=\\#wolfssl.com\\<\\>\\;, C=\\ US\\,\\+\\\"\\\\\\ ";
 
     printf(testingFmt, "wolfSSL_X509_NAME_print_ex");
 
@@ -30854,7 +30854,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertNotNull(membio = BIO_new(BIO_s_mem()));
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expNormal)+1);
+        AssertIntEQ(memSz, XSTRLEN(expNormal));
         AssertIntEQ(XSTRNCMP((char*)mem, expNormal, XSTRLEN(expNormal)), 0);
         BIO_free(membio);
 
@@ -30863,7 +30863,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expReverse)+1);
+        AssertIntEQ(memSz, XSTRLEN(expReverse));
         BIO_free(membio);
 
         /* Test flags: XN_FLAG_DN_REV - reversed */
@@ -30871,7 +30871,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expReverse)+1);
+        AssertIntEQ(memSz, XSTRLEN(expReverse));
         AssertIntEQ(XSTRNCMP((char*)mem, expReverse, XSTRLEN(expReverse)), 0);
         BIO_free(membio);
 
@@ -30894,7 +30894,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertNotNull(membio = BIO_new(BIO_s_mem()));
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expNotEscaped)+1);
+        AssertIntEQ(memSz, XSTRLEN(expNotEscaped));
         AssertIntEQ(XSTRNCMP((char*)mem, expNotEscaped,
                     XSTRLEN(expNotEscaped)), 0);
         BIO_free(membio);
@@ -30904,7 +30904,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_RFC2253), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expRFC5523)+1);
+        AssertIntEQ(memSz, XSTRLEN(expRFC5523));
         AssertIntEQ(XSTRNCMP((char*)mem, expRFC5523, XSTRLEN(expRFC5523)), 0);
         BIO_free(membio);
 
@@ -30913,7 +30913,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         AssertIntEQ(X509_NAME_print_ex(membio, name, 0,
                     XN_FLAG_DN_REV), WOLFSSL_SUCCESS);
         AssertIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
-        AssertIntEQ(memSz, XSTRLEN(expNotEscapedRev)+1);
+        AssertIntEQ(memSz, XSTRLEN(expNotEscapedRev));
         AssertIntEQ(XSTRNCMP((char*)mem, expNotEscapedRev,
                     XSTRLEN(expNotEscapedRev)), 0);
         BIO_free(membio);
@@ -53454,10 +53454,15 @@ static int test_wolfSSL_X509_print(void)
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Will print IP address subject alt name. */
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3255);
+  #if defined(WC_DISABLE_RADIX_ZERO_PAD)
+     /* Will print IP address subject alt name. */
+     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3349);
+  #else
+      /* Will print IP address subject alt name. */
+     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3350);
+  #endif
 #else
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3233);
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3328);
 #endif
     BIO_free(bio);
 

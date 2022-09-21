@@ -9063,10 +9063,11 @@ static int Indent(WOLFSSL_BIO* out, int indents)
  * input   buffer holding data to dump
  * inlen   input data size
  * indent  the number of spaces for indent
+ * blower  true if lower case uses
  * Returns 1 on success, 0 on failure.
  */
 static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
-    int inlen, int indent)
+    int inlen, int indent, byte blower)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte*  buff = NULL;
@@ -9117,6 +9118,10 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
                                                     outHex, &outSz) == 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
+                if (blower) {
+                    outHex[0] = (byte)XTOLOWER(outHex[0]);
+                    outHex[1] = (byte)XTOLOWER(outHex[1]);
+                }
                 XMEMCPY(buff + idx, outHex, 2);
                 idx += 2;
 
@@ -9239,7 +9244,9 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             n--;
             nSz++;
         }
-        if (PrintHexWithColon(out, n, nSz, indent + 4) != WOLFSSL_SUCCESS) {
+
+        if (PrintHexWithColon(out, n, nSz, 
+                    indent + 4, 1/* lower case */) != WOLFSSL_SUCCESS) {
             break;
         }
         /* print public Exponent */
@@ -9442,7 +9449,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
     }
     if (res == WOLFSSL_SUCCESS) {
-        res = PrintHexWithColon(out, pub, pubSz, indent + 4);
+        res = PrintHexWithColon(out, pub, pubSz, indent + 4, 0/* upper case */);
     }
     if (res == WOLFSSL_SUCCESS) {
         res = Indent(out, indent) >= 0;
@@ -9662,7 +9669,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, y, ySz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, y, ySz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
         /* print P element */
@@ -9671,7 +9679,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, p, pSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, p, pSz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
         /* print Q element */
@@ -9680,7 +9689,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, q, qSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, q, qSz, indent + 4, 0/* upper case */)
+                                                         != WOLFSSL_SUCCESS) {
             break;
         }
         /* print G element */
@@ -9689,7 +9699,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, g, gSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, g, gSz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
 
@@ -9867,7 +9878,8 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, publicKey, publicKeySz, indent + 4)
+        if (PrintHexWithColon(out, publicKey, 
+                                publicKeySz, indent + 4, 0/* upper case */)
                                                     != WOLFSSL_SUCCESS) {
             break;
         }
@@ -9876,7 +9888,8 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, prime, primeSz, indent + 4)
+        if (PrintHexWithColon(out, prime, primeSz, 
+                                            indent + 4, 0/* upper case */)
                 != WOLFSSL_SUCCESS) {
             break;
         }
