@@ -277,6 +277,8 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v5 - currently, alias for v5-RC12
 #   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
+#   v5-ready - Alias for ready.
+#   v5-dev - Alias for dev.
 #
 # These options have been retired, but are listed here for historical reference:
 #   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8).
@@ -287,9 +289,6 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
 #   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
-#   v5-ready - Alias for ready. HAVE_FIPS_VERSION = 5,
-#              HAVE_FIPS_VERSION_MINOR = 3.
-#   v5-dev - Alias for dev. HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 3.
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
@@ -330,7 +329,7 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [ready],[
+    [ready|v5-ready],[
         FIPS_VERSION="ready"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
@@ -338,7 +337,7 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [dev],[
+    [dev|v5-dev],[
         FIPS_VERSION="dev"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
