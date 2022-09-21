@@ -90,8 +90,6 @@ typedef struct Dtls13RecordPlaintextHeader {
 
 /* size of the len field in the unified header */
 #define DTLS13_LEN_SIZE 2
-/* size of the mask used to encrypt/decrypt Record Number  */
-#define DTLS13_RN_MASK_SIZE 16
 /* size of the flags in the unified header */
 #define DTLS13_HDR_FLAGS_SIZE 1
 /* size of the sequence number wher SEQ_LEN_BIT is present */
@@ -1364,6 +1362,8 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
        to create record number xor mask). (draft 43 - Sec 4.2.3) */
     if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
         return LENGTH_ERROR;
+    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+        return BUFFER_ERROR;
 
     ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
         DEPROTECT);
