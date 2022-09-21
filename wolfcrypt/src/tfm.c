@@ -3884,14 +3884,12 @@ void fp_set(fp_int *a, fp_digit b)
 #endif
 int fp_set_int(fp_int *a, unsigned long b)
 {
-  int x;
-
   /* use direct fp_set if b is less than fp_digit max
    * If input max value of b down shift by 1 less than full range
    * fp_digit, then condition is always true. */
 #if ((ULONG_MAX >> (DIGIT_BIT-1)) > 0)
+  int x;
   if (b < FP_DIGIT_MAX)
-#endif
   {
     fp_set (a, (fp_digit)b);
     return FP_OKAY;
@@ -3918,8 +3916,11 @@ int fp_set_int(fp_int *a, unsigned long b)
 
   /* clamp digits */
   fp_clamp(a);
-
-  return FP_OKAY;
+#else
+  fp_set (a, (fp_digit)b);
+#endif
+  
+  return FP_OKAY;  
 }
 
 /* check if a bit is set */

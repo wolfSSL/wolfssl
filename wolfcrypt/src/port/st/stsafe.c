@@ -123,7 +123,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     word32 pubKeyY_len = sizeof(pubKeyY);
     ecc_key key;
     word32 inOutIdx = 0;
-    StSafeA_CurveId curve_id;
+    StSafeA_CurveId curve_id = STSAFE_A_NIST_P_256;
     int ecc_curve;
 
     (void)ssl;
@@ -170,7 +170,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
         #ifdef USE_STSAFE_VERBOSE
             STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", err);
         #endif
-            err = WC_HW_E;
+            err = -err;
         }
     }
 
@@ -507,7 +507,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 #ifdef USE_STSAFE_VERBOSE
                     STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", rc);
                 #endif
-                    rc = WC_HW_E;
+                    rc = -rc;
                 }
             }
         }

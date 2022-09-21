@@ -2813,7 +2813,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                     wolfSSL_BIO_free(bio);
                 }
             }
-            wolfSSL_sk_X509_free(sk);
+            wolfSSL_sk_X509_pop_free(sk, NULL);
         }
 #endif
     }
