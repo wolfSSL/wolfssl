@@ -11962,8 +11962,8 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "initials";
             len = 8;
             break;
-        case NID_distinguishedName:
-            str = "DN";
+        case NID_domainComponent:
+            str = "DC";
             len = 2;
             break;
         default:
