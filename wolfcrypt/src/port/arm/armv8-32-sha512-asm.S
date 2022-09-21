@@ -4209,6 +4209,7 @@ L_SHA512_transform_neon_len_k:
 	.word	0x6c44198c
 	.text
 	.align	2
+	.fpu	neon
 	.globl	Transform_Sha512_Len
 	.type	Transform_Sha512_Len, %function
 Transform_Sha512_Len:
@@ -4218,7 +4219,10 @@ Transform_Sha512_Len:
 	# Start of loop processing a block
 L_SHA512_transform_neon_len_begin:
 	# Load W
-	vldm.64	r1!, {d16-d31}
+	vld1.8	{q8, q9}, [r1]!
+	vld1.8	{q10, q11}, [r1]!
+	vld1.8	{q12, q13}, [r1]!
+	vld1.8	{q14, q15}, [r1]!
 #ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	vrev64.8	q8, q8
 	vrev64.8	q9, q9

@@ -1561,7 +1561,8 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "\n"
     "L_SHA256_transform_neon_len_begin_%=: \n\t"
         /* Load W */
-        "vldm.32	%[data]!, {d0-d7}\n\t"
+        "vld1.8	{d0-d3}, [%[data]]!\n\t"
+        "vld1.8	{d4-d7}, [%[data]]!\n\t"
 #ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
         "vrev32.8	q0, q0\n\t"
         "vrev32.8	q1, q1\n\t"

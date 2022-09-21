@@ -3669,7 +3669,10 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "\n"
     "L_SHA512_transform_neon_len_begin_%=: \n\t"
         /* Load W */
-        "vldm.64	%[data]!, {d16-d31}\n\t"
+        "vld1.8	{q8-q9}, [%[data]]!\n\t"
+        "vld1.8	{q10-q11}, [%[data]]!\n\t"
+        "vld1.8	{q12-q13}, [%[data]]!\n\t"
+        "vld1.8	{q14-q15}, [%[data]]!\n\t"
 #ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
         "vrev64.8	q8, q8\n\t"
         "vrev64.8	q9, q9\n\t"

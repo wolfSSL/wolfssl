@@ -1541,6 +1541,7 @@ L_SHA256_transform_neon_len_k:
 	.word	0xc67178f2
 	.text
 	.align	2
+	.fpu	neon
 	.globl	Transform_Sha256_Len
 	.type	Transform_Sha256_Len, %function
 Transform_Sha256_Len:
@@ -1558,7 +1559,8 @@ Transform_Sha256_Len:
 	# Start of loop processing a block
 L_SHA256_transform_neon_len_begin:
 	# Load W
-	vldm.32	r1!, {d0-d7}
+	vld1.8	{d0-d3}, [r1]!
+	vld1.8	{d4-d7}, [r1]!
 #ifndef WOLFSSL_ARM_ARCH_NEON_64BIT
 	vrev32.8	q0, q0
 	vrev32.8	q1, q1
