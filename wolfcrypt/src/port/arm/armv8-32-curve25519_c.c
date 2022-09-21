@@ -39,6 +39,7 @@
 
 void fe_init()
 {
+
     __asm__ __volatile__ (
         "\n\t"
         : 
@@ -47,8 +48,11 @@ void fe_init()
     );
 }
 
-void fe_frombytes(fe out, const unsigned char* in)
+void fe_frombytes(fe out_p, const unsigned char* in_p)
 {
+    register fe out asm ("r0") = out_p;
+    register const unsigned char* in asm ("r1") = in_p;
+
     __asm__ __volatile__ (
         "ldrd	r2, r3, [%[in]]\n\t"
         "ldrd	r12, lr, [%[in], #8]\n\t"
@@ -65,8 +69,11 @@ void fe_frombytes(fe out, const unsigned char* in)
     );
 }
 
-void fe_tobytes(unsigned char* out, const fe n)
+void fe_tobytes(unsigned char* out_p, const fe n_p)
 {
+    register unsigned char* out asm ("r0") = out_p;
+    register const fe n asm ("r1") = n_p;
+
     __asm__ __volatile__ (
         "ldrd	r2, r3, [%[n]]\n\t"
         "ldrd	r12, lr, [%[n], #8]\n\t"
@@ -101,8 +108,10 @@ void fe_tobytes(unsigned char* out, const fe n)
     );
 }
 
-void fe_1(fe n)
+void fe_1(fe n_p)
 {
+    register fe n asm ("r0") = n_p;
+
     __asm__ __volatile__ (
         /* Set one */
         "mov	r2, #1\n\t"
@@ -117,8 +126,10 @@ void fe_1(fe n)
     );
 }
 
-void fe_0(fe n)
+void fe_0(fe n_p)
 {
+    register fe n asm ("r0") = n_p;
+
     __asm__ __volatile__ (
         /* Set zero */
         "mov	r1, #0\n\t"
@@ -132,8 +143,11 @@ void fe_0(fe n)
     );
 }
 
-void fe_copy(fe r, const fe a)
+void fe_copy(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         /* Copy */
         "ldrd	r2, r3, [%[a]]\n\t"
@@ -150,8 +164,12 @@ void fe_copy(fe r, const fe a)
     );
 }
 
-void fe_sub(fe r, const fe a, const fe b)
+void fe_sub(fe r_p, const fe a_p, const fe b_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+    register const fe b asm ("r2") = b_p;
+
     __asm__ __volatile__ (
         /* Sub */
         "ldrd	r12, lr, [%[a]]\n\t"
@@ -198,8 +216,12 @@ void fe_sub(fe r, const fe a, const fe b)
     );
 }
 
-void fe_add(fe r, const fe a, const fe b)
+void fe_add(fe r_p, const fe a_p, const fe b_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+    register const fe b asm ("r2") = b_p;
+
     __asm__ __volatile__ (
         /* Add */
         "ldrd	r12, lr, [%[a]]\n\t"
@@ -246,8 +268,11 @@ void fe_add(fe r, const fe a, const fe b)
     );
 }
 
-void fe_neg(fe r, const fe a)
+void fe_neg(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         "mov	r5, #-1\n\t"
         "mov	r4, #-19\n\t"
@@ -274,8 +299,10 @@ void fe_neg(fe r, const fe a)
     );
 }
 
-int fe_isnonzero(const fe a)
+int fe_isnonzero(const fe a_p)
 {
+    register const fe a asm ("r0") = a_p;
+
     __asm__ __volatile__ (
         "ldrd	r2, r3, [%[a]]\n\t"
         "ldrd	r12, lr, [%[a], #8]\n\t"
@@ -314,8 +341,10 @@ int fe_isnonzero(const fe a)
     return (uint32_t)(size_t)a;
 }
 
-int fe_isnegative(const fe a)
+int fe_isnegative(const fe a_p)
 {
+    register const fe a asm ("r0") = a_p;
+
     __asm__ __volatile__ (
         "ldrd	r2, r3, [%[a]]\n\t"
         "ldrd	r12, lr, [%[a], #8]\n\t"
@@ -340,8 +369,12 @@ int fe_isnegative(const fe a)
     return (uint32_t)(size_t)a;
 }
 
-void fe_cmov_table(fe* r, fe* base, signed char b)
+void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 {
+    register fe* r asm ("r0") = r_p;
+    register fe* base asm ("r1") = base_p;
+    register signed char b asm ("r2") = b_p;
+
     __asm__ __volatile__ (
         "sxtb	%[b], %[b]\n\t"
         "sbfx	r7, %[b], #7, #1\n\t"
@@ -1312,8 +1345,12 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
     );
 }
 
-void fe_mul(fe r, const fe a, const fe b)
+void fe_mul(fe r_p, const fe a_p, const fe b_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+    register const fe b asm ("r2") = b_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x40\n\t"
         /* Multiply */
@@ -1842,8 +1879,11 @@ void fe_mul(fe r, const fe a, const fe b)
     );
 }
 
-void fe_sq(fe r, const fe a)
+void fe_sq(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x40\n\t"
         /* Square */
@@ -2264,8 +2304,11 @@ void fe_sq(fe r, const fe a)
     );
 }
 
-void fe_mul121666(fe r, fe a)
+void fe_mul121666(fe r_p, fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         /* Multiply by 121666 */
         "ldrd	r2, r3, [%[a]]\n\t"
@@ -2319,8 +2362,11 @@ void fe_mul121666(fe r, fe a)
     );
 }
 
-void fe_sq2(fe r, const fe a)
+void fe_sq2(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x40\n\t"
         /* Square * 2 */
@@ -2756,8 +2802,11 @@ void fe_sq2(fe r, const fe a)
     );
 }
 
-void fe_invert(fe r, const fe a)
+void fe_invert(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x88\n\t"
         /* Invert */
@@ -2915,8 +2964,12 @@ void fe_invert(fe r, const fe a)
     );
 }
 
-int curve25519(byte* r, const byte* n, const byte* a)
+int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 {
+    register byte* r asm ("r0") = r_p;
+    register const byte* n asm ("r1") = n_p;
+    register const byte* a asm ("r2") = a_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0xbc\n\t"
         "str	%[r], [sp, #160]\n\t"
@@ -3694,8 +3747,11 @@ int curve25519(byte* r, const byte* n, const byte* a)
     return (uint32_t)(size_t)r;
 }
 
-void fe_pow22523(fe r, const fe a)
+void fe_pow22523(fe r_p, const fe a_p)
 {
+    register fe r asm ("r0") = r_p;
+    register const fe a asm ("r1") = a_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x68\n\t"
         /* pow22523 */
@@ -3853,8 +3909,16 @@ void fe_pow22523(fe r, const fe a)
     );
 }
 
-void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz, const fe pt)
+void fe_ge_to_p2(fe rx_p, fe ry_p, fe rz_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register const fe px asm ("r3") = px_p;
+    register const fe py asm ("r4") = py_p;
+    register const fe pz asm ("r5") = pz_p;
+    register const fe pt asm ("r6") = pt_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
         "str	%[rx], [sp]\n\t"
@@ -3883,8 +3947,17 @@ void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz, con
     (void)pt;
 }
 
-void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt)
+void fe_ge_to_p3(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+    register const fe pt asm ("r7") = pt_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
         "str	%[rx], [sp]\n\t"
@@ -3918,8 +3991,16 @@ void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe 
     (void)pt;
 }
 
-void fe_ge_dbl(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz)
+void fe_ge_dbl(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
         "str	%[rx], [sp]\n\t"
@@ -4175,8 +4256,20 @@ void fe_ge_dbl(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
     (void)pz;
 }
 
-void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qxy2d, const fe qyplusx, const fe qyminusx)
+void fe_ge_madd(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p, const fe qxy2d_p, const fe qyplusx_p, const fe qyminusx_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+    register const fe pt asm ("r7") = pt_p;
+    register const fe qxy2d asm ("r8") = qxy2d_p;
+    register const fe qyplusx asm ("r9") = qyplusx_p;
+    register const fe qyminusx asm ("r10") = qyminusx_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #32\n\t"
         "str	%[rx], [sp]\n\t"
@@ -4529,8 +4622,20 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
     (void)qyminusx;
 }
 
-void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qxy2d, const fe qyplusx, const fe qyminusx)
+void fe_ge_msub(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p, const fe qxy2d_p, const fe qyplusx_p, const fe qyminusx_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+    register const fe pt asm ("r7") = pt_p;
+    register const fe qxy2d asm ("r8") = qxy2d_p;
+    register const fe qyplusx asm ("r9") = qyplusx_p;
+    register const fe qyminusx asm ("r10") = qyminusx_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #32\n\t"
         "str	%[rx], [sp]\n\t"
@@ -4883,8 +4988,21 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
     (void)qyminusx;
 }
 
-void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qz, const fe qt2d, const fe qyplusx, const fe qyminusx)
+void fe_ge_add(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p, const fe qz_p, const fe qt2d_p, const fe qyplusx_p, const fe qyminusx_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+    register const fe pt asm ("r7") = pt_p;
+    register const fe qz asm ("r8") = qz_p;
+    register const fe qt2d asm ("r9") = qt2d_p;
+    register const fe qyplusx asm ("r10") = qyplusx_p;
+    register const fe qyminusx asm ("r11") = qyminusx_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x60\n\t"
         "str	%[rx], [sp]\n\t"
@@ -5243,8 +5361,21 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
     (void)qyminusx;
 }
 
-void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qz, const fe qt2d, const fe qyplusx, const fe qyminusx)
+void fe_ge_sub(fe rx_p, fe ry_p, fe rz_p, fe rt_p, const fe px_p, const fe py_p, const fe pz_p, const fe pt_p, const fe qz_p, const fe qt2d_p, const fe qyplusx_p, const fe qyminusx_p)
 {
+    register fe rx asm ("r0") = rx_p;
+    register fe ry asm ("r1") = ry_p;
+    register fe rz asm ("r2") = rz_p;
+    register fe rt asm ("r3") = rt_p;
+    register const fe px asm ("r4") = px_p;
+    register const fe py asm ("r5") = py_p;
+    register const fe pz asm ("r6") = pz_p;
+    register const fe pt asm ("r7") = pt_p;
+    register const fe qz asm ("r8") = qz_p;
+    register const fe qt2d asm ("r9") = qt2d_p;
+    register const fe qyplusx asm ("r10") = qyplusx_p;
+    register const fe qyminusx asm ("r11") = qyminusx_p;
+
     __asm__ __volatile__ (
         "sub	sp, sp, #0x60\n\t"
         "str	%[rx], [sp]\n\t"
