@@ -1232,6 +1232,69 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                                          const char* path, unsigned int flags);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief This function returns a pointer to an array of strings representing
+    directories wolfSSL will search for system CA certs when
+    wolfSSL_CTX_load_system_CA_certs is called.
+
+    \return Valid pointer on success.
+    \return NULL pointer on failure.
+
+    \param num pointer to a word32 that will be populated with the length of the
+    array of strings.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    const char** dirs;
+    word32 numDirs;
+
+    dirs = wolfSSL_get_system_CA_dirs(&numDirs);
+    for (int i = 0; i < numDirs; ++i) {
+        printf("Potential system CA dir: %s\n", dirs[i]);
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_load_system_CA_certs
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_load_verify_locations_ex
+*/
+const char** wolfSSL_get_system_CA_dirs(word32* num);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function attempts to load CA certificates into a WOLFSSL_CTX
+    from conventional CA cert directories, which is OS-dependent.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return WOLFSSL_BAD_PATH if no system CA certs were loaded.
+    \return WOLFSSL_NOT_IMPLEMENTED if the function isn't supported for the
+    target OS.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_load_system_CA_certs(ctx,);
+    if (ret != WOLFSSL_SUCCESS) {
+        // error loading system CA certs
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_get_system_CA_dirs
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_load_verify_locations_ex
+*/
+int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx);
+
+/*!
     \ingroup Setup
 
     \brief This function loads a certificate to use for verifying a peer

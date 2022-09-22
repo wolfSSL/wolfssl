@@ -8041,6 +8041,80 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
 }
 
+#ifndef _WIN32
+/* Potential system CA certs directories on Linux distros. */
+static const char* systemCaDirs[] = {
+    "/etc/ssl/certs",                   /* Debian, Ubuntu, Gentoo, others */
+    "/etc/pki/ca-trust/source/anchors", /* Fedora, RHEL */
+    "/etc/pki/tls/certs"                /* Older RHEL */
+};
+
+const char** wolfSSL_get_system_CA_dirs(word32* num)
+{
+    const char** ret;
+
+    if (num == NULL) {
+        ret = NULL;
+    }
+    else {
+        ret = systemCaDirs;
+        *num = sizeof(systemCaDirs)/sizeof(*systemCaDirs);
+    }
+
+    return ret;
+}
+#endif /* !_WIN32 */
+
+int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
+{
+    int ret;
+#ifndef _WIN32
+    word32 i;
+    byte loaded = 0;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_CTX_load_system_CA_certs");
+
+#ifdef _WIN32
+    (void)ctx;
+    ret = WOLFSSL_NOT_IMPLEMENTED;
+#else
+    if (ctx != NULL) {
+        for (i = 0; i < sizeof(systemCaDirs)/sizeof(*systemCaDirs); ++i) {
+            WOLFSSL_MSG_EX("Attempting to load system CA certs from %s.",
+                systemCaDirs[i]);
+            /*
+             * We want to keep trying to load more CAs even if one cert in
+             * the directory is bad and can't be used (e.g. if one is expired),
+             * so we use WOLFSSL_LOAD_FLAG_IGNORE_ERR.
+             */
+            if (wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, systemCaDirs[i],
+                    WOLFSSL_LOAD_FLAG_IGNORE_ERR) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG_EX("Failed to load CA certs from %s, trying "
+                    "next possible location.", systemCaDirs[i]);
+            }
+            else {
+                WOLFSSL_MSG_EX("Loaded CA certs from %s.",
+                    systemCaDirs[i]);
+                loaded = 1;
+                /* Stop searching after we've loaded one directory. */
+                break;
+            }
+        }
+    }
+
+    if (loaded) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+        ret = WOLFSSL_BAD_PATH;
+    }
+#endif
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_load_system_CA_certs", ret);
+
+    return ret;
+}
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* Used to specify a peer cert to match when connecting
@@ -15961,15 +16035,42 @@ cleanup:
 
 #ifdef OPENSSL_EXTRA
 
-    #ifndef NO_WOLFSSL_STUB
+    #ifndef NO_FILESYSTEM
+    /*
+     * This is an OpenSSL compatibility layer function, but it doesn't mirror
+     * the exact functionality of its OpenSSL counterpart. We don't support the
+     * notion of an "OpenSSL directory," nor do we support the environment
+     * variables SSL_CERT_DIR or SSL_CERT_FILE. This function is simply a
+     * wrapper around our native wolfSSL_CTX_load_system_CA_certs function. This
+     * function does conform to OpenSSL's return value conventions, though.
+     */
     int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     {
-        /* TODO:, not needed in goahead */
-        (void)ctx;
-        WOLFSSL_STUB("SSL_CTX_set_default_verify_paths");
-        return SSL_NOT_IMPLEMENTED;
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
+
+        ret = wolfSSL_CTX_load_system_CA_certs(ctx);
+        if (ret == WOLFSSL_BAD_PATH) {
+            /*
+             * OpenSSL doesn't treat the lack of a system CA cert directory as a
+             * failure. We do the same here.
+             */
+            ret = WOLFSSL_SUCCESS;
+        }
+        else if (ret != WOLFSSL_SUCCESS) {
+            /*
+             * All other failure types map to WOLFSSL_FAILURE (0), same as
+             * OpenSSL.
+             */
+            ret = WOLFSSL_FAILURE;
+        }
+
+        WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);
+
+        return ret;
     }
-    #endif
+    #endif /* !NO_FILESYSTEM */
 
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
         && !defined(WC_NO_RNG)
