@@ -254,6 +254,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_HPKE
+    #include <wolfssl/wolfcrypt/hpke.h>
+#endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
@@ -434,6 +437,7 @@ WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  tls13_kdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
+WOLFSSL_TEST_SUBROUTINE int  hpke_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
@@ -1062,6 +1066,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("X963-KDF    test failed!\n", ret);
     else
         TEST_PASS("X963-KDF    test passed!\n");
+#endif
+
+#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM)
+    if ( (ret = hpke_test()) != 0)
+        return err_sys("HPKE     test failed!\n", ret);
+    else
+        TEST_PASS("HPKE     test passed!\n");
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
@@ -21991,8 +22002,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)ceTrafficLabel, (word32)strlen(ceTrafficLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)ceTrafficLabel, (word32)XSTRLEN(ceTrafficLabel),
                 tv->hashHello1, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22001,8 +22012,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)eExpMasterLabel, (word32)strlen(eExpMasterLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)eExpMasterLabel, (word32)XSTRLEN(eExpMasterLabel),
                 tv->hashHello1, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22011,8 +22022,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(salt, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)derivedLabel, (word32)strlen(derivedLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)derivedLabel, (word32)XSTRLEN(derivedLabel),
                 hashZero, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22023,8 +22034,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)cHsTrafficLabel, (word32)strlen(cHsTrafficLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)cHsTrafficLabel, (word32)XSTRLEN(cHsTrafficLabel),
                 tv->hashHello2, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22034,8 +22045,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)sHsTrafficLabel, (word32)strlen(sHsTrafficLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)sHsTrafficLabel, (word32)XSTRLEN(sHsTrafficLabel),
                 tv->hashHello2, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22044,8 +22055,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(salt, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)derivedLabel, (word32)strlen(derivedLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)derivedLabel, (word32)XSTRLEN(derivedLabel),
                 hashZero, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22055,8 +22066,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)cAppTrafficLabel, (word32)strlen(cAppTrafficLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)cAppTrafficLabel, (word32)XSTRLEN(cAppTrafficLabel),
                 tv->hashFinished1, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22065,8 +22076,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)sAppTrafficLabel, (word32)strlen(sAppTrafficLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)sAppTrafficLabel, (word32)XSTRLEN(sAppTrafficLabel),
                 tv->hashFinished1, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22075,8 +22086,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)expMasterLabel, (word32)strlen(expMasterLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)expMasterLabel, (word32)XSTRLEN(expMasterLabel),
                 tv->hashFinished1, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22085,8 +22096,8 @@ WOLFSSL_TEST_SUBROUTINE int tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Expand_Label(output, hashAlgSz,
                 secret, hashAlgSz,
-                (byte*)protocolLabel, (word32)strlen(protocolLabel),
-                (byte*)resMasterLabel, (word32)strlen(resMasterLabel),
+                (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
+                (byte*)resMasterLabel, (word32)XSTRLEN(resMasterLabel),
                 tv->hashFinished2, hashAlgSz, tv->hashAlg);
         if (ret != 0) break;
 
@@ -22245,6 +22256,49 @@ WOLFSSL_TEST_SUBROUTINE int x963kdf_test(void)
 
 #endif /* HAVE_X963_KDF */
 
+#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM)
+
+WOLFSSL_TEST_SUBROUTINE int hpke_test(void)
+{
+    int ret;
+    Hpke hpke[1];
+    const char* start_text = "this is a test";
+    const char* info_text = "info";
+    const char* aad_text = "aad";
+    byte ciphertext[MAX_HPKE_LABEL_SZ];
+    byte plaintext[MAX_HPKE_LABEL_SZ];
+    uint8_t pubKey[HPKE_Npk_MAX]; /* public key */
+    word32 pubKeySz = (word32)sizeof(pubKey);
+
+    ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
+        HPKE_AES_128_GCM, NULL); /* or HPKE_AES_256_GCM */
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_HpkeGenerateKeyPair(hpke, hpke->receiver_key);
+    if (ret == 0) {
+        ret = wc_HpkeSealBase(hpke,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            (byte*)start_text, (word32)XSTRLEN(start_text),
+            ciphertext, pubKey, &pubKeySz);
+    }
+    if (ret == 0) {
+        ret = wc_HpkeOpenBase(hpke, pubKey, pubKeySz,
+            (byte*)info_text, (word32)XSTRLEN(info_text),
+            (byte*)aad_text, (word32)XSTRLEN(aad_text),
+            ciphertext, (word32)XSTRLEN(start_text),
+            plaintext);
+    }
+    if (ret == 0) {
+        ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
+    }
+    wc_HpkeFree( hpke );
+
+    return ret;
+}
+#endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
 
 #ifdef HAVE_ECC
 

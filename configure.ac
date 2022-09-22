@@ -2889,6 +2889,19 @@ then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
 fi
 
+
+# HPKE
+AC_ARG_ENABLE([hpke],
+    [AS_HELP_STRING([--enable-hkdf],[Enable HKPE support (default: disabled)])],
+    [ ENABLED_HPKE=$enableval ],
+    [ ENABLED_HPKE=no ]
+    )
+if test "$ENABLED_HPKE" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_HPKE"
+fi
+
+
 # X9.63 KDF
 AC_ARG_ENABLE([x963kdf],
     [AS_HELP_STRING([--enable-x963kdf],[Enable X9.63 KDF support (default: disabled)])],
@@ -8199,6 +8212,8 @@ AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes"])
 AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
+AM_CONDITIONAL([BUILD_HPKE],[test "x$ENABLED_HPKE" = "xyes"])
+
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -8485,6 +8500,7 @@ echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
+echo "   * HPKE:                       $ENABLED_HPKE"
 echo "   * X9.63 KDF:                  $ENABLED_X963KDF"
 echo "   * MD4:                        $ENABLED_MD4"
 echo "   * PSK:                        $ENABLED_PSK"
