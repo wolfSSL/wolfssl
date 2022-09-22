@@ -5795,7 +5795,11 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
-                ret = wolfSSL_BIO_write(bio, scratch, scratchLen);
+
+                if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
             }
         }
     }
