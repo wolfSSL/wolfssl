@@ -24,7 +24,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/ext_kyber.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if defined(WOLFSSL_KYBER_90S) && defined(HAVE_PQM4)
@@ -32,6 +31,7 @@
 #endif
 
 #ifdef WOLFSSL_HAVE_KYBER
+#include <wolfssl/wolfcrypt/ext_kyber.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
