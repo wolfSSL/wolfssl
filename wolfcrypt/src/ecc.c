@@ -9401,7 +9401,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
             key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
     }
 #endif
-#ifdef WOLFSSL_SP_1024
+#if defined(WOLFSSL_SP_1024) && defined(WOLFCRYPT_HAVE_SAKKE)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SAKKE_1) {
         return sp_ecc_check_key_1024(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
