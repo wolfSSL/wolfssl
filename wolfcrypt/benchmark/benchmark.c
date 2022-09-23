@@ -8374,7 +8374,7 @@ static int string_matches(const char* arg, const char* str)
 #endif /* MAIN_NO_ARGS */
 
 #if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
-int wolf_benchmark_task( )
+int wolf_benchmark_task(void)
 #elif defined(MAIN_NO_ARGS)
 int main()
 #else
