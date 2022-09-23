@@ -12450,8 +12450,8 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(WOLFSSL_CERT_GEN) || \
-    (!defined(NO_CERTS) && !defined(IGNORE_NAME_CONSTRAINTS))
+
+#if defined(WOLFSSL_CERT_GEN) || !defined(NO_CERTS)
 
 /* Adds a DNS entry to a list of DNS entries
  *
