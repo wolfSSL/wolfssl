@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(RENESAS_T4_USE)
+  #include "wolfssl_simple_demo.h"
+#endif
 /*-- Renesas MCU type ---------------------------------------------------------
  *
  *
@@ -41,6 +44,10 @@
   #define WOLFSSL_RENESAS_TSIP
   #define WOLFSSL_RENESAS_TSIP_VER     115
 
+#if defined(SIMPLE_TLS_CLIENT) || defined(SIMPLE_TLS_SERVER)
+ #undef WOLFSSL_RENESAS_TSIP
+ #undef WOLFSSL_RENESAS_TSIP_VER
+#endif
 
 /*-- TLS version definitions  --------------------------------------------------
  *
@@ -57,9 +64,12 @@
  *  Otherwise, define "SINGLE_THREADED". They are exclusive each other.
  *   
  *----------------------------------------------------------------------------*/
-
-#define FREERTOS
-#define FREERTOS_TCP
+#if !defined(RENESAS_T4_USE)
+ #define FREERTOS
+ #define FREERTOS_TCP
+#else
+ #define SINGLE_THREADED
+#endif
 
 #if !defined(FREERTOS_TCP)
     #define WOLFSSL_NO_SOCK
