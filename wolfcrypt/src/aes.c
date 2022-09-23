@@ -306,7 +306,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     /* case of possibly not using hardware acceleration for AES but using key
@@ -4601,7 +4601,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_AFALG)
@@ -9933,7 +9933,7 @@ int wc_AesCcmCheckTagSize(int sz)
     return 0;
 }
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(HAVE_COLDFIRE_SEC)

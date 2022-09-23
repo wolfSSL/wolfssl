@@ -2163,6 +2163,7 @@ then
             esac
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=yes
 
             # Check for and set -mstrict-align compiler flag
             # Used to set assumption that Aarch64 systems will not handle
@@ -2179,12 +2180,22 @@ then
                     AM_CPPFLAGS="$AM_CPPFLAGS -mstrict-align"
                     AC_MSG_NOTICE([64bit ARMv8, setting -mstrict-align]);;
             esac
-            AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto]);;
+            AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto])
+            ;;
+        armv7a)
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            # Include options.h
+            AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
+            ENABLED_ARMASM_CRYPTO=no
+            AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
+            ;;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
-            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8]);;
+            ENABLED_ARMASM_CRYPTO=yes
+            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
+            ;;
         esac
     esac
 fi
@@ -8071,6 +8082,7 @@ AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
