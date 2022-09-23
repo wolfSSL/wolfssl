@@ -9499,6 +9499,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                (int)(rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ),
                0, input, inOutIdx, inSz);
         if (ret != 0) {
+            mp_free(&key->n);
+            mp_free(&key->e);
+
             /* Didn't work - try whole SubjectKeyInfo instead. */
             /* Set the OID to expect. */
             GetASN_ExpBuffer(&dataASN[RSAPUBLICKEYASN_IDX_ALGOID_OID],
@@ -9849,6 +9852,9 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
                            inOutIdx, inSz);
 #ifdef WOLFSSL_DH_EXTRA
         if (ret != 0) {
+            mp_free(&key->p);
+            mp_free(&key->g);
+
             /* Initialize data and set mp_ints to hold p, g, q, priv and pub. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dhKeyPkcs8ASN_Length);
             GetASN_ExpBuffer(&dataASN[DHKEYPKCS8ASN_IDX_PKEYALGO_OID],
