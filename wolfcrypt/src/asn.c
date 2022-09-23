@@ -401,7 +401,7 @@ static word32 SizeASNLength(word32 length)
     #define DECL_ASNGETDATA(name, cnt)                  \
         ASNGetData name[cnt]
 
-    /* No implementation as declartion is static.
+    /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      cnt   Number of elements required.
@@ -420,7 +420,7 @@ static word32 SizeASNLength(word32 length)
     #define CALLOC_ASNGETDATA(name, cnt, err, heap)     \
         XMEMSET(name, 0, sizeof(name))
 
-    /* No implementation as declartion is static.
+    /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
@@ -435,7 +435,7 @@ static word32 SizeASNLength(word32 length)
     #define DECL_ASNSETDATA(name, cnt)                  \
         ASNSetData name[cnt]
 
-    /* No implementation as declartion is static.
+    /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      cnt   Number of elements required.
@@ -454,7 +454,7 @@ static word32 SizeASNLength(word32 length)
     #define CALLOC_ASNSETDATA(name, cnt, err, heap)     \
         XMEMSET(name, 0, sizeof(name))
 
-    /* No implementation as declartion is static.
+    /* No implementation as declaration is static.
      *
      * @param [in]      name  Variable name to declare.
      * @param [in]      heap  Dynamic memory allocation hint.
@@ -2107,7 +2107,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     /* Check if the first byte indicates the count of bytes. */
     if (b >= ASN_LONG_LENGTH) {
         /* Bottom 7 bits are the number of bytes to calculate length with.
-         * Note: 0 indicates indefinte length encoding *not* 0 bytes of length.
+         * Note: 0 indicates indefinite length encoding *not* 0 bytes of length.
          */
         word32 bytes = b & 0x7F;
         int minLen;
@@ -3680,7 +3680,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
 
                 /* Set the header length to include the length field */
                 IndefItems_UpdateHeaderLen(indefItems);
-                /* Go to indefinte parent item */
+                /* Go to indefinite parent item */
                 IndefItems_Up(indefItems);
             }
         }
@@ -3698,7 +3698,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
 
             /* Finish calculation of data length for indefinite item */
             IndefItems_CalcLength(indefItems);
-            /* Go to indefinte parent item */
+            /* Go to indefinite parent item */
             IndefItems_Up(indefItems);
         }
         else {
@@ -18746,7 +18746,7 @@ static int DecodeSubtreeGeneralName(const byte* input, int sz, byte tag,
 }
 #endif
 
-/* Decode a subtree of a name contraint in a certificate.
+/* Decode a subtree of a name constraints in a certificate.
  *
  * X.509: RFC 5280, 4.2.1.10 - Name Contraints.
  *
