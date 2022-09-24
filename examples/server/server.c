@@ -1941,6 +1941,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Reinitialize the global myVerifyAction. */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
+
+
     /* Not Used: h, z, W, X */
     while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mop:q:rstu;v:wxy"
