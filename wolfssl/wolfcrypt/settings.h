@@ -2806,6 +2806,23 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_RSA_KEY_CHECK
 #endif
 
+/* SHAKE - Not allowed in FIPS */
+#if defined(WOLFSSL_SHA3) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    #ifndef WOLFSSL_NO_SHAKE128
+        #undef  WOLFSSL_SHAKE128
+        #define WOLFSSL_SHAKE128
+    #endif
+    #ifndef WOLFSSL_NO_SHAKE256
+        #undef  WOLFSSL_SHAKE256
+        #define WOLFSSL_SHAKE256
+    #endif
+#else
+    #undef  WOLFSSL_NO_SHAKE128
+    #define WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_NO_SHAKE256
+    #define WOLFSSL_NO_SHAKE256
+#endif
+
 
 
 

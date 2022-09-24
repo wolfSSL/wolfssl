@@ -690,7 +690,7 @@ static int test_wolfSSL_CTX_new(void)
 #endif
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-(!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
 static int test_for_double_Free(void)
 {
     WOLFSSL_CTX* ctx;
@@ -31245,7 +31245,7 @@ static int test_wolfSSL_DES(void)
 
 static int test_wc_PemToDer(void)
 {
-#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER)
+#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM)
     int ret;
     DerBuffer* pDer = NULL;
     const char* ca_cert = "./certs/server-cert.pem";
@@ -31318,7 +31318,7 @@ static int test_wc_AllocDer(void)
 
 static int test_wc_CertPemToDer(void)
 {
-#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER)
+#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM)
     int ret;
     const char* ca_cert = "./certs/ca-cert.pem";
     byte* cert_buf = NULL;
@@ -50283,7 +50283,7 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
  | Certificate Failure Checks
  *----------------------------------------------------------------------------*/
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-                           !defined(WOLFSSL_NO_CLIENT_AUTH))
+                    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
         int type)
@@ -50335,6 +50335,7 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
         return ret;
     }
 
+ #if !defined(NO_FILESYSTEM)
     static int test_RsaSigFailure_cm(void)
     {
         int ret = 0;
@@ -50406,6 +50407,7 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
         return ret;
     }
 
+#endif /* !NO_FILESYSTEM */
 #endif /* NO_CERTS */
 
 #ifdef WOLFSSL_TLS13
@@ -58590,7 +58592,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_new),
 #endif
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-(!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
     TEST_DECL(test_for_double_Free),
 #endif
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -59122,7 +59124,7 @@ TEST_CASE testCases[] = {
 #endif
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-                           !defined(WOLFSSL_NO_CLIENT_AUTH))
+    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),

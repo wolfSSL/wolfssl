@@ -6013,7 +6013,7 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     switch (x509->pubKeyOID) {
     #ifndef NO_RSA
         case RSAk:
-            len = XSNPRINTF(scratch, MAX_WIDTH, 
+            len = XSNPRINTF(scratch, MAX_WIDTH,
                     "%*sPublic Key Algorithm: rsaEncryption\n", indent + 4, "");
             if (len >= MAX_WIDTH)
                 return WOLFSSL_FAILURE;
@@ -6023,7 +6023,7 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
     #endif
     #ifdef HAVE_ECC
         case ECDSAk:
-            len = XSNPRINTF(scratch, MAX_WIDTH, 
+            len = XSNPRINTF(scratch, MAX_WIDTH,
                     "%*sPublic Key Algorithm: EC\n", indent + 4, "");
             if (len >= MAX_WIDTH)
                 return WOLFSSL_FAILURE;
@@ -6031,11 +6031,11 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                 return WOLFSSL_FAILURE;
             break;
     #endif
-    	default:
+        default:
                 WOLFSSL_MSG("Unknown key type");
                 return WOLFSSL_FAILURE;
     }
-    
+
     pubKey = wolfSSL_X509_get_pubkey(x509);
     if (pubKey == NULL)
         return WOLFSSL_FAILURE;

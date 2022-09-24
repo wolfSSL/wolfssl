@@ -1526,16 +1526,15 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifndef NO_MAIN_DRIVER
 
-    /* so overall tests can pull in test function */
-#ifdef WOLFSSL_ESPIDF
-    void app_main( )
-#else
-
 #ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
     int myoptind = 0;
     char* myoptarg = NULL;
 #endif
 
+    /* so overall tests can pull in test function */
+#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
+    int wolf_test_task(void)
+#else
     int main(int argc, char** argv)
 #endif
     {
