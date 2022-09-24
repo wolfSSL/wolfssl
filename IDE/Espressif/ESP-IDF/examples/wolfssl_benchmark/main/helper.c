@@ -33,6 +33,7 @@
 
 /* proto-type */
 extern void wolf_benchmark_task();
+extern void wolf_crypt_task();
 static const char* const TAG = "wolfbenchmark";
 char* __argv[22];
 
@@ -152,7 +153,6 @@ int construct_argv()
 void app_main(void)
 {
     (void) TAG;
-#ifndef NO_CRYPT_BENCHMARK
 
 /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
@@ -167,7 +167,11 @@ void app_main(void)
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
+
+#ifndef NO_CRYPT_TEST
+    wolf_crypt_task();
+#endif
+#ifndef NO_CRYPT_BENCHMARK
     wolf_benchmark_task();
-#else
-#endif /* NO_CRYPT_BENCHMARK */
+#endif
 }

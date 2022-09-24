@@ -632,13 +632,13 @@ static const bench_alg bench_digest_opt[] = {
     #ifndef WOLFSSL_NOSHA3_512
     { "-sha3-512",           BENCH_SHA3_512          },
     #endif
-    #if !defined(WOLFSSL_NO_SHAKE128) || !defined(WOLFSSL_NO_SHAKE256)
+    #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
     { "-shake",              BENCH_SHAKE             },
     #endif
-    #ifndef WOLFSSL_NO_SHAKE128
+    #ifdef WOLFSSL_SHAKE128
     { "-shake128",           BENCH_SHAKE128          },
     #endif
-    #ifndef WOLFSSL_NO_SHAKE256
+    #ifdef WOLFSSL_SHAKE256
     { "-shake256",           BENCH_SHAKE256          },
     #endif
 #endif
@@ -2096,7 +2096,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
     #endif /* WOLFSSL_NOSHA3_512 */
-    #ifndef WOLFSSL_NO_SHAKE128
+    #ifdef WOLFSSL_SHAKE128
     if (bench_all || (bench_digest_algs & BENCH_SHAKE128)) {
     #ifndef NO_SW_BENCH
         bench_shake128(0);
@@ -2106,8 +2106,8 @@ static void* benchmarks_do(void* args)
         bench_shake128(1);
     #endif
     }
-    #endif /* WOLFSSL_NO_SHAKE128 */
-    #ifndef WOLFSSL_NO_SHAKE256
+    #endif /* WOLFSSL_SHAKE128 */
+    #ifdef WOLFSSL_SHAKE256
     if (bench_all || (bench_digest_algs & BENCH_SHAKE256)) {
     #ifndef NO_SW_BENCH
         bench_shake256(0);
@@ -2117,7 +2117,7 @@ static void* benchmarks_do(void* args)
         bench_shake256(1);
     #endif
     }
-    #endif /* WOLFSSL_NO_SHAKE256 */
+    #endif /* WOLFSSL_SHAKE256 */
 #endif
 #ifdef WOLFSSL_RIPEMD
     if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
@@ -4802,7 +4802,7 @@ exit:
 }
 #endif /* WOLFSSL_NO_SHAKE128 */
 
-#ifndef WOLFSSL_NO_SHAKE256
+#ifdef WOLFSSL_SHAKE256
 void bench_shake256(int useDeviceID)
 {
     wc_Shake hash[BENCH_MAX_PENDING];
@@ -4889,7 +4889,7 @@ exit:
 
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
-#endif /* WOLFSSL_NO_SHAKE256 */
+#endif /* WOLFSSL_SHAKE256 */
 #endif
 
 
@@ -8374,7 +8374,7 @@ static int string_matches(const char* arg, const char* str)
 #endif /* MAIN_NO_ARGS */
 
 #if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
-int wolf_benchmark_task( )
+int wolf_benchmark_task(void)
 #elif defined(MAIN_NO_ARGS)
 int main()
 #else

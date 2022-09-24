@@ -11,7 +11,7 @@
 #ifdef __aarch64__
     #if !defined(__clang__) || \
         (defined(__clang__) && defined(__clang_major__) && __clang_major__ >= 5)
-        /* older clang v4 has issue with inline assembly contraints */
+        /* older clang v4 has issue with inline assembly constraints */
         #define WOLFSSL_ARMASM
     #endif
 #endif
@@ -58,7 +58,7 @@
 #define HAVE_PK_CALLBACKS
 /* crypto callback support is not in FIPS 3389 */
 #ifndef HAVE_FIPS
-    #define WOLF_CRYPTO_CB 
+    #define WOLF_CRYPTO_CB
 #endif
 
 #define KEEP_OUR_CERT

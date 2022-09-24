@@ -3919,8 +3919,8 @@ int fp_set_int(fp_int *a, unsigned long b)
 #else
   fp_set (a, (fp_digit)b);
 #endif
-  
-  return FP_OKAY;  
+
+  return FP_OKAY;
 }
 
 /* check if a bit is set */
