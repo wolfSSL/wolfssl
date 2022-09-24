@@ -81,6 +81,9 @@
  *    Verifies the ECC signature after signing in case of faults in the
  *    calculation of the signature. Useful when signature fault injection is a
  *    possible attack.
+ * WOLFSSL_32BIT_MILLI_TIME
+ *    Function TimeNowInMilliseconds() returns an unsigned 32-bit value.
+ *    Default behavior is to return a signed 64-bit value.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -515,13 +518,7 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_Ver >= 115)
-    (void)key;
-    ret = tsip_DeriveClientHandshakeSecret(ssl);
-    if (ret != CRYPTOCB_UNAVAILABLE) {
-        return ret;
-    }
-#endif
+
     ret = Tls13DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -1372,6 +1369,7 @@ end:
 }
 
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#ifdef WOLFSSL_32BIT_MILLI_TIME
 #ifndef NO_ASN_TIME
 #if defined(USER_TICKS)
 #if 0
@@ -1617,7 +1615,7 @@ end:
     {
         struct timeval now;
         if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1643,7 +1641,7 @@ end:
         struct timeval now;
 
         if (gettimeofday(&now, 0) < 0)
-            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
+            return 0;
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1655,6 +1653,290 @@ end:
      * The response is milliseconds elapsed
      */
 #endif /* !NO_ASN_TIME */
+#else
+#ifndef NO_ASN_TIME
+#if defined(USER_TICKS)
+#if 0
+    sword64 TimeNowInMilliseconds(void)
+    {
+        /*
+        write your own clock tick function if don't want gettimeofday()
+        needs millisecond accuracy but doesn't have to correlated to EPOCH
+        */
+    }
+#endif
+
+#elif defined(TIME_OVERRIDES)
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) wc_Time(0) * 1000;
+    }
+#else
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 32-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) XTIME(0) * 1000;
+    }
+#endif
+
+#elif defined(XTIME_MS)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)XTIME_MS(0);
+    }
+
+#elif defined(USE_WINDOWS_API)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        static int           init = 0;
+        static LARGE_INTEGER freq;
+        LARGE_INTEGER        count;
+
+        if (!init) {
+            QueryPerformanceFrequency(&freq);
+            init = 1;
+        }
+
+        QueryPerformanceCounter(&count);
+
+        return (sword64)(count.QuadPart / (freq.QuadPart / 1000));
+    }
+
+#elif defined(HAVE_RTP_SYS)
+    #include "rtptime.h"
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)rtp_get_system_sec() * 1000;
+    }
+#elif defined(WOLFSSL_DEOS)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        word32 *systemTickPtr = systemTickPointer();
+
+        return (sword64) (*systemTickPtr/systemTickTimeInHz) * 1000;
+    }
+#elif defined(MICRIUM)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        OS_TICK ticks = 0;
+        OS_ERR  err;
+
+        ticks = OSTimeGet(&err);
+
+        return (sword64) (ticks / OSCfg_TickRate_Hz) * 1000;
+    }
+#elif defined(MICROCHIP_TCPIP_V5)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) (TickGet() / (TICKS_PER_SECOND / 1000));
+    }
+#elif defined(MICROCHIP_TCPIP)
+    #if defined(MICROCHIP_MPLAB_HARMONY)
+        #include <system/tmr/sys_tmr.h>
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)SYS_TMR_TickCountGet() /
+                        (SYS_TMR_TickCounterFrequencyGet() / 1000);
+    }
+    #else
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)SYS_TICK_Get() / (SYS_TICK_TicksPerSecondGet() / 1000);
+    }
+
+    #endif
+
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        TIME_STRUCT mqxTime;
+
+        _time_get_elapsed(&mqxTime);
+
+        return (sword64) mqxTime.SECONDS * 1000;
+    }
+#elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
+    #include "include/task.h"
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)xTaskGetTickCount() / (configTICK_RATE_HZ / 1000);
+    }
+#elif defined(FREESCALE_KSDK_BM)
+    #include "lwip/sys.h" /* lwIP */
+
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return sys_now();
+    }
+#elif defined(WOLFSSL_TIRTOS)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64) Seconds_get() * 1000;
+    }
+#elif defined(WOLFSSL_UTASKER)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)(uTaskerSystemTick / (TICK_RESOLUTION / 1000));
+    }
+#elif defined(WOLFSSL_LINUXKM)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        s64 t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        struct timespec ts;
+        getnstimeofday(&ts);
+        t = ts.tv_sec * (s64)1000;
+        t += ts.tv_nsec / (s64)1000000;
+#else
+        struct timespec64 ts;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        ts = current_kernel_time64();
+#else
+        ktime_get_coarse_real_ts64(&ts);
+#endif
+        t = ts.tv_sec * 1000L;
+        t += ts.tv_nsec / 1000000L;
+#endif
+        return (sword64)t;
+    }
+#elif defined(WOLFSSL_QNX_CAAM)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        return (sword64)(now.tv_sec * 1000 + now.tv_nsec / 1000000);
+    }
+#elif defined(FUSION_RTOS)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
+    }
+#elif defined(WOLFSSL_ZEPHYR)
+    sword64 TimeNowInMilliseconds(void)
+    {
+    #if defined(CONFIG_ARCH_POSIX)
+        k_cpu_idle();
+    #endif
+        return (sword64)k_uptime_get() / 1000;
+    }
+
+#else
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 64-bit value.
+     */
+    sword64 TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+
+        if (gettimeofday(&now, 0) < 0)
+            return 0;
+
+        /* Convert to milliseconds number. */
+        return (sword64)now.tv_sec * 1000 + now.tv_usec / 1000;
+    }
+#endif
+#else
+    /* user must supply time in milliseconds function:
+     *   sword64 TimeNowInMilliseconds(void);
+     * The response is milliseconds elapsed
+     */
+#endif /* !NO_ASN_TIME */
+#endif /* WOLFSSL_32BIT_MILLI_TIME */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
 
@@ -1815,7 +2097,7 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
         Dtls13GetSeq(ssl, verifyOrder, seq, 1);
 #endif /* WOLFSSL_DTLS13 */
     }
-    else if (verifyOrder) {
+    else if (verifyOrder == PEER_ORDER) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
         seq[1] = ssl->keys.peer_sequence_number_lo++;
         /* handle rollover */
@@ -2706,7 +2988,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_DTLS13
                 if (ret == 0 && ssl->options.dtls) {
                     /* AAD points to the header. Reuse the variable  */
-                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, args->sz);
+                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, (word16)args->sz);
                 }
 #endif /* WOLFSSL_DTLS13 */
             }
@@ -3666,7 +3948,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         if (ssl->options.dtls)
             ret = Dtls13HashHandshake(ssl,
                 args->output + Dtls13GetRlHeaderLength(ssl, 0),
-                args->idx - Dtls13GetRlHeaderLength(ssl, 0));
+                (word16)args->idx - Dtls13GetRlHeaderLength(ssl, 0));
         else
 #endif /* WOLFSSL_DTLS13 */
                 ret = HashOutput(ssl, args->output, args->idx, 0);
@@ -3687,8 +3969,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     ssl->options.buildingMsg = 0;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, args->output, args->sendSz,
-                                  args->idx, client_hello, 0);
+        ret = Dtls13HandshakeSend(ssl, args->output, (word16)args->sendSz,
+                                  (word16)args->idx, client_hello, 0);
 
         WOLFSSL_LEAVE("SendTls13ClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_SEND);
@@ -3747,7 +4029,7 @@ static int Dtls13DoDowngrade(WOLFSSL* ssl)
     ssl->dtls13ClientHello = NULL;
     ssl->dtls13ClientHelloSz = 0;
     ssl->keys.dtls_sequence_number_hi =
-        w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
+        (word16)w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     ssl->keys.dtls_sequence_number_lo =
         w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     return ret;
@@ -4086,7 +4368,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS_CID
-    if (ssl->options.useDtlsCID)
+    if (ssl->options.useDtlsCID && *extMsgType == server_hello)
         DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -4171,6 +4453,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_MSG("session id doesn't match client random");
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
             return INVALID_PARAMETER;
+        }
     }
     else
 #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
@@ -4466,17 +4749,39 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     word16 suiteSz = 0;
-    word16 i, j;
+    word16 i;
+    word16 j;
 
     XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
 
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        for (j = 0; j < peerSuites->suiteSz; j += 2) {
-            if (ssl->suites->suites[i+0] == peerSuites->suites[j+0] &&
-                ssl->suites->suites[i+1] == peerSuites->suites[j+1]) {
-                suites[suiteSz++] = peerSuites->suites[j+0];
-                suites[suiteSz++] = peerSuites->suites[j+1];
+    if (!ssl->options.useClientOrder) {
+        /* Server order refining. */
+        for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+            for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
+                    suites[suiteSz++] = peerSuites->suites[j+0];
+                    suites[suiteSz++] = peerSuites->suites[j+1];
+                    break;
+                }
             }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
+        }
+    }
+    else {
+        /* Client order refining. */
+        for (j = 0; j < peerSuites->suiteSz; j += 2) {
+            for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
+                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
+                    suites[suiteSz++] = peerSuites->suites[j+0];
+                    suites[suiteSz++] = peerSuites->suites[j+1];
+                    break;
+                }
+            }
+            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                break;
         }
     }
 
@@ -4633,12 +4938,13 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
 
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            word32  now;
+        #ifdef WOLFSSL_32BIT_MILLI_TIME
+            word32 now;
             sword64 diff;
 
             now = TimeNowInMilliseconds();
-            if (now == (word32)GETTIME_ERROR)
-                return now;
+            if (now == 0)
+                return GETTIME_ERROR;
             /* Difference between now and time ticket constructed
              * (from decrypted ticket). */
             diff = now;
@@ -4648,6 +4954,21 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 current = current->next;
                 continue;
             }
+        #else
+            sword64 diff;
+
+            diff = TimeNowInMilliseconds();
+            if (diff == 0)
+                return GETTIME_ERROR;
+            /* Difference between now and time ticket constructed
+             * (from decrypted ticket). */
+            diff -= ssl->session->ticketSeen;
+            if (diff > (sword64)ssl->timeout * 1000 ||
+                diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
+                current = current->next;
+                continue;
+            }
+        #endif
             /* Subtract client's ticket age and unobfuscate. */
             diff -= current->ticketAge;
             diff += ssl->session->ticketAdd;
@@ -4800,7 +5121,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     int    first = 0;
 #ifndef WOLFSSL_PSK_ONE_ID
     int    i;
-    int    j;
 #else
     byte   suite[2];
 #endif
@@ -4843,25 +5163,13 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (usingPSK == NULL)
         return BAD_FUNC_ARG;
 
-    if (!ssl->options.useClientOrder) {
-        /* Server order - server list has only common suites from refining. */
-        for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
-                ssl->suites->suites + i, usingPSK, &first);
-            if (ret != 0) {
-                return ret;
-            }
-        }
-    }
-    else {
-        /* Client order */
-        for (j = 0; !(*usingPSK) && j < clSuites->suiteSz; j += 2) {
-            for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
-            ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
-                ssl->suites->suites + i, usingPSK, &first);
-                if (ret != 0)
-                    return ret;
-            }
+    /* Server list has only common suites from refining in server or client
+     * order. */
+    for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
+        ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
+            ssl->suites->suites + i, usingPSK, &first);
+        if (ret != 0) {
+            return ret;
         }
     }
 #else
@@ -5478,6 +5786,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     ato16(&input[args->idx], &args->clSuites->suiteSz);
     args->idx += OPAQUE16_LEN;
+    if ((args->clSuites->suiteSz % 2) != 0) {
+        ERROR_OUT(INVALID_PARAMETER, exit_dch);
+    }
     /* suites and compression length check */
     if ((args->idx - args->begin) + args->clSuites->suiteSz + OPAQUE8_LEN > helloSz)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
@@ -5521,11 +5832,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                             args->clSuites))) {
         goto exit_dch;
     }
-
-#ifdef WOLFSSL_DTLS_CID
-    if (ssl->options.useDtlsCID)
-        DtlsCIDOnExtensionsParsed(ssl);
-#endif /* WOLFSSL_DTLS_CID */
 
 #ifdef HAVE_SNI
         if ((ret = SNI_Callback(ssl)) != 0)
@@ -5722,6 +6028,15 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* WOLFSSL_DTLS13 */
 
+#ifdef WOLFSSL_DTLS_CID
+    /* do not modify CID state if we are sending an HRR  */
+    if (ssl->options.useDtlsCID &&
+            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+        DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
+
+
+
 exit_dch:
 
     WOLFSSL_LEAVE("DoTls13ClientHello", ret);
@@ -5854,9 +6169,10 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     {
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls) {
-            ret = Dtls13HashHandshake(ssl,
-                                      output + Dtls13GetRlHeaderLength(ssl, 0) ,
-                                      sendSz - Dtls13GetRlHeaderLength(ssl, 0));
+            ret = Dtls13HashHandshake(
+                ssl,
+                output + Dtls13GetRlHeaderLength(ssl, 0) ,
+                (word16)sendSz - Dtls13GetRlHeaderLength(ssl, 0));
         }
         else
 #endif /* WOLFSSL_DTLS13 */
@@ -5883,7 +6199,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     ssl->options.buildingMsg = 0;
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, output, sendSz, sendSz,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)sendSz,
             (enum HandShakeType)extMsgType, 0);
 
         WOLFSSL_LEAVE("SendTls13ServerHello", ret);
@@ -6024,7 +6340,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         ssl->options.buildingMsg = 0;
-        ret = Dtls13HandshakeSend(ssl, output, sendSz, idx,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)idx,
                                   encrypted_extensions, 1);
 
         if (ret == 0)
@@ -6136,7 +6452,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ssl->options.dtls) {
         ssl->options.buildingMsg = 0;
         ret =
-            Dtls13HandshakeSend(ssl, output, sendSz, i, certificate_request, 1);
+            Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)i,
+                                certificate_request, 1);
 
         WOLFSSL_LEAVE("SendTls13CertificateRequest", ret);
         WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
@@ -6946,7 +7263,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             /* DTLS1.3 uses a separate variable and logic for fragments */
             ssl->options.buildingMsg = 0;
             ssl->fragOffset = 0;
-            ret = Dtls13HandshakeSend(ssl, output, sendSz, i, certificate, 1);
+            ret = Dtls13HandshakeSend(ssl, output, (word16)sendSz, (word16)i,
+                                      certificate, 1);
         }
         else
 #endif /* WOLFSSL_DTLS13 */
@@ -7483,7 +7801,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ssl->options.buildingMsg = 0;
                 ret = Dtls13HandshakeSend(ssl, args->output,
                     MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA + MAX_MSG_EXTRA,
-                    args->sendSz, certificate_verify, 1);
+                    (word16)args->sendSz, certificate_verify, 1);
                 if (ret != 0)
                     goto exit_scv;
 
@@ -8410,8 +8728,8 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (isDtls) {
-        dtlsRet = Dtls13HandshakeSend(ssl, output, outputSz,
-            Dtls13GetRlHeaderLength(ssl, 1) + headerSz + finishedSz, finished,
+        dtlsRet = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
+            (word16)(Dtls13GetRlHeaderLength(ssl, 1) + headerSz + finishedSz), finished,
             1);
         if (dtlsRet != 0 && dtlsRet != WANT_WRITE)
             return ret;
@@ -8622,7 +8940,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HandshakeSend(ssl, output, outputSz,
+        ret = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
             OPAQUE8_LEN + Dtls13GetRlHeaderLength(ssl, 1) +
                 DTLS_HANDSHAKE_HEADER_SZ,
             key_update, 0);
@@ -8883,7 +9201,11 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     word32 lifetime;
     word32 ageAdd;
     word16 length;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     word32 now;
+#else
+    sword64 now;
+#endif
     const byte* nonce;
     byte        nonceLength;
 
@@ -8934,22 +9256,22 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     *inOutIdx += length;
 
     now = TimeNowInMilliseconds();
-    if (now == (word32)GETTIME_ERROR)
-        return now;
+    if (now == 0)
+        return GETTIME_ERROR;
     /* Copy in ticket data (server identity). */
-    ssl->timeout                = lifetime;
-    ssl->session->timeout        = lifetime;
-    ssl->session->cipherSuite0   = ssl->options.cipherSuite0;
-    ssl->session->cipherSuite    = ssl->options.cipherSuite;
-    ssl->session->ticketSeen     = now;
-    ssl->session->ticketAdd      = ageAdd;
+    ssl->timeout                  = lifetime;
+    ssl->session->timeout         = lifetime;
+    ssl->session->cipherSuite0    = ssl->options.cipherSuite0;
+    ssl->session->cipherSuite     = ssl->options.cipherSuite;
+    ssl->session->ticketSeen      = now;
+    ssl->session->ticketAdd       = ageAdd;
     #ifdef WOLFSSL_EARLY_DATA
-    ssl->session->maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+    ssl->session->maxEarlyDataSz  = ssl->options.maxEarlyDataSz;
     #endif
     ssl->session->ticketNonce.len = nonceLength;
     if (nonceLength > 0)
         XMEMCPY(&ssl->session->ticketNonce.data, nonce, nonceLength);
-    ssl->session->namedGroup     = ssl->namedGroup;
+    ssl->session->namedGroup      = ssl->namedGroup;
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)
         return BUFFER_ERROR;
@@ -9127,7 +9449,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
         ssl->session->ticketNonce.len = DEF_TICKET_NONCE_SZ;
         ssl->session->ticketNonce.data[0] = 0;
     }
-    else 
+    else
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->error != WC_PENDING_E)
     #endif
@@ -10808,6 +11130,26 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
     return 0;
 }
 
+
+int Tls13UpdateKeys(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_DTLS13
+    /* we are already waiting for the ack of a sent key update message. We can't
+       send another one before receiving its ack. Either wolfSSL_update_keys()
+       was invoked multiple times over a short period of time or we replied to a
+       KeyUpdate with update request. We'll just ignore sending this
+       KeyUpdate. */
+    /* TODO: add WOLFSSL_ERROR_ALREADY_IN_PROGRESS type of error here */
+    if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck)
+        return 0;
+#endif /* WOLFSSL_DTLS13 */
+
+    return SendTls13KeyUpdate(ssl);
+}
+
 /* Update the keys for encryption and decryption.
  * If using non-blocking I/O and WOLFSSL_ERROR_WANT_WRITE is returned then
  * calling wolfSSL_write() will have the message sent when ready.
@@ -10820,22 +11162,7 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
 int wolfSSL_update_keys(WOLFSSL* ssl)
 {
     int ret;
-
-    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
-        return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_DTLS13
-    /* we are already waiting for the ack of a sent key update message. We can't
-       send another one before receiving its ack. Either wolfSSL_update_keys()
-       was invoked multiple times over a short period of time or we replied to a
-       KeyUpdate with update request. We'll just ignore sending this
-       KeyUpdate. */
-    /* TODO: add WOLFSSL_ERROR_ALREADY_IN_PROGRESS type of error here */
-    if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck)
-            return WOLFSSL_SUCCESS;
-#endif /* WOLFSSL_DTLS13 */
-
-    ret = SendTls13KeyUpdate(ssl);
+    ret = Tls13UpdateKeys(ssl);
     if (ret == WANT_WRITE)
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)

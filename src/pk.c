@@ -1377,7 +1377,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
     int ret = 1;
     WOLFSSL_EVP_PKEY* pkey = NULL;
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
-    int derSz;
+    int derSz = 0;
     byte* derBuf = NULL;
 #endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
 
@@ -1641,7 +1641,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     byte* tmp = NULL;
     byte* cipherInfo = NULL;
     int  derSz = 0;
-    int  pemSz;
+    int  pemSz = 0;
     const int type = PRIVATEKEY_TYPE;
     const char* header = NULL;
     const char* footer = NULL;
@@ -3491,7 +3491,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
 {
     int     ret        = 1;
     word32  outLen     = 0;
-    int     signSz;
+    int     signSz     = 0;
     WC_RNG* rng        = NULL;
     int     initTmpRng = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3502,7 +3502,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     WC_RNG* tmpRng = _tmpRng;
     byte    encodedSig[MAX_ENCODED_SIG_SZ];
 #endif
-    unsigned int encSz;
+    unsigned int encSz = 0;
 
 
     WOLFSSL_ENTER("wolfSSL_RSA_sign_generic_padding");
@@ -3689,7 +3689,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
 #endif
     unsigned char*   sigDec = NULL;
     unsigned int     len    = MAX_ENCODED_SIG_SZ;
-    int              verLen;
+    int              verLen = 0;
 #if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1)) && !defined(HAVE_SELFTEST)
     enum wc_HashType hType = WC_HASH_TYPE_NONE;
 #endif
@@ -3811,7 +3811,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
 #if !defined(HAVE_FIPS)
     int  mgf = WC_MGF1NONE;
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
-    int pad_type;
+    int pad_type = WC_RSA_NO_PAD;
 #endif
     int outLen = 0;
 

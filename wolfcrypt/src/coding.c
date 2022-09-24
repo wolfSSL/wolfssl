@@ -563,7 +563,7 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (in == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
-    if (*outLen < (2 * inLen + 1))
+    if (*outLen < (2 * inLen))
         return BAD_FUNC_ARG;
 
     for (i = 0; i < inLen; i++) {
@@ -584,8 +584,9 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         out[outIdx++] = lb;
     }
 
-    /* force 0 at this end */
-    out[outIdx++] = 0;
+    /* If the output buffer has a room for an extra byte, add a null terminator */
+    if (*outLen > outIdx)
+        out[outIdx++]= '\0';
 
     *outLen = outIdx;
     return 0;

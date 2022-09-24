@@ -33,6 +33,11 @@
 
 typedef struct ConnectionID {
     byte length;
+/* Ignore "nonstandard extension used : zero-sized array in struct/union"
+ * MSVC warning */
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
     byte id[];
 } ConnectionID;
 
@@ -240,8 +245,19 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 
     info = DtlsCidGetInfo(ssl);
-    if (info == NULL || info->tx != NULL)
+    if (info == NULL)
         return BAD_STATE_E;
+
+    /* it may happen if we process two ClientHello because the server sent an
+     * HRR request */
+    if (info->tx != NULL) {
+        if (ssl->options.side != WOLFSSL_SERVER_END &&
+            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE)
+            return BAD_STATE_E;
+
+        XFREE(info->tx, ssl->heap, DYNAMIC_TYPE_TLSX);
+        info->tx = NULL;
+    }
 
     if (length < OPAQUE8_LEN)
         return BUFFER_ERROR;

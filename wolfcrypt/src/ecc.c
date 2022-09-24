@@ -4609,13 +4609,13 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         FREE_CURVE_SPECS();
         return err;
     }
-#elif defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (wc_AsyncTestInit(&private_key->asyncDev, ASYNC_TEST_ECC_SHARED_SEC)) {
-        WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
-        testDev->eccSharedSec.private_key = private_key;
-        testDev->eccSharedSec.public_point = point;
-        testDev->eccSharedSec.out = out;
-        testDev->eccSharedSec.outLen = outlen;
+#elif defined(WOLFSSL_ASYNC_CRYPT_SW)
+    if (wc_AsyncSwInit(&private_key->asyncDev, ASYNC_SW_ECC_SHARED_SEC)) {
+        WC_ASYNC_SW* sw = &private_key->asyncDev.sw;
+        sw->eccSharedSec.private_key = private_key;
+        sw->eccSharedSec.public_point = point;
+        sw->eccSharedSec.out = out;
+        sw->eccSharedSec.outLen = outlen;
         wc_ecc_curve_free(curve);
         FREE_CURVE_SPECS();
         return WC_PENDING_E;
@@ -5188,12 +5188,12 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #elif defined(HAVE_INTEL_QA)
         /* Implemented in ecc_make_pub_ex for the pub calc */
     #else
-        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_MAKE)) {
-            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-            testDev->eccMake.rng = rng;
-            testDev->eccMake.key = key;
-            testDev->eccMake.size = keysize;
-            testDev->eccMake.curve_id = curve_id;
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_MAKE)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->eccMake.rng = rng;
+            sw->eccMake.key = key;
+            sw->eccMake.size = keysize;
+            sw->eccMake.curve_id = curve_id;
             return WC_PENDING_E;
         }
     #endif
@@ -5615,6 +5615,15 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     }
 #endif /* ALT_ECC_SIZE */
 #endif /* WOLFSSL_ATECC508A */
+#if (defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) && \
+     defined(WOLFSSL_NO_MALLOC)
+    ret = mp_init(key->sign_k);
+    if (ret != MP_OKAY) {
+        return MEMORY_E;
+    }
+#endif
 
 #ifdef WOLFSSL_HEAP_TEST
     key->heap = (void*)WOLFSSL_HEAP_TEST;
@@ -5903,8 +5912,8 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
                     /* Nitrox requires r and s in sep buffer, so split it */
                     NitroxEccRsSplit(key, &r->raw, &s->raw);
                 #endif
-                #ifndef WOLFSSL_ASYNC_CRYPT_TEST
-                    /* only do this if not simulator, since it overwrites result */
+                #ifndef WOLFSSL_ASYNC_CRYPT_SW
+                    /* only do this if not software, since it overwrites result */
                     wc_bigint_to_mp(&r->raw, r);
                     wc_bigint_to_mp(&s->raw, s);
                 #endif
@@ -6070,6 +6079,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
     }
 
     if (err == MP_OKAY) {
+    #ifndef WOLFSSL_NO_MALLOC
         /* if key->sign_k is NULL then create a buffer for the mp_int
          * if not NULL then assume the user correctly set deterministic flag and
          *    that the key->sign_k holds a previously malloc'd mp_int buffer */
@@ -6098,6 +6108,17 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         else {
             err = MEMORY_E;
         }
+    #else
+        key->sign_k_set = 0;
+        /* currently limiting to SHA256 for auto create */
+        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_SHA256, &key->k,
+                key->sign_k, curve->order, key->heap) != 0) {
+            err = ECC_PRIV_KEY_E;
+        }
+        else {
+            key->sign_k_set = 1;
+        }
+    #endif
     }
 
     wc_ecc_curve_free(curve);
@@ -6172,7 +6193,12 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-        if (key->sign_k != NULL) {
+#ifndef WOLFSSL_NO_MALLOC
+        if (key->sign_k != NULL)
+#else
+        if (key->sign_k_set)
+#endif
+        {
             if (loop_check > 1) {
                err = RNG_FAILURE_E;
                break;
@@ -6184,9 +6210,13 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 
             /* free sign_k, so only used once */
             mp_forcezero(key->sign_k);
+#ifndef WOLFSSL_NO_MALLOC
             mp_free(key->sign_k);
             XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
             key->sign_k = NULL;
+#else
+            key->sign_k_set = 0;
+#endif
     #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
             loop_check = 64;
     #endif
@@ -6359,12 +6389,25 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+       defined(WOLFSSL_ASYNC_CRYPT_SW)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_SIGN)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->eccSign.in = in;
+            sw->eccSign.inSz = inlen;
+            sw->eccSign.rng = rng;
+            sw->eccSign.key = key;
+            sw->eccSign.r = r;
+            sw->eccSign.s = s;
+            return WC_PENDING_E;
+        }
+    }
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_ECC)
-    if (key->idx != ECC_CUSTOM_IDX
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-        && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
-    #endif
-    ) {
+    if (key->idx != ECC_CUSTOM_IDX) {
     #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) \
         || defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
            defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
@@ -6463,23 +6506,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    (void)inlen;
 #endif
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-       defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_SIGN)) {
-            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-            testDev->eccSign.in = in;
-            testDev->eccSign.inSz = inlen;
-            testDev->eccSign.rng = rng;
-            testDev->eccSign.key = key;
-            testDev->eccSign.r = r;
-            testDev->eccSign.s = s;
-            return WC_PENDING_E;
-        }
-    }
-#endif
-
 
 #if !defined(WOLFSSL_SP_MATH)
 
@@ -6981,6 +7007,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
         return ret;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (key->sign_k == NULL) {
         key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
                                                             DYNAMIC_TYPE_ECC);
@@ -6991,6 +7018,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
             ret = MEMORY_E;
         }
     }
+#endif
 
     if (ret == 0) {
         ret = mp_read_unsigned_bin(key->sign_k, k, klen);
@@ -6998,6 +7026,11 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
     if (ret == 0 && mp_cmp(key->sign_k, curve->order) != MP_LT) {
         ret = MP_VAL;
     }
+#ifdef WOLFSSL_NO_MALLOC
+    if (ret == 0) {
+        key->sign_k_set = 1;
+    }
+#endif
 
     wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
@@ -7044,10 +7077,15 @@ int wc_ecc_free(ecc_key* key)
     }
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
-    if (key->sign_k != NULL) {
+#ifndef WOLFSSL_NO_MALLOC
+    if (key->sign_k != NULL)
+#endif
+    {
         mp_forcezero(key->sign_k);
         mp_free(key->sign_k);
+#ifndef WOLFSSL_NO_MALLOC
         XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+#endif
     }
 #endif
 
@@ -7277,15 +7315,15 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-  #ifdef WOLFSSL_SMALL_STACK_CACHE
+#ifdef WOLFSSL_SMALL_STACK_CACHE
   key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (key == NULL) {
      XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
      return GEN_MEM_ERR;
   }
-  #endif
+#endif
+#ifdef WOLFSSL_SMALL_STACK
   precomp = (ecc_point**)XMALLOC(sizeof(ecc_point*) * SHAMIR_PRECOMP_SZ, heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
   if (precomp == NULL) {
@@ -7301,20 +7339,20 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   key->t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
   key->t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #ifdef ALT_ECC_SIZE
-  key.x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
-  key.y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
-  key.z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+  key->z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #endif
 
   if (key->t1 == NULL || key->t2 == NULL
 #ifdef ALT_ECC_SIZE
-     || key.x == NULL || key.y == NULL || key.z == NULL
+     || key->x == NULL || key->y == NULL || key->z == NULL
 #endif
   ) {
 #ifdef ALT_ECC_SIZE
-      XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
-      XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
-      XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+      XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
       XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
       XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
@@ -7533,9 +7571,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   ForceZero(tB, ECC_BUFSIZE);
 #ifdef WOLFSSL_SMALL_STACK_CACHE
 #ifdef ALT_ECC_SIZE
-  XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
-  XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
-  XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+  XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
   XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
   XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
@@ -7851,16 +7889,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    keySz = key->dp->size;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-       defined(WOLFSSL_ASYNC_CRYPT_TEST)
+       defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_VERIFY)) {
-            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-            testDev->eccVerify.r = r;
-            testDev->eccVerify.s = s;
-            testDev->eccVerify.hash = hash;
-            testDev->eccVerify.hashlen = hashlen;
-            testDev->eccVerify.stat = res;
-            testDev->eccVerify.key = key;
+        if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_VERIFY)) {
+            WC_ASYNC_SW* sw = &key->asyncDev.sw;
+            sw->eccVerify.r = r;
+            sw->eccVerify.s = s;
+            sw->eccVerify.hash = hash;
+            sw->eccVerify.hashlen = hashlen;
+            sw->eccVerify.stat = res;
+            sw->eccVerify.key = key;
             return WC_PENDING_E;
         }
     }
@@ -7968,11 +8006,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif
 
 #if defined(WOLFSSL_HAVE_SP_ECC)
-    if (key->idx != ECC_CUSTOM_IDX
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-        && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
-    #endif
-    ) {
+    if (key->idx != ECC_CUSTOM_IDX) {
     #if defined(WC_ECC_NONBLOCK) && defined(WC_ECC_NONBLOCK_ONLY)
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
@@ -9367,7 +9401,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
             key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
     }
 #endif
-#ifdef WOLFSSL_SP_1024
+#if defined(WOLFSSL_SP_1024) && defined(WOLFCRYPT_HAVE_SAKKE)
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SAKKE_1) {
         return sp_ecc_check_key_1024(key->pubkey.x, key->pubkey.y,
             key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);

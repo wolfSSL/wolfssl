@@ -212,16 +212,14 @@ int wc_HashGetOID(enum wc_HashType hash_type)
             oid = SHA3_512h;
         #endif
             break;
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
             oid = SHAKE128h;
-        #endif
             break;
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             oid = SHAKE256h;
-        #endif
             break;
     #endif
 
@@ -398,8 +396,10 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             break;
 
         /* Not Supported */
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -509,8 +509,10 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
             break;
 
         /* Not Supported */
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -625,8 +627,10 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -721,8 +725,10 @@ int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -825,8 +831,10 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -920,8 +928,10 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -1027,8 +1037,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -1101,8 +1113,10 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         default:
@@ -1171,8 +1185,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NO_SHAKE256
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
         case WC_HASH_TYPE_SHAKE128:
+    #endif
+    #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
         case WC_HASH_TYPE_SHAKE256:
     #endif
         case WC_HASH_TYPE_NONE:
@@ -1663,6 +1679,45 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         return ret;
     }
 #endif /* !WOLFSSL_NOSHA3_512 */
+
+#ifdef WOLFSSL_SHAKE128
+    int wc_Shake128Hash(const byte* data, word32 len, byte* hash,
+                        word32 hashLen)
+    {
+        int ret = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_Shake* shake;
+    #else
+        wc_Shake shake[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        shake = (wc_Shake*)XMALLOC(sizeof(wc_Shake), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (shake == NULL)
+            return MEMORY_E;
+    #endif
+
+        if ((ret = wc_InitShake128(shake, NULL, INVALID_DEVID)) != 0) {
+            WOLFSSL_MSG("InitShake128 failed");
+        }
+        else {
+            if ((ret = wc_Shake128_Update(shake, data, len)) != 0) {
+                WOLFSSL_MSG("Shake128_Update failed");
+            }
+            else if ((ret = wc_Shake128_Final(shake, hash, hashLen)) != 0) {
+                WOLFSSL_MSG("Shake128_Final failed");
+            }
+            wc_Shake128_Free(shake);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return ret;
+    }
+#endif /* WOLFSSL_SHAKE_128 */
 
 #ifdef WOLFSSL_SHAKE256
     int wc_Shake256Hash(const byte* data, word32 len, byte* hash,

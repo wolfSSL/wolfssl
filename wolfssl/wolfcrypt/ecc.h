@@ -340,7 +340,8 @@ typedef struct ecc_set_type {
  * The ALT_ECC_SIZE option only applies to stack based fast math USE_FAST_MATH.
  */
 
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH_ALL) && \
+    !defined(WOLFSSL_SP_MATH)
     #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
 #endif
 #ifdef WOLFSSL_NO_MALLOC
@@ -494,7 +495,12 @@ struct ecc_key {
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-    mp_int *sign_k;
+#ifndef WOLFSSL_NO_MALLOC
+    mp_int* sign_k;
+#else
+    mp_int sign_k[1];
+    byte sign_k_set:1;
+#endif
 #endif
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)

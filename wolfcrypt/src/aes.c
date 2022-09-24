@@ -306,7 +306,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     /* case of possibly not using hardware acceleration for AES but using key
@@ -4038,13 +4038,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return IntelQaSymAesCbcEncrypt(&aes->asyncDev, out, in, sz,
                 (const byte*)aes->devKey, aes->keylen,
                 (byte*)aes->reg, AES_BLOCK_SIZE);
-        #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-            if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_CBC_ENCRYPT)) {
-                WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
-                testDev->aes.aes = aes;
-                testDev->aes.out = out;
-                testDev->aes.in = in;
-                testDev->aes.sz = sz;
+        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+            if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_CBC_ENCRYPT)) {
+                WC_ASYNC_SW* sw = &aes->asyncDev.sw;
+                sw->aes.aes = aes;
+                sw->aes.out = out;
+                sw->aes.in = in;
+                sw->aes.sz = sz;
                 return WC_PENDING_E;
             }
         #endif
@@ -4163,13 +4163,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return IntelQaSymAesCbcDecrypt(&aes->asyncDev, out, in, sz,
                 (const byte*)aes->devKey, aes->keylen,
                 (byte*)aes->reg, AES_BLOCK_SIZE);
-        #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-            if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_CBC_DECRYPT)) {
-                WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
-                testDev->aes.aes = aes;
-                testDev->aes.out = out;
-                testDev->aes.in = in;
-                testDev->aes.sz = sz;
+        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+            if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_CBC_DECRYPT)) {
+                WC_ASYNC_SW* sw = &aes->asyncDev.sw;
+                sw->aes.aes = aes;
+                sw->aes.out = out;
+                sw->aes.in = in;
+                sw->aes.sz = sz;
                 return WC_PENDING_E;
             }
         #endif
@@ -4601,7 +4601,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_AFALG)
@@ -7825,19 +7825,19 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-        if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_GCM_ENCRYPT)) {
-            WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
-            testDev->aes.aes = aes;
-            testDev->aes.out = out;
-            testDev->aes.in = in;
-            testDev->aes.sz = sz;
-            testDev->aes.iv = iv;
-            testDev->aes.ivSz = ivSz;
-            testDev->aes.authTag = authTag;
-            testDev->aes.authTagSz = authTagSz;
-            testDev->aes.authIn = authIn;
-            testDev->aes.authInSz = authInSz;
+    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+        if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_GCM_ENCRYPT)) {
+            WC_ASYNC_SW* sw = &aes->asyncDev.sw;
+            sw->aes.aes = aes;
+            sw->aes.out = out;
+            sw->aes.in = in;
+            sw->aes.sz = sz;
+            sw->aes.iv = iv;
+            sw->aes.ivSz = ivSz;
+            sw->aes.authTag = authTag;
+            sw->aes.authTagSz = authTagSz;
+            sw->aes.authIn = authIn;
+            sw->aes.authInSz = authInSz;
             return WC_PENDING_E;
         }
     #endif
@@ -8370,19 +8370,19 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-        if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_GCM_DECRYPT)) {
-            WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
-            testDev->aes.aes = aes;
-            testDev->aes.out = out;
-            testDev->aes.in = in;
-            testDev->aes.sz = sz;
-            testDev->aes.iv = iv;
-            testDev->aes.ivSz = ivSz;
-            testDev->aes.authTag = (byte*)authTag;
-            testDev->aes.authTagSz = authTagSz;
-            testDev->aes.authIn = authIn;
-            testDev->aes.authInSz = authInSz;
+    #else /* WOLFSSL_ASYNC_CRYPT_SW */
+        if (wc_AsyncSwInit(&aes->asyncDev, ASYNC_SW_AES_GCM_DECRYPT)) {
+            WC_ASYNC_SW* sw = &aes->asyncDev.sw;
+            sw->aes.aes = aes;
+            sw->aes.out = out;
+            sw->aes.in = in;
+            sw->aes.sz = sz;
+            sw->aes.iv = iv;
+            sw->aes.ivSz = ivSz;
+            sw->aes.authTag = (byte*)authTag;
+            sw->aes.authTagSz = authTagSz;
+            sw->aes.authIn = authIn;
+            sw->aes.authInSz = authInSz;
             return WC_PENDING_E;
         }
     #endif
@@ -9933,7 +9933,7 @@ int wc_AesCcmCheckTagSize(int sz)
     return 0;
 }
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(HAVE_COLDFIRE_SEC)

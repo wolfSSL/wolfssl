@@ -225,6 +225,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("KYBER_LEVEL1"), "KYBER_LEVEL1", WOLFSSL_KYBER_LEVEL1},
     {XSTR_SIZEOF("KYBER_LEVEL3"), "KYBER_LEVEL3", WOLFSSL_KYBER_LEVEL3},
     {XSTR_SIZEOF("KYBER_LEVEL5"), "KYBER_LEVEL5", WOLFSSL_KYBER_LEVEL5},
+#ifdef HAVE_LIBOQS
     {XSTR_SIZEOF("NTRU_HPS_LEVEL1"), "NTRU_HPS_LEVEL1", WOLFSSL_NTRU_HPS_LEVEL1},
     {XSTR_SIZEOF("NTRU_HPS_LEVEL3"), "NTRU_HPS_LEVEL3", WOLFSSL_NTRU_HPS_LEVEL3},
     {XSTR_SIZEOF("NTRU_HPS_LEVEL5"), "NTRU_HPS_LEVEL5", WOLFSSL_NTRU_HPS_LEVEL5},
@@ -248,6 +249,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("P256_KYBER_90S_LEVEL1"), "P256_KYBER_90S_LEVEL1", WOLFSSL_P256_KYBER_90S_LEVEL1},
     {XSTR_SIZEOF("P384_KYBER_90S_LEVEL3"), "P384_KYBER_90S_LEVEL3", WOLFSSL_P384_KYBER_90S_LEVEL3},
     {XSTR_SIZEOF("P521_KYBER_90S_LEVEL5"), "P521_KYBER_90S_LEVEL5", WOLFSSL_P521_KYBER_90S_LEVEL5},
+#endif
 #endif
     {0, NULL, 0},
 };
@@ -1217,7 +1219,7 @@ void* wolfSSL_dtls_create_peer(int port, char* ip)
     }
 
     addr->sin_family = AF_INET;
-    addr->sin_port = htons(port);
+    addr->sin_port = XHTONS((word16)port);
     if (XINET_PTON(AF_INET, ip, &addr->sin_addr) < 1) {
         XFREE(addr, NULL, DYNAMIC_TYPE_SOCKADDR);
         return NULL;
@@ -2879,6 +2881,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
+    #ifdef HAVE_LIBOQS
         case WOLFSSL_NTRU_HPS_LEVEL1:
         case WOLFSSL_NTRU_HPS_LEVEL3:
         case WOLFSSL_NTRU_HPS_LEVEL5:
@@ -2902,6 +2905,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_P256_KYBER_90S_LEVEL1:
         case WOLFSSL_P384_KYBER_90S_LEVEL3:
         case WOLFSSL_P521_KYBER_90S_LEVEL5:
+    #endif
 #endif
             return 1;
 
@@ -3168,6 +3172,11 @@ static int _Rehandshake(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        WOLFSSL_MSG("Secure Renegotiation not supported in TLS 1.3");
+        return SECURE_RENEGOTIATION_E;
+    }
+
     if (ssl->secure_renegotiation == NULL) {
         WOLFSSL_MSG("Secure Renegotiation not forced on by user");
         return SECURE_RENEGOTIATION_E;
@@ -3177,6 +3186,13 @@ static int _Rehandshake(WOLFSSL* ssl)
         WOLFSSL_MSG("Secure Renegotiation not enabled at extension level");
         return SECURE_RENEGOTIATION_E;
     }
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && ssl->keys.dtls_epoch == 0xFFFF) {
+        WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
+        return SECURE_RENEGOTIATION_E;
+    }
+#endif
 
     /* If the client started the renegotiation, the server will already
      * have processed the client's hello. */
@@ -6689,7 +6705,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-        defined(HAVE_PQC) || !defined(NO_RSA)
+        (defined(HAVE_PQC) && defined(HAVE_LIBOQS)) || !defined(NO_RSA)
         if (ssl) {
         #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
             (defined(HAVE_CURVE448) && defined(HAVE_ED448))
@@ -6812,14 +6828,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minRsaKeySz < 0 ||
-                          keySz < (int)ssl->options.minRsaKeySz) {
+                          keySz < (int)ssl->options.minRsaKeySz ||
+                          keySz > (RSA_MAX_SIZE / 8)) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minRsaKeySz < 0 ||
-                                  keySz < (int)ctx->minRsaKeySz) {
+                            keySz < (int)ctx->minRsaKeySz ||
+                            keySz > (RSA_MAX_SIZE / 8)) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
@@ -11670,14 +11688,44 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ctx, ctx->suites, list);
 #else
-    return (SetCipherList(ctx, ctx->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return (SetCipherList(ctx, ctx->suites, list)) ?
+        WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
+                                      const int listSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_cipher_list_bytes");
+
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+
+    /* alloc/init on demand only */
+    if (ctx->suites == NULL) {
+        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ctx->suites == NULL) {
+            WOLFSSL_MSG("Memory alloc for Suites failed");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(ctx->suites, 0, sizeof(Suites));
+    }
+
+    return (SetCipherListFromBytes(ctx, ctx->suites, list, listSz)) ?
+        WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
 
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
+
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
 #ifdef SINGLE_THREADED
     if (ssl->ctx->suites == ssl->suites) {
         ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
@@ -11694,9 +11742,41 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ssl->ctx, ssl->suites, list);
 #else
-    return (SetCipherList(ssl->ctx, ssl->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return (SetCipherList(ssl->ctx, ssl->suites, list)) ?
+        WOLFSSL_SUCCESS :
+        WOLFSSL_FAILURE;
 #endif
 }
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SET_CIPHER_BYTES)
+int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
+                                  const int listSz)
+{
+    WOLFSSL_ENTER("wolfSSL_set_cipher_list_bytes");
+
+    if (ssl == NULL || ssl->ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef SINGLE_THREADED
+    if (ssl->ctx->suites == ssl->suites) {
+        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ssl->suites == NULL) {
+            WOLFSSL_MSG("Suites Memory error");
+            return MEMORY_E;
+        }
+        *ssl->suites = *ssl->ctx->suites;
+        ssl->options.ownSuites = 1;
+    }
+#endif
+
+    return (SetCipherListFromBytes(ssl->ctx, ssl->suites, list, listSz))
+           ? WOLFSSL_SUCCESS
+           : WOLFSSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_SET_CIPHER_BYTES */
+
 
 #ifdef HAVE_KEYING_MATERIAL
 
@@ -15585,7 +15665,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     void wolfSSL_CTX_set_quiet_shutdown(WOLFSSL_CTX* ctx, int mode)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_quiet_shutdown");
@@ -15600,7 +15681,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (mode)
             ssl->options.quietShutdown = 1;
     }
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
+          WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
@@ -18297,10 +18379,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #endif
 #endif
 #ifndef NO_SHA
-        if (XSTRCMP(evp_md, "SHA") == 0) {
+        if (XSTRCMP(evp_md, "SHA") == 0 || XSTRCMP(evp_md, "SHA1") == 0) {
             type = WC_SHA;
             mdlen = WC_SHA_DIGEST_SIZE;
-        } else
+        }
+        else
 #endif
         {
             return NULL;
@@ -18652,6 +18735,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
+        if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
 
         if (InitHandshakeHashes(ssl) != 0)
             return WOLFSSL_FAILURE;
@@ -19310,7 +19396,6 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
     sk->num        += 1;
 
 #ifdef OPENSSL_ALL
-    node->comp = sk->comp;
     node->hash_fn = sk->hash_fn;
     node->hash = sk->hash;
     sk->hash = 0;
@@ -20687,6 +20772,19 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #elif defined(HAVE_PQM4)
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
+#elif defined(WOLFSSL_WC_KYBER)
+    #ifdef WOLFSSL_KYBER512
+        case WOLFSSL_KYBER_LEVEL1:
+            return "KYBER_LEVEL1";
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        case WOLFSSL_KYBER_LEVEL3:
+            return "KYBER_LEVEL3";
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        case WOLFSSL_KYBER_LEVEL5:
+            return "KYBER_LEVEL5";
+    #endif
 #endif
         }
     }
@@ -25361,8 +25459,13 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     /* ticketSeen | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN;
+#else
+    /* ticketSeen Hi 32 bits | ticketSeen Lo 32 bits | ticketAdd */
+    size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE32_LEN;
+#endif
     /* ticketNonce */
     size += OPAQUE8_LEN + sess->ticketNonce.len;
 #endif
@@ -25434,13 +25537,20 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifdef WOLFSSL_TLS13
-    c32toa(sess->ticketSeen, data + idx);
-    idx += OPAQUE32_LEN;
-    c32toa(sess->ticketAdd, data + idx);
-    idx += OPAQUE32_LEN;
-    data[idx++] = sess->ticketNonce.len;
-    XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
-    idx += sess->ticketNonce.len;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+        c32toa(sess->ticketSeen, data + idx);
+        idx += OPAQUE32_LEN;
+#else
+        c32toa((word32)(sess->ticketSeen >> 32), data + idx);
+        idx += OPAQUE32_LEN;
+        c32toa((word32)sess->ticketSeen, data + idx);
+        idx += OPAQUE32_LEN;
+#endif
+        c32toa(sess->ticketAdd, data + idx);
+        idx += OPAQUE32_LEN;
+        data[idx++] = sess->ticketNonce.len;
+        XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
+        idx += sess->ticketNonce.len;
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         c32toa(sess->maxEarlyDataSz, data + idx);
@@ -25630,8 +25740,20 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         ret = BUFFER_ERROR;
         goto end;
     }
+#ifdef WOLFSSL_32BIT_MILLI_TIME
     ato32(data + idx, &s->ticketSeen);
     idx += OPAQUE32_LEN;
+#else
+    {
+        word32 seenHi, seenLo;
+
+        ato32(data + idx, &seenHi);
+        idx += OPAQUE32_LEN;
+        ato32(data + idx, &seenLo);
+        idx += OPAQUE32_LEN;
+        s->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+    }
+#endif
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;
     if (i - idx < OPAQUE8_LEN) {
@@ -33838,20 +33960,34 @@ int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 curve_id)
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
 static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
 {
-    int idx, start = 0, len;
+    int idx, start = 0, len, i, ret = WOLFSSL_FAILURE;
     word16 curve;
     word32 disabled;
     char name[MAX_CURVE_NAME_SZ];
+    byte groups_len = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    void *heap = ssl? ssl->heap : ctx->heap;
+    int *groups;
+#else
+    int groups[WOLFSSL_MAX_GROUP_COUNT];
+#endif
 
-    /* Disable all curves so that only the ones the user wants are enabled. */
-    disabled = 0xFFFFFFFFUL;
+#ifdef WOLFSSL_SMALL_STACK
+    groups = (int*)XMALLOC(sizeof(int)*WOLFSSL_MAX_GROUP_COUNT,
+                           heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (groups == NULL) {
+        ret = MEMORY_E;
+        goto leave;
+    }
+#endif
+
     for (idx = 1; names[idx-1] != '\0'; idx++) {
         if (names[idx] != ':' && names[idx] != '\0')
             continue;
 
         len = idx - start;
         if (len > MAX_CURVE_NAME_SZ - 1)
-            return WOLFSSL_FAILURE;
+            goto leave;
 
         XMEMCPY(name, names + start, len);
         name[len] = 0;
@@ -33886,25 +34022,25 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
     #endif
         else {
         #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-            int   ret;
+            int   nret;
             const ecc_set_type *eccSet;
 
-            ret = wc_ecc_get_curve_idx_from_name(name);
-            if (ret < 0) {
+            nret = wc_ecc_get_curve_idx_from_name(name);
+            if (nret < 0) {
                 WOLFSSL_MSG("Could not find name in set");
-                return WOLFSSL_FAILURE;
+                goto leave;
             }
 
             eccSet = wc_ecc_get_curve_params(ret);
             if (eccSet == NULL) {
                 WOLFSSL_MSG("NULL set returned");
-                return WOLFSSL_FAILURE;
+                goto leave;
             }
 
             curve = GetCurveByOID(eccSet->oidSum);
         #else
             WOLFSSL_MSG("API not present to search farther using name");
-            return WOLFSSL_FAILURE;
+            goto leave;
         #endif
         }
 
@@ -33912,32 +34048,71 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             /* shift left more than size of ctx->disabledCurves causes static
              * analysis report */
             WOLFSSL_MSG("curve value is too large for upcoming shift");
-            return WOLFSSL_FAILURE;
+            goto leave;
         }
 
-    #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
+        for (i = 0; i < groups_len; ++i) {
+            if (groups[i] == curve) {
+                /* silently drop duplicates */
+                break;
+            }
+        }
+        if (i >= groups_len) {
+            if (groups_len >= WOLFSSL_MAX_GROUP_COUNT) {
+                WOLFSSL_MSG_EX("setting %d or more supported "
+                               "curves is not permitted", groups_len);
+                goto leave;
+            }
+            groups[groups_len++] = (int)curve;
+        }
+
+        start = idx + 1;
+    }
+
+    /* Disable all curves so that only the ones the user wants are enabled. */
+    disabled = 0xFFFFFFFFUL;
+    for (i = 0; i < groups_len; ++i) {
+        /* Switch the bit to off and therefore is enabled. */
+        curve = (word16)groups[i];
+        disabled &= ~(1U << curve);
+    #ifdef HAVE_SUPPORTED_CURVES
+    #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
+        /* using the wolfSSL API to set the groups, this will populate
+         * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
+         * The order in (ssl|ctx)->groups will then be respected
+         * when TLSX_KEY_SHARE needs to be established */
+        if ((ssl && wolfSSL_set_groups(ssl, groups, groups_len)
+                        != WOLFSSL_SUCCESS)
+            || (ctx && wolfSSL_CTX_set_groups(ctx, groups, groups_len)
+                           != WOLFSSL_SUCCESS)) {
+            WOLFSSL_MSG("Unable to set supported curve");
+            goto leave;
+        }
+    #elif !defined(NO_WOLFSSL_CLIENT)
         /* set the supported curve so client TLS extension contains only the
          * desired curves */
-        if ((ssl
-             && wolfSSL_UseSupportedCurve(ssl, curve) != WOLFSSL_SUCCESS)
-            || (ctx
-            && wolfSSL_CTX_UseSupportedCurve(ctx, curve) != WOLFSSL_SUCCESS)) {
+        if ((ssl && wolfSSL_UseSupportedCurve(ssl, curve) != WOLFSSL_SUCCESS)
+            || (ctx && wolfSSL_CTX_UseSupportedCurve(ctx, curve)
+                           != WOLFSSL_SUCCESS)) {
             WOLFSSL_MSG("Unable to set supported curve");
-            return WOLFSSL_FAILURE;
+            goto leave;
         }
     #endif
-
-        /* Switch the bit to off and therefore is enabled. */
-        disabled &= ~(1U << curve);
-        start = idx + 1;
+    #endif /* HAVE_SUPPORTED_CURVES */
     }
 
     if (ssl)
         ssl->disabledCurves = disabled;
     else
         ctx->disabledCurves = disabled;
+    ret = WOLFSSL_SUCCESS;
 
-    return WOLFSSL_SUCCESS;
+leave:
+#ifdef WOLFSSL_SMALL_STACK
+    if (groups)
+        XFREE((void*)groups, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
 }
 
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
@@ -38892,6 +39067,11 @@ int wolfSSL_RAND_poll(void)
                 break;
 #endif
 
+#ifdef HAVE_CHACHA
+            case CHACHA20_TYPE:
+                break;
+#endif
+
             case NULL_CIPHER_TYPE :
                 WOLFSSL_MSG("NULL");
                 break;
@@ -38978,6 +39158,11 @@ int wolfSSL_RAND_poll(void)
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case CHACHA20_POLY1305_TYPE:
+                break;
+#endif
+
+#ifdef HAVE_CHACHA
+            case CHACHA20_TYPE:
                 break;
 #endif
 

@@ -798,7 +798,6 @@ enum
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 1020,             /* id-pe 24 */
     NID_buildingName = 1494,
-    NID_distinguishedName = 25,
 
     NID_dnQualifier = 174,             /* 2.5.4.46 */
     NID_commonName = 14,               /* CN Changed to not conflict
@@ -878,7 +877,13 @@ enum Misc_ASN {
 #else
     KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
 #endif
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM))
     RSA_INTS            =   8,     /* RSA ints in private key */
+#elif !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    RSA_INTS            =   5,     /* RSA ints in private key */
+#else
+    RSA_INTS            =   2,     /* RSA ints in private key */
+#endif
     DSA_PARAM_INTS      =   3,     /* DSA paramater ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
     DSA_PUB_INTS        =   4,     /* DSA ints in public key */
@@ -1081,6 +1086,7 @@ enum Key_Sum {
     DSAk              = 515,
     RSAk              = 645,
     RSAPSSk           = 654,
+    RSAESOAEPk        = 651, /* 1.2.840.113549.1.1.7 */
     ECDSAk            = 518,
     ED25519k          = 256, /* 1.3.101.112 */
     X25519k           = 254, /* 1.3.101.110 */
@@ -1095,6 +1101,12 @@ enum Key_Sum {
     DILITHIUM_AES_LEVEL2k = 217,/* 1.3.6.1.4.1.2.267.11.4.4 */
     DILITHIUM_AES_LEVEL3k = 221,/* 1.3.6.1.4.1.2.267.11.6.5 + 1 (See GetOID() in asn.c) */
     DILITHIUM_AES_LEVEL5k = 224,/* 1.3.6.1.4.1.2.267.11.8.7 */
+    SPHINCS_FAST_LEVEL1k   = 281, /* 1 3 9999 6 7 4 */
+    SPHINCS_FAST_LEVEL3k   = 283, /* 1 3 9999 6 8 3 + 2 (See GetOID() in asn.c) */
+    SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
+    SPHINCS_SMALL_LEVEL1k  = 287, /* 1 3 9999 6 7 10 */
+    SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
+    SPHINCS_SMALL_LEVEL5k  = 286, /* 1 3 9999 6 9 7 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1411,6 +1423,7 @@ struct SignatureCtx {
     #ifdef HAVE_PQC
         struct falcon_key* falcon;
         struct dilithium_key* dilithium;
+        struct sphincs_key* sphincs;
     #endif
         void* ptr;
     } key;
@@ -2233,6 +2246,12 @@ enum cert_enums {
     DILITHIUM_AES_LEVEL2_KEY = 21,
     DILITHIUM_AES_LEVEL3_KEY = 22,
     DILITHIUM_AES_LEVEL5_KEY = 23,
+    SPHINCS_FAST_LEVEL1_KEY  = 24,
+    SPHINCS_FAST_LEVEL3_KEY  = 25,
+    SPHINCS_FAST_LEVEL5_KEY  = 26,
+    SPHINCS_SMALL_LEVEL1_KEY = 27,
+    SPHINCS_SMALL_LEVEL3_KEY = 28,
+    SPHINCS_SMALL_LEVEL5_KEY = 29,
 };
 
 #endif /* WOLFSSL_CERT_GEN */
@@ -2473,7 +2492,8 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || (defined(HAVE_PQC) && defined(HAVE_FALCON)) \
-    || (defined(HAVE_PQC) && defined(HAVE_DILITHIUM)))
+    || (defined(HAVE_PQC) && defined(HAVE_DILITHIUM)) \
+    || (defined(HAVE_PQC) && defined(HAVE_SPHINCS)))
 WOLFSSL_LOCAL int DecodeAsymKey(const byte* input, word32* inOutIdx,
     word32 inSz, byte* privKey, word32* privKeyLen, byte* pubKey,
     word32* pubKeyLen, int keyType);

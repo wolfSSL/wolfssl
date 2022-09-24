@@ -90,8 +90,6 @@ typedef struct Dtls13RecordPlaintextHeader {
 
 /* size of the len field in the unified header */
 #define DTLS13_LEN_SIZE 2
-/* size of the mask used to encrypt/decrypt Record Number  */
-#define DTLS13_RN_MASK_SIZE 16
 /* size of the flags in the unified header */
 #define DTLS13_HDR_FLAGS_SIZE 1
 /* size of the sequence number wher SEQ_LEN_BIT is present */
@@ -206,7 +204,7 @@ static int Dtls13HandshakeAddHeaderFrag(WOLFSSL* ssl, byte* output,
 
 static byte Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
 {
-    int ret = 0;
+    byte ret = 0;
 
     switch (hs_type) {
     case hello_request:
@@ -240,7 +238,6 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
     enum rnDirection dir)
 {
     RecordNumberCiphers* c;
-    int ret;
 
     if (dir == PROTECT)
         c = &ssl->dtlsRecordNumberEncrypt;
@@ -260,6 +257,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
 #ifdef HAVE_CHACHA
     if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
         word32 counter;
+        int ret;
 
         if (c->chacha == NULL)
             return BAD_STATE_E;
@@ -345,11 +343,11 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
             break;
 
         /* message not complete */
-        if (msg->fragSz != msg->sz)
+        if (!msg->ready)
             break;
 
-        ret = DoTls13HandShakeMsgType(ssl, msg->msg, &idx, msg->type, msg->sz,
-            msg->sz);
+        ret = DoTls13HandShakeMsgType(ssl, msg->fullMsg, &idx, msg->type,
+                msg->sz, msg->sz);
 
         /* processing certificate_request triggers a connect. The error came
          * from there, the message can be considered processed successfully */
@@ -375,7 +373,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
 static int Dtls13NextMessageComplete(WOLFSSL* ssl)
 {
     return ssl->dtls_rx_msg_list != NULL &&
-           ssl->dtls_rx_msg_list->fragSz == ssl->dtls_rx_msg_list->sz &&
+           ssl->dtls_rx_msg_list->ready &&
            ssl->dtls_rx_msg_list->seq ==
                ssl->keys.dtls_expected_peer_handshake_number;
 }
@@ -677,8 +675,18 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
     /* is not the next fragment in the message (the check is not 100% perfect,
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
-    if (ssl->dtls_rx_msg_list == NULL ||
-        ssl->dtls_rx_msg_list->fragSz != fragOffset) {
+    if (ssl->dtls_rx_msg_list != NULL) {
+        DtlsFragBucket* last = ssl->dtls_rx_msg_list->fragBucketList;
+        while (last != NULL && last->m.m.next != NULL)
+            last = last->m.m.next;
+        /* Does this fragment start right after the last fragment we
+         * have stored? */
+        if (last != NULL && (last->m.m.offset + last->m.m.sz) != fragOffset)
+            return 1;
+    }
+    else {
+        /* ssl->dtls_rx_msg_list is NULL and fragOffset != 0 so this is not in
+         * order */
         return 1;
     }
 
@@ -876,7 +884,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
 
         ret = Dtls13SendOneFragmentRtx(ssl,
             (enum HandShakeType)ssl->dtls13FragHandshakeType,
-            recordLength + MAX_MSG_EXTRA, output, recordLength, 0);
+            (word16)recordLength + MAX_MSG_EXTRA, output, (word32)recordLength, 0);
         if (ret == WANT_WRITE) {
             ssl->dtls13FragOffset += fragLength;
             return ret;
@@ -920,7 +928,7 @@ static int Dtls13SendFragmented(WOLFSSL* ssl, byte* message, word16 length,
        hash now pretending fragmentation will not happen */
     if (hash_output) {
         ret = Dtls13HashHandshake(ssl, message + rlHeaderLength,
-            length - rlHeaderLength);
+            length - (word16)rlHeaderLength);
         if (ret != 0)
             return ret;
     }
@@ -1012,7 +1020,7 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
         if (ret != WOLFSSL_SUCCESS)
             return ret;
 
-        *idx += _cidSz;
+        *idx += (word16)_cidSz;
         return 0;
     }
 
@@ -1246,7 +1254,7 @@ int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
 {
     w64wrapper _epoch;
     Dtls13Epoch* e;
-    byte found;
+    byte found = 0;
     int i;
 
     if (Dtls13GetEpochBits(ssl->dtls13PeerEpoch) == epochBits) {
@@ -1354,6 +1362,8 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
        to create record number xor mask). (draft 43 - Sec 4.2.3) */
     if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
         return LENGTH_ERROR;
+    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+        return BUFFER_ERROR;
 
     ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
         DEPROTECT);
@@ -1455,7 +1465,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
 
         seq = ssl->dtls13EncryptEpoch->nextSeqNumber;
 
-        ret = Dtls13SendFragment(ssl, output, sendSz, r->length + headerLength,
+        ret = Dtls13SendFragment(ssl, output, (word16)sendSz, r->length + headerLength,
             (enum HandShakeType)r->handshakeType, 0,
             isLast || !ssl->options.groupMessages);
         if (ret != 0 && ret != WANT_WRITE)
@@ -1580,7 +1590,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             ssl->keys.dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            DtlsMsgStore(ssl, w64GetLow32(ssl->keys.curEpoch64),
+            DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
                 ssl->keys.dtls_peer_handshake_number,
                 input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
                 fragOff, fragLength, ssl->heap);
@@ -1662,7 +1672,7 @@ int Dtls13AddHeaders(byte* output, word32 length, enum HandShakeType hsType,
     WOLFSSL* ssl)
 {
     word16 handshakeOffset;
-    int isEncrypted;
+    byte isEncrypted;
 
     isEncrypted = Dtls13TypeIsEncrypted(hsType);
     handshakeOffset = Dtls13GetRlHeaderLength(ssl, isEncrypted);
@@ -1836,6 +1846,20 @@ struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl, w64wrapper epochNumber)
     return NULL;
 }
 
+void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
+                                    int side)
+{
+    Dtls13Epoch* e;
+    int i;
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
+        e = &ssl->dtls13Epochs[i];
+        if (e->isValid && w64LT(e->epochNumber, epochNumber)) {
+            e->side = (byte)side;
+        }
+    }
+}
+
 static void Dtls13EpochCopyKeys(WOLFSSL* ssl, Dtls13Epoch* e, Keys* k, int side)
 {
     byte clientWrite, serverWrite;
@@ -1994,11 +2018,19 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
         /* fresh epoch, initialize fields */
         e->epochNumber = epochNumber;
         e->isValid = 1;
-        e->side = side;
+        e->side = (byte)side;
     }
     else if (e->side != side) {
         /* epoch used for the other side already. update side */
         e->side = ENCRYPT_AND_DECRYPT_SIDE;
+    }
+
+    /* Once handshake is done. Mark epochs older than the last one as encrypt
+     * only so that they can't be used for decryption. */
+    if (ssl->options.handShakeDone && (e->side == ENCRYPT_AND_DECRYPT_SIDE ||
+            e->side == DECRYPT_SIDE_ONLY)) {
+        w64Decrement(&epochNumber);
+        Dtls13SetOlderEpochSide(ssl, epochNumber, ENCRYPT_SIDE_ONLY);
     }
 
     return 0;
@@ -2202,7 +2234,7 @@ static int Dtls13GetAckListLength(Dtls13RecordNumber* list, word16* length)
         numberElements++;
     }
 
-    *length = DTLS13_RN_SIZE * numberElements;
+    *length = (word16)(DTLS13_RN_SIZE * numberElements);
     return 0;
 }
 
@@ -2363,6 +2395,13 @@ int Dtls13DoScheduledWork(WOLFSSL* ssl)
 
     ssl->dtls13SendingAckOrRtx = 0;
 
+    if (ssl->dtls13DoKeyUpdate) {
+        ssl->dtls13DoKeyUpdate = 0;
+        ret = Tls13UpdateKeys(ssl);
+        if (ret != 0)
+            return ret;
+    }
+
     return 0;
 }
 
@@ -2515,7 +2554,7 @@ int SendDtls13Ack(WOLFSSL* ssl)
         output =
             ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.length;
 
-        ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, length);
+        ret = Dtls13RlAddPlaintextHeader(ssl, output, ack, (word16)length);
         if (ret != 0)
             return ret;
 
@@ -2599,5 +2638,74 @@ int wolfSSL_dtls13_has_pending_msg(WOLFSSL* ssl)
 {
     return ssl->dtls13Rtx.rtxRecords != NULL;
 }
+
+#ifndef WOLFSSL_TLS13_IGNORE_AEAD_LIMITS
+/* Limits specified by
+ * https://www.rfc-editor.org/rfc/rfc9147.html#name-aead-limits
+ * We specify the limit by which we need to do a key update as the halfway point
+ * to the hard decryption fail limit. */
+int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
+{
+    w64wrapper keyUpdateLimit;
+    w64wrapper hardLimit;
+    switch (ssl->specs.bulk_cipher_algorithm) {
+#if defined(BUILD_AESGCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+        case wolfssl_aes_gcm:
+        case wolfssl_chacha:
+            hardLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_LIMIT;
+            keyUpdateLimit = DTLS_AEAD_AES_GCM_CHACHA_FAIL_KU_LIMIT;
+            break;
+#endif
+#ifdef HAVE_AESCCM
+        case wolfssl_aes_ccm:
+            if (ssl->specs.aead_mac_size == AES_CCM_8_AUTH_SZ) {
+                /* Limit is 2^7. The RFC recommends that
+                 * "TLS_AES_128_CCM_8_SHA256 is not suitable for general use".
+                 * We still should enforce the limit. */
+                hardLimit = DTLS_AEAD_AES_CCM_8_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_8_FAIL_KU_LIMIT;
+            }
+            else {
+                /* Limit is 2^23.5.
+                 * Without the fraction is 11863283 (0x00B504F3)
+                 * Half of this value is    5931641 (0x005A8279) */
+                hardLimit = DTLS_AEAD_AES_CCM_FAIL_LIMIT;
+                keyUpdateLimit = DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT;
+            }
+            break;
+#endif
+        case wolfssl_cipher_null:
+            /* No encryption being done. The MAC check must have failed. */
+            return 0;
+        default:
+            WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
+            WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+            return DECRYPT_ERROR;
+    }
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Dtls13CheckAEADFailLimit: ssl->dtls13DecryptEpoch should "
+                    "not be NULL");
+        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
+        return BAD_STATE_E;
+    }
+    w64Increment(&ssl->dtls13DecryptEpoch->dropCount);
+    if (w64GT(ssl->dtls13DecryptEpoch->dropCount, hardLimit)) {
+        /* We have reached the hard limit for failed decryptions. */
+        WOLFSSL_MSG("Connection exceeded hard AEAD limit");
+        WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
+        return DECRYPT_ERROR;
+    }
+    else if (w64GT(ssl->dtls13DecryptEpoch->dropCount, keyUpdateLimit)) {
+        WOLFSSL_MSG("Connection exceeded key update limit. Issuing key update");
+        /* If not waiting for a response then request a key update. */
+        if (!ssl->keys.updateResponseReq) {
+            ssl->dtls13DoKeyUpdate = 1;
+            ssl->dtls13InvalidateBefore = ssl->dtls13PeerEpoch;
+            w64Increment(&ssl->dtls13InvalidateBefore);
+        }
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_DTLS13 */

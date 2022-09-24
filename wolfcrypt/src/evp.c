@@ -166,6 +166,10 @@
     static const char EVP_CHACHA20_POLY1305[] = "CHACHA20-POLY1305";
 #endif
 
+#ifdef HAVE_CHACHA
+    static const char EVP_CHACHA20[] = "CHACHA20";
+#endif
+
 static const char EVP_NULL[] = "NULL";
 
 #define EVP_CIPHER_TYPE_MATCHES(x, y) (XSTRCMP(x,y) == 0)
@@ -246,6 +250,9 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
   #endif
   #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
       case CHACHA20_POLY1305_TYPE: return 32;
+  #endif
+  #ifdef HAVE_CHACHA
+      case CHACHA20_TYPE: return CHACHA_MAX_KEY_SZ;
   #endif
       default:
           return 0;
@@ -702,6 +709,15 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                     return WOLFSSL_SUCCESS;
                 }
             }
+#endif
+#ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            if (wc_Chacha_Process(&ctx->cipher.chacha, out, in, inl) != 0) {
+                WOLFSSL_MSG("wc_ChaCha_Process failed");
+                return WOLFSSL_FAILURE;
+            }
+            *outl = inl;
+            return WOLFSSL_SUCCESS;
 #endif
         default:
             /* fall-through */
@@ -1298,6 +1314,11 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return CHACHA20_POLY1305_TYPE;
 #endif
 
+#ifdef HAVE_CHACHA
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_CHACHA20))
+        return CHACHA20_TYPE;
+#endif
+
       else return 0;
 }
 
@@ -1371,6 +1392,12 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case CHACHA20_POLY1305_TYPE:
           return 1;
 #endif
+
+#ifdef HAVE_CHACHA
+      case CHACHA20_TYPE:
+          return 1;
+#endif
+
       default:
           return 0;
       }
@@ -1443,6 +1470,10 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case CHACHA20_POLY1305_TYPE:
             return WOLFSSL_EVP_CIPH_STREAM_CIPHER |
                     WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
+    #endif
+    #ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            return WOLFSSL_EVP_CIPH_STREAM_CIPHER;
     #endif
         default:
             return 0;
@@ -3397,6 +3428,60 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
 }
 
 
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
+        const unsigned char* priv, size_t len, const WOLFSSL_EVP_CIPHER *cipher)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_CMAC_CTX* ctx;
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_CMAC_key");
+
+    if (priv == NULL || len == 0 || cipher == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", BAD_FUNC_ARG);
+        return NULL;
+    }
+
+    ctx = wolfSSL_CMAC_CTX_new();
+    if (ctx == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+        return NULL;
+    }
+
+    ret = wolfSSL_CMAC_Init(ctx, priv, len, cipher, e);
+    if (ret == WOLFSSL_FAILURE) {
+        wolfSSL_CMAC_CTX_free(ctx);
+        WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+        return NULL;
+    }
+
+    pkey = wolfSSL_EVP_PKEY_new();
+    if (pkey != NULL) {
+        pkey->pkey.ptr = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pkey->pkey.ptr == NULL && len > 0) {
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+            wolfSSL_CMAC_CTX_free(ctx);
+        }
+        else {
+            if (len) {
+                XMEMCPY(pkey->pkey.ptr, priv, len);
+            }
+            pkey->pkey_sz = (int)len;
+            pkey->type = pkey->save_type = EVP_PKEY_CMAC;
+            pkey->cmacCtx = ctx;
+        }
+    }
+    else {
+        wolfSSL_CMAC_CTX_free(ctx);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_new_CMAC_key", 0);
+    return pkey;
+}
+#endif /* defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT) */
+
 const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
                                                 size_t* len)
 {
@@ -4176,6 +4261,10 @@ static const struct cipher{
     {CHACHA20_POLY1305_TYPE, EVP_CHACHA20_POLY1305, NID_chacha20_poly1305},
 #endif
 
+#ifdef HAVE_CHACHA
+    {CHACHA20_TYPE, EVP_CHACHA20, NID_chacha20},
+#endif
+
     { 0, NULL, 0}
 };
 
@@ -4275,6 +4364,9 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         {EVP_CHACHA20_POLY1305, "chacha20-poly1305"},
+#endif
+#ifdef HAVE_CHACHA
+        {EVP_CHACHA20, "chacha20"},
 #endif
         { NULL, NULL}
     };
@@ -4392,6 +4484,11 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case NID_chacha20_poly1305:
             return wolfSSL_EVP_chacha20_poly1305();
+#endif
+
+#ifdef HAVE_CHACHA
+        case NID_chacha20:
+            return wolfSSL_EVP_chacha20();
 #endif
 
         default:
@@ -4864,8 +4961,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
-            #ifndef WOLFSSL_NO_SHAKE256
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
                 case WC_HASH_TYPE_SHAKE128:
+            #endif
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
                 case WC_HASH_TYPE_SHAKE256:
             #endif
                 default:
@@ -5296,6 +5395,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 #endif
 
+#ifdef HAVE_CHACHA
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_chacha20");
+        return EVP_CHACHA20;
+    }
+#endif
+
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_enc_null");
@@ -5389,8 +5496,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
-            #ifndef WOLFSSL_NO_SHAKE256
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
                 case WC_HASH_TYPE_SHAKE128:
+            #endif
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
                 case WC_HASH_TYPE_SHAKE256:
             #endif
                 default:
@@ -6648,6 +6757,39 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             }
         }
 #endif
+#ifdef HAVE_CHACHA
+        if (ctx->cipherType == CHACHA20_TYPE ||
+            (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_CHACHA20))) {
+            WOLFSSL_MSG("EVP_CHACHA20");
+            ctx->cipherType = CHACHA20_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->keyLen     = CHACHA_MAX_KEY_SZ;
+            ctx->block_size = 1;
+            ctx->ivSz       = WOLFSSL_EVP_CHACHA_IV_BYTES;
+            if (enc == 0 || enc == 1) {
+                ctx->enc    = (byte) enc;
+            }
+            if (key != NULL && wc_Chacha_SetKey(&ctx->cipher.chacha,
+                                                key, ctx->keyLen) != 0) {
+                WOLFSSL_MSG("wc_Chacha_SetKey() failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (iv != NULL) {
+                /* a bit silly. chacha takes an iv+counter and internally
+                 * combines them to a new iv. EVP is given exactly *one* iv,
+                 * so to pass it into chacha, we have to revert that first.
+                 * The counter comes first in little-endian */
+                word32 counter = (uint32_t)iv[0] + (uint32_t)(iv[1] << 8) +
+                    (uint32_t)(iv[2] << 16) + (uint32_t)(iv[3] << 24);
+                if (wc_Chacha_SetIV(&ctx->cipher.chacha,
+                                    iv + sizeof(counter), counter) != 0) {
+
+                    WOLFSSL_MSG("wc_Chacha_SetIV() failed");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
+#endif
 #ifndef NO_DES3
         if (ctx->cipherType == DES_CBC_TYPE ||
                  (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_DES_CBC))) {
@@ -7270,8 +7412,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #ifndef WOLFSSL_NO_SHAKE256
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
             case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             case WC_HASH_TYPE_SHAKE256:
         #endif
             default:
@@ -7381,8 +7525,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #ifndef WOLFSSL_NO_SHAKE256
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
             case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             case WC_HASH_TYPE_SHAKE256:
         #endif
             default:
@@ -7521,12 +7667,22 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_FAILURE;
     }
 
+#ifdef WOLFSSL_NO_REALLOC
+    derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
+    if (derBuf != NULL) {
+        XMEMCPY(derBuf, pkey->pkey.ptr, pkey->pkey_sz);
+        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_DER);
+        pkey->pkey.ptr = NULL;
+    }
+#else
     derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz,
             pkey->heap, DYNAMIC_TYPE_DER);
+#endif
     if (derBuf == NULL) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer malloc failed");
         return WOLFSSL_FAILURE;
     }
+
     /* Old pointer is invalid from this point on */
     pkey->pkey.ptr = (char*)derBuf;
 
@@ -8415,6 +8571,11 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("CHACHA20 POLY1305");
             return CHACHA20_POLY1305_AEAD_IV_SIZE;
 #endif /* HAVE_CHACHA HAVE_POLY1305 */
+#ifdef HAVE_CHACHA
+        case CHACHA20_TYPE:
+            WOLFSSL_MSG("CHACHA20");
+            return WOLFSSL_EVP_CHACHA_IV_BYTES;
+#endif /* HAVE_CHACHA */
 
         case NULL_CIPHER_TYPE :
             WOLFSSL_MSG("NULL");
@@ -8502,6 +8663,11 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     if (XSTRCMP(name, EVP_CHACHA20_POLY1305) == 0)
         return CHACHA20_POLY1305_AEAD_IV_SIZE;
+#endif
+
+#ifdef HAVE_CHACHA
+    if (XSTRCMP(name, EVP_CHACHA20) == 0)
+        return WOLFSSL_EVP_CHACHA_IV_BYTES;
 #endif
 
     (void)name;
@@ -8840,6 +9006,16 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* HAVE_HKDF */
 
+                #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+                    defined(WOLFSSL_AES_DIRECT)
+                case EVP_PKEY_CMAC:
+                    if (key->cmacCtx != NULL) {
+                        wolfSSL_CMAC_CTX_free(key->cmacCtx);
+                        key->cmacCtx = NULL;
+                    }
+                    break;
+                #endif /* defined(WOLFSSL_CMAC) ... */
+
                 default:
                     break;
             }
@@ -8887,10 +9063,11 @@ static int Indent(WOLFSSL_BIO* out, int indents)
  * input   buffer holding data to dump
  * inlen   input data size
  * indent  the number of spaces for indent
+ * blower  true if lower case uses
  * Returns 1 on success, 0 on failure.
  */
 static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
-    int inlen, int indent)
+    int inlen, int indent, byte blower)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte*  buff = NULL;
@@ -8941,6 +9118,10 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
                                                     outHex, &outSz) == 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
+                if (blower) {
+                    outHex[0] = (byte)XTOLOWER(outHex[0]);
+                    outHex[1] = (byte)XTOLOWER(outHex[1]);
+                }
                 XMEMCPY(buff + idx, outHex, 2);
                 idx += 2;
 
@@ -9063,7 +9244,9 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             n--;
             nSz++;
         }
-        if (PrintHexWithColon(out, n, nSz, indent + 4) != WOLFSSL_SUCCESS) {
+
+        if (PrintHexWithColon(out, n, nSz, 
+                    indent + 4, 1/* lower case */) != WOLFSSL_SUCCESS) {
             break;
         }
         /* print public Exponent */
@@ -9266,7 +9449,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) > 0;
     }
     if (res == WOLFSSL_SUCCESS) {
-        res = PrintHexWithColon(out, pub, pubSz, indent + 4);
+        res = PrintHexWithColon(out, pub, pubSz, indent + 4, 0/* upper case */);
     }
     if (res == WOLFSSL_SUCCESS) {
         res = Indent(out, indent) >= 0;
@@ -9486,7 +9669,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, y, ySz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, y, ySz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
         /* print P element */
@@ -9495,7 +9679,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, p, pSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, p, pSz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
         /* print Q element */
@@ -9504,7 +9689,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, q, qSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, q, qSz, indent + 4, 0/* upper case */)
+                                                         != WOLFSSL_SUCCESS) {
             break;
         }
         /* print G element */
@@ -9513,7 +9699,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, g, gSz, indent + 4) != WOLFSSL_SUCCESS) {
+        if (PrintHexWithColon(out, g, gSz, indent + 4, 0/* upper case */) 
+                                                        != WOLFSSL_SUCCESS) {
             break;
         }
 
@@ -9691,7 +9878,8 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, publicKey, publicKeySz, indent + 4)
+        if (PrintHexWithColon(out, publicKey, 
+                                publicKeySz, indent + 4, 0/* upper case */)
                                                     != WOLFSSL_SUCCESS) {
             break;
         }
@@ -9700,7 +9888,8 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
             break;
         }
-        if (PrintHexWithColon(out, prime, primeSz, indent + 4)
+        if (PrintHexWithColon(out, prime, primeSz, 
+                                            indent + 4, 0/* upper case */)
                 != WOLFSSL_SUCCESS) {
             break;
         }

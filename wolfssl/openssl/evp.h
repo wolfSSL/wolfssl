@@ -139,6 +139,11 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void);
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20_poly1305(void);
 #endif
+#ifdef HAVE_CHACHA
+/* ChaCha IV + counter is set as one IV in EVP */
+#define WOLFSSL_EVP_CHACHA_IV_BYTES     (CHACHA_IV_BYTES + sizeof(word32))
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void);
+#endif
 
 
 typedef union {
@@ -212,6 +217,9 @@ typedef union {
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ChaChaPoly_Aead chachaPoly;
 #endif
+#ifdef HAVE_CHACHA
+    ChaCha chacha;
+#endif
 } WOLFSSL_Cipher;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -265,6 +273,7 @@ enum {
     NID_cast5_ofb64   = 111,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
+    EVP_PKEY_CMAC     = NID_cmac,
     EVP_PKEY_HKDF     = NID_hkdf,
     EVP_PKEY_FALCON   = 300, /* Randomly picked value. */
     EVP_PKEY_DILITHIUM= 301, /* Randomly picked value. */
@@ -282,7 +291,8 @@ enum {
     AES_256_OFB_TYPE = 35,
     AES_128_XTS_TYPE = 36,
     AES_256_XTS_TYPE = 37,
-    CHACHA20_POLY1305_TYPE = 38
+    CHACHA20_POLY1305_TYPE = 38,
+    CHACHA20_TYPE    = 39
 };
 
 enum {
@@ -357,7 +367,8 @@ enum {
     NID_aes_256_xts = 914,
     NID_camellia_128_cbc = 751,
     NID_camellia_256_cbc = 753,
-    NID_chacha20_poly1305 = 1018
+    NID_chacha20_poly1305 = 1018,
+    NID_chacha20 = 1019
 };
 
 enum {
@@ -779,6 +790,11 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_hkdf_mode(WOLFSSL_EVP_PKEY_CTX* ctx,
 /* EVP ENGINE API's */
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
                                           const unsigned char* key, int keylen);
+
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_CMAC_key(WOLFSSL_ENGINE* e,
+                                          const unsigned char* priv, size_t len,
+                                          const WOLFSSL_EVP_CIPHER* cipher);
+
 WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
                                      WOLFSSL_ENGINE *impl);
@@ -898,6 +914,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_des_ede3_cbc      wolfSSL_EVP_des_ede3_cbc
 #define EVP_des_ede3_ecb      wolfSSL_EVP_des_ede3_ecb
 #define EVP_rc4               wolfSSL_EVP_rc4
+#define EVP_chacha20          wolfSSL_EVP_chacha20
 #define EVP_chacha20_poly1305 wolfSSL_EVP_chacha20_poly1305
 #define EVP_enc_null          wolfSSL_EVP_enc_null
 
@@ -974,8 +991,6 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
 #define EVP_MD_nid                    wolfSSL_EVP_MD_type
-#define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
-#define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 
 #define EVP_PKEY_assign                wolfSSL_EVP_PKEY_assign
 #define EVP_PKEY_assign_RSA            wolfSSL_EVP_PKEY_assign_RSA
@@ -995,6 +1010,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_get0_EC_KEY           wolfSSL_EVP_PKEY_get0_EC_KEY
 #define EVP_PKEY_get0_hmac             wolfSSL_EVP_PKEY_get0_hmac
 #define EVP_PKEY_new_mac_key           wolfSSL_EVP_PKEY_new_mac_key
+#define EVP_PKEY_new_CMAC_key          wolfSSL_EVP_PKEY_new_CMAC_key
 #define EVP_MD_CTX_copy                wolfSSL_EVP_MD_CTX_copy
 #define EVP_MD_CTX_copy_ex             wolfSSL_EVP_MD_CTX_copy_ex
 #define EVP_PKEY_sign_init             wolfSSL_EVP_PKEY_sign_init

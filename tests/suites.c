@@ -914,6 +914,17 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #ifdef HAVE_LIBOQS
+    /* add TLSv13 pq tests */
+    XSTRLCPY(argv0[1], "tests/test-tls13-pq-2.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
     #endif
 #endif
 #if defined(WC_RSA_PSS) && (!defined(HAVE_FIPS) || \

@@ -149,6 +149,30 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash);
     \brief Convenience function, handles all the hashing and places the
     result into hash.
 
+    \return 0 Success
+    \return <0 Error
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitSha224
+    \sa wc_Sha224Update
+    \sa wc_Sha224Final
+*/
+int wc_Sha224Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
     \return 0 Returned upon successfully …
     \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
@@ -174,8 +198,9 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash);
     \brief Convenience function, handles all the hashing and places the
     result into hash.
 
-    \return 0 Success
-    \return <0 Error
+    \return 0 Returned upon successfully hashing the data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
 
     \param data the data to hash
     \param len the length of data
@@ -186,11 +211,11 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash);
     none
     \endcode
 
-    \sa wc_InitSha224
-    \sa wc_Sha224Update
-    \sa wc_Sha224Final
+    \sa wc_Sha384Hash
+    \sa wc_Sha384Final
+    \sa wc_InitSha384
 */
-int wc_Sha224Hash(const byte* data, word32 len, byte* hash);
+int wc_Sha384Hash(const byte* data, word32 len, byte* hash);
 
 /*!
     \ingroup SHA
@@ -236,8 +261,136 @@ int wc_Sha512Hash(const byte* data, word32 len, byte* hash);
     none
     \endcode
 
-    \sa wc_Sha384Hash
-    \sa wc_Sha384Final
-    \sa wc_InitSha384
+    \sa wc_InitSha3_224
+    \sa wc_Sha3_224_Update
+    \sa wc_Sha3_224_Final
 */
-int wc_Sha384Hash(const byte* data, word32 len, byte* hash);
+int wc_Sha3_224Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
+    \return 0 Returned upon successfully hashing the data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitSha3_256
+    \sa wc_Sha3_256_Update
+    \sa wc_Sha3_256_Final
+*/
+int wc_Sha3_256Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
+    \return 0 Returned upon successfully hashing the data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitSha3_384
+    \sa wc_Sha3_384_Update
+    \sa wc_Sha3_384_Final
+*/
+int wc_Sha3_384Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
+    \return 0 Returned upon successfully hashing the inputted data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitSha3_512
+    \sa wc_Sha3_512_Update
+    \sa wc_Sha3_512_Final
+*/
+int wc_Sha3_512Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
+    \return 0 Returned upon successfully hashing the inputted data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitShake128
+    \sa wc_Shake128_Update
+    \sa wc_Shake128_Final
+*/
+int wc_Shake128Hash(const byte* data, word32 len, byte* hash);
+
+/*!
+    \ingroup SHA
+
+    \brief Convenience function, handles all the hashing and places the
+    result into hash.
+
+    \return 0 Returned upon successfully hashing the inputted data
+    \return Memory_E memory error, unable to allocate memory. This is only
+    possible with the small stack option enabled.
+
+    \param data the data to hash
+    \param len the length of data
+    \param hash Byte array to hold hash value.
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wc_InitShake256
+    \sa wc_Shake256_Update
+    \sa wc_Shake256_Final
+*/
+int wc_Shake256Hash(const byte* data, word32 len, byte* hash);
+
+
+

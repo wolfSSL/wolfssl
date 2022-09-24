@@ -61,9 +61,9 @@ libwolfssl.ko:
 	@mkdir -p linuxkm src wolfcrypt/src wolfcrypt/test
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) CC_FLAGS_FTRACE=
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 else
-	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) $(KBUILD_EXTRA_FLAGS)
 endif
 
 libwolfssl.ko.signed: libwolfssl.ko

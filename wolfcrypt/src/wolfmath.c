@@ -147,7 +147,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
     int cnt = digits * sizeof(mp_digit);
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+#ifdef USE_INTEGER_HEAP_MATH
     int i;
 #endif
 
@@ -158,14 +158,14 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
 
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+#ifdef USE_INTEGER_HEAP_MATH
     /* allocate space for digits */
     if (ret == MP_OKAY) {
         ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
     }
 #else
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    if ((ret == MP_OKAY) && (digits > SP_INT_DIGITS))
+    if ((ret == MP_OKAY) && (digits > a->size))
 #else
     if ((ret == MP_OKAY) && (digits > FP_SIZE))
 #endif
@@ -181,7 +181,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, cnt);
     }
     if (ret == MP_OKAY) {
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+#ifdef USE_INTEGER_HEAP_MATH
         /* Mask down each digit to only bits used */
         for (i = 0; i < a->used; i++) {
             a->dp[i] &= MP_MASK;
@@ -190,7 +190,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         /* ensure top digit is not zero */
         while ((ret == MP_OKAY) && (a->dp[a->used - 1] == 0)) {
             ret = get_rand_digit(rng, &a->dp[a->used - 1]);
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+#ifdef USE_INTEGER_HEAP_MATH
             a->dp[a->used - 1] &= MP_MASK;
 #endif
         }

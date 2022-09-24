@@ -1703,13 +1703,13 @@
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymDes3CbcEncrypt(&des->asyncDev, out, in, sz,
                 (const byte*)des->devKey, DES3_KEYLEN, (byte*)des->reg, DES3_IVLEN);
-        #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-            if (wc_AsyncTestInit(&des->asyncDev, ASYNC_TEST_DES3_CBC_ENCRYPT)) {
-                WC_ASYNC_TEST* testDev = &des->asyncDev.test;
-                testDev->des.des = des;
-                testDev->des.out = out;
-                testDev->des.in = in;
-                testDev->des.sz = sz;
+        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+            if (wc_AsyncSwInit(&des->asyncDev, ASYNC_SW_DES3_CBC_ENCRYPT)) {
+                WC_ASYNC_SW* sw = &des->asyncDev.sw;
+                sw->des.des = des;
+                sw->des.out = out;
+                sw->des.in = in;
+                sw->des.sz = sz;
                 return WC_PENDING_E;
             }
         #endif
@@ -1754,13 +1754,13 @@
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymDes3CbcDecrypt(&des->asyncDev, out, in, sz,
                 (const byte*)des->devKey, DES3_KEYLEN, (byte*)des->reg, DES3_IVLEN);
-        #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-            if (wc_AsyncTestInit(&des->asyncDev, ASYNC_TEST_DES3_CBC_DECRYPT)) {
-                WC_ASYNC_TEST* testDev = &des->asyncDev.test;
-                testDev->des.des = des;
-                testDev->des.out = out;
-                testDev->des.in = in;
-                testDev->des.sz = sz;
+        #else /* WOLFSSL_ASYNC_CRYPT_SW */
+            if (wc_AsyncSwInit(&des->asyncDev, ASYNC_SW_DES3_CBC_DECRYPT)) {
+                WC_ASYNC_SW* sw = &des->asyncDev.sw;
+                sw->des.des = des;
+                sw->des.out = out;
+                sw->des.in = in;
+                sw->des.sz = sz;
                 return WC_PENDING_E;
             }
         #endif

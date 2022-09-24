@@ -23,6 +23,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ed448.h \
                          wolfssl/wolfcrypt/falcon.h \
                          wolfssl/wolfcrypt/dilithium.h \
+                         wolfssl/wolfcrypt/sphincs.h \
                          wolfssl/wolfcrypt/fe_448.h \
                          wolfssl/wolfcrypt/ge_448.h \
                          wolfssl/wolfcrypt/eccsi.h \
@@ -70,7 +71,10 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/sha3.h \
                          wolfssl/wolfcrypt/siphash.h \
                          wolfssl/wolfcrypt/cpuid.h \
-                         wolfssl/wolfcrypt/cryptocb.h
+                         wolfssl/wolfcrypt/cryptocb.h \
+                         wolfssl/wolfcrypt/kyber.h \
+                         wolfssl/wolfcrypt/wc_kyber.h \
+                         wolfssl/wolfcrypt/ext_kyber.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \

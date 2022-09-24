@@ -3927,59 +3927,47 @@ fe_ge_dbl:
 	ldr	r2, [sp, #56]
 	# Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	adds	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	adds	r8, r3, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	adcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	adcs	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	adcs	r8, r3, r8
 	adcs	r9, r5, r9
-	adc	r10, r6, r10
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r1, [sp, #4]
 	ldr	r0, [sp, #12]
 	bl	fe_sq
@@ -3989,188 +3977,164 @@ fe_ge_dbl:
 	# Add-Sub
 	#  Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r2]
-	ldr	r6, [r2, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r2]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	ldr	r5, [r2, #8]
-	ldr	r6, [r2, #12]
+	ldr	r5, [r1, #12]
+	ldrd	r6, r7, [r2, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r2, #16]
-	ldr	r6, [r2, #20]
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r2, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r1, #24]
-	ldr	r4, [r1, #28]
-	ldr	r5, [r2, #24]
-	ldr	r6, [r2, #28]
+	ldr	r5, [r1, #28]
+	ldrd	r6, r7, [r2, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	ldr	r0, [sp]
 	ldr	r1, [sp, #12]
 	ldr	r2, [sp, #4]
 	# Sub
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r1, [sp, #60]
 	ldr	r0, [sp, #12]
 	bl	fe_sq2
@@ -4178,59 +4142,47 @@ fe_ge_dbl:
 	ldr	r1, [sp, #8]
 	# Sub
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
-	ldr	r7, [r1]
-	ldr	r8, [r1, #4]
-	ldr	r9, [r1, #8]
-	ldr	r10, [r1, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
+	ldrd	r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
-	ldr	r7, [r1, #16]
-	ldr	r8, [r1, #20]
-	ldr	r9, [r1, #24]
-	ldr	r10, [r1, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r0, #20]
+	ldrd	r6, r7, [r0, #24]
+	ldrd	r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	add	sp, sp, #16
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_dbl,.-fe_ge_dbl
@@ -4250,117 +4202,93 @@ fe_ge_madd:
 	ldr	r2, [sp, #68]
 	# Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	adds	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	adds	r8, r3, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	adcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	adcs	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	adcs	r8, r3, r8
 	adcs	r9, r5, r9
-	adc	r10, r6, r10
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #72]
 	ldr	r2, [sp, #68]
 	# Sub
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r2, [sp, #88]
 	ldr	r1, [sp]
 	ldr	r0, [sp, #8]
@@ -4379,300 +4307,270 @@ fe_ge_madd:
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #76]
 	# Double
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r1, #16]
-	ldr	r8, [r1, #20]
-	ldr	r9, [r1, #24]
-	ldr	r10, [r1, #28]
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 	adds	r3, r3, r3
-	adcs	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
 	adcs	r8, r8, r8
 	adcs	r9, r9, r9
-	adc	r10, r10, r10
+	adcs	r10, r10, r10
+	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #12]
 	# Add-Sub
 	#  Add
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r1]
-	ldr	r6, [r1, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r1]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
+	ldr	r5, [r0, #12]
+	ldrd	r6, r7, [r1, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r1, #16]
-	ldr	r6, [r1, #20]
+	ldr	r5, [r0, #20]
+	ldrd	r6, r7, [r1, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
+	ldr	r5, [r0, #28]
+	ldrd	r6, r7, [r1, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_madd,.-fe_ge_madd
@@ -4692,117 +4590,93 @@ fe_ge_msub:
 	ldr	r2, [sp, #68]
 	# Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	adds	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	adds	r8, r3, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	adcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	adcs	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	adcs	r8, r3, r8
 	adcs	r9, r5, r9
-	adc	r10, r6, r10
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #72]
 	ldr	r2, [sp, #68]
 	# Sub
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r2, [sp, #92]
 	ldr	r1, [sp]
 	ldr	r0, [sp, #8]
@@ -4821,300 +4695,270 @@ fe_ge_msub:
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #76]
 	# Double
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r1, #16]
-	ldr	r8, [r1, #20]
-	ldr	r9, [r1, #24]
-	ldr	r10, [r1, #28]
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 	adds	r3, r3, r3
-	adcs	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
 	adcs	r8, r8, r8
 	adcs	r9, r9, r9
-	adc	r10, r10, r10
+	adcs	r10, r10, r10
+	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #12]
 	ldr	r1, [sp, #8]
 	# Add-Sub
 	#  Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r1, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r1, #24]
-	ldr	r4, [r1, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r1, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_msub,.-fe_ge_msub
@@ -5134,117 +4978,93 @@ fe_ge_add:
 	ldr	r2, [sp, #132]
 	# Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	adds	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	adds	r8, r3, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	adcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	adcs	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	adcs	r8, r3, r8
 	adcs	r9, r5, r9
-	adc	r10, r6, r10
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #136]
 	ldr	r2, [sp, #132]
 	# Sub
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r2, [sp, #156]
 	ldr	r1, [sp]
 	ldr	r0, [sp, #8]
@@ -5265,303 +5085,273 @@ fe_ge_add:
 	ldr	r1, [sp]
 	# Double
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r1, #16]
-	ldr	r8, [r1, #20]
-	ldr	r9, [r1, #24]
-	ldr	r10, [r1, #28]
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 	adds	r3, r3, r3
-	adcs	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
 	adcs	r8, r8, r8
 	adcs	r9, r9, r9
-	adc	r10, r10, r10
+	adcs	r10, r10, r10
+	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp]
 	ldr	r2, [sp, #8]
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #12]
 	add	r2, sp, #16
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r1]
-	ldr	r6, [r1, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r1]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r1, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r1, #16]
-	ldr	r6, [r1, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r1, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r1, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_add,.-fe_ge_add
@@ -5581,117 +5371,93 @@ fe_ge_sub:
 	ldr	r2, [sp, #132]
 	# Add
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	adds	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	adds	r8, r3, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	adcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	adcs	r7, r3, r7
-	adcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	adcs	r8, r3, r8
 	adcs	r9, r5, r9
-	adc	r10, r6, r10
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #136]
 	ldr	r2, [sp, #132]
 	# Sub
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r2]
-	ldr	r8, [r2, #4]
-	ldr	r9, [r2, #8]
-	ldr	r10, [r2, #12]
-	subs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r2]
+	ldrd	r10, r11, [r2, #8]
+	subs	r8, r3, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
-	str	r7, [r0]
-	str	r8, [r0, #4]
-	str	r9, [r0, #8]
-	str	r10, [r0, #12]
+	sbcs	r11, r7, r11
+	strd	r8, r9, [r0]
+	strd	r10, r11, [r0, #8]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	ldr	r5, [r1, #24]
-	ldr	r6, [r1, #28]
-	ldr	r7, [r2, #16]
-	ldr	r8, [r2, #20]
-	ldr	r9, [r2, #24]
-	ldr	r10, [r2, #28]
-	sbcs	r7, r3, r7
-	sbcs	r8, r4, r8
+	ldr	r5, [r1, #20]
+	ldrd	r6, r7, [r1, #24]
+	ldrd	r8, r9, [r2, #16]
+	ldrd	r10, r11, [r2, #24]
+	sbcs	r8, r3, r8
 	sbcs	r9, r5, r9
-	sbc	r10, r6, r10
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r0, #4]
+	ldrd	r6, r7, [r0, #8]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
-	adcs	r5, r5, r11
-	adcs	r6, r6, r11
-	adcs	r7, r7, r11
-	adcs	r8, r8, r11
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
+	adcs	r5, r5, r4
+	adcs	r6, r6, r4
+	adcs	r7, r7, r4
+	adcs	r8, r8, r4
+	adcs	r9, r9, r4
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r2, [sp, #160]
 	ldr	r1, [sp]
 	ldr	r0, [sp, #8]
@@ -5712,303 +5478,273 @@ fe_ge_sub:
 	ldr	r1, [sp]
 	# Double
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
-	ldr	r5, [r1, #8]
-	ldr	r6, [r1, #12]
-	ldr	r7, [r1, #16]
-	ldr	r8, [r1, #20]
-	ldr	r9, [r1, #24]
-	ldr	r10, [r1, #28]
+	ldr	r5, [r1, #4]
+	ldrd	r6, r7, [r1, #8]
+	ldrd	r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 	adds	r3, r3, r3
-	adcs	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
 	adcs	r8, r8, r8
 	adcs	r9, r9, r9
-	adc	r10, r10, r10
+	adcs	r10, r10, r10
+	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
-	sbcs	r5, r5, r11
-	sbcs	r6, r6, r11
-	sbcs	r7, r7, r11
-	sbcs	r8, r8, r11
-	sbcs	r9, r9, r11
-	sbc	r10, r10, lr
+	sbcs	r5, r5, r4
+	sbcs	r6, r6, r4
+	sbcs	r7, r7, r4
+	sbcs	r8, r8, r4
+	sbcs	r9, r9, r4
+	sbcs	r10, r10, r4
+	sbc	r11, r11, lr
 	str	r3, [r0]
-	str	r4, [r0, #4]
-	str	r5, [r0, #8]
-	str	r6, [r0, #12]
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
-	str	r9, [r0, #24]
-	str	r10, [r0, #28]
+	str	r5, [r0, #4]
+	strd	r6, r7, [r0, #8]
+	strd	r8, r9, [r0, #16]
+	strd	r10, r11, [r0, #24]
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp]
 	ldr	r2, [sp, #8]
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	ldr	r0, [sp, #12]
 	ldr	r1, [sp, #8]
 	add	r2, sp, #16
 	# Add-Sub
 	#  Add
 	ldr	r3, [r2]
-	ldr	r4, [r2, #4]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	adds	r7, r3, r5
+	ldr	r5, [r2, #4]
+	ldrd	r6, r7, [r0]
+	adds	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0]
-	str	r8, [r0, #4]
+	strd	r8, r9, [r0]
 	#  Sub
-	subs	r9, r3, r5
+	subs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1]
-	str	r10, [r1, #4]
+	strd	r10, r11, [r1]
 	#  Add
 	ldr	r3, [r2, #8]
-	ldr	r4, [r2, #12]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
+	ldr	r5, [r2, #12]
+	ldrd	r6, r7, [r0, #8]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #8]
-	str	r8, [r0, #12]
+	strd	r8, r9, [r0, #8]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #8]
-	str	r10, [r1, #12]
+	strd	r10, r11, [r1, #8]
 	#  Add
 	ldr	r3, [r2, #16]
-	ldr	r4, [r2, #20]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
+	ldr	r5, [r2, #20]
+	ldrd	r6, r7, [r0, #16]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
+	adcs	r8, r3, r6
 	mov	r12, #0
-	adcs	r8, r4, r6
+	adcs	r9, r5, r7
 	adc	r12, r12, #0
-	str	r7, [r0, #16]
-	str	r8, [r0, #20]
+	strd	r8, r9, [r0, #16]
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
+	sbcs	r10, r3, r6
 	mov	lr, #0
-	sbcs	r10, r4, r6
+	sbcs	r11, r5, r7
 	adc	lr, lr, #0
-	str	r9, [r1, #16]
-	str	r10, [r1, #20]
+	strd	r10, r11, [r1, #16]
 	#  Add
 	ldr	r3, [r2, #24]
-	ldr	r4, [r2, #28]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
+	ldr	r5, [r2, #28]
+	ldrd	r6, r7, [r0, #24]
 	adds	r12, r12, #-1
-	adcs	r7, r3, r5
-	adc	r8, r4, r6
+	adcs	r8, r3, r6
+	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r9, r3, r5
-	sbc	r10, r4, r6
+	sbcs	r10, r3, r6
+	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r11, r8, #31
+	asr	r4, r9, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Sub modulus (if overflow)
 	ldr	r3, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r5, [r0, #4]
 	subs	r3, r3, r12
-	sbcs	r4, r4, r11
+	sbcs	r5, r5, r4
 	str	r3, [r0]
-	str	r4, [r0, #4]
+	str	r5, [r0, #4]
 	ldr	r3, [r0, #8]
-	ldr	r4, [r0, #12]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #12]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #8]
-	str	r4, [r0, #12]
+	str	r5, [r0, #12]
 	ldr	r3, [r0, #16]
-	ldr	r4, [r0, #20]
-	sbcs	r3, r3, r11
-	sbcs	r4, r4, r11
+	ldr	r5, [r0, #20]
+	sbcs	r3, r3, r4
+	sbcs	r5, r5, r4
 	str	r3, [r0, #16]
-	str	r4, [r0, #20]
-	sbcs	r7, r7, r11
-	sbc	r8, r8, lr
-	str	r7, [r0, #24]
-	str	r8, [r0, #28]
+	str	r5, [r0, #20]
+	sbcs	r8, r8, r4
+	sbc	r9, r9, lr
+	strd	r8, r9, [r0, #24]
 	mov	r12, #-19
-	asr	r11, r10, #31
+	asr	r4, r11, #31
 	#   Mask the modulus
-	and	r12, r11, r12
-	and	lr, r11, #0x7fffffff
+	and	r12, r4, r12
+	and	lr, r4, #0x7fffffff
 	#   Add modulus (if underflow)
 	ldr	r3, [r1]
-	ldr	r4, [r1, #4]
+	ldr	r5, [r1, #4]
 	adds	r3, r3, r12
-	adcs	r4, r4, r11
+	adcs	r5, r5, r4
 	str	r3, [r1]
-	str	r4, [r1, #4]
+	str	r5, [r1, #4]
 	ldr	r3, [r1, #8]
-	ldr	r4, [r1, #12]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #12]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #8]
-	str	r4, [r1, #12]
+	str	r5, [r1, #12]
 	ldr	r3, [r1, #16]
-	ldr	r4, [r1, #20]
-	adcs	r3, r3, r11
-	adcs	r4, r4, r11
+	ldr	r5, [r1, #20]
+	adcs	r3, r3, r4
+	adcs	r5, r5, r4
 	str	r3, [r1, #16]
-	str	r4, [r1, #20]
-	adcs	r9, r9, r11
-	adc	r10, r10, lr
-	str	r9, [r1, #24]
-	str	r10, [r1, #28]
+	str	r5, [r1, #20]
+	adcs	r10, r10, r4
+	adc	r11, r11, lr
+	strd	r10, r11, [r1, #24]
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_sub,.-fe_ge_sub
