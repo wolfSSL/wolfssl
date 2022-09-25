@@ -788,7 +788,7 @@ typedef struct w64wrapper {
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_OCSP) || \
             defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
-            !defined(NO_CRYPT_BENCHMARK)
+            !defined(NO_CRYPT_BENCHMARK) || defined(OPENSSL_EXTRA)
 
             #ifndef XATOI /* if custom XATOI is not already defined */
                 #include <stdlib.h>

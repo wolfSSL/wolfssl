@@ -26,75 +26,141 @@
     extern "C" {
 #endif
 
-#define WOLFSSL_DEOS
+#if 0
+    /* RTEMS */
+    #define WOLFSSL_DEOS_RTEMS
 
-/* You can select none or all of the following tests
-using #define instead of #undef.
-By default, all four tests run*/
+    #include <stdio.h>
+    #include <string.h>
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+    #include <pthread.h>
+    #include <stdint.h>
+    #include <stddef.h>  /* for size_t */
+    #include <stdlib.h> /* for malloc/free */
 
-#undef NO_CRYPT_TEST
-#undef NO_CRYPT_BENCHMARK
-#undef NO_WOLFSSL_CLIENT
-#undef NO_WOLFSSL_SERVER
+    #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+        #define BIG_ENDIAN_ORDER
+    #else
+        #undef  BIG_ENDIAN_ORDER
+        #define LITTLE_ENDIAN_ORDER
+    #endif
+#else
+    /* DEOS Native */
+    #define WOLFSSL_DEOS
+
+    #include <deos.h>
+    #include <timeout.h>
+    #include <socketapi.h>
+    #include <lwip-socket.h>
+    #include <mem.h>
+    #include <string.h>
+    #include <stdlib.h> /* for rand_r: pseudo-random number generator */
+    #include <stdio.h>  /* for snprintf */
+#endif
+
+/* Porting */
 
 /* adjust CURRENT_UNIX_TIMESTAMP to seconds since Jan 01 1970. (UTC)
-You can get the current time from https://www.unixtimestamp.com/
-*/
-#define CURRENT_UNIX_TIMESTAMP 1545864916
+You can get the current time from https://www.unixtimestamp.com/ */
+#define CURRENT_UNIX_TIMESTAMP 1663020069
 
-#define NO_FILESYSTEM
+#define BENCH_EMBEDDED /* use kB instead of mB for embedded benchmarking */
+#define WOLFSSL_IGNORE_FILE_WARN /* ignore warning for include of files not required */
+
+/* Math */
+#define USE_FAST_MATH
+#define FP_MAX_BITS (4096*2)
 #define SIZEOF_LONG_LONG 8
+#define TFM_TIMING_RESISTANT
+#define ECC_TIMING_RESISTANT
+#define WC_RSA_BLINDING
 
-/* prevents from including multiple definition of main() */
-#define NO_MAIN_DRIVER
-#define NO_TESTSUITE_MAIN_DRIVER
+/* Wolf Single Precision Math */
+#undef WOLFSSL_SP
+#if 1
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+    #define WOLFSSL_SP_4096 /* Enable RSA/RH 4096-bit support */
+    #define WOLFSSL_SP_384 /* Enable ECC 384-bit SECP384R1 support */
 
-/* includes certificate test buffers via header files */
-#define USE_CERT_BUFFERS_2048
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    #define WOLFSSL_SP_MATH     /* only SP math - disables integer.c/tfm.c */
+    //#define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
 
-/*use kB instead of mB for embedded benchmarking*/
-#define BENCH_EMBEDDED
+    #define WOLFSSL_SP_NO_MALLOC
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
 
-#define NO_WRITE_TEMP_FILES
+    /* use smaller version of code */
+    #define WOLFSSL_SP_SMALL
+#endif
 
-#define HAVE_AESGCM
-#define WOLFSSL_SHA512
+/* Algorithms */
+#undef NO_RSA
+#undef NO_DH
+#define WOLFSSL_DH_CONST
 #define HAVE_ECC
-#define HAVE_CURVE25519
-#define CURVE25519_SMALL
-#define HAVE_ED25519
-#define ED25519_SMALL
+#define ECC_USER_CURVES
+#define HAVE_ECC384
 
-#define WOLFSSL_DTLS
+#if 1
+    #define HAVE_CURVE25519
+    #define HAVE_ED25519
+    #define CURVED25519_SMALL
+#endif
 
-/* TLS 1.3 */
+#undef NO_SHA
+#undef NO_MD5
+#undef NO_SHA256
+#define HAVE_AESGCM
+#define WOLFSSL_SHA384
+#define WOLFSSL_SHA512
+
+/* TLS */
+#define HAVE_TLS_EXTENSIONS
+#define HAVE_SUPPORTED_CURVES
+#define HAVE_EXTENDED_MASTER
+#define HAVE_ENCRYPT_THEN_MAC
+
+//#define WOLFSSL_DTLS
+//#define WOLFSSL_DTLS13
+//#define WOLFSSL_NO_TLS12
+
 #if 0
+    /* TLS 1.3 */
     #define WOLFSSL_TLS13
     #define WC_RSA_PSS
     #define HAVE_HKDF
     #define HAVE_FFDHE_2048
-    #define HAVE_AEAD
+    #define HAVE_FFDHE_3072
+    #define HAVE_FFDHE_4096
 #endif
 
+/* wolfSentry */
 #if 0
-
-/* You can use your own custom random generator function with
-   no input parameters and a `CUSTOM_RAND_TYPE` return type*/
-
-    #ifndef CUSTOM_RAND_GENERATE
-         #define CUSTOM_RAND_TYPE     int
-         #define CUSTOM_RAND_GENERATE yourRandGenFunc
-    #endif
-
+    #define WOLFSSL_WOLFSENTRY_HOOKS
+    #define HAVE_EX_DATA
+    #define HAVE_EX_DATA_CLEANUP_HOOKS
 #endif
 
-#if 1
-    #undef  XMALLOC_OVERRIDE
+/* compatibility layer */
+#if 0
+    #define OPENSSL_EXTRA
+#endif
+
+/* Random */
+#ifdef WOLFSSL_DEOS_RTEMS
+    extern int rtems_wolf_seed(unsigned char* output, unsigned int sz);
+    #define CUSTOM_RAND_GENERATE_SEED rtems_wolf_seed
+#endif
+
+/* custom heap handling */
+#ifdef WOLFSSL_DEOS
+    #define WOLFSSL_NO_MALLOC
     #define XMALLOC_OVERRIDE
+
     /* prototypes for user heap override functions */
-
-    #include <stddef.h>  /* for size_t */
-
     extern void *malloc_deos(size_t size);
     extern void  free_deos(void *ptr);
     extern void *realloc_deos(void *ptr, size_t size);
@@ -102,8 +168,39 @@ You can get the current time from https://www.unixtimestamp.com/
     #define XMALLOC(n, h, t)     malloc_deos(n)
     #define XFREE(p, h, t)       free_deos(p)
     #define XREALLOC(p, n, h, t) realloc_deos(p, n)
-
 #endif
+
+#if 0
+    #define DEBUG_WOLFSSL
+#endif
+
+/* You can select none or all of the following tests
+ * using #define instead of #undef.
+ * By default, all four tests run*/
+#define NO_CRYPT_TEST
+#define NO_CRYPT_BENCHMARK
+#undef NO_WOLFSSL_CLIENT
+#undef NO_WOLFSSL_SERVER
+
+/* file system has not been ported since it is a separate product */
+#define NO_FILESYSTEM
+#define NO_WOLFSSL_DIR
+#define NO_WRITEV
+#define NO_WRITE_TEMP_FILES
+
+/* disable old protocols and algorithms */
+#define NO_OLD_TLS
+#define NO_PSK
+#define NO_DSA
+#define NO_RC4
+#define NO_MD4
+
+#define NO_PWDBASED
+
+/* prevents from including multiple definition of main() */
+#define NO_MAIN_DRIVER
+#define NO_TESTSUITE_MAIN_DRIVER
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

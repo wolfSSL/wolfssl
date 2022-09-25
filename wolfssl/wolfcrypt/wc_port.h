@@ -764,9 +764,12 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
-#elif defined(WOLFSSL_DEOS)
+#elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
     #include <time.h>
-
+	#ifndef XTIME
+		extern time_t deos_time(time_t* timer);
+		#define XTIME(t1) deos_time((t1))
+	#endif
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>
