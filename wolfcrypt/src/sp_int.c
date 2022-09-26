@@ -15631,15 +15631,20 @@ int sp_todecimal(sp_int* a, char* str)
 
             i = 0;
             while (!sp_iszero(t)) {
-                sp_div_d(t, 10, t, &d);
+                err = sp_div_d(t, 10, t, &d);
+                if (err != MP_OKAY) {
+                    break;
+                }
                 str[i++] = (char)('0' + d);
             }
             str[i] = '\0';
 
-            for (j = 0; j <= (i - 1) / 2; j++) {
-                int c = (unsigned char)str[j];
-                str[j] = str[i - 1 - j];
-                str[i - 1 - j] = (char)c;
+            if (err == MP_OKAY) {
+                for (j = 0; j <= (i - 1) / 2; j++) {
+                    int c = (unsigned char)str[j];
+                    str[j] = str[i - 1 - j];
+                    str[i - 1 - j] = (char)c;
+                }
             }
         }
 
