@@ -55869,7 +55869,7 @@ static byte test_AEAD_done = 0;
 
 static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    int ret = recv(wolfSSL_get_fd(ssl), buf, sz, 0);
+    int ret = (int)recv(wolfSSL_get_fd(ssl), buf, sz, 0);
     if (ret > 0) {
         if (test_AEAD_fail_decryption) {
             /* Modify the packet to trigger a decryption failure */
