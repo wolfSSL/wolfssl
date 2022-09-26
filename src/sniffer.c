@@ -5753,7 +5753,11 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
                 *ackFault = 1;
                 UpdateMissedDataSessions();
             }
-            return FixSequence(tcpInfo, session);
+            if (FixSequence(tcpInfo, session) != 1)
+                return -1;
+            else
+                return CheckSequence(ipInfo, tcpInfo, session, sslBytes,
+                                     sslFrame, error);
         }
     }
 
