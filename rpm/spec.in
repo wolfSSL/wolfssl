@@ -76,7 +76,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.35
-%{_libdir}/libwolfssl.so.35.0.0
+%{_libdir}/libwolfssl.so.35.1.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -267,6 +267,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/ed448.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
+%{_includedir}/wolfssl/wolfcrypt/ext_kyber.h
 %{_includedir}/wolfssl/wolfcrypt/falcon.h
 %{_includedir}/wolfssl/wolfcrypt/dilithium.h
 %{_includedir}/wolfssl/wolfcrypt/sphincs.h
@@ -279,6 +280,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
 %{_includedir}/wolfssl/wolfcrypt/kdf.h
+%{_includedir}/wolfssl/wolfcrypt/kyber.h
 %{_includedir}/wolfssl/wolfcrypt/logging.h
 %{_includedir}/wolfssl/wolfcrypt/md2.h
 %{_includedir}/wolfssl/wolfcrypt/md4.h
@@ -311,17 +313,20 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
 %{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
 %{_includedir}/wolfssl/wolfcrypt/wc_port.h
+%{_includedir}/wolfssl/wolfcrypt/wc_kyber.h
 %{_includedir}/wolfssl/wolfcrypt/wolfevent.h
 %{_includedir}/wolfssl/wolfcrypt/wolfmath.h
 %{_includedir}/wolfssl/wolfio.h
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Tue Sep 27 2022 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add include of kyber headers
 * Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add include of QUIC documentation
 * Wed Aug 17 2022 Anthony Hu <anthony@wolfssl.com>
 - Add a new header sphincs.h.
-* Fri Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
+* Wed Jul 20 2022 Anthony Hu <anthony@wolfssl.com>
 - Add a new header dilithium.h.
 * Fri Jul 8 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add missing sp_int.h file
