@@ -57,6 +57,8 @@ Release 5.5.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * SP int: exptmod ensure base is less than modulus
 * Fix for AddPacketInfo with WOLFSSL_CALLBACKS to not pass encrypted TLS 1.3 handshake messages to callbacks
 * Fix for sniffer to ensure the session was polled before trying to reprocess it
+* Adds checking for critical extension with certificate Authority Information Access and the macro WOLFSSL_ALLOW_CRIT_AIA to override the check
+
 
 # wolfSSL Release 5.4.0 (July 11, 2022)
 

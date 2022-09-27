@@ -18267,9 +18267,9 @@ enum {
 #define authKeyIdASN_Length (sizeof(authKeyIdASN) / sizeof(ASNItem))
 #endif
 
-/* Decode authority information access extension in a certificate.
+/* Decode authority key identifier extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.1 - Authority Key Identifier.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -18363,7 +18363,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
 
 /* Decode subject key id extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.2 - Subject Key Identifier.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -18417,7 +18417,7 @@ enum {
 
 /* Decode key usage extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
+ * X.509: RFC 5280, 4.2.1.3 - Subject Key Identifier.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
@@ -19580,7 +19580,18 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         case AUTH_INFO_OID:
             VERIFY_AND_SET_OID(cert->extAuthInfoSet);
             cert->extAuthInfoCrit = critical;
-            if (DecodeAuthInfo(input, length, cert) < 0) {
+            #ifndef WOLFSSL_ALLOW_CRIT_AIA
+                /* This check is added due to RFC 5280 section 4.2.2.1
+                 * stating that conforming CA's must mark this extension
+                 * as non-critical. When parsing extensions check that
+                 * certificate was made in compliance with this. */
+                if (critical) {
+                    WOLFSSL_MSG("Critical Authority information access is not allowed");
+                    WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_AIA if wanted");
+                    ret = ASN_CRIT_EXT_E;
+                }
+            #endif
+            if ((ret == 0) && DecodeAuthInfo(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
             break;
