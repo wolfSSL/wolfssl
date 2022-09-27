@@ -187,11 +187,32 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 WC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
 {
-    word32 count = byteCount/(word32)sizeof(word32), i;
+    word32 count, i;
 
-    for (i = 0; i < count; i++)
-        out[i] = ByteReverseWord32(in[i]);
+#ifdef WOLFSSL_USE_ALIGN
+    if ((((unsigned long)in & 0x3) == 0) &&
+        (((unsigned long)out & 0x3) == 0))
+    {
+#endif
+        count = byteCount/(word32)sizeof(word32);
+        for (i = 0; i < count; i++)
+            out[i] = ByteReverseWord32(in[i]);
+#ifdef WOLFSSL_USE_ALIGN
+    }
+    else {
+        byte *in_bytes = (byte *)in;
+        byte *out_bytes = (byte *)out;
+        word32 scratch;
 
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += sizeof(word32)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            scratch = ByteReverseWord32(scratch);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+#endif
 }
 
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
