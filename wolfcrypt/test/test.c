@@ -9719,9 +9719,11 @@ static int aesctr_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
         if (XMEMCMP(plain, ctrPlain, testVec[i].len)) {
             ERROR_OUT(-5934 - i * 10, out);
         }
+#if !(FIPS_VERSION_EQ(2,0) && defined(WOLFSSL_ARMASM))
         if (XMEMCMP(cipher, testVec[i].cipher, testVec[i].len)) {
             ERROR_OUT(-5935 - i * 10, out);
         }
+#endif
     }
 
 out:
