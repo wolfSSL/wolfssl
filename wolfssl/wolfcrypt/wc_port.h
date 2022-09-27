@@ -766,10 +766,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(WOLFSSL_DEOS) || defined(WOLFSSL_DEOS_RTEMS)
     #include <time.h>
-	#ifndef XTIME
-		extern time_t deos_time(time_t* timer);
-		#define XTIME(t1) deos_time((t1))
-	#endif
+        #ifndef XTIME
+            extern time_t deos_time(time_t* timer);
+            #define XTIME(t1) deos_time((t1))
+        #endif
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>
