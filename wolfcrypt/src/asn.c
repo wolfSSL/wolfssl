@@ -18417,7 +18417,7 @@ enum {
 
 /* Decode key usage extension in a certificate.
  *
- * X.509: RFC 5280, 4.2.1.3 - Subject Key Identifier.
+ * X.509: RFC 5280, 4.2.1.3 - Key Usage.
  *
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
