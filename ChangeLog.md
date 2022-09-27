@@ -1,3 +1,62 @@
+# wolfSSL Release 5.5.1 (Sep 28, 2022)
+Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
+
+## Vulnerabilities
+* [Med] Denial of service attack and buffer overflow against TLS 1.3 servers using session ticket resumption. When built with --enable-session-ticket and making use of TLS 1.3 server code in wolfSSL, there is the possibility of a malicious client to craft a malformed second ClientHello packet that causes the server to crash. This issue is limited to when using both --enable-session-ticket and TLS 1.3 on the server side. Users with TLS 1.3 servers, and having --enable-session-ticket, should update to the latest version of wolfSSL. Thanks to Max at Trail of Bits for the report and "LORIA, INRIA, France" for research on tlspuffin.
+
+## New Feature Additions
+* Add support for non-blocking ECC key gen and shared secret gen for P-256/384/521
+* Add support for non-blocking ECDHE/ECDSA in TLS/DTLS layer.
+* Port to NXP RT685 with FreeRTOS
+* Add option to build post quantum Kyber API (--enable-kyber)
+* Add post quantum algorithm sphincs to wolfCrypt
+* Config. option to force no asm with SP build (--enable-sp=noasm)
+* Allow post quantum keyshare for DTLS 1.3
+
+## Enhancements
+* DTLSv1.3: Do HRR Cookie exchange by default
+* Add wolfSSL_EVP_PKEY_new_CMAC_key to OpenSSL compatible API 
+* Update ide win10 build files to add missing sp source files 
+* Improve Workbench docs 
+* Improve EVP support for CHACHA20_POLY1305
+* Improve `wc_SetCustomExtension` documentation
+* RSA-PSS with OCSP and add simple OCSP response DER verify test case
+* Clean up some FIPS versioning logic in configure.ac and WIN10 user_settings.h
+* Don't over-allocate memory for DTLS fragments
+* Add WOLFSSL_ATECC_TFLXTLS for Atmel port
+* SHA-3 performance improvements with x86_64 assembly
+* Add code to fallback to S/W if TSIP cannot handle 
+* Improves entropy with VxWorks
+* Make time in milliseconds 64-bits for longer session ticket lives
+* Support for setting cipher list with bytes
+* wolfSSL_set1_curves_list(), wolfSSL_CTX_set1_curves_list() improvements
+* Add to RSAES-OAEP key parsing for pkcs7
+* Add missing DN nid to work with PrintName()
+* SP int: default to 16 bit word size when NO_64BIT defined 
+* Limit the amount of fragments we store per a DTLS connection and error out when max limit is reached
+* Detect when certificate's RSA public key size is too big and fail on loading of certificate
+
+## Fixes
+* Fix for async with OCSP non-blocking in `ProcessPeerCerts`
+* Fixes for building with 32-bit and socket size sign/unsigned mismatch
+* Fix Windows CMakeList compiler options 
+* TLS 1.3 Middle-Box compat: fix missing brace 
+* Configuration consistency fixes for RSA keys and way to force disable of private keys 
+* Fix for Aarch64 Mac M1 SP use
+* Fix build errors and warnings for MSVC with DTLS 1.3
+* Fix HMAC compat layer function for SHA-1
+* Fix DTLS 1.3 do not negotiate ConnectionID in HelloRetryRequest
+* Check return from call to wc_Time
+* SP math: fix build configuration with opensslall
+* Fix for async session tickets
+* SP int mp_init_size fixes when SP_WORD_SIZE == 8 
+* Ed. function to make public key now checks for if the private key flag is set
+* Fix HashRaw WC_SHA256_DIGEST_SIZE for wc_Sha256GetHash 
+* Fix for building with PSK only
+* Set correct types in wolfSSL_sk_*_new functions
+* Sanity check that size passed to mp_init_size() is no more than SP_INT_DIGITS
+
+
 # wolfSSL Release 5.5.0 (Aug 30, 2022)
 
 Note:
