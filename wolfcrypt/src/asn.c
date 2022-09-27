@@ -19596,14 +19596,14 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
         case AUTH_KEY_OID:
             VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
             cert->extAuthKeyIdCrit = critical;
-            #ifndef WOLFSSL_ALLOW_CRIT_SKID
+            #ifndef WOLFSSL_ALLOW_CRIT_AKID
                 /* This check is added due to RFC 5280 section 4.2.1.1
                  * stating that conforming CA's must mark this extension
                  * as non-critical. When parsing extensions check that
                  * certificate was made in compliance with this. */
                 if (critical) {
                     WOLFSSL_MSG("Critical Auth Key ID is not allowed");
-                    WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
+                    WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_AKID if wanted");
                     ret = ASN_CRIT_EXT_E;
                 }
             #endif
