@@ -81,6 +81,8 @@ static void init_UART(void)
 {
     IfxAsclin_Asc_Config ascConfig;
 
+    IfxCpu_Irq_installInterruptHandler(asclin0_Tx_ISR, INTPRIO_ASCLIN0_TX);
+
     /* Port pins configuration */
     const IfxAsclin_Asc_Pins pins = {
         NULL_PTR,         IfxPort_InputMode_pullUp,     /* CTS pin not used   */
