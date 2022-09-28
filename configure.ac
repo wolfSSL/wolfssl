@@ -4913,6 +4913,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
 fi
 
+AC_ARG_ENABLE([ticket-nonce-malloc],
+    [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled)])],
+    [ ENABLED_TICKET_NONCE_MALLOC=$enableval ],
+    [ ENABLED_TICKET_NONCE_MALLOC=no ]
+    )
+
+if test "$ENABLED_TICKET_NONCE_MALLOC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
+fi
+
 # Extended Master Secret Extension
 AC_ARG_ENABLE([extended-master],
     [AS_HELP_STRING([--enable-extended-master],[Enable Extended Master Secret (default: enabled)])],

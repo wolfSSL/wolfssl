@@ -85,6 +85,13 @@ WOLFSSL_API int wc_Tls13_HKDF_Expand_Label(byte* okm, word32 okmLen,
                              const byte* label, word32 labelLen,
                              const byte* info, word32 infoLen,
                              int digest);
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+WOLFSSL_API int wc_Tls13_HKDF_Expand_Label_Alloc(byte* okm, word32 okmLen,
+    const byte* prk, word32 prkLen, const byte* protocol, word32 protocolLen,
+    const byte* label, word32 labelLen, const byte* info, word32 infoLen,
+    int digest, void* heap);
+#endif /* !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3) */
 
 #endif /* HAVE_HKDF */
 

@@ -58570,7 +58570,288 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
     return 0;
 }
+
 #endif
+
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
+    && defined(WOLFSSL_TLS13) &&                                               \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+
+#define TEST_NONCE_BUF_SZ 64 * 1024
+struct test_nonce_ctx
+{
+    byte c_buff[TEST_NONCE_BUF_SZ];
+    int c_len;
+    byte s_buff[TEST_NONCE_BUF_SZ];
+    int s_len;
+};
+
+static int test_ticket_nonce_write_cb(WOLFSSL *ssl,
+    char *data, int sz, void *ctx)
+{
+    struct test_nonce_ctx *test_ctx;
+    byte *buf;
+    int *len;
+
+    test_ctx = (struct test_nonce_ctx*)ctx;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        buf = test_ctx->c_buff;
+        len = &test_ctx->c_len;
+    }
+    else {
+        buf = test_ctx->s_buff;
+        len = &test_ctx->s_len;
+    }
+
+    if ((unsigned)(*len + sz) > TEST_NONCE_BUF_SZ)
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+
+    XMEMCPY(buf + *len, data, sz);
+    *len += sz;
+
+    return sz;
+}
+
+static int test_ticket_nonce_read_cb(WOLFSSL *ssl,
+    char *data, int sz, void *ctx)
+{
+    struct test_nonce_ctx *test_ctx;
+    int read_sz;
+    byte *buf;
+    int *len;
+
+    test_ctx = (struct test_nonce_ctx*)ctx;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        buf = test_ctx->s_buff;
+        len = &test_ctx->s_len;
+    }
+    else {
+        buf = test_ctx->c_buff;
+        len = &test_ctx->c_len;
+    }
+
+    if (*len == 0)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+
+    read_sz = sz < *len ? sz : *len;
+
+    XMEMCPY(data, buf, read_sz);
+    XMEMMOVE(buf, buf + read_sz, *len - read_sz);
+
+    *len -= read_sz;
+
+    return read_sz;
+}
+
+static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
+{
+    struct test_nonce_ctx *test_ctx;
+    byte buf[2048];
+    int idx, sz;
+    word32 tmp;
+    int ret;
+
+    idx = 5; /* space for record header */
+
+    buf[idx] = session_ticket; /* type */
+    idx++;
+
+    tmp = OPAQUE32_LEN +
+        OPAQUE32_LEN +
+        OPAQUE8_LEN + nonceLength +
+        OPAQUE16_LEN + OPAQUE8_LEN + OPAQUE16_LEN;
+    c32to24(tmp, buf + idx);
+    idx += OPAQUE24_LEN;
+
+    c32toa((word32)12345, buf+idx); /* lifetime */
+    idx += OPAQUE32_LEN;
+    c32toa((word32)12345, buf+idx); /* add */
+    idx += OPAQUE32_LEN;
+    buf[idx] = nonceLength; /* nonce length */
+    idx++;
+    XMEMSET(&buf[idx], filler, nonceLength); /* nonce */
+    idx += nonceLength;
+    tmp = 1; /* ticket len */
+    c16toa((word16)tmp, buf+idx);
+    idx += 2;
+    buf[idx] = 0xFF; /* ticket */
+    idx++;
+    tmp = 0; /* ext len */
+    c16toa((word16)tmp, buf+idx);
+    idx += 2;
+
+    sz = BuildTls13Message(ssl, buf, 2048, buf+5, idx - 5,
+        handshake, 0, 0, 0);
+    test_ctx = (struct test_nonce_ctx*)wolfSSL_GetIOWriteCtx(ssl);
+    ret = test_ticket_nonce_write_cb(ssl, (char*)buf, sz, test_ctx);
+    return !(ret == sz);
+}
+
+static int test_ticket_nonce_check(WOLFSSL_SESSION *sess, byte len)
+{
+    int i;
+
+    if (sess == NULL)
+        return -1;
+
+    if (sess->ticketNonce.len != len)
+        return -1;
+
+    for (i = 0; i < len; i++)
+        if (sess->ticketNonce.data[i] != len)
+            return -1;
+
+    return 0;
+}
+
+static int test_ticket_nonce_malloc_do(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
+{
+    char *buf[1024];
+    int ret;
+
+    ret = send_new_session_ticket(ssl_s, len, len);
+    if (ret != 0)
+        return -1;
+
+    ret = wolfSSL_recv(ssl_c, buf, 1024, 0);
+    if (ret != WOLFSSL_SUCCESS && ssl_c->error != WANT_READ)
+        return -1;
+
+    return test_ticket_nonce_check(ssl_c->session, len);
+}
+
+static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
+{
+    WOLFSSL_SESSION *sess, *cached;
+    WOLFSSL_CTX *ctx;
+    int ret;
+
+    ctx = ssl_c->ctx;
+
+    ret = test_ticket_nonce_malloc_do(ssl_s, ssl_c, len);
+    if (ret != 0)
+        return -1;
+    sess = wolfSSL_get1_session(ssl_c);
+    if (sess == NULL)
+        return -1;
+
+    ret = AddSessionToCache(ctx, sess, sess->sessionID, sess->sessionIDSz,
+         NULL, ssl_c->options.side, 1,NULL);
+    if (ret != 0)
+        return -1;
+
+    cached = wolfSSL_SESSION_new();
+    if (cached == NULL)
+        return -1;
+
+    ret = wolfSSL_GetSessionFromCache(ssl_c, cached);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+
+    ret = test_ticket_nonce_check(cached, len);
+    if (ret != 0)
+        return -1;
+
+    wolfSSL_SESSION_free(cached);
+    wolfSSL_SESSION_free(sess);
+
+    return 0;
+}
+
+static int test_ticket_nonce_malloc(void)
+{
+    struct test_nonce_ctx test_ctx = { 0 };
+    WOLFSSL_CTX *ctx_c, *ctx_s;
+    byte small, medium, big;
+    WOLFSSL *ssl_c, *ssl_s;
+    int ret;
+
+    ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    if (ctx_c == NULL || ctx_s == NULL)
+        return -1;
+
+    /* will send ticket manually */
+    wolfSSL_CTX_no_ticket_TLSv13(ctx_s);
+
+    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, 0);
+
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+        WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
+        return- -1;
+
+    ret = wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                           WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+
+    wolfSSL_SetIORecv(ctx_c, test_ticket_nonce_read_cb);
+    wolfSSL_SetIOSend(ctx_c, test_ticket_nonce_write_cb);
+    wolfSSL_SetIORecv(ctx_s, test_ticket_nonce_read_cb);
+    wolfSSL_SetIOSend(ctx_s, test_ticket_nonce_write_cb);
+
+    ssl_c = wolfSSL_new(ctx_c);
+    ssl_s = wolfSSL_new(ctx_s);
+    if (ssl_c == NULL || ssl_s == NULL)
+        return -1;
+
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+
+    while (!ssl_c->options.handShakeDone && !ssl_s->options.handShakeDone) {
+        ret = wolfSSL_connect(ssl_c);
+        if (ret != WOLFSSL_SUCCESS  && ssl_c->error != WANT_READ)
+            return -2;
+
+        ret = wolfSSL_accept(ssl_s);
+        if (ret != WOLFSSL_SUCCESS && ssl_s->error != WANT_READ)
+            return -3;
+    }
+
+    small = TLS13_TICKET_NONCE_STATIC_SZ;
+    medium = small + 20 <= 255 ? small + 20 : 255;
+    big = medium + 20 <= 255 ? small + 20 : 255;
+
+    if (test_ticket_nonce_malloc_do(ssl_s, ssl_c, small))
+        return -1;
+    if (ssl_c->session->ticketNonce.data !=
+            ssl_c->session->ticketNonce.dataStatic)
+        return -1;
+    if (test_ticket_nonce_malloc_do(ssl_s, ssl_c, medium))
+        return -1;
+    if (test_ticket_nonce_malloc_do(ssl_s, ssl_c, big))
+        return -1;
+    if (test_ticket_nonce_malloc_do(ssl_s, ssl_c, medium))
+        return -5;
+    if (test_ticket_nonce_malloc_do(ssl_s, ssl_c, small))
+        return -6;
+
+    if (test_ticket_nonce_cache(ssl_s, ssl_c, small))
+        return -1;
+    if (test_ticket_nonce_cache(ssl_s, ssl_c, medium))
+        return -1;
+    if (test_ticket_nonce_cache(ssl_s, ssl_c, big))
+        return -1;
+    if (test_ticket_nonce_cache(ssl_s, ssl_c, medium))
+        return -1;
+    if (test_ticket_nonce_cache(ssl_s, ssl_c, small))
+        return -1;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return 0;
+}
+
+#endif /* WOLFSSL_TICKET_NONCE_MALLOC */
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -59479,7 +59760,11 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ForceZero),
 
     TEST_DECL(test_wolfSSL_Cleanup),
-
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
+    && defined(WOLFSSL_TLS13) &&                                               \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    TEST_DECL(test_ticket_nonce_malloc),
+#endif
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
                            !defined(WOLFSSL_NO_CLIENT_AUTH))

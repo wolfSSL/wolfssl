@@ -1298,6 +1298,22 @@ enum {
 #define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
 #define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
 
+#define TLS13_TICKET_NONCE_MAX_SZ 255
+
+#if (defined(HAVE_FIPS) &&                                                     \
+    !(defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))) &&                    \
+    defined(TLS13_TICKET_NONCE_STATIC_SZ)
+#error "TLS13_TICKET_NONCE_STATIC_SZ is not supported in this FIPS version"
+#endif
+
+#ifndef TLS13_TICKET_NONCE_STATIC_SZ
+#define TLS13_TICKET_NONCE_STATIC_SZ 8
+#endif
+
+#if TLS13_TICKET_NONCE_STATIC_SZ > TLS13_TICKET_NONCE_MAX_SZ
+#error "Max size for ticket nonce is 255 bytes"
+#endif
+
 enum Misc {
     CIPHER_BYTE    = 0x00,         /* Default ciphers */
     ECC_BYTE       = 0xC0,         /* ECC first cipher suite byte */
@@ -1388,7 +1404,8 @@ enum Misc {
     SESSION_ADD_SZ = 4,        /* session age add */
     TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
-    MAX_TICKET_NONCE_SZ = 8,   /* maximum ticket nonce size */
+    MAX_TICKET_NONCE_STATIC_SZ = TLS13_TICKET_NONCE_STATIC_SZ,
+                               /* maximum ticket nonce static size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
 
     RAN_LEN      = 32,         /* random length           */
@@ -1752,6 +1769,10 @@ enum Misc {
 
 #ifndef PREALLOC_SESSION_TICKET_LEN
     #define PREALLOC_SESSION_TICKET_LEN 512
+#endif
+
+#ifndef PREALLOC_SESSION_TICKET_NONCE_LEN
+    #define PREALLOC_SESSION_TICKET_NONCE_LEN 32
 #endif
 
 #ifndef SESSION_TICKET_HINT_DEFAULT
@@ -2776,18 +2797,6 @@ WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-/** Session Ticket - RFC 5077 (session 3.2) */
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-/* Ticket nonce - for deriving PSK.
- * Length allowed to be: 1..255. Only support 4 bytes.
- * Defined here so that it can be included in InternalTicket.
- */
-typedef struct TicketNonce {
-    byte len;
-    byte data[MAX_TICKET_NONCE_SZ];
-} TicketNonce;
-#endif
-
 #ifdef HAVE_SESSION_TICKET
 /* Our ticket format. All members need to be a byte or array of byte to
  * avoid alignment issues */
@@ -2800,7 +2809,8 @@ typedef struct InternalTicket {
 #ifdef WOLFSSL_TLS13
     byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
     byte            namedGroup[NAMEDGROUP_LEN]; /* Named group used */
-    TicketNonce     ticketNonce;           /* Ticket nonce */
+    byte            ticketNonceLen;
+    byte            ticketNonce[MAX_TICKET_NONCE_STATIC_SZ];
 #ifdef WOLFSSL_EARLY_DATA
     byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
                                                          * early data */
@@ -3696,6 +3706,25 @@ WOLFSSL_LOCAL int wolfSSL_quic_add_transport_extensions(WOLFSSL *ssl, int msg_ty
 
 #endif /* WOLFSSL_QUIC */
 
+/** Session Ticket - RFC 5077 (session 3.2) */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+/* Ticket nonce - for deriving PSK.
+   Length allowed to be: 1..255. Only support
+ * TLS13_TICKET_NONCE_STATIC_SZ length bytes.
+ */
+typedef struct TicketNonce {
+    byte len;
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    byte *data;
+    byte dataStatic[MAX_TICKET_NONCE_STATIC_SZ];
+#else
+    byte data[MAX_TICKET_NONCE_STATIC_SZ];
+#endif /* WOLFSSL_TICKET_NONCE_MALLOC  && FIPS_VERSION_GE(5,3) */
+} TicketNonce;
+
+#endif
+
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
     /* WARNING Do not add fields here. They will be ignored in
@@ -3789,13 +3818,21 @@ struct WOLFSSL_SESSION {
 #endif
 };
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
+        defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+WOLFSSL_LOCAL int SessionTicketNoncePopulate(WOLFSSL_SESSION *session,
+    const byte* nonce, byte len);
+#endif /* WOLFSSL_TLS13 &&  */
+
 WOLFSSL_LOCAL int wolfSSL_RAND_Init(void);
 
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
-WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_CTX* ssl,
+/* use wolfSSL_API visibility to be able to test in tests/api.c */
+WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ssl,
     WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
     int side, word16 useTicket, ClientSession** clientCacheEntry);
 #ifndef NO_CLIENT_CACHE
@@ -3805,7 +3842,8 @@ WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
 #endif
 WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
-WOLFSSL_LOCAL int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
+/* WOLFSSL_API to test it in tests/api.c */
+WOLFSSL_API int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
         WOLFSSL_SESSION* session);
