@@ -8393,6 +8393,13 @@ esac
 
 rm cyassl/options.h.bak
 
+if test "x$ENABLED_USERSETTINGS" = "xyes"; then
+    $srcdir/scripts/user_settings_asm.sh "$CPPFLAGS $CFLAGS $CXXFLAGS"
+    if test $? -ne 0; then
+        AC_MSG_ERROR([$srcdir/scripts/user_settings_asm.sh failed.])
+    fi
+fi
+
 if test "$silent" != "yes"; then
 
 # output config summary
