@@ -755,6 +755,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XTIME(t1)       xilinx_time((t1))
     #endif
     #include <time.h>
+    time_t xilinx_time(time_t * timer);
 
 #elif defined(HAVE_RTP_SYS)
     #include "os.h"           /* dc_rtc_api needs    */

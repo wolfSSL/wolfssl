@@ -3810,7 +3810,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
   fp_init_copy(t, a);
 
   x = fp_to_unsigned_bin_at_pos(0, t, b);
-  fp_reverse (b, x);
+  mp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
@@ -3856,7 +3856,7 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
       b[x] = (unsigned char) (t->dp[0] & 255);
       fp_div_2d (t, 8, t, NULL);
   }
-  fp_reverse (b, x);
+  mp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
@@ -4104,23 +4104,6 @@ void fp_rshd(fp_int *a, int x)
    /* decrement count */
    a->used -= x;
    fp_clamp(a);
-}
-
-/* reverse an array, used for radix code */
-void fp_reverse (unsigned char *s, int len)
-{
-  int     ix, iy;
-  unsigned char t;
-
-  ix = 0;
-  iy = len - 1;
-  while (ix < iy) {
-    t     = s[ix];
-    s[ix] = s[iy];
-    s[iy] = t;
-    ++ix;
-    --iy;
-  }
 }
 
 
@@ -5848,7 +5831,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     /* reverse the digits of the string.  In this case _s points
      * to the first digit [excluding the sign] of the number]
      */
-    fp_reverse ((unsigned char *)_s, digs);
+    mp_reverse ((unsigned char *)_s, digs);
 
     /* append a NULL so the string is properly terminated */
     *str = '\0';

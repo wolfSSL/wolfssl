@@ -70,6 +70,10 @@
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    #include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -175,6 +179,8 @@ enum {
 #elif defined(WOLFSSL_SE050)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = 64,
+#elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    ECC_MAX_CRYPTO_HW_SIZE = MAX_ECC_BYTES,
 #endif
 
 
@@ -469,7 +475,11 @@ struct ecc_key {
     struct kcapi_handle* handle;
     byte pubkey_raw[MAX_ECC_BYTES * 2];
 #endif
-
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    wc_Xsecure xSec;
+    byte keyRaw[3 * ECC_MAX_CRYPTO_HW_SIZE] ALIGN32;
+    byte* privKey;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
     mp_int* s;

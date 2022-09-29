@@ -67,8 +67,21 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif
 
 #ifdef WOLFSSL_XILINX_CRYPT
-#include "xsecure_aes.h"
-#endif
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
+#include <wolfssl/wolfcrypt/port/xilinx/xil-versal-glue.h>
+#include <xsecure_aesclient.h>
+#define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_AES_USER_KEY_0
+#else /* versal */
+#include <xsecure_aes.h>
+#define WOLFSSL_XILINX_AES_KEY_SRC XSECURE_CSU_AES_KEY_SRC_KUP
+#endif /* !versal */
+#endif /* WOLFSSL_XILINX_CRYPT */
+
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
+#if !defined(WOLFSSL_XILINX_AES_KEY_SRC)
+#define WOLFSSL_XILINX_AES_KEY_SRC 0
+#endif /* !defined(WOLFSSL_XILINX_AES_KEY_SRC) */
+#endif /* all Xilinx crypto */
 
 #ifdef WOLFSSL_SE050
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
@@ -229,9 +242,16 @@ struct Aes {
     word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_XILINX_CRYPT
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
+    wc_Xsecure          xSec;
+    XSecure_AesKeySize  xKeySize;
+    int                 aadStyle;
+    byte                keyInit[WOLFSSL_XSECURE_AES_KEY_SIZE] ALIGN64;
+#else
     XSecure_Aes xilAes;
     XCsuDma     dma;
-    word32      key_init[8];
+    word32      keyInit[8];
+#endif
     word32      kup;
 #endif
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)

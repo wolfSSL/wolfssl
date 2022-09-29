@@ -1,4 +1,4 @@
-/* wolfcrypt/test/test.h
+/* xil-versal-trng.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -20,27 +20,25 @@
  */
 
 
-#ifndef WOLFCRYPT_TEST_H
-#define WOLFCRYPT_TEST_H
+#ifndef WOLF_XIL_CRYPT_VERSAL_TRNG_H
+#define WOLF_XIL_CRYPT_VERSAL_TRNG_H
 
+#include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-#ifdef HAVE_STACK_SIZE
-THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
-#else
-int wolfcrypt_test(void* args);
-#endif
-#ifndef NO_MAIN_DRIVER
-int wolfcrypt_test_main(int argc, char** argv);
-#endif
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
 
 #ifdef __cplusplus
-    }  /* extern "C" */
+extern "C" {
+#endif
+WOLFSSL_LOCAL int wc_VersalTrngInit(byte* nonce, word32 nonceSz);
+WOLFSSL_LOCAL int wc_VersalTrngReset(void);
+WOLFSSL_LOCAL int wc_VersalTrngSelftest(void);
+WOLFSSL_LOCAL int wc_VersalTrngGenerate(byte *output, word32 sz);
+
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
 
-
-#endif /* WOLFCRYPT_TEST_H */
+#endif /* versal */
+#endif /* WOLF_XIL_CRYPT_VERSAL_TRNG_H */
 

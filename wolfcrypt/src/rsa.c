@@ -52,7 +52,9 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #ifdef WOLFSSL_AFALG_XILINX_RSA
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #endif
-
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#include <xsecure_rsaclient.h>
+#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
@@ -410,13 +412,23 @@ int wc_InitRsaHw(RsaKey* key)
     word32 e = 0;     /* RSA public exponent */
     int mSz;
     int eSz;
+    int ret;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
     mSz = mp_unsigned_bin_size(&(key->n));
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    if (mSz > WOLFSSL_XSECURE_RSA_KEY_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+    /* Allocate 4 bytes more for the public exponent. */
+    m = (unsigned char*) XMALLOC(WOLFSSL_XSECURE_RSA_KEY_SIZE + 4, key->heap,
+                                 DYNAMIC_TYPE_KEY);
+#else
     m = (unsigned char*)XMALLOC(mSz, key->heap, DYNAMIC_TYPE_KEY);
+#endif
     if (m == NULL) {
         return MEMORY_E;
     }
@@ -426,6 +438,9 @@ int wc_InitRsaHw(RsaKey* key)
         XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
         return MP_READ_E;
     }
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    XMEMSET(m + mSz, 0, WOLFSSL_XSECURE_RSA_KEY_SIZE + 4 - mSz);
+#endif
 
     eSz = mp_unsigned_bin_size(&(key->e));
     if (eSz > MAX_E_SIZE) {
@@ -449,6 +464,16 @@ int wc_InitRsaHw(RsaKey* key)
     key->pubExp = e;
     key->mod    = m;
 
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    ret = wc_InitXsecure(&(key->xSec));
+    if (ret != 0) {
+        WOLFSSL_MSG("Unable to initialize xSecure for RSA");
+        XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+        return ret;
+    }
+    XMEMCPY(&m[WOLFSSL_XSECURE_RSA_KEY_SIZE], &e, sizeof(e));
+    key->mSz = mSz;
+#else
     if (XSecure_RsaInitialize(&(key->xRsa), key->mod, NULL,
                 (byte*)&(key->pubExp)) != XST_SUCCESS) {
         WOLFSSL_MSG("Unable to initialize RSA on hardware");
@@ -465,6 +490,7 @@ int wc_InitRsaHw(RsaKey* key)
            return BAD_STATE_E;
        }
    }
+#endif
 #endif
     return 0;
 } /* WOLFSSL_XILINX_CRYPT*/
@@ -2117,23 +2143,45 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         {
             byte *d;
             int dSz;
+#if !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
             XSecure_Rsa rsa;
+#endif
 
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+            dSz = WOLFSSL_XSECURE_RSA_KEY_SIZE * 2;
+#else
             dSz = mp_unsigned_bin_size(&key->d);
+#endif
             d = (byte*)XMALLOC(dSz, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
             if (d == NULL) {
                 ret = MEMORY_E;
-            }
-            else {
+            } else {
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+                XMEMSET(d, 0, dSz);
+                XMEMCPY(d, key->mod, key->mSz);
+                ret = mp_to_unsigned_bin(&key->d, &d[WOLFSSL_XSECURE_RSA_KEY_SIZE]);
+#else
                 ret = mp_to_unsigned_bin(&key->d, d);
                 XSecure_RsaInitialize(&rsa, key->mod, NULL, d);
+#endif
             }
 
             if (ret == 0) {
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+                WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)d, dSz);
+                WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)in, inLen);
+                if (XSecure_RsaPrivateDecrypt(&(key->xSec.cinst), XIL_CAST_U64(d),
+                                              XIL_CAST_U64(in), inLen,
+                                              XIL_CAST_U64(out)) != XST_SUCCESS) {
+                    ret = BAD_STATE_E;
+                }
+                WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, inLen);
+#else
                 if (XSecure_RsaPrivateDecrypt(&rsa, (u8*)in, inLen, out) !=
                         XST_SUCCESS) {
                     ret = BAD_STATE_E;
                 }
+#endif
             }
 
             if (d != NULL) {
@@ -2144,7 +2192,19 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         break;
     case RSA_PUBLIC_ENCRYPT:
     case RSA_PUBLIC_DECRYPT:
-#ifdef WOLFSSL_XILINX_CRYPTO_OLD
+#if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)key->mod,
+                                       WOLFSSL_XSECURE_RSA_KEY_SIZE + 4);
+        WOLFSSL_XIL_DCACHE_FLUSH_RANGE((UINTPTR)in, inLen);
+        if (XSecure_RsaPublicEncrypt(&(key->xSec.cinst),
+                                     XIL_CAST_U64(key->mod),
+                                     XIL_CAST_U64(in), inLen,
+                                     XIL_CAST_U64(out))) {
+            WOLFSSL_MSG("RSA public operation failed");
+            ret = BAD_STATE_E;
+        }
+        WOLFSSL_XIL_DCACHE_INVALIDATE_RANGE((UINTPTR)out, inLen);
+#elif defined(WOLFSSL_XILINX_CRYPTO_OLD)
         if (XSecure_RsaDecrypt(&(key->xRsa), in, out) != XST_SUCCESS) {
             ret = BAD_STATE_E;
         }

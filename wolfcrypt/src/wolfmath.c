@@ -71,6 +71,26 @@
 #endif
 
 
+/* reverse an array, used for radix code */
+void mp_reverse (unsigned char *s, int len)
+{
+    int ix, iy;
+    unsigned char t;
+
+    if (s == NULL)
+        return;
+
+    ix = 0;
+    iy = len - 1;
+    while (ix < iy) {
+        t = s[ix];
+        s[ix] = s[iy];
+        s[iy] = t;
+        ++ix;
+        --iy;
+    }
+}
+
 int get_digit_count(const mp_int* a)
 {
     if (a == NULL)

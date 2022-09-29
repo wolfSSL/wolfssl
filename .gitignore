@@ -379,6 +379,9 @@ IDE/XCODE/Index
 /IDE/QNX/example-cmac/cmac-test
 /IDE/QNX/CAAM-DRIVER/wolfCrypt
 
+# Xilinx
+/IDE/XilinxSDK/data
+
 # Emacs
 *~
 
