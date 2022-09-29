@@ -1346,6 +1346,77 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     return 0;
 }
 
+static int test_wolfSSL_CTX_load_system_CA_certs(void)
+{
+    int ret = 0;
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX* ctx;
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    if (ctx == NULL) {
+        ret = -1;
+    }
+    if (ret == 0) {
+#ifdef _WIN32
+        if (wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_NOT_IMPLEMENTED) {
+            ret = -1;
+        }
+#ifdef OPENSSL_EXTRA
+        if (wolfSSL_CTX_set_default_verify_paths(ctx) != WOLFSSL_FAILURE) {
+            ret = -1;
+        }
+#endif /* OPENSSL_EXTRA */
+#else
+        word32 numDirs;
+        const char** caDirs = wolfSSL_get_system_CA_dirs(&numDirs);
+
+        if (caDirs == NULL || numDirs == 0) {
+            ret = -1;
+        }
+        else {
+            ReadDirCtx dirCtx;
+            byte dirValid = 0;
+            word32 i;
+
+            for (i = 0; i < numDirs; ++i) {
+                if (wc_ReadDirFirst(&dirCtx, caDirs[i], NULL) == 0) {
+                    /* Directory isn't empty. */
+                    dirValid = 1;
+                    wc_ReadDirClose(&dirCtx);
+                    break;
+                }
+            }
+
+            /*
+             * If the directory isn't empty, we should be able to load CA
+             * certs from it.
+             */
+            if (dirValid && wolfSSL_CTX_load_system_CA_certs(ctx) !=
+                WOLFSSL_SUCCESS) {
+                ret = -1;
+            }
+        #ifdef OPENSSL_EXTRA
+            /*
+             * Even if we don't have a valid directory to load system CA
+             * certs from, the OpenSSL compat layer function should return
+             * success.
+             */
+            if (wolfSSL_CTX_set_default_verify_paths(ctx)
+                != WOLFSSL_SUCCESS) {
+                ret = -1;
+            }
+        #endif /* OPENSSL_EXTRA */
+        }
+#endif /* _WIN32 */
+    }
+
+    wolfSSL_CTX_free(ctx);
+#endif /* !NO_FILESYSTEM && !NO_CERTS && !NO_WOLFSSL_CLIENT */
+
+    return ret;
+}
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 static int test_cm_load_ca_buffer(const byte* cert_buf, size_t cert_sz, int file_type)
 {
@@ -59130,6 +59201,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey_file),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations),
+    TEST_DECL(test_wolfSSL_CTX_load_system_CA_certs),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer),
