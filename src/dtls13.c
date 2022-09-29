@@ -809,7 +809,7 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
     enum HandShakeType handshakeType, word16 outputSize, byte* message,
     word32 length, int hashOutput)
 {
-    Dtls13RtxRecord* rtxRecord;
+    Dtls13RtxRecord* rtxRecord = NULL;
     word16 recordHeaderLength;
     byte isProtected;
     int ret;
@@ -817,20 +817,23 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
     isProtected = Dtls13TypeIsEncrypted(handshakeType);
     recordHeaderLength = Dtls13GetRlHeaderLength(ssl, isProtected);
 
-    rtxRecord = Dtls13RtxNewRecord(ssl, message + recordHeaderLength,
-        (word16)(length - recordHeaderLength), handshakeType,
-        ssl->dtls13EncryptEpoch->nextSeqNumber);
-
-    if (rtxRecord == NULL)
-        return MEMORY_E;
+    if (handshakeType != hello_retry_request) {
+        rtxRecord = Dtls13RtxNewRecord(ssl, message + recordHeaderLength,
+            (word16)(length - recordHeaderLength), handshakeType,
+            ssl->dtls13EncryptEpoch->nextSeqNumber);
+        if (rtxRecord == NULL)
+            return MEMORY_E;
+    }
 
     ret = Dtls13SendFragment(ssl, message, outputSize, (word16)length,
         handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
 
-    if (ret == 0 || ret == WANT_WRITE)
-        Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
-    else
-        Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
+    if (rtxRecord != NULL) {
+        if (ret == 0 || ret == WANT_WRITE)
+            Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
+        else
+            Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
+    }
 
     return ret;
 }

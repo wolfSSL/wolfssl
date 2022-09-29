@@ -10397,13 +10397,8 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         else {
             WOLFSSL_MSG("SSL version error");
             /* send alert per RFC5246 Appendix E. Backward Compatibility */
-            if (ssl->options.side == WOLFSSL_CLIENT_END) {
-#ifdef WOLFSSL_MYSQL_COMPATIBLE
-                SendAlert(ssl, alert_fatal, wc_protocol_version);
-#else
-                SendAlert(ssl, alert_fatal, protocol_version);
-#endif
-            }
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
         }
@@ -18468,24 +18463,12 @@ const char* AlertTypeToString(int type)
                 return decrypt_error_str;
             }
 
-    #ifdef WOLFSSL_MYSQL_COMPATIBLE
-    /* catch name conflict for enum protocol with MYSQL build */
-        case wc_protocol_version:
-            {
-                static const char wc_protocol_version_str[] =
-                    "wc_protocol_version";
-                return wc_protocol_version_str;
-            }
-
-    #else
-        case protocol_version:
+        case wolfssl_alert_protocol_version:
             {
                 static const char protocol_version_str[] =
                     "protocol_version";
                 return protocol_version_str;
             }
-
-    #endif
         case insufficient_security:
             {
                 static const char insufficient_security_str[] =
@@ -18869,7 +18852,55 @@ static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
     WOLFSSL_MSG("DTLS: Ignoring failed decryption");
     return ret;
 }
-#endif
+
+static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
+{
+    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "on established connection.");
+        return 1;
+    }
+
+    if ((ssl->options.handShakeDone && retcode != 0)
+        || retcode == SEQUENCE_ERROR || retcode == DTLS_CID_ERROR) {
+        WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
+        return 1;
+    }
+
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version) && !w64IsZero(ssl->dtls13Epoch)
+            && w64IsZero(ssl->keys.curEpoch64) && ssl->curRL.type != ack) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "during encrypted handshake.");
+        return 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END
+            && ssl->curRL.type != handshake) {
+        int beforeCookieVerified = 0;
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            beforeCookieVerified =
+                ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE;
+        }
+#ifdef WOLFSSL_DTLS13
+        else {
+            beforeCookieVerified =
+                ssl->options.acceptState < TLS13_ACCEPT_SECOND_REPLY_DONE;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
+        if (beforeCookieVerified) {
+            WOLFSSL_MSG("Drop non-handshake record before handshake");
+            return 1;
+        }
+    }
+#endif /* NO_WOLFSSL_SERVER */
+
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
 
 int ProcessReply(WOLFSSL* ssl)
 {
@@ -19064,16 +19095,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                if ((ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0))
-                        || ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR) {
-                    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
-                        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
-                                    "on established connection.");
-                    }
-                    else {
-                        WOLFSSL_MSG("Silently dropping DTLS message");
-                    }
+            if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                     ssl->options.processReply = doProcessInit;
                     ssl->buffers.inputBuffer.length = 0;
                     ssl->buffers.inputBuffer.idx = 0;
@@ -19089,7 +19111,6 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif /* WOLFSSL_DTLS13 */
 
                     continue;
-                }
             }
 #endif
             if (ret != 0)

@@ -12407,6 +12407,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                ssl->dtls13SendingAckOrRtx = 0;
+#endif /* WOLFSSL_DTLS13 */
         }
 
         ret = RetrySendAlert(ssl);
@@ -12949,6 +12953,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                ssl->dtls13SendingAckOrRtx = 0;
+#endif /* WOLFSSL_DTLS13 */
         }
 
         ret = RetrySendAlert(ssl);
