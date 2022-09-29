@@ -108,24 +108,81 @@ Transform_Sha256_Len:
 	sub	sp, sp, #0xc0
 	adr	r3, L_SHA256_transform_len_k
 	# Copy digest to add in at end
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r12, [r0]
 	ldr	lr, [r0, #4]
-	ldrd	r4, r5, [r0, #8]
-	ldrd	r6, r7, [r0, #16]
-	ldrd	r8, r9, [r0, #24]
+#else
+	ldrd  r12, lr, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r0, #8]
+	ldr	r5, [r0, #12]
+#else
+	ldrd  r4, r5, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+#else
+	ldrd  r6, r7, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r0, #24]
+	ldr	r9, [r0, #28]
+#else
+	ldrd  r8, r9, [r0, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [sp, #64]
 	str	lr, [sp, #68]
-	strd	r4, r5, [sp, #72]
-	strd	r6, r7, [sp, #80]
-	strd	r8, r9, [sp, #88]
+#else
+	strd  r12, lr, [sp, #64]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [sp, #72]
+	str	r5, [sp, #76]
+#else
+	strd  r4, r5, [sp, #72]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [sp, #80]
+	str	r7, [sp, #84]
+#else
+	strd  r6, r7, [sp, #80]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [sp, #88]
+	str	r9, [sp, #92]
+#else
+	strd  r8, r9, [sp, #88]
+#endif
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load, Reverse and Store W - 64 bytes
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r12, [r1]
 	ldr	lr, [r1, #4]
-	ldrd	r4, r5, [r1, #8]
-	ldrd	r6, r7, [r1, #16]
-	ldrd	r8, r9, [r1, #24]
+#else
+	ldrd  r12, lr, [r1]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
+#else
+	ldrd  r4, r5, [r1, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r1, #16]
+	ldr	r7, [r1, #20]
+#else
+	ldrd  r6, r7, [r1, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r1, #24]
+	ldr	r9, [r1, #28]
+#else
+	ldrd  r8, r9, [r1, #24]
+#endif
 	rev	r12, r12
 	rev	lr, lr
 	rev	r4, r4
@@ -134,16 +191,54 @@ L_SHA256_transform_len_begin:
 	rev	r7, r7
 	rev	r8, r8
 	rev	r9, r9
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [sp]
 	str	lr, [sp, #4]
-	strd	r4, r5, [sp, #8]
-	strd	r6, r7, [sp, #16]
-	strd	r8, r9, [sp, #24]
+#else
+	strd  r12, lr, [sp]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [sp, #8]
+	str	r5, [sp, #12]
+#else
+	strd  r4, r5, [sp, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [sp, #16]
+	str	r7, [sp, #20]
+#else
+	strd  r6, r7, [sp, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [sp, #24]
+	str	r9, [sp, #28]
+#else
+	strd  r8, r9, [sp, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r12, [r1, #32]
 	ldr	lr, [r1, #36]
-	ldrd	r4, r5, [r1, #40]
-	ldrd	r6, r7, [r1, #48]
-	ldrd	r8, r9, [r1, #56]
+#else
+	ldrd  r12, lr, [r1, #32]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #40]
+	ldr	r5, [r1, #44]
+#else
+	ldrd  r4, r5, [r1, #40]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r1, #48]
+	ldr	r7, [r1, #52]
+#else
+	ldrd  r6, r7, [r1, #48]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r1, #56]
+	ldr	r9, [r1, #60]
+#else
+	ldrd  r8, r9, [r1, #56]
+#endif
 	rev	r12, r12
 	rev	lr, lr
 	rev	r4, r4
@@ -152,11 +247,30 @@ L_SHA256_transform_len_begin:
 	rev	r7, r7
 	rev	r8, r8
 	rev	r9, r9
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [sp, #32]
 	str	lr, [sp, #36]
-	strd	r4, r5, [sp, #40]
-	strd	r6, r7, [sp, #48]
-	strd	r8, r9, [sp, #56]
+#else
+	strd  r12, lr, [sp, #32]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [sp, #40]
+	str	r5, [sp, #44]
+#else
+	strd  r4, r5, [sp, #40]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [sp, #48]
+	str	r7, [sp, #52]
+#else
+	strd  r6, r7, [sp, #48]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [sp, #56]
+	str	r9, [sp, #60]
+#else
+	strd  r8, r9, [sp, #56]
+#endif
 	ldr	r9, [r0, #4]
 	ldr	r12, [r0, #8]
 	eor	r9, r9, r12
@@ -1431,36 +1545,110 @@ L_SHA256_transform_len_start:
 	str	r6, [r0, #16]
 	str	r7, [r0]
 	# Add in digest from start
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r12, [r0]
 	ldr	lr, [r0, #4]
-	ldrd	r4, r5, [r0, #8]
-	ldrd	r6, r7, [sp, #64]
-	ldrd	r8, r9, [sp, #72]
+#else
+	ldrd  r12, lr, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r0, #8]
+	ldr	r5, [r0, #12]
+#else
+	ldrd  r4, r5, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [sp, #64]
+	ldr	r7, [sp, #68]
+#else
+	ldrd  r6, r7, [sp, #64]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [sp, #72]
+	ldr	r9, [sp, #76]
+#else
+	ldrd  r8, r9, [sp, #72]
+#endif
 	add	r12, r12, r6
 	add	lr, lr, r7
 	add	r4, r4, r8
 	add	r5, r5, r9
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [r0]
 	str	lr, [r0, #4]
-	strd	r4, r5, [r0, #8]
+#else
+	strd  r12, lr, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #8]
+	str	r5, [r0, #12]
+#else
+	strd  r4, r5, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [sp, #64]
 	str	lr, [sp, #68]
-	strd	r4, r5, [sp, #72]
+#else
+	strd  r12, lr, [sp, #64]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [sp, #72]
+	str	r5, [sp, #76]
+#else
+	strd  r4, r5, [sp, #72]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r12, [r0, #16]
 	ldr	lr, [r0, #20]
-	ldrd	r4, r5, [r0, #24]
-	ldrd	r6, r7, [sp, #80]
-	ldrd	r8, r9, [sp, #88]
+#else
+	ldrd  r12, lr, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r0, #24]
+	ldr	r5, [r0, #28]
+#else
+	ldrd  r4, r5, [r0, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [sp, #80]
+	ldr	r7, [sp, #84]
+#else
+	ldrd  r6, r7, [sp, #80]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [sp, #88]
+	ldr	r9, [sp, #92]
+#else
+	ldrd  r8, r9, [sp, #88]
+#endif
 	add	r12, r12, r6
 	add	lr, lr, r7
 	add	r4, r4, r8
 	add	r5, r5, r9
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [r0, #16]
 	str	lr, [r0, #20]
-	strd	r4, r5, [r0, #24]
+#else
+	strd  r12, lr, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #24]
+	str	r5, [r0, #28]
+#else
+	strd  r4, r5, [r0, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r12, [sp, #80]
 	str	lr, [sp, #84]
-	strd	r4, r5, [sp, #88]
+#else
+	strd  r12, lr, [sp, #80]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [sp, #88]
+	str	r5, [sp, #92]
+#else
+	strd  r4, r5, [sp, #88]
+#endif
 	subs	r2, r2, #0x40
 	sub	r3, r3, #0xc0
 	add	r1, r1, #0x40
@@ -1548,14 +1736,39 @@ Transform_Sha256_Len:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	vpush	{d8-d11}
 	sub	sp, sp, #24
-	strd	r0, r1, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp]
+	str	r1, [sp, #4]
+#else
+	strd  r0, r1, [sp]
+#endif
 	str	r2, [sp, #8]
 	adr	r12, L_SHA256_transform_neon_len_k
 	# Load digest into registers
-	ldrd	r2, r3, [r0]
-	ldrd	r4, r5, [r0, #8]
-	ldrd	r6, r7, [r0, #16]
-	ldrd	r8, r9, [r0, #24]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r2, [r0]
+	ldr	r3, [r0, #4]
+#else
+	ldrd  r2, r3, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r0, #8]
+	ldr	r5, [r0, #12]
+#else
+	ldrd  r4, r5, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+#else
+	ldrd  r6, r7, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r0, #24]
+	ldr	r9, [r0, #28]
+#else
+	ldrd  r8, r9, [r0, #24]
+#endif
 	# Start of loop processing a block
 L_SHA256_transform_neon_len_begin:
 	# Load W
@@ -2481,22 +2694,62 @@ L_SHA256_transform_neon_len_start:
 	add	r2, r2, r1
 	ldr	r10, [sp]
 	# Add in digest from start
-	ldrd	r0, r1, [r10]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [r10]
+	ldr	r1, [r10, #4]
+#else
+	ldrd  r0, r1, [r10]
+#endif
 	add	r2, r2, r0
 	add	r3, r3, r1
-	strd	r2, r3, [r10]
-	ldrd	r0, r1, [r10, #8]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r10]
+	str	r3, [r10, #4]
+#else
+	strd  r2, r3, [r10]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [r10, #8]
+	ldr	r1, [r10, #12]
+#else
+	ldrd  r0, r1, [r10, #8]
+#endif
 	add	r4, r4, r0
 	add	r5, r5, r1
-	strd	r4, r5, [r10, #8]
-	ldrd	r0, r1, [r10, #16]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r10, #8]
+	str	r5, [r10, #12]
+#else
+	strd  r4, r5, [r10, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [r10, #16]
+	ldr	r1, [r10, #20]
+#else
+	ldrd  r0, r1, [r10, #16]
+#endif
 	add	r6, r6, r0
 	add	r7, r7, r1
-	strd	r6, r7, [r10, #16]
-	ldrd	r0, r1, [r10, #24]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r10, #16]
+	str	r7, [r10, #20]
+#else
+	strd  r6, r7, [r10, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [r10, #24]
+	ldr	r1, [r10, #28]
+#else
+	ldrd  r0, r1, [r10, #24]
+#endif
 	add	r8, r8, r0
 	add	r9, r9, r1
-	strd	r8, r9, [r10, #24]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [r10, #24]
+	str	r9, [r10, #28]
+#else
+	strd  r8, r9, [r10, #24]
+#endif
 	ldr	r10, [sp, #8]
 	ldr	r1, [sp, #4]
 	subs	r10, r10, #0x40
