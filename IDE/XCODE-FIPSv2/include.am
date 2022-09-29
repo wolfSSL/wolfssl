@@ -9,3 +9,5 @@
 #       into the proper release bundles when packaging the release.
 
 EXTRA_DIST+= IDE/XCODE-FIPSv2/user_settings.h
+EXTRA_DIST+= IDE/XCODE-FIPSv2/macOS-C++/M1/user_settings.h
+EXTRA_DIST+= IDE/XCODE-FIPSv2/macOS-C++/Intel/user_settings.h
