@@ -9198,7 +9198,7 @@ int SessionTicketNoncePopulate(WOLFSSL_SESSION *session, const byte *nonce,
 {
     if (session->ticketNonce.data
             != session->ticketNonce.dataStatic) {
-         XFREE(session->ticketNonce.data, heap,
+         XFREE(session->ticketNonce.data, session->heap,
              DYNAMIC_TYPE_SESSION_TICK);
          session->ticketNonce.data = session->ticketNonce.dataStatic;
          session->ticketNonce.len = 0;
