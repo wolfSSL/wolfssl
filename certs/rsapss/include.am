@@ -52,7 +52,8 @@ EXTRA_DIST += \
          certs/rsapss/server-3072-rsapss-key.der \
          certs/rsapss/server-3072-rsapss-key.pem \
          certs/rsapss/server-3072-rsapss-priv.der \
-         certs/rsapss/server-3072-rsapss-priv.pem
+         certs/rsapss/server-3072-rsapss-priv.pem \
+         certs/rsapss/server-mix-rsapss-cert.pem
 
 EXTRA_DIST += \
          certs/rsapss/renew-rsapss-certs.sh \
