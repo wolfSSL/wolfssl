@@ -3667,7 +3667,9 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x50
 }
 
 
-WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
+/* Return and remove the last x509 pushed on stack */
+WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
     WOLFSSL_STACK* node;
     WOLFSSL_X509*  x509;
 
@@ -3714,9 +3716,42 @@ WOLFSSL_X509* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)* sk, int i)
     return sk->data.x509;
 }
 
+
+/* Return and remove the first x509 pushed on stack */
 WOLFSSL_X509* wolfSSL_sk_X509_shift(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
-    return wolfSSL_sk_X509_pop(sk);
+    WOLFSSL_STACK* node;
+    WOLFSSL_X509*  x509;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    x509 = sk->data.x509;
+
+    if (node != NULL) {
+        /* walk to end of stack to first node pushed, and remove it */
+        WOLFSSL_STACK* prevNode = sk;
+
+        while (node->next != NULL) {
+            prevNode = node;
+            node = node->next;
+        }
+
+        x509 = node->data.x509;
+        prevNode->next = NULL;
+        XFREE(node, NULL, DYNAMIC_TYPE_X509);
+    }
+    else { /* only one x509 in stack */
+        sk->data.x509 = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return x509;
 }
 
 #endif /* OPENSSL_EXTRA */
