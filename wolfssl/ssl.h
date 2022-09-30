@@ -1079,9 +1079,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_load_verify_locations(
 WOLFSSL_API const char** wolfSSL_get_system_CA_dirs(word32* num);
 #endif /* !_WIN32 */
 WOLFSSL_API int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx);
-#ifdef OPENSSL_EXTRA
-WOLFSSL_API int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx);
-#endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_TRUST_PEER_CERT
 WOLFSSL_API int wolfSSL_CTX_trust_peer_cert(
     WOLFSSL_CTX* ctx, const char* file, int type);
