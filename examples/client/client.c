@@ -1318,9 +1318,12 @@ static const char* client_usage_msg[][70] = {
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
 #endif
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+#endif
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 73 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1764,6 +1767,9 @@ static void Usage(void)
     printf("%s", msg[++msgid]);     /* more --pqc options */
     printf("%s", msg[++msgid]);     /* more --pqc options */
 #endif
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    printf("%s", msg[++msgid]); /* --sys-ca-certs */
+#endif
 #ifdef WOLFSSL_SRTP
     printf("%s", msg[++msgid]);     /* dtls-srtp */
 #endif
@@ -1897,6 +1903,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_DTLS_CID
         {"cid", 2, 262},
 #endif /* WOLFSSL_DTLS_CID */
+        { "sys-ca-certs", 0, 263 },
         { 0, 0, 0 }
     };
 #endif
@@ -2006,6 +2013,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char* pqcAlg = NULL;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    byte loadSysCaCerts = 0;
+#endif
 
 #ifdef HAVE_ENCRYPT_THEN_MAC
     int disallowETM = 0;
@@ -2706,6 +2716,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 pqcAlg = myoptarg;
                 break;
 #endif
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+            case 263:
+                loadSysCaCerts = 1;
+                break;
+#endif
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2961,6 +2976,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("unable to get ctx");
     }
 #endif
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    if (loadSysCaCerts &&
+        wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_SUCCESS) {
+        err_sys("wolfSSL_CTX_load_system_CA_certs failed");
+    }
+#endif
+
     if (minVersion != CLIENT_INVALID_VERSION) {
 #ifdef WOLFSSL_DTLS
         if (doDTLS) {
