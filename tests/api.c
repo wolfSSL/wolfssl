@@ -58882,6 +58882,65 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 #endif
 
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
+    !defined(NO_OLD_TLS)
+static int test_WOLFSSL_dtls_version_alert(void)
+{
+    struct test_memio_ctx test_ctx = { 0 };
+    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL *ssl_c, *ssl_s;
+    int ret;
+
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_server_method);
+    if (ret != 0)
+        return -1;
+
+    /* client hello */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != WANT_READ )
+        return -2;
+    /* hrr */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 || ssl_s->error != WANT_READ )
+        return -3;
+    /* client hello 1 */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != WANT_READ )
+        return -4;
+    /* server hello */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 || ssl_s->error != WANT_READ )
+        return -5;
+    /* should fail */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != VERSION_ERROR)
+        return -6;
+    /* shuould fail */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 ||
+        (ssl_s->error != VERSION_ERROR && ssl_s->error != FATAL_ERROR))
+        return -7;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return 0;
+}
+#else
+static int test_WOLFSSL_dtls_version_alert(void)
+{
+    return 0;
+}
+#endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&
+        * !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&
+        * !defined(NO_OLD_TLS)
+        */
+
+
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
@@ -59975,7 +60034,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_DtlsUpdateWindow),
     TEST_DECL(test_wolfSSL_DTLS_fragment_buckets),
 #endif
-
+    TEST_DECL(test_WOLFSSL_dtls_version_alert),
     TEST_DECL(test_ForceZero),
 
     TEST_DECL(test_wolfSSL_Cleanup),
