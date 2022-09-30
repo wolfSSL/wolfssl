@@ -318,6 +318,10 @@ void WOLFSSL_TIME(int count)
     int dc_log_printf(char*, ...);
 #endif
 
+#ifdef HAVE_STACK_SIZE_VERBOSE
+#include <wolfssl/wolfcrypt/mem_track.h>
+#endif
+
 static void wolfssl_log(const int logLevel, const char *const logMessage)
 {
     if (log_function)
@@ -359,6 +363,9 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         printk("%s\n", logMessage);
 #elif defined(WOLFSSL_RENESAS_RA6M4)
         myprintf("%s\n", logMessage);
+#elif defined(STACK_SIZE_CHECKPOINT_MSG) && \
+      defined(HAVE_STACK_SIZE_VERBOSE) && defined(HAVE_STACK_SIZE_VERBOSE_LOG)
+        STACK_SIZE_CHECKPOINT_MSG(logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

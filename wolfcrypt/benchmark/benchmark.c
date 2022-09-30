@@ -52,59 +52,12 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
-/* only for stack size check */
-#ifdef HAVE_STACK_SIZE
-    #include <wolfssl/ssl.h>
-    #include <wolfssl/test.h>
+#include <wolfssl/wolfcrypt/mem_track.h>
 
-#elif defined(WOLFSSL_ASYNC_CRYPT)
+/* only for stack size check */
+#if defined(WOLFSSL_ASYNC_CRYPT)
     #ifndef WC_NO_ASYNC_THREADING
         #define WC_ENABLE_BENCH_THREADING
-    #endif
-
-/* benchmark multi-threading - disable for FIPS self test */
-#elif !defined(SINGLE_THREADED) && !defined(WC_NO_BENCH_THREADING) && \
-       defined(HAVE_PTHREAD) && !defined(HAVE_RENESAS_SYNC)
-
-    #define WC_ENABLE_BENCH_THREADING
-    #if defined(_POSIX_THREADS)
-        typedef void*         THREAD_RETURN;
-        typedef pthread_t     THREAD_TYPE;
-        #define WOLFSSL_THREAD
-        #if !defined(__MINGW32__)
-        #define INFINITE (-1)
-        #define WAIT_OBJECT_0 0L
-        #endif
-    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
-        typedef unsigned int  THREAD_RETURN;
-        typedef int           THREAD_TYPE;
-        #define WOLFSSL_THREAD
-    #elif defined(WOLFSSL_TIRTOS)
-        typedef void          THREAD_RETURN;
-        typedef Task_Handle   THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-          #undef EXIT_TEST
-          #define EXIT_TEST(ret)
-        #endif
-        #define WOLFSSL_THREAD
-    #elif defined(WOLFSSL_ZEPHYR)
-        typedef void            THREAD_RETURN;
-        typedef struct k_thread THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-          #undef EXIT_TEST
-          #define EXIT_TEST(ret)
-        #endif
-        #define WOLFSSL_THREAD
-    #elif defined(NETOS)
-        typedef UINT        THREAD_RETURN;
-        typedef TX_THREAD   THREAD_TYPE;
-        #define WOLFSSL_THREAD
-        #define INFINITE TX_WAIT_FOREVER
-        #define WAIT_OBJECT_0 TX_NO_WAIT
-    #else
-        typedef unsigned int  THREAD_RETURN;
-        typedef intptr_t      THREAD_TYPE;
-        #define WOLFSSL_THREAD __stdcall
     #endif
 #endif
 
@@ -1079,10 +1032,9 @@ static const char* bench_desc_words[][15] = {
     #pragma warning(disable: 4996)
 #endif
 
-
 #ifdef WOLFSSL_CURRTIME_REMAP
     #define current_time WOLFSSL_CURRTIME_REMAP
-#elif !defined(HAVE_STACK_SIZE)
+#else
     double current_time(int reset);
 #endif
 
@@ -8100,7 +8052,6 @@ void bench_sphincsKeySign(byte level, byte optim)
 #endif /* HAVE_SPHINCS */
 #endif /* HAVE_PQC */
 
-#ifndef HAVE_STACK_SIZE
 #if defined(_WIN32) && !defined(INTIME_RTOS)
 
     #define WIN32_LEAN_AND_MEAN
@@ -8315,7 +8266,6 @@ void bench_sphincsKeySign(byte level, byte optim)
     }
 
 #endif /* _WIN32 */
-#endif /* !HAVE_STACK_SIZE */
 
 #if defined(HAVE_GET_CYCLES)
 

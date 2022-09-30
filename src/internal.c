@@ -32701,7 +32701,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte            b;
         byte            bogusID = 0;   /* flag for a bogus session id */
         ProtocolVersion pv;
-        Suites          clSuites;
+#ifdef WOLFSSL_SMALL_STACK
+        Suites*         clSuites = NULL;
+#else
+        Suites          clSuites[1];
+#endif
         word32          i = *inOutIdx;
         word32          begin = i;
         int             ret = 0;
@@ -33019,31 +33023,40 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto out;
         }
 
-        ato16(&input[i], &clSuites.suiteSz);
+#ifdef WOLFSSL_SMALL_STACK
+        clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (clSuites == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
+#endif
+        XMEMSET(clSuites, 0, sizeof(Suites));
+        ato16(&input[i], &clSuites->suiteSz);
         i += OPAQUE16_LEN;
 
         /* Cipher suite lists are always multiples of two in length. */
-        if (clSuites.suiteSz % 2 != 0) {
+        if (clSuites->suiteSz % 2 != 0) {
             ret = BUFFER_ERROR;
             goto out;
         }
 
         /* suites and compression length check */
-        if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz) {
+        if ((i - begin) + clSuites->suiteSz + OPAQUE8_LEN > helloSz) {
             ret = BUFFER_ERROR;
             goto out;
         }
 
-        if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ) {
+        if (clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ) {
             ret = BUFFER_ERROR;
             goto out;
         }
 
-        XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
+        XMEMCPY(clSuites->suites, input + i, clSuites->suiteSz);
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
-        if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
+        if (FindSuite(clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
             TLSX* extension;
 
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
@@ -33061,7 +33074,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 #if defined(HAVE_FALLBACK_SCSV) || defined(OPENSSL_ALL)
         /* check for TLS_FALLBACK_SCSV suite */
-        if (FindSuite(&clSuites, TLS_FALLBACK_SCSV, 0) >= 0) {
+        if (FindSuite(clSuites, TLS_FALLBACK_SCSV, 0) >= 0) {
             WOLFSSL_MSG("Found Fallback SCSV");
             if (ssl->ctx->method->version.minor > pv.minor) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
@@ -33076,12 +33089,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
-                                    clSuites.suiteSz + OPAQUE16_LEN);
+                                    clSuites->suiteSz + OPAQUE16_LEN);
             if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
-        i += clSuites.suiteSz;
-        clSuites.hashSigAlgoSz = 0;
+        i += clSuites->suiteSz;
+        clSuites->hashSigAlgoSz = 0;
 
         /* compression length */
         b = input[i++];
@@ -33200,7 +33213,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_TLS_EXTENSIONS
                 /* tls extensions */
                 if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, client_hello,
-                                                                    &clSuites)))
+                                                                    clSuites)))
                     goto out;
     #ifdef WOLFSSL_TLS13
                 if (TLSX_Find(ssl->extensions,
@@ -33252,15 +33265,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto out;
                         }
 
-                        clSuites.hashSigAlgoSz = hashSigAlgoSz;
-                        if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
+                        clSuites->hashSigAlgoSz = hashSigAlgoSz;
+                        if (clSuites->hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
                             WOLFSSL_MSG("ClientHello SigAlgo list exceeds max, "
                                                                   "truncating");
-                            clSuites.hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+                            clSuites->hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
                         }
 
-                        XMEMCPY(clSuites.hashSigAlgo, &input[i],
-                                                      clSuites.hashSigAlgoSz);
+                        XMEMCPY(clSuites->hashSigAlgo, &input[i],
+                                                      clSuites->hashSigAlgoSz);
 
                         i += hashSigAlgoSz;
                     }
@@ -33290,7 +33303,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* ProcessOld uses same resume code */
         if (ssl->options.resuming) {
-            ret = HandleTlsResumption(ssl, bogusID, &clSuites);
+            ret = HandleTlsResumption(ssl, bogusID, clSuites);
             if (ret != 0)
                 goto out;
 
@@ -33345,7 +33358,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = CertSetupCbWrapper(ssl);
 #endif
         if (ret == 0)
-            ret = MatchSuite(ssl, &clSuites);
+            ret = MatchSuite(ssl, clSuites);
 
 #ifdef WOLFSSL_EXTRA_ALERTS
         if (ret == BUFFER_ERROR)
@@ -33373,7 +33386,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
         wc_HmacFree(&cookieHmac);
 #endif
-
+#ifdef WOLFSSL_SMALL_STACK
+        if (clSuites != NULL)
+            XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+#endif
         WOLFSSL_LEAVE("DoClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 

@@ -13587,7 +13587,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     word32 localIdx;
     byte   tag;
 
-    WOLFSSL_MSG("Getting Cert Name");
+    WOLFSSL_MSG("Getting Name");
 
     if (nameType == ISSUER) {
         full = cert->issuer;
@@ -13634,7 +13634,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     char*  full;
     byte*  hash;
 
-    WOLFSSL_MSG("Getting Cert Name");
+    WOLFSSL_MSG("Getting Name");
 
     XMEMSET(dataASN, 0, sizeof(dataASN));
     /* Initialize for data and don't check optional prefix OID. */
@@ -14008,9 +14008,9 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     struct tm* localTime;
     struct tm* tmpTime;
     int    i = 0;
-    int    timeDiff = 0 ;
-    int    diffHH = 0 ; int diffMM = 0 ;
-    int    diffSign = 0 ;
+    int    timeDiff = 0;
+    int    diffHH = 0, diffMM = 0;
+    int    diffSign = 0;
 
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
@@ -15345,6 +15345,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     byte* rsaKeyIdx)
 {
     int ret = 0;
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    CertAttribute* certatt = NULL;
+#endif
 
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
@@ -15363,12 +15366,10 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 #if !defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_RENESAS_SCEPROTECT)
     (void)rsaKeyIdx;
 #else
-    CertAttribute* certatt = NULL;
-
     #if !defined(NO_RSA) || defined(HAVE_ECC)
     certatt = (CertAttribute*)&sigCtx->CertAtt;
     #endif
-    if(certatt) {
+    if (certatt) {
         certatt->keyIndex = rsaKeyIdx;
         certatt->cert = buf;
         certatt->certSz = bufSz;
