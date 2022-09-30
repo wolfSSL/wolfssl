@@ -30,6 +30,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
+#ifdef WOLFSSL_X86_64_BUILD
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
 .text
@@ -1107,6 +1108,7 @@ L_poly1305_avx2_final_cmp_copy:
 .size	poly1305_final_avx2,.-poly1305_final_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+#endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

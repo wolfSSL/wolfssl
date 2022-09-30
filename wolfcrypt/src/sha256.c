@@ -174,7 +174,7 @@ on the specific device platform.
 #endif
 
 
-#if defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
         #undef  NO_AVX2_SUPPORT
@@ -194,7 +194,7 @@ on the specific device platform.
 #else
     #undef HAVE_INTEL_AVX1
     #undef HAVE_INTEL_AVX2
-#endif /* USE_INTEL_SPEEDUP */
+#endif /* WOLFSSL_X86_64_BUILD && USE_INTEL_SPEEDUP */
 
 #if defined(HAVE_INTEL_AVX2)
     #define HAVE_INTEL_RORX
@@ -253,8 +253,8 @@ static int InitSha256(wc_Sha256* sha256)
 
 
 /* Hardware Acceleration */
-#if defined(USE_INTEL_SPEEDUP) && (defined(HAVE_INTEL_AVX1) || \
-                                                       defined(HAVE_INTEL_AVX2))
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+                          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 
     /* in case intel instructions aren't available, plus we need the K[] global */
     #define NEED_SOFT_SHA256
@@ -1072,7 +1072,8 @@ static int InitSha256(wc_Sha256* sha256)
 
             if (sha256->buffLen == WC_SHA256_BLOCK_SIZE) {
             #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-                #if defined(USE_INTEL_SPEEDUP) && \
+                #if defined(WOLFSSL_X86_64_BUILD) && \
+                          defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
                 if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
                 #endif
@@ -1107,7 +1108,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         /* process blocks */
     #ifdef XTRANSFORM_LEN
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (Transform_Sha256_Len_p != NULL)
         #endif
@@ -1123,13 +1124,14 @@ static int InitSha256(wc_Sha256* sha256)
                 len  -= blocksLen;
             }
         }
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         else
         #endif
     #endif /* XTRANSFORM_LEN */
-    #if !defined(XTRANSFORM_LEN) || (defined(USE_INTEL_SPEEDUP) && \
-                         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
+    #if !defined(XTRANSFORM_LEN) || \
+        (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+         (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
         {
             while (len >= WC_SHA256_BLOCK_SIZE) {
                 word32* local32 = sha256->buffer;
@@ -1137,7 +1139,8 @@ static int InitSha256(wc_Sha256* sha256)
                 /* Intel transform function requires use of sha256->buffer */
                 /* Little Endian requires byte swap, so can't use data directly */
             #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER) && \
-                !(defined(USE_INTEL_SPEEDUP) && \
+                !(defined(WOLFSSL_X86_64_BUILD) && \
+                         defined(USE_INTEL_SPEEDUP) && \
                          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
                 if (((wc_ptr_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
                     local32 = (word32*)data;
@@ -1152,7 +1155,8 @@ static int InitSha256(wc_Sha256* sha256)
                 len  -= WC_SHA256_BLOCK_SIZE;
 
             #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-                #if defined(USE_INTEL_SPEEDUP) && \
+                #if defined(WOLFSSL_X86_64_BUILD) && \
+                          defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
                 if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
                 #endif
@@ -1245,7 +1249,7 @@ static int InitSha256(wc_Sha256* sha256)
             sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
 
         #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-            #if defined(USE_INTEL_SPEEDUP) && \
+            #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
             if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
             #endif
@@ -1283,7 +1287,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
@@ -1297,10 +1301,11 @@ static int InitSha256(wc_Sha256* sha256)
         XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
                 sizeof(word32));
 
-    #if defined(FREESCALE_MMCAU_SHA) || (defined(USE_INTEL_SPEEDUP) && \
+    #if defined(FREESCALE_MMCAU_SHA) || \
+        (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
         /* Kinetis requires only these bytes reversed */
-        #if defined(USE_INTEL_SPEEDUP) && \
+        #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
         #endif
@@ -1532,7 +1537,7 @@ static int InitSha256(wc_Sha256* sha256)
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
 
-    #if defined(USE_INTEL_SPEEDUP) && \
+    #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         /* choose best Transform function under this runtime environment */
         Sha256_SetTransform();

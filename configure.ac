@@ -576,6 +576,15 @@ then
     ENABLED_FASTMATH="yes"
 fi
 
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
+fi
+if test "$host_cpu" = "x86"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
+fi
+
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
 then
@@ -593,11 +602,6 @@ then
         AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
         ENABLED_HEAPMATH="no"
         ENABLED_SP_MATH_ALL="no"
-    fi
-    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
-    then
-        # Have settings.h set FP_MAX_BITS higher if user didn't set directly
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
     AS_IF([test "x$host_cpu" = "xaarch64"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AARCH64_BUILD"])
 
@@ -2312,6 +2316,16 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DUSE_INTEL_SPEEDUP"
         ENABLED_AESNI=yes
+    fi
+
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
+    then
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_64_BUILD"
+    fi
+    if test "$host_cpu" = "x86"
+    then
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_X86_BUILD"
+        ENABLED_X86_ASM=yes
     fi
 fi
 
@@ -6732,7 +6746,7 @@ if test "$ENABLED_SP_MATH_ALL" = "yes" && test "$ENABLED_ASM" != "no"; then
 
   case $host_cpu in
   *x86_64* | *amd64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64 -DWOLFSSL_X86_64_BUILD"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64"
     ;;
   *x86*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86"
@@ -6817,10 +6831,6 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
-    if test "x$ENABLED_FASTMATH" = "xno"
-    then
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
-    fi
     ;;
   *)
     AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
@@ -8097,6 +8107,7 @@ AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
+AM_CONDITIONAL([BUILD_X86_ASM],[test "x$ENABLED_X86_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
 AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_DEVCRYPTO],[test "x$ENABLED_DEVCRYPTO" = "xyes"])

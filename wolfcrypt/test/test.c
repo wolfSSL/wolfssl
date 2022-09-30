@@ -11325,6 +11325,33 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
             ERROR_OUT(-6394, out);
     }
 #endif /* HAVE_AES_DECRYPT */
+#ifdef BENCH_AESGCM_LARGE
+    /* setup test buffer */
+    result = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6360, out);
+    result = wc_AesGcmEncryptUpdate(enc, large_output, large_input,
+                                    BENCH_AESGCM_LARGE, a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6361, out);
+    result = wc_AesGcmEncryptFinal(enc, resultT, sizeof(t1));
+    if (result != 0)
+        ERROR_OUT(-6362, out);
+#ifdef HAVE_AES_DECRYPT
+    result = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6363, out);
+    result = wc_AesGcmDecryptUpdate(enc, large_outdec, large_output,
+                                    BENCH_AESGCM_LARGE, a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6364, out);
+    result = wc_AesGcmDecryptFinal(enc, resultT, sizeof(t1));
+    if (result != 0)
+        ERROR_OUT(-6365, out);
+    if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
+        ERROR_OUT(-6366, out);
+#endif /* HAVE_AES_DECRYPT */
+#endif /* BENCH_AESGCM_LARGE */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* WOLFSSL_AES_256 */
 #endif /* !WOLFSSL_AFALG_XILINX_AES && !WOLFSSL_XILINX_CRYPT */
