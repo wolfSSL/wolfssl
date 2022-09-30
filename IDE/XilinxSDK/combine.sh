@@ -9,7 +9,8 @@
 #  Preamble
 ###
 
-readonly my_path="$(dirname $(readlink -f $0))"
+my_path="$(dirname $(readlink -f $0))" || exit $?
+readonly my_path
 readonly csv_path="$my_path/data"
 
 function cleanup() {
@@ -32,7 +33,8 @@ trap error_out INT TERM
 #  Implementation
 ###
 
-readonly configs=$(find $csv_path -maxdepth 1 -type d -name '*results_*' | sed 's@.*results_@@g')
+configs=$(find $csv_path -maxdepth 1 -type d -name '*results_*' | sed 's@.*results_@@g') || exit $?
+readonly configs
 
 declare -A algos
 algos["asym"]="ecc rsa"
@@ -57,7 +59,7 @@ filters["cmac"]="-e s/\(128\|256\)-CMAC/CMAC,\1/g"
 filters["ecc"]='-e 1!{/SECP384R1\|SECP521R1/!d}'
 filters["sha2"]="-e s/SHA-/SHA2-/g"
 
-for t in ${!algos[@]}
+for t in "${!algos[@]}"
 do
     for algo in ${algos[$t]}
     do
