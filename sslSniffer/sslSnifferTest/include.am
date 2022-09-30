@@ -12,4 +12,6 @@ EXTRA_DIST += sslSniffer/README.md
 EXTRA_DIST += sslSniffer/sslSniffer.vcproj
 EXTRA_DIST += sslSniffer/sslSniffer.vcxproj
 EXTRA_DIST += sslSniffer/sslSnifferTest/sslSniffTest.vcproj
+EXTRA_DIST += sslSniffer/sslSnifferTest/sslSniffTest.vcxproj
+EXTRA_DIST += sslSniffer/sslSnifferTest/README_WIN.md
 DISTCLEANFILES+= sslSniffer/sslSnifferTest/.libs/snifftest
