@@ -8977,7 +8977,8 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* NO_DSA */
 
-                #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+                #if !defined(NO_DH) && (defined(WOLFSSL_QT) || \
+                       defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
                 case EVP_PKEY_DH:
                     if (key->dh != NULL && key->ownDh == 1) {
                         wolfSSL_DH_free(key->dh);
