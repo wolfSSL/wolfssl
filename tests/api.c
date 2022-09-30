@@ -49616,7 +49616,10 @@ static int test_sk_X509(void)
             AssertIntEQ(sk_X509_num(s), len - 1 - i);
         }
 
-        sk_X509_pop_free(s, NULL);
+        sk_free(s);
+
+        for (i = 0; i < len; ++i)
+            X509_free(xList[i]);
     }
 
     printf(resultFmt, passed);
