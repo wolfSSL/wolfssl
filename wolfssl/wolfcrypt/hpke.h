@@ -70,22 +70,22 @@ enum {
 #endif
 
 typedef struct {
-    int kem;
-    int kdf;
-    int aead;
-    int Nh;
-    int Nk;
-    int Nn;
-    int Nt;
-    int Ndh;
-    int Npk;
-    int Nsecret;
+    word32 kem;
+    word32 kdf;
+    word32 aead;
+    word32 Nh;
+    word32 Nk;
+    word32 Nn;
+    word32 Nt;
+    word32 Ndh;
+    word32 Npk;
+    word32 Nsecret;
     int kdf_digest;
     int curve_id;
     void* heap;
     ecc_key receiver_key[1];
-    byte kem_suite_id[5];
-    byte hpke_suite_id[10];
+    byte kem_suite_id[KEM_SUITE_ID_LEN];
+    byte hpke_suite_id[HPKE_SUITE_ID_LEN];
     byte receiver_key_set:1;
 } Hpke;
 
@@ -98,7 +98,8 @@ typedef struct {
 
 WOLFSSL_API int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap);
 WOLFSSL_API int wc_HpkeGenerateKeyPair(Hpke* hpke, ecc_key* keypair);
-WOLFSSL_API int wc_HpkeSerializePublicKey(ecc_key* key, byte* out, word32* outSz);
+WOLFSSL_API int wc_HpkeSerializePublicKey(Hpke* hpke, ecc_key* key, byte* out,
+    word32* outSz);
 WOLFSSL_API int wc_HpkeDeserializePublicKey(Hpke* hpke, ecc_key* key, const byte* in, word32 inSz);
 WOLFSSL_API int wc_HpkeSealBase(Hpke* hpke, byte* info, word32 infoSz,
     byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* ciphertext,

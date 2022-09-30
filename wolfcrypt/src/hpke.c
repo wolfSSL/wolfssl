@@ -72,6 +72,7 @@ static const int EXP_LABEL_STR_LEN = 3;
 static int I2OSP(int n, int w, byte* out)
 {
     int i;
+    word32 n_max = 0;
 
     if (w <= 0 || w > 32) {
         return MP_VAL;
@@ -80,15 +81,22 @@ static int I2OSP(int n, int w, byte* out)
     /* make sure the byte string is cleared */
     XMEMSET( out, 0, w );
 
-    /* we're only concerned with up to integer max */
-    if ((n > 256 && w < 2) ||
-        (n > 65536 && w < 3) ||
-        (n > 16777216 && w < 4)) {
+    /* n_max is all bits set in an int for w * 8 bits */
+    /* w may be larger but 4 is word32 max we will convert */
+    for (i = 0; i < w && i < 4; i++)
+    {
+        n_max |= (0xff<<(i*8));
+    }
+
+    /* if n > n_max it won't fit in w bytes */
+    if ((word32)n > n_max)
+    {
         return MP_VAL;
     }
 
-    for (i = 0; i < w && n > 0; i++) {
-        out[w - ( i + 1 )] = n % 256;
+    for (i = 0; i < w && n > 0; i++)
+    {
+        out[w-(i + 1)] = (byte)n;
         n = n >> 8;
     }
 
@@ -98,6 +106,7 @@ static int I2OSP(int n, int w, byte* out)
 int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
 {
     int ret;
+    byte* id;
 
     if (hpke == NULL || kem == 0 || kdf == 0 || aead == 0) {
         return BAD_FUNC_ARG;
@@ -109,20 +118,30 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     hpke->aead = aead;
     hpke->heap = heap;
 
-    XMEMCPY(hpke->kem_suite_id, KEM_STR, KEM_STR_LEN);
+    /* set kem_suite_id */
+    id = hpke->kem_suite_id;
 
-    ret = I2OSP(kem, 2, hpke->kem_suite_id + KEM_STR_LEN);
+    XMEMCPY(id, KEM_STR, KEM_STR_LEN);
+    id += KEM_STR_LEN;
 
-    XMEMCPY(hpke->hpke_suite_id, HPKE_STR, HPKE_STR_LEN);
+    ret = I2OSP(kem, 2, id);
+
+    /* set hpke_suite_id */
+    id = hpke->hpke_suite_id;
+
+    XMEMCPY(id, HPKE_STR, HPKE_STR_LEN);
+    id += HPKE_STR_LEN;
 
     if (ret == 0) {
-      ret = I2OSP(kem, 2, hpke->hpke_suite_id + HPKE_STR_LEN);
+      ret = I2OSP(kem, 2, id);
+      id += 2;
     }
     if (ret == 0) {
-      ret = I2OSP(kdf, 2, hpke->hpke_suite_id + HPKE_STR_LEN + 2);
+      ret = I2OSP(kdf, 2, id);
+      id += 2;
     }
     if (ret == 0) {
-      ret = I2OSP(aead, 2, hpke->hpke_suite_id + HPKE_STR_LEN + 2 + 2);
+      ret = I2OSP(aead, 2, id);
     }
     if (ret != 0)
         return ret;
@@ -130,41 +149,41 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     switch (kem)
     {
         case DHKEM_P256_HKDF_SHA256:
-            hpke->Nsecret = 32;
-            hpke->Nh = 32;
-            hpke->Ndh = 32;
-            hpke->Npk = 65;
             hpke->curve_id = ECC_SECP256R1;
+            hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
+            hpke->Nh = WC_SHA256_DIGEST_SIZE;
+            hpke->Ndh = wc_ecc_get_curve_size_from_id( hpke->curve_id );
+            hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 
         case DHKEM_P384_HKDF_SHA384:
-            hpke->Nsecret = 48;
-            hpke->Nh = 48;
-            hpke->Ndh = 48;
-            hpke->Npk = 97;
             hpke->curve_id = ECC_SECP384R1;
+            hpke->Nsecret = WC_SHA384_DIGEST_SIZE;
+            hpke->Nh = WC_SHA384_DIGEST_SIZE;
+            hpke->Ndh = wc_ecc_get_curve_size_from_id( hpke->curve_id );
+            hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 
         case DHKEM_P521_HKDF_SHA512:
-            hpke->Nsecret = 64;
-            hpke->Nh = 64;
-            hpke->Ndh = 66;
-            hpke->Npk = 133;
             hpke->curve_id = ECC_SECP521R1;
+            hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
+            hpke->Nh = WC_SHA512_DIGEST_SIZE;
+            hpke->Ndh = wc_ecc_get_curve_size_from_id( hpke->curve_id );
+            hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 
         /* TODO: Add X25519 and X448 */
         case DHKEM_X25519_HKDF_SHA256:
-            hpke->Nsecret = 32;
-            hpke->Nh = 32;
+            hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
+            hpke->Nh = WC_SHA256_DIGEST_SIZE;
             hpke->Ndh = 32;
             hpke->Npk = 32;
             /* hpke->curve_id = ECC_X25519; */
             break;
 
         case DHKEM_X448_HKDF_SHA512:
-            hpke->Nsecret = 64;
-            hpke->Nh = 64;
+            hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
+            hpke->Nh = WC_SHA512_DIGEST_SIZE;
             hpke->Ndh = 64;
             hpke->Npk = 56;
             /* hpke->curve_id = ECC_X448; */
@@ -197,15 +216,15 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     switch (aead)
     {
         case HPKE_AES_128_GCM:
-            hpke->Nk = 16;
-            hpke->Nn = 12;
-            hpke->Nt = 16;
+            hpke->Nk = AES_128_KEY_SIZE;
+            hpke->Nn = GCM_NONCE_MID_SZ;
+            hpke->Nt = AES_BLOCK_SIZE;
             break;
 
         case HPKE_AES_256_GCM:
-            hpke->Nk = 32;
-            hpke->Nn = 12;
-            hpke->Nt = 16;
+            hpke->Nk = AES_256_KEY_SIZE;
+            hpke->Nn = GCM_NONCE_MID_SZ;
+            hpke->Nt = AES_BLOCK_SIZE;
             break;
 
         default:
@@ -216,28 +235,28 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     return 0;
 }
 
-int wc_HpkeSerializePublicKey(ecc_key* key, byte* out, word32* outSz)
+int wc_HpkeSerializePublicKey(Hpke* hpke, ecc_key* key, byte* out,
+    word32* outSz)
 {
     int ret;
-    word32 qxLen;
-    word32 qyLen;
 
     if (key == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (outSz != NULL && *outSz < (word32)key->dp->size * 2 + 1) {
-        return BUFFER_E;
-    }
 
-    /* first byte indicates uncompressed public key */
-    out[0] = 0x04;
-    qxLen = qyLen = key->dp->size;
-
-    ret = wc_ecc_export_public_raw(key,
-        out + 1, &qxLen,
-        out + 1 + qxLen, &qyLen);
-    if (outSz) {
-        *outSz = (word32)key->dp->size * 2 + 1;
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            /* export x963 uncompressed */
+            ret = wc_ecc_export_x963_ex( key, out, outSz, 0 );
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+        case DHKEM_X448_HKDF_SHA512:
+        default:
+            ret = -1;
+            break;
     }
 
     return ret;
@@ -256,14 +275,25 @@ int wc_HpkeDeserializePublicKey(Hpke* hpke, ecc_key* key, const byte* in,
         return BUFFER_E;
     }
 
-    /* import +1 to skip the leading x.963 byte */
-    ret = wc_ecc_init(key);
-    if (ret == 0) {
-        ret = wc_ecc_import_unsigned(key,
-            in + 1,
-            in + 1 + (hpke->Npk / 2),
-            NULL,
-            hpke->curve_id);
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            /* init the ecc key */
+            ret = wc_ecc_init(key);
+
+            /* import the x963 key */
+            if (ret == 0) {
+                ret = wc_ecc_import_x963_ex(in, inSz, key, hpke->curve_id);
+            }
+
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+        case DHKEM_X448_HKDF_SHA512:
+        default:
+            ret = -1;
+            break;
     }
 
     return ret;
@@ -443,6 +473,7 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 
 static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context, byte* out)
 {
+    int i;
     int ret;
     byte seq_bytes[HPKE_Nn_MAX];
 
@@ -450,8 +481,7 @@ static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context, byte
      * nonce */
     ret = I2OSP(context->seq, hpke->Nn, seq_bytes);
     if (ret == 0) {
-        int i;
-        for (i = 0; i < hpke->Nn; i++) {
+        for (i = 0; i < (int)hpke->Nn; i++) {
             out[i] = (context->base_nonce[i] ^ seq_bytes[i]);
         }
     }
@@ -593,6 +623,7 @@ static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pu
 {
     int ret;
     word32 dh_len;
+    word32 receiverPubKeySz = hpke->Npk;
 #ifndef WOLFSSL_SMALL_STACK
     ecc_key ephemeralKey[1];
     byte dh[HPKE_Ndh_MAX];
@@ -633,7 +664,7 @@ static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pu
 
         /* serialize ephemeralKey */
         if (ret == 0) {
-            ret = wc_HpkeSerializePublicKey(ephemeralKey, pubKey, pubKeySz);
+            ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, pubKeySz);
         }
 
         /* free ephemeralKey */
@@ -645,8 +676,8 @@ static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pu
         XMEMCPY(kemContext, pubKey, hpke->Npk);
 
         /* serialize pkR into kemContext */
-        ret = wc_HpkeSerializePublicKey(hpke->receiver_key,
-            kemContext + hpke->Npk, NULL);
+        ret = wc_HpkeSerializePublicKey(hpke, hpke->receiver_key,
+            kemContext + hpke->Npk, &receiverPubKeySz);
     }
 
     /* compute the shared secret */
@@ -789,6 +820,7 @@ static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 {
     int ret;
     word32 dh_len;
+    word32 receiverPubKeySz = hpke->Npk;
 #ifndef WOLFSSL_SMALL_STACK
     ecc_key ephemeralKey[1];
     byte dh[HPKE_Ndh_MAX];
@@ -835,8 +867,8 @@ static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
         XMEMCPY(kemContext, pubKey, hpke->Npk);
 
         /* serialize pkR into kemContext */
-        ret = wc_HpkeSerializePublicKey(hpke->receiver_key,
-            kemContext + hpke->Npk, NULL);
+        ret = wc_HpkeSerializePublicKey(hpke, hpke->receiver_key,
+            kemContext + hpke->Npk, &receiverPubKeySz);
     }
 
     /* compute the shared secret */
