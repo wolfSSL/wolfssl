@@ -909,8 +909,11 @@ static const char* bench_Usage_msg1[][21] = {
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
         "-no_aad     No additional authentication data passed.\n",
         "-aad_size <num>   With <num> bytes of AAD.\n",
-        "-all_aad    With AAD length of 0, " WC_STRINGIFY(AES_AUTH_ADD_SZ) " and\n"
-        "            (if set via -aad_size) <aad_size> bytes.\n",
+       ("-all_aad    With AAD length of 0, "
+                     WC_STRINGIFY(AES_AUTH_ADD_SZ)
+                     " and\n"
+        "            (if set via -aad_size) <aad_size> bytes.\n"
+       ),
         "-dgst_full  Full digest operation performed.\n",
         "-rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.\n",
         "<keySz> -rsa-sz\n            Measure RSA <key size> performance.\n",
@@ -923,9 +926,10 @@ static const char* bench_Usage_msg1[][21] = {
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
-        "-blocks <num>  Number of blocks. Can be used together with the 'Size of block'\n"
+       ("-blocks <num>  Number of blocks. Can be used together with the 'Size of block'\n"
         "            option, but must be used after that one.\n"
-        "-threads <num> Number of threads to run\n",
+        "-threads <num> Number of threads to run\n"
+       ),
         "-print      Show benchmark stats summary\n"
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1297,7 +1301,7 @@ static const char* bench_result_words2[][5] = {
             #define AES_AAD_OPTIONS_DEFAULT 0x3U
         #endif
     #endif
-    #define AES_AAD_STRING(s)           (aesAuthAddSz == 0 ? s "-no_AAD" : (aesAuthAddSz == AES_AUTH_ADD_SZ ? s : s "-custom"))
+    #define AES_AAD_STRING(s)           (aesAuthAddSz == 0 ? (s "-no_AAD") : (aesAuthAddSz == AES_AUTH_ADD_SZ ? (s) : (s "-custom")))
     enum en_aad_options {
         AAD_SIZE_DEFAULT = 0x1U,
         AAD_SIZE_ZERO = 0x2U,
