@@ -16,7 +16,8 @@
 #  Preamble
 ###
 
-readonly my_path=$(dirname $(readlink -f $0))
+my_path=$(dirname $(readlink -f $0)) || exit $?
+readonly my_path
 readonly csv_path_suffix="$1"
 
 readonly common_opts="-blocks 128"

@@ -15,15 +15,16 @@
 
 
 if (return 0 2>/dev/null); then
-    [ "$my_path" != "" ] || { echo "\$my_path must not be empty"; return 1; }
+    [[ -v my_path ]] || { echo "\$my_path must not be empty"; return 1; }
 else
     echo "This script shall only be sourced"
     exit 1
 fi
 
 readonly tty="${WC_TTY:-/dev/ttyUSB2}"
-readonly fifo="$(mktemp -u)"
-readonly csv_path="${my_path}/data/results${csv_path_suffix}"
+fifo="$(mktemp -u)" || exit $?
+readonly fifo
+readonly csv_path="${my_path}/data/results${csv_path_suffix:-}"
 
 function status_echo() {
     [ "$VERBOSE" = "0" ] || echo "$*"
@@ -83,7 +84,7 @@ function process_csv() {
                 [ "$VERBOSE" = "1" ] && echo "$1"
             else
                 echo "finished" > $fifo
-                read_tty_ret=return
+                read_tty_ret='return'
             fi
             ;;
     esac
@@ -107,6 +108,10 @@ function bench() {
 ###
 
 function small_block() {
+    if [[ ! -v small_block_sizes ]]; then
+        echo '$small_block_sizes is unset.' 1>&2
+        return 1
+    fi
     for blocksize in $small_block_sizes
     do
         status_echo "Benchmark with $blocksize bytes sized blocks"
@@ -119,6 +124,18 @@ function small_block() {
 }
 
 function large_block() {
+    if [[ ! -v large_block_ciphers ]]; then
+        echo '$large_block_ciphers is unset.' 1>&2
+        return 1
+    fi
+    if [[ ! -v large_max_blocksize ]]; then
+        echo '$large_max_blocksize is unset.' 1>&2
+        return 1
+    fi
+    if [[ ! -v large_num_bytes ]]; then
+        echo '$large_num_bytes is unset.' 1>&2
+        return 1
+    fi
     # 1 MiB
     local blocksize=$((1024 * 1024))
     while [ $blocksize -lt $large_max_blocksize ]

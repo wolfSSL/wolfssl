@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2043 # noise.  fine for a loop to run only once.
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
@@ -9,7 +10,8 @@
 #  Preamble
 ###
 
-readonly my_path="$(dirname $(readlink -f $0))"
+my_path="$(dirname $(readlink -f $0))" || exit $?
+readonly my_path
 readonly csv_path="$my_path/data"
 readonly log_path="$csv_path/logs"
 readonly img_path="$csv_path/images"
@@ -45,7 +47,8 @@ readonly desc_block_ciphers="Benchmarks were done with growing sample size and a
 readonly desc_asymmetric="Benchmarks were done with averaging over\nas many repetitions possible of the benchmarked operation in 1s"
 readonly desc_others="Benchmarks were done with 1MiB block size and averaging over\nas many repetitions possible of processing 5MiB data in 1s"
 
-readonly configs=$(find $csv_path -type d -name '*results*' | sed 's@.*results_@@g')
+configs=$(find $csv_path -type d -name '*results*' | sed 's@.*results_@@g') || exit $?
+readonly configs
 
 ###
 #  Symmetric crypto
@@ -71,7 +74,7 @@ gcm_yrange="${gcm_yrange:=500}"
 for mode in $sym
 do
     infile="$csv_path/combined_${mode}.csv"
-    for dir in ${!directions[@]}
+    for dir in "${!directions[@]}"
     do
         plotstring=
         more_style=
@@ -85,18 +88,18 @@ do
                     if [ "$val" != "" ]; then
                         echo "$val" > $outfile
                         [ -z "$plotstring" ] && plotstring="plot" || plotstring="${plotstring},"
-                        plotstring="${plotstring} '"$outfile"' smooth bezier title \"$cfg AES$bsize\""
+                        plotstring="${plotstring} '$outfile' smooth bezier title \"$cfg AES$bsize\""
                     fi
                     [ "$mode" == "cbc" -a "$cbc_yrange" != "" ] && more_style="set yrange [ 0 : $cbc_yrange ]"
                 else
-                    for aad in ${!aad_sizes[@]}
+                    for aad in "${!aad_sizes[@]}"
                     do
                         outfile=$log_path/${mode}${bsize}_${cfg}_${dir}_${aad}.log
                         val="$(cg config $cfg $infile | cg blocksize $bsize | cg direction $dir | cg AAD $aad | csvcut -c chunksize,MiB/s | tail -n +2 | tr ',' ' ')"
                         if [ "$val" != "" ]; then
                             echo "$val" > $outfile
                             [ -z "$plotstring" ] && plotstring="plot" || plotstring="${plotstring},"
-                            plotstring="${plotstring} '"$outfile"' smooth bezier title \"$cfg AES$bsize ${aad_sizes[$aad]} AAD\""
+                            plotstring="${plotstring} '$outfile' smooth bezier title \"$cfg AES$bsize ${aad_sizes[$aad]} AAD\""
                         fi
                     done
                     [ "$mode" == "gcm" -a "$gcm_yrange" != "" ] && more_style="set yrange [ 0 : $gcm_yrange ]"
@@ -125,7 +128,7 @@ done
 for mode in gcm
 do
     infile="$csv_path/combined_${mode}.csv"
-    for dir in ${!directions[@]}
+    for dir in "${!directions[@]}"
     do
         for bsize in $(csvcut -c blocksize $infile | tail -n +2 | sort -u)
         do
@@ -133,14 +136,14 @@ do
             more_style="set yrange [ 0 : $gcm_yrange ]"
             for cfg in $configs
             do
-                for aad in ${!aad_sizes[@]}
+                for aad in "${!aad_sizes[@]}"
                 do
                     outfile=$log_path/${mode}${bsize}_${cfg}_${dir}_${aad}.log
                     val="$(cg config $cfg $infile | cg blocksize $bsize | cg direction $dir | cg AAD $aad | csvcut -c chunksize,MiB/s | tail -n +2 | tr ',' ' ')"
                     if [ "$val" != "" ]; then
                         echo "$val" > $outfile
                         [ -z "$plotstring" ] && plotstring="plot" || plotstring="${plotstring},"
-                        plotstring="${plotstring} '"$outfile"' smooth bezier title \"$cfg AES$bsize ${aad_sizes[$aad]} AAD\""
+                        plotstring="${plotstring} '$outfile' smooth bezier title \"$cfg AES$bsize ${aad_sizes[$aad]} AAD\""
                     fi
                 done
             done
@@ -168,7 +171,7 @@ declare -A asym_operations
 asym_operations["ecc"]="keygen agree sign verify"
 asym_operations["rsa"]="keygen public private"
 
-for algo in ${!asym_operations[@]}
+for algo in "${!asym_operations[@]}"
 do
     infile="$csv_path/combined_${algo}.csv"
     for op in ${asym_operations[$algo]}
@@ -214,7 +217,7 @@ hash_sizes["sha3"]="384"
 plotstring=
 outfile=$log_path/sha.log
 echo -n "" > $outfile
-for algo in ${!hash_sizes[@]}
+for algo in "${!hash_sizes[@]}"
 do
     infile="$csv_path/combined_${algo}.csv"
     for hsize in ${hash_sizes[$algo]}
@@ -255,7 +258,7 @@ macs["cmac"]="128 256"
 plotstring=
 outfile=$log_path/mac.log
 echo -n "" > $outfile
-for algo in ${!macs[@]}
+for algo in "${!macs[@]}"
 do
     infile="$csv_path/combined_${algo}.csv"
     for hsize in ${macs[$algo]}
