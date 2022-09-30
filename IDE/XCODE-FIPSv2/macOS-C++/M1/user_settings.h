@@ -666,7 +666,7 @@ extern "C" {
 //#define NO_SIG_WRAPPER
 
 /* wolfSSL engineering ACVP algo and operational testing only (Default: Off) */
-#if 1
+#if 0
     #undef WOLFSSL_PUBLIC_MP
     #define WOLFSSL_PUBLIC_MP
 
