@@ -253,6 +253,10 @@ AS_CASE([$ENABLED_WOLFENGINE],
         ENABLED_WOLFENGINE="yes"
         ENABLED_FIPS="v2"
     ],
+    [fips-v5],[
+        ENABLED_WOLFENGINE="yes"
+        ENABLED_FIPS="v5"
+    ],
     [fips-ready],[
         ENABLED_WOLFENGINE="yes"
         ENABLED_FIPS="ready"
@@ -7817,7 +7821,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_MD5_NAME"
 fi
 
-if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" = "no"
+if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" != "v2"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_LONG_SALT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
