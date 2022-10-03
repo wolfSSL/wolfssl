@@ -1502,29 +1502,49 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
                                  int (*finalfp)(wc_Sha512*, byte*))
 {
     int ret;
-    wc_Sha512 tmpSha512;
-
-    if (sha512 == NULL || hash == NULL)
-        return BAD_FUNC_ARG;
-
-#if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
-    if(sha512->ctx.mode == ESP32_SHA_INIT) {
-        esp_sha_try_hw_lock(&sha512->ctx);
-    }
-    if(sha512->ctx.mode != ESP32_SHA_SW)
-       esp_sha512_digest_process(sha512, 0);
+#ifdef WOLFSSL_SMALL_STACK
+    wc_Sha512* tmpSha512;
+#else
+    wc_Sha512  tmpSha512[1];
 #endif
 
-    ret = wc_Sha512Copy(sha512, &tmpSha512);
+    if (sha512 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpSha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpSha512 == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    if (sha512->ctx.mode == ESP32_SHA_INIT) {
+        esp_sha_try_hw_lock(&sha512->ctx);
+    }
+    if (sha512->ctx.mode != ESP32_SHA_SW) {
+       esp_sha512_digest_process(sha512, 0);
+    }
+#endif
+
+    ret = wc_Sha512Copy(sha512, tmpSha512);
     if (ret == 0) {
-        ret = finalfp(&tmpSha512, hash);
-#if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+        ret = finalfp(tmpSha512, hash);
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
         sha512->ctx.mode = ESP32_SHA_SW;;
 #endif
-        wc_Sha512Free(&tmpSha512);
+        wc_Sha512Free(tmpSha512);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -1735,36 +1755,58 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
 {
     int ret;
-    wc_Sha384 tmpSha384;
+#ifdef WOLFSSL_SMALL_STACK
+    wc_Sha384* tmpSha384;
+#else
+    wc_Sha384  tmpSha384[1];
+#endif
 
-    if (sha384 == NULL || hash == NULL)
+    if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
-#if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpSha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpSha384 == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
-    if(sha384->ctx.mode == ESP32_SHA_INIT) {
+    if (sha384->ctx.mode == ESP32_SHA_INIT) {
         esp_sha_try_hw_lock(&sha384->ctx);
     }
-    if(sha384->ctx.mode != ESP32_SHA_SW) {
+    if (sha384->ctx.mode != ESP32_SHA_SW) {
         esp_sha512_digest_process(sha384, 0);
     }
 #endif
-    ret = wc_Sha384Copy(sha384, &tmpSha384);
+    ret = wc_Sha384Copy(sha384, tmpSha384);
     if (ret == 0) {
-        ret = wc_Sha384Final(&tmpSha384, hash);
-#if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+        ret = wc_Sha384Final(tmpSha384, hash);
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
         sha384->ctx.mode = ESP32_SHA_SW;
 #endif
-        wc_Sha384Free(&tmpSha384);
+        wc_Sha384Free(tmpSha384);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
+
 int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 {
     int ret = 0;
 
-    if (src == NULL || dst == NULL)
+    if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 #ifdef WOLFSSL_SMALL_STACK_CACHE

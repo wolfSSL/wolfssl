@@ -2377,9 +2377,6 @@ extern void uITRON4_free(void *p) ;
     #ifndef USE_WOLF_STRTOK
         #define USE_WOLF_STRTOK
     #endif
-    #ifndef WOLFSSL_SP_DIV_WORD_HALF
-        #define WOLFSSL_SP_DIV_WORD_HALF
-    #endif
     #ifndef WOLFSSL_OLD_PRIME_CHECK
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif

@@ -87,6 +87,7 @@ ASN Options:
  * WOLFSSL_CERT_NAME_ALL: Adds more certificate name capability at the
     cost of taking up more memory. Adds initials, givenname, dnQualifer for
     example.
+ * WC_ASN_HASH_SHA256: Force use of SHA2-256 for the internal hash ID calcs.
 */
 
 #ifndef NO_ASN
@@ -12014,7 +12015,7 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 {
     int ret;
 
-#if defined(NO_SHA) && !defined(NO_SHA256)
+#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     ret = wc_Sha256Hash(data, len, hash);
 #elif !defined(NO_SHA)
     ret = wc_ShaHash(data, len, hash);
@@ -23530,7 +23531,7 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
     return ret;
 }
 
-
+#ifdef WOLFSSL_ENCRYPTED_KEYS
 /* our KeyPemToDer password callback, password in userData */
 static int KeyPemToDerPassCb(char* passwd, int sz, int rw, void* userdata)
 {
@@ -23542,6 +23543,7 @@ static int KeyPemToDerPassCb(char* passwd, int sz, int rw, void* userdata)
     XSTRNCPY(passwd, (char*)userdata, sz);
     return min((word32)sz, (word32)XSTRLEN((char*)userdata));
 }
+#endif
 
 /* Return bytes written to buff or < 0 for error */
 int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
@@ -23570,8 +23572,12 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
 #endif
 
     XMEMSET(info, 0, sizeof(EncryptedInfo));
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     info->passwd_cb = KeyPemToDerPassCb;
     info->passwd_userdata = (void*)pass;
+#else
+    (void)pass;
+#endif
 
     ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, info, NULL);
 

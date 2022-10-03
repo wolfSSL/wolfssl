@@ -2306,11 +2306,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 {
   mp_digit buf, mp;
   int      err = MP_OKAY, bitbuf, bitcpy, bitcnt, digidx, x, y;
-#ifdef WOLFSSL_SMALL_STACK
-  mp_int  *res = NULL;
-#else
   mp_int   res[1];
-#endif
   int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
   /* automatically pick the comba one if available (saves quite a few
@@ -2331,13 +2327,6 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
   if (redux == NULL) {
       return MP_VAL;
   }
-
-#ifdef WOLFSSL_SMALL_STACK
-  res = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (res == NULL) {
-     return MP_MEM;
-  }
-#endif
 
   /* now setup montgomery  */
   if ((err = mp_montgomery_setup(P, &mp)) != MP_OKAY) {
@@ -2449,9 +2438,6 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 
 LBL_RES:mp_clear (res);
 LBL_M:
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
   return err;
 }
 
@@ -2526,12 +2512,13 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_word*)XMALLOC(sizeof(mp_word) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
+  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 1), NULL,
+    DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
 
-  XMEMSET(W, 0, (n->used * 2 + 1) * sizeof(mp_word));
+  XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 1));
 
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
@@ -3349,7 +3336,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -3468,7 +3455,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -4203,13 +4190,12 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
 
   /* number of output digits to produce */
-  pa = a->used + b->used;
   _W = 0;
   for (ix = digs; ix < pa; ix++) { /* JRB, have a->dp check at top of function*/
       int      tx, ty, iy;

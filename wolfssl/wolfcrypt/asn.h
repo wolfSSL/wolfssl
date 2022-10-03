@@ -872,7 +872,7 @@ enum Misc_ASN {
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
-#ifdef NO_SHA
+#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     KEYID_SIZE          = WC_SHA256_DIGEST_SIZE,
 #else
     KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
@@ -1591,7 +1591,7 @@ struct DecodedCert {
     byte    issuerHash[KEYID_SIZE];  /* hash of all Names                */
 #ifdef HAVE_OCSP
     byte    subjectKeyHash[KEYID_SIZE]; /* hash of the public Key         */
-    byte    issuerKeyHash[KEYID_SIZE]; /* hash of the public Key         */
+    byte    issuerKeyHash[KEYID_SIZE];  /* hash of the public Key         */
 #endif /* HAVE_OCSP */
     const byte* signature;           /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
