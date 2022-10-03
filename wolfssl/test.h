@@ -1658,9 +1658,9 @@ static int wolfsentry_setup(
     {
         struct wolfsentry_route_table *table;
 
-        if ((ret = wolfsentry_route_get_table_static(*_wolfsentry,
+        if ((ret = wolfsentry_route_get_main_table(*_wolfsentry,
                                                                 &table)) < 0)
-            fprintf(stderr, "wolfsentry_route_get_table_static() returned "
+            fprintf(stderr, "wolfsentry_route_get_main_table() returned "
                     WOLFSENTRY_ERROR_FMT "\n",
                     WOLFSENTRY_ERROR_FMT_ARGS(ret));
 
@@ -1695,7 +1695,7 @@ static int wolfsentry_setup(
             XMEMCPY(remote.addr, "\177\000\000\001", 4);
 #endif
 
-            if ((ret = wolfsentry_route_insert_static
+            if ((ret = wolfsentry_route_insert
                  (*_wolfsentry, NULL /* caller_context */,
                   (const struct wolfsentry_sockaddr *)&remote,
                   (const struct wolfsentry_sockaddr *)&local,
@@ -1710,7 +1710,7 @@ static int wolfsentry_setup(
                   WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
                   0 /* event_label_len */, 0 /* event_label */, &id,
                   &action_results)) < 0) {
-                fprintf(stderr, "wolfsentry_route_insert_static() returned "
+                fprintf(stderr, "wolfsentry_route_insert() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
                 return ret;
@@ -1743,7 +1743,7 @@ static int wolfsentry_setup(
             XMEMCPY(remote.addr, "\177\000\000\001", 4);
 #endif
 
-            if ((ret = wolfsentry_route_insert_static
+            if ((ret = wolfsentry_route_insert
                  (*_wolfsentry, NULL /* caller_context */,
                   (const struct wolfsentry_sockaddr *)&remote, (const struct wolfsentry_sockaddr *)&local,
                   route_flags                                    |
@@ -1757,7 +1757,7 @@ static int wolfsentry_setup(
                   WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
                   0 /* event_label_len */, 0 /* event_label */, &id,
                   &action_results)) < 0) {
-                fprintf(stderr, "wolfsentry_route_insert_static() returned "
+                fprintf(stderr, "wolfsentry_route_insert() returned "
                         WOLFSENTRY_ERROR_FMT "\n",
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
                 return ret;
