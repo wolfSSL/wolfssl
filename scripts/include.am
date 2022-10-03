@@ -118,3 +118,5 @@ if BUILD_DTLS13
 EXTRA_DIST += scripts/dtls13.test
 EXTRA_DIST += scripts/dtlscid.test
 endif
+
+EXTRA_DIST += scripts/bench/bench_functions.sh

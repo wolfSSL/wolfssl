@@ -678,7 +678,6 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 /* VARIOUS LOW LEVEL STUFFS */
 int  s_fp_add(fp_int *a, fp_int *b, fp_int *c);
 void s_fp_sub(fp_int *a, fp_int *b, fp_int *c);
-void fp_reverse(unsigned char *s, int len);
 
 int  fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
 

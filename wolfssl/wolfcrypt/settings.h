@@ -1641,8 +1641,10 @@ extern void uITRON4_free(void *p) ;
 
 
 #if defined(WOLFSSL_XILINX)
+    #if !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+        #define NO_DEV_RANDOM
+    #endif
     #define NO_WOLFSSL_DIR
-    #define NO_DEV_RANDOM
     #define HAVE_AESGCM
 #endif
 
@@ -1935,7 +1937,16 @@ extern void uITRON4_free(void *p) ;
 /* user can specify what curves they want with ECC_USER_CURVES otherwise
  * all curves are on by default for now */
 #ifndef ECC_USER_CURVES
-    #if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_ALL_CURVES)
+    #ifdef WOLFSSL_SP_MATH
+        /* for single precision math only make sure the enabled key sizes are
+         * included in the ECC curve table */
+        #if defined(WOLFSSL_SP_384) && !defined(HAVE_ECC384)
+            #define HAVE_ECC384
+        #endif
+        #if defined(WOLFSSL_SP_521) && !defined(HAVE_ECC521)
+            #define HAVE_ECC521
+        #endif
+    #elif !defined(HAVE_ALL_CURVES)
         #define HAVE_ALL_CURVES
     #endif
 #endif

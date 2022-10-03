@@ -83,6 +83,15 @@ int __putchar(int c, __printf_tag_ptr ctx)
     hw_uart_printchar(c);
 }
 
+/* C library support function to write buffer (always to UART) */
+int __write(int __fildes, const unsigned char *__buf, unsigned __len)
+{
+    (void)__fildes;
+    for (unsigned i = 0; i < __len; i++) {
+        hw_uart_printchar((int)__buf[i]);
+    }
+}
+
 extern unsigned char __stack_process_start__[];
 unsigned char * __aeabi_read_tp(void)
 {

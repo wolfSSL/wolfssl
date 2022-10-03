@@ -53,6 +53,25 @@ echo "End of section"
 echo "---------------------------------------------------------------------"
 
 ############################################################
+####### update server-mix-rsapss.pem signed by ca ##########
+############################################################
+echo "Updating server-mix-rsapss.pem"
+echo ""
+#pipe the following arguments to openssl req...
+echo -e "US\\nMontana\\nBozeman\\nwolfSSL_RSAPSS\\nServer-MIX-RSAPSS\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -out server-mix-rsapss.csr
+check_result $? "Generate request"
+
+openssl x509 -req -in server-mix-rsapss.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions server_ecc -CA ../ca-cert.pem -CAkey ../ca-key.pem -sigopt rsa_padding_mode:pss -set_serial 01 -out server-mix-rsapss-cert.pem
+check_result $? "Generate certificate"
+rm server-mix-rsapss.csr
+
+openssl x509 -in server-mix-rsapss-cert.pem -text > tmp.pem
+check_result $? "Add text"
+mv tmp.pem server-mix-rsapss-cert.pem
+echo "End of section"
+echo "---------------------------------------------------------------------"
+
+############################################################
 ####### update server-rsapss.pem signed by ca ##############
 ############################################################
 echo "Updating server-rsapss.pem"

@@ -774,6 +774,11 @@ enum AlertDescription {
     no_application_protocol         = 120
 };
 
+#ifdef WOLFSSL_MYSQL_COMPATIBLE
+#define wolfssl_alert_protocol_version wc_protocol_version
+#else
+#define wolfssl_alert_protocol_version protocol_version
+#endif
 
 enum AlertLevel {
     alert_none = 0, /* Used to indicate no alert level is set */
@@ -1070,6 +1075,10 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(
     WOLFSSL_CTX* ctx, const char* file, const char* path, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_load_verify_locations(
     WOLFSSL_CTX* ctx, const char* file, const char* path);
+#ifndef _WIN32
+WOLFSSL_API const char** wolfSSL_get_system_CA_dirs(word32* num);
+#endif /* !_WIN32 */
+WOLFSSL_API int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx);
 #ifdef WOLFSSL_TRUST_PEER_CERT
 WOLFSSL_API int wolfSSL_CTX_trust_peer_cert(
     WOLFSSL_CTX* ctx, const char* file, int type);

@@ -10397,13 +10397,8 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         else {
             WOLFSSL_MSG("SSL version error");
             /* send alert per RFC5246 Appendix E. Backward Compatibility */
-            if (ssl->options.side == WOLFSSL_CLIENT_END) {
-#ifdef WOLFSSL_MYSQL_COMPATIBLE
-                SendAlert(ssl, alert_fatal, wc_protocol_version);
-#else
-                SendAlert(ssl, alert_fatal, protocol_version);
-#endif
-            }
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
         }
@@ -18468,24 +18463,12 @@ const char* AlertTypeToString(int type)
                 return decrypt_error_str;
             }
 
-    #ifdef WOLFSSL_MYSQL_COMPATIBLE
-    /* catch name conflict for enum protocol with MYSQL build */
-        case wc_protocol_version:
-            {
-                static const char wc_protocol_version_str[] =
-                    "wc_protocol_version";
-                return wc_protocol_version_str;
-            }
-
-    #else
-        case protocol_version:
+        case wolfssl_alert_protocol_version:
             {
                 static const char protocol_version_str[] =
                     "protocol_version";
                 return protocol_version_str;
             }
-
-    #endif
         case insufficient_security:
             {
                 static const char insufficient_security_str[] =
@@ -18869,7 +18852,55 @@ static int HandleDTLSDecryptFailed(WOLFSSL* ssl)
     WOLFSSL_MSG("DTLS: Ignoring failed decryption");
     return ret;
 }
-#endif
+
+static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
+{
+    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "on established connection.");
+        return 1;
+    }
+
+    if ((ssl->options.handShakeDone && retcode != 0)
+        || retcode == SEQUENCE_ERROR || retcode == DTLS_CID_ERROR) {
+        WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
+        return 1;
+    }
+
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version) && !w64IsZero(ssl->dtls13Epoch)
+            && w64IsZero(ssl->keys.curEpoch64) && ssl->curRL.type != ack) {
+        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
+                    "during encrypted handshake.");
+        return 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+#ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END
+            && ssl->curRL.type != handshake) {
+        int beforeCookieVerified = 0;
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            beforeCookieVerified =
+                ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE;
+        }
+#ifdef WOLFSSL_DTLS13
+        else {
+            beforeCookieVerified =
+                ssl->options.acceptState < TLS13_ACCEPT_SECOND_REPLY_DONE;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
+        if (beforeCookieVerified) {
+            WOLFSSL_MSG("Drop non-handshake record before handshake");
+            return 1;
+        }
+    }
+#endif /* NO_WOLFSSL_SERVER */
+
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
 
 int ProcessReply(WOLFSSL* ssl)
 {
@@ -19064,16 +19095,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                if ((ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0))
-                        || ret == SEQUENCE_ERROR || ret == DTLS_CID_ERROR) {
-                    if (ssl->options.handShakeDone && !IsEncryptionOn(ssl, 0)) {
-                        WOLFSSL_MSG("Silently dropping plaintext DTLS message "
-                                    "on established connection.");
-                    }
-                    else {
-                        WOLFSSL_MSG("Silently dropping DTLS message");
-                    }
+            if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                     ssl->options.processReply = doProcessInit;
                     ssl->buffers.inputBuffer.length = 0;
                     ssl->buffers.inputBuffer.idx = 0;
@@ -19089,7 +19111,6 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif /* WOLFSSL_DTLS13 */
 
                     continue;
-                }
             }
 #endif
             if (ret != 0)
@@ -33982,8 +34003,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
             /* Resumption master secret. */
             XMEMCPY(it->msecret, ssl->session->masterSecret, SECRET_LEN);
-            XMEMCPY(&it->ticketNonce, &ssl->session->ticketNonce,
-                                                           sizeof(TicketNonce));
+            if (ssl->session->ticketNonce.len > MAX_TICKET_NONCE_STATIC_SZ) {
+                WOLFSSL_MSG("Bad ticket nonce value");
+                ret = BAD_TICKET_MSG_SZ;
+                goto error;
+            }
+            XMEMCPY(it->ticketNonce, ssl->session->ticketNonce.data,
+                ssl->session->ticketNonce.len);
+            it->ticketNonceLen = ssl->session->ticketNonce.len;
 #endif
         }
 
@@ -34166,9 +34193,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
         }
-        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE) {
-            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
-            return WOLFSSL_TICKET_RET_REJECT;
+        if (ret != WOLFSSL_TICKET_RET_OK) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                return ret;
+            }
+        #endif /* WOLFSSL_ASYNC_CRYPT */
+            if (ret != WOLFSSL_TICKET_RET_CREATE) {
+                WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
+                return WOLFSSL_TICKET_RET_REJECT;
+            }
         }
         if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
@@ -34259,8 +34293,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
-                XMEMCPY(&ssl->session->ticketNonce, &it->ticketNonce,
-                                                           sizeof(TicketNonce));
+                if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+                    WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
+                    return BAD_TICKET_ENCRYPT;
+                }
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+                if (ssl->session->ticketNonce.data
+                       != ssl->session->ticketNonce.dataStatic) {
+                    XFREE(ssl->session->ticketNonce.data, ssl->heap,
+                        DYNAMIC_TYPE_SESSION_TICK);
+                    ssl->session->ticketNonce.data =
+                        ssl->session->ticketNonce.dataStatic;
+                }
+#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
+                XMEMCPY(ssl->session->ticketNonce.data, it->ticketNonce,
+                    it->ticketNonceLen);
+                ssl->session->ticketNonce.len = it->ticketNonceLen;
                 ato16(it->namedGroup, &ssl->session->namedGroup);
 #endif
             }

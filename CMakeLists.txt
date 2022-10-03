@@ -28,16 +28,16 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.5.0 LANGUAGES C ASM)
+project(wolfssl VERSION 5.5.1 LANGUAGES C ASM)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 35)
+set(LIBTOOL_CURRENT 36)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 0)
+set(LIBTOOL_AGE 1)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
@@ -1340,6 +1340,15 @@ if(WOLFSSL_SESSION_TICKET)
         "-DHAVE_SESSION_TICKET")
 endif()
 
+add_option("WOLFSSL_TICKET_NONCE_MALLOC"
+    "Enable dynamic allocation of ticket nonces (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_TICKET_NONCE_MALLOC)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_TICKET_NONCE_MALLOC")
+endif()
+
 # Extended master secret extension
 add_option("WOLFSSL_EXTENDED_MASTER"
     "Enable Extended Master Secret (default: enabled)"
@@ -1552,6 +1561,10 @@ add_option("WOLFSSL_CRYPT_TESTS"
 
 add_option("WOLFSSL_CRYPT_TESTS_LIBS"
     "Build static libraries from the wolfCrypt test and benchmark sources (default: disabled)"
+    "no" "yes;no")
+
+add_option("WOLFSSL_CRYPT_TESTS_HELP"
+    "Add help text to wolfCrypt test (default: disabled)"
     "no" "yes;no")
 
 # TODO: - LIBZ
@@ -1974,6 +1987,9 @@ if(WOLFSSL_CRYPT_TESTS)
         set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
         target_link_libraries(wolfcrypttest_lib wolfssl)
         target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
+        if(WOLFSSL_CRYPT_TESTS_HELP)
+            target_compile_options(wolfcrypttest_lib PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+        endif()
 
         # Make another library for the wolfCrypt benchmark code.
         add_library(wolfcryptbench_lib
@@ -1993,6 +2009,9 @@ if(WOLFSSL_CRYPT_TESTS)
     set_property(TARGET wolfcrypttest
                  PROPERTY RUNTIME_OUTPUT_NAME
                  testwolfcrypt)
+    if(WOLFSSL_CRYPT_TESTS_HELP)
+        target_compile_options(wolfcrypttest PRIVATE "-DHAVE_WOLFCRYPT_TEST_OPTIONS")
+    endif()
 
     # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
