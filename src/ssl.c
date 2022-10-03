@@ -162,6 +162,15 @@
 #endif
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 
+#ifdef _WIN32
+#include <Wincrypt.h>
+#pragma comment(lib, "crypt32")
+#endif
+
+#ifdef __APPLE__
+# include <Security/SecTrustSettings.h>
+#endif
+
 /*
  * OPENSSL_COMPATIBLE_DEFAULTS:
  *     Enable default behaviour that is compatible with OpenSSL. For example
@@ -8041,7 +8050,119 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
 }
 
-#ifndef _WIN32
+#ifdef USE_WINDOWS_API
+
+static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
+{
+    int ret = WOLFSSL_SUCCESS;
+    word32 i;
+    HANDLE handle = NULL;
+    PCCERT_CONTEXT certCtx = NULL;
+    LPCSTR storeNames[2] = {"ROOT", "CA"};
+    HCRYPTPROV_LEGACY hProv = (HCRYPTPROV_LEGACY)NULL;
+
+    if (ctx == NULL || loaded == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; ret == WOLFSSL_SUCCESS &&
+         i < sizeof(storeNames)/sizeof(*storeNames); ++i) {
+        handle = CertOpenSystemStoreA(hProv, storeNames[i]);
+        if (handle != NULL) {
+            while (certCtx = CertEnumCertificatesInStore(handle,
+                   certCtx)) {
+                if (certCtx->dwCertEncodingType == X509_ASN_ENCODING) {
+                    if (ProcessBuffer(ctx, certCtx->pbCertEncoded,
+                          certCtx->cbCertEncoded, WOLFSSL_FILETYPE_ASN1,
+                          CA_TYPE, NULL, NULL, 0,
+                          GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
+                        /*
+                         * Set "loaded" as long as we've loaded one CA
+                         * cert.
+                         */
+                        *loaded = 1;
+                    }
+                }
+            }
+        }
+        else {
+            WOLFSSL_MSG_EX("Failed to open cert store %s.", storeNames[i]);
+        }
+
+        if (handle != NULL && !CertCloseStore(handle, 0)) {
+            WOLFSSL_MSG_EX("Failed to close cert store %s.", storeNames[i]);
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    return ret;
+}
+
+#elif defined(__APPLE__)
+
+static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
+{
+    int ret = WOLFSSL_SUCCESS;
+    word32 i;
+    const unsigned int trustDomains[] = {
+        kSecTrustSettingsDomainUser,
+        kSecTrustSettingsDomainAdmin,
+        kSecTrustSettingsDomainSystem
+    };
+    CFArrayRef certs;
+    OSStatus stat;
+    CFIndex numCerts;
+    CFDataRef der;
+    CFIndex j;
+
+    if (ctx == NULL || loaded == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; ret == WOLFSSL_SUCCESS &&
+         i < sizeof(trustDomains)/sizeof(*trustDomains); ++i) {
+        stat = SecTrustSettingsCopyCertificates(trustDomains[i], &certs);
+
+        if (stat == errSecSuccess) {
+            numCerts = CFArrayGetCount(certs);
+            for (j = 0; j < numCerts; ++j) {
+                der = SecCertificateCopyData((SecCertificateRef)
+                          CFArrayGetValueAtIndex(certs, j));
+                if (der != NULL) {
+                    if (ProcessBuffer(ctx, CFDataGetBytePtr(der),
+                          CFDataGetLength(der), WOLFSSL_FILETYPE_ASN1,
+                          CA_TYPE, NULL, NULL, 0,
+                          GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
+                        /*
+                         * Set "loaded" as long as we've loaded one CA
+                         * cert.
+                         */
+                        *loaded = 1;
+                    }
+
+                    CFRelease(der);
+                }
+            }
+
+            CFRelease(certs);
+        }
+        else if (stat == errSecNoTrustSettings) {
+            WOLFSSL_MSG_EX("No trust settings for domain %d, moving to next "
+                "domain.", trustDomains[i]);
+        }
+        else {
+            WOLFSSL_MSG_EX("SecTrustSettingsCopyCertificates failed with"
+                " status %d.", stat);
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+#else
+
 /* Potential system CA certs directories on Linux distros. */
 static const char* systemCaDirs[] = {
     "/etc/ssl/certs",                   /* Debian, Ubuntu, Gentoo, others */
@@ -8063,53 +8184,61 @@ const char** wolfSSL_get_system_CA_dirs(word32* num)
 
     return ret;
 }
-#endif /* !_WIN32 */
+
+static int LoadSystemCaCertsNix(WOLFSSL_CTX* ctx, byte* loaded) {
+    int ret = WOLFSSL_SUCCESS;
+    word32 i;
+
+    if (ctx == NULL || loaded == NULL) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; ret == WOLFSSL_SUCCESS &&
+         i < sizeof(systemCaDirs)/sizeof(*systemCaDirs); ++i) {
+        WOLFSSL_MSG_EX("Attempting to load system CA certs from %s.",
+            systemCaDirs[i]);
+        /*
+         * We want to keep trying to load more CAs even if one cert in
+         * the directory is bad and can't be used (e.g. if one is expired),
+         * so we use WOLFSSL_LOAD_FLAG_IGNORE_ERR.
+         */
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, systemCaDirs[i],
+                WOLFSSL_LOAD_FLAG_IGNORE_ERR) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG_EX("Failed to load CA certs from %s, trying "
+                "next possible location.", systemCaDirs[i]);
+        }
+        else {
+            WOLFSSL_MSG_EX("Loaded CA certs from %s.",
+                systemCaDirs[i]);
+            *loaded = 1;
+            /* Stop searching after we've loaded one directory. */
+            break;
+        }
+    }
+
+    return ret;
+}
+
+#endif
 
 int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
 {
     int ret;
-#ifndef _WIN32
-    word32 i;
     byte loaded = 0;
-#endif
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_system_CA_certs");
 
-#ifdef _WIN32
-    (void)ctx;
-    ret = WOLFSSL_NOT_IMPLEMENTED;
+#ifdef USE_WINDOWS_API
+    ret = LoadSystemCaCertsWindows(ctx, &loaded);
+#elif defined(__APPLE__)
+    ret = LoadSystemCaCertsMac(ctx, &loaded);
 #else
-    if (ctx != NULL) {
-        for (i = 0; i < sizeof(systemCaDirs)/sizeof(*systemCaDirs); ++i) {
-            WOLFSSL_MSG_EX("Attempting to load system CA certs from %s.",
-                systemCaDirs[i]);
-            /*
-             * We want to keep trying to load more CAs even if one cert in
-             * the directory is bad and can't be used (e.g. if one is expired),
-             * so we use WOLFSSL_LOAD_FLAG_IGNORE_ERR.
-             */
-            if (wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, systemCaDirs[i],
-                    WOLFSSL_LOAD_FLAG_IGNORE_ERR) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG_EX("Failed to load CA certs from %s, trying "
-                    "next possible location.", systemCaDirs[i]);
-            }
-            else {
-                WOLFSSL_MSG_EX("Loaded CA certs from %s.",
-                    systemCaDirs[i]);
-                loaded = 1;
-                /* Stop searching after we've loaded one directory. */
-                break;
-            }
-        }
-    }
+    ret = LoadSystemCaCertsNix(ctx, &loaded);
+#endif
 
-    if (loaded) {
-        ret = WOLFSSL_SUCCESS;
-    }
-    else {
+    if (ret == WOLFSSL_SUCCESS && !loaded) {
         ret = WOLFSSL_BAD_PATH;
     }
-#endif
 
     WOLFSSL_LEAVE("wolfSSL_CTX_load_system_CA_certs", ret);
 
@@ -16248,13 +16377,6 @@ cleanup:
              * failure. We do the same here.
              */
             ret = WOLFSSL_SUCCESS;
-        }
-        else if (ret != WOLFSSL_SUCCESS) {
-            /*
-             * All other failure types map to WOLFSSL_FAILURE (0), same as
-             * OpenSSL.
-             */
-            ret = WOLFSSL_FAILURE;
         }
 
         WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);

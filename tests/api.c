@@ -1352,31 +1352,26 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx;
+    byte dirValid = 0;
 
     ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (ctx == NULL) {
+        fprintf(stderr, "wolfSSL_CTX_new failed.\n");
         ret = -1;
     }
     if (ret == 0) {
-#ifdef _WIN32
-        if (wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_NOT_IMPLEMENTED) {
-            ret = -1;
-        }
-#ifdef OPENSSL_EXTRA
-        if (wolfSSL_CTX_set_default_verify_paths(ctx) != WOLFSSL_FAILURE) {
-            ret = -1;
-        }
-#endif /* OPENSSL_EXTRA */
-#else
+    #if defined(USE_WINDOWS_API) || defined(__APPLE__)
+        dirValid = 1;
+    #else
         word32 numDirs;
         const char** caDirs = wolfSSL_get_system_CA_dirs(&numDirs);
 
         if (caDirs == NULL || numDirs == 0) {
+            fprintf(stderr, "wolfSSL_get_system_CA_dirs failed.\n");
             ret = -1;
         }
         else {
             ReadDirCtx dirCtx;
-            byte dirValid = 0;
             word32 i;
 
             for (i = 0; i < numDirs; ++i) {
@@ -1387,29 +1382,26 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
                     break;
                 }
             }
-
-            /*
-             * If the directory isn't empty, we should be able to load CA
-             * certs from it.
-             */
-            if (dirValid && wolfSSL_CTX_load_system_CA_certs(ctx) !=
-                WOLFSSL_SUCCESS) {
-                ret = -1;
-            }
-        #ifdef OPENSSL_EXTRA
-            /*
-             * Even if we don't have a valid directory to load system CA
-             * certs from, the OpenSSL compat layer function should return
-             * success.
-             */
-            if (wolfSSL_CTX_set_default_verify_paths(ctx)
-                != WOLFSSL_SUCCESS) {
-                ret = -1;
-            }
-        #endif /* OPENSSL_EXTRA */
         }
-#endif /* _WIN32 */
+    #endif
     }
+    /*
+     * If the directory isn't empty, we should be able to load CA
+     * certs from it. On Windows/Mac, we assume the CA cert stores are
+     * usable.
+     */
+    if (ret == 0 && dirValid && wolfSSL_CTX_load_system_CA_certs(ctx) !=
+        WOLFSSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_load_system_CA_certs failed.\n");
+        ret = -1;
+    }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 &&
+        wolfSSL_CTX_set_default_verify_paths(ctx) != WOLFSSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_set_default_verify_paths failed.\n");
+        ret = -1;
+    }
+#endif /* OPENSSL_EXTRA */
 
     wolfSSL_CTX_free(ctx);
 #endif /* !NO_FILESYSTEM && !NO_CERTS && !NO_WOLFSSL_CLIENT */

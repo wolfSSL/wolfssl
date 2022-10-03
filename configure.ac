@@ -940,7 +940,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
 fi
 
-
 # liboqs
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
@@ -7985,13 +7984,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
-
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
-# if mingw then link to ws2_32 for sockets
 case $host_os in
     mingw*)
+        # if mingw then link to ws2_32 for sockets
         LDFLAGS="$LDFLAGS -lws2_32"
         if test "$enable_shared" = "yes"
         then
@@ -8001,6 +7999,10 @@ case $host_os in
                 MINGW_LIB_WARNING="yes"
             fi
         fi ;;
+    *darwin*)
+        # For Mac we need these frameworks to load system CA certs
+        LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
+        ;;
 esac
 
 if test "$enable_shared" = "no"; then
