@@ -49536,26 +49536,91 @@ static void free_x509(X509* x)
 static int test_sk_X509(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS)
-    STACK_OF(X509)* s;
+    {
+        STACK_OF(X509)* s;
 
-    AssertNotNull(s = sk_X509_new());
-    AssertIntEQ(sk_X509_num(s), 0);
-    sk_X509_pop_free(s, NULL);
+        AssertNotNull(s = sk_X509_new());
+        AssertIntEQ(sk_X509_num(s), 0);
+        sk_X509_pop_free(s, NULL);
 
-    AssertNotNull(s = sk_X509_new_null());
-    AssertIntEQ(sk_X509_num(s), 0);
-    sk_X509_pop_free(s, NULL);
+        AssertNotNull(s = sk_X509_new_null());
+        AssertIntEQ(sk_X509_num(s), 0);
+        sk_X509_pop_free(s, NULL);
 
-    AssertNotNull(s = sk_X509_new());
-    sk_X509_push(s, (X509*)1);
-    AssertIntEQ(sk_X509_num(s), 1);
-    AssertIntEQ((sk_X509_value(s, 0) == (X509*)1), 1);
-    sk_X509_push(s, (X509*)2);
-    AssertIntEQ(sk_X509_num(s), 2);
-    AssertIntEQ((sk_X509_value(s, 0) == (X509*)2), 1);
-    AssertIntEQ((sk_X509_value(s, 1) == (X509*)1), 1);
-    sk_X509_push(s, (X509*)2);
-    sk_X509_pop_free(s, free_x509);
+        AssertNotNull(s = sk_X509_new());
+        sk_X509_push(s, (X509*)1);
+        AssertIntEQ(sk_X509_num(s), 1);
+        AssertIntEQ((sk_X509_value(s, 0) == (X509*)1), 1);
+        sk_X509_push(s, (X509*)2);
+        AssertIntEQ(sk_X509_num(s), 2);
+        AssertIntEQ((sk_X509_value(s, 0) == (X509*)2), 1);
+        AssertIntEQ((sk_X509_value(s, 1) == (X509*)1), 1);
+        sk_X509_push(s, (X509*)2);
+        sk_X509_pop_free(s, free_x509);
+    }
+
+    {
+        /* Push a list of 10 X509s onto stack, then verify that
+         * value(), push(), shift(), and pop() behave as expected. */
+        STACK_OF(X509)* s;
+        X509*     xList[10];
+        int       i = 0;
+        const int len = (sizeof(xList) / sizeof(xList[0]));
+
+        for (i = 0; i < len; ++i)
+            AssertNotNull(xList[i] = X509_new());
+
+        /* test push, pop, and free */
+        AssertNotNull(s = sk_X509_new());
+
+        for (i = 0; i < len; ++i) {
+            sk_X509_push(s, xList[i]);
+            AssertIntEQ(sk_X509_num(s), i + 1);
+            AssertIntEQ((sk_X509_value(s, 0) == xList[i]), 1);
+            AssertIntEQ((sk_X509_value(s, i) == xList[0]), 1);
+        }
+
+        /* pop returns and removes last pushed on stack, which is index 0
+         * in sk_x509_value */
+        for (i = 0; i < len; ++i) {
+            X509 * x = sk_X509_value(s, 0);
+            X509 * y = sk_X509_pop(s);
+            X509 * z = xList[len - 1 - i];
+
+            AssertIntEQ((x == y), 1);
+            AssertIntEQ((x == z), 1);
+            AssertIntEQ(sk_X509_num(s), len - 1 - i);
+        }
+
+        sk_free(s);
+
+        /* test push, shift, and free */
+        AssertNotNull(s = sk_X509_new());
+
+        for (i = 0; i < len; ++i) {
+            sk_X509_push(s, xList[i]);
+            AssertIntEQ(sk_X509_num(s), i + 1);
+            AssertIntEQ((sk_X509_value(s, 0) == xList[i]), 1);
+            AssertIntEQ((sk_X509_value(s, i) == xList[0]), 1);
+        }
+
+        /* shift returns and removes first pushed on stack, which is index i
+         * in sk_x509_value() */
+        for (i = 0; i < len; ++i) {
+            X509 * x = sk_X509_value(s, len - 1 - i);
+            X509 * y = sk_X509_shift(s);
+            X509 * z = xList[i];
+
+            AssertIntEQ((x == y), 1);
+            AssertIntEQ((x == z), 1);
+            AssertIntEQ(sk_X509_num(s), len - 1 - i);
+        }
+
+        sk_free(s);
+
+        for (i = 0; i < len; ++i)
+            X509_free(xList[i]);
+    }
 
     printf(resultFmt, passed);
 #endif

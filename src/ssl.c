@@ -19532,7 +19532,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     else if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* to be compliant with openssl
            first element is kept as peer cert on server side.*/
-        wolfSSL_sk_X509_shift(sk);
+        wolfSSL_sk_X509_pop(sk);
     }
 #endif
     if (ssl->peerCertChain != NULL)
