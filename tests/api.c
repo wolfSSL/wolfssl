@@ -50579,7 +50579,7 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* serverCtx;
     WOLFSSL*     serverSsl;
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     const char*  ourCert = svrCertFile;
     const char*  ourKey  = svrKeyFile;
 #endif
@@ -50640,7 +50640,7 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverTls12Ctx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverTls12Ctx, ourKey, WOLFSSL_FILETYPE_PEM);
 #endif
@@ -50654,7 +50654,7 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverCtx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
 #endif

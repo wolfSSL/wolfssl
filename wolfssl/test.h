@@ -1,4 +1,29 @@
-/* test.h */
+/* test.h
+ *
+ * Copyright (C) 2006-2022 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+/*!
+    \file ../wolfssl/test.h
+    \brief Header file containing test inline functions
+*/
+
+/* Testing functions */
 
 #ifndef wolfSSL_TEST_H
 #define wolfSSL_TEST_H
@@ -251,57 +276,6 @@
         typedef int*       ACCEPT_THIRD_T;
     #endif
 #endif
-
-
-
-#ifdef SINGLE_THREADED
-    #if defined(WC_32BIT_CPU)
-        typedef void*   THREAD_RETURN;
-    #else
-        typedef unsigned int  THREAD_RETURN;
-    #endif
-    typedef void*         THREAD_TYPE;
-    #define WOLFSSL_THREAD
-#else
-    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-        typedef void*         THREAD_RETURN;
-        typedef pthread_t     THREAD_TYPE;
-        #define WOLFSSL_THREAD
-        #define INFINITE (-1)
-        #define WAIT_OBJECT_0 0L
-    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
-        typedef unsigned int  THREAD_RETURN;
-        typedef int           THREAD_TYPE;
-        #define WOLFSSL_THREAD
-    #elif defined(WOLFSSL_TIRTOS)
-        typedef void          THREAD_RETURN;
-        typedef Task_Handle   THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-          #undef EXIT_TEST
-          #define EXIT_TEST(ret)
-        #endif
-        #define WOLFSSL_THREAD
-    #elif defined(WOLFSSL_ZEPHYR)
-        typedef void            THREAD_RETURN;
-        typedef struct k_thread THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-          #undef EXIT_TEST
-          #define EXIT_TEST(ret)
-        #endif
-        #define WOLFSSL_THREAD
-    #elif defined(NETOS)
-        typedef UINT        THREAD_RETURN;
-        typedef TX_THREAD   THREAD_TYPE;
-        #define WOLFSSL_THREAD
-        #define INFINITE TX_WAIT_FOREVER
-        #define WAIT_OBJECT_0 TX_NO_WAIT
-    #else
-        typedef unsigned int  THREAD_RETURN;
-        typedef intptr_t      THREAD_TYPE;
-        #define WOLFSSL_THREAD __stdcall
-    #endif
-#endif
-
 
 #ifndef MY_EX_USAGE
 #define MY_EX_USAGE 2
@@ -3003,335 +2977,6 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
         #endif
     }
 #endif /* !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS) */
-
-#ifdef HAVE_STACK_SIZE
-
-typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
-#define STACK_CHECK_VAL 0x01
-
-struct stack_size_debug_context {
-  unsigned char *myStack;
-  size_t stackSize;
-#ifdef HAVE_STACK_SIZE_VERBOSE
-  size_t *stackSizeHWM_ptr;
-  thread_func fn;
-  void *args;
-#endif
-};
-
-#ifdef HAVE_STACK_SIZE_VERBOSE
-
-/* per-subtest stack high water mark tracking.
- *
- * enable with
- *
- * ./configure --enable-stacksize=verbose [...]
- */
-
-static THREAD_RETURN debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
-  StackSizeCheck_myStack = shim_args->myStack;
-  StackSizeCheck_stackSize = shim_args->stackSize;
-  StackSizeCheck_stackSizeHWM_ptr = shim_args->stackSizeHWM_ptr;
-  return shim_args->fn(shim_args->args);
-}
-
-static WC_INLINE int StackSizeSetOffset(const char *funcname, void *p)
-{
-    if (StackSizeCheck_myStack == NULL)
-        return -BAD_FUNC_ARG;
-
-    StackSizeCheck_stackOffsetPointer = p;
-
-    printf("setting stack relative offset reference mark in %s to +%lu\n",
-        funcname, (unsigned long)((char*)(StackSizeCheck_myStack +
-                                  StackSizeCheck_stackSize) - (char *)p));
-
-    return 0;
-}
-
-static WC_INLINE ssize_t StackSizeHWM(void)
-{
-    size_t i;
-    ssize_t used;
-
-    if (StackSizeCheck_myStack == NULL)
-        return -BAD_FUNC_ARG;
-
-    for (i = 0; i < StackSizeCheck_stackSize; i++) {
-        if (StackSizeCheck_myStack[i] != STACK_CHECK_VAL) {
-            break;
-        }
-    }
-
-    used = StackSizeCheck_stackSize - i;
-    if ((ssize_t)*StackSizeCheck_stackSizeHWM_ptr < used)
-      *StackSizeCheck_stackSizeHWM_ptr = used;
-
-    return used;
-}
-
-static WC_INLINE ssize_t StackSizeHWM_OffsetCorrected(void)
-{
-    ssize_t used = StackSizeHWM();
-    if (used < 0)
-        return used;
-    if (StackSizeCheck_stackOffsetPointer)
-        used -= (ssize_t)(((char *)StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)StackSizeCheck_stackOffsetPointer);
-    return used;
-}
-
-static
-#ifdef __GNUC__
-__attribute__((unused)) __attribute__((noinline))
-#endif
-int StackSizeHWMReset(void)
-{
-    volatile ssize_t i;
-
-    if (StackSizeCheck_myStack == NULL)
-        return -BAD_FUNC_ARG;
-
-    for (i = (ssize_t)((char *)&i - (char *)StackSizeCheck_myStack) - (ssize_t)sizeof i - 1; i >= 0; --i)
-    {
-        StackSizeCheck_myStack[i] = STACK_CHECK_VAL;
-    }
-
-    return 0;
-}
-
-#define STACK_SIZE_CHECKPOINT(...) ({  \
-    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
-    __VA_ARGS__;                                     \
-    printf("    relative stack peak usage = %ld bytes\n", (long int)HWM);  \
-    StackSizeHWMReset();                             \
-    })
-
-#define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
-    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
-    int _ret;                                        \
-    __VA_ARGS__;                                     \
-    printf("    relative stack peak usage = %ld bytes\n", (long int)HWM);  \
-    _ret = StackSizeHWMReset();                      \
-    if ((max >= 0) && (HWM > (ssize_t)(max))) {      \
-        fprintf(stderr,                              \
-            "    relative stack usage at %s L%d exceeds designated max %ld bytes.\n", \
-            __FILE__, __LINE__, (long int)(max));    \
-        _ret = -1;                                   \
-    }                                                \
-    _ret;                                            \
-    })
-
-
-#ifdef __GNUC__
-#define STACK_SIZE_INIT() (void)StackSizeSetOffset(__FUNCTION__, __builtin_frame_address(0))
-#endif
-
-#endif /* HAVE_STACK_SIZE_VERBOSE */
-
-static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
-{
-    size_t         i;
-    int            ret;
-    void*          status;
-    unsigned char* myStack = NULL;
-    size_t         stackSize = 1024*1024*2;
-    pthread_attr_t myAttr;
-    pthread_t      threadId;
-#ifdef HAVE_STACK_SIZE_VERBOSE
-    struct stack_size_debug_context shim_args;
-#endif
-
-#ifdef PTHREAD_STACK_MIN
-    if (stackSize < PTHREAD_STACK_MIN)
-        stackSize = PTHREAD_STACK_MIN;
-#endif
-
-    ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
-    if (ret != 0 || myStack == NULL) {
-        err_sys_with_errno("posix_memalign failed\n");
-        return -1;
-    }
-
-    XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
-
-    ret = pthread_attr_init(&myAttr);
-    if (ret != 0)
-        err_sys("attr_init failed");
-
-    ret = pthread_attr_setstack(&myAttr, myStack, stackSize);
-    if (ret != 0)
-        err_sys("attr_setstackaddr failed");
-
-#ifdef HAVE_STACK_SIZE_VERBOSE
-    StackSizeCheck_stackSizeHWM = 0;
-    shim_args.myStack = myStack;
-    shim_args.stackSize = stackSize;
-    shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
-    shim_args.fn = tf;
-    shim_args.args = args;
-    ret = pthread_create(&threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)&shim_args);
-#else
-    ret = pthread_create(&threadId, &myAttr, tf, args);
-#endif
-    if (ret != 0) {
-        printf("ret = %d\n", ret);
-        perror("pthread_create failed");
-        exit(EXIT_FAILURE);
-    }
-
-    ret = pthread_join(threadId, &status);
-    if (ret != 0)
-        err_sys("pthread_join failed");
-
-    for (i = 0; i < stackSize; i++) {
-        if (myStack[i] != STACK_CHECK_VAL) {
-            break;
-        }
-    }
-
-    free(myStack);
-#ifdef HAVE_STACK_SIZE_VERBOSE
-    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i)
-        ? (unsigned long)StackSizeCheck_stackSizeHWM
-        : (unsigned long)(stackSize - i));
-#else
-    {
-      size_t used = stackSize - i;
-      printf("stack used = %lu\n", (unsigned long)used);
-    }
-#endif
-
-    return (int)((size_t)status);
-}
-
-static WC_INLINE int StackSizeCheck_launch(func_args* args, thread_func tf, pthread_t *threadId, void **stack_context)
-{
-    int ret;
-    unsigned char* myStack = NULL;
-    size_t stackSize = 1024*1024*2;
-    pthread_attr_t myAttr;
-
-#ifdef PTHREAD_STACK_MIN
-    if (stackSize < PTHREAD_STACK_MIN)
-        stackSize = PTHREAD_STACK_MIN;
-#endif
-
-    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)malloc(sizeof *shim_args);
-    if (! shim_args) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
-    if (ret != 0 || myStack == NULL) {
-        err_sys_with_errno("posix_memalign failed\n");
-        free(shim_args);
-        return -1;
-    }
-
-    XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
-
-    ret = pthread_attr_init(&myAttr);
-    if (ret != 0)
-        err_sys("attr_init failed");
-
-    ret = pthread_attr_setstack(&myAttr, myStack, stackSize);
-    if (ret != 0)
-        err_sys("attr_setstackaddr failed");
-
-    shim_args->myStack = myStack;
-    shim_args->stackSize = stackSize;
-#ifdef HAVE_STACK_SIZE_VERBOSE
-    shim_args->stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
-    shim_args->fn = tf;
-    shim_args->args = args;
-    ret = pthread_create(threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)shim_args);
-#else
-    ret = pthread_create(threadId, &myAttr, tf, args);
-#endif
-    if (ret != 0) {
-        fprintf(stderr,"pthread_create failed: %s",strerror(ret));
-        exit(EXIT_FAILURE);
-    }
-
-    *stack_context = (void *)shim_args;
-
-    return 0;
-}
-
-static WC_INLINE int StackSizeCheck_reap(pthread_t threadId, void *stack_context)
-{
-    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)stack_context;
-    size_t i;
-    void *status;
-    int ret = pthread_join(threadId, &status);
-    if (ret != 0)
-        err_sys("pthread_join failed");
-
-    for (i = 0; i < shim_args->stackSize; i++) {
-        if (shim_args->myStack[i] != STACK_CHECK_VAL) {
-            break;
-        }
-    }
-
-    free(shim_args->myStack);
-#ifdef HAVE_STACK_SIZE_VERBOSE
-    printf("stack used = %lu\n",
-        *shim_args->stackSizeHWM_ptr > (shim_args->stackSize - i)
-        ? (unsigned long)*shim_args->stackSizeHWM_ptr
-        : (unsigned long)(shim_args->stackSize - i));
-#else
-    {
-      size_t used = shim_args->stackSize - i;
-      printf("stack used = %lu\n", (unsigned long)used);
-    }
-#endif
-    free(shim_args);
-
-    return (int)((size_t)status);
-}
-
-
-#endif /* HAVE_STACK_SIZE */
-
-#ifndef STACK_SIZE_CHECKPOINT
-#define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
-#endif
-#ifndef STACK_SIZE_INIT
-#define STACK_SIZE_INIT()
-#endif
-
-#ifdef STACK_TRAP
-
-/* good settings
-   --enable-debug --disable-shared C_EXTRA_FLAGS="-DUSER_TIME -DTFM_TIMING_RESISTANT -DPOSITIVE_EXP_ONLY -DSTACK_TRAP"
-
-*/
-
-#ifdef HAVE_STACK_SIZE
-    /* client only for now, setrlimit will fail if pthread_create() called */
-    /* STACK_SIZE does pthread_create() on client */
-    #error "can't use STACK_TRAP with STACK_SIZE, setrlimit will fail"
-#endif /* HAVE_STACK_SIZE */
-
-static WC_INLINE void StackTrap(void)
-{
-    struct rlimit  rl;
-    if (getrlimit(RLIMIT_STACK, &rl) != 0)
-        err_sys_with_errno("getrlimit failed");
-    printf("rlim_cur = %llu\n", rl.rlim_cur);
-    rl.rlim_cur = 1024*21;  /* adjust trap size here */
-    if (setrlimit(RLIMIT_STACK, &rl) != 0)
-        err_sys_with_errno("setrlimit failed");
-}
-
-#else /* STACK_TRAP */
-
-static WC_INLINE void StackTrap(void)
-{
-}
-
-#endif /* STACK_TRAP */
 
 
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)

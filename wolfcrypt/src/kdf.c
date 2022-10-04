@@ -435,13 +435,25 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     {
         int    ret = 0;
         int    idx = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte*  data;
+    #else
         byte   data[MAX_TLS13_HKDF_LABEL_SZ];
+    #endif
 
         /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
          * labellen + infolen */
         idx = 4 + protocolLen + labelLen + infoLen;
-        if (idx > MAX_TLS13_HKDF_LABEL_SZ)
+        if (idx > MAX_TLS13_HKDF_LABEL_SZ) {
             return BUFFER_E;
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        data = (byte*)XMALLOC(idx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (data == NULL) {
+            return MEMORY_E;
+        }
+    #endif
         idx = 0;
 
         /* Output length. */
@@ -484,6 +496,9 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(data, MAX_TLS13_HKDF_LABEL_SZ);
+    #endif
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return ret;
     }

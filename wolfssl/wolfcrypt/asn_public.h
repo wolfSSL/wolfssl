@@ -285,10 +285,11 @@ typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 #endif
 
 typedef struct EncryptedInfo {
-    wc_pem_password_cb* passwd_cb;
-    void*            passwd_userdata;
-
     long     consumed;         /* tracks PEM bytes consumed */
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    wc_pem_password_cb* passwd_cb;
+    void*               passwd_userdata;
 
     int      cipherType;
     word32   keySz;
@@ -298,6 +299,7 @@ typedef struct EncryptedInfo {
     byte     iv[IV_SZ];        /* salt or encrypted IV */
 
     word16   set:1;            /* if encryption set */
+#endif
 } EncryptedInfo;
 
 

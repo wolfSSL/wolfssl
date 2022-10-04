@@ -363,16 +363,19 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 #else
     wc_Sha256 sha[1];
 #endif
-#ifdef WC_ASYNC_ENABLE_SHA256
-    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
-    if (digest == NULL)
-        return MEMORY_E;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
 
-    (void)drbg;
-#ifdef WC_ASYNC_ENABLE_SHA256
+    if (drbg == NULL) {
+        return DRBG_FAILURE;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
+        DYNAMIC_TYPE_DIGEST);
     if (digest == NULL)
         return DRBG_FAILURE;
 #endif
@@ -431,8 +434,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
-#ifdef WC_ASYNC_ENABLE_SHA256
-    WC_FREE_VAR(digest, drbg->heap);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -441,31 +444,44 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz)
 {
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* newV;
+#else
     byte newV[DRBG_SEED_LEN];
+#endif
 
     if (drbg == NULL) {
         return DRBG_FAILURE;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    newV = (byte*)XMALLOC(DRBG_SEED_LEN, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (newV == NULL) {
+        return MEMORY_E;
+    }
+#endif
     XMEMSET(newV, 0, DRBG_SEED_LEN);
 
-    if (Hash_df(drbg, newV, sizeof(newV), drbgReseed,
-                drbg->V, sizeof(drbg->V), seed, seedSz) != DRBG_SUCCESS) {
-        return DRBG_FAILURE;
+    ret = Hash_df(drbg, newV, DRBG_SEED_LEN, drbgReseed,
+                drbg->V, sizeof(drbg->V), seed, seedSz);
+    if (ret == DRBG_SUCCESS) {
+        XMEMCPY(drbg->V, newV, sizeof(drbg->V));
+        ForceZero(newV, DRBG_SEED_LEN);
+
+        ret = Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
+                                    sizeof(drbg->V), NULL, 0);
+    }
+    if (ret == DRBG_SUCCESS) {
+        drbg->reseedCtr = 1;
+        drbg->lastBlock = 0;
+        drbg->matchCount = 0;
     }
 
-    XMEMCPY(drbg->V, newV, sizeof(drbg->V));
-    ForceZero(newV, sizeof(newV));
-
-    if (Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
-                                    sizeof(drbg->V), NULL, 0) != DRBG_SUCCESS) {
-        return DRBG_FAILURE;
-    }
-
-    drbg->reseedCtr = 1;
-    drbg->lastBlock = 0;
-    drbg->matchCount = 0;
-    return DRBG_SUCCESS;
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
 }
 
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
@@ -491,9 +507,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
-
-    for (i = dataSz - 1; i >= 0; i--)
-    {
+    for (i = dataSz - 1; i >= 0; i--) {
         data[i]++;
         if (data[i] != 0) break;
     }
@@ -503,7 +517,13 @@ static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 {
     int ret = DRBG_FAILURE;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* data;
+    byte* digest;
+#else
     byte data[DRBG_SEED_LEN];
+    byte digest[WC_SHA256_DIGEST_SIZE];
+#endif
     int i;
     int len;
     word32 checkBlock;
@@ -512,22 +532,32 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #else
     wc_Sha256 sha[1];
 #endif
-#ifdef WC_ASYNC_ENABLE_SHA256
-    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
-    if (digest == NULL)
-        return MEMORY_E;
-#else
-    byte digest[WC_SHA256_DIGEST_SIZE];
+
+    if (drbg == NULL) {
+        return DRBG_FAILURE;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    data = (byte*)XMALLOC(DRBG_SEED_LEN, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
+        DYNAMIC_TYPE_DIGEST);
+    if (data == NULL || digest == NULL) {
+        XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(data, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return DRBG_FAILURE;
+    }
 #endif
 
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
      * the continuous test. */
 
-    if (outSz == 0) outSz = 1;
+    if (outSz == 0) {
+        outSz = 1;
+    }
 
     len = (outSz / OUTPUT_BLOCK_LEN) + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
-    XMEMCPY(data, V, sizeof(data));
+    XMEMCPY(data, V, DRBG_SEED_LEN);
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -537,7 +567,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     #endif
         if (ret == 0)
 #endif
-            ret = wc_Sha256Update(sha, data, sizeof(data));
+            ret = wc_Sha256Update(sha, data, DRBG_SEED_LEN);
         if (ret == 0)
             ret = wc_Sha256Final(sha, digest);
 #ifndef WOLFSSL_SMALL_STACK_CACHE
@@ -580,10 +610,11 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
             break;
         }
     }
-    ForceZero(data, sizeof(data));
+    ForceZero(data, DRBG_SEED_LEN);
 
-#ifdef WC_ASYNC_ENABLE_SHA256
-    WC_FREE_VAR(digest, drbg->heap);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(data, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -630,14 +661,17 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
 
     if (drbg->reseedCtr == RESEED_INTERVAL) {
         return DRBG_NEED_RESEED;
-    } else {
-    #ifdef WC_ASYNC_ENABLE_SHA256
-        WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
-        if (digest == NULL)
-            return MEMORY_E;
-    #else
+    }
+    else {
+    #ifndef WOLFSSL_SMALL_STACK
         byte digest[WC_SHA256_DIGEST_SIZE];
+    #else
+        byte* digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
+            DYNAMIC_TYPE_DIGEST);
+        if (digest == NULL)
+            return DRBG_FAILURE;
     #endif
+
         type = drbgGenerateH;
         reseedCtr = drbg->reseedCtr;
 
@@ -674,8 +708,8 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
-    #ifdef WC_ASYNC_ENABLE_SHA256
-        WC_FREE_VAR(digest, drbg->heap);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
     #endif
     }
 
@@ -690,11 +724,10 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed, word32 s
     int ret = DRBG_FAILURE;
 
     XMEMSET(drbg, 0, sizeof(DRBG_internal));
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     drbg->heap = heap;
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     drbg->devId = devId;
 #else
-    (void)heap;
     (void)devId;
 #endif
 
@@ -735,8 +768,9 @@ static int Hash_DRBG_Uninstantiate(DRBG_internal* drbg)
 
     ForceZero(drbg, sizeof(DRBG_internal));
 
-    for (i = 0; i < sizeof(DRBG_internal); i++)
+    for (i = 0; i < sizeof(DRBG_internal); i++) {
         compareSum |= compareDrbg[i] ^ 0;
+    }
 
     return (compareSum == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
@@ -838,12 +872,13 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         seedSz = MAX_SEED_SZ;
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
-    #ifdef WC_ASYNC_ENABLE_SHA256
-        WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
+    #ifndef WOLFSSL_SMALL_STACK
+        byte seed[MAX_SEED_SZ];
+    #else
+        byte* seed = (byte*)XMALLOC(MAX_SEED_SZ, rng->heap,
+            DYNAMIC_TYPE_SEED);
         if (seed == NULL)
             return MEMORY_E;
-    #else
-        byte seed[MAX_SEED_SZ];
     #endif
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
@@ -892,12 +927,13 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         }
 
         ForceZero(seed, seedSz);
-    #ifdef WC_ASYNC_ENABLE_SHA256
-        WC_FREE_VAR(seed, rng->heap);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(seed, rng->heap, DYNAMIC_TYPE_SEED);
     #endif
     }
-    else
+    else {
         ret = DRBG_CONT_FAILURE;
+    }
 
     if (ret == DRBG_SUCCESS) {
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -1044,13 +1080,21 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
     if (ret == DRBG_NEED_RESEED) {
         if (wc_RNG_HealthTestLocal(1) == 0) {
+        #ifndef WOLFSSL_SMALL_STACK
             byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
-
-            ret = wc_GenerateSeed(&rng->seed, newSeed,
+            ret = DRBG_SUCCESS;
+        #else
+            byte* newSeed = (byte*)XMALLOC(SEED_SZ + SEED_BLOCK_SZ, rng->heap,
+                DYNAMIC_TYPE_SEED);
+            ret = (newSeed == NULL) ? MEMORY_E : DRBG_SUCCESS;
+        #endif
+            if (ret == DRBG_SUCCESS) {
+                ret = wc_GenerateSeed(&rng->seed, newSeed,
                                   SEED_SZ + SEED_BLOCK_SZ);
-            if (ret != 0)
-                ret = DRBG_FAILURE;
-            else
+                if (ret != 0)
+                    ret = DRBG_FAILURE;
+            }
+            if (ret == DRBG_SUCCESS)
                 ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
             if (ret == DRBG_SUCCESS)
@@ -1060,9 +1104,13 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(newSeed, rng->heap, DYNAMIC_TYPE_SEED);
+        #endif
         }
-        else
+        else {
             ret = DRBG_CONT_FAILURE;
+        }
     }
 
     if (ret == DRBG_SUCCESS) {
@@ -1167,7 +1215,8 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    drbg = (DRBG_internal*)XMALLOC(sizeof(DRBG_internal), NULL, DYNAMIC_TYPE_RNG);
+    drbg = (DRBG_internal*)XMALLOC(sizeof(DRBG_internal), heap,
+        DYNAMIC_TYPE_RNG);
     if (drbg == NULL) {
         return MEMORY_E;
     }
@@ -1210,7 +1259,7 @@ exit_rng_ht:
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(drbg, NULL, DYNAMIC_TYPE_RNG);
+    XFREE(drbg, heap, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;

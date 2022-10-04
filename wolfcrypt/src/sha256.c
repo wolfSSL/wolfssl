@@ -1793,19 +1793,36 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash)
     {
         int ret;
-        wc_Sha224 tmpSha224;
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_Sha224* tmpSha224;
+    #else
+        wc_Sha224  tmpSha224[1];
+    #endif
 
-        wc_InitSha224(&tmpSha224);
-        if (sha224 == NULL || hash == NULL)
+        if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
-
-        ret = wc_Sha224Copy(sha224, &tmpSha224);
-        if (ret == 0) {
-            ret = wc_Sha224Final(&tmpSha224, hash);
-            wc_Sha224Free(&tmpSha224);
         }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        tmpSha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpSha224 == NULL) {
+            return MEMORY_E;
+        }
+    #endif
+
+        ret = wc_Sha224Copy(sha224, tmpSha224);
+        if (ret == 0) {
+            ret = wc_Sha224Final(tmpSha224, hash);
+            wc_Sha224Free(tmpSha224);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
+
     int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
     {
         int ret = 0;
@@ -1894,44 +1911,54 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 {
     int ret;
-    wc_Sha256 tmpSha256;
+#ifdef WOLFSSL_SMALL_STACK
+    wc_Sha256* tmpSha256;
+#else
+    wc_Sha256  tmpSha256[1];
+#endif
 
-    if (sha256 == NULL || hash == NULL)
+    if (sha256 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpSha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpSha256 == NULL) {
+        return MEMORY_E;
+    }
+#endif
 
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
-
     /* ESP32 hardware can only handle only 1 active hardware hashing
      * at a time. If the mutex lock is acquired the first time then
      * that Sha256 instance has exclusive access to hardware. The
      * final or free needs to release the mutex. Operations that
      * do not get the lock fallback to software based Sha256 */
 
-   if(sha256->ctx.mode == ESP32_SHA_INIT){
+    if (sha256->ctx.mode == ESP32_SHA_INIT) {
         esp_sha_try_hw_lock(&sha256->ctx);
     }
-    if(sha256->ctx.mode == ESP32_SHA_HW)
-    {
+    if (sha256->ctx.mode == ESP32_SHA_HW) {
         esp_sha256_digest_process(sha256, 0);
     }
 #endif
-    ret = wc_Sha256Copy(sha256, &tmpSha256);
+
+    ret = wc_Sha256Copy(sha256, tmpSha256);
     if (ret == 0) {
-        ret = wc_Sha256Final(&tmpSha256, hash);
+        ret = wc_Sha256Final(tmpSha256, hash);
 
-#if  defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
-    {
+    #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
         sha256->ctx.mode = ESP32_SHA_SW;
+    #endif
+
+        wc_Sha256Free(tmpSha256);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-        wc_Sha256Free(&tmpSha256);
-    }
-
-#if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
-    /* TODO: Make sure the ESP32 crypto mutex is released (in case final is not
-     * called */
-#endif
     return ret;
 }
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)

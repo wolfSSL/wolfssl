@@ -1106,7 +1106,11 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
 static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     word32* pHashSz)
 {
-    Hmac verifyHmac;
+#ifdef WOLFSSL_SMALL_STACK
+    Hmac* verifyHmac;
+#else
+    Hmac  verifyHmac[1];
+#endif
     int  hashType = WC_SHA256;
     int  hashSz = WC_SHA256_DIGEST_SIZE;
     int  ret = BAD_FUNC_ARG;
@@ -1151,16 +1155,27 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     WOLFSSL_BUFFER(hash, hashSz);
 #endif
 
-    /* Calculate the verify data. */
-    ret = wc_HmacInit(&verifyHmac, ssl->heap, ssl->devId);
-    if (ret == 0) {
-        ret = wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
-        if (ret == 0)
-            ret = wc_HmacUpdate(&verifyHmac, hash, hashSz);
-        if (ret == 0)
-            ret = wc_HmacFinal(&verifyHmac, hash);
-        wc_HmacFree(&verifyHmac);
+#ifdef WOLFSSL_SMALL_STACK
+    verifyHmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
+    if (verifyHmac == NULL) {
+        return MEMORY_E;
     }
+#endif
+
+    /* Calculate the verify data. */
+    ret = wc_HmacInit(verifyHmac, ssl->heap, ssl->devId);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(verifyHmac, hashType, key, ssl->specs.hash_size);
+        if (ret == 0)
+            ret = wc_HmacUpdate(verifyHmac, hash, hashSz);
+        if (ret == 0)
+            ret = wc_HmacFinal(verifyHmac, hash);
+        wc_HmacFree(verifyHmac);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(verifyHmac, NULL, DYNAMIC_TYPE_HMAC);
+#endif
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("  Hash");

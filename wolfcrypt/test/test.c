@@ -27,14 +27,13 @@
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
-#include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifndef NO_CRYPT_TEST
 
-#if defined(HAVE_STACK_SIZE) && !defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
-    #define HAVE_WOLFCRYPT_TEST_OPTIONS
-#endif
+#include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
+#include <wolfssl/wolfcrypt/mem_track.h>
 
 #if defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
     #include <wolfssl/ssl.h>
@@ -48,15 +47,12 @@
     #include <stdint.h>
 #endif
 
-#if defined(HAVE_STACK_SIZE_VERBOSE)
+#ifdef HAVE_STACK_SIZE_VERBOSE
 #ifdef WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES
     static ssize_t max_relative_stack = WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES;
 #else
     static ssize_t max_relative_stack = -1;
 #endif
-#else
-    #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) (__VA_ARGS__, 0)
-    #define STACK_SIZE_INIT()
 #endif
 
 #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
