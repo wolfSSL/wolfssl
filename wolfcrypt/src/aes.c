@@ -738,7 +738,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                              XASM_LINK("AES_CBC_encrypt");
 
         #ifdef HAVE_AES_DECRYPT
-            #if defined(WOLFSSL_AESNI_BY4)
+            #if defined(WOLFSSL_AESNI_BY4) || defined(WOLFSSL_X86_BUILD)
                 void AES_CBC_decrypt_by4(const unsigned char* in, unsigned char* out,
                                          unsigned char* ivec, unsigned long length,
                                          const unsigned char* KS, int nr)
@@ -4191,7 +4191,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* if input and output same will overwrite input iv */
             XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-            #if defined(WOLFSSL_AESNI_BY4)
+            #if defined(WOLFSSL_AESNI_BY4) || defined(WOLFSSL_X86_BUILD)
             AES_CBC_decrypt_by4(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
                             aes->rounds);
             #elif defined(WOLFSSL_AESNI_BY6)
@@ -7867,7 +7867,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     else
     #endif
-    #ifdef HAVE_INTEL_AVX1
+    #if defined(HAVE_INTEL_AVX1)
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_encrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
@@ -8414,7 +8414,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     else
     #endif
-    #ifdef HAVE_INTEL_AVX1
+    #if defined(HAVE_INTEL_AVX1)
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         AES_GCM_decrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
@@ -9035,7 +9035,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_aesni(
     extern "C" {
 #endif
 
-/* Assembly code implementations in: aes_gcm_asm.S */
+/* Assembly code implementations in: aes_gcm_asm.S and aes_gcm_x86_asm.S */
 #ifdef HAVE_INTEL_AVX2
 extern void AES_GCM_decrypt_update_avx2(const unsigned char* key, int nr,
     unsigned char* out, const unsigned char* in, unsigned int nbytes,

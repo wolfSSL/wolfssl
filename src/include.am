@@ -118,7 +118,11 @@ endif
 
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
+if BUILD_X86_ASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
 endif
 
 if BUILD_DES3
@@ -210,7 +214,11 @@ endif
 
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
+if BUILD_X86_ASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
 endif
 
 if BUILD_SHA
@@ -552,7 +560,11 @@ endif
 if !BUILD_FIPS_CURRENT
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
+if BUILD_X86_ASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
 endif
 endif
 

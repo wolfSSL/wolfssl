@@ -30,6 +30,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
+#ifdef WOLFSSL_X86_64_BUILD
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
 .data
@@ -22655,6 +22656,7 @@ L_sha256_len_avx2_rorx_done:
 .size	Transform_Sha256_AVX2_RORX_Len,.-Transform_Sha256_AVX2_RORX_Len
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+#endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

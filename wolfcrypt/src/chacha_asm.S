@@ -30,6 +30,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
+#ifdef WOLFSSL_X86_64_BUILD
 #ifndef __APPLE__
 .text
 .globl	chacha_encrypt_x64
@@ -1430,6 +1431,7 @@ L_chacha20_avx2_end256:
 .size	chacha_encrypt_avx2,.-chacha_encrypt_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+#endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

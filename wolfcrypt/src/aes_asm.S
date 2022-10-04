@@ -27,6 +27,7 @@
  * by Intel Mobility Group, Israel Development Center, Israel Shay Gueron
  */
 
+#ifdef WOLFSSL_X86_64_BUILD
 
 /*
 AES_CBC_encrypt (const unsigned char *in,
@@ -1333,6 +1334,893 @@ pxor  %xmm4, %xmm3
 pxor   %xmm2, %xmm3
 ret
 
+#elif defined WOLFSSL_X86_BUILD
+
+/*
+AES_CBC_encrypt (const unsigned char *in,
+	unsigned char *out,
+	unsigned char ivec[16],
+	unsigned long length,
+	const unsigned char *KS,
+	int nr)
+*/
+#ifndef __APPLE__
+.globl AES_CBC_encrypt
+AES_CBC_encrypt:
+#else
+.globl _AES_CBC_encrypt
+_AES_CBC_encrypt:
+#endif
+        # parameter 1: stack[4] => %edi
+        # parameter 2: stack[8] => %esi
+        # parameter 3: stack[12] => %edx
+        # parameter 4: stack[16] => %ecx
+        # parameter 5: stack[20] => %eax
+        # parameter 6: stack[24] => %ebx
+        push	%edi
+        push	%esi
+        push	%ebx
+        push	%ebp
+        movl	20(%esp), %edi
+        movl	24(%esp), %esi
+        movl	28(%esp), %edx
+        movl	32(%esp), %ecx
+        movl	36(%esp), %eax
+        movl	40(%esp), %ebx
+
+        movl	%ecx, %ebp
+        shrl	$4, %ecx
+        shll	$60, %ebp
+        je	NO_PARTS
+        addl	$1, %ecx
+        NO_PARTS:
+        subl	$16, %esi
+        movdqa	(%edx), %xmm1
+        LOOP:
+        pxor	(%edi), %xmm1
+        pxor	(%eax), %xmm1
+        addl	$16,%esi
+        addl	$16,%edi
+        cmpl	$12, %ebx
+        aesenc	16(%eax),%xmm1
+        aesenc	32(%eax),%xmm1
+        aesenc	48(%eax),%xmm1
+        aesenc	64(%eax),%xmm1
+        aesenc	80(%eax),%xmm1
+        aesenc	96(%eax),%xmm1
+        aesenc	112(%eax),%xmm1
+        aesenc	128(%eax),%xmm1
+        aesenc	144(%eax),%xmm1
+        movdqa	160(%eax),%xmm2
+        jb	LAST
+        cmpl	$14, %ebx
+
+        aesenc	160(%eax),%xmm1
+        aesenc	176(%eax),%xmm1
+        movdqa	192(%eax),%xmm2
+        jb	LAST
+        aesenc	192(%eax),%xmm1
+        aesenc	208(%eax),%xmm1
+        movdqa	224(%eax),%xmm2
+        LAST:
+        decl	%ecx
+        aesenclast %xmm2,%xmm1
+        movdqu	%xmm1,(%esi)
+        jne	LOOP
+
+        pop	%ebp
+        pop	%ebx
+        pop	%esi
+        pop	%edi
+        ret
+
+
+/*
+AES_CBC_decrypt_by4 (const unsigned char *in,
+  unsigned char *out,
+  unsigned char ivec[16],
+  unsigned long length,
+  const unsigned char *KS,
+  int nr)
+*/
+#ifndef __APPLE__
+.globl AES_CBC_decrypt_by4
+AES_CBC_decrypt_by4:
+#else
+.globl _AES_CBC_decrypt_by4
+_AES_CBC_decrypt_by4:
+#endif
+# parameter 1: stack[4] => %edi
+# parameter 2: stack[8] => %esi
+# parameter 3: stack[12] => %edx
+# parameter 4: stack[16] => %ecx
+# parameter 5: stack[20] => %eax
+# parameter 6: stack[24] => %ebx
+        push	%edi
+        push	%esi
+        push	%ebx
+        push	%ebp
+        movl	20(%esp), %edi
+        movl	24(%esp), %esi
+        movl	28(%esp), %edx
+        movl	32(%esp), %ecx
+        movl	36(%esp), %eax
+        movl	40(%esp), %ebx
+        subl	$16, %esp
+
+        movdqu      (%edx), %xmm0
+        movl        %ecx, %ebp
+        shrl        $4, %ecx
+        shll        $60, %ebp
+        movdqu      %xmm0, (%esp)
+        je          DNO_PARTS_4
+        addl        $1, %ecx
+DNO_PARTS_4:
+        movl        %ecx, %ebp
+        shll        $62, %ebp
+        shrl        $62, %ebp
+        shrl        $2, %ecx
+        je          DREMAINDER_4
+        subl        $64, %esi
+DLOOP_4:
+        movdqu      (%edi), %xmm1
+        movdqu      16(%edi), %xmm2
+        movdqu      32(%edi), %xmm3
+        movdqu      48(%edi), %xmm4
+        movdqa      (%eax), %xmm5
+        movdqa      16(%eax), %xmm6
+        movdqa      32(%eax), %xmm7
+        movdqa      48(%eax), %xmm0
+        pxor        %xmm5, %xmm1
+        pxor        %xmm5, %xmm2
+        pxor        %xmm5, %xmm3
+        pxor        %xmm5, %xmm4
+        aesdec      %xmm6, %xmm1
+        aesdec      %xmm6, %xmm2
+        aesdec      %xmm6, %xmm3
+        aesdec      %xmm6, %xmm4
+        aesdec      %xmm7, %xmm1
+        aesdec      %xmm7, %xmm2
+        aesdec      %xmm7, %xmm3
+        aesdec      %xmm7, %xmm4
+        aesdec      %xmm0, %xmm1
+        aesdec      %xmm0, %xmm2
+        aesdec      %xmm0, %xmm3
+        aesdec      %xmm0, %xmm4
+        movdqa      64(%eax), %xmm5
+        movdqa      80(%eax), %xmm6
+        movdqa      96(%eax), %xmm7
+        movdqa      112(%eax), %xmm0
+        aesdec      %xmm5, %xmm1
+        aesdec      %xmm5, %xmm2
+        aesdec      %xmm5, %xmm3
+        aesdec      %xmm5, %xmm4
+        aesdec      %xmm6, %xmm1
+        aesdec      %xmm6, %xmm2
+        aesdec      %xmm6, %xmm3
+        aesdec      %xmm6, %xmm4
+        aesdec      %xmm7, %xmm1
+        aesdec      %xmm7, %xmm2
+        aesdec      %xmm7, %xmm3
+        aesdec      %xmm7, %xmm4
+        aesdec      %xmm0, %xmm1
+        aesdec      %xmm0, %xmm2
+        aesdec      %xmm0, %xmm3
+        aesdec      %xmm0, %xmm4
+        movdqa      128(%eax), %xmm5
+        movdqa      144(%eax), %xmm6
+        movdqa      160(%eax), %xmm7
+        cmpl        $12, %ebx
+        aesdec      %xmm5, %xmm1
+        aesdec      %xmm5, %xmm2
+        aesdec      %xmm5, %xmm3
+        aesdec      %xmm5, %xmm4
+        aesdec      %xmm6, %xmm1
+        aesdec      %xmm6, %xmm2
+        aesdec      %xmm6, %xmm3
+        aesdec      %xmm6, %xmm4
+        jb          DLAST_4
+        movdqa      160(%eax), %xmm5
+        movdqa      176(%eax), %xmm6
+        movdqa      192(%eax), %xmm7
+        cmpl        $14, %ebx
+        aesdec      %xmm5, %xmm1
+        aesdec      %xmm5, %xmm2
+        aesdec      %xmm5, %xmm3
+        aesdec      %xmm5, %xmm4
+        aesdec      %xmm6, %xmm1
+        aesdec      %xmm6, %xmm2
+        aesdec      %xmm6, %xmm3
+        aesdec      %xmm6, %xmm4
+        jb          DLAST_4
+        movdqa      192(%eax), %xmm5
+        movdqa      208(%eax), %xmm6
+        movdqa      224(%eax), %xmm7
+        aesdec      %xmm5, %xmm1
+        aesdec      %xmm5, %xmm2
+        aesdec      %xmm5, %xmm3
+        aesdec      %xmm5, %xmm4
+        aesdec      %xmm6, %xmm1
+        aesdec      %xmm6, %xmm2
+        aesdec      %xmm6, %xmm3
+        aesdec      %xmm6, %xmm4
+DLAST_4:
+        addl        $64, %esi
+        aesdeclast  %xmm7, %xmm1
+        aesdeclast  %xmm7, %xmm2
+        aesdeclast  %xmm7, %xmm3
+        aesdeclast  %xmm7, %xmm4
+        movdqu      (%esp), %xmm0
+        movdqu      (%edi), %xmm5
+        movdqu      16(%edi), %xmm6
+        movdqu      32(%edi), %xmm7
+        pxor        %xmm0, %xmm1
+        pxor        %xmm5, %xmm2
+        pxor        %xmm6, %xmm3
+        pxor        %xmm7, %xmm4
+        movdqu      48(%edi), %xmm0
+        movdqu      %xmm1, (%esi)
+        movdqu      %xmm2, 16(%esi)
+        movdqu      %xmm3, 32(%esi)
+        movdqu      %xmm4, 48(%esi)
+        movdqu      %xmm0, (%esp)
+        addl        $64, %edi
+        decl        %ecx
+        jne         DLOOP_4
+        addl        $64, %esi
+DREMAINDER_4:
+        cmpl        $0, %ebp
+        je          DEND_4
+DLOOP_4_2:
+        movdqu      (%edi), %xmm1
+        movdqa      %xmm1, %xmm5
+        addl        $16, %edi
+        pxor        (%eax), %xmm1
+        movdqu      160(%eax), %xmm2
+        cmpl        $12, %ebx
+        aesdec      16(%eax), %xmm1
+        aesdec      32(%eax), %xmm1
+        aesdec      48(%eax), %xmm1
+        aesdec      64(%eax), %xmm1
+        aesdec      80(%eax), %xmm1
+        aesdec      96(%eax), %xmm1
+        aesdec      112(%eax), %xmm1
+        aesdec      128(%eax), %xmm1
+        aesdec      144(%eax), %xmm1
+        jb          DLAST_4_2
+        movdqu      192(%eax), %xmm2
+        cmpl        $14, %ebx
+        aesdec      160(%eax), %xmm1
+        aesdec      176(%eax), %xmm1
+        jb          DLAST_4_2
+        movdqu      224(%eax), %xmm2
+        aesdec      192(%eax), %xmm1
+        aesdec      208(%eax), %xmm1
+DLAST_4_2:
+        aesdeclast  %xmm2, %xmm1
+        pxor        %xmm0, %xmm1
+        movdqa      %xmm5, %xmm0
+        movdqu      %xmm1, (%esi)
+        addl        $16, %esi
+        decl        %ebp
+        jne         DLOOP_4_2
+DEND_4:
+
+        addl	$16, %esp
+        pop	%ebp
+        pop	%ebx
+        pop	%esi
+        pop	%edi
+        ret
+
+/*
+AES_ECB_encrypt (const unsigned char *in,
+	unsigned char *out,
+	unsigned long length,
+	const unsigned char *KS,
+	int nr)
+*/
+#ifndef __APPLE__
+.globl AES_ECB_encrypt
+AES_ECB_encrypt:
+#else
+.globl _AES_ECB_encrypt
+_AES_ECB_encrypt:
+#endif
+# parameter 1: stack[4] => %edi
+# parameter 2: stack[8] => %esi
+# parameter 3: stack[12] => %edx
+# parameter 4: stack[16] => %ecx
+# parameter 5: stack[20] => %eax
+        push	%edi
+        push	%esi
+        push	%ebx
+        movl	16(%esp), %edi
+        movl	20(%esp), %esi
+        movl	24(%esp), %edx
+        movl	28(%esp), %ecx
+        movl	32(%esp), %eax
+
+        movl    %edx, %ebx
+        shrl    $4, %edx
+        shll    $60, %ebx
+        je      EECB_NO_PARTS_4
+        addl    $1, %edx
+EECB_NO_PARTS_4:
+        movl    %edx, %ebx
+        shll    $62, %ebx
+        shrl    $62, %ebx
+        shrl    $2, %edx
+        je      EECB_REMAINDER_4
+        subl    $64, %esi
+EECB_LOOP_4:
+        movdqu  (%edi), %xmm1
+        movdqu  16(%edi), %xmm2
+        movdqu  32(%edi), %xmm3
+        movdqu  48(%edi), %xmm4
+        movdqa  (%ecx), %xmm5
+        movdqa  16(%ecx), %xmm6
+        movdqa  32(%ecx), %xmm7
+        movdqa  48(%ecx), %xmm0
+        pxor    %xmm5, %xmm1
+        pxor    %xmm5, %xmm2
+        pxor    %xmm5, %xmm3
+        pxor    %xmm5, %xmm4
+        aesenc  %xmm6, %xmm1
+        aesenc  %xmm6, %xmm2
+        aesenc  %xmm6, %xmm3
+        aesenc  %xmm6, %xmm4
+        aesenc  %xmm7, %xmm1
+        aesenc  %xmm7, %xmm2
+        aesenc  %xmm7, %xmm3
+        aesenc  %xmm7, %xmm4
+        aesenc  %xmm0, %xmm1
+        aesenc  %xmm0, %xmm2
+        aesenc  %xmm0, %xmm3
+        aesenc  %xmm0, %xmm4
+        movdqa  64(%ecx), %xmm5
+        movdqa  80(%ecx), %xmm6
+        movdqa  96(%ecx), %xmm7
+        movdqa  112(%ecx), %xmm0
+        aesenc  %xmm5, %xmm1
+        aesenc  %xmm5, %xmm2
+        aesenc  %xmm5, %xmm3
+        aesenc  %xmm5, %xmm4
+        aesenc  %xmm6, %xmm1
+        aesenc  %xmm6, %xmm2
+        aesenc  %xmm6, %xmm3
+        aesenc  %xmm6, %xmm4
+        aesenc  %xmm7, %xmm1
+        aesenc  %xmm7, %xmm2
+        aesenc  %xmm7, %xmm3
+        aesenc  %xmm7, %xmm4
+        aesenc  %xmm0, %xmm1
+        aesenc  %xmm0, %xmm2
+        aesenc  %xmm0, %xmm3
+        aesenc  %xmm0, %xmm4
+        movdqa  128(%ecx), %xmm5
+        movdqa  144(%ecx), %xmm6
+        movdqa  160(%ecx), %xmm7
+        cmpl    $12, %eax
+        aesenc  %xmm5, %xmm1
+        aesenc  %xmm5, %xmm2
+        aesenc  %xmm5, %xmm3
+        aesenc  %xmm5, %xmm4
+        aesenc  %xmm6, %xmm1
+        aesenc  %xmm6, %xmm2
+        aesenc  %xmm6, %xmm3
+        aesenc  %xmm6, %xmm4
+        jb      EECB_LAST_4
+        movdqa  160(%ecx), %xmm5
+        movdqa  176(%ecx), %xmm6
+        movdqa  192(%ecx), %xmm7
+        cmpl    $14, %eax
+        aesenc  %xmm5, %xmm1
+        aesenc  %xmm5, %xmm2
+        aesenc  %xmm5, %xmm3
+        aesenc  %xmm5, %xmm4
+        aesenc  %xmm6, %xmm1
+        aesenc  %xmm6, %xmm2
+        aesenc  %xmm6, %xmm3
+        aesenc  %xmm6, %xmm4
+        jb      EECB_LAST_4
+        movdqa  192(%ecx), %xmm5
+        movdqa  208(%ecx), %xmm6
+        movdqa  224(%ecx), %xmm7
+        aesenc  %xmm5, %xmm1
+        aesenc  %xmm5, %xmm2
+        aesenc  %xmm5, %xmm3
+        aesenc  %xmm5, %xmm4
+        aesenc  %xmm6, %xmm1
+        aesenc  %xmm6, %xmm2
+        aesenc  %xmm6, %xmm3
+        aesenc  %xmm6, %xmm4
+EECB_LAST_4:
+        addl    $64, %edi
+        addl    $64, %esi
+        decl    %edx
+        aesenclast %xmm7, %xmm1
+        aesenclast %xmm7, %xmm2
+        aesenclast %xmm7, %xmm3
+        aesenclast %xmm7, %xmm4
+        movdqu  %xmm1, (%esi)
+        movdqu  %xmm2, 16(%esi)
+        movdqu  %xmm3, 32(%esi)
+        movdqu  %xmm4, 48(%esi)
+        jne     EECB_LOOP_4
+        addl    $64, %esi
+EECB_REMAINDER_4:
+        cmpl    $0, %ebx
+        je      EECB_END_4
+EECB_LOOP_4_2:
+        movdqu  (%edi), %xmm1
+        addl    $16, %edi
+        pxor    (%ecx), %xmm1
+        movdqu  160(%ecx), %xmm2
+        aesenc  16(%ecx), %xmm1
+        aesenc  32(%ecx), %xmm1
+        aesenc  48(%ecx), %xmm1
+        aesenc  64(%ecx), %xmm1
+        aesenc  80(%ecx), %xmm1
+        aesenc  96(%ecx), %xmm1
+        aesenc  112(%ecx), %xmm1
+        aesenc  128(%ecx), %xmm1
+        aesenc  144(%ecx), %xmm1
+        cmpl    $12, %eax
+        jb      EECB_LAST_4_2
+        movdqu  192(%ecx), %xmm2
+        aesenc  160(%ecx), %xmm1
+        aesenc  176(%ecx), %xmm1
+        cmpl    $14, %eax
+        jb      EECB_LAST_4_2
+        movdqu  224(%ecx), %xmm2
+        aesenc  192(%ecx), %xmm1
+        aesenc  208(%ecx), %xmm1
+EECB_LAST_4_2:
+        aesenclast %xmm2, %xmm1
+        movdqu  %xmm1, (%esi)
+        addl    $16, %esi
+        decl    %ebx
+        jne     EECB_LOOP_4_2
+EECB_END_4:
+
+        pop	%ebx
+        pop	%esi
+        pop	%edi
+        ret
+
+
+/*
+AES_ECB_decrypt (const unsigned char *in,
+  unsigned char *out,
+  unsigned long length,
+  const unsigned char *KS,
+  int nr)
+*/
+#ifndef __APPLE__
+.globl AES_ECB_decrypt
+AES_ECB_decrypt:
+#else
+.globl _AES_ECB_decrypt
+_AES_ECB_decrypt:
+#endif
+# parameter 1: stack[4] => %edi
+# parameter 2: stack[8] => %esi
+# parameter 3: stack[12] => %edx
+# parameter 4: stack[16] => %ecx
+# parameter 5: stack[20] => %eax
+        push	%edi
+        push	%esi
+        push	%ebx
+        movl	20(%esp), %edi
+        movl	24(%esp), %esi
+        movl	28(%esp), %edx
+        movl	32(%esp), %ecx
+        movl	36(%esp), %eax
+
+
+        movl    %edx, %ebx
+        shrl    $4, %edx
+        shll    $60, %ebx
+        je      DECB_NO_PARTS_4
+        addl    $1, %edx
+DECB_NO_PARTS_4:
+        movl    %edx, %ebx
+        shll    $62, %ebx
+        shrl    $62, %ebx
+        shrl    $2, %edx
+        je      DECB_REMAINDER_4
+        subl    $64, %esi
+DECB_LOOP_4:
+        movdqu  (%edi), %xmm1
+        movdqu  16(%edi), %xmm2
+        movdqu  32(%edi), %xmm3
+        movdqu  48(%edi), %xmm4
+        movdqa  (%ecx), %xmm5
+        movdqa  16(%ecx), %xmm6
+        movdqa  32(%ecx), %xmm7
+        movdqa  48(%ecx), %xmm0
+        pxor    %xmm5, %xmm1
+        pxor    %xmm5, %xmm2
+        pxor    %xmm5, %xmm3
+        pxor    %xmm5, %xmm4
+        aesdec  %xmm6, %xmm1
+        aesdec  %xmm6, %xmm2
+        aesdec  %xmm6, %xmm3
+        aesdec  %xmm6, %xmm4
+        aesdec  %xmm7, %xmm1
+        aesdec  %xmm7, %xmm2
+        aesdec  %xmm7, %xmm3
+        aesdec  %xmm7, %xmm4
+        aesdec  %xmm0, %xmm1
+        aesdec  %xmm0, %xmm2
+        aesdec  %xmm0, %xmm3
+        aesdec  %xmm0, %xmm4
+        movdqa  64(%ecx), %xmm5
+        movdqa  80(%ecx), %xmm6
+        movdqa  96(%ecx), %xmm7
+        movdqa  112(%ecx), %xmm0
+        aesdec  %xmm5, %xmm1
+        aesdec  %xmm5, %xmm2
+        aesdec  %xmm5, %xmm3
+        aesdec  %xmm5, %xmm4
+        aesdec  %xmm6, %xmm1
+        aesdec  %xmm6, %xmm2
+        aesdec  %xmm6, %xmm3
+        aesdec  %xmm6, %xmm4
+        aesdec  %xmm7, %xmm1
+        aesdec  %xmm7, %xmm2
+        aesdec  %xmm7, %xmm3
+        aesdec  %xmm7, %xmm4
+        aesdec  %xmm0, %xmm1
+        aesdec  %xmm0, %xmm2
+        aesdec  %xmm0, %xmm3
+        aesdec  %xmm0, %xmm4
+        movdqa  128(%ecx), %xmm5
+        movdqa  144(%ecx), %xmm6
+        movdqa  160(%ecx), %xmm7
+        cmpl    $12, %eax
+        aesdec  %xmm5, %xmm1
+        aesdec  %xmm5, %xmm2
+        aesdec  %xmm5, %xmm3
+        aesdec  %xmm5, %xmm4
+        aesdec  %xmm6, %xmm1
+        aesdec  %xmm6, %xmm2
+        aesdec  %xmm6, %xmm3
+        aesdec  %xmm6, %xmm4
+        jb      DECB_LAST_4
+        movdqa  160(%ecx), %xmm5
+        movdqa  176(%ecx), %xmm6
+        movdqa  192(%ecx), %xmm7
+        cmpl    $14, %eax
+        aesdec  %xmm5, %xmm1
+        aesdec  %xmm5, %xmm2
+        aesdec  %xmm5, %xmm3
+        aesdec  %xmm5, %xmm4
+        aesdec  %xmm6, %xmm1
+        aesdec  %xmm6, %xmm2
+        aesdec  %xmm6, %xmm3
+        aesdec  %xmm6, %xmm4
+        jb      DECB_LAST_4
+        movdqa  192(%ecx), %xmm5
+        movdqa  208(%ecx), %xmm6
+        movdqa  224(%ecx), %xmm7
+        aesdec  %xmm5, %xmm1
+        aesdec  %xmm5, %xmm2
+        aesdec  %xmm5, %xmm3
+        aesdec  %xmm5, %xmm4
+        aesdec  %xmm6, %xmm1
+        aesdec  %xmm6, %xmm2
+        aesdec  %xmm6, %xmm3
+        aesdec  %xmm6, %xmm4
+DECB_LAST_4:
+        addl    $64, %edi
+        addl    $64, %esi
+        decl    %edx
+        aesdeclast %xmm7, %xmm1
+        aesdeclast %xmm7, %xmm2
+        aesdeclast %xmm7, %xmm3
+        aesdeclast %xmm7, %xmm4
+        movdqu  %xmm1, (%esi)
+        movdqu  %xmm2, 16(%esi)
+        movdqu  %xmm3, 32(%esi)
+        movdqu  %xmm4, 48(%esi)
+        jne     DECB_LOOP_4
+        addl    $64, %esi
+DECB_REMAINDER_4:
+        cmpl    $0, %ebx
+        je      DECB_END_4
+DECB_LOOP_4_2:
+        movdqu  (%edi), %xmm1
+        addl    $16, %edi
+        pxor    (%ecx), %xmm1
+        movdqu  160(%ecx), %xmm2
+        cmpl    $12, %eax
+        aesdec  16(%ecx), %xmm1
+        aesdec  32(%ecx), %xmm1
+        aesdec  48(%ecx), %xmm1
+        aesdec  64(%ecx), %xmm1
+        aesdec  80(%ecx), %xmm1
+        aesdec  96(%ecx), %xmm1
+        aesdec  112(%ecx), %xmm1
+        aesdec  128(%ecx), %xmm1
+        aesdec  144(%ecx), %xmm1
+        jb      DECB_LAST_4_2
+        cmpl    $14, %eax
+        movdqu  192(%ecx), %xmm2
+        aesdec  160(%ecx), %xmm1
+        aesdec  176(%ecx), %xmm1
+        jb      DECB_LAST_4_2
+        movdqu  224(%ecx), %xmm2
+        aesdec  192(%ecx), %xmm1
+        aesdec  208(%ecx), %xmm1
+DECB_LAST_4_2:
+        aesdeclast %xmm2, %xmm1
+        movdqu  %xmm1, (%esi)
+        addl    $16, %esi
+        decl    %ebx
+        jne     DECB_LOOP_4_2
+DECB_END_4:
+        pop	%ebx
+        pop	%esi
+        pop	%edi
+        ret
+
+
+
+/*
+void AES_128_Key_Expansion(const unsigned char* userkey,
+   unsigned char* key_schedule);
+*/
+.align  16,0x90
+#ifndef __APPLE__
+.globl AES_128_Key_Expansion
+AES_128_Key_Expansion:
+#else
+.globl _AES_128_Key_Expansion
+_AES_128_Key_Expansion:
+#endif
+        # parameter 1: stack[4] => %eax
+        # parameter 2: stack[8] => %edx
+        movl	4(%esp), %eax
+        movl	8(%esp), %edx
+
+        movl    $10, 240(%edx)
+
+        movdqu  (%eax), %xmm1
+        movdqa    %xmm1, (%edx)
+
+
+ASSISTS:
+        aeskeygenassist $1, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 16(%edx)
+        aeskeygenassist $2, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 32(%edx)
+        aeskeygenassist $4, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 48(%edx)
+        aeskeygenassist $8, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 64(%edx)
+        aeskeygenassist $16, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 80(%edx)
+        aeskeygenassist $32, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 96(%edx)
+        aeskeygenassist $64, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 112(%edx)
+        aeskeygenassist $0x80, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 128(%edx)
+        aeskeygenassist $0x1b, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 144(%edx)
+        aeskeygenassist $0x36, %xmm1, %xmm2
+        call PREPARE_ROUNDKEY_128
+        movdqa %xmm1, 160(%edx)
+        ret
+
+PREPARE_ROUNDKEY_128:
+        pshufd $255, %xmm2, %xmm2
+        movdqa %xmm1, %xmm3
+        pslldq $4, %xmm3
+        pxor %xmm3, %xmm1
+        pslldq $4, %xmm3
+        pxor %xmm3, %xmm1
+        pslldq $4, %xmm3
+        pxor %xmm3, %xmm1
+        pxor %xmm2, %xmm1
+        ret
+
+
+/*
+void AES_192_Key_Expansion (const unsigned char *userkey,
+  unsigned char *key)
+*/
+#ifndef __APPLE__
+.globl AES_192_Key_Expansion
+AES_192_Key_Expansion:
+#else
+.globl _AES_192_Key_Expansion
+_AES_192_Key_Expansion:
+#endif
+        # parameter 1: stack[4] => %eax
+        # parameter 2: stack[8] => %edx
+        movl	4(%esp), %eax
+        movl	8(%esp), %edx
+
+        movdqu (%eax), %xmm1
+        movq 16(%eax), %xmm3
+        movdqa %xmm1, (%edx)
+        movdqa %xmm3, %xmm5
+
+        aeskeygenassist $0x1, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        shufpd $0, %xmm1, %xmm5
+        movdqa %xmm5, 16(%edx)
+        movdqa %xmm1, %xmm6
+        shufpd $1, %xmm3, %xmm6
+        movdqa %xmm6, 32(%edx)
+
+        aeskeygenassist $0x2, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        movdqa %xmm1, 48(%edx)
+        movdqa %xmm3, %xmm5
+
+        aeskeygenassist $0x4, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        shufpd $0, %xmm1, %xmm5
+        movdqa %xmm5, 64(%edx)
+        movdqa %xmm1, %xmm6
+        shufpd $1, %xmm3, %xmm6
+        movdqa %xmm6, 80(%edx)
+
+        aeskeygenassist $0x8, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        movdqa %xmm1, 96(%edx)
+        movdqa %xmm3, %xmm5
+
+        aeskeygenassist $0x10, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        shufpd $0, %xmm1, %xmm5
+        movdqa %xmm5, 112(%edx)
+        movdqa %xmm1, %xmm6
+        shufpd $1, %xmm3, %xmm6
+        movdqa %xmm6, 128(%edx)
+
+        aeskeygenassist $0x20, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        movdqa %xmm1, 144(%edx)
+        movdqa %xmm3, %xmm5
+
+        aeskeygenassist $0x40, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        shufpd $0, %xmm1, %xmm5
+        movdqa %xmm5, 160(%edx)
+        movdqa %xmm1, %xmm6
+        shufpd $1, %xmm3, %xmm6
+        movdqa %xmm6, 176(%edx)
+
+        aeskeygenassist $0x80, %xmm3, %xmm2
+        call PREPARE_ROUNDKEY_192
+        movdqa %xmm1, 192(%edx)
+        movdqa %xmm3, 208(%edx)
+        ret
+
+PREPARE_ROUNDKEY_192:
+        pshufd $0x55, %xmm2, %xmm2
+        movdqu %xmm1, %xmm4
+        pslldq $4, %xmm4
+        pxor   %xmm4, %xmm1
+
+        pslldq $4, %xmm4
+        pxor   %xmm4, %xmm1
+        pslldq $4, %xmm4
+        pxor  %xmm4, %xmm1
+        pxor   %xmm2, %xmm1
+        pshufd $0xff, %xmm1, %xmm2
+        movdqu %xmm3, %xmm4
+        pslldq $4, %xmm4
+        pxor   %xmm4, %xmm3
+        pxor   %xmm2, %xmm3
+        ret
+
+
+/*
+void AES_256_Key_Expansion (const unsigned char *userkey,
+  unsigned char *key)
+*/
+#ifndef __APPLE__
+.globl AES_256_Key_Expansion
+AES_256_Key_Expansion:
+#else
+.globl _AES_256_Key_Expansion
+_AES_256_Key_Expansion:
+#endif
+        # parameter 1: stack[4] => %eax
+        # parameter 2: stack[8] => %edx
+        movl	4(%esp), %eax
+        movl	8(%esp), %edx
+
+        movdqu (%eax), %xmm1
+        movdqu 16(%eax), %xmm3
+        movdqa %xmm1, (%edx)
+        movdqa %xmm3, 16(%edx)
+
+        aeskeygenassist $0x1, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 32(%edx)
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 48(%edx)
+        aeskeygenassist $0x2, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 64(%edx)
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 80(%edx)
+        aeskeygenassist $0x4, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 96(%edx)
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 112(%edx)
+        aeskeygenassist $0x8, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 128(%edx)
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 144(%edx)
+        aeskeygenassist $0x10, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 160(%edx)
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 176(%edx)
+        aeskeygenassist $0x20, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 192(%edx)
+
+        aeskeygenassist $0x0, %xmm1, %xmm2
+        call MAKE_RK256_b
+        movdqa %xmm3, 208(%edx)
+        aeskeygenassist $0x40, %xmm3, %xmm2
+        call MAKE_RK256_a
+        movdqa %xmm1, 224(%edx)
+
+        ret
+
+MAKE_RK256_a:
+        pshufd $0xff, %xmm2, %xmm2
+        movdqa %xmm1, %xmm4
+        pslldq $4, %xmm4
+        pxor   %xmm4, %xmm1
+        pslldq $4, %xmm4
+        pxor  %xmm4, %xmm1
+        pslldq $4, %xmm4
+        pxor  %xmm4, %xmm1
+        pxor   %xmm2, %xmm1
+        ret
+
+MAKE_RK256_b:
+        pshufd $0xaa, %xmm2, %xmm2
+        movdqa %xmm3, %xmm4
+        pslldq $4, %xmm4
+        pxor   %xmm4, %xmm3
+        pslldq $4, %xmm4
+        pxor  %xmm4, %xmm3
+        pslldq $4, %xmm4
+        pxor  %xmm4, %xmm3
+        pxor   %xmm2, %xmm3
+        ret
+
+#endif /* WOLFSSL_X86_64_BUILD */
+
 #if defined(__linux__) && defined(__ELF__)
     .section .note.GNU-stack,"",%progbits
 #endif
+

@@ -30,6 +30,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
+#ifdef WOLFSSL_X86_64_BUILD
 #ifndef __APPLE__
 .data
 #else
@@ -15833,6 +15834,7 @@ L_AES_GCM_decrypt_final_avx2_cmp_tag_done:
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_INTEL_AVX2 */
+#endif /* WOLFSSL_X86_64_BUILD */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
