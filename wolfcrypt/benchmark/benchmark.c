@@ -5645,13 +5645,14 @@ static void bench_rsa_helper(int useDeviceID, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    #ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (message == NULL) {
         ret = MEMORY_E;
         goto exit;
     }
-#endif
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    #endif
     XMEMCPY(message, messageStr, len);
 #endif
 
@@ -5807,7 +5808,9 @@ exit:
 #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     WC_FREE_ARRAY_DYNAMIC(out, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     WC_FREE_VAR(message, HEAP_HINT);
+#endif
 }
 
 void bench_rsa(int useDeviceID)
