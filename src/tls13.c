@@ -11626,36 +11626,6 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
 
 #ifndef NO_WOLFSSL_SERVER
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-static void DtlsResetState(WOLFSSL *ssl)
-{
-    /* Reset the state so that we can statelessly await the
-     * ClientHello that contains the cookie. */
-
-    /* Reset DTLS window */
-    w64Zero(&ssl->dtls13Epochs[0].nextSeqNumber);
-    w64Zero(&ssl->dtls13Epochs[0].nextPeerSeqNumber);
-    XMEMSET(ssl->dtls13Epochs[0].window, 0,
-            sizeof(ssl->dtls13Epochs[0].window));
-
-    ssl->keys.dtls_expected_peer_handshake_number = 0;
-    ssl->keys.dtls_handshake_number = 0;
-
-    ssl->msgsReceived.got_client_hello = 0;
-#ifdef WOLFSSL_SEND_HRR_COOKIE
-    /* Remove cookie so that it will get computed again */
-    TLSX_Remove(&ssl->extensions, TLSX_COOKIE, ssl->heap);
-#endif
-
-    /* Reset states */
-    ssl->options.serverState = NULL_STATE;
-    ssl->options.clientState = NULL_STATE;
-    ssl->options.connectState = CONNECT_BEGIN;
-    ssl->options.acceptState  = ACCEPT_BEGIN;
-    ssl->options.handShakeState  = NULL_STATE;
-
-    Dtls13FreeFsmResources(ssl);
-}
-
 static int DtlsAcceptStateless(WOLFSSL *ssl)
 {
     int ret;

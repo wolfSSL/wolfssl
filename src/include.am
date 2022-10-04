@@ -749,7 +749,7 @@ if BUILD_QUIC
 src_libwolfssl_la_SOURCES += src/quic.c
 endif
 
-if BUILD_DTLS_CID
+if BUILD_DTLS
 src_libwolfssl_la_SOURCES += src/dtls.c
 endif
 
