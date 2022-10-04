@@ -120,3 +120,5 @@ EXTRA_DIST += scripts/dtlscid.test
 endif
 
 EXTRA_DIST += scripts/bench/bench_functions.sh
+
+EXTRA_DIST += scripts/user_settings_asm.sh

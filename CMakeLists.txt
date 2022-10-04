@@ -1768,6 +1768,14 @@ generate_build_flags()
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
     set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+
+    # Create user_settings_asm.h for use in assembly files (e.g. .S files).
+    execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+                            "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
+                    RESULT_VARIABLE USER_SETTINGS_ASM_RET)
+    if (NOT USER_SETTINGS_ASM_RET EQUAL 0)
+        message(FATAL_ERROR "${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh failed.")
+    endif()
 endif()
 
 # TODO: Applying definitions to everything like this, rather than
@@ -1790,7 +1798,6 @@ endif()
 
 # Suppress some warnings about separate compilation, inlining
 add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
-
 # Generate user options header
 message("Generating user options header...")
 if (${CMAKE_DISABLE_SOURCE_CHANGES})
