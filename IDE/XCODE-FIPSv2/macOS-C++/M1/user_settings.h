@@ -9,7 +9,7 @@
  * https://www.wolfssl.com
  */
 
-/* Custom wolfSSL user settings for GCC ARM */
+/* Custom wolfSSL user settings for XCODE-FIPSv2/macOS-C++/M1 */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
 #define WOLFSSL_USER_SETTINGS_H
@@ -56,7 +56,7 @@ extern "C" {
     //#define TFM_NO_ASM
 
     /* Optimizations */
-    //#define TFM_ARM
+    #define TFM_ARM
 #endif
 
 /* Wolf Single Precision Math */
@@ -69,10 +69,6 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_ECC
     #define WOLFSSL_ARMASM
     #define WOLFSSL_SP_ARM64_ASM
-#endif
-
-#if 0 /* AESNI (wPAA) */
-    #define WOLFSSL_AESNI
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -351,8 +347,7 @@ extern "C" {
 
 /* MD5 */
 #undef  NO_MD5
-#if 1
-
+#if 0 /* NOTE: If NO_OLD_TLS is not defined this needs to be set to '#if 1' */
 #else
     #define NO_MD5
 #endif
@@ -375,7 +370,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Use reduced benchmark / test sizes */
 #undef  BENCH_EMBEDDED
-#define BENCH_EMBEDDED
+//#define BENCH_EMBEDDED
 
 #undef  USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_2048
@@ -570,7 +565,7 @@ extern "C" {
 #define WOLFSSL_BASE64_ENCODE
 
 /* TLS Session Cache */
-#if 0
+#if 1
     #define SMALL_SESSION_CACHE
 #else
     #define NO_SESSION_CACHE
@@ -642,7 +637,7 @@ extern "C" {
 #define NO_RC4
 
 #undef  NO_OLD_TLS
-#define NO_OLD_TLS
+#define NO_OLD_TLS /* dependency on MD5, enable MD5 if this setting disabled */
 
 #undef  NO_PSK
 #define NO_PSK
