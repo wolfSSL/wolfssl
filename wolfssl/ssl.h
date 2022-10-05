@@ -2898,7 +2898,7 @@ WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_CRL_get_issuer_name(
 WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
                                                        byte* in, int* inOutSz);
 WOLFSSL_API int wolfSSL_X509_REVOKED_get_revocationDate(RevokedCert* rev,
-                                                       byte* in, int* inOutSz);
+                                                        byte* in, int* inOutSz);
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 #endif
 

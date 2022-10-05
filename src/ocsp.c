@@ -1068,6 +1068,29 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
     return id->rawCertIdSize;
 }
 
+WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
+                                             const unsigned char** derIn,
+                                             int length)
+{
+    if ((derIn == NULL) || (length == 0))
+        return (NULL);
+
+    if (*cidOut != NULL) {
+        XMEMCPY ((*cidOut)->rawCertId, *derIn, length);
+        (*cidOut)->rawCertIdSize = length;
+    }
+    else {
+        *cidOut = (WOLFSSL_OCSP_CERTID*)XMALLOC(length, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (*cidOut == NULL) {
+            return (NULL);
+        }
+        XMEMCPY ((*cidOut)->rawCertId, *derIn, length);
+        (*cidOut)->rawCertIdSize = length;
+    }
+
+    return (*cidOut);
+}
+
 const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(const WOLFSSL_OCSP_SINGLERESP *single)
 {
     return single;

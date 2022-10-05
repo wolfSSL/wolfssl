@@ -8052,23 +8052,23 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 #endif /* HAVE_CRL && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
 #ifdef OPENSSL_EXTRA
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
-    (void)crl;
-    WOLFSSL_STUB("X509_CRL_get_lastUpdate");
-    return 0;
+    if (crl->crlList->lastDate[0] != 0) {
+        return (WOLFSSL_ASN1_TIME*)crl->crlList->lastDate;
+    }
+    else
+        return NULL;
 }
-#endif
-#ifndef NO_WOLFSSL_STUB
+
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
 {
-    (void)crl;
-    WOLFSSL_STUB("X509_CRL_get_nextUpdate");
-    return 0;
+    if (crl->crlList->nextDate[0] != 0) {
+        return (WOLFSSL_ASN1_TIME*)crl->crlList->nextDate;
+    }
+    else
+        return NULL;
 }
-#endif
-
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
