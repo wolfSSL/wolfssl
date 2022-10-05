@@ -35042,8 +35042,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             int   inputSz = DTLS_HANDSHAKE_HEADER_SZ + length; /* build msg adds rec hdr */
             int   recordHeaderSz = DTLS_RECORD_HEADER_SZ;
 
-            ssl->msgsReceived.got_client_hello = 0;
-
             input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
                 return MEMORY_E;

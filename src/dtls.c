@@ -24,6 +24,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/error-ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
 #ifdef NO_INLINE
@@ -57,8 +58,6 @@ void DtlsResetState(WOLFSSL *ssl)
     ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->keys.dtls_handshake_number = 0;
 
-    ssl->msgsReceived.got_client_hello = 0;
-
     /* Reset states */
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
@@ -72,10 +71,6 @@ void DtlsResetState(WOLFSSL *ssl)
 }
 
 #if defined(WOLFSSL_DTLS_CID)
-
-#include <wolfssl/error-ssl.h>
-#include <wolfssl/internal.h>
-#include <wolfssl/ssl.h>
 
 typedef struct ConnectionID {
     byte length;
