@@ -115,7 +115,7 @@ STM32L4_V2_FIPS_REPO=git@github.com:wolfSSL/fips.git
 STM32L4_V2_CRYPT_VERSION=WCv4.0.1-stable
 
 FIPS_SRCS=( fips.c fips_test.c )
-WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
+WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random aes_asm )
 TEST_DIR=XXX-fips-test
 CRYPT_INC_PATH=cyassl/ctaocrypt
 CRYPT_SRC_PATH=ctaocrypt/src
@@ -183,7 +183,6 @@ linuxv2 | fipsv2-OE-ready)
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION=v2
-  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm )
   ;;
 netbsd-selftest)
   FIPS_VERSION=$NETBSD_FIPS_VERSION
@@ -233,8 +232,7 @@ linuxv5)
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION="v5"
-  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
-                wolfcrypt/src/aes_gcm_asm.S
+  COPY_DIRECT=( wolfcrypt/src/aes_gcm_asm.S
                 wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
   ;;
 fips-ready)
@@ -351,7 +349,18 @@ v2|rand|v5*)
     # Checkout the fips versions of the wolfCrypt files from the repo.
     for MOD in "${WC_MODS[@]}"
     do
-        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h" || exit $?
+        if [ -f "$CRYPT_SRC_PATH/$MOD.c" ]; then
+            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" || exit $?
+        fi
+        if [ -f "$CRYPT_SRC_PATH/$MOD.S" ]; then
+            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.S" || exit $?
+        fi
+        if [ -f "$CRYPT_SRC_PATH/$MOD.asm" ]; then
+            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.asm" || exit $?
+        fi
+        if [ -f "$CRYPT_INC_PATH/$MOD.h" ]; then
+            $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_INC_PATH/$MOD.h" || exit $?
+        fi
     done
 
     for MOD in "${COPY_DIRECT[@]}"
