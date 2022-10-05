@@ -31,2408 +31,2410 @@
 #ifdef HAVE_CURVE25519
 
 	.text
-	.align	2
+	.align	4
 	.globl	fe_init
 	.type	fe_init, %function
 fe_init:
 	bx	lr
 	.size	fe_init,.-fe_init
 	.text
-	.align	2
+	.align	4
 	.globl	fe_frombytes
 	.type	fe_frombytes, %function
 fe_frombytes:
-	push	{r4, r5, r6, r7, lr}
+	push	{r4, r5, r6, r7, r8, r9}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
 #else
-	ldrd  r2, r3, [r1]
+	ldrd	r2, r3, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #8]
-	ldr	lr, [r1, #12]
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
 #else
-	ldrd  r12, lr, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #16]
-	ldr	r5, [r1, #20]
+	ldr	r6, [r1, #16]
+	ldr	r7, [r1, #20]
 #else
-	ldrd  r4, r5, [r1, #16]
+	ldrd	r6, r7, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r1, #24]
-	ldr	r7, [r1, #28]
+	ldr	r8, [r1, #24]
+	ldr	r9, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r8, r9, [r1, #24]
 #endif
-	and	r7, r7, #0x7fffffff
+	and	r9, r9, #0x7fffffff
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0]
 	str	r3, [r0, #4]
 #else
-	strd  r2, r3, [r0]
+	strd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #8]
-	str	lr, [r0, #12]
+	str	r4, [r0, #8]
+	str	r5, [r0, #12]
 #else
-	strd  r12, lr, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [r0, #16]
-	str	r5, [r0, #20]
+	str	r6, [r0, #16]
+	str	r7, [r0, #20]
 #else
-	strd  r4, r5, [r0, #16]
+	strd	r6, r7, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0, #24]
-	str	r7, [r0, #28]
+	str	r8, [r0, #24]
+	str	r9, [r0, #28]
 #else
-	strd  r6, r7, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
-	pop	{r4, r5, r6, r7, pc}
+	pop	{r4, r5, r6, r7, r8, pc}
 	.size	fe_frombytes,.-fe_frombytes
 	.text
-	.align	2
+	.align	4
 	.globl	fe_tobytes
 	.type	fe_tobytes, %function
 fe_tobytes:
-	push	{r4, r5, r6, r7, r8, lr}
+	push	{r4, r5, r6, r7, r8, r9}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
 #else
-	ldrd  r2, r3, [r1]
+	ldrd	r2, r3, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #8]
-	ldr	lr, [r1, #12]
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
 #else
-	ldrd  r12, lr, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #16]
-	ldr	r5, [r1, #20]
+	ldr	r6, [r1, #16]
+	ldr	r7, [r1, #20]
 #else
-	ldrd  r4, r5, [r1, #16]
+	ldrd	r6, r7, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r1, #24]
-	ldr	r7, [r1, #28]
+	ldr	r8, [r1, #24]
+	ldr	r9, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r8, r9, [r1, #24]
 #endif
-	adds	r8, r2, #19
-	adcs	r8, r3, #0
-	adcs	r8, r12, #0
-	adcs	r8, lr, #0
-	adcs	r8, r4, #0
-	adcs	r8, r5, #0
-	adcs	r8, r6, #0
-	adc	r8, r7, #0
-	asr	r8, r8, #31
-	and	r8, r8, #19
-	adds	r2, r2, r8
+	adds	r12, r2, #19
+	adcs	r12, r3, #0
+	adcs	r12, r4, #0
+	adcs	r12, r5, #0
+	adcs	r12, r6, #0
+	adcs	r12, r7, #0
+	adcs	r12, r8, #0
+	adc	r12, r9, #0
+	asr	r12, r12, #31
+	and	r12, r12, #19
+	adds	r2, r2, r12
 	adcs	r3, r3, #0
-	adcs	r12, r12, #0
-	adcs	lr, lr, #0
 	adcs	r4, r4, #0
 	adcs	r5, r5, #0
 	adcs	r6, r6, #0
-	adc	r7, r7, #0
-	and	r7, r7, #0x7fffffff
+	adcs	r7, r7, #0
+	adcs	r8, r8, #0
+	adc	r9, r9, #0
+	and	r9, r9, #0x7fffffff
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0]
 	str	r3, [r0, #4]
 #else
-	strd  r2, r3, [r0]
+	strd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #8]
-	str	lr, [r0, #12]
+	str	r4, [r0, #8]
+	str	r5, [r0, #12]
 #else
-	strd  r12, lr, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [r0, #16]
-	str	r5, [r0, #20]
+	str	r6, [r0, #16]
+	str	r7, [r0, #20]
 #else
-	strd  r4, r5, [r0, #16]
+	strd	r6, r7, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0, #24]
-	str	r7, [r0, #28]
+	str	r8, [r0, #24]
+	str	r9, [r0, #28]
 #else
-	strd  r6, r7, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	fe_tobytes,.-fe_tobytes
 	.text
-	.align	2
+	.align	4
 	.globl	fe_1
 	.type	fe_1, %function
 fe_1:
 	# Set one
 	mov	r2, #1
-	mov	r1, #0
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r2, [r0]
-	str	r1, [r0, #4]
-#else
-	strd  r2, r1, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #8]
-	str	r1, [r0, #12]
-#else
-	strd  r1, r1, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #16]
-	str	r1, [r0, #20]
-#else
-	strd  r1, r1, [r0, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #24]
-	str	r1, [r0, #28]
-#else
-	strd  r1, r1, [r0, #24]
-#endif
-	bx	lr
-	.size	fe_1,.-fe_1
-	.text
-	.align	2
-	.globl	fe_0
-	.type	fe_0, %function
-fe_0:
-	# Set zero
-	mov	r1, #0
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0]
-	str	r1, [r0, #4]
-#else
-	strd  r1, r1, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #8]
-	str	r1, [r0, #12]
-#else
-	strd  r1, r1, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #16]
-	str	r1, [r0, #20]
-#else
-	strd  r1, r1, [r0, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r1, [r0, #24]
-	str	r1, [r0, #28]
-#else
-	strd  r1, r1, [r0, #24]
-#endif
-	bx	lr
-	.size	fe_0,.-fe_0
-	.text
-	.align	2
-	.globl	fe_copy
-	.type	fe_copy, %function
-fe_copy:
-	push	{lr}
-	# Copy
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r2, [r1]
-	ldr	r3, [r1, #4]
-#else
-	ldrd  r2, r3, [r1]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #8]
-	ldr	lr, [r1, #12]
-#else
-	ldrd  r12, lr, [r1, #8]
-#endif
+	mov	r3, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0]
 	str	r3, [r0, #4]
 #else
-	strd  r2, r3, [r0]
+	strd	r2, r3, [r0]
 #endif
+	mov	r2, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #8]
-	str	lr, [r0, #12]
+	str	r2, [r0, #8]
+	str	r3, [r0, #12]
 #else
-	strd  r12, lr, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r2, [r1, #16]
-	ldr	r3, [r1, #20]
-#else
-	ldrd  r2, r3, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #24]
-	ldr	lr, [r1, #28]
-#else
-	ldrd  r12, lr, [r1, #24]
+	strd	r2, r3, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0, #16]
 	str	r3, [r0, #20]
 #else
-	strd  r2, r3, [r0, #16]
+	strd	r2, r3, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #24]
-	str	lr, [r0, #28]
+	str	r2, [r0, #24]
+	str	r3, [r0, #28]
 #else
-	strd  r12, lr, [r0, #24]
+	strd	r2, r3, [r0, #24]
 #endif
-	pop	{pc}
+	bx	lr
+	.size	fe_1,.-fe_1
+	.text
+	.align	4
+	.globl	fe_0
+	.type	fe_0, %function
+fe_0:
+	# Set zero
+	mov	r2, #0
+	mov	r3, #0
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0]
+	str	r3, [r0, #4]
+#else
+	strd	r2, r3, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0, #8]
+	str	r3, [r0, #12]
+#else
+	strd	r2, r3, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0, #16]
+	str	r3, [r0, #20]
+#else
+	strd	r2, r3, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0, #24]
+	str	r3, [r0, #28]
+#else
+	strd	r2, r3, [r0, #24]
+#endif
+	bx	lr
+	.size	fe_0,.-fe_0
+	.text
+	.align	4
+	.globl	fe_copy
+	.type	fe_copy, %function
+fe_copy:
+	push	{r4, r5}
+	# Copy
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r2, [r1]
+	ldr	r3, [r1, #4]
+#else
+	ldrd	r2, r3, [r1]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
+#else
+	ldrd	r4, r5, [r1, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0]
+	str	r3, [r0, #4]
+#else
+	strd	r2, r3, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #8]
+	str	r5, [r0, #12]
+#else
+	strd	r4, r5, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r2, [r1, #16]
+	ldr	r3, [r1, #20]
+#else
+	ldrd	r2, r3, [r1, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #24]
+	ldr	r5, [r1, #28]
+#else
+	ldrd	r4, r5, [r1, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r2, [r0, #16]
+	str	r3, [r0, #20]
+#else
+	strd	r2, r3, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #24]
+	str	r5, [r0, #28]
+#else
+	strd	r4, r5, [r0, #24]
+#endif
+	pop	{r4, pc}
 	.size	fe_copy,.-fe_copy
 	.text
-	.align	2
+	.align	4
 	.globl	fe_sub
 	.type	fe_sub, %function
 fe_sub:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1]
-	ldr	lr, [r1, #4]
+	ldr	r4, [r1]
+	ldr	r5, [r1, #4]
 #else
-	ldrd  r12, lr, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #8]
-	ldr	r5, [r1, #12]
+	ldr	r6, [r1, #8]
+	ldr	r7, [r1, #12]
 #else
-	ldrd  r4, r5, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r2]
-	ldr	r7, [r2, #4]
+	ldr	r8, [r2]
+	ldr	r9, [r2, #4]
 #else
-	ldrd  r6, r7, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r2, #8]
-	ldr	r9, [r2, #12]
+	ldr	r10, [r2, #8]
+	ldr	r11, [r2, #12]
 #else
-	ldrd  r8, r9, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r6, r12, r6
-	sbcs	r7, lr, r7
+	subs	r8, r4, r8
+	sbcs	r9, r5, r9
+	sbcs	r10, r6, r10
+	sbcs	r11, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [r0]
+	str	r9, [r0, #4]
+#else
+	strd	r8, r9, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [r0, #8]
+	str	r11, [r0, #12]
+#else
+	strd	r10, r11, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #16]
+	ldr	r5, [r1, #20]
+#else
+	ldrd	r4, r5, [r1, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r1, #24]
+	ldr	r7, [r1, #28]
+#else
+	ldrd	r6, r7, [r1, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r2, #16]
+	ldr	r9, [r2, #20]
+#else
+	ldrd	r8, r9, [r2, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r2, #24]
+	ldr	r11, [r2, #28]
+#else
+	ldrd	r10, r11, [r2, #24]
+#endif
 	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0]
-	str	r7, [r0, #4]
-#else
-	strd  r6, r7, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [r0, #8]
-	str	r9, [r0, #12]
-#else
-	strd  r8, r9, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #16]
-	ldr	lr, [r1, #20]
-#else
-	ldrd  r12, lr, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #24]
-	ldr	r5, [r1, #28]
-#else
-	ldrd  r4, r5, [r1, #24]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r2, #16]
-	ldr	r7, [r2, #20]
-#else
-	ldrd  r6, r7, [r2, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r2, #24]
-	ldr	r9, [r2, #28]
-#else
-	ldrd  r8, r9, [r2, #24]
-#endif
-	sbcs	r6, r12, r6
-	sbcs	r7, lr, r7
-	sbcs	r8, r4, r8
-	sbc	r9, r5, r9
-	mov	r10, #-19
-	asr	r3, r9, #31
+	sbcs	r10, r6, r10
+	sbc	r11, r7, r11
+	mov	r12, #-19
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r10, r3, r10
-	and	r11, r3, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0]
-	ldr	lr, [r0, #4]
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 #else
-	ldrd  r12, lr, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r12, r12, r10
-	adcs	lr, lr, r3
-	adcs	r4, r4, r3
+	adds	r4, r4, r12
 	adcs	r5, r5, r3
 	adcs	r6, r6, r3
 	adcs	r7, r7, r3
 	adcs	r8, r8, r3
-	adc	r9, r9, r11
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
+	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0]
-	str	lr, [r0, #4]
+	str	r4, [r0]
+	str	r5, [r0, #4]
 #else
-	strd  r12, lr, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [r0, #8]
-	str	r5, [r0, #12]
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0, #16]
-	str	r7, [r0, #20]
+	str	r8, [r0, #16]
+	str	r9, [r0, #20]
 #else
-	strd  r6, r7, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [r0, #24]
-	str	r9, [r0, #28]
+	str	r10, [r0, #24]
+	str	r11, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_sub,.-fe_sub
 	.text
-	.align	2
+	.align	4
 	.globl	fe_add
 	.type	fe_add, %function
 fe_add:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1]
-	ldr	lr, [r1, #4]
+	ldr	r4, [r1]
+	ldr	r5, [r1, #4]
 #else
-	ldrd  r12, lr, [r1]
+	ldrd	r4, r5, [r1]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r1, #8]
+	ldr	r7, [r1, #12]
+#else
+	ldrd	r6, r7, [r1, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r2]
+	ldr	r9, [r2, #4]
+#else
+	ldrd	r8, r9, [r2]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r2, #8]
+	ldr	r11, [r2, #12]
+#else
+	ldrd	r10, r11, [r2, #8]
+#endif
+	adds	r8, r4, r8
+	adcs	r9, r5, r9
+	adcs	r10, r6, r10
+	adcs	r11, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [r0]
+	str	r9, [r0, #4]
+#else
+	strd	r8, r9, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [r0, #8]
+	str	r11, [r0, #12]
+#else
+	strd	r10, r11, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r1, #16]
+	ldr	r5, [r1, #20]
+#else
+	ldrd	r4, r5, [r1, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r1, #24]
+	ldr	r7, [r1, #28]
+#else
+	ldrd	r6, r7, [r1, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [r2, #16]
+	ldr	r9, [r2, #20]
+#else
+	ldrd	r8, r9, [r2, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r2, #24]
+	ldr	r11, [r2, #28]
+#else
+	ldrd	r10, r11, [r2, #24]
+#endif
+	adcs	r8, r4, r8
+	adcs	r9, r5, r9
+	adcs	r10, r6, r10
+	adc	r11, r7, r11
+	mov	r12, #-19
+	asr	r3, r11, #31
+	#   Mask the modulus
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
+	#   Sub modulus (if overflow)
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
+#else
+	ldrd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+#else
+	ldrd	r6, r7, [r0, #8]
+#endif
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
+	sbc	r11, r11, lr
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0]
+	str	r5, [r0, #4]
+#else
+	strd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
+#else
+	strd	r6, r7, [r0, #8]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [r0, #16]
+	str	r9, [r0, #20]
+#else
+	strd	r8, r9, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [r0, #24]
+	str	r11, [r0, #28]
+#else
+	strd	r10, r11, [r0, #24]
+#endif
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	.size	fe_add,.-fe_add
+	.text
+	.align	4
+	.globl	fe_neg
+	.type	fe_neg, %function
+fe_neg:
+	push	{r4, r5, lr}
+	mov	lr, #-1
+	mov	r12, #-19
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r2, [r1]
+	ldr	r3, [r1, #4]
+#else
+	ldrd	r2, r3, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r4, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
+	subs	r2, r12, r2
+	sbcs	r3, lr, r3
+	sbcs	r4, lr, r4
+	sbcs	r5, lr, r5
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r2]
-	ldr	r7, [r2, #4]
+	str	r2, [r0]
+	str	r3, [r0, #4]
 #else
-	ldrd  r6, r7, [r2]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r2, #8]
-	ldr	r9, [r2, #12]
-#else
-	ldrd  r8, r9, [r2, #8]
-#endif
-	adds	r6, r12, r6
-	adcs	r7, lr, r7
-	adcs	r8, r4, r8
-	adcs	r9, r5, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0]
-	str	r7, [r0, #4]
-#else
-	strd  r6, r7, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [r0, #8]
-	str	r9, [r0, #12]
-#else
-	strd  r8, r9, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #16]
-	ldr	lr, [r1, #20]
-#else
-	ldrd  r12, lr, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #24]
-	ldr	r5, [r1, #28]
-#else
-	ldrd  r4, r5, [r1, #24]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r2, #16]
-	ldr	r7, [r2, #20]
-#else
-	ldrd  r6, r7, [r2, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r2, #24]
-	ldr	r9, [r2, #28]
-#else
-	ldrd  r8, r9, [r2, #24]
-#endif
-	adcs	r6, r12, r6
-	adcs	r7, lr, r7
-	adcs	r8, r4, r8
-	adc	r9, r5, r9
-	mov	r10, #-19
-	asr	r3, r9, #31
-	#   Mask the modulus
-	and	r10, r3, r10
-	and	r11, r3, #0x7fffffff
-	#   Sub modulus (if overflow)
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0]
-	ldr	lr, [r0, #4]
-#else
-	ldrd  r12, lr, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
-#else
-	ldrd  r4, r5, [r0, #8]
-#endif
-	subs	r12, r12, r10
-	sbcs	lr, lr, r3
-	sbcs	r4, r4, r3
-	sbcs	r5, r5, r3
-	sbcs	r6, r6, r3
-	sbcs	r7, r7, r3
-	sbcs	r8, r8, r3
-	sbc	r9, r9, r11
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0]
-	str	lr, [r0, #4]
-#else
-	strd  r12, lr, [r0]
+	strd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [r0, #16]
-	str	r7, [r0, #20]
+	mov	r12, #0x7fffff
+	lsl	r12, r12, #8
+	add	r12, r12, #0xff
 #else
-	strd  r6, r7, [r0, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [r0, #24]
-	str	r9, [r0, #28]
-#else
-	strd  r8, r9, [r0, #24]
-#endif
-	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	fe_add,.-fe_add
-	.text
-	.align	2
-	.globl	fe_neg
-	.type	fe_neg, %function
-fe_neg:
-	push	{r4, r5, lr}
-	mov	r5, #-1
-	mov	r4, #-19
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r2, [r1]
-	ldr	r3, [r1, #4]
-#else
-	ldrd  r2, r3, [r1]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #8]
-	ldr	lr, [r1, #12]
-#else
-	ldrd  r12, lr, [r1, #8]
-#endif
-	subs	r2, r4, r2
-	sbcs	r3, r5, r3
-	sbcs	r12, r5, r12
-	sbcs	lr, r5, lr
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r2, [r0]
-	str	r3, [r0, #4]
-#else
-	strd  r2, r3, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #8]
-	str	lr, [r0, #12]
-#else
-	strd  r12, lr, [r0, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r4, #0x7fffff
-	lsl	r4, r4, #8
-	add	r4, r4, #0xff
-#else
-	mov	r4, #0x7fffffff
+	mov	r12, #0x7fffffff
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1, #16]
 	ldr	r3, [r1, #20]
 #else
-	ldrd  r2, r3, [r1, #16]
+	ldrd	r2, r3, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #24]
-	ldr	lr, [r1, #28]
+	ldr	r4, [r1, #24]
+	ldr	r5, [r1, #28]
 #else
-	ldrd  r12, lr, [r1, #24]
+	ldrd	r4, r5, [r1, #24]
 #endif
-	sbcs	r2, r5, r2
-	sbcs	r3, r5, r3
-	sbcs	r12, r5, r12
-	sbc	lr, r4, lr
+	sbcs	r2, lr, r2
+	sbcs	r3, lr, r3
+	sbcs	r4, lr, r4
+	sbc	r5, r12, r5
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0, #16]
 	str	r3, [r0, #20]
 #else
-	strd  r2, r3, [r0, #16]
+	strd	r2, r3, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #24]
-	str	lr, [r0, #28]
+	str	r4, [r0, #24]
+	str	r5, [r0, #28]
 #else
-	strd  r12, lr, [r0, #24]
+	strd	r4, r5, [r0, #24]
 #endif
 	pop	{r4, r5, pc}
 	.size	fe_neg,.-fe_neg
 	.text
-	.align	2
+	.align	4
 	.globl	fe_isnonzero
 	.type	fe_isnonzero, %function
 fe_isnonzero:
-	push	{r4, r5, r6, r7, r8, lr}
+	push	{r4, r5, r6, r7, r8, r9}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r0]
 	ldr	r3, [r0, #4]
 #else
-	ldrd  r2, r3, [r0]
+	ldrd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0, #8]
-	ldr	lr, [r0, #12]
+	ldr	r4, [r0, #8]
+	ldr	r5, [r0, #12]
 #else
-	ldrd  r12, lr, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
 #else
-	ldrd  r4, r5, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r0, #24]
-	ldr	r7, [r0, #28]
+	ldr	r8, [r0, #24]
+	ldr	r9, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r8, r9, [r0, #24]
 #endif
 	adds	r1, r2, #19
 	adcs	r1, r3, #0
-	adcs	r1, r12, #0
-	adcs	r1, lr, #0
 	adcs	r1, r4, #0
 	adcs	r1, r5, #0
 	adcs	r1, r6, #0
-	adc	r1, r7, #0
+	adcs	r1, r7, #0
+	adcs	r1, r8, #0
+	adc	r1, r9, #0
 	asr	r1, r1, #31
 	and	r1, r1, #19
 	adds	r2, r2, r1
 	adcs	r3, r3, #0
-	adcs	r12, r12, #0
-	adcs	lr, lr, #0
 	adcs	r4, r4, #0
 	adcs	r5, r5, #0
 	adcs	r6, r6, #0
-	adc	r7, r7, #0
-	and	r7, r7, #0x7fffffff
+	adcs	r7, r7, #0
+	adcs	r8, r8, #0
+	adc	r9, r9, #0
+	and	r9, r9, #0x7fffffff
 	orr	r2, r2, r3
-	orr	r12, r12, lr
 	orr	r4, r4, r5
 	orr	r6, r6, r7
-	orr	r12, r12, r4
-	orr	r2, r2, r6
-	orr	r0, r2, r12
+	orr	r8, r8, r9
+	orr	r4, r4, r6
+	orr	r2, r2, r8
+	orr	r0, r2, r4
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	fe_isnonzero,.-fe_isnonzero
 	.text
-	.align	2
+	.align	4
 	.globl	fe_isnegative
 	.type	fe_isnegative, %function
 fe_isnegative:
-	push	{lr}
+	push	{r4, r5}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r0]
 	ldr	r3, [r0, #4]
 #else
-	ldrd  r2, r3, [r0]
+	ldrd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0, #8]
-	ldr	lr, [r0, #12]
+	ldr	r4, [r0, #8]
+	ldr	r5, [r0, #12]
 #else
-	ldrd  r12, lr, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 	adds	r1, r2, #19
 	adcs	r1, r3, #0
-	adcs	r1, r12, #0
-	adcs	r1, lr, #0
+	adcs	r1, r4, #0
+	adcs	r1, r5, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r0, #16]
 	ldr	r3, [r0, #20]
 #else
-	ldrd  r2, r3, [r0, #16]
+	ldrd	r2, r3, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0, #24]
-	ldr	lr, [r0, #28]
+	ldr	r4, [r0, #24]
+	ldr	r5, [r0, #28]
 #else
-	ldrd  r12, lr, [r0, #24]
+	ldrd	r4, r5, [r0, #24]
 #endif
 	adcs	r1, r2, #0
 	adcs	r1, r3, #0
-	adcs	r1, r12, #0
+	adcs	r1, r4, #0
 	ldr	r2, [r0]
-	adc	r1, lr, #0
+	adc	r1, r5, #0
 	and	r0, r2, #1
 	lsr	r1, r1, #31
 	eor	r0, r0, r1
-	pop	{pc}
+	pop	{r4, pc}
 	.size	fe_isnegative,.-fe_isnegative
 	.text
-	.align	2
+	.align	4
 	.globl	fe_cmov_table
 	.type	fe_cmov_table, %function
 fe_cmov_table:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sxtb	r2, r2
-	sbfx	r7, r2, #7, #1
-	eor	r10, r2, r7
-	sub	r10, r10, r7
-	mov	r3, #1
-	mov	r12, #0
-	mov	lr, #1
+	sbfx	r3, r2, #7, #1
+	eor	r12, r2, r3
+	sub	r12, r12, r3
+	mov	r4, #1
+	mov	r5, #0
+	mov	r6, #1
+	mov	r7, #0
+	mov	r8, #0
+	mov	r9, #0
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #31
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #30
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #29
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #28
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #27
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #26
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #25
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	add	r1, r1, #0x60
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
+#else
+	mov	r3, #0x80000000
+#endif
+	ror	r3, r3, #24
+	ror	r3, r3, r12
+	asr	r3, r3, #31
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1]
+	ldr	r11, [r1, #4]
+#else
+	ldrd	r10, r11, [r1]
+#endif
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #32]
+	ldr	r11, [r1, #36]
+#else
+	ldrd	r10, r11, [r1, #32]
+#endif
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [r1, #64]
+	ldr	r11, [r1, #68]
+#else
+	ldrd	r10, r11, [r1, #64]
+#endif
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
+	sub	r1, r1, #0x2a0
+	mov	r10, #-19
+	mov	r11, #-1
+	subs	r10, r10, r8
+	sbcs	r11, r11, r9
+	sbc	lr, lr, lr
+	asr	r12, r2, #31
+	eor	r3, r4, r6
+	and	r3, r3, r12
+	eor	r4, r4, r3
+	eor	r6, r6, r3
+	eor	r3, r5, r7
+	and	r3, r3, r12
+	eor	r5, r5, r3
+	eor	r7, r7, r3
+	eor	r10, r10, r8
+	and	r10, r10, r12
+	eor	r8, r8, r10
+	eor	r11, r11, r9
+	and	r11, r11, r12
+	eor	r9, r9, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0]
+	str	r5, [r0, #4]
+#else
+	strd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #32]
+	str	r7, [r0, #36]
+#else
+	strd	r6, r7, [r0, #32]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [r0, #64]
+	str	r9, [r0, #68]
+#else
+	strd	r8, r9, [r0, #64]
+#endif
+	sbfx	r3, r2, #7, #1
+	eor	r12, r2, r3
+	sub	r12, r12, r3
 	mov	r4, #0
 	mov	r5, #0
 	mov	r6, #0
+	mov	r7, #0
+	mov	r8, #0
+	mov	r9, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #31
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #31
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #30
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #30
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #29
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #29
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #28
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #28
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #27
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #27
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #26
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #26
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #25
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #25
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #24
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #24
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1]
-	ldr	r9, [r1, #4]
+	ldr	r10, [r1, #8]
+	ldr	r11, [r1, #12]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #32]
-	ldr	r9, [r1, #36]
+	ldr	r10, [r1, #40]
+	ldr	r11, [r1, #44]
 #else
-	ldrd  r8, r9, [r1, #32]
+	ldrd	r10, r11, [r1, #40]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #64]
-	ldr	r9, [r1, #68]
+	ldr	r10, [r1, #72]
+	ldr	r11, [r1, #76]
 #else
-	ldrd  r8, r9, [r1, #64]
+	ldrd	r10, r11, [r1, #72]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	sub	r1, r1, #0x2a0
-	mov	r8, #-19
-	mov	r9, #-1
-	subs	r8, r8, r5
-	sbcs	r9, r9, r6
-	sbc	r11, r11, r11
-	asr	r10, r2, #31
-	eor	r7, r3, lr
-	and	r7, r7, r10
-	eor	r3, r3, r7
-	eor	lr, lr, r7
-	eor	r7, r12, r4
-	and	r7, r7, r10
-	eor	r12, r12, r7
-	eor	r4, r4, r7
-	eor	r8, r8, r5
-	and	r8, r8, r10
-	eor	r5, r5, r8
-	eor	r9, r9, r6
-	and	r9, r9, r10
-	eor	r6, r6, r9
+	mov	r10, #-1
+	mov	r11, #-1
+	rsbs	lr, lr, #0
+	sbcs	r10, r10, r8
+	sbcs	r11, r11, r9
+	sbc	lr, lr, lr
+	asr	r12, r2, #31
+	eor	r3, r4, r6
+	and	r3, r3, r12
+	eor	r4, r4, r3
+	eor	r6, r6, r3
+	eor	r3, r5, r7
+	and	r3, r3, r12
+	eor	r5, r5, r3
+	eor	r7, r7, r3
+	eor	r10, r10, r8
+	and	r10, r10, r12
+	eor	r8, r8, r10
+	eor	r11, r11, r9
+	and	r11, r11, r12
+	eor	r9, r9, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
-	str	r12, [r0, #4]
+	str	r4, [r0, #8]
+	str	r5, [r0, #12]
 #else
-	strd  r3, r12, [r0]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	lr, [r0, #32]
-	str	r4, [r0, #36]
+	str	r6, [r0, #40]
+	str	r7, [r0, #44]
 #else
-	strd  lr, r4, [r0, #32]
+	strd	r6, r7, [r0, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r5, [r0, #64]
-	str	r6, [r0, #68]
+	str	r8, [r0, #72]
+	str	r9, [r0, #76]
 #else
-	strd  r5, r6, [r0, #64]
+	strd	r8, r9, [r0, #72]
 #endif
-	sbfx	r7, r2, #7, #1
-	eor	r10, r2, r7
-	sub	r10, r10, r7
-	mov	r3, #0
-	mov	r12, #0
-	mov	lr, #0
+	sbfx	r3, r2, #7, #1
+	eor	r12, r2, r3
+	sub	r12, r12, r3
 	mov	r4, #0
 	mov	r5, #0
 	mov	r6, #0
+	mov	r7, #0
+	mov	r8, #0
+	mov	r9, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #31
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #31
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #30
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #30
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #29
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #29
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #28
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #28
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #27
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #27
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #26
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #26
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #25
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #25
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #24
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #24
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #8]
-	ldr	r9, [r1, #12]
+	ldr	r10, [r1, #16]
+	ldr	r11, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #8]
+	ldrd	r10, r11, [r1, #16]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #40]
-	ldr	r9, [r1, #44]
+	ldr	r10, [r1, #48]
+	ldr	r11, [r1, #52]
 #else
-	ldrd  r8, r9, [r1, #40]
+	ldrd	r10, r11, [r1, #48]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #72]
-	ldr	r9, [r1, #76]
+	ldr	r10, [r1, #80]
+	ldr	r11, [r1, #84]
 #else
-	ldrd  r8, r9, [r1, #72]
+	ldrd	r10, r11, [r1, #80]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	sub	r1, r1, #0x2a0
-	mov	r8, #-1
-	mov	r9, #-1
-	rsbs	r11, r11, #0
-	sbcs	r8, r8, r5
-	sbcs	r9, r9, r6
-	sbc	r11, r11, r11
-	asr	r10, r2, #31
-	eor	r7, r3, lr
-	and	r7, r7, r10
-	eor	r3, r3, r7
-	eor	lr, lr, r7
-	eor	r7, r12, r4
-	and	r7, r7, r10
-	eor	r12, r12, r7
-	eor	r4, r4, r7
-	eor	r8, r8, r5
-	and	r8, r8, r10
-	eor	r5, r5, r8
-	eor	r9, r9, r6
-	and	r9, r9, r10
-	eor	r6, r6, r9
+	mov	r10, #-1
+	mov	r11, #-1
+	rsbs	lr, lr, #0
+	sbcs	r10, r10, r8
+	sbcs	r11, r11, r9
+	sbc	lr, lr, lr
+	asr	r12, r2, #31
+	eor	r3, r4, r6
+	and	r3, r3, r12
+	eor	r4, r4, r3
+	eor	r6, r6, r3
+	eor	r3, r5, r7
+	and	r3, r3, r12
+	eor	r5, r5, r3
+	eor	r7, r7, r3
+	eor	r10, r10, r8
+	and	r10, r10, r12
+	eor	r8, r8, r10
+	eor	r11, r11, r9
+	and	r11, r11, r12
+	eor	r9, r9, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
-	str	r12, [r0, #12]
+	str	r4, [r0, #16]
+	str	r5, [r0, #20]
 #else
-	strd  r3, r12, [r0, #8]
+	strd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	lr, [r0, #40]
-	str	r4, [r0, #44]
+	str	r6, [r0, #48]
+	str	r7, [r0, #52]
 #else
-	strd  lr, r4, [r0, #40]
+	strd	r6, r7, [r0, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r5, [r0, #72]
-	str	r6, [r0, #76]
+	str	r8, [r0, #80]
+	str	r9, [r0, #84]
 #else
-	strd  r5, r6, [r0, #72]
+	strd	r8, r9, [r0, #80]
 #endif
-	sbfx	r7, r2, #7, #1
-	eor	r10, r2, r7
-	sub	r10, r10, r7
-	mov	r3, #0
-	mov	r12, #0
-	mov	lr, #0
+	sbfx	r3, r2, #7, #1
+	eor	r12, r2, r3
+	sub	r12, r12, r3
 	mov	r4, #0
 	mov	r5, #0
 	mov	r6, #0
+	mov	r7, #0
+	mov	r8, #0
+	mov	r9, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #31
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #31
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #30
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #30
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #29
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #29
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #28
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #28
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #27
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #27
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #26
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #26
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #25
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #25
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	add	r1, r1, #0x60
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
+	mov	r3, #0x800000
+	lsl	r3, r3, #8
+	add	r3, r3, #0x0
 #else
-	mov	r7, #0x80000000
+	mov	r3, #0x80000000
 #endif
-	ror	r7, r7, #24
-	ror	r7, r7, r10
-	asr	r7, r7, #31
+	ror	r3, r3, #24
+	ror	r3, r3, r12
+	asr	r3, r3, #31
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #16]
-	ldr	r9, [r1, #20]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
+	eor	r10, r10, r4
+	eor	r11, r11, r5
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r4, r4, r10
+	eor	r5, r5, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #48]
-	ldr	r9, [r1, #52]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #48]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
+	eor	r10, r10, r6
+	eor	r11, r11, r7
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r6, r6, r10
+	eor	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #80]
-	ldr	r9, [r1, #84]
+	ldr	r10, [r1, #88]
+	ldr	r11, [r1, #92]
 #else
-	ldrd  r8, r9, [r1, #80]
+	ldrd	r10, r11, [r1, #88]
 #endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
+	eor	r10, r10, r8
+	eor	r11, r11, r9
+	and	r10, r10, r3
+	and	r11, r11, r3
+	eor	r8, r8, r10
+	eor	r9, r9, r11
 	sub	r1, r1, #0x2a0
-	mov	r8, #-1
-	mov	r9, #-1
-	rsbs	r11, r11, #0
-	sbcs	r8, r8, r5
-	sbcs	r9, r9, r6
-	sbc	r11, r11, r11
-	asr	r10, r2, #31
-	eor	r7, r3, lr
-	and	r7, r7, r10
-	eor	r3, r3, r7
-	eor	lr, lr, r7
-	eor	r7, r12, r4
-	and	r7, r7, r10
-	eor	r12, r12, r7
-	eor	r4, r4, r7
-	eor	r8, r8, r5
-	and	r8, r8, r10
-	eor	r5, r5, r8
-	eor	r9, r9, r6
-	and	r9, r9, r10
-	eor	r6, r6, r9
+	mov	r10, #-1
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
-	str	r12, [r0, #20]
+	mov	r11, #0x7fffff
+	lsl	r11, r11, #8
+	add	r11, r11, #0xff
 #else
-	strd  r3, r12, [r0, #16]
+	mov	r11, #0x7fffffff
+#endif
+	rsbs	lr, lr, #0
+	sbcs	r10, r10, r8
+	sbc	r11, r11, r9
+	asr	r12, r2, #31
+	eor	r3, r4, r6
+	and	r3, r3, r12
+	eor	r4, r4, r3
+	eor	r6, r6, r3
+	eor	r3, r5, r7
+	and	r3, r3, r12
+	eor	r5, r5, r3
+	eor	r7, r7, r3
+	eor	r10, r10, r8
+	and	r10, r10, r12
+	eor	r8, r8, r10
+	eor	r11, r11, r9
+	and	r11, r11, r12
+	eor	r9, r9, r11
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #24]
+	str	r5, [r0, #28]
+#else
+	strd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	lr, [r0, #48]
-	str	r4, [r0, #52]
+	str	r6, [r0, #56]
+	str	r7, [r0, #60]
 #else
-	strd  lr, r4, [r0, #48]
+	strd	r6, r7, [r0, #56]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r5, [r0, #80]
-	str	r6, [r0, #84]
+	str	r8, [r0, #88]
+	str	r9, [r0, #92]
 #else
-	strd  r5, r6, [r0, #80]
-#endif
-	sbfx	r7, r2, #7, #1
-	eor	r10, r2, r7
-	sub	r10, r10, r7
-	mov	r3, #0
-	mov	r12, #0
-	mov	lr, #0
-	mov	r4, #0
-	mov	r5, #0
-	mov	r6, #0
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #31
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #30
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #29
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #28
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #27
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #26
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #25
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	add	r1, r1, #0x60
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r7, #0x800000
-	lsl	r7, r7, #8
-	add	r7, r7, #0x0
-#else
-	mov	r7, #0x80000000
-#endif
-	ror	r7, r7, #24
-	ror	r7, r7, r10
-	asr	r7, r7, #31
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
-#else
-	ldrd  r8, r9, [r1, #24]
-#endif
-	eor	r8, r8, r3
-	eor	r9, r9, r12
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r3, r3, r8
-	eor	r12, r12, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
-#else
-	ldrd  r8, r9, [r1, #56]
-#endif
-	eor	r8, r8, lr
-	eor	r9, r9, r4
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	lr, lr, r8
-	eor	r4, r4, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #88]
-	ldr	r9, [r1, #92]
-#else
-	ldrd  r8, r9, [r1, #88]
-#endif
-	eor	r8, r8, r5
-	eor	r9, r9, r6
-	and	r8, r8, r7
-	and	r9, r9, r7
-	eor	r5, r5, r8
-	eor	r6, r6, r9
-	sub	r1, r1, #0x2a0
-	mov	r8, #-1
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	mov	r9, #0x7fffff
-	lsl	r9, r9, #8
-	add	r9, r9, #0xff
-#else
-	mov	r9, #0x7fffffff
-#endif
-	rsbs	r11, r11, #0
-	sbcs	r8, r8, r5
-	sbc	r9, r9, r6
-	asr	r10, r2, #31
-	eor	r7, r3, lr
-	and	r7, r7, r10
-	eor	r3, r3, r7
-	eor	lr, lr, r7
-	eor	r7, r12, r4
-	and	r7, r7, r10
-	eor	r12, r12, r7
-	eor	r4, r4, r7
-	eor	r8, r8, r5
-	and	r8, r8, r10
-	eor	r5, r5, r8
-	eor	r9, r9, r6
-	and	r9, r9, r10
-	eor	r6, r6, r9
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #24]
-	str	r12, [r0, #28]
-#else
-	strd  r3, r12, [r0, #24]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	lr, [r0, #56]
-	str	r4, [r0, #60]
-#else
-	strd  lr, r4, [r0, #56]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r5, [r0, #88]
-	str	r6, [r0, #92]
-#else
-	strd  r5, r6, [r0, #88]
+	strd	r8, r9, [r0, #88]
 #endif
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_cmov_table,.-fe_cmov_table
 	.text
-	.align	2
+	.align	4
 	.globl	fe_mul
 	.type	fe_mul, %function
 fe_mul:
@@ -2857,25 +2859,25 @@ fe_mul:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #8]
 	ldr	r7, [sp, #12]
 #else
-	ldrd  r6, r7, [sp, #8]
+	ldrd	r6, r7, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #16]
 	ldr	r9, [sp, #20]
 #else
-	ldrd  r8, r9, [sp, #16]
+	ldrd	r8, r9, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #24]
 	ldr	r11, [sp, #28]
 #else
-	ldrd  r10, r11, [sp, #24]
+	ldrd	r10, r11, [sp, #24]
 #endif
 	lsr	r3, r11, #31
 	and	r11, r11, #0x7fffffff
@@ -2977,31 +2979,31 @@ fe_mul:
 	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r4, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_mul,.-fe_mul
 	.text
-	.align	2
+	.align	4
 	.globl	fe_sq
 	.type	fe_sq, %function
 fe_sq:
@@ -3318,25 +3320,25 @@ fe_sq:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #8]
 	ldr	r7, [sp, #12]
 #else
-	ldrd  r6, r7, [sp, #8]
+	ldrd	r6, r7, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #16]
 	ldr	r9, [sp, #20]
 #else
-	ldrd  r8, r9, [sp, #16]
+	ldrd	r8, r9, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #24]
 	ldr	r11, [sp, #28]
 #else
-	ldrd  r10, r11, [sp, #24]
+	ldrd	r10, r11, [sp, #24]
 #endif
 	lsr	r2, r11, #31
 	and	r11, r11, #0x7fffffff
@@ -3438,31 +3440,31 @@ fe_sq:
 	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r4, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_sq,.-fe_sq
 	.text
-	.align	2
+	.align	4
 	.globl	fe_mul121666
 	.type	fe_mul121666, %function
 fe_mul121666:
@@ -3472,25 +3474,25 @@ fe_mul121666:
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
 #else
-	ldrd  r2, r3, [r1]
+	ldrd	r2, r3, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r4, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #16]
 	ldr	r7, [r1, #20]
 #else
-	ldrd  r6, r7, [r1, #16]
+	ldrd	r6, r7, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #24]
 	ldr	r9, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #24]
+	ldrd	r8, r9, [r1, #24]
 #endif
 	movw	lr, #0xdb42
 	movt	lr, #1
@@ -3533,30 +3535,30 @@ fe_mul121666:
 	str	r2, [r0]
 	str	r3, [r0, #4]
 #else
-	strd  r2, r3, [r0]
+	strd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #16]
 	str	r7, [r0, #20]
 #else
-	strd  r6, r7, [r0, #16]
+	strd	r6, r7, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
 	.size	fe_mul121666,.-fe_mul121666
 	.text
-	.align	2
+	.align	4
 	.globl	fe_sq2
 	.type	fe_sq2, %function
 fe_sq2:
@@ -3873,25 +3875,25 @@ fe_sq2:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #8]
 	ldr	r7, [sp, #12]
 #else
-	ldrd  r6, r7, [sp, #8]
+	ldrd	r6, r7, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #16]
 	ldr	r9, [sp, #20]
 #else
-	ldrd  r8, r9, [sp, #16]
+	ldrd	r8, r9, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #24]
 	ldr	r11, [sp, #28]
 #else
-	ldrd  r10, r11, [sp, #24]
+	ldrd	r10, r11, [sp, #24]
 #endif
 	lsr	r2, r11, #30
 	lsl	r11, r11, #1
@@ -4008,31 +4010,31 @@ fe_sq2:
 	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r4, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_sq2,.-fe_sq2
 	.text
-	.align	2
+	.align	4
 	.globl	fe_invert
 	.type	fe_invert, %function
 fe_invert:
@@ -4182,7 +4184,7 @@ L_fe_invert8:
 	pop	{r4, pc}
 	.size	fe_invert,.-fe_invert
 	.text
-	.align	2
+	.align	4
 	.globl	curve25519
 	.type	curve25519, %function
 curve25519:
@@ -4194,133 +4196,136 @@ curve25519:
 	mov	r1, #0
 	str	r1, [sp, #172]
 	# Set one
-	mov	r11, #1
+	mov	r10, #1
+	mov	r11, #0
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [r0]
+	str	r11, [r0, #4]
+#else
+	strd	r10, r11, [r0]
+#endif
 	mov	r10, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r11, [r0]
-	str	r10, [r0, #4]
-#else
-	strd  r11, r10, [r0]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
-	str	r10, [r0, #12]
+	str	r11, [r0, #12]
 #else
-	strd  r10, r10, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #16]
-	str	r10, [r0, #20]
+	str	r11, [r0, #20]
 #else
-	strd  r10, r10, [r0, #16]
+	strd	r10, r11, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
-	str	r10, [r0, #28]
+	str	r11, [r0, #28]
 #else
-	strd  r10, r10, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	# Set zero
 	mov	r10, #0
+	mov	r11, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp]
-	str	r10, [sp, #4]
+	str	r11, [sp, #4]
 #else
-	strd  r10, r10, [sp]
+	strd	r10, r11, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #8]
-	str	r10, [sp, #12]
+	str	r11, [sp, #12]
 #else
-	strd  r10, r10, [sp, #8]
+	strd	r10, r11, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #16]
-	str	r10, [sp, #20]
+	str	r11, [sp, #20]
 #else
-	strd  r10, r10, [sp, #16]
+	strd	r10, r11, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #24]
-	str	r10, [sp, #28]
+	str	r11, [sp, #28]
 #else
-	strd  r10, r10, [sp, #24]
+	strd	r10, r11, [sp, #24]
 #endif
 	# Set one
-	mov	r11, #1
+	mov	r10, #1
+	mov	r11, #0
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [sp, #32]
+	str	r11, [sp, #36]
+#else
+	strd	r10, r11, [sp, #32]
+#endif
 	mov	r10, #0
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r11, [sp, #32]
-	str	r10, [sp, #36]
-#else
-	strd  r11, r10, [sp, #32]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #40]
-	str	r10, [sp, #44]
+	str	r11, [sp, #44]
 #else
-	strd  r10, r10, [sp, #40]
+	strd	r10, r11, [sp, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #48]
-	str	r10, [sp, #52]
+	str	r11, [sp, #52]
 #else
-	strd  r10, r10, [sp, #48]
+	strd	r10, r11, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #56]
-	str	r10, [sp, #60]
+	str	r11, [sp, #60]
 #else
-	strd  r10, r10, [sp, #56]
+	strd	r10, r11, [sp, #56]
 #endif
 	# Copy
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r4, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2, #8]
 	ldr	r7, [r2, #12]
 #else
-	ldrd  r6, r7, [r2, #8]
+	ldrd	r6, r7, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r4, [sp, #64]
 	str	r5, [sp, #68]
 #else
-	strd  r4, r5, [sp, #64]
+	strd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #72]
 	str	r7, [sp, #76]
 #else
-	strd  r6, r7, [sp, #72]
+	strd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r4, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2, #24]
 	ldr	r7, [r2, #28]
 #else
-	ldrd  r6, r7, [r2, #24]
+	ldrd	r6, r7, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r4, [sp, #80]
 	str	r5, [sp, #84]
 #else
-	strd  r4, r5, [sp, #80]
+	strd	r4, r5, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #88]
 	str	r7, [sp, #92]
 #else
-	strd  r6, r7, [sp, #88]
+	strd	r6, r7, [sp, #88]
 #endif
 	mov	r1, #30
 	str	r1, [sp, #180]
@@ -4344,13 +4349,13 @@ L_curve25519_bits:
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r4, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #64]
 	ldr	r7, [sp, #68]
 #else
-	ldrd  r6, r7, [sp, #64]
+	ldrd	r6, r7, [sp, #64]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4364,25 +4369,25 @@ L_curve25519_bits:
 	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r4, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #64]
 	str	r7, [sp, #68]
 #else
-	strd  r6, r7, [sp, #64]
+	strd	r6, r7, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #72]
 	ldr	r7, [sp, #76]
 #else
-	ldrd  r6, r7, [sp, #72]
+	ldrd	r6, r7, [sp, #72]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4396,25 +4401,25 @@ L_curve25519_bits:
 	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #72]
 	str	r7, [sp, #76]
 #else
-	strd  r6, r7, [sp, #72]
+	strd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r4, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #80]
 	ldr	r7, [sp, #84]
 #else
-	ldrd  r6, r7, [sp, #80]
+	ldrd	r6, r7, [sp, #80]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4428,25 +4433,25 @@ L_curve25519_bits:
 	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r4, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #80]
 	str	r7, [sp, #84]
 #else
-	strd  r6, r7, [sp, #80]
+	strd	r6, r7, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #24]
 	ldr	r5, [r0, #28]
 #else
-	ldrd  r4, r5, [r0, #24]
+	ldrd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #88]
 	ldr	r7, [sp, #92]
 #else
-	ldrd  r6, r7, [sp, #88]
+	ldrd	r6, r7, [sp, #88]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4460,13 +4465,13 @@ L_curve25519_bits:
 	str	r4, [r0, #24]
 	str	r5, [r0, #28]
 #else
-	strd  r4, r5, [r0, #24]
+	strd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #88]
 	str	r7, [sp, #92]
 #else
-	strd  r6, r7, [sp, #88]
+	strd	r6, r7, [sp, #88]
 #endif
 	ldr	r1, [sp, #172]
 	# Conditional Swap
@@ -4475,13 +4480,13 @@ L_curve25519_bits:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #32]
 	ldr	r7, [sp, #36]
 #else
-	ldrd  r6, r7, [sp, #32]
+	ldrd	r6, r7, [sp, #32]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4495,25 +4500,25 @@ L_curve25519_bits:
 	str	r4, [sp]
 	str	r5, [sp, #4]
 #else
-	strd  r4, r5, [sp]
+	strd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #32]
 	str	r7, [sp, #36]
 #else
-	strd  r6, r7, [sp, #32]
+	strd	r6, r7, [sp, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #8]
 	ldr	r5, [sp, #12]
 #else
-	ldrd  r4, r5, [sp, #8]
+	ldrd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #40]
 	ldr	r7, [sp, #44]
 #else
-	ldrd  r6, r7, [sp, #40]
+	ldrd	r6, r7, [sp, #40]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4527,25 +4532,25 @@ L_curve25519_bits:
 	str	r4, [sp, #8]
 	str	r5, [sp, #12]
 #else
-	strd  r4, r5, [sp, #8]
+	strd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #40]
 	str	r7, [sp, #44]
 #else
-	strd  r6, r7, [sp, #40]
+	strd	r6, r7, [sp, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #16]
 	ldr	r5, [sp, #20]
 #else
-	ldrd  r4, r5, [sp, #16]
+	ldrd	r4, r5, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #48]
 	ldr	r7, [sp, #52]
 #else
-	ldrd  r6, r7, [sp, #48]
+	ldrd	r6, r7, [sp, #48]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4559,25 +4564,25 @@ L_curve25519_bits:
 	str	r4, [sp, #16]
 	str	r5, [sp, #20]
 #else
-	strd  r4, r5, [sp, #16]
+	strd	r4, r5, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #48]
 	str	r7, [sp, #52]
 #else
-	strd  r6, r7, [sp, #48]
+	strd	r6, r7, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #24]
 	ldr	r5, [sp, #28]
 #else
-	ldrd  r4, r5, [sp, #24]
+	ldrd	r4, r5, [sp, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #56]
 	ldr	r7, [sp, #60]
 #else
-	ldrd  r6, r7, [sp, #56]
+	ldrd	r6, r7, [sp, #56]
 #endif
 	eor	r8, r4, r6
 	eor	r9, r5, r7
@@ -4591,13 +4596,13 @@ L_curve25519_bits:
 	str	r4, [sp, #24]
 	str	r5, [sp, #28]
 #else
-	strd  r4, r5, [sp, #24]
+	strd	r4, r5, [sp, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #56]
 	str	r7, [sp, #60]
 #else
-	strd  r6, r7, [sp, #56]
+	strd	r6, r7, [sp, #56]
 #endif
 	ldr	r1, [sp, #184]
 	str	r1, [sp, #172]
@@ -4607,13 +4612,13 @@ L_curve25519_bits:
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r4, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp]
 	ldr	r7, [sp, #4]
 #else
-	ldrd  r6, r7, [sp]
+	ldrd	r6, r7, [sp]
 #endif
 	adds	r8, r4, r6
 	mov	r3, #0
@@ -4623,7 +4628,7 @@ L_curve25519_bits:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
 	subs	r10, r4, r6
@@ -4634,20 +4639,20 @@ L_curve25519_bits:
 	str	r10, [sp, #128]
 	str	r11, [sp, #132]
 #else
-	strd  r10, r11, [sp, #128]
+	strd	r10, r11, [sp, #128]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #8]
 	ldr	r7, [sp, #12]
 #else
-	ldrd  r6, r7, [sp, #8]
+	ldrd	r6, r7, [sp, #8]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4658,7 +4663,7 @@ L_curve25519_bits:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -4670,20 +4675,20 @@ L_curve25519_bits:
 	str	r10, [sp, #136]
 	str	r11, [sp, #140]
 #else
-	strd  r10, r11, [sp, #136]
+	strd	r10, r11, [sp, #136]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r4, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #16]
 	ldr	r7, [sp, #20]
 #else
-	ldrd  r6, r7, [sp, #16]
+	ldrd	r6, r7, [sp, #16]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4694,7 +4699,7 @@ L_curve25519_bits:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -4706,20 +4711,20 @@ L_curve25519_bits:
 	str	r10, [sp, #144]
 	str	r11, [sp, #148]
 #else
-	strd  r10, r11, [sp, #144]
+	strd	r10, r11, [sp, #144]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #24]
 	ldr	r5, [r0, #28]
 #else
-	ldrd  r4, r5, [r0, #24]
+	ldrd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #24]
 	ldr	r7, [sp, #28]
 #else
-	ldrd  r6, r7, [sp, #24]
+	ldrd	r6, r7, [sp, #24]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4738,7 +4743,7 @@ L_curve25519_bits:
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r4, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 	subs	r4, r4, r3
 	sbcs	r5, r5, r2
@@ -4746,13 +4751,13 @@ L_curve25519_bits:
 	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r4, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -4760,13 +4765,13 @@ L_curve25519_bits:
 	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r4, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -4774,7 +4779,7 @@ L_curve25519_bits:
 	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r4, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
 	sbcs	r8, r8, r2
 	sbc	r9, r9, r12
@@ -4782,7 +4787,7 @@ L_curve25519_bits:
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r3, #-19
 	asr	r2, r11, #31
@@ -4794,7 +4799,7 @@ L_curve25519_bits:
 	ldr	r4, [sp, #128]
 	ldr	r5, [sp, #132]
 #else
-	ldrd  r4, r5, [sp, #128]
+	ldrd	r4, r5, [sp, #128]
 #endif
 	adds	r4, r4, r3
 	adcs	r5, r5, r2
@@ -4802,13 +4807,13 @@ L_curve25519_bits:
 	str	r4, [sp, #128]
 	str	r5, [sp, #132]
 #else
-	strd  r4, r5, [sp, #128]
+	strd	r4, r5, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #136]
 	ldr	r5, [sp, #140]
 #else
-	ldrd  r4, r5, [sp, #136]
+	ldrd	r4, r5, [sp, #136]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -4816,13 +4821,13 @@ L_curve25519_bits:
 	str	r4, [sp, #136]
 	str	r5, [sp, #140]
 #else
-	strd  r4, r5, [sp, #136]
+	strd	r4, r5, [sp, #136]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #144]
 	ldr	r5, [sp, #148]
 #else
-	ldrd  r4, r5, [sp, #144]
+	ldrd	r4, r5, [sp, #144]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -4830,7 +4835,7 @@ L_curve25519_bits:
 	str	r4, [sp, #144]
 	str	r5, [sp, #148]
 #else
-	strd  r4, r5, [sp, #144]
+	strd	r4, r5, [sp, #144]
 #endif
 	adcs	r10, r10, r2
 	adc	r11, r11, r12
@@ -4838,7 +4843,7 @@ L_curve25519_bits:
 	str	r10, [sp, #152]
 	str	r11, [sp, #156]
 #else
-	strd  r10, r11, [sp, #152]
+	strd	r10, r11, [sp, #152]
 #endif
 	# Add-Sub
 	#  Add
@@ -4846,13 +4851,13 @@ L_curve25519_bits:
 	ldr	r4, [sp, #64]
 	ldr	r5, [sp, #68]
 #else
-	ldrd  r4, r5, [sp, #64]
+	ldrd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #32]
 	ldr	r7, [sp, #36]
 #else
-	ldrd  r6, r7, [sp, #32]
+	ldrd	r6, r7, [sp, #32]
 #endif
 	adds	r8, r4, r6
 	mov	r3, #0
@@ -4862,7 +4867,7 @@ L_curve25519_bits:
 	str	r8, [sp]
 	str	r9, [sp, #4]
 #else
-	strd  r8, r9, [sp]
+	strd	r8, r9, [sp]
 #endif
 	#  Sub
 	subs	r10, r4, r6
@@ -4873,20 +4878,20 @@ L_curve25519_bits:
 	str	r10, [sp, #96]
 	str	r11, [sp, #100]
 #else
-	strd  r10, r11, [sp, #96]
+	strd	r10, r11, [sp, #96]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #72]
 	ldr	r5, [sp, #76]
 #else
-	ldrd  r4, r5, [sp, #72]
+	ldrd	r4, r5, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #40]
 	ldr	r7, [sp, #44]
 #else
-	ldrd  r6, r7, [sp, #40]
+	ldrd	r6, r7, [sp, #40]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4897,7 +4902,7 @@ L_curve25519_bits:
 	str	r8, [sp, #8]
 	str	r9, [sp, #12]
 #else
-	strd  r8, r9, [sp, #8]
+	strd	r8, r9, [sp, #8]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -4909,20 +4914,20 @@ L_curve25519_bits:
 	str	r10, [sp, #104]
 	str	r11, [sp, #108]
 #else
-	strd  r10, r11, [sp, #104]
+	strd	r10, r11, [sp, #104]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #80]
 	ldr	r5, [sp, #84]
 #else
-	ldrd  r4, r5, [sp, #80]
+	ldrd	r4, r5, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #48]
 	ldr	r7, [sp, #52]
 #else
-	ldrd  r6, r7, [sp, #48]
+	ldrd	r6, r7, [sp, #48]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4933,7 +4938,7 @@ L_curve25519_bits:
 	str	r8, [sp, #16]
 	str	r9, [sp, #20]
 #else
-	strd  r8, r9, [sp, #16]
+	strd	r8, r9, [sp, #16]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -4945,20 +4950,20 @@ L_curve25519_bits:
 	str	r10, [sp, #112]
 	str	r11, [sp, #116]
 #else
-	strd  r10, r11, [sp, #112]
+	strd	r10, r11, [sp, #112]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #88]
 	ldr	r5, [sp, #92]
 #else
-	ldrd  r4, r5, [sp, #88]
+	ldrd	r4, r5, [sp, #88]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #56]
 	ldr	r7, [sp, #60]
 #else
-	ldrd  r6, r7, [sp, #56]
+	ldrd	r6, r7, [sp, #56]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -4977,7 +4982,7 @@ L_curve25519_bits:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 	subs	r4, r4, r3
 	sbcs	r5, r5, r2
@@ -4985,13 +4990,13 @@ L_curve25519_bits:
 	str	r4, [sp]
 	str	r5, [sp, #4]
 #else
-	strd  r4, r5, [sp]
+	strd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #8]
 	ldr	r5, [sp, #12]
 #else
-	ldrd  r4, r5, [sp, #8]
+	ldrd	r4, r5, [sp, #8]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -4999,13 +5004,13 @@ L_curve25519_bits:
 	str	r4, [sp, #8]
 	str	r5, [sp, #12]
 #else
-	strd  r4, r5, [sp, #8]
+	strd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #16]
 	ldr	r5, [sp, #20]
 #else
-	ldrd  r4, r5, [sp, #16]
+	ldrd	r4, r5, [sp, #16]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -5013,7 +5018,7 @@ L_curve25519_bits:
 	str	r4, [sp, #16]
 	str	r5, [sp, #20]
 #else
-	strd  r4, r5, [sp, #16]
+	strd	r4, r5, [sp, #16]
 #endif
 	sbcs	r8, r8, r2
 	sbc	r9, r9, r12
@@ -5021,7 +5026,7 @@ L_curve25519_bits:
 	str	r8, [sp, #24]
 	str	r9, [sp, #28]
 #else
-	strd  r8, r9, [sp, #24]
+	strd	r8, r9, [sp, #24]
 #endif
 	mov	r3, #-19
 	asr	r2, r11, #31
@@ -5033,7 +5038,7 @@ L_curve25519_bits:
 	ldr	r4, [sp, #96]
 	ldr	r5, [sp, #100]
 #else
-	ldrd  r4, r5, [sp, #96]
+	ldrd	r4, r5, [sp, #96]
 #endif
 	adds	r4, r4, r3
 	adcs	r5, r5, r2
@@ -5041,13 +5046,13 @@ L_curve25519_bits:
 	str	r4, [sp, #96]
 	str	r5, [sp, #100]
 #else
-	strd  r4, r5, [sp, #96]
+	strd	r4, r5, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #104]
 	ldr	r5, [sp, #108]
 #else
-	ldrd  r4, r5, [sp, #104]
+	ldrd	r4, r5, [sp, #104]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -5055,13 +5060,13 @@ L_curve25519_bits:
 	str	r4, [sp, #104]
 	str	r5, [sp, #108]
 #else
-	strd  r4, r5, [sp, #104]
+	strd	r4, r5, [sp, #104]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #112]
 	ldr	r5, [sp, #116]
 #else
-	ldrd  r4, r5, [sp, #112]
+	ldrd	r4, r5, [sp, #112]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -5069,7 +5074,7 @@ L_curve25519_bits:
 	str	r4, [sp, #112]
 	str	r5, [sp, #116]
 #else
-	strd  r4, r5, [sp, #112]
+	strd	r4, r5, [sp, #112]
 #endif
 	adcs	r10, r10, r2
 	adc	r11, r11, r12
@@ -5077,7 +5082,7 @@ L_curve25519_bits:
 	str	r10, [sp, #120]
 	str	r11, [sp, #124]
 #else
-	strd  r10, r11, [sp, #120]
+	strd	r10, r11, [sp, #120]
 #endif
 	ldr	r2, [sp, #160]
 	add	r1, sp, #0x60
@@ -5099,13 +5104,13 @@ L_curve25519_bits:
 	ldr	r4, [sp, #32]
 	ldr	r5, [sp, #36]
 #else
-	ldrd  r4, r5, [sp, #32]
+	ldrd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp]
 	ldr	r7, [sp, #4]
 #else
-	ldrd  r6, r7, [sp]
+	ldrd	r6, r7, [sp]
 #endif
 	adds	r8, r4, r6
 	mov	r3, #0
@@ -5115,7 +5120,7 @@ L_curve25519_bits:
 	str	r8, [sp, #64]
 	str	r9, [sp, #68]
 #else
-	strd  r8, r9, [sp, #64]
+	strd	r8, r9, [sp, #64]
 #endif
 	#  Sub
 	subs	r10, r4, r6
@@ -5126,20 +5131,20 @@ L_curve25519_bits:
 	str	r10, [sp]
 	str	r11, [sp, #4]
 #else
-	strd  r10, r11, [sp]
+	strd	r10, r11, [sp]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #40]
 	ldr	r5, [sp, #44]
 #else
-	ldrd  r4, r5, [sp, #40]
+	ldrd	r4, r5, [sp, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #8]
 	ldr	r7, [sp, #12]
 #else
-	ldrd  r6, r7, [sp, #8]
+	ldrd	r6, r7, [sp, #8]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -5150,7 +5155,7 @@ L_curve25519_bits:
 	str	r8, [sp, #72]
 	str	r9, [sp, #76]
 #else
-	strd  r8, r9, [sp, #72]
+	strd	r8, r9, [sp, #72]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -5162,20 +5167,20 @@ L_curve25519_bits:
 	str	r10, [sp, #8]
 	str	r11, [sp, #12]
 #else
-	strd  r10, r11, [sp, #8]
+	strd	r10, r11, [sp, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #48]
 	ldr	r5, [sp, #52]
 #else
-	ldrd  r4, r5, [sp, #48]
+	ldrd	r4, r5, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #16]
 	ldr	r7, [sp, #20]
 #else
-	ldrd  r6, r7, [sp, #16]
+	ldrd	r6, r7, [sp, #16]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -5186,7 +5191,7 @@ L_curve25519_bits:
 	str	r8, [sp, #80]
 	str	r9, [sp, #84]
 #else
-	strd  r8, r9, [sp, #80]
+	strd	r8, r9, [sp, #80]
 #endif
 	#  Sub
 	adds	r12, r12, #-1
@@ -5198,20 +5203,20 @@ L_curve25519_bits:
 	str	r10, [sp, #16]
 	str	r11, [sp, #20]
 #else
-	strd  r10, r11, [sp, #16]
+	strd	r10, r11, [sp, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #56]
 	ldr	r5, [sp, #60]
 #else
-	ldrd  r4, r5, [sp, #56]
+	ldrd	r4, r5, [sp, #56]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #24]
 	ldr	r7, [sp, #28]
 #else
-	ldrd  r6, r7, [sp, #24]
+	ldrd	r6, r7, [sp, #24]
 #endif
 	adds	r3, r3, #-1
 	adcs	r8, r4, r6
@@ -5230,7 +5235,7 @@ L_curve25519_bits:
 	ldr	r4, [sp, #64]
 	ldr	r5, [sp, #68]
 #else
-	ldrd  r4, r5, [sp, #64]
+	ldrd	r4, r5, [sp, #64]
 #endif
 	subs	r4, r4, r3
 	sbcs	r5, r5, r2
@@ -5238,13 +5243,13 @@ L_curve25519_bits:
 	str	r4, [sp, #64]
 	str	r5, [sp, #68]
 #else
-	strd  r4, r5, [sp, #64]
+	strd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #72]
 	ldr	r5, [sp, #76]
 #else
-	ldrd  r4, r5, [sp, #72]
+	ldrd	r4, r5, [sp, #72]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -5252,13 +5257,13 @@ L_curve25519_bits:
 	str	r4, [sp, #72]
 	str	r5, [sp, #76]
 #else
-	strd  r4, r5, [sp, #72]
+	strd	r4, r5, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #80]
 	ldr	r5, [sp, #84]
 #else
-	ldrd  r4, r5, [sp, #80]
+	ldrd	r4, r5, [sp, #80]
 #endif
 	sbcs	r4, r4, r2
 	sbcs	r5, r5, r2
@@ -5266,7 +5271,7 @@ L_curve25519_bits:
 	str	r4, [sp, #80]
 	str	r5, [sp, #84]
 #else
-	strd  r4, r5, [sp, #80]
+	strd	r4, r5, [sp, #80]
 #endif
 	sbcs	r8, r8, r2
 	sbc	r9, r9, r12
@@ -5274,7 +5279,7 @@ L_curve25519_bits:
 	str	r8, [sp, #88]
 	str	r9, [sp, #92]
 #else
-	strd  r8, r9, [sp, #88]
+	strd	r8, r9, [sp, #88]
 #endif
 	mov	r3, #-19
 	asr	r2, r11, #31
@@ -5286,7 +5291,7 @@ L_curve25519_bits:
 	ldr	r4, [sp]
 	ldr	r5, [sp, #4]
 #else
-	ldrd  r4, r5, [sp]
+	ldrd	r4, r5, [sp]
 #endif
 	adds	r4, r4, r3
 	adcs	r5, r5, r2
@@ -5294,13 +5299,13 @@ L_curve25519_bits:
 	str	r4, [sp]
 	str	r5, [sp, #4]
 #else
-	strd  r4, r5, [sp]
+	strd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #8]
 	ldr	r5, [sp, #12]
 #else
-	ldrd  r4, r5, [sp, #8]
+	ldrd	r4, r5, [sp, #8]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -5308,13 +5313,13 @@ L_curve25519_bits:
 	str	r4, [sp, #8]
 	str	r5, [sp, #12]
 #else
-	strd  r4, r5, [sp, #8]
+	strd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #16]
 	ldr	r5, [sp, #20]
 #else
-	ldrd  r4, r5, [sp, #16]
+	ldrd	r4, r5, [sp, #16]
 #endif
 	adcs	r4, r4, r2
 	adcs	r5, r5, r2
@@ -5322,7 +5327,7 @@ L_curve25519_bits:
 	str	r4, [sp, #16]
 	str	r5, [sp, #20]
 #else
-	strd  r4, r5, [sp, #16]
+	strd	r4, r5, [sp, #16]
 #endif
 	adcs	r10, r10, r2
 	adc	r11, r11, r12
@@ -5330,7 +5335,7 @@ L_curve25519_bits:
 	str	r10, [sp, #24]
 	str	r11, [sp, #28]
 #else
-	strd  r10, r11, [sp, #24]
+	strd	r10, r11, [sp, #24]
 #endif
 	add	r2, sp, #0x60
 	add	r1, sp, #0x80
@@ -5341,25 +5346,25 @@ L_curve25519_bits:
 	ldr	r4, [sp, #128]
 	ldr	r5, [sp, #132]
 #else
-	ldrd  r4, r5, [sp, #128]
+	ldrd	r4, r5, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #136]
 	ldr	r7, [sp, #140]
 #else
-	ldrd  r6, r7, [sp, #136]
+	ldrd	r6, r7, [sp, #136]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #96]
 	ldr	r9, [sp, #100]
 #else
-	ldrd  r8, r9, [sp, #96]
+	ldrd	r8, r9, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #104]
 	ldr	r11, [sp, #108]
 #else
-	ldrd  r10, r11, [sp, #104]
+	ldrd	r10, r11, [sp, #104]
 #endif
 	subs	r8, r4, r8
 	sbcs	r9, r5, r9
@@ -5369,37 +5374,37 @@ L_curve25519_bits:
 	str	r8, [sp, #128]
 	str	r9, [sp, #132]
 #else
-	strd  r8, r9, [sp, #128]
+	strd	r8, r9, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #136]
 	str	r11, [sp, #140]
 #else
-	strd  r10, r11, [sp, #136]
+	strd	r10, r11, [sp, #136]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #144]
 	ldr	r5, [sp, #148]
 #else
-	ldrd  r4, r5, [sp, #144]
+	ldrd	r4, r5, [sp, #144]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #152]
 	ldr	r7, [sp, #156]
 #else
-	ldrd  r6, r7, [sp, #152]
+	ldrd	r6, r7, [sp, #152]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #112]
 	ldr	r9, [sp, #116]
 #else
-	ldrd  r8, r9, [sp, #112]
+	ldrd	r8, r9, [sp, #112]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #120]
 	ldr	r11, [sp, #124]
 #else
-	ldrd  r10, r11, [sp, #120]
+	ldrd	r10, r11, [sp, #120]
 #endif
 	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
@@ -5415,13 +5420,13 @@ L_curve25519_bits:
 	ldr	r4, [sp, #128]
 	ldr	r5, [sp, #132]
 #else
-	ldrd  r4, r5, [sp, #128]
+	ldrd	r4, r5, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #136]
 	ldr	r7, [sp, #140]
 #else
-	ldrd  r6, r7, [sp, #136]
+	ldrd	r6, r7, [sp, #136]
 #endif
 	adds	r4, r4, r3
 	adcs	r5, r5, r2
@@ -5435,25 +5440,25 @@ L_curve25519_bits:
 	str	r4, [sp, #128]
 	str	r5, [sp, #132]
 #else
-	strd  r4, r5, [sp, #128]
+	strd	r4, r5, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #136]
 	str	r7, [sp, #140]
 #else
-	strd  r6, r7, [sp, #136]
+	strd	r6, r7, [sp, #136]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [sp, #144]
 	str	r9, [sp, #148]
 #else
-	strd  r8, r9, [sp, #144]
+	strd	r8, r9, [sp, #144]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #152]
 	str	r11, [sp, #156]
 #else
-	strd  r10, r11, [sp, #152]
+	strd	r10, r11, [sp, #152]
 #endif
 	add	r1, sp, #0
 	add	r0, sp, #0
@@ -5463,25 +5468,25 @@ L_curve25519_bits:
 	ldr	r4, [sp, #128]
 	ldr	r5, [sp, #132]
 #else
-	ldrd  r4, r5, [sp, #128]
+	ldrd	r4, r5, [sp, #128]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #136]
 	ldr	r7, [sp, #140]
 #else
-	ldrd  r6, r7, [sp, #136]
+	ldrd	r6, r7, [sp, #136]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #144]
 	ldr	r9, [sp, #148]
 #else
-	ldrd  r8, r9, [sp, #144]
+	ldrd	r8, r9, [sp, #144]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #152]
 	ldr	r11, [sp, #156]
 #else
-	ldrd  r10, r11, [sp, #152]
+	ldrd	r10, r11, [sp, #152]
 #endif
 	movw	r12, #0xdb42
 	movt	r12, #1
@@ -5524,25 +5529,25 @@ L_curve25519_bits:
 	str	r4, [sp, #32]
 	str	r5, [sp, #36]
 #else
-	strd  r4, r5, [sp, #32]
+	strd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #40]
 	str	r7, [sp, #44]
 #else
-	strd  r6, r7, [sp, #40]
+	strd	r6, r7, [sp, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [sp, #48]
 	str	r9, [sp, #52]
 #else
-	strd  r8, r9, [sp, #48]
+	strd	r8, r9, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #56]
 	str	r11, [sp, #60]
 #else
-	strd  r10, r11, [sp, #56]
+	strd	r10, r11, [sp, #56]
 #endif
 	add	r1, sp, #0x40
 	add	r0, sp, #0x40
@@ -5552,25 +5557,25 @@ L_curve25519_bits:
 	ldr	r4, [sp, #96]
 	ldr	r5, [sp, #100]
 #else
-	ldrd  r4, r5, [sp, #96]
+	ldrd	r4, r5, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #104]
 	ldr	r7, [sp, #108]
 #else
-	ldrd  r6, r7, [sp, #104]
+	ldrd	r6, r7, [sp, #104]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #32]
 	ldr	r9, [sp, #36]
 #else
-	ldrd  r8, r9, [sp, #32]
+	ldrd	r8, r9, [sp, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #40]
 	ldr	r11, [sp, #44]
 #else
-	ldrd  r10, r11, [sp, #40]
+	ldrd	r10, r11, [sp, #40]
 #endif
 	adds	r8, r4, r8
 	adcs	r9, r5, r9
@@ -5580,37 +5585,37 @@ L_curve25519_bits:
 	str	r8, [sp, #96]
 	str	r9, [sp, #100]
 #else
-	strd  r8, r9, [sp, #96]
+	strd	r8, r9, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #104]
 	str	r11, [sp, #108]
 #else
-	strd  r10, r11, [sp, #104]
+	strd	r10, r11, [sp, #104]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [sp, #112]
 	ldr	r5, [sp, #116]
 #else
-	ldrd  r4, r5, [sp, #112]
+	ldrd	r4, r5, [sp, #112]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #120]
 	ldr	r7, [sp, #124]
 #else
-	ldrd  r6, r7, [sp, #120]
+	ldrd	r6, r7, [sp, #120]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [sp, #48]
 	ldr	r9, [sp, #52]
 #else
-	ldrd  r8, r9, [sp, #48]
+	ldrd	r8, r9, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [sp, #56]
 	ldr	r11, [sp, #60]
 #else
-	ldrd  r10, r11, [sp, #56]
+	ldrd	r10, r11, [sp, #56]
 #endif
 	adcs	r8, r4, r8
 	adcs	r9, r5, r9
@@ -5626,13 +5631,13 @@ L_curve25519_bits:
 	ldr	r4, [sp, #96]
 	ldr	r5, [sp, #100]
 #else
-	ldrd  r4, r5, [sp, #96]
+	ldrd	r4, r5, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [sp, #104]
 	ldr	r7, [sp, #108]
 #else
-	ldrd  r6, r7, [sp, #104]
+	ldrd	r6, r7, [sp, #104]
 #endif
 	subs	r4, r4, r3
 	sbcs	r5, r5, r2
@@ -5646,25 +5651,25 @@ L_curve25519_bits:
 	str	r4, [sp, #96]
 	str	r5, [sp, #100]
 #else
-	strd  r4, r5, [sp, #96]
+	strd	r4, r5, [sp, #96]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [sp, #104]
 	str	r7, [sp, #108]
 #else
-	strd  r6, r7, [sp, #104]
+	strd	r6, r7, [sp, #104]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [sp, #112]
 	str	r9, [sp, #116]
 #else
-	strd  r8, r9, [sp, #112]
+	strd	r8, r9, [sp, #112]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [sp, #120]
 	str	r11, [sp, #124]
 #else
-	strd  r10, r11, [sp, #120]
+	strd	r10, r11, [sp, #120]
 #endif
 	add	r2, sp, #0
 	ldr	r1, [sp, #168]
@@ -5829,7 +5834,7 @@ L_curve25519_inv_8:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	curve25519,.-curve25519
 	.text
-	.align	2
+	.align	4
 	.globl	fe_pow22523
 	.type	fe_pow22523, %function
 fe_pow22523:
@@ -5979,7 +5984,7 @@ L_fe_pow22523_8:
 	pop	{r4, pc}
 	.size	fe_pow22523,.-fe_pow22523
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_to_p2
 	.type	fe_ge_to_p2, %function
 fe_ge_to_p2:
@@ -6005,7 +6010,7 @@ fe_ge_to_p2:
 	pop	{pc}
 	.size	fe_ge_to_p2,.-fe_ge_to_p2
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_to_p3
 	.type	fe_ge_to_p3, %function
 fe_ge_to_p3:
@@ -6035,7 +6040,7 @@ fe_ge_to_p3:
 	pop	{pc}
 	.size	fe_ge_to_p3,.-fe_ge_to_p3
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_dbl
 	.type	fe_ge_dbl, %function
 fe_ge_dbl:
@@ -6056,30 +6061,30 @@ fe_ge_dbl:
 	ldr	r2, [sp, #56]
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	adds	r8, r3, r8
+	adds	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adcs	r11, r7, r11
@@ -6087,91 +6092,91 @@ fe_ge_dbl:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	adcs	r8, r3, r8
+	adcs	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r1, [sp, #4]
 	ldr	r0, [sp, #12]
@@ -6182,18 +6187,18 @@ fe_ge_dbl:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2]
 	ldr	r7, [r2, #4]
 #else
-	ldrd  r6, r7, [r2]
+	ldrd	r6, r7, [r2]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -6201,10 +6206,10 @@ fe_ge_dbl:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -6212,23 +6217,23 @@ fe_ge_dbl:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2, #8]
 	ldr	r7, [r2, #12]
 #else
-	ldrd  r6, r7, [r2, #8]
+	ldrd	r6, r7, [r2, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -6236,11 +6241,11 @@ fe_ge_dbl:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -6248,23 +6253,23 @@ fe_ge_dbl:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2, #16]
 	ldr	r7, [r2, #20]
 #else
-	ldrd  r6, r7, [r2, #16]
+	ldrd	r6, r7, [r2, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -6272,11 +6277,11 @@ fe_ge_dbl:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -6284,169 +6289,169 @@ fe_ge_dbl:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #24]
+	ldr	r4, [r1, #24]
 	ldr	r5, [r1, #28]
 #else
-	ldrd  r3, r5, [r1, #24]
+	ldrd	r4, r5, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r2, #24]
 	ldr	r7, [r2, #28]
 #else
-	ldrd  r6, r7, [r2, #24]
+	ldrd	r6, r7, [r2, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	ldr	r0, [sp]
 	ldr	r1, [sp, #12]
 	ldr	r2, [sp, #4]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -6454,91 +6459,91 @@ fe_ge_dbl:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r1, [sp, #60]
 	ldr	r0, [sp, #12]
@@ -6547,30 +6552,30 @@ fe_ge_dbl:
 	ldr	r1, [sp, #8]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1]
 	ldr	r9, [r1, #4]
 #else
-	ldrd  r8, r9, [r1]
+	ldrd	r8, r9, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #8]
 	ldr	r11, [r1, #12]
 #else
-	ldrd  r10, r11, [r1, #8]
+	ldrd	r10, r11, [r1, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -6578,97 +6583,97 @@ fe_ge_dbl:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
 #else
-	ldrd  r10, r11, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	add	sp, sp, #16
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_dbl,.-fe_ge_dbl
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_madd
 	.type	fe_ge_madd, %function
 fe_ge_madd:
@@ -6683,30 +6688,30 @@ fe_ge_madd:
 	ldr	r2, [sp, #68]
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	adds	r8, r3, r8
+	adds	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adcs	r11, r7, r11
@@ -6714,121 +6719,121 @@ fe_ge_madd:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	adcs	r8, r3, r8
+	adcs	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #72]
 	ldr	r2, [sp, #68]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -6836,91 +6841,91 @@ fe_ge_madd:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r2, [sp, #88]
 	ldr	r1, [sp]
@@ -6940,18 +6945,18 @@ fe_ge_madd:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -6959,10 +6964,10 @@ fe_ge_madd:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -6970,23 +6975,23 @@ fe_ge_madd:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -6994,11 +6999,11 @@ fe_ge_madd:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7006,23 +7011,23 @@ fe_ge_madd:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7030,11 +7035,11 @@ fe_ge_madd:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7042,168 +7047,168 @@ fe_ge_madd:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #76]
 	# Double
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
 #else
-	ldrd  r10, r11, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	adds	r3, r3, r3
+	adds	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
@@ -7212,60 +7217,60 @@ fe_ge_madd:
 	adcs	r10, r10, r10
 	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #12]
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1]
 	ldr	r7, [r1, #4]
 #else
-	ldrd  r6, r7, [r1]
+	ldrd	r6, r7, [r1]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7273,10 +7278,10 @@ fe_ge_madd:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7284,23 +7289,23 @@ fe_ge_madd:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7308,11 +7313,11 @@ fe_ge_madd:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7320,23 +7325,23 @@ fe_ge_madd:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #16]
 	ldr	r7, [r1, #20]
 #else
-	ldrd  r6, r7, [r1, #16]
+	ldrd	r6, r7, [r1, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7344,11 +7349,11 @@ fe_ge_madd:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7356,145 +7361,145 @@ fe_ge_madd:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #24]
+	ldr	r4, [r0, #24]
 	ldr	r5, [r0, #28]
 #else
-	ldrd  r3, r5, [r0, #24]
+	ldrd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_madd,.-fe_ge_madd
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_msub
 	.type	fe_ge_msub, %function
 fe_ge_msub:
@@ -7509,30 +7514,30 @@ fe_ge_msub:
 	ldr	r2, [sp, #68]
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	adds	r8, r3, r8
+	adds	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adcs	r11, r7, r11
@@ -7540,121 +7545,121 @@ fe_ge_msub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	adcs	r8, r3, r8
+	adcs	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #72]
 	ldr	r2, [sp, #68]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -7662,91 +7667,91 @@ fe_ge_msub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r2, [sp, #92]
 	ldr	r1, [sp]
@@ -7766,18 +7771,18 @@ fe_ge_msub:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7785,10 +7790,10 @@ fe_ge_msub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7796,23 +7801,23 @@ fe_ge_msub:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7820,11 +7825,11 @@ fe_ge_msub:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7832,23 +7837,23 @@ fe_ge_msub:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -7856,11 +7861,11 @@ fe_ge_msub:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -7868,168 +7873,168 @@ fe_ge_msub:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #76]
 	# Double
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
 #else
-	ldrd  r10, r11, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	adds	r3, r3, r3
+	adds	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
@@ -8038,60 +8043,60 @@ fe_ge_msub:
 	adcs	r10, r10, r10
 	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #12]
 	ldr	r1, [sp, #8]
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8099,10 +8104,10 @@ fe_ge_msub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8110,23 +8115,23 @@ fe_ge_msub:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8134,11 +8139,11 @@ fe_ge_msub:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8146,23 +8151,23 @@ fe_ge_msub:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8170,11 +8175,11 @@ fe_ge_msub:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8182,145 +8187,145 @@ fe_ge_msub:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #24]
+	ldr	r4, [r1, #24]
 	ldr	r5, [r1, #28]
 #else
-	ldrd  r3, r5, [r1, #24]
+	ldrd	r4, r5, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_msub,.-fe_ge_msub
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_add
 	.type	fe_ge_add, %function
 fe_ge_add:
@@ -8335,30 +8340,30 @@ fe_ge_add:
 	ldr	r2, [sp, #132]
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	adds	r8, r3, r8
+	adds	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adcs	r11, r7, r11
@@ -8366,121 +8371,121 @@ fe_ge_add:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	adcs	r8, r3, r8
+	adcs	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #136]
 	ldr	r2, [sp, #132]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -8488,91 +8493,91 @@ fe_ge_add:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r2, [sp, #156]
 	ldr	r1, [sp]
@@ -8594,30 +8599,30 @@ fe_ge_add:
 	ldr	r1, [sp]
 	# Double
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
 #else
-	ldrd  r10, r11, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	adds	r3, r3, r3
+	adds	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
@@ -8626,42 +8631,42 @@ fe_ge_add:
 	adcs	r10, r10, r10
 	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp]
@@ -8669,18 +8674,18 @@ fe_ge_add:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8688,10 +8693,10 @@ fe_ge_add:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8699,23 +8704,23 @@ fe_ge_add:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8723,11 +8728,11 @@ fe_ge_add:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8735,23 +8740,23 @@ fe_ge_add:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8759,11 +8764,11 @@ fe_ge_add:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8771,139 +8776,139 @@ fe_ge_add:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	ldr	r0, [sp, #8]
 	ldr	r1, [sp, #12]
@@ -8911,18 +8916,18 @@ fe_ge_add:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1]
 	ldr	r7, [r1, #4]
 #else
-	ldrd  r6, r7, [r1]
+	ldrd	r6, r7, [r1]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8930,10 +8935,10 @@ fe_ge_add:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8941,23 +8946,23 @@ fe_ge_add:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -8965,11 +8970,11 @@ fe_ge_add:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -8977,23 +8982,23 @@ fe_ge_add:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #16]
 	ldr	r7, [r1, #20]
 #else
-	ldrd  r6, r7, [r1, #16]
+	ldrd	r6, r7, [r1, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9001,11 +9006,11 @@ fe_ge_add:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9013,145 +9018,145 @@ fe_ge_add:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_add,.-fe_ge_add
 	.text
-	.align	2
+	.align	4
 	.globl	fe_ge_sub
 	.type	fe_ge_sub, %function
 fe_ge_sub:
@@ -9166,30 +9171,30 @@ fe_ge_sub:
 	ldr	r2, [sp, #132]
 	# Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	adds	r8, r3, r8
+	adds	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adcs	r11, r7, r11
@@ -9197,121 +9202,121 @@ fe_ge_sub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	adcs	r8, r3, r8
+	adcs	r8, r4, r8
 	adcs	r9, r5, r9
 	adcs	r10, r6, r10
 	adc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp, #136]
 	ldr	r2, [sp, #132]
 	# Sub
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2]
 	ldr	r9, [r2, #4]
 #else
-	ldrd  r8, r9, [r2]
+	ldrd	r8, r9, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #8]
 	ldr	r11, [r2, #12]
 #else
-	ldrd  r10, r11, [r2, #8]
+	ldrd	r10, r11, [r2, #8]
 #endif
-	subs	r8, r3, r8
+	subs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbcs	r11, r7, r11
@@ -9319,91 +9324,91 @@ fe_ge_sub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #8]
 	str	r11, [r0, #12]
 #else
-	strd  r10, r11, [r0, #8]
+	strd	r10, r11, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #24]
 	ldr	r7, [r1, #28]
 #else
-	ldrd  r6, r7, [r1, #24]
+	ldrd	r6, r7, [r1, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r2, #16]
 	ldr	r9, [r2, #20]
 #else
-	ldrd  r8, r9, [r2, #16]
+	ldrd	r8, r9, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r2, #24]
 	ldr	r11, [r2, #28]
 #else
-	ldrd  r10, r11, [r2, #24]
+	ldrd	r10, r11, [r2, #24]
 #endif
-	sbcs	r8, r3, r8
+	sbcs	r8, r4, r8
 	sbcs	r9, r5, r9
 	sbcs	r10, r6, r10
 	sbc	r11, r7, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
-	adcs	r6, r6, r4
-	adcs	r7, r7, r4
-	adcs	r8, r8, r4
-	adcs	r9, r9, r4
-	adcs	r10, r10, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
+	adcs	r6, r6, r3
+	adcs	r7, r7, r3
+	adcs	r8, r8, r3
+	adcs	r9, r9, r3
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r2, [sp, #160]
 	ldr	r1, [sp]
@@ -9425,30 +9430,30 @@ fe_ge_sub:
 	ldr	r1, [sp]
 	# Double
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #8]
 	ldr	r7, [r1, #12]
 #else
-	ldrd  r6, r7, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #16]
 	ldr	r9, [r1, #20]
 #else
-	ldrd  r8, r9, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r10, [r1, #24]
 	ldr	r11, [r1, #28]
 #else
-	ldrd  r10, r11, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	adds	r3, r3, r3
+	adds	r4, r4, r4
 	adcs	r5, r5, r5
 	adcs	r6, r6, r6
 	adcs	r7, r7, r7
@@ -9457,42 +9462,42 @@ fe_ge_sub:
 	adcs	r10, r10, r10
 	adc	r11, r11, r11
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
-	sbcs	r6, r6, r4
-	sbcs	r7, r7, r4
-	sbcs	r8, r8, r4
-	sbcs	r9, r9, r4
-	sbcs	r10, r10, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
+	sbcs	r6, r6, r3
+	sbcs	r7, r7, r3
+	sbcs	r8, r8, r3
+	sbcs	r9, r9, r3
+	sbcs	r10, r10, r3
 	sbc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r6, [r0, #8]
 	str	r7, [r0, #12]
 #else
-	strd  r6, r7, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r0, #24]
 	str	r11, [r0, #28]
 #else
-	strd  r10, r11, [r0, #24]
+	strd	r10, r11, [r0, #24]
 #endif
 	ldr	r0, [sp, #4]
 	ldr	r1, [sp]
@@ -9500,18 +9505,18 @@ fe_ge_sub:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9519,10 +9524,10 @@ fe_ge_sub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9530,23 +9535,23 @@ fe_ge_sub:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9554,11 +9559,11 @@ fe_ge_sub:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9566,23 +9571,23 @@ fe_ge_sub:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9590,11 +9595,11 @@ fe_ge_sub:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9602,139 +9607,139 @@ fe_ge_sub:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	ldr	r0, [sp, #12]
 	ldr	r1, [sp, #8]
@@ -9742,18 +9747,18 @@ fe_ge_sub:
 	# Add-Sub
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2]
+	ldr	r4, [r2]
 	ldr	r5, [r2, #4]
 #else
-	ldrd  r3, r5, [r2]
+	ldrd	r4, r5, [r2]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0]
 	ldr	r7, [r0, #4]
 #else
-	ldrd  r6, r7, [r0]
+	ldrd	r6, r7, [r0]
 #endif
-	adds	r8, r3, r6
+	adds	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9761,10 +9766,10 @@ fe_ge_sub:
 	str	r8, [r0]
 	str	r9, [r0, #4]
 #else
-	strd  r8, r9, [r0]
+	strd	r8, r9, [r0]
 #endif
 	#  Sub
-	subs	r10, r3, r6
+	subs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9772,23 +9777,23 @@ fe_ge_sub:
 	str	r10, [r1]
 	str	r11, [r1, #4]
 #else
-	strd  r10, r11, [r1]
+	strd	r10, r11, [r1]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #8]
+	ldr	r4, [r2, #8]
 	ldr	r5, [r2, #12]
 #else
-	ldrd  r3, r5, [r2, #8]
+	ldrd	r4, r5, [r2, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
 #else
-	ldrd  r6, r7, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9796,11 +9801,11 @@ fe_ge_sub:
 	str	r8, [r0, #8]
 	str	r9, [r0, #12]
 #else
-	strd  r8, r9, [r0, #8]
+	strd	r8, r9, [r0, #8]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9808,23 +9813,23 @@ fe_ge_sub:
 	str	r10, [r1, #8]
 	str	r11, [r1, #12]
 #else
-	strd  r10, r11, [r1, #8]
+	strd	r10, r11, [r1, #8]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #16]
+	ldr	r4, [r2, #16]
 	ldr	r5, [r2, #20]
 #else
-	ldrd  r3, r5, [r2, #16]
+	ldrd	r4, r5, [r2, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	mov	r12, #0
 	adcs	r9, r5, r7
 	adc	r12, r12, #0
@@ -9832,11 +9837,11 @@ fe_ge_sub:
 	str	r8, [r0, #16]
 	str	r9, [r0, #20]
 #else
-	strd  r8, r9, [r0, #16]
+	strd	r8, r9, [r0, #16]
 #endif
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	mov	lr, #0
 	sbcs	r11, r5, r7
 	adc	lr, lr, #0
@@ -9844,139 +9849,139 @@ fe_ge_sub:
 	str	r10, [r1, #16]
 	str	r11, [r1, #20]
 #else
-	strd  r10, r11, [r1, #16]
+	strd	r10, r11, [r1, #16]
 #endif
 	#  Add
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r2, #24]
+	ldr	r4, [r2, #24]
 	ldr	r5, [r2, #28]
 #else
-	ldrd  r3, r5, [r2, #24]
+	ldrd	r4, r5, [r2, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
 #else
-	ldrd  r6, r7, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 	adds	r12, r12, #-1
-	adcs	r8, r3, r6
+	adcs	r8, r4, r6
 	adc	r9, r5, r7
 	#  Sub
 	adds	lr, lr, #-1
-	sbcs	r10, r3, r6
+	sbcs	r10, r4, r6
 	sbc	r11, r5, r7
 	mov	r12, #-19
-	asr	r4, r9, #31
+	asr	r3, r9, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Sub modulus (if overflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0]
+	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
 #else
-	ldrd  r3, r5, [r0]
+	ldrd	r4, r5, [r0]
 #endif
-	subs	r3, r3, r12
-	sbcs	r5, r5, r4
+	subs	r4, r4, r12
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0]
+	str	r4, [r0]
 	str	r5, [r0, #4]
 #else
-	strd  r3, r5, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #8]
+	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r3, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #8]
+	str	r4, [r0, #8]
 	str	r5, [r0, #12]
 #else
-	strd  r3, r5, [r0, #8]
+	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r0, #16]
+	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
 #else
-	ldrd  r3, r5, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
-	sbcs	r3, r3, r4
-	sbcs	r5, r5, r4
+	sbcs	r4, r4, r3
+	sbcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r0, #16]
+	str	r4, [r0, #16]
 	str	r5, [r0, #20]
 #else
-	strd  r3, r5, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
-	sbcs	r8, r8, r4
+	sbcs	r8, r8, r3
 	sbc	r9, r9, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r8, [r0, #24]
 	str	r9, [r0, #28]
 #else
-	strd  r8, r9, [r0, #24]
+	strd	r8, r9, [r0, #24]
 #endif
 	mov	r12, #-19
-	asr	r4, r11, #31
+	asr	r3, r11, #31
 	#   Mask the modulus
-	and	r12, r4, r12
-	and	lr, r4, #0x7fffffff
+	and	r12, r3, r12
+	and	lr, r3, #0x7fffffff
 	#   Add modulus (if underflow)
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1]
+	ldr	r4, [r1]
 	ldr	r5, [r1, #4]
 #else
-	ldrd  r3, r5, [r1]
+	ldrd	r4, r5, [r1]
 #endif
-	adds	r3, r3, r12
-	adcs	r5, r5, r4
+	adds	r4, r4, r12
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1]
+	str	r4, [r1]
 	str	r5, [r1, #4]
 #else
-	strd  r3, r5, [r1]
+	strd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #8]
+	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
 #else
-	ldrd  r3, r5, [r1, #8]
+	ldrd	r4, r5, [r1, #8]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #8]
+	str	r4, [r1, #8]
 	str	r5, [r1, #12]
 #else
-	strd  r3, r5, [r1, #8]
+	strd	r4, r5, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r3, [r1, #16]
+	ldr	r4, [r1, #16]
 	ldr	r5, [r1, #20]
 #else
-	ldrd  r3, r5, [r1, #16]
+	ldrd	r4, r5, [r1, #16]
 #endif
-	adcs	r3, r3, r4
-	adcs	r5, r5, r4
+	adcs	r4, r4, r3
+	adcs	r5, r5, r3
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r3, [r1, #16]
+	str	r4, [r1, #16]
 	str	r5, [r1, #20]
 #else
-	strd  r3, r5, [r1, #16]
+	strd	r4, r5, [r1, #16]
 #endif
-	adcs	r10, r10, r4
+	adcs	r10, r10, r3
 	adc	r11, r11, lr
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r10, [r1, #24]
 	str	r11, [r1, #28]
 #else
-	strd  r10, r11, [r1, #24]
+	strd	r10, r11, [r1, #24]
 #endif
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}

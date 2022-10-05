@@ -989,11 +989,11 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "VMOV d4, r8, r9 \n\t"
         "STRD r10, r11, [sp, #4*10] \n\t"
         "VMOV d5, r10, r11 \n\t"
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 8)
-        "LDR r11, [r14, #4*14] \n\t"
-        "LDR r10, [r14, #4*15] \n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "LDR r10, [r14, #4*14] \n\t"
+        "LDR r11, [r14, #4*15] \n\t"
 #else
-        "LDRD r11, r10, [r14, #4*14] \n\t"
+        "LDRD r10, r11, [r14, #4*14] \n\t"
 #endif
         "VMOV q4, q0 \n\t"
         "VMOV q5, q1 \n\t"
@@ -1003,10 +1003,11 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "VMOV q10, q2 \n\t"
         // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
         //  0  1  2  3  4  5  6  7  8  9  15  14  12
-        "VMOV d7, r11, r10 \n\t"
-        "STR r10, [sp, #4*15] \n\t"
-        "VMOV d15, r11, r10 \n\t"
-        "VMOV d23, r11, r10 \n\t"
+        "VMOV d7, r10, r11 \n\t"
+        "STR r11, [sp, #4*15] \n\t"
+        "VMOV d15, r10, r11 \n\t"
+        "VMOV d23, r10, r11 \n\t"
+        "MOV r11, r10 \n\t"
         "MOV r10, r12 \n\t"
         "MOV r12, r11 \n\t"
         "LDR r11, [r14, #4*13] \n\t"

@@ -1994,6 +1994,7 @@ AC_ARG_ENABLE([aescbc],
 if test "$ENABLED_AESCBC" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_CBC"
 fi
 
 # AES-CBC length checks (checks that input lengths are multiples of block size)
@@ -2045,6 +2046,7 @@ AC_ARG_ENABLE([aesccm],
 if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESCCM"
 fi
 
 # AES-SIV (RFC 5297)
@@ -4173,6 +4175,8 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
+        AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
+            [ENABLED_AESGCM="yes"; AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 
         # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
@@ -4226,6 +4230,9 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
               [ENABLED_AESCTR="yes"
                AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+        AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+              [ENABLED_AESCTR="yes"
+               AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_COUNTER"])
         AS_IF([test "x$ENABLED_CMAC" != "xyes"],
               [ENABLED_CMAC="yes"
                AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
