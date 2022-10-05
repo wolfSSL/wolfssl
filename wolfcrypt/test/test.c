@@ -97,6 +97,7 @@
 #endif
 
 /* printf mappings */
+#ifndef WOLFSSL_LOG_PRINTF
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #include <stdlib.h>
@@ -208,6 +209,7 @@
         #define printf(...) ( printf(__VA_ARGS__), fflush(stdout) )
     #endif
 #endif
+#endif /* !WOLFSSL_LOG_PRINTF */
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
