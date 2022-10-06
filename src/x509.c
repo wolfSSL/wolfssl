@@ -12768,15 +12768,8 @@ int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509 *x)
 #if defined(OPENSSL_EXTRA)
 WOLFSSL_STACK* wolfSSL_sk_X509_new(WOLF_SK_COMPARE_CB(WOLFSSL_X509, cb))
 {
-    WOLFSSL_STACK* s = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-    if (s != NULL) {
-        XMEMSET(s, 0, sizeof(*s));
-        s->type = STACK_TYPE_X509;
-        (void)cb;
-    }
-
-    return s;
+    (void)cb;
+    return wolfSSL_sk_X509_new_null();
 }
 
 WOLFSSL_STACK* wolfSSL_sk_X509_new_null(void)
