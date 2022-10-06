@@ -60,9 +60,13 @@
  * Free: 0x7fa14a500010 -> 120 at wc_FreeRng:606
  */
 
-
-#include <stdio.h>
+#include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/wolfcrypt/logging.h"
+
+#if defined(WOLFSSL_TRACK_MEMORY) || defined(HAVE_STACK_SIZE) || \
+    defined(HAVE_STACK_SIZE_VERBOSE)
+#include <stdio.h>
+#endif
 
 #if defined(WOLFSSL_TRACK_MEMORY)
     #define DO_MEM_STATS
