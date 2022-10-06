@@ -1236,39 +1236,24 @@ typedef struct w64wrapper {
 
     #ifdef SINGLE_THREADED
         #if defined(WC_32BIT_CPU)
-            typedef void*   THREAD_RETURN;
+            typedef void*        THREAD_RETURN;
         #else
-            typedef unsigned int  THREAD_RETURN;
+            typedef unsigned int THREAD_RETURN;
         #endif
-        typedef void*         THREAD_TYPE;
+        typedef void*            THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
-        !defined(__MINGW32__)
-        typedef void*         THREAD_RETURN;
-        typedef pthread_t     THREAD_TYPE;
-        #define WOLFSSL_THREAD
-        #define INFINITE (-1)
-        #define WAIT_OBJECT_0 0L
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) || \
-            defined(FREESCALE_MQX)
+          defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_TIRTOS)
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-        #undef EXIT_TEST
-        #define EXIT_TEST(ret)
-        #endif
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_ZEPHYR)
         typedef void            THREAD_RETURN;
         typedef struct k_thread THREAD_TYPE;
-        #ifdef HAVE_STACK_SIZE
-        #undef EXIT_TEST
-        #define EXIT_TEST(ret)
-        #endif
         #define WOLFSSL_THREAD
     #elif defined(NETOS)
         typedef UINT        THREAD_RETURN;
@@ -1280,9 +1265,16 @@ typedef struct w64wrapper {
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif (defined(_POSIX_THREADS) || defined(HAVE_PTHREAD)) && \
+        !defined(__MINGW32__)
+        typedef void*         THREAD_RETURN;
+        typedef pthread_t     THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE      (-1)
+        #define WAIT_OBJECT_0 0L
     #else
         typedef unsigned int  THREAD_RETURN;
-        typedef size_t      THREAD_TYPE;
+        typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD __stdcall
     #endif
 
