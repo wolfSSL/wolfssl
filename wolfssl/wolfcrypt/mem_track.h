@@ -672,17 +672,17 @@ static WC_INLINE int StackSizeCheck_launch(struct func_args* args,
     unsigned char* myStack = NULL;
     size_t stackSize = 1024*1024*2;
     pthread_attr_t myAttr;
+    struct stack_size_debug_context* shim_args;
 
 #ifdef PTHREAD_STACK_MIN
     if (stackSize < PTHREAD_STACK_MIN)
         stackSize = PTHREAD_STACK_MIN;
 #endif
 
-    struct stack_size_debug_context *shim_args =
-        (struct stack_size_debug_context *)malloc(sizeof *shim_args);
-    if (! shim_args) {
+    shim_args = (struct stack_size_debug_context *)malloc(sizeof *shim_args);
+    if (shim_args == NULL) {
         perror("malloc");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
@@ -697,6 +697,8 @@ static WC_INLINE int StackSizeCheck_launch(struct func_args* args,
     ret = pthread_attr_init(&myAttr);
     if (ret != 0) {
         fprintf(stderr, "attr_init failed\n");
+        free(shim_args);
+        free(myStack);
         return ret;
     }
 
