@@ -4376,7 +4376,7 @@ AES_GCM_decrypt_update_aesni:
         pxor	%xmm1, %xmm7
         movdqu	%xmm7, 48(%esp)
         cmpl	%esi, %edi
-        je	L_AES_GCM_decrypt_update_aesni_ghash_64
+        jne	L_AES_GCM_decrypt_update_aesni_ghash_64
 L_AES_GCM_decrypt_update_aesni_ghash_64_inplace:
         leal	(%esi,%ebx,1), %ecx
         leal	(%edi,%ebx,1), %edx
