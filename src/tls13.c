@@ -3197,7 +3197,11 @@ static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
 }
 #endif
 
+#ifdef WOLFSSL_DTLS13
+#define HRR_MAX_HS_HEADER_SZ DTLS_HANDSHAKE_HEADER_SZ
+#else
 #define HRR_MAX_HS_HEADER_SZ HANDSHAKE_HEADER_SZ
+#endif /* WOLFSSL_DTLS13 */
 
 /* Restart the handshake hash with a hash of the previous messages.
  *
@@ -3208,7 +3212,7 @@ int RestartHandshakeHash(WOLFSSL* ssl)
 {
     int    ret;
     Hashes hashes;
-    byte   header[HRR_MAX_HS_HEADER_SZ] = {0};
+    byte   header[HANDSHAKE_HEADER_SZ] = {0};
     byte*  hash = NULL;
     byte   hashSz = 0;
 
@@ -5396,7 +5400,7 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
  */
 static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 {
-    byte   header[HRR_MAX_HS_HEADER_SZ] = {0};
+    byte   header[HANDSHAKE_HEADER_SZ] = {0};
     byte   hrr[MAX_HRR_SZ] = {0};
     int    hrrIdx;
     word32 idx;
