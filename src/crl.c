@@ -229,7 +229,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         XFREE(crl, crl->heap, DYNAMIC_TYPE_CRL);
 }
 
-static int FindRevokedSerial(DecodedCert* cert, CRL_Entry* crle, RevokedCert* rc)
+static int FindRevokedSerial(DecodedCert* cert, RevokedCert* rc, int totalCerts)
 {
     int ret = 0;
 #ifdef CRL_STATIC_REVOKED_LIST
@@ -237,7 +237,7 @@ static int FindRevokedSerial(DecodedCert* cert, CRL_Entry* crle, RevokedCert* rc
     int low, high, mid;
 
     low = 0;
-    high = crle->totalCerts - 1;
+    high = totalCerts - 1;
 
     while (low <= high) {
         mid = (low + high) / 2;
@@ -256,6 +256,7 @@ static int FindRevokedSerial(DecodedCert* cert, CRL_Entry* crle, RevokedCert* rc
         }
     }
 #else
+    (void)totalCerts;
     /* search in the linked list*/
 
     while (rc) {
@@ -399,7 +400,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
     }
 
     if (foundEntry) {
-        ret = FindRevokedSerial(cert, crle, crle->certs);
+        ret = FindRevokedSerial(cert, crle->certs, crle->totalCerts);
     }
 
     wc_UnLockMutex(&crl->crlLock);
