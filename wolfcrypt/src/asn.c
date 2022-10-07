@@ -12064,7 +12064,7 @@ static int GetHashId(const byte* id, int length, byte* hash)
 /* Id for jurisdiction country. */
 #define ASN_JURIS_C   0x203
 /* Id for jurisdiction state. */
-#define ASN_JURIS_ST  0x203
+#define ASN_JURIS_ST  0x202
 
 /* Set the string for a name component into the subject name. */
 #define SetCertNameSubject(cert, id, val) \

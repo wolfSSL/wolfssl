@@ -10586,7 +10586,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             WOLFSSL_MSG("Invalid Qx");
             err = BAD_FUNC_ARG;
         }
-        if (mp_unsigned_bin_size(key->pubkey.y) > key->dp->size) {
+        if (mp_unsigned_bin_size(key->pubkey.x) > key->dp->size) {
             err = BAD_FUNC_ARG;
         }
     }
