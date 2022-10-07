@@ -35497,10 +35497,10 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
     }
 
     rc = &rcert[totalCerts];
-
-    if (wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
-                                                                maxIdx) < 0) {
-        return ASN_PARSE_E;
+    ret = wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,maxIdx);
+    if (ret < 0) {
+        WOLFSSL_MSG("wc_GetSerialNumber error");
+        return ret;
     }
 #else
 
@@ -35510,13 +35510,11 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
         WOLFSSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
     }
-
-    if (wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
-                                                                maxIdx) < 0) {
-        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
-        return ASN_PARSE_E;
+    ret = wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,maxIdx);
+    if (ret < 0) {
+        WOLFSSL_MSG("wc_GetSerialNumber error");
+        return ret;
     }
-
     /* add to list */
     rc->next = dcrl->certs;
     dcrl->certs = rc;
