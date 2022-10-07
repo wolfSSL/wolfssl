@@ -183,6 +183,9 @@
  *     ClientCache by default for backwards compatibility. This define will
  *     make wolfSSL_get_session return a reference to ssl->session. The returned
  *     pointer will be freed with the related WOLFSSL object.
+ * WOLFSSL_SYS_CA_CERTS
+ *     Enables ability to load system CA certs from the OS via
+ *     wolfSSL_CTX_load_system_CA_certs.
  */
 
 #define WOLFSSL_EVP_INCLUDED
@@ -8050,6 +8053,8 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
 }
 
+#ifdef WOLFSSL_SYS_CA_CERTS
+
 #ifdef USE_WINDOWS_API
 
 static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
@@ -8244,6 +8249,8 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
 
     return ret;
 }
+
+#endif /* WOLFSSL_SYS_CA_CERTS */
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* Used to specify a peer cert to match when connecting
@@ -16355,7 +16362,7 @@ cleanup:
 
 #ifdef OPENSSL_EXTRA
 
-    #ifndef NO_FILESYSTEM
+    #ifdef WOLFSSL_SYS_CA_CERTS
     /*
      * This is an OpenSSL compatibility layer function, but it doesn't mirror
      * the exact functionality of its OpenSSL counterpart. We don't support the
@@ -16383,7 +16390,7 @@ cleanup:
 
         return ret;
     }
-    #endif /* !NO_FILESYSTEM */
+    #endif /* WOLFSSL_SYS_CA_CERTS */
 
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
         && !defined(WC_NO_RNG)

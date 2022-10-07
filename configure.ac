@@ -1097,7 +1097,6 @@ AC_ARG_ENABLE([cryptonly],
 
 AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
-
 # DTLS
 # DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
 # without DTLS will also enable DTLS.
@@ -7346,6 +7345,12 @@ AC_ARG_ENABLE([optflags],
     [ ENABLED_OPTFLAGS=yes ]
     )
 
+# Adds functionality to load CA certificates from the operating system.
+AC_ARG_ENABLE([sys-ca-certs],
+    [AS_HELP_STRING([--enable-sys-ca-certs],[Enable ability to load CA certs from OS (default: enabled)])],
+    [ ENABLED_SYS_CA_CERTS=$enableval ],
+    [ ENABLED_SYS_CA_CERTS=yes ]
+    )
 
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
@@ -7407,6 +7412,24 @@ esac
 ################################################################################
 # Update ENABLE_* variables                                                    #
 ################################################################################
+
+if test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_CERTS" = "xno" || \
+   test "x$ENABLED_ASN" = "xno"
+then
+   ENABLED_CERTS=no
+   ENABLED_ASN=no
+fi
+
+if test "x$ENABLED_SYS_CA_CERTS" = "xyes"
+then
+    if test "x$ENABLED_FILESYSTEM" = "xno"
+    then
+        ENABLED_SYS_CA_CERTS="no"
+    elif test "x$ENABLED_CERTS" = "xno"
+    then
+        ENABLED_SYS_CA_CERTS="no"
+    fi
+fi
 
 if test "x$ENABLED_WOLFCLU" = "xyes"
 then
@@ -7621,6 +7644,14 @@ AS_IF([test "x$ENABLED_16BIT" = "xyes" && \
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
+AS_IF([test "x$ENABLED_CERTS" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_CERTS"])
+
+AS_IF([test "x$ENABLED_ASN" = "xno"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_ASN"])
+
+AS_IF([test "x$ENABLED_SYS_CA_CERTS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SYS_CA_CERTS"])
 
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
@@ -7893,11 +7924,6 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
 fi
 
 AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_WOLFSSH"])
-
-if test "x$ENABLED_CERTS" = "xno" || test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_ASN" = "xno"; then
-   AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
-   ENABLED_ASN=no
-fi
 
 # only allow secure renegotiation info with TLSV12 and ASN
 if test "x$ENABLED_ASN" = "xno" || \
@@ -8664,6 +8690,7 @@ echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * PSA:                        $ENABLED_PSA"
+echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
 echo ""
 echo "---"
 

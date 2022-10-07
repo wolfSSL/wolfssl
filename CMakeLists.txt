@@ -1668,6 +1668,17 @@ add_option("WOLFSSL_OPTFLAGS"
     "Enable default optimization CFLAGS for the compiler (default: enabled)"
     "yes" "yes;no")
 
+add_option("WOLFSSL_SYS_CA_CERTS"
+    "Enable ability to load CA certs from OS (default: enabled)"
+    "yes" "yes;no")
+if(WOLFSSL_SYS_CA_CERTS)
+    if(NOT WOLFSSL_FILESYSTEM)
+        message(FATAL_ERROR "Cannot use system CA certs without a filesystem.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SYS_CA_CERTS")
+    endif()
+endif()
+
 # FLAGS operations
 
 if(WOLFSSL_AESCCM)

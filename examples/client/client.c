@@ -1318,7 +1318,7 @@ static const char* client_usage_msg[][70] = {
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
 #endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#ifdef WOLFSSL_SYS_CA_CERTS
         "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
 #endif
         "\n"
@@ -1767,7 +1767,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]);     /* more --pqc options */
     printf("%s", msg[++msgid]);     /* more --pqc options */
 #endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#ifdef WOLFSSL_SYS_CA_CERTS
     printf("%s", msg[++msgid]); /* --sys-ca-certs */
 #endif
 #ifdef WOLFSSL_SRTP
@@ -1903,7 +1903,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_DTLS_CID
         {"cid", 2, 262},
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef WOLFSSL_SYS_CA_CERTS
         { "sys-ca-certs", 0, 263 },
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -2013,7 +2015,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char* pqcAlg = NULL;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#ifdef WOLFSSL_SYS_CA_CERTS
     byte loadSysCaCerts = 0;
 #endif
 
@@ -2716,7 +2718,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 pqcAlg = myoptarg;
                 break;
 #endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#ifdef WOLFSSL_SYS_CA_CERTS
             case 263:
                 loadSysCaCerts = 1;
                 break;
@@ -2977,12 +2979,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#ifdef WOLFSSL_SYS_CA_CERTS
     if (loadSysCaCerts &&
         wolfSSL_CTX_load_system_CA_certs(ctx) != WOLFSSL_SUCCESS) {
         err_sys("wolfSSL_CTX_load_system_CA_certs failed");
     }
-#endif
+#endif /* WOLFSSL_SYS_CA_CERTS */
 
     if (minVersion != CLIENT_INVALID_VERSION) {
 #ifdef WOLFSSL_DTLS

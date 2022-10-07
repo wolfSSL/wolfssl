@@ -2857,6 +2857,17 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_ASYNC_IO
 #endif
 
+#ifdef WOLFSSL_SYS_CA_CERTS
+    #ifdef NO_FILESYSTEM
+        #warning "Turning off WOLFSSL_SYS_CA_CERTS b/c NO_FILESYSTEM is defined."
+        #undef WOLFSSL_SYS_CA_CERTS
+    #endif
+    #ifdef NO_CERTS
+        #warning "Turning off WOLFSSL_SYS_CA_CERTS b/c NO_CERTS is defined."
+        #undef WOLFSSL_SYS_CA_CERTS
+    #endif
+#endif /* WOLFSSL_SYS_CA_CERTS */
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

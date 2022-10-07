@@ -1350,7 +1350,7 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
 {
     int ret = 0;
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx;
     byte dirValid = 0;
 
@@ -1404,7 +1404,7 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
 #endif /* OPENSSL_EXTRA */
 
     wolfSSL_CTX_free(ctx);
-#endif /* !NO_FILESYSTEM && !NO_CERTS && !NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_SYS_CA_CERTS && !NO_WOLFSSL_CLIENT */
 
     return ret;
 }
