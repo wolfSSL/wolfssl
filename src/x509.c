@@ -7636,7 +7636,7 @@ int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
 const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
                                                       WOLFSSL_X509_REVOKED *rev)
 {
-    WOLFSSL_STUB("wolfSSL_X509_REVOKED_get0_serial_number");
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get0_serial_number");
 
     if (rev != NULL) {
         return rev->serialNumber;
