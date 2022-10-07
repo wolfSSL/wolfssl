@@ -7611,7 +7611,7 @@ int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
 }
 
 /* Retrieve serial number from RevokedCert
- * return WOLFSSL_SUCCESS on success
+ * return WOLFSSL_SUCCESS on success and negative values on failure
  */
 int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
     byte* in, int* inOutSz)
@@ -7633,47 +7633,29 @@ int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
     return WOLFSSL_SUCCESS;
 }
 
-/* Retrieve the revocation date from RevokedCert
- * return WOLFSSL_SUCCESS on success
- */
-int wolfSSL_X509_REVOKED_get_revocationDate(RevokedCert* rev,
-    byte* in, int* inOutSz)
+const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
+                                                      WOLFSSL_X509_REVOKED *rev)
 {
-    char tmp[MAX_DATE_SIZE];
+    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get0_serial_number");
 
-    WOLFSSL_ENTER("wolfSSL_X509_REVOKED_get_revocationDate");
-
-    if ((rev == NULL) || (in == NULL) || (inOutSz == NULL)) {
-        return (BAD_FUNC_ARG);
+    if (rev != NULL) {
+        return rev->serialNumber;
     }
+    else
+        return NULL;
+}
 
-    if (*inOutSz < MAX_DATE_SIZE) {
-        return (BAD_FUNC_ARG);
-    }
+const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
+                                                      WOLFSSL_X509_REVOKED *rev)
+{
+    WOLFSSL_STUB("wolfSSL_X509_REVOKED_get0_revocation_date");
 
-    if (rev->revDate[0] != 0) {
-        if (GetTimeString(rev->revDate, ASN_UTC_TIME,
-            tmp, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
-                if (GetTimeString(rev->revDate, ASN_GENERALIZED_TIME,
-                              tmp, MAX_DATE_SIZE) != WOLFSSL_SUCCESS) {
-                        WOLFSSL_MSG("Error getting revocation date");
-
-                        return (WOLFSSL_FAILURE);
-                }
-        }
-    }
-    else {
-        XSTRNCPY(tmp, "Not Set", MAX_DATE_SIZE-1);
-    }
-
-    *inOutSz = XSTRLEN (tmp);
-    XMEMCPY(in, tmp, *inOutSz);
-
-    return (WOLFSSL_SUCCESS);
+    (void) rev;
+    return NULL;
 }
 
 /* print serial number out
-* return WOLFSSL_SUCCESS on success
+*  return WOLFSSL_SUCCESS on success
 */
 static int X509RevokedPrintSerial(WOLFSSL_BIO* bio, RevokedCert* rev,
     int indent)
@@ -8054,7 +8036,7 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 #ifdef OPENSSL_EXTRA
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
-    if (crl->crlList->lastDate[0] != 0) {
+    if ((crl != NULL) && (crl->crlList->lastDate[0] != 0)) {
         return (WOLFSSL_ASN1_TIME*)crl->crlList->lastDate;
     }
     else
@@ -8063,7 +8045,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
 {
-    if (crl->crlList->nextDate[0] != 0) {
+    if ((crl != NULL) && (crl->crlList->nextDate[0] != 0)) {
         return (WOLFSSL_ASN1_TIME*)crl->crlList->nextDate;
     }
     else

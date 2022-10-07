@@ -48125,6 +48125,7 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP)
     WOLFSSL_OCSP_CERTID* certId;
+    WOLFSSL_OCSP_CERTID* certIdBad;
     const unsigned char* rawCertIdPtr;
 
     const unsigned char rawCertId[] = {
@@ -48151,7 +48152,7 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 
     XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
 
-    /* If the cert ID is not NULL the fucntion will just copy the data to it. */
+    /* If the cert ID is not NULL the function will just copy the data to it. */
     certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*certId), NULL,
                                            DYNAMIC_TYPE_TMP_BUFFER);
     XMEMSET(certId, 0, sizeof(*certId));
@@ -48162,6 +48163,20 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
     AssertIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
 
     XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* The below tests should fail when passed bad parameters. NULL should
+     * always be returned. */
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr, sizeof(rawCertId));
+    AssertNull(certIdBad);
+
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL, sizeof(rawCertId));
+    AssertNull(certIdBad);
+
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0);
+    AssertNull(certIdBad);
 
     printf(resultFmt, passed);
 #endif

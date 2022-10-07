@@ -1072,21 +1072,23 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
                                              const unsigned char** derIn,
                                              int length)
 {
-    if ((derIn == NULL) || (length == 0))
+    if ((cidOut == NULL) || (derIn == NULL) || (length == 0))
         return (NULL);
 
-    if (*cidOut != NULL) {
-        XMEMCPY ((*cidOut)->rawCertId, *derIn, length);
-        (*cidOut)->rawCertIdSize = length;
-    }
-    else {
+    /* If a NULL is passed we allocate the memory for the caller. */
+    if (*cidOut == NULL) {
         *cidOut = (WOLFSSL_OCSP_CERTID*)XMALLOC(length, NULL, DYNAMIC_TYPE_OPENSSL);
+
         if (*cidOut == NULL) {
             return (NULL);
         }
-        XMEMCPY ((*cidOut)->rawCertId, *derIn, length);
-        (*cidOut)->rawCertIdSize = length;
     }
+
+    XMEMCPY ((*cidOut)->rawCertId, *derIn, length);
+    (*cidOut)->rawCertIdSize = length;
+
+    /* Per spec. advance past the data that is being returned to the caller. */
+    *derIn = *derIn + length;
 
     return (*cidOut);
 }
