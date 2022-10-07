@@ -621,7 +621,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
     }
 
     if (err == 0) {
-        filteredCerts = wolfSSL_sk_X509_new();
+        filteredCerts = wolfSSL_sk_X509_new_null();
         if (filteredCerts == NULL) {
             err = 1;
         }
@@ -1138,7 +1138,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         return NULL;
     }
 
-    sk = wolfSSL_sk_X509_new();
+    sk = wolfSSL_sk_X509_new_null();
 
     if (sk == NULL) {
         return NULL;

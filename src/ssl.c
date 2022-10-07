@@ -4367,7 +4367,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
     if (cm == NULL)
         return NULL;
 
-    sk = wolfSSL_sk_X509_new();
+    sk = wolfSSL_sk_X509_new_null();
     if (sk == NULL)
         goto error;
 
@@ -19495,7 +19495,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if ((ssl == NULL) || (ssl->session->chain.count == 0))
         return NULL;
 
-    sk = wolfSSL_sk_X509_new();
+    sk = wolfSSL_sk_X509_new_null();
     i = ssl->session->chain.count-1;
     for (; i >= 0; i--) {
         x509 = wolfSSL_X509_new();
@@ -30397,9 +30397,9 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
             }
             /* Store cert to free it later */
             if (ret == WOLFSSL_SUCCESS && ctx->x509Chain == NULL) {
-                ctx->x509Chain = wolfSSL_sk_X509_new();
+                ctx->x509Chain = wolfSSL_sk_X509_new_null();
                 if (ctx->x509Chain == NULL) {
-                    WOLFSSL_MSG("wolfSSL_sk_X509_new error");
+                    WOLFSSL_MSG("wolfSSL_sk_X509_new_null error");
                     ret =  WOLFSSL_FAILURE;
                 }
             }
@@ -30445,9 +30445,9 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
                 ssl->buffers.weOwnCertChain = 1;
                 /* Store cert to free it later */
                 if (ssl->ourCertChain == NULL) {
-                    ssl->ourCertChain = wolfSSL_sk_X509_new();
+                    ssl->ourCertChain = wolfSSL_sk_X509_new_null();
                     if (ssl->ourCertChain == NULL) {
-                        WOLFSSL_MSG("wolfSSL_sk_X509_new error");
+                        WOLFSSL_MSG("wolfSSL_sk_X509_new_null error");
                         return WOLFSSL_FAILURE;
                     }
                 }
@@ -39806,7 +39806,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         WOLFSSL_X509* x509 = wolfSSL_X509_d2i(NULL, p7->pkcs7.cert[i],
             p7->pkcs7.certSz[i]);
         if (!ret)
-            ret = wolfSSL_sk_X509_new();
+            ret = wolfSSL_sk_X509_new_null();
         if (x509) {
             if (wolfSSL_sk_X509_push(ret, x509) != WOLFSSL_SUCCESS) {
                 wolfSSL_X509_free(x509);
@@ -39863,7 +39863,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return NULL;
     }
 
-    signers = wolfSSL_sk_X509_new();
+    signers = wolfSSL_sk_X509_new_null();
     if (signers == NULL)
         return NULL;
 

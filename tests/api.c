@@ -34685,7 +34685,7 @@ static int test_wolfSSL_X509_STORE_CTX(void)
     AssertIntEQ(X509_STORE_add_cert(str, x509), SSL_SUCCESS);
 #ifdef OPENSSL_ALL
     /* sk_X509_new only in OPENSSL_ALL */
-    sk = sk_X509_new();
+    sk = sk_X509_new_null();
     AssertNotNull(sk);
     AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, sk), SSL_SUCCESS);
 #else
@@ -34712,7 +34712,7 @@ static int test_wolfSSL_X509_STORE_CTX(void)
                                                      SSL_FILETYPE_PEM)));
     AssertNotNull((x5092 = X509_load_certificate_file(cliCertFile,
                                                      SSL_FILETYPE_PEM)));
-    AssertNotNull((sk = sk_X509_new()));
+    AssertNotNull((sk = sk_X509_new_null()));
     AssertIntEQ(sk_X509_push(sk, x509), 1);
     AssertNotNull((str = X509_STORE_new()));
     AssertNotNull((ctx = X509_STORE_CTX_new()));
@@ -49539,7 +49539,7 @@ static int test_sk_X509(void)
     {
         STACK_OF(X509)* s;
 
-        AssertNotNull(s = sk_X509_new());
+        AssertNotNull(s = sk_X509_new_null());
         AssertIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
 
@@ -49547,7 +49547,7 @@ static int test_sk_X509(void)
         AssertIntEQ(sk_X509_num(s), 0);
         sk_X509_pop_free(s, NULL);
 
-        AssertNotNull(s = sk_X509_new());
+        AssertNotNull(s = sk_X509_new_null());
         sk_X509_push(s, (X509*)1);
         AssertIntEQ(sk_X509_num(s), 1);
         AssertIntEQ((sk_X509_value(s, 0) == (X509*)1), 1);
@@ -49571,7 +49571,7 @@ static int test_sk_X509(void)
             AssertNotNull(xList[i] = X509_new());
 
         /* test push, pop, and free */
-        AssertNotNull(s = sk_X509_new());
+        AssertNotNull(s = sk_X509_new_null());
 
         for (i = 0; i < len; ++i) {
             sk_X509_push(s, xList[i]);
@@ -49595,7 +49595,7 @@ static int test_sk_X509(void)
         sk_free(s);
 
         /* test push, shift, and free */
-        AssertNotNull(s = sk_X509_new());
+        AssertNotNull(s = sk_X509_new_null());
 
         for (i = 0; i < len; ++i) {
             sk_X509_push(s, xList[i]);
