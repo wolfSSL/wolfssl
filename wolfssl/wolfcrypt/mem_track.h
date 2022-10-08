@@ -810,7 +810,7 @@ static WC_INLINE void StackTrap(void)
 #define STACK_SIZE_CHECKPOINT_MSG(msg)
 #endif
 #ifndef STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK
-#define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) (0)
+#define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) (__VA_ARGS__, 0)
 #endif
 #ifndef STACK_SIZE_INIT
 #define STACK_SIZE_INIT()
