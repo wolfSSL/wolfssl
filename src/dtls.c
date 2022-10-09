@@ -24,12 +24,53 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-
-#if defined(WOLFSSL_DTLS_CID)
-
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
+#ifdef WOLFSSL_DTLS
+
+void DtlsResetState(WOLFSSL *ssl)
+{
+    /* Reset the state so that we can statelessly await the
+     * ClientHello that contains the cookie. Don't gate on IsAtLeastTLSv1_3
+     * to handle the edge case when the peer wants a lower version. */
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    /* Remove cookie so that it will get computed again */
+    TLSX_Remove(&ssl->extensions, TLSX_COOKIE, ssl->heap);
+#endif
+
+    /* Reset DTLS window */
+#ifdef WOLFSSL_DTLS13
+    w64Zero(&ssl->dtls13Epochs[0].nextSeqNumber);
+    w64Zero(&ssl->dtls13Epochs[0].nextPeerSeqNumber);
+    XMEMSET(ssl->dtls13Epochs[0].window, 0,
+            sizeof(ssl->dtls13Epochs[0].window));
+    Dtls13FreeFsmResources(ssl);
+#endif
+    ssl->keys.dtls_expected_peer_handshake_number = 0;
+    ssl->keys.dtls_handshake_number = 0;
+
+    /* Reset states */
+    ssl->options.serverState = NULL_STATE;
+    ssl->options.clientState = NULL_STATE;
+    ssl->options.connectState = CONNECT_BEGIN;
+    ssl->options.acceptState  = ACCEPT_BEGIN;
+    ssl->options.handShakeState  = NULL_STATE;
+    ssl->msgsReceived.got_client_hello = 0;
+    ssl->keys.dtls_handshake_number = 0;
+    ssl->keys.dtls_expected_peer_handshake_number = 0;
+    ssl->options.clientState = 0;
+}
+
+#if defined(WOLFSSL_DTLS_CID)
 
 typedef struct ConnectionID {
     byte length;
@@ -382,3 +423,5 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buf,
 }
 
 #endif /* WOLFSSL_DTLS_CID */
+
+#endif /* WOLFSSL_DTLS */

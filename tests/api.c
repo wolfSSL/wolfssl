@@ -56340,7 +56340,7 @@ static int test_wolfSSL_dtls_AEAD_limit(void)
 }
 #endif
 
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) && \
+#if defined(WOLFSSL_DTLS) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED)
 static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
 {
@@ -56396,36 +56396,57 @@ static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
     ret = (int)send(fd, ch_msg, sizeof(ch_msg), 0);
     AssertIntGT(ret, 0);
     /* consume the HRR otherwise handshake will fail */
-    ret = recv(fd, ch_msg, sizeof(ch_msg), 0);
+    ret = (int)recv(fd, ch_msg, sizeof(ch_msg), 0);
     AssertIntGT(ret, 0);
 }
 
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
 static void test_wolfSSL_dtls_enable_hrrcookie(WOLFSSL* ssl)
 {
     int ret;
     ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
 }
+#endif
 
 static int test_wolfSSL_dtls_stateless(void)
 {
     callback_functions client_cbs, server_cbs;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        ssl_callback client_ssl_ready;
+        ssl_callback server_ssl_ready;
+    } test_params[] = {
+        {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
+                test_wolfSSL_dtls_send_ch, NULL},
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
+                test_wolfSSL_dtls_send_ch, test_wolfSSL_dtls_enable_hrrcookie},
+#endif
+    };
 
-    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
-    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
-    client_cbs.doUdp = server_cbs.doUdp = 1;
-    client_cbs.method = wolfDTLSv1_3_client_method;
-    server_cbs.method = wolfDTLSv1_3_server_method;
+    printf(testingFmt, "test_wolfSSL_dtls_stateless");
 
-    client_cbs.ssl_ready = test_wolfSSL_dtls_send_ch;
-    server_cbs.ssl_ready = test_wolfSSL_dtls_enable_hrrcookie;
-    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+    for (i = 0; i < sizeof(test_params)/sizeof(*test_params); i++) {
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+        client_cbs.doUdp = server_cbs.doUdp = 1;
+        client_cbs.method = test_params[i].client_meth;
+        server_cbs.method = test_params[i].server_meth;
 
-    if (!client_cbs.return_code)
-        return -1;
-    if (!server_cbs.return_code)
-        return -1;
+        client_cbs.ssl_ready = test_params[i].client_ssl_ready;
+        server_cbs.ssl_ready = test_params[i].server_ssl_ready;
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
 
+        if (!client_cbs.return_code)
+            return -1;
+        if (!server_cbs.return_code)
+            return -1;
+    }
+
+    printf(resultFmt, passed);
     return 0;
 }
 #else
