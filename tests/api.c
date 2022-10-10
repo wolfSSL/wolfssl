@@ -58973,10 +58973,12 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
     !defined(NO_OLD_TLS)
 static int test_WOLFSSL_dtls_version_alert(void)
 {
-    struct test_memio_ctx test_ctx = { 0 };
+    struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c, *ctx_s;
     WOLFSSL *ssl_c, *ssl_s;
     int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_2_client_method, wolfDTLSv1_server_method);
@@ -59147,11 +59149,13 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
 
 static int test_ticket_nonce_malloc(void)
 {
-    struct test_memio_ctx test_ctx = { 0 };
+    struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c, *ctx_s;
     byte small, medium, big;
     WOLFSSL *ssl_c, *ssl_s;
     int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_3_client_method, wolfTLSv1_3_server_method);
