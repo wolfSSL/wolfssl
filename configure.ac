@@ -4188,7 +4188,7 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
 
-	# AES-GCM streaming isn't part of the current FIPS suite.
+        # AES-GCM streaming isn't part of the current FIPS suite.
         AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "yes")],
             [ENABLED_AESGCM_STREAM="no"])
 
