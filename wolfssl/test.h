@@ -5117,7 +5117,7 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
     (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
     !defined(NO_OLD_TLS))
-#define TEST_MEMIO_BUF_SZ 64 * 1024
+#define TEST_MEMIO_BUF_SZ (64 * 1024)
 struct test_memio_ctx
 {
     byte c_buff[TEST_MEMIO_BUF_SZ];
