@@ -3919,6 +3919,13 @@ const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 #endif
 }
 
+int wolfSSL_GetSide(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->options.side;
+
+    return BAD_FUNC_ARG;
+}
 
 #ifdef ATOMIC_USER
 
@@ -4157,14 +4164,6 @@ int wolfSSL_IsTLSv1_1(WOLFSSL* ssl)
     return 0;
 }
 
-
-int wolfSSL_GetSide(WOLFSSL* ssl)
-{
-    if (ssl)
-        return ssl->options.side;
-
-    return BAD_FUNC_ARG;
-}
 
 
 int wolfSSL_GetHmacSize(WOLFSSL* ssl)

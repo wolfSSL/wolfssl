@@ -58968,81 +58968,71 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 #endif
 
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
+    !defined(NO_OLD_TLS)
+static int test_WOLFSSL_dtls_version_alert(void)
+{
+    struct test_memio_ctx test_ctx = { 0 };
+    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL *ssl_c, *ssl_s;
+    int ret;
+
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_server_method);
+    if (ret != 0)
+        return -1;
+
+    /* client hello */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != WANT_READ )
+        return -2;
+    /* hrr */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 || ssl_s->error != WANT_READ )
+        return -3;
+    /* client hello 1 */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != WANT_READ )
+        return -4;
+    /* server hello */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 || ssl_s->error != WANT_READ )
+        return -5;
+    /* should fail */
+    ret = wolfSSL_connect(ssl_c);
+    if (ret == 0 || ssl_c->error != VERSION_ERROR)
+        return -6;
+    /* shuould fail */
+    ret = wolfSSL_accept(ssl_s);
+    if (ret == 0 ||
+        (ssl_s->error != VERSION_ERROR && ssl_s->error != FATAL_ERROR))
+        return -7;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return 0;
+}
+#else
+static int test_WOLFSSL_dtls_version_alert(void)
+{
+    return 0;
+}
+#endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&
+        * !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&
+        * !defined(NO_OLD_TLS)
+        */
+
+
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-
-#define TEST_NONCE_BUF_SZ 64 * 1024
-struct test_nonce_ctx
-{
-    byte c_buff[TEST_NONCE_BUF_SZ];
-    int c_len;
-    byte s_buff[TEST_NONCE_BUF_SZ];
-    int s_len;
-};
-
-static int test_ticket_nonce_write_cb(WOLFSSL *ssl,
-    char *data, int sz, void *ctx)
-{
-    struct test_nonce_ctx *test_ctx;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_nonce_ctx*)ctx;
-
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-    else {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-
-    if ((unsigned)(*len + sz) > TEST_NONCE_BUF_SZ)
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-
-    XMEMCPY(buf + *len, data, sz);
-    *len += sz;
-
-    return sz;
-}
-
-static int test_ticket_nonce_read_cb(WOLFSSL *ssl,
-    char *data, int sz, void *ctx)
-{
-    struct test_nonce_ctx *test_ctx;
-    int read_sz;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_nonce_ctx*)ctx;
-
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-    else {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-
-    if (*len == 0)
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-
-    read_sz = sz < *len ? sz : *len;
-
-    XMEMCPY(data, buf, read_sz);
-    XMEMMOVE(buf, buf + read_sz, *len - read_sz);
-
-    *len -= read_sz;
-
-    return read_sz;
-}
-
 static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
 {
-    struct test_nonce_ctx *test_ctx;
+    struct test_memio_ctx *test_ctx;
     byte buf[2048];
     int idx, sz;
     word32 tmp;
@@ -59079,8 +59069,8 @@ static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
 
     sz = BuildTls13Message(ssl, buf, 2048, buf+5, idx - 5,
         handshake, 0, 0, 0);
-    test_ctx = (struct test_nonce_ctx*)wolfSSL_GetIOWriteCtx(ssl);
-    ret = test_ticket_nonce_write_cb(ssl, (char*)buf, sz, test_ctx);
+    test_ctx = (struct test_memio_ctx*)wolfSSL_GetIOWriteCtx(ssl);
+    ret = test_memio_write_cb(ssl, (char*)buf, sz, test_ctx);
     return !(ret == sz);
 }
 
@@ -59157,47 +59147,22 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
 
 static int test_ticket_nonce_malloc(void)
 {
-    struct test_nonce_ctx test_ctx = { 0 };
+    struct test_memio_ctx test_ctx = { 0 };
     WOLFSSL_CTX *ctx_c, *ctx_s;
     byte small, medium, big;
     WOLFSSL *ssl_c, *ssl_s;
     int ret;
 
-    ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-    ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-    if (ctx_c == NULL || ctx_s == NULL)
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_3_client_method, wolfTLSv1_3_server_method);
+    if (ret != 0)
         return -1;
 
     /* will send ticket manually */
-    wolfSSL_CTX_no_ticket_TLSv13(ctx_s);
+    wolfSSL_no_ticket_TLSv13(ssl_s);
 
-    wolfSSL_CTX_set_verify(ctx_s, WOLFSSL_VERIFY_NONE, 0);
-    wolfSSL_CTX_set_verify(ctx_c, WOLFSSL_VERIFY_NONE, 0);
-
-    ret = wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
-        WOLFSSL_FILETYPE_PEM);
-    if (ret != WOLFSSL_SUCCESS)
-        return- -1;
-
-    ret = wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
-                                           WOLFSSL_FILETYPE_PEM);
-    if (ret != WOLFSSL_SUCCESS)
-        return -1;
-
-    wolfSSL_SetIORecv(ctx_c, test_ticket_nonce_read_cb);
-    wolfSSL_SetIOSend(ctx_c, test_ticket_nonce_write_cb);
-    wolfSSL_SetIORecv(ctx_s, test_ticket_nonce_read_cb);
-    wolfSSL_SetIOSend(ctx_s, test_ticket_nonce_write_cb);
-
-    ssl_c = wolfSSL_new(ctx_c);
-    ssl_s = wolfSSL_new(ctx_s);
-    if (ssl_c == NULL || ssl_s == NULL)
-        return -1;
-
-    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
-    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
-    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
-    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
 
     while (!ssl_c->options.handShakeDone && !ssl_s->options.handShakeDone) {
         ret = wolfSSL_connect(ssl_c);
@@ -60155,7 +60120,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_DtlsUpdateWindow),
     TEST_DECL(test_wolfSSL_DTLS_fragment_buckets),
 #endif
-
+    TEST_DECL(test_WOLFSSL_dtls_version_alert),
     TEST_DECL(test_ForceZero),
 
     TEST_DECL(test_wolfSSL_Cleanup),

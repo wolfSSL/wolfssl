@@ -26409,8 +26409,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         i += OPAQUE16_LEN;
 
         ret = CheckVersion(ssl, pv);
-        if (ret != 0)
+        if (ret != 0) {
+            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             return ret;
+        }
 
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(pv)) {
