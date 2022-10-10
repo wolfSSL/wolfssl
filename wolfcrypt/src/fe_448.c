@@ -607,7 +607,7 @@ void fe448_to_bytes(unsigned char* b, const sword64* a)
     o = (in5  >> 56); in6  += o; t = o << 56; in5  -= (sword64)t;
     o = (in6  >> 56); in7  += o; t = o << 56; in6  -= (sword64)t;
     o = (in7  >> 56); in0  += o;
-                    in4  += o; t = o << 56; in7  -= (sword64)t;
+                      in4  += o; t = o << 56; in7  -= (sword64)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -814,7 +814,7 @@ void fe448_mul39081(sword64* r, const sword64* a)
     o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
     o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
     o = (sword64)(t7  >> 56); t0  += o;
-                   t4  += o; t = (sword128)o << 56; t7  -= t;
+                              t4  += o; t = (sword128)o << 56; t7  -= t;
 
     /* Store */
     r[0] = (sword64)t0;
@@ -1433,7 +1433,7 @@ void fe448_to_bytes(unsigned char* b, const sword32* a)
     o = (in13 >> 28); in14 += o; t = o << 28; in13 -= (sword32)t;
     o = (in14 >> 28); in15 += o; t = o << 28; in14 -= (sword32)t;
     o = (in15 >> 28); in0  += o;
-                    in8  += o; t = o << 28; in15 -= (sword32)t;
+                      in8  += o; t = o << 28; in15 -= (sword32)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -1742,7 +1742,7 @@ void fe448_mul39081(sword32* r, const sword32* a)
     o = (sword32)(t13 >> 28); t14 += o; t = (sword64)o << 28; t13 -= t;
     o = (sword32)(t14 >> 28); t15 += o; t = (sword64)o << 28; t14 -= t;
     o = (sword32)(t15 >> 28); t0  += o;
-                   t8  += o; t = (sword64)o << 28; t15 -= t;
+                              t8  += o; t = (sword64)o << 28; t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
@@ -1845,7 +1845,6 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     t6  += t606;
     t7  += t107; t7  += t207; t7  += t307; t7  += t407; t7  += t507;
     t7  += t607;
-    t7  += t707;
     t8  += t108; t8  += t208; t8  += t308; t8  += t408; t8  += t508;
     t8  += t608;
     t9  += t109; t9  += t209; t9  += t309; t9  += t409; t9  += t509;
@@ -1863,6 +1862,7 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
     o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
     o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
+    o = (t707>> 28); t8  += o; t = o << 28; t707-= t; t7 += t707;
     o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
     o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
     o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
@@ -1872,7 +1872,7 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
     o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
     o = (t15 >> 28); t0  += o;
-                   t8  += o; t = o << 28; t15 -= t;
+                     t8  += o; t = o << 28; t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
@@ -1994,7 +1994,7 @@ static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
     t4  += t104; t4  += t204;
     t5  += t105; t5  += t205;
     t6  += t106; t6  += t206; t6  += t306;
-    t7  += t107; t7  += t207; t7  += t307;
+    t7  += t107; t7  += t207;
     t8  += t108; t8  += t208; t8  += t308;
     t9  += t109; t9  += t209;
     t10 += t110; t10 += t210;
@@ -2010,6 +2010,7 @@ static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
     o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
     o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
     o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
+    o = (t307>> 28); t8  += o; t = o << 28; t307-= t; t7 += t307;
     o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
     o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
     o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
@@ -2019,7 +2020,7 @@ static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
     o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
     o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
     o = (t15 >> 28); t0  += o;
-                   t8  += o; t = o << 28; t15 -= t;
+                     t8  += o; t = o << 28; t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
