@@ -907,12 +907,12 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
 
     #ifndef USE_WINDOWS_API
         nfds = (int)sockfd + 1;
-    #endif
 
         if ((sockfd < 0) || (sockfd >= FD_SETSIZE)) {
             WOLFSSL_MSG("socket fd out of FDSET range");
             return -1;
         }
+    #endif
 
         FD_ZERO(&rfds);
         FD_SET(sockfd, &rfds);
@@ -1156,8 +1156,13 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 
     ret = connect(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
 #ifdef HAVE_IO_TIMEOUT
-    if (ret != 0) {
-        if ((errno == EINPROGRESS) && (to_sec > 0)) {
+    if ((ret != 0) && (to_sec > 0)) {
+#ifdef USE_WINDOWS_API
+        if ((ret == SOCKET_ERROR) && (wolfSSL_LastError(ret) == WSAEWOULDBLOCK))
+#else
+        if (errno == EINPROGRESS)
+#endif
+        {
             /* wait for connect to complete */
             ret = wolfIO_Select(*sockfd, to_sec);
 
