@@ -1416,6 +1416,7 @@ static int server_srtp_test(WOLFSSL *ssl, func_args *args)
 }
 #endif
 
+
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 {
     SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
@@ -2487,6 +2488,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (method != NULL) {
         ctx = SSL_CTX_new(method(NULL));
     }
+#ifdef WOLFSSL_CALLBACKS
+    wolfSSL_CTX_set_msg_callback(ctx, msgDebugCb);
+#endif
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
@@ -3798,7 +3802,7 @@ exit:
 #ifdef HAVE_SECURE_RENEGOTIATION
     (void) forceScr;
 #endif
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) && defined(WOLFSSL_EARLY_DATA)
     (void) earlyData;
 #endif
 #ifndef WOLFSSL_TIRTOS

@@ -1849,6 +1849,7 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
 }
 #endif /* WOLFSSL_SRTP */
 
+
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
@@ -2964,6 +2965,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ctx = wolfSSL_CTX_new_ex(method(heap), heap);
     if (ctx == NULL)
         err_sys("unable to get ctx");
+#ifdef WOLFSSL_CALLBACKS
+    wolfSSL_CTX_set_msg_callback(ctx, msgDebugCb);
+#endif
 
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
            WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1) != WOLFSSL_SUCCESS) {
