@@ -4557,6 +4557,16 @@ static WC_INLINE int myVerifyMac(WOLFSSL *ssl, const byte* message,
 }
 #endif
 
+static WC_INLINE int mySslCreated(WOLFSSL_CTX* ctx, WOLFSSL *ssl)
+{
+    int       ret;
+    (void)ctx;
+    (void)ssl;
+    WOLFSSL_PKMSG("Ssl Created Cb: created session %p\n", ssl);
+    ret = WOLFSSL_SUCCESS;
+    return ret;
+}
+
 static WC_INLINE int myTlsFinished(WOLFSSL* ssl,
                             const byte *side,
                             const byte *handshake_hash,
@@ -4641,6 +4651,8 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
     #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     wolfSSL_CTX_SetVerifyMacCb(ctx, myVerifyMac);
     #endif
+
+    wolfSSL_CTX_SetSslCreatedCb(ctx, mySslCreated);
 
     wolfSSL_CTX_SetTlsFinishedCb(ctx, myTlsFinished);
     #endif /* NO_CERTS */

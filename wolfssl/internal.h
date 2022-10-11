@@ -3396,6 +3396,7 @@ struct WOLFSSL_CTX {
     CallbackGenMasterSecret     GenMasterCb;        /* Use generate master secret handler */
     CallbackGenSessionKey       GenSessionKeyCb;    /* Use generate session key handler */
     CallbackEncryptKeys         EncryptKeysCb;/* Use setting encrypt keys handler */
+    CallbackSslCreated          SslCreatedCb;      /* Use session created handler */
     CallbackTlsFinished         TlsFinishedCb;      /* Use Tls finished handler */
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     CallbackVerifyMac           VerifyMacCb;        /* Use Verify mac handler */

@@ -689,10 +689,12 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
             FreeSSL(ssl, ctx->heap);
             ssl = 0;
         }
-
-    WOLFSSL_LEAVE("SSL_new", ret);
     (void)ret;
-
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl && ctx->SslCreatedCb)
+        ctx->SslCreatedCb(ctx, ssl);
+#endif
+    WOLFSSL_LEAVE("SSL_new", ret);
     return ssl;
 }
 
@@ -29428,6 +29430,17 @@ void* wolfSSL_GetEncryptKeysCtx(WOLFSSL* ssl)
         return ssl->EncryptKeysCtx;
 
     return NULL;
+}
+
+/* callback for SSL session created */
+/* the callback can be used to acknowledge the creation of a new SSL in the 
+ * context */
+void wolfSSL_CTX_SetSslCreatedCb(WOLFSSL_CTX *ctx, CallbackSslCreated cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetSslCreatedCb");
+    if (ctx)
+        ctx->SslCreatedCb = cb;
+    WOLFSSL_LEAVE("wolfSSL_CTX_SetSslCreatedCb", 0);
 }
 
 /* callback for Tls finished */

@@ -3508,6 +3508,9 @@ WOLFSSL_API void  wolfSSL_CTX_SetEncryptKeysCb(WOLFSSL_CTX* ctx,
 WOLFSSL_API void  wolfSSL_SetEncryptKeysCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEncryptKeysCtx(WOLFSSL* ssl);
 
+typedef int (*CallbackSslCreated)(WOLFSSL_CTX* ctx, WOLFSSL *ssl);
+WOLFSSL_API void wolfSSL_CTX_SetSslCreatedCb(WOLFSSL_CTX *ctx, CallbackSslCreated cb);
+
 typedef int (*CallbackTlsFinished)(WOLFSSL* ssl,
                             const byte *side,
                             const byte *handshake_hash,
