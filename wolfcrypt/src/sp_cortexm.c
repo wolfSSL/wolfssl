@@ -18471,7 +18471,7 @@ SP_NOINLINE static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
         "and	r3, r3, r8\n\t"
         "sub	r6, r6, #4\n\t"
         "cmp	r6, #0\n\t"
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
         "bge	1b\n\t"
 #else
         "bge.n	1b\n\t"
