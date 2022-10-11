@@ -2584,7 +2584,8 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
     !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
+    !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL) \
+    && !defined(USE_FAST_MATH)
     #undef  WOLFSSL_NO_FORCE_ZERO
     #define WOLFSSL_NO_FORCE_ZERO
 #endif
