@@ -32113,7 +32113,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif /* WOLFSSL_ASYNC_IO */
 
         /* Final cleanup */
-        if (args != NULL && args->input != NULL) {
+        if (
+        #ifdef WOLFSSL_ASYNC_IO
+        args != NULL &&
+        #endif
+            args->input != NULL) {
             XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             args->input = NULL;
         }
