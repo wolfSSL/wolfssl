@@ -1267,12 +1267,13 @@ const char** wolfSSL_get_system_CA_dirs(word32* num);
     \ingroup CertsKeys
 
     \brief This function attempts to load CA certificates into a WOLFSSL_CTX
-    from conventional CA cert directories, which is OS-dependent.
+    from an OS-dependent CA certificate store. Loaded certificates will be
+    trusted.
 
     \return WOLFSSL_SUCCESS on success.
     \return WOLFSSL_BAD_PATH if no system CA certs were loaded.
-    \return WOLFSSL_NOT_IMPLEMENTED if the function isn't supported for the
-    target OS.
+    \return WOLFSSL_FAILURE for other failure types (e.g. Windows cert store
+    wasn't properly closed).
 
     \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
 

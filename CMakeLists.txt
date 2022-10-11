@@ -66,6 +66,18 @@ if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
     set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
+if(APPLE)
+    find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
+    if(NOT CORE_FOUNDATION_FRAMEWORK)
+        message(FATAL_ERROR "Couldn't find CoreFoundation framework.")
+    endif()
+
+    find_library(SECURITY_FRAMEWORK Security)
+    if(NOT SECURITY_FRAMEWORK)
+        message(FATAL_ERROR "Couldn't find Security framework.")
+    endif()
+endif()
+
 include(CheckIncludeFile)
 
 check_include_file("arpa/inet.h" HAVE_ARPA_INET_H)
@@ -1528,6 +1540,10 @@ endif()
 
 # TODO: - Fast huge math
 
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_X86_64_BUILD")
+endif()
+
 # SP math all
 add_option("WOLFSSL_SP_MATH_ALL"
     "Enable Single Precision math implementation for full algorithm suite (default: enabled)"
@@ -1653,6 +1669,17 @@ add_option("WOLFSSL_USER_SETTINGS"
 add_option("WOLFSSL_OPTFLAGS"
     "Enable default optimization CFLAGS for the compiler (default: enabled)"
     "yes" "yes;no")
+
+add_option("WOLFSSL_SYS_CA_CERTS"
+    "Enable ability to load CA certs from OS (default: enabled)"
+    "yes" "yes;no")
+if(WOLFSSL_SYS_CA_CERTS)
+    if(NOT WOLFSSL_FILESYSTEM)
+        message(FATAL_ERROR "Cannot use system CA certs without a filesystem.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SYS_CA_CERTS")
+    endif()
+endif()
 
 # FLAGS operations
 
@@ -1902,6 +1929,10 @@ if(WIN32)
     # For Windows link ws2_32
     target_link_libraries(wolfssl PUBLIC
         $<$<PLATFORM_ID:Windows>:ws2_32>)
+elseif(APPLE)
+    target_link_libraries(wolfssl PUBLIC
+        ${CORE_FOUNDATION_FRAMEWORK}
+        ${SECURITY_FRAMEWORK})
 else()
     # DH requires math (m) library
     target_link_libraries(wolfssl
