@@ -35775,12 +35775,14 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
     if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buf, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->lastDate.data,
+                    (byte*) &dcrl->lastDate.type, sz) < 0)
         return ASN_PARSE_E;
 
     dateIdx = idx;
 
-    if (GetBasicDate(buf, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->nextDate.data,
+                    (byte*) &dcrl->nextDate.type, sz) < 0)
     {
 #ifndef WOLFSSL_NO_CRL_NEXT_DATE
         (void)dateIdx;
@@ -35797,8 +35799,8 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
 #endif
     {
 #ifndef NO_ASN_TIME
-        if (verify != NO_VERIFY &&
-                !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+        if (verify != NO_VERIFY && !XVALIDATE_DATE(dcrl->nextDate.data,
+                                                   dcrl->nextDate.type, AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;

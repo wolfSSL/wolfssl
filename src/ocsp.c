@@ -1073,14 +1073,14 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
                                              int length)
 {
     if ((cidOut == NULL) || (derIn == NULL) || (length == 0))
-        return (NULL);
+        return NULL;
 
     /* If a NULL is passed we allocate the memory for the caller. */
     if (*cidOut == NULL) {
         *cidOut = (WOLFSSL_OCSP_CERTID*)XMALLOC(length, NULL, DYNAMIC_TYPE_OPENSSL);
 
         if (*cidOut == NULL) {
-            return (NULL);
+            return NULL;
         }
     }
 
@@ -1090,7 +1090,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
     /* Per spec. advance past the data that is being returned to the caller. */
     *derIn = *derIn + length;
 
-    return (*cidOut);
+    return *cidOut;
 }
 
 const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(const WOLFSSL_OCSP_SINGLERESP *single)

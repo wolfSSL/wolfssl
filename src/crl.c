@@ -94,10 +94,12 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     XMEMCPY(crle->issuerHash, dcrl->issuerHash, CRL_DIGEST_SIZE);
     /* XMEMCPY(crle->crlHash, dcrl->crlHash, CRL_DIGEST_SIZE);
      * copy the hash here if needed for optimized comparisons */
-    XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
-    XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
-    crle->lastDateFormat = dcrl->lastDateFormat;
-    crle->nextDateFormat = dcrl->nextDateFormat;
+    crle->lastDate.length = MAX_DATE_SIZE;
+    XMEMCPY(crle->lastDate.data, dcrl->lastDate.data, crle->lastDate.length);
+    crle->nextDate.length = MAX_DATE_SIZE;
+    XMEMCPY(crle->nextDate.data, dcrl->nextDate.data, crle->nextDate.length);
+    crle->lastDate.type = dcrl->lastDate.type;
+    crle->nextDate.type = dcrl->nextDate.type;
     crle->version = dcrl->version;
 #if defined(OPENSSL_EXTRA)
     crle->issuer = NULL;
@@ -385,7 +387,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
         #endif
             {
             #ifndef NO_ASN_TIME
-                if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, AFTER)) {
+                if (!XVALIDATE_DATE(crle->nextDate.data, crle->nextDate.type, AFTER)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");
                     ret = ASN_AFTER_DATE_E;
                 }
@@ -691,10 +693,12 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     XMEMSET(dupl, 0, sizeof(CRL_Entry));
 
     XMEMCPY(dupl->issuerHash, ent->issuerHash, CRL_DIGEST_SIZE);
-    XMEMCPY(dupl->lastDate, ent->lastDate, MAX_DATE_SIZE);
-    XMEMCPY(dupl->nextDate, ent->nextDate, MAX_DATE_SIZE);
-    dupl->lastDateFormat = ent->lastDateFormat;
-    dupl->nextDateFormat = ent->nextDateFormat;
+    dupl->lastDate.length = MAX_DATE_SIZE;
+    XMEMCPY(dupl->lastDate.data, ent->lastDate.data, dupl->lastDate.length);
+    dupl->nextDate.length = MAX_DATE_SIZE;
+    XMEMCPY(dupl->nextDate.data, ent->nextDate.data, dupl->nextDate.length);
+    dupl->lastDate.type = ent->lastDate.type;
+    dupl->nextDate.type = ent->nextDate.type;
 
 #ifdef CRL_STATIC_REVOKED_LIST
     XMEMCPY(dupl->certs, ent->certs, ent->totalCerts*sizeof(RevokedCert));

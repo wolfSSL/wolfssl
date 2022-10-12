@@ -732,7 +732,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_OBJECT_get0_X509           wolfSSL_X509_OBJECT_get0_X509
 #define X509_OBJECT_get0_X509_CRL       wolfSSL_X509_OBJECT_get0_X509_CRL
 
-#define X509_REVOKED_get_serial_number   wolfSSL_X509_REVOKED_get_serial_number
 #define X509_REVOKED_get0_serialNumber   wolfSSL_X509_REVOKED_get0_serial_number
 #define X509_REVOKED_get0_revocationDate wolfSSL_X509_REVOKED_get0_revocation_date
 
