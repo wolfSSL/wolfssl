@@ -1210,7 +1210,7 @@ enum {
             #error "MySQL needs FP_MAX_BITS at least at 16384"
         #endif
 
-        #if WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
+        #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
             #error "FP_MAX_BITS too small for WOLFSSL_MAX_RSA_BITS"
         #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
