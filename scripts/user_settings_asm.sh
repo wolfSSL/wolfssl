@@ -1,42 +1,43 @@
 #!/bin/sh
 
 if test $# -eq 0; then
-    echo "user_settings_asm.sh requires one argument specifying compiler flags to pull include directories from."
+    echo "user_settings_asm.sh requires one argument specifying compiler flags to pull include directories from." 1>&2
     exit 1
 fi
 
-user_settings_path=""
-user_settings_dir="./"
+# Compress multiple spaces to single spaces, then replace instances of
+# "-I " with "-I" (i.e. remove spaces between -I and the include path).
+search_string=$(echo "$1" | sed -e 's/  */ /g' -e 's/-I /-I/g')
 
-# First, see if user_settings.h is in the current directory.
-if test -e "user_settings.h"; then
-    user_settings_path="user_settings.h"
-else
-    search_string="$1"
-    # Compress multiple spaces to single spaces, then replace instances of
-    # "-I " with "-I" (i.e. remove spaces between -I and the include path).
-    search_string=$(echo "$search_string" | sed -e 's/  */ /g' -e 's/-I /-I/g')
+for token in $search_string
+do
+    case "$token" in
+    -I*)
+        # Trim off the leading "-I".
+        path="${token#-I}"
+        # Trim off the trailing "/".
+        path="${path%/}"
+        if test -e "$path/user_settings.h"; then
+            user_settings_dir="$path"
+            user_settings_path="$path/user_settings.h"
+            break
+        fi
+        ;;
+    *)
+        ;;
+    esac
+done
 
-    for token in $search_string
-    do
-        case "$token" in
-        -I*)
-            # Trim off the leading "-I".
-            path=$(echo "$token" | cut -c 3-)
-            if test -e "$path/user_settings.h"; then
-                user_settings_dir="$path"
-                user_settings_path="$path/user_settings.h"
-                break
-            fi
-            ;;
-        *)
-            ;;
-        esac
-    done
+# Fall back to user_settings.h in the current directory.
+if test -z "${user_settings_path-}"; then
+    if test -e "user_settings.h"; then
+        user_settings_dir="."
+        user_settings_path="user_settings.h"
+    fi
 fi
 
-if test -z "$user_settings_path"; then
-    echo "Unable to find user_settings.h."
+if test -z "${user_settings_path-}"; then
+    echo "Unable to find user_settings.h." 1>&2
     exit 1
 else
     # Strip out anything from user_settings.h that isn't a preprocessor
