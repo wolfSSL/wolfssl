@@ -163,6 +163,7 @@
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 
 #ifdef _WIN32
+#include <windows.h>
 #include <Wincrypt.h>
 #pragma comment(lib, "crypt32")
 #endif
