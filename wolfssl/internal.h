@@ -1210,7 +1210,8 @@ enum {
             #error "MySQL needs FP_MAX_BITS at least at 16384"
         #endif
 
-        #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
+        #if !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS) && \
+            WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
             #error "FP_MAX_BITS too small for WOLFSSL_MAX_RSA_BITS"
         #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
@@ -1237,7 +1238,8 @@ enum {
             #error "MySQL needs SP_INT_BITS at least at 8192"
         #endif
 
-        #if !defined(NO_RSA) && WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
+        #if !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS) && \
+            WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
             #error "SP_INT_BITS too small for WOLFSSL_MAX_RSA_BITS"
         #endif
     #else
@@ -1599,7 +1601,7 @@ enum Misc {
 
 #if defined(HAVE_PQC)
     MAX_CERT_VERIFY_SZ = 6000,            /* For Dilithium */
-#elif !defined(NO_RSA)
+#elif !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS)
     MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
 #elif defined(HAVE_ECC)
     MAX_CERT_VERIFY_SZ = ECC_MAX_SIG_SIZE, /* max ECC  */
