@@ -43,6 +43,7 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 
+#include <wolfssl/wolfcrypt/memory.h> /* for LARGEST_MEM_BUCKET */
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240

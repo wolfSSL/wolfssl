@@ -31414,8 +31414,8 @@ static int test_wc_CertPemToDer(void)
 
 static int test_wc_PubKeyPemToDer(void)
 {
-#ifdef WOLFSSL_PEM_TO_DER
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && \
+   (defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER))
     int ret;
     const char* key = "./certs/ecc-client-keyPub.pem";
     byte* cert_buf = NULL;
@@ -31447,14 +31447,14 @@ static int test_wc_PubKeyPemToDer(void)
 
     printf(resultFmt, passed);
 #endif
-#endif
 
     return 0;
 }
 
 static int test_wc_PemPubKeyToDer(void)
 {
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+#if !defined(NO_FILESYSTEM) && \
+    (defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER))
     int ret;
     const char* key = "./certs/ecc-client-keyPub.pem";
     size_t cert_dersz = 1024;

@@ -666,10 +666,8 @@ WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_fp_free(void);
 WOLFSSL_LOCAL
 void wc_ecc_fp_init(void);
-#ifdef ECC_TIMING_RESISTANT
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
-#endif
 
 WOLFSSL_API
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
