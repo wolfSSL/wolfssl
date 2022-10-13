@@ -2719,7 +2719,7 @@ static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
  * --enable-opensslextra is defined because it sets WOLFSSL_ALWAYS_VERIFY_CB and
  * WOLFSSL_VERIFY_CB_ALL_CERTS.
  * Normal cases of the verify callback only occur on certificate failures when the
- * wolfSSL_set_verify(ssl, SSL_VERIFY_PEER, myVerifyCb); is called
+ * wolfSSL_set_verify(ssl, SSL_VERIFY_PEER, myVerify); is called
 */
 
 static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
@@ -2734,7 +2734,6 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     int i = 0;
 #endif
 #endif
-    (void)preverify;
 
     /* Verify Callback Arguments:
      * preverify:           1=Verify Okay, 0=Failure

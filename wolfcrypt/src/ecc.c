@@ -12785,21 +12785,25 @@ void wc_ecc_fp_free(void)
 
 #endif /* FP_ECC */
 
-#ifdef ECC_TIMING_RESISTANT
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng)
 {
     int err = 0;
 
+#ifdef ECC_TIMING_RESISTANT
     if (key == NULL) {
         err = BAD_FUNC_ARG;
     }
     else {
         key->rng = rng;
     }
+#else
+    (void)key;
+    (void)rng;
+    /* report success, not an error if ECC_TIMING_RESISTANT is not defined */
+#endif
 
     return err;
 }
-#endif
 
 #ifdef HAVE_ECC_ENCRYPT
 
