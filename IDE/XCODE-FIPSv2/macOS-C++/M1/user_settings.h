@@ -53,7 +53,7 @@ extern "C" {
     #define TFM_TIMING_RESISTANT
 
     #undef TFM_NO_ASM
-    //#define TFM_NO_ASM
+    #define TFM_NO_ASM /* Necessary to exclude .i compilation */
 
     /* Optimizations */
     #define TFM_ARM
@@ -661,12 +661,15 @@ extern "C" {
 //#define NO_SIG_WRAPPER
 
 /* wolfSSL engineering ACVP algo and operational testing only (Default: Off) */
-#if 0
+#if 0 /* Automation Grep Target */
     #undef WOLFSSL_PUBLIC_MP
     #define WOLFSSL_PUBLIC_MP
 
     #undef HAVE_FORCE_FIPS_FAILURE
     #define HAVE_FORCE_FIPS_FAILURE
+
+    /* operational test app depends on MD5 */
+    #undef NO_MD5
 #endif
 
 #ifdef __cplusplus
