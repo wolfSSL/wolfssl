@@ -28619,7 +28619,9 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
 
     /* assembly complete PKCS7 sign and use normal verify */
     {
-        byte* output = (byte*)XMALLOC(outputHeadSz + sizeof(data) + outputFootSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        byte* output = (byte*)XMALLOC(
+                outputHeadSz + sizeof(data) + outputFootSz,
+                HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         word32 outputSz = 0;
         AssertNotNull(output);
         XMEMCPY(&output[outputSz], outputHead, outputHeadSz);
@@ -28698,12 +28700,205 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
 
 
 #if defined(HAVE_PKCS7)
+
+/**
+ * Loads certs/keys from files or buffers into the argument buffers,
+ * helper function called by CreatePKCS7SignedData().
+ *
+ * Returns 0 on success, negative on error.
+ */
+static int LoadPKCS7SignedDataCerts(
+        int useIntermediateCertChain, int pkAlgoType,
+        byte* intCARoot, word32* intCARootSz,
+        byte* intCA1, word32* intCA1Sz,
+        byte* intCA2, word32* intCA2Sz,
+        byte* cert, word32* certSz,
+        byte* key, word32* keySz)
+{
+    int ret = 0;
+    FILE*  fp = NULL;
+
+#ifndef NO_RSA
+    const char* intCARootRSA   = "./certs/ca-cert.der";
+    const char* intCA1RSA      = "./certs/intermediate/ca-int-cert.der";
+    const char* intCA2RSA      = "./certs/intermediate/ca-int2-cert.der";
+    const char* intServCertRSA = "./certs/intermediate/server-int-cert.der";
+    const char* intServKeyRSA  = "./certs/server-key.der";
+
+    #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024)
+        const char* cli1024Cert    = "./certs/1024/client-cert.der";
+        const char* cli1024Key     = "./certs/1024/client-key.der";
+    #endif
+#endif
+#ifdef HAVE_ECC
+    const char* intCARootECC   = "./certs/ca-ecc-cert.der";
+    const char* intCA1ECC      = "./certs/intermediate/ca-int-ecc-cert.der";
+    const char* intCA2ECC      = "./certs/intermediate/ca-int2-ecc-cert.der";
+    const char* intServCertECC = "./certs/intermediate/server-int-ecc-cert.der";
+    const char* intServKeyECC  = "./certs/ecc-key.der";
+
+    #ifndef USE_CERT_BUFFERS_256
+        const char* cliEccCert     = "./certs/client-ecc-cert.der";
+        const char* cliEccKey      = "./certs/client-ecc-key.der";
+    #endif
+#endif
+
+    if (cert == NULL || certSz == NULL || key == NULL || keySz == NULL ||
+        ((useIntermediateCertChain == 1) &&
+        (intCARoot == NULL || intCARootSz == NULL || intCA1 == NULL ||
+         intCA1Sz == NULL || intCA2 == NULL || intCA2Sz == NULL))) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Read/load certs and keys to use for signing based on PK type and chain */
+    switch (pkAlgoType) {
+#ifndef NO_RSA
+        case RSA_TYPE:
+            if (useIntermediateCertChain == 1) {
+                fp = XFOPEN(intCARootRSA, "rb");
+                AssertNotNull(fp);
+                *intCARootSz = (word32)XFREAD(intCARoot, 1, *intCARootSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCARootSz, 0);
+
+                fp = XFOPEN(intCA1RSA, "rb");
+                AssertNotNull(fp);
+                *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCA1Sz, 0);
+
+                fp = XFOPEN(intCA2RSA, "rb");
+                AssertNotNull(fp);
+                *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCA2Sz, 0);
+
+                fp = XFOPEN(intServCertRSA, "rb");
+                AssertNotNull(fp);
+                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*certSz, 0);
+
+                fp = XFOPEN(intServKeyRSA, "rb");
+                AssertNotNull(fp);
+                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*keySz, 0);
+            }
+            else {
+            #if defined(USE_CERT_BUFFERS_2048)
+                *keySz  = sizeof_client_key_der_2048;
+                *certSz = sizeof_client_cert_der_2048;
+                XMEMCPY(key, client_key_der_2048, *keySz);
+                XMEMCPY(cert, client_cert_der_2048, *certSz);
+            #elif defined(USE_CERT_BUFFERS_1024)
+                *keySz  = sizeof_client_key_der_1024;
+                *certSz = sizeof_client_cert_der_1024;
+                XMEMCPY(key, client_key_der_1024, *keySz);
+                XMEMCPY(cert, client_cert_der_1024, *certSz);
+            #else
+                fp = XFOPEN(cli1024Key, "rb");
+                AssertNotNull(fp);
+                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*keySz, 0);
+
+                fp = XFOPEN(cli1024Cert, "rb");
+                AssertNotNull(fp);
+                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*certSz, 0);
+            #endif /* USE_CERT_BUFFERS_2048 */
+            }
+            break;
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+        case ECC_TYPE:
+            if (useIntermediateCertChain == 1) {
+                fp = XFOPEN(intCARootECC, "rb");
+                AssertNotNull(fp);
+                *intCARootSz = (word32)XFREAD(intCARoot, 1, *intCARootSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCARootSz, 0);
+
+                fp = XFOPEN(intCA1ECC, "rb");
+                AssertNotNull(fp);
+                *intCA1Sz = (word32)XFREAD(intCA1, 1, *intCA1Sz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCA1Sz, 0);
+
+                fp = XFOPEN(intCA2ECC, "rb");
+                AssertNotNull(fp);
+                *intCA2Sz = (word32)XFREAD(intCA2, 1, *intCA2Sz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*intCA2Sz, 0);
+
+                fp = XFOPEN(intServCertECC, "rb");
+                AssertNotNull(fp);
+                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*certSz, 0);
+
+                fp = XFOPEN(intServKeyECC, "rb");
+                AssertNotNull(fp);
+                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*keySz, 0);
+            }
+            else {
+            #if defined(USE_CERT_BUFFERS_256)
+                *keySz  = sizeof_ecc_clikey_der_256;
+                *certSz = sizeof_cliecc_cert_der_256;
+                XMEMCPY(key, ecc_clikey_der_256, *keySz);
+                XMEMCPY(cert, cliecc_cert_der_256, *certSz);
+            #else
+                fp = XFOPEN(cliEccKey, "rb");
+                AssertNotNull(fp);
+                *keySz = (word32)XFREAD(key, 1, *keySz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*keySz, 0);
+
+                fp = XFOPEN(cliEccCert, "rb");
+                AssertNotNull(fp);
+                *certSz = (word32)XFREAD(cert, 1, *certSz, fp);
+                XFCLOSE(fp);
+                AssertIntGT(*certSz, 0);
+            #endif /* USE_CERT_BUFFERS_256 */
+            }
+            break;
+#endif /* HAVE_ECC */
+        default:
+            WOLFSSL_MSG("Unsupported SignedData PK type");
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
+}
+
+/**
+ * Creates a PKCS7/CMS SignedData bundle to use for testing.
+ *
+ * output          output buffer to place SignedData
+ * outputSz        size of output buffer
+ * data            data buffer to be signed
+ * dataSz          size of data buffer
+ * withAttribs     [1/0] include attributes in SignedData message
+ * detachedSig     [1/0] create detached signature, no content
+ * useIntCertChain [1/0] use certificate chain and include intermediate and
+ *                 root CAs in bundle
+ * pkAlgoType      RSA_TYPE or ECC_TYPE, choose what key/cert type to use
+ *
+ * Return size of bundle created on success, negative on error */
 static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
                                  byte* data, word32 dataSz,
-                                 int withAttribs, int detachedSig)
+                                 int withAttribs, int detachedSig,
+                                 int useIntermediateCertChain,
+                                 int pkAlgoType)
 {
-    PKCS7*      pkcs7;
-    WC_RNG      rng;
+    int ret = 0;
+    WC_RNG rng;
+    PKCS7* pkcs7 = NULL;
 
     static byte messageTypeOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
@@ -28716,85 +28911,53 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
                                        sizeof(messageType) }
     };
 
-#ifndef NO_RSA
-    #if defined(USE_CERT_BUFFERS_2048)
-        byte        key[sizeof(client_key_der_2048)];
-        byte        cert[sizeof(client_cert_der_2048)];
-        word32      keySz = (word32)sizeof(key);
-        word32      certSz = (word32)sizeof(cert);
-        XMEMSET(key, 0, keySz);
-        XMEMSET(cert, 0, certSz);
-        XMEMCPY(key, client_key_der_2048, keySz);
-        XMEMCPY(cert, client_cert_der_2048, certSz);
-    #elif defined(USE_CERT_BUFFERS_1024)
-        byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof(sizeof_client_cert_der_1024)];
-        word32      keySz = (word32)sizeof(key);
-        word32      certSz = (word32)sizeof(cert);
-        XMEMSET(key, 0, keySz);
-        XMEMSET(cert, 0, certSz);
-        XMEMCPY(key, client_key_der_1024, keySz);
-        XMEMCPY(cert, client_cert_der_1024, certSz);
-    #else
-        unsigned char   cert[ONEK_BUF];
-        unsigned char   key[ONEK_BUF];
-        FILE*           fp;
-        int             certSz;
-        int             keySz;
+    byte intCARoot[TWOK_BUF];
+    byte intCA1[TWOK_BUF];
+    byte intCA2[TWOK_BUF];
+    byte cert[TWOK_BUF];
+    byte key[TWOK_BUF];
 
-        fp = fopen("./certs/1024/client-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
-        fclose(fp);
+    word32 intCARootSz = sizeof(intCARoot);
+    word32 intCA1Sz    = sizeof(intCA1);
+    word32 intCA2Sz    = sizeof(intCA2);
+    word32 certSz      = sizeof(cert);
+    word32 keySz       = sizeof(key);
 
-        fp = fopen("./certs/1024/client-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
-        fclose(fp);
-    #endif
-#elif defined(HAVE_ECC)
-    #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof(cliecc_cert_der_256)];
-        unsigned char    key[sizeof(ecc_clikey_der_256)];
-        int              certSz = (int)sizeof(cert);
-        int              keySz = (int)sizeof(key);
-        XMEMSET(cert, 0, certSz);
-        XMEMSET(key, 0, keySz);
-        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
-        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
-    #else
-        unsigned char   cert[ONEK_BUF];
-        unsigned char   key[ONEK_BUF];
-        FILE*           fp;
-        int             certSz, keySz;
+    XMEMSET(intCARoot, 0, intCARootSz);
+    XMEMSET(intCA1, 0, intCA1Sz);
+    XMEMSET(intCA2, 0, intCA2Sz);
+    XMEMSET(cert, 0, certSz);
+    XMEMSET(key, 0, keySz);
 
-        fp = fopen("./certs/client-ecc-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        fclose(fp);
-
-        fp = fopen("./certs/client-ecc-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
-        fclose(fp);
-    #endif
-#endif
+    ret = LoadPKCS7SignedDataCerts(useIntermediateCertChain, pkAlgoType,
+                intCARoot, &intCARootSz, intCA1, &intCA1Sz, intCA2, &intCA2Sz,
+                cert, &certSz, key, &keySz);
+    AssertIntEQ(ret, 0);
 
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
-    printf(testingFmt, "wc_PKCS7_VerifySignedData()");
+    if (useIntermediateCertChain == 1) {
+        /* Add intermediate and root CA certs into SignedData Certs SET */
+        AssertIntEQ(wc_PKCS7_AddCertificate(pkcs7, intCA2, intCA2Sz), 0);
+        AssertIntEQ(wc_PKCS7_AddCertificate(pkcs7, intCA1, intCA1Sz), 0);
+        AssertIntEQ(wc_PKCS7_AddCertificate(pkcs7, intCARoot, intCARootSz), 0);
+    }
 
     pkcs7->content = data;
     pkcs7->contentSz = dataSz;
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
-    pkcs7->encryptOID = RSAk;
+    if (pkAlgoType == RSA_TYPE) {
+        pkcs7->encryptOID = RSAk;
+    }
+    else {
+        pkcs7->encryptOID = ECDSAk;
+    }
     pkcs7->hashOID = SHAh;
     pkcs7->rng = &rng;
     if (withAttribs) {
@@ -28807,7 +28970,8 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
         AssertIntEQ(wc_PKCS7_SetDetached(pkcs7, 1), 0);
     }
 
-    AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
+    outputSz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    AssertIntGT(outputSz, 0);
     wc_PKCS7_Free(pkcs7);
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -28831,7 +28995,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
 {
 #if defined(HAVE_PKCS7)
     PKCS7* pkcs7;
-    byte   output[FOURK_BUF];
+    byte   output[6000]; /* Large size needed for bundles with int CA certs */
     word32 outputSz = sizeof(output);
     byte   data[] = "Test data to encode.";
     byte   badOut[1];
@@ -28844,39 +29008,67 @@ static int test_wc_PKCS7_VerifySignedData(void)
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
     word32      hashSz = wc_HashGetDigestSize(hashType);
 
+    printf(testingFmt, "wc_PKCS7_VerifySignedData()");
+
+#ifndef NO_RSA
+    /* Success test with RSA certs/key */
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
                                                   (word32)sizeof(data),
-                                                  0, 0)), 0);
+                                                  0, 0, 0, RSA_TYPE)), 0);
 
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+#endif
+#ifdef HAVE_ECC
+    /* Success test with ECC certs/key */
+    outputSz = sizeof(output);
+    XMEMSET(output, 0, outputSz);
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  0, 0, 0, ECC_TYPE)), 0);
 
-    /* Test bad args. */
-    AssertIntEQ(wc_PKCS7_VerifySignedData(NULL, output, outputSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, NULL, outputSz), BAD_FUNC_ARG);
-#ifndef NO_PKCS7_STREAM
-    /* can pass in 0 buffer length with streaming API */
-    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
-                                badOutSz), WC_PKCS7_WANT_READ_E);
-#else
-    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
-                                badOutSz), BAD_FUNC_ARG);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
 #endif
 
+    /* Test bad args. */
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+    AssertIntEQ(wc_PKCS7_VerifySignedData(NULL, output, outputSz),
+                                          BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, NULL, outputSz),
+                                          BAD_FUNC_ARG);
+    #ifndef NO_PKCS7_STREAM
+        /* can pass in 0 buffer length with streaming API */
+        AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
+                                    badOutSz), WC_PKCS7_WANT_READ_E);
+        #else
+        AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
+                                    badOutSz), BAD_FUNC_ARG);
+    #endif
     wc_PKCS7_Free(pkcs7);
+#endif /* !NO_RSA || HAVE_ECC */
 
     /* Invalid content should error, use detached signature so we can
      * easily change content */
+#ifndef NO_RSA
+    /* Try RSA certs/key/sig first */
+    outputSz = sizeof(output);
+    XMEMSET(output, 0, outputSz);
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
                                                   (word32)sizeof(data),
-                                                  1, 1)), 0);
+                                                  1, 1, 0, RSA_TYPE)), 0);
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     pkcs7->content = badContent;
     pkcs7->contentSz = sizeof(badContent);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), SIG_VERIFY_E);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz),
+                SIG_VERIFY_E);
     wc_PKCS7_Free(pkcs7);
 
     /* Test success case with detached signature and valid content */
@@ -28907,6 +29099,75 @@ static int test_wc_PKCS7_VerifySignedData(void)
                                                  NULL, 0), 0);
         wc_PKCS7_Free(pkcs7);
     }
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+    /* Try ECC certs/key/sig next */
+    outputSz = sizeof(output);
+    XMEMSET(output, 0, outputSz);
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  1, 1, 0, ECC_TYPE)), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    pkcs7->content = badContent;
+    pkcs7->contentSz = sizeof(badContent);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz),
+                SIG_VERIFY_E);
+    wc_PKCS7_Free(pkcs7);
+
+    /* Test success case with detached signature and valid content */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    pkcs7->content = data;
+    pkcs7->contentSz = sizeof(data);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    /* verify using pre-computed content digest only (no content) */
+    {
+        /* calculate hash for content */
+        ret = wc_HashInit(&hash, hashType);
+        if (ret == 0) {
+            ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+            if (ret == 0) {
+                ret = wc_HashFinal(&hash, hashType, hashBuf);
+            }
+            wc_HashFree(&hash, hashType);
+        }
+        AssertIntEQ(ret, 0);
+
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
+        AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+                                                 output, outputSz,
+                                                 NULL, 0), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
+#endif
+
+    /* Test verify on signedData containing intermediate/root CA certs */
+#ifndef NO_RSA
+    outputSz = sizeof(output);
+    XMEMSET(output, 0, outputSz);
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  0, 0, 1, RSA_TYPE)), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+    outputSz = sizeof(output);
+    XMEMSET(output, 0, outputSz);
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  0, 0, 1, ECC_TYPE)), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+#endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
 #endif
@@ -49815,7 +50076,7 @@ static int test_wolfssl_PKCS7(void)
 
     AssertIntGT((len = CreatePKCS7SignedData(data, len, content,
                                              (word32)sizeof(content),
-                                             0, 0)), 0);
+                                             0, 0, 0, RSA_TYPE)), 0);
 
     AssertNull(pkcs7 = d2i_PKCS7(NULL, NULL, len));
     AssertNull(pkcs7 = d2i_PKCS7(NULL, &p, 0));

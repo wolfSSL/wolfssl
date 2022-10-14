@@ -3482,7 +3482,8 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     if (digest == NULL)
         return MEMORY_E;
 
-    key = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
+                            DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
@@ -3504,6 +3505,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     for (i = 0; i < MAX_PKCS7_CERTS; i++) {
 
         verified = 0;
+        idx = 0;
 
         if (pkcs7->certSz[i] == 0)
             continue;
@@ -3528,8 +3530,8 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
             continue;
         }
 
-        if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
-                                  pkcs7->publicKeySz) < 0) {
+        if (wc_EccPublicKeyDecode(dCert->publicKey, &idx, key,
+                                  dCert->pubKeySize) < 0) {
             WOLFSSL_MSG("ASN ECC key decode error");
             FreeDecodedCert(dCert);
             wc_ecc_free(key);
