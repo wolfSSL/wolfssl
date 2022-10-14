@@ -2447,8 +2447,10 @@ struct DecodedCRL {
     byte*   signature;               /* pointer into raw source, not owned */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
-    WOLFSSL_ASN1_TIME lastDate;      /* last date updated  */
-    WOLFSSL_ASN1_TIME nextDate;      /* next update date   */
+    byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
+    byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    lastDateFormat;          /* format of last date */
+    byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
 #if defined(OPENSSL_EXTRA)
     byte*   issuer;                  /* full name including common name  */

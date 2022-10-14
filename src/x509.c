@@ -7900,10 +7900,10 @@ static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         return WOLFSSL_FAILURE;
     }
 
-    if (crl->crlList->lastDate.data[0] != 0) {
-        if (GetTimeString(crl->crlList->lastDate.data, ASN_UTC_TIME,
+    if (crl->crlList->lastDate[0] != 0) {
+        if (GetTimeString(crl->crlList->lastDate, ASN_UTC_TIME,
             tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-            if (GetTimeString(crl->crlList->lastDate.data, ASN_GENERALIZED_TIME,
+            if (GetTimeString(crl->crlList->lastDate, ASN_GENERALIZED_TIME,
             tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Error getting last update date");
                 return WOLFSSL_FAILURE;
@@ -7931,10 +7931,10 @@ static int X509CRLPrintDates(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         return WOLFSSL_FAILURE;
     }
 
-    if (crl->crlList->nextDate.data[0] != 0) {
-        if (GetTimeString(crl->crlList->nextDate.data, ASN_UTC_TIME,
+    if (crl->crlList->nextDate[0] != 0) {
+        if (GetTimeString(crl->crlList->nextDate, ASN_UTC_TIME,
             tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
-            if (GetTimeString(crl->crlList->nextDate.data, ASN_GENERALIZED_TIME,
+            if (GetTimeString(crl->crlList->nextDate, ASN_GENERALIZED_TIME,
             tmp, MAX_WIDTH) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Error getting next update date");
                 return WOLFSSL_FAILURE;
@@ -8040,8 +8040,15 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
     if ((crl != NULL) && (crl->crlList != NULL) &&
-        (crl->crlList->lastDate.data[0] != 0)) {
-        return &crl->crlList->lastDate;
+        (crl->crlList->lastDate[0] != 0)) {
+
+        /* Copy date to an ASN1_TIME struct for returning to the caller. */
+        crl->crlList->lastDateAsn1.length = MAX_DATE_SIZE;
+        XMEMCPY (crl->crlList->lastDateAsn1.data, crl->crlList->lastDate,
+                 crl->crlList->lastDateAsn1.length);
+        crl->crlList->lastDateAsn1.type = crl->crlList->lastDateFormat;
+
+        return &crl->crlList->lastDateAsn1;
     }
     else
         return NULL;
@@ -8050,8 +8057,15 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
 {
     if ((crl != NULL) && (crl->crlList != NULL) &&
-        (crl->crlList->nextDate.data[0] != 0)) {
-        return &crl->crlList->nextDate;
+        (crl->crlList->nextDate[0] != 0)) {
+
+        /* Copy date to an ASN1_TIME struct for returning to the caller. */
+        crl->crlList->nextDateAsn1.length = MAX_DATE_SIZE;
+        XMEMCPY (crl->crlList->nextDateAsn1.data, crl->crlList->nextDate,
+                 crl->crlList->nextDateAsn1.length);
+        crl->crlList->nextDateAsn1.type = crl->crlList->nextDateFormat;
+
+        return &crl->crlList->nextDateAsn1;
     }
     else
         return NULL;

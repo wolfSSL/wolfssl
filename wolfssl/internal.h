@@ -2211,8 +2211,14 @@ struct CRL_Entry {
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
-    WOLFSSL_ASN1_TIME lastDate;      /* last date updated  */
-    WOLFSSL_ASN1_TIME nextDate;      /* next update date   */
+    byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
+    byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    lastDateFormat;          /* last date format */
+    byte    nextDateFormat;          /* next date format */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_ASN1_TIME lastDateAsn1;  /* last date updated  */
+    WOLFSSL_ASN1_TIME nextDateAsn1;  /* next update date   */
+#endif
 #ifdef CRL_STATIC_REVOKED_LIST
     RevokedCert certs[CRL_MAX_REVOKED_CERTS];
 #else
