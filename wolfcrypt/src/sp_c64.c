@@ -33569,7 +33569,7 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
                       &ctx->point, &ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 sp_384_to_bin_7(ctx->point.x, out);
-                *outLen = 32;
+                *outLen = 48;
             }
             break;
     }
@@ -40989,7 +40989,7 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
                       &ctx->point, &ctx->point, ctx->k, 1, 1, heap);
             if (err == MP_OKAY) {
                 sp_521_to_bin_9(ctx->point.x, out);
-                *outLen = 32;
+                *outLen = 66;
             }
             break;
     }
