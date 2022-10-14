@@ -2497,6 +2497,26 @@ static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
 #endif
 #endif /* USE_WINDOWS_API */
 
+#ifdef WOLFSSL_CALLBACKS
+/* only for debug use! */
+static WC_INLINE void msgDebugCb(int write_p, int version, int content_type,
+    const void *buf, size_t len, WOLFSSL *ssl, void *arg)
+{
+    size_t z;
+    byte* pt;
+
+    printf("Version %02X, content type = %d\n", version, content_type);
+    printf("%s ", (write_p)? "WRITING" : "READING");
+    pt = (byte*)buf;
+    printf("DATA [%zu]: ", len);
+    for (z = 0; z < len; z++)
+        printf("%02X", pt[z]);
+    printf("\n");
+
+    (void)arg;
+    (void)ssl;
+}
+#endif /* WOLFSSL_CALLBACKS */
 
 #if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
 static WC_INLINE int OCSPIOCb(void* ioCtx, const char* url, int urlSz,

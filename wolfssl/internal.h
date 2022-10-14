@@ -5313,7 +5313,8 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
     WOLFSSL_LOCAL void InitTimeoutInfo(TimeoutInfo* info);
     WOLFSSL_LOCAL void FreeTimeoutInfo(TimeoutInfo* info, void* heap);
     WOLFSSL_LOCAL void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
-                             const byte* data, int sz, int written, void* heap);
+                             const byte* data, int sz, int written, int lateRL,
+                             void* heap);
     WOLFSSL_LOCAL void AddLateName(const char* name, TimeoutInfo* info);
     WOLFSSL_LOCAL void AddLateRecordHeader(const RecordLayerHeader* rl,
                                            TimeoutInfo* info);
