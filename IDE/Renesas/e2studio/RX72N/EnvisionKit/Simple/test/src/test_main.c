@@ -186,14 +186,13 @@ void main(void)
     const char* cipherlist[] = {
     #if defined(WOLFSSL_TLS13)
         "TLS13-AES128-GCM-SHA256",
-        "TLS13-AES128-CCM-SHA256",
     #endif
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-ECDSA-AES128-SHA256"
     };
     int cipherlist_sz;
     #if defined(WOLFSSL_TLS13)
-        cipherlist_sz = 2;
+        cipherlist_sz = 1;
     #else
         cipherlist_sz = 2;
     #endif
@@ -202,7 +201,6 @@ void main(void)
     const char* cipherlist[] = {
     #if defined(WOLFSSL_TLS13)
         "TLS13-AES128-GCM-SHA256",
-        "TLS13-AES128-CCM-SHA256",
     #endif
         "ECDHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-SHA256",
@@ -213,7 +211,7 @@ void main(void)
     };
     int cipherlist_sz;
     #if defined(WOLFSSL_TLS13)
-        cipherlist_sz = 2;
+        cipherlist_sz = 1;
     #else
         cipherlist_sz = 6;
     #endif /* WOLFSSL_TLS13 */
@@ -278,6 +276,7 @@ void main(void)
 
     Close_tcp();
 #elif defined(SIMPLE_TCP_SERVER)|| defined(SIMPLE_TLS_SERVER)
+    #include "r_cmt_rx_if.h"
 
     Open_tcp();
 
