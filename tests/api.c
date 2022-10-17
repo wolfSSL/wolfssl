@@ -35246,6 +35246,54 @@ static int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
     return 0;
 }
 
+static int test_wolfSSL_set1_host(void)
+{
+#if defined(OPENSSL_EXTRA)
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
+    const char host[] = "www.test_wolfSSL_set1_host.com";
+    const char emptyStr[] = "";
+    SSL_CTX*   ctx;
+    SSL*       ssl;
+    WOLFSSL_X509_VERIFY_PARAM* pParam;
+
+    printf(testingFmt, "wolfSSL_set1_host()");
+
+    #ifndef NO_WOLFSSL_SERVER
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    #else
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    #endif
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    pParam = SSL_get0_param(ssl);
+
+    /* we should get back host string */
+    SSL_set1_host(ssl, host);
+    AssertIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+
+    /* we should get back empty string */
+    SSL_set1_host(ssl, emptyStr);
+    AssertIntEQ(XMEMCMP(pParam->hostName, emptyStr, sizeof(emptyStr)), 0);
+
+    /* we should get back host string */
+    SSL_set1_host(ssl, host);
+    AssertIntEQ(XMEMCMP(pParam->hostName, host, sizeof(host)), 0);
+
+    /* we should get back empty string */
+    SSL_set1_host(ssl, NULL);
+    AssertIntEQ(XMEMCMP(pParam->hostName, emptyStr, sizeof(emptyStr)), 0);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
+#endif /* OPENSSL_EXTRA */
+
+    return 0;
+}
+
 static int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 {
 #if defined(OPENSSL_EXTRA)
@@ -59689,6 +59737,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_set_time),
     TEST_DECL(test_wolfSSL_get0_param),
     TEST_DECL(test_wolfSSL_X509_VERIFY_PARAM_set1_host),
+    TEST_DECL(test_wolfSSL_set1_host),
     TEST_DECL(test_wolfSSL_X509_VERIFY_PARAM_set1_ip),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_store),
     TEST_DECL(test_wolfSSL_X509_STORE),
