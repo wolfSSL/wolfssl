@@ -29020,9 +29020,12 @@ static int test_wc_PKCS7_VerifySignedData(void)
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-    wc_PKCS7_Free(pkcs7);
 #endif
 #ifdef HAVE_ECC
+    #ifndef NO_RSA
+    wc_PKCS7_Free(pkcs7);
+    #endif
+
     /* Success test with ECC certs/key */
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
@@ -29034,7 +29037,6 @@ static int test_wc_PKCS7_VerifySignedData(void)
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-    wc_PKCS7_Free(pkcs7);
 #endif
 
     /* Test bad args. */
@@ -29047,7 +29049,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
         /* can pass in 0 buffer length with streaming API */
         AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
                                     badOutSz), WC_PKCS7_WANT_READ_E);
-        #else
+    #else
         AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
                                     badOutSz), BAD_FUNC_ARG);
     #endif
