@@ -6279,7 +6279,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
             return 0;
         }
     }
-#endif
+#else
     if (ctx == NULL) {
         ctx = wolfSSL_CTX_new(callbacks->method());
     }
@@ -6287,6 +6287,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         printf("CTX new failed\n");
         return 0;
     }
+#endif
 
     /* set defaults */
     if (callbacks->caPemFile == NULL)
@@ -6489,7 +6490,7 @@ static void run_wolfssl_client(void* args)
             return;
         }
     }
-#endif
+#else
     if (ctx == NULL) {
         ctx = wolfSSL_CTX_new(callbacks->method());
     }
@@ -6497,6 +6498,7 @@ static void run_wolfssl_client(void* args)
         printf("CTX new failed\n");
         return;
     }
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());

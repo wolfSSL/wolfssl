@@ -11959,7 +11959,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
+        /* ret value will be overwritten in !NO_PSK case */
+        #ifdef NO_PSK
             ret = 0;
+        #endif
         }
     #endif /* !(HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
 

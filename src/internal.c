@@ -10359,7 +10359,9 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 #endif
 
+#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_TLS13)
     tls12minor = TLSv1_2_MINOR;
+#endif
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
         tls12minor = DTLSv1_2_MINOR;
@@ -28181,7 +28183,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                              -1, args->bits);
                         #endif
                             if (ret != 0)
-                                return ret;
+                                goto exit_dske;
                             /* CLIENT: Data verified with cert's public key. */
                             ssl->options.peerAuthGood =
                                 ssl->options.havePeerCert;
@@ -28387,6 +28389,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         DYNAMIC_TYPE_ASYNC);
         if (ssl->async == NULL)
             ERROR_OUT(MEMORY_E, exit_scke);
+        XMEMSET(ssl->async, 0, sizeof(struct WOLFSSL_ASYNC));
     }
     args = (SckeArgs*)ssl->async->args;
 
@@ -29370,9 +29373,15 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                                           defined(HAVE_CURVE448)
                 case ecc_diffie_hellman_kea:
                 {
-                    /* place size of public key in buffer */
-                    *args->encSecret = (byte)args->encSz;
-                    args->encSz += OPAQUE8_LEN;
+                    if (args->encSecret == NULL) {
+                        ret = BAD_STATE_E;
+                        goto exit_scke;
+                    }
+                    else {
+                        /* place size of public key in buffer */
+                        *args->encSecret = (byte)args->encSz;
+                        args->encSz += OPAQUE8_LEN;
+                    }
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
@@ -29628,6 +29637,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                         DYNAMIC_TYPE_ASYNC);
         if (ssl->async == NULL)
             ERROR_OUT(MEMORY_E, exit_scv);
+        XMEMSET(ssl->async, 0, sizeof(struct WOLFSSL_ASYNC));
     }
     args = (ScvArgs*)ssl->async->args;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -30628,6 +30638,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             DYNAMIC_TYPE_ASYNC);
             if (ssl->async == NULL)
                 ERROR_OUT(MEMORY_E, exit_sske);
+            XMEMSET(ssl->async, 0, sizeof(struct WOLFSSL_ASYNC));
         }
         args = (SskeArgs*)ssl->async->args;
     #ifdef WOLFSSL_ASYNC_CRYPT
