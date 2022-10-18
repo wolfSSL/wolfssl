@@ -12265,22 +12265,22 @@ int wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx, unsigned int sz)
 #endif
 }
 
-/* Sets the maximum amount of early data that can be seen by server when using
- * session tickets for resumption.
- * A value of zero indicates no early data is to be sent by client using session
- * tickets.
+/* Sets the maximum amount of early data that a client or server would like
+ * to exchange. Servers will advertise this value in session tickets sent
+ * to a client.
+ * A value of zero indicates no early data will be sent by a client, or
+ * no early data is accepted by a server (and announced as such in send out
+ * session tickets).
  *
  * ssl  The SSL/TLS object.
  * sz   Maximum size of the early data.
  * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a server and 0 on success.
+ * and 0 on success.
  */
 int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
 {
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
 
     ssl->options.maxEarlyDataSz = sz;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
@@ -12324,8 +12324,6 @@ int wolfSSL_get_max_early_data(WOLFSSL* ssl)
 {
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
 
     return ssl->options.maxEarlyDataSz;
 }

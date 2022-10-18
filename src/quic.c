@@ -273,7 +273,6 @@ void wolfSSL_quic_clear(WOLFSSL* ssl)
     }
     ssl->quic.enc_level_write = wolfssl_encryption_initial;
     ssl->quic.enc_level_latest_recvd = wolfssl_encryption_initial;
-    ssl->quic.early_data_enabled = 0;
 
     while ((qd = ssl->quic.input_head)) {
         ssl->quic.input_head = qd->next;
@@ -547,10 +546,7 @@ void wolfSSL_set_quic_early_data_enabled(WOLFSSL* ssl, int enabled)
         WOLFSSL_MSG("wolfSSL_set_quic_early_data_enabled: handshake started");
     }
     else {
-        ssl->quic.early_data_enabled = enabled;
-        if (ssl->options.side != WOLFSSL_CLIENT_END) {
-            wolfSSL_set_max_early_data(ssl, enabled ? UINT32_MAX : 0);
-        }
+        wolfSSL_set_max_early_data(ssl, enabled ? UINT32_MAX : 0);
     }
 }
 #endif /* WOLFSSL_EARLY_DATA */
@@ -578,7 +574,7 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
          * This confuses the QUIC state handling.
          */
 #ifdef WOLFSSL_EARLY_DATA
-        if (ssl->quic.early_data_enabled) {
+        if (ssl->options.maxEarlyDataSz) {
             byte tmpbuffer[256];
             int len;
 
