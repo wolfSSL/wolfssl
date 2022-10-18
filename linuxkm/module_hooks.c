@@ -394,10 +394,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
 #endif
     wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
-    wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
-        kmem_cache_alloc_trace;
-    wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
-        kmalloc_order_trace;
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+        wolfssl_linuxkm_pie_redirect_table.kmalloc_trace =
+            kmalloc_trace;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
+            kmem_cache_alloc_trace;
+        wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
+            kmalloc_order_trace;
+    #endif
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
