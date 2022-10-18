@@ -1796,7 +1796,8 @@ generate_build_flags()
 # USER SETTINGS
 if(WOLFSSL_USER_SETTINGS)
     # Replace all options and just use WOLFSSL_USER_SETTINGS
-    set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+    set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS
+        -DWOLFSSL_USER_SETTINGS_ASM")
 
     # Create user_settings_asm.h for use in assembly files (e.g. .S files).
     execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
