@@ -387,11 +387,11 @@ endif()
 
 # DTLS-SCTP
 add_option("WOLFSSL_SCTP"
-    "Enable wolfSSL DTLS-SCTP support (default: disabled))"
+    "Enable wolfSSL DTLS-SCTP support (default: disabled)"
     "no" "yes;no")
 if(WOLFSSL_SCTP)
     if(NOT HAVE_SYS_SOCKET_H OR NOT HAVE_ARPA_INET_H OR NOT HAVE_SOCKET)
-        message(FATAL_ERROR "SCTP not available, remove enable-sctp from configure")
+        message(FATAL_ERROR "SCTP not available, disable WOLFSSL_SCTP.")
     endif()
 endif()
 
@@ -451,11 +451,11 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
 endif()
 
-add_option(WOLFSSL_OPENSSLEXTRA
+add_option(WOLFSSL_OPENSSL_EXTRA
     "Enable extra OpenSSL API, size+ (default: disabled)"
     "no" "yes;no")
 
-if (WOLFSSL_OPENSSLEXTRA AND NOT WOLFSSL_OPENSSLCOEXIST)
+if (WOLFSSL_OPENSSL_EXTRA AND NOT WOLFSSL_OPENSSLCOEXIST)
     list(APPEND WOLFSSL_DEFINITIONS
       "-DOPENSSL_EXTRA"
       "-DWOLFSSL_ALWAYS_VERIFY_CB"
@@ -747,7 +747,7 @@ endif()
 #       - SEP
 
 add_option("WOLFSSL_KEYGEN"
-    "Enable key generation (default: disabled))"
+    "Enable key generation (default: disabled)"
     "no" "yes;no")
 
 add_option("WOLFSSL_CERTGEN"
@@ -969,7 +969,7 @@ endif()
 
 # TLSv1.0
 add_option("WOLFSSL_TLSV10"
-    "Enable old TLS versions 1.0 (default: disabled)"
+    "Enable old TLS version 1.0 (default: disabled)"
     "no" "yes;no")
 
 if(WOLFSSL_TLSV10)
@@ -1182,7 +1182,7 @@ add_option("WOLFSSL_BASE16"
     "Enable Base16 encoding/decoding (default: disabled)"
     "no" "yes;no")
 
-if(WOLFSSL_CAAM)
+if(WOLFSSL_CAAM EQUAL "qnx")
     override_cache(WOLFSSL_BASE16 "yes")
 endif()
 
@@ -1634,7 +1634,7 @@ add_option("WOLFSSL_ENCKEYS"
     "no" "yes;no")
 
 if(NOT WOLFSSL_ENCKEYS)
-    if(WOLFSSL_OPENSSLEXTRA OR
+    if(WOLFSSL_OPENSSL_EXTRA OR
         WOLFSSL_WEBSERVER OR
         WOLFSSL_WPAS)
         # opensslextra, webserver, and WPAS  needs enckeys
@@ -1665,7 +1665,7 @@ add_option("WOLFSSL_PWDBASED"
     "no" "yes;no")
 
 if(NOT WOLFSSL_PWDBASED)
-    if(WOLFSSL_OPENSSLEXTRA OR
+    if(WOLFSSL_OPENSSL_EXTRA OR
         WOLFSSL_OPENSSLALL OR
         WOLFSSL_WEBSERVER OR
         WOLFSSL_ENC_KEYS OR
@@ -1680,7 +1680,7 @@ endif()
 # TODO: - SCRYPT
 
 add_option("WOLFSSL_CRYPT_ONLY"
-    "Enable wolfCrypt Only build (default: disabled)"
+    "Enable wolfCrypt only build (default: disabled)"
     "no" "yes;no")
     
 # TODO: Need to test for FIPS version
@@ -1740,8 +1740,8 @@ if(NOT WOLFSSL_ASN AND
    NOT WOLFSSL_DH AND
    NOT WOLFSSL_ECC AND
    NOT WOLFSSL_RSA)
+    override_cache(WOLFSSL_SP_MATH_ALL "no")
     override_cache(WOLFSSL_FAST_MATH "no")
-    set(WOLFSSL_SLOWMATH "no")
 endif()
 
 if(WOLFSSL_FAST_MATH)
@@ -1753,11 +1753,11 @@ if(WOLFSSL_FAST_MATH)
             override_cache(WOLFSSL_FAST_MATH "no")
         else()
             list(APPEND WOLFSSL_DEFINITIONS "-DUSE_FAST_MATH")
-            set(WOLFSSL_SLOWMATH "no")
+            set(WOLFSSL_SLOW_MATH "no")
         endif()
     else()
         list(APPEND WOLFSSL_DEFINITIONS "-DUSE_FAST_MATH")
-        set(WOLFSSL_SLOWMATH "no")
+        set(WOLFSSL_SLOW_MATH "no")
     endif()
 
     if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
@@ -2045,7 +2045,7 @@ if(NOT WOLFSSL_CERTS OR WOLFSSL_LEAN_PSK OR NOT WOLFSSL_ASN)
    override_cache(WOLFSSL_ASN "no")
 endif()
 
-# SCTP and Multicast require DTLS
+# SCTP, SRTP and Multicast require DTLS
 if(NOT WOLFSSL_DTLS AND (WOLFSSL_SCTP OR WOLFSSL_MULTICAST OR WOLFSSL_SRTP))
     list(APPEND WOLFSSL_DEFINITIONS
         "-DWOLFSSL_DTLS")
@@ -2080,7 +2080,7 @@ if(WOLFSSL_OCSP AND NOT WOLFSSL_RSA AND NOT WOLFSSL_ECC)
 endif()
 
 # Sync Intel QA and Sync Cavium Octeon require the crypto callback
-if(WOLFSSL_INTEL_QA_SYNC OR WOLFSSL_OCTEON_SYNC)
+if((WOLFSSL_INTEL_QA_SYNC OR WOLFSSL_OCTEON_SYNC) AND WOLFSSL_CRYPTOCB)
     message(FATAL_ERROR "please enable the crypto callback support using -D WOLFSSL_CRYPTOCB=yes")
 endif()
 
