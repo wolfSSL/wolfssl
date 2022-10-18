@@ -7965,9 +7965,17 @@ fi
 # USER SETTINGS
 if test "x$ENABLED_USERSETTINGS" = "xyes"
 then
-    # Replace all options and just use WOLFSSL_USER_SETTINGS
-    AM_CFLAGS="-DWOLFSSL_USER_SETTINGS"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_USER_SETTINGS"
+    # Replace all options and just use WOLFSSL_USER_SETTINGS and
+    # WOLFSSL_USER_SETTINGS_ASM.
+    AM_CFLAGS="-DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_USER_SETTINGS -DWOLFSSL_USER_SETTINGS_ASM"
+
+    # Generate assembly-safe user_settings_asm.h (just preprocessor directives
+    # from user_settings.h).
+    $srcdir/scripts/user_settings_asm.sh "$CPPFLAGS $CFLAGS $CXXFLAGS"
+    if test $? -ne 0; then
+        AC_MSG_ERROR([$srcdir/scripts/user_settings_asm.sh failed.])
+    fi
 fi
 
 # OPTIMIZE FLAGS
@@ -8436,13 +8444,6 @@ case $host_os in
 esac
 
 rm cyassl/options.h.bak
-
-if test "x$ENABLED_USERSETTINGS" = "xyes"; then
-    $srcdir/scripts/user_settings_asm.sh "$CPPFLAGS $CFLAGS $CXXFLAGS"
-    if test $? -ne 0; then
-        AC_MSG_ERROR([$srcdir/scripts/user_settings_asm.sh failed.])
-    fi
-fi
 
 if test "$silent" != "yes"; then
 
