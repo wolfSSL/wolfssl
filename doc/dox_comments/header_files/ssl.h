@@ -13754,15 +13754,16 @@ wolfSSL_accept_TLSv13(WOLFSSL* ssl);
 /*!
     \ingroup Setup
 
-    \brief This function sets the maximum amount of early data that will be
-    accepted by a TLS v1.3 server using the wolfSSL context.
+    \brief This function sets the maximum amount of early data that a
+    TLS v1.3 client or server is willing to exchange using the wolfSSL context.
     Call this function to limit the amount of early data to process to mitigate
     replay attacks. Early data is protected by keys derived from those of the
     connection that the session ticket was sent and therefore will be the same
     every time a session ticket is used in resumption.
     The value is included in the session ticket for resumption.
-    A value of zero indicates no early data is to be sent by client using
-    session tickets.
+    A server value of zero indicates no early data is to be sent by client using
+    session tickets. A client value of zero indicates that the client will
+    not send any early data.
     It is recommended that the number of early data bytes be kept as low as
     practically possible in the application.
 
@@ -13771,7 +13772,6 @@ wolfSSL_accept_TLSv13(WOLFSSL* ssl);
     \param [in] sz the amount of early data to accept in bytes.
 
     \return BAD_FUNC_ARG if ctx is NULL or not using TLS v1.3.
-    \return SIDE_ERROR if called with a client.
     \return 0 if successful.
 
     _Example_
@@ -13795,15 +13795,16 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
 /*!
     \ingroup Setup
 
-    \brief This function sets the maximum amount of early data that will be
-    accepted by a TLS v1.3 server using the wolfSSL context.
+    \brief This function sets the maximum amount of early data that a
+    TLS v1.3 client or server is willing to exchange.
     Call this function to limit the amount of early data to process to mitigate
     replay attacks. Early data is protected by keys derived from those of the
     connection that the session ticket was sent and therefore will be the same
     every time a session ticket is used in resumption.
     The value is included in the session ticket for resumption.
-    A value of zero indicates no early data is to be sent by client using
-    session tickets.
+    A server value of zero indicates no early data is to be sent by client using
+    session tickets. A client value of zero indicates that the client will
+    not send any early data.
     It is recommended that the number of early data bytes be kept as low as
     practically possible in the application.
 
@@ -13811,7 +13812,6 @@ int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
     \param [in] sz the amount of early data to accept from client in bytes.
 
     \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
-    \return SIDE_ERROR if called with a client.
     \return 0 if successful.
 
     _Example_

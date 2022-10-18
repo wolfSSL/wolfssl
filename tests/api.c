@@ -51290,11 +51290,11 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef OPENSSL_EXTRA
-    AssertIntEQ(wolfSSL_set_max_early_data(clientSsl, 0), SIDE_ERROR);
-    AssertIntEQ(wolfSSL_get_max_early_data(clientSsl), SIDE_ERROR);
+    AssertIntEQ(wolfSSL_set_max_early_data(clientSsl, 17), 0);
+    AssertIntEQ(wolfSSL_get_max_early_data(clientSsl), 17);
 #else
-    AssertIntEQ(SSL_set_max_early_data(clientSsl, 0), SIDE_ERROR);
-    AssertIntEQ(SSL_get_max_early_data(clientSsl), SIDE_ERROR);
+    AssertIntEQ(SSL_set_max_early_data(clientSsl, 17), WOLFSSL_SUCCESS);
+    AssertIntEQ(SSL_get_max_early_data(clientSsl), 17);
 #endif
 #endif
 #ifndef NO_WOLFSSL_SERVER

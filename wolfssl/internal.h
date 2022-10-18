@@ -5235,7 +5235,6 @@ struct WOLFSSL {
         WOLFSSL_ENCRYPTION_LEVEL enc_level_write;
         WOLFSSL_ENCRYPTION_LEVEL enc_level_write_next;
         int transport_version;
-        int early_data_enabled;
         const QuicTransportParam* transport_local;
         const QuicTransportParam* transport_peer;
         const QuicTransportParam* transport_peer_draft;

@@ -399,6 +399,7 @@ typedef struct testVector {
 #endif
 
 PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-function\"")
+PRAGMA_CLANG("clang diagnostic ignored \"-Wunused-function\"")
 
 WOLFSSL_TEST_SUBROUTINE int  error_test(void);
 WOLFSSL_TEST_SUBROUTINE int  base64_test(void);
