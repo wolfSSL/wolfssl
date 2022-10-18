@@ -3989,8 +3989,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) {
-        AddPacketInfo(ssl, "ClientHello", handshake, args->output, args->sendSz,
-                      WRITE_PROTO, 0, ssl->heap);
+        ret = AddPacketInfo(ssl, "ClientHello", handshake, args->output,
+                      args->sendSz, WRITE_PROTO, 0, ssl->heap);
+        if (ret != 0)
+            return ret;
     }
 #endif
 
@@ -6217,8 +6219,10 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ssl->hsInfoOn)
         AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) {
-        AddPacketInfo(ssl, "ServerHello", handshake, output, sendSz,
+        ret = AddPacketInfo(ssl, "ServerHello", handshake, output, sendSz,
                       WRITE_PROTO, 0, ssl->heap);
+        if (ret != 0)
+            return ret;
     }
     #endif
 
@@ -6361,8 +6365,10 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     if (ssl->hsInfoOn)
         AddPacketName(ssl, "EncryptedExtensions");
     if (ssl->toInfoOn) {
-        AddPacketInfo(ssl, "EncryptedExtensions", handshake, output,
+        ret = AddPacketInfo(ssl, "EncryptedExtensions", handshake, output,
                       sendSz, WRITE_PROTO, 0, ssl->heap);
+        if (ret != 0)
+            return ret;
     }
 #endif
 
@@ -6502,8 +6508,10 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         if (ssl->hsInfoOn)
             AddPacketName(ssl, "CertificateRequest");
         if (ssl->toInfoOn) {
-            AddPacketInfo(ssl, "CertificateRequest", handshake, output,
+            ret = AddPacketInfo(ssl, "CertificateRequest", handshake, output,
                           sendSz, WRITE_PROTO, 0, ssl->heap);
+            if (ret != 0)
+                return ret;
         }
     #endif
 
@@ -7309,8 +7317,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (ssl->hsInfoOn)
                 AddPacketName(ssl, "Certificate");
             if (ssl->toInfoOn) {
-                AddPacketInfo(ssl, "Certificate", handshake, output,
+                ret = AddPacketInfo(ssl, "Certificate", handshake, output,
                               sendSz, WRITE_PROTO, 0, ssl->heap);
+                if (ret != 0)
+                    return ret;
             }
 #endif
 
@@ -7857,9 +7867,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsInfoOn)
                 AddPacketName(ssl, "CertificateVerify");
             if (ssl->toInfoOn) {
-                AddPacketInfo(ssl, "CertificateVerify", handshake,
+                ret = AddPacketInfo(ssl, "CertificateVerify", handshake,
                             args->output, args->sendSz, WRITE_PROTO, 0,
                             ssl->heap);
+                if (ret != 0)
+                    goto exit_scv;
             }
         #endif
 
@@ -8778,8 +8790,10 @@ static int SendTls13Finished(WOLFSSL* ssl)
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) {
-            AddPacketInfo(ssl, "Finished", handshake, output, sendSz,
+            ret = AddPacketInfo(ssl, "Finished", handshake, output, sendSz,
                           WRITE_PROTO, 0, ssl->heap);
+            if (ret != 0)
+                return ret;
         }
     #endif
 
@@ -8987,8 +9001,10 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
         #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn) AddPacketName(ssl, "KeyUpdate");
             if (ssl->toInfoOn) {
-                AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
+                ret = AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
                               WRITE_PROTO, 0, ssl->heap);
+                if (ret != 0)
+                    return ret;
             }
         #endif
 
@@ -10168,9 +10184,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(WOLFSSL_CALLBACKS)
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
-        AddPacketInfo(ssl, 0, handshake, input + *inOutIdx -
+        ret = AddPacketInfo(ssl, 0, handshake, input + *inOutIdx -
             HANDSHAKE_HEADER_SZ, size + HANDSHAKE_HEADER_SZ, READ_PROTO,
             RECORD_HEADER_SZ, ssl->heap);
+        if (ret != 0)
+            return ret;
         AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
     }
 #endif

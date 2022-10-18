@@ -4104,10 +4104,10 @@ typedef int (*TimeoutCallBack)(TimeoutInfo*);
 
 /* wolfSSL connect extension allowing HandShakeCallBack and/or TimeoutCallBack
    for diagnostics */
-WOLFSSL_API int wolfSSL_connect_ex(WOLFSSL* ssl, HandShakeCallBack, TimeoutCallBack,
-                                 WOLFSSL_TIMEVAL);
-WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBack, TimeoutCallBack,
-                                WOLFSSL_TIMEVAL);
+WOLFSSL_API int wolfSSL_connect_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
+                                 TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout);
+WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
+                                 TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout);
 
 #endif /* WOLFSSL_CALLBACKS */
 
