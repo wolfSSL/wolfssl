@@ -2072,8 +2072,8 @@ enum {
         #error Invalid static buffer length
     #endif
 #elif defined(LARGE_STATIC_BUFFERS)
-    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
-             MTU_EXTRA + MAX_MSG_EXTRA
+    #define STATIC_BUFFER_LEN (RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
+             MTU_EXTRA + MAX_MSG_EXTRA)
 #else
     /* don't fragment memory from the record header */
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ
@@ -5311,7 +5311,7 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
     WOLFSSL_LOCAL void InitTimeoutInfo(TimeoutInfo* info);
     WOLFSSL_LOCAL void FreeTimeoutInfo(TimeoutInfo* info, void* heap);
-    WOLFSSL_LOCAL void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
+    WOLFSSL_LOCAL int AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
                              const byte* data, int sz, int written, int lateRL,
                              void* heap);
     WOLFSSL_LOCAL void AddLateName(const char* name, TimeoutInfo* info);

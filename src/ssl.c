@@ -15201,29 +15201,29 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     #define AddTimes(a, b, c)                       \
         do {                                        \
-            c.tv_sec  = a.tv_sec  + b.tv_sec;       \
-            c.tv_usec = a.tv_usec + b.tv_usec;      \
-            if (c.tv_usec >=  1000000) {            \
-                c.tv_sec++;                         \
-                c.tv_usec -= 1000000;               \
+            (c).tv_sec  = (a).tv_sec + (b).tv_sec;  \
+            (c).tv_usec = (a).tv_usec + (b).tv_usec;\
+            if ((c).tv_usec >=  1000000) {          \
+                (c).tv_sec++;                       \
+                (c).tv_usec -= 1000000;             \
             }                                       \
         } while (0)
 
 
     #define SubtractTimes(a, b, c)                  \
         do {                                        \
-            c.tv_sec  = a.tv_sec  - b.tv_sec;       \
-            c.tv_usec = a.tv_usec - b.tv_usec;      \
-            if (c.tv_usec < 0) {                    \
-                c.tv_sec--;                         \
-                c.tv_usec += 1000000;               \
+            (c).tv_sec  = (a).tv_sec - (b).tv_sec;  \
+            (c).tv_usec = (a).tv_usec - (b).tv_usec;\
+            if ((c).tv_usec < 0) {                  \
+                (c).tv_sec--;                       \
+                (c).tv_usec += 1000000;             \
             }                                       \
         } while (0)
 
     #define CmpTimes(a, b, cmp)                     \
-        ((a.tv_sec  ==  b.tv_sec) ?                 \
-            (a.tv_usec cmp b.tv_usec) :             \
-            (a.tv_sec  cmp b.tv_sec))               \
+        (((a).tv_sec  ==  (b).tv_sec) ?             \
+            ((a).tv_usec cmp (b).tv_usec) :         \
+            ((a).tv_sec  cmp (b).tv_sec))           \
 
 
     /* do nothing handler */
@@ -15306,7 +15306,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* do callbacks */
         if (toCb) {
             if (oldTimerOn) {
-                gettimeofday(&endTime, 0);
+                if (gettimeofday(&endTime, 0) < 0)
+                    ERR_OUT(SYSLIB_FAILED_E);
                 SubtractTimes(endTime, startTime, totalTime);
                 /* adjust old timer for elapsed time */
                 if (CmpTimes(totalTime, oldTimeout.it_value, <))
