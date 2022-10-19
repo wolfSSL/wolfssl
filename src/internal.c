@@ -9419,6 +9419,10 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
         rl->pvMinor = TLSv1_2_MINOR;
+#ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls)
+            rl->pvMinor = DTLSv1_2_MINOR;
+#endif /* WOLFSSL_DTLS */
     }
     else
 #endif
