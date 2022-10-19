@@ -17412,8 +17412,9 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
 #ifndef WC_NO_RNG
     WC_RNG rng;
+    int rngInit = 0;
 #endif
-    int keyInit = 0;
+    int keyInit = 0, key2Init = 0;
 
 #define DH_TEST_TMP_SIZE 1024
 #if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -17521,6 +17522,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-8105, done);
     }
+    key2Init = 1;
 
 #ifdef NO_ASN
 #ifndef WOLFSSL_SP_MATH
@@ -17568,6 +17570,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-8110, done);
     }
+    rngInit = 1;
 
     ret = wc_DhGenerateKeyPair(key, &rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -17786,7 +17789,8 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 done:
 
 #ifndef WC_NO_RNG
-    wc_FreeRng(&rng);
+    if (rngInit)
+        wc_FreeRng(&rng);
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -17796,7 +17800,8 @@ done:
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (key2) {
-        wc_FreeDhKey(key2);
+        if (key2Init)
+            wc_FreeDhKey(key2);
         XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (tmp)
@@ -17816,7 +17821,8 @@ done:
 #else
     if (keyInit)
         wc_FreeDhKey(key);
-    wc_FreeDhKey(key2);
+    if (key2Init)
+        wc_FreeDhKey(key2);
 #endif
 
     (void)privSz;
