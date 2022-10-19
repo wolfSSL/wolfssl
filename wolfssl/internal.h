@@ -1975,6 +1975,10 @@ WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #endif
 
+#ifdef HAVE_ALPN
+WOLFSSL_LOCAL int ALPN_Select(WOLFSSL* ssl);
+#endif
+
 WOLFSSL_LOCAL int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz); /* needed by sniffer */
 
@@ -5080,7 +5084,9 @@ struct WOLFSSL {
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
-        char*   alpn_client_list;  /* keep the client's list */
+        byte *alpn_peer_requested; /* the ALPN bytes requested by peer, sequence
+                                    * of length byte + chars */
+        word16 alpn_peer_requested_length; /* number of bytes total */
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)  || \
             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_QUIC)
             CallbackALPNSelect alpnSelect;

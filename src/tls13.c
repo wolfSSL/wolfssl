@@ -5950,6 +5950,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     }
 
+#ifdef HAVE_ALPN
+    /* With PSK and all other things validated, it's time to
+     * select the ALPN protocol, if so requested */
+    if ((ret = ALPN_Select(ssl)) != 0)
+        return ret;
+#endif
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_BUILD;
     } /* case TLS_ASYNC_BEGIN */
