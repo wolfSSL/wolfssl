@@ -1916,7 +1916,7 @@ AC_ARG_WITH([cryptoauthlib],
 ENABLED_SE050="no"
 trylibse050dir=""
 AC_ARG_WITH([se050],
-    [AS_HELP_STRING([--with-se050=PATH],[PATH to SE050 install (default /usr/local/lib/)])],
+    [AS_HELP_STRING([--with-se050=PATH],[PATH to SE050 install (default /usr/local)])],
     [
         AC_MSG_CHECKING([for SE050])
 
@@ -1928,9 +1928,11 @@ AC_ARG_WITH([se050],
                 trylibse050dir=$withval
             fi
             if test "x$withval" = "xyes" ; then
-                trylibse050dir="/usr/local/lib/"
+                trylibse050dir="/usr/local"
             fi
+            LDFLAGS="$LDFLAGS -L$trylibse050dir/lib"
             LDFLAGS="$LDFLAGS -L$trylibse050dir/build/sss"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/include/se05x"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/build"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/ex/inc"
@@ -1960,7 +1962,7 @@ AC_ARG_WITH([se050],
             fi
 
             # Requires AES direct
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"
 
             # Does not support SHA2-512 224/256
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
@@ -7686,7 +7688,7 @@ AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
 
 AS_IF([test "x$ENABLED_OPENLDAP" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"])
 
-if test "$ENABLED_ED25519_STREAM" != "no"
+if test "$ENABLED_ED25519_STREAM" != "no" && test "$ENABLED_SE050" != "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"

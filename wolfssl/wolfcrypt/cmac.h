@@ -68,6 +68,9 @@ struct Cmac {
     word32 used;
     word32 len;
 #endif
+#ifdef WOLFSSL_SE050
+    byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
+#endif
 };
 
 

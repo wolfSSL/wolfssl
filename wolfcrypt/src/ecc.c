@@ -5748,7 +5748,8 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_SE050
-    key->keyId = -1;
+    key->keyId = 0;
+    key->keyIdSet = 0;
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -5964,7 +5965,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
         (void)rng;
     #elif defined(WOLFSSL_SE050)
-        err = se050_ecc_sign_hash_ex(in, inlen, out, outlen, key);
+        err = se050_ecc_sign_hash_ex(in, inlen, r, s, out, outlen, key);
         if (err != MP_OKAY) {
             return err;
         }
@@ -6040,7 +6041,8 @@ error_out:
         }
     #endif /* HW-specific #if-#elif chain */
 
-        /* Load R and S */
+    #ifndef WOLFSSL_SE050
+        /* Load R and S, SE050 does this in port layer */
         err = mp_read_unsigned_bin(r, &out[0], keysize);
         if (err != MP_OKAY) {
             return err;
@@ -6049,6 +6051,7 @@ error_out:
         if (err != MP_OKAY) {
             return err;
         }
+    #endif
 
         /* Check for zeros */
         if (mp_iszero(r) || mp_iszero(s)) {
@@ -8044,12 +8047,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif defined(WOLFSSL_KCAPI_ECC)
    byte sigRS[MAX_ECC_BYTES*2];
-#elif defined(WOLFSSL_SE050)
-   byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
    byte hashcopy[ECC_MAX_CRYPTO_HW_SIZE] = {0};
-#elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
+#elif (!defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)) && \
+   !defined(WOLFSSL_SE050)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
    #ifdef WOLFSSL_NO_MALLOC
@@ -8115,7 +8117,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     defined(WOLFSSL_KCAPI_ECC) || defined(WOLFSSL_SE050) || \
     defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 
-    /* Extract R and S with front zero padding (if required) */
+#ifndef WOLFSSL_SE050
+    /* Extract R and S with front zero padding (if required),
+     * SE050 does this in port layer  */
     XMEMSET(sigRS, 0, sizeof(sigRS));
     err = mp_to_unsigned_bin(r, sigRS +
                                 (keySz - mp_unsigned_bin_size(r)));
@@ -8127,6 +8131,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     if (err != MP_OKAY) {
         return err;
     }
+#endif /* WOLFSSL_SE050 */
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
@@ -8171,7 +8176,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         *res = 1;
     }
 #elif defined(WOLFSSL_SE050)
-    err = se050_ecc_verify_hash_ex(hash, hashlen, sigRS, keySz * 2, key, res);
+    err = se050_ecc_verify_hash_ex(hash, hashlen, r, s, key, res);
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     if (hashlen > sizeof(hashcopy))
         return ECC_BAD_ARG_E;
@@ -10043,6 +10048,12 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     if (err == MP_OKAY)
         err = silabs_ecc_import(key, keysize);
+#elif defined(WOLFSSL_SE050)
+    if (err == MP_OKAY) {
+        /* reset key ID, in case used before */
+        key->keyId = 0;
+        key->keyIdSet = 0;
+    }
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     #ifndef HAVE_COMP_KEY
     if (err == MP_OKAY) {
@@ -14518,6 +14529,44 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     return ret;
 }
 #endif /* HAVE_X963_KDF */
+
+#ifdef WOLFSSL_SE050
+/* Use specified hardware key ID with ecc_key operations. Unlike devId,
+ * keyId is a word32, can be used for key IDs larger than an int.
+ *
+ * key    initialized ecc_key struct
+ * keyId  hardware key ID which stores ECC key
+ * flags  optional flags, currently unused
+ *
+ * Return 0 on success, negative on error */
+int wc_ecc_use_key_id(ecc_key* key, word32 keyId, word32 flags)
+{
+    (void)flags;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return se050_ecc_use_key_id(key, keyId);
+}
+
+/* Get hardware key ID associated with this ecc_key structure.
+ *
+ * key    initialized ecc_key struct
+ * keyId  [OUT] output for key ID associated with this structure
+ *
+ * Returns 0 on success, negative on error.
+ */
+int wc_ecc_get_key_id(ecc_key* key, word32* keyId)
+{
+    if (key == NULL || keyId == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return se050_ecc_get_key_id(key, keyId);
+}
+#endif /* WOLFSSL_SE050 */
+
 
 #ifdef WC_ECC_NONBLOCK
 /* Enable ECC support for non-blocking operations */

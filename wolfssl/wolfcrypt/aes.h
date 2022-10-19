@@ -202,7 +202,9 @@ struct Aes {
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
-    int keyId;
+    word32 keyId;
+    byte   keyIdSet;
+    byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
 #ifdef GCM_TABLE
     /* key-based fast multiplication table. */

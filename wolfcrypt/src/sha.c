@@ -930,6 +930,9 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #ifdef WOLFSSL_PIC32MZ_HASH
     ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    ret = se050_hash_copy(&src->se050Ctx, &dst->se050Ctx);
+#endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
      dst->ctx.mode = src->ctx.mode;

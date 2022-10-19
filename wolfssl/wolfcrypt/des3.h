@@ -61,6 +61,11 @@ enum {
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef WOLFSSL_SE050
+    /* SE050 SDK also defines DES_BLOCK_SIZE */
+    #undef DES_BLOCK_SIZE
+#endif
+
 enum {
     DES_ENC_TYPE    = WC_CIPHER_DES,     /* cipher unique type */
     DES3_ENC_TYPE   = WC_CIPHER_DES3,    /* cipher unique type */

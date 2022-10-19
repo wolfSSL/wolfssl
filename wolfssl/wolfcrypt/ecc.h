@@ -177,8 +177,7 @@ enum {
     #endif
     ECC_MAX_CRYPTO_HW_SIZE = CRYPTOCELL_KEY_SIZE,
 #elif defined(WOLFSSL_SE050)
-    ECC_MAX_CRYPTO_HW_SIZE = 32,
-    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = 64,
+    ECC_MAX_CRYPTO_HW_SIZE = 66,
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     ECC_MAX_CRYPTO_HW_SIZE = MAX_ECC_BYTES,
 #endif
@@ -453,7 +452,8 @@ struct ecc_key {
     int    partNum; /* partition number*/
 #endif
 #ifdef WOLFSSL_SE050
-    int keyId;
+    word32 keyId;
+    byte   keyIdSet;
 #endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     int  slot;        /* Key Slot Number (-1 unknown) */
@@ -924,6 +924,13 @@ int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle);
 WOLFSSL_LOCAL
 int sp_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash, word32 hashLen, mp_int* pX,
     mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+#endif
+
+#ifdef WOLFSSL_SE050
+WOLFSSL_API
+int wc_ecc_use_key_id(ecc_key* key, word32 keyId, word32 flags);
+WOLFSSL_API
+int wc_ecc_get_key_id(ecc_key* key, word32* keyId);
 #endif
 
 #ifdef WC_ECC_NONBLOCK
