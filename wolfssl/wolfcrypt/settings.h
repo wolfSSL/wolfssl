@@ -1926,7 +1926,9 @@ extern void uITRON4_free(void *p) ;
     #if !defined(USE_INTEGER_HEAP_MATH)
         #undef  USE_FAST_MATH
         #define USE_FAST_MATH
-        #define FP_MAX_BITS 8192
+        #ifndef FP_MAX_BITS
+            #define FP_MAX_BITS 8192
+        #endif
     #endif
 #endif
 /*----------------------------------------------------------------------------*/
