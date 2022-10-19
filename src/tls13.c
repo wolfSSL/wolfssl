@@ -5915,6 +5915,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (wantDowngrade) {
 #ifndef WOLFSSL_NO_TLS12
+        byte realMinor;
         if (!ssl->options.downgrade) {
             WOLFSSL_MSG("Client trying to connect with lesser version than "
                         "TLS v1.3");
@@ -5928,7 +5929,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ERROR_OUT(VERSION_ERROR, exit_dch);
         }
 
+        realMinor = ssl->version.minor;
+        ssl->version.minor = args->pv.minor;
         ret = HashInput(ssl, input + args->begin, helloSz);
+        ssl->version.minor = realMinor;
         if (ret == 0) {
             ret = DoClientHello(ssl, input, inOutIdx, helloSz);
         }

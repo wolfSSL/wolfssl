@@ -33049,12 +33049,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     WOLFSSL_MSG("\tDowngrading to DTLSv1.2");
                     ssl->options.tls1_3 = 0;
                     ssl->version.minor = DTLSv1_2_MINOR;
-
-                    /* reset hashes, DTLSv1.2 will take care of the hashing
-                       later */
-                    ret = InitHandshakeHashes(ssl);
-                    if (ret != 0)
-                        return ret;
                 }
                 else if (pv.minor == DTLS_MINOR) {
                     WOLFSSL_MSG("\tDowngrading to DTLSv1.0");
