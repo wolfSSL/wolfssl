@@ -4691,6 +4691,7 @@ static void GenerateM0(Aes* aes)
 
 #elif defined(GCM_TABLE_4BIT)
 
+#if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
 static WC_INLINE void Shift4_M0(byte *r8, byte* z8)
 {
     int i;
@@ -4698,6 +4699,7 @@ static WC_INLINE void Shift4_M0(byte *r8, byte* z8)
         r8[i] = (z8[i-1] << 4) | (z8[i] >> 4);
     r8[0] = z8[0] >> 4;
 }
+#endif
 
 static void GenerateM0(Aes* aes)
 {
