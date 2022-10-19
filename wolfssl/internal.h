@@ -5683,6 +5683,13 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
         word32 *inOutIdx, byte *type, word32 *size, word32 *fragOffset,
         word32 *fragSz, word32 totalSz);
     WOLFSSL_LOCAL int DtlsMsgDrain(WOLFSSL *ssl);
+    WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL* ssl,
+        const byte* cookie, byte cookieSz);
+
+#if !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
+        word32* inOutIdx, word32 helloSz, byte *process);
+#endif /* !defined(NO_WOLFSSL_SERVER) */
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)

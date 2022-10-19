@@ -65,13 +65,6 @@
  *     may be received by a client. To support detecting this, peek will
  *     return WOLFSSL_ERROR_WANT_READ.
  *     This define turns off this behaviour.
- * WOLFSSL_DTLS_NO_HVR_ON_RESUME
- *     If defined, a DTLS server will not do a cookie exchange on successful
- *     client resumption: the resumption will be faster (one RTT less) and
- *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
- *     less). On the other hand, if a valid SessionID is collected, forged
- *     clientHello messages will consume resources on the server.
- *     This define is turned off by default.
  * WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
  *     Verify hostname/ip address using alternate name (SAN) only and do not
  *     use the common name. Forces use of the alternate name, so certificates
@@ -178,11 +171,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
         static int DoCertificateVerify(WOLFSSL* ssl, byte* input,
                                        word32* inOutIdx, word32 size);
     #endif
-    #ifdef WOLFSSL_DTLS
-        static int SendHelloVerifyRequest(WOLFSSL* ssl,
-                                          const byte* cookie, byte cookieSz);
-    #endif /* WOLFSSL_DTLS */
-
 #endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* !WOLFSSL_NO_TLS12 */
@@ -32921,17 +32909,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int             ret = 0;
         byte            lesserVersion;
 
-#ifdef WOLFSSL_DTLS
-        Hmac            cookieHmac;
-        byte            newCookie[MAX_COOKIE_LEN];
-        byte            peerCookie[MAX_COOKIE_LEN];
-        byte            peerCookieSz = 0;
-        byte            cookieType;
-        byte            cookieSz = 0;
-
-        XMEMSET(&cookieHmac, 0, sizeof(Hmac));
-#endif /* WOLFSSL_DTLS */
-
         WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
         WOLFSSL_ENTER("DoClientHello");
 
@@ -32939,6 +32916,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
         if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
+        /* do not change state in the SSL object before the next region of code
+         * to be able to statelessly compute a DTLS cookie */
+#ifdef WOLFSSL_DTLS
+        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
+            byte process = 0;
+            ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz,
+                &process);
+            if (ret != 0 || !process) {
+                *inOutIdx += helloSz;
+                DtlsResetState(ssl);
+                return ret;
+            }
+        }
+#endif /* WOLFSSL_DTLS */
+
         /* protocol version, random and session id length check */
         if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
@@ -32960,29 +32952,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
              * Client Hello. */
             ssl->keys.dtls_handshake_number =
                     ssl->keys.dtls_peer_handshake_number;
-
-            #if defined(NO_SHA) && defined(NO_SHA256)
-                #error "DTLS needs either SHA or SHA-256"
-            #endif /* NO_SHA && NO_SHA256 */
-
-            #if !defined(NO_SHA) && defined(NO_SHA256)
-                cookieType = WC_SHA;
-                cookieSz = WC_SHA_DIGEST_SIZE;
-            #endif /* NO_SHA */
-            #ifndef NO_SHA256
-                cookieType = WC_SHA256;
-                cookieSz = WC_SHA256_DIGEST_SIZE;
-            #endif /* NO_SHA256 */
-            ret = wc_HmacSetKey(&cookieHmac, cookieType,
-                                ssl->buffers.dtlsCookieSecret.buffer,
-                                ssl->buffers.dtlsCookieSecret.length);
-            if (ret != 0) goto out;
-            ret = wc_HmacUpdate(&cookieHmac,
-                                (const byte*)ssl->buffers.dtlsCtx.peer.sa,
-                                ssl->buffers.dtlsCtx.peer.sz);
-            if (ret != 0) goto out;
-            ret = wc_HmacUpdate(&cookieHmac, input + i, OPAQUE16_LEN);
-            if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
         i += OPAQUE16_LEN;
@@ -33152,12 +33121,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
-#ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-            ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
-            if (ret != 0) goto out;
-        }
-#endif /* WOLFSSL_DTLS */
         i += RAN_LEN;
 
 #ifdef SHOW_SECRETS
@@ -33187,13 +33150,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
 
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
-#ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) &&
-                    !IsSCR(ssl)) {
-                ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
-                if (ret != 0) goto out;
-            }
-#endif /* WOLFSSL_DTLS */
             ssl->arrays->sessionIDSz = b;
             i += b;
             ssl->options.resuming = 1; /* client wants to resume */
@@ -33205,10 +33161,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto out;
         }
 
-        #ifdef WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS
             /* cookie */
             if (ssl->options.dtls) {
-
+                word8 peerCookieSz;
                 if ((i - begin) + OPAQUE8_LEN > helloSz) {
                     ret = BUFFER_ERROR;
                     goto out;
@@ -33227,12 +33183,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         goto out;
                     }
 
-                    XMEMCPY(peerCookie, input + i, peerCookieSz);
-
                     i += peerCookieSz;
                 }
             }
-        #endif
+#endif /* WOLFSSL_DTLS */
 
         /* suites */
         if ((i - begin) + OPAQUE16_LEN > helloSz) {
@@ -33302,14 +33256,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
-#ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-            ret = wc_HmacUpdate(&cookieHmac,
-                                    input + i - OPAQUE16_LEN,
-                                    clSuites->suiteSz + OPAQUE16_LEN);
-            if (ret != 0) goto out;
-        }
-#endif /* WOLFSSL_DTLS */
         i += clSuites->suiteSz;
         clSuites->hashSigAlgoSz = 0;
 
@@ -33329,38 +33275,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = COMPRESSION_ERROR;
             goto out;
         }
-
-#ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-
-            ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
-            if (ret != 0) goto out;
-            ret = wc_HmacFinal(&cookieHmac, newCookie);
-            if (ret != 0) goto out;
-
-            /* If a cookie callback is set, call it to overwrite the cookie.
-             * This should be deprecated. The code now calculates the cookie
-             * using an HMAC as expected. */
-            if (ssl->ctx->CBIOCookie != NULL &&
-                ssl->ctx->CBIOCookie(ssl, newCookie, cookieSz,
-                                     ssl->IOCB_CookieCtx) != cookieSz) {
-                ret = COOKIE_ERROR;
-                goto out;
-            }
-
-
-#ifndef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-            if (peerCookieSz != cookieSz ||
-                 XMEMCMP(peerCookie, newCookie, cookieSz) != 0) {
-                *inOutIdx += helloSz;
-                ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
-                goto out;
-            }
-#endif /* !WOLFSSL_DTLS_NO_HVR_ON_RESUME */
-
-
-        }
-#endif /* WOLFSSL_DTLS */
 
         {
             /* compression match types */
@@ -33546,20 +33460,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-
-            if (!ssl->options.resuming) {
-                /* resume failed, check the cookie */
-                if (peerCookieSz != cookieSz ||
-                    XMEMCMP(peerCookie, newCookie, cookieSz) != 0) {
-                    *inOutIdx = begin + helloSz;
-                    ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
-                    goto out;
-                }
-            }
-        }
-#endif /* WOLFSSL_DTLS && WOLFSSL_DTLS_NO_HVR_ON_RESUME */
 
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_DH_DEFAULT_PARAMS)
     #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
@@ -33604,9 +33504,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     out:
 
-#ifdef WOLFSSL_DTLS
-        wc_HmacFree(&cookieHmac);
-#endif
 #ifdef WOLFSSL_SMALL_STACK
         if (clSuites != NULL)
             XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
@@ -35210,8 +35107,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
 #ifdef WOLFSSL_DTLS
     /* handle generation of DTLS hello_verify_request (3) */
-    static int SendHelloVerifyRequest(WOLFSSL* ssl,
-                                      const byte* cookie, byte cookieSz)
+    int SendHelloVerifyRequest(WOLFSSL* ssl,
+                               const byte* cookie, byte cookieSz)
     {
         byte* output;
         int   length = VERSION_SZ + ENUM_LEN + cookieSz;
