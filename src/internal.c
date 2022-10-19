@@ -35249,13 +35249,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         }
         AddHeaders(output, length, hello_verify_request, ssl);
 
-#ifdef OPENSSL_EXTRA
         output[idx++] = DTLS_MAJOR;
         output[idx++] = DTLS_MINOR;
-#else
-        output[idx++] = ssl->version.major;
-        output[idx++] = ssl->version.minor;
-#endif
 
         output[idx++] = cookieSz;
         if (cookie == NULL || cookieSz == 0)
