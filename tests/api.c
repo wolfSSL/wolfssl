@@ -35248,7 +35248,7 @@ static int test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 
 static int test_wolfSSL_set1_host(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
     const char host[] = "www.test_wolfSSL_set1_host.com";
     const char emptyStr[] = "";
