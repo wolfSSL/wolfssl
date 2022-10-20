@@ -22354,6 +22354,17 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 
 #ifdef OPENSSL_EXTRA
 
+/* Sets the DNS hostname to name.
+ * Hostname is cleared if name is NULL or empty. */
+int wolfSSL_set1_host(WOLFSSL * ssl, const char* name)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_X509_VERIFY_PARAM_set1_host(ssl->param, name, 0);
+}
+
 /******************************************************************************
 * wolfSSL_CTX_set1_param - set a pointer to the SSL verification parameters
 *
