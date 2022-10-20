@@ -197,16 +197,18 @@ extern ${variable.value} ${variable.name};
  * 6=Single Precision C all small
  * 7=Single Precision C all big
  */
-#if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH != 2
-    /* fast (stack) math */
+#if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH == 1
+    /* fast (stack) math - tfm.c */
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
 
     /* Optimizations (TFM_ARM, TFM_ASM or none) */
     //#define TFM_NO_ASM
     //#define TFM_ASM
-#endif
-#if defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH >= 3)
+#elif defined(WOLF_CONF_MATH) && WOLF_CONF_MATH == 2
+    /* heap math - integer.c */
+    #define USE_INTEGER_HEAP_MATH
+#elif defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH >= 3)
     /* single precision only */
     #define WOLFSSL_SP
     #if WOLF_CONF_MATH != 7
@@ -405,7 +407,7 @@ extern ${variable.value} ${variable.name};
     #define HAVE_AES_DECRYPT
 #endif
 
-/* Other possible AES modes */    
+/* Other possible AES modes */
 //#define WOLFSSL_AES_COUNTER
 //#define HAVE_AESCCM
 //#define WOLFSSL_AES_XTS

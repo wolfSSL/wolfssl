@@ -8080,7 +8080,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
         status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)partialBlock, partial,
-(           uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
+            (uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
         XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
     }
     #endif

@@ -1266,7 +1266,8 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 #if !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(WOLFSSL_STM32_PKA)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     mp_int* prime, mp_int* order);
 #endif
@@ -9107,7 +9108,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
 
 /* is ecc point on curve described by dp ? */
 int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
@@ -9592,7 +9593,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_SE050) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
-    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
     mp_int* b = NULL;
     #ifdef USE_ECC_B_PARAM
         DECLARE_CURVE_SPECS(4);
@@ -9642,7 +9643,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_SE050) || defined(WOLF_CRYPTO_CB_ONLY_ECC) || \
-    defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    defined(WOLFSSL_XILINX_CRYPT_VERSAL) || defined(WOLFSSL_STM32_PKA)
 
     /* consider key check success on HW crypto
      * ex: ATECC508/608A, CryptoCell and Silabs
