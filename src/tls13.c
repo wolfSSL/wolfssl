@@ -5863,7 +5863,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_SNI
         if ((ret = SNI_Callback(ssl)) != 0)
-            return ret;
+            goto exit_dch;
         ssl->options.side = WOLFSSL_SERVER_END;
 #endif
 
@@ -5954,7 +5954,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* With PSK and all other things validated, it's time to
      * select the ALPN protocol, if so requested */
     if ((ret = ALPN_Select(ssl)) != 0)
-        return ret;
+        goto exit_dch;
 #endif
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_BUILD;
