@@ -2377,6 +2377,10 @@ static void* benchmarks_do(void* args)
         else {
             #ifndef NO_ECC256
             bench_ecc_curve((int)ECC_SECP256R1);
+            #elif HAVE_ECC384
+            bench_ecc_curve((int)ECC_SECP384R1);
+            #elif HAVE_ECC521
+            bench_ecc_curve((int)ECC_SECP521R1);
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
             bench_ecc_curve((int)ECC_BRAINPOOLP256R1);
