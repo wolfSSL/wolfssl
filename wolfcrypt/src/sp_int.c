@@ -288,6 +288,7 @@ This library provides single precision (SP) integer math functions.
  * CPU: x86_64
  */
 
+#ifndef _WIN64
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
     __asm__ __volatile__ (                               \
@@ -439,8 +440,143 @@ This library provides single precision (SP) integer math functions.
         : [a] "r" (va), [b] "r" (vb), [c] "r" (vc)       \
         : "%rax", "%rdx", "cc"                           \
     )
+#else
+#include <intrin.h>
 
-#ifndef WOLFSSL_SP_DIV_WORD_HALF
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    vl = _umul128(va, vb, &vh)
+
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    do {                                                 \
+        vl = _umul128(va, vb, &vh);                      \
+        vo = 0;                                          \
+    }                                                    \
+    while (0)
+
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, vb, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+        c = _addcarry_u64(c, vh, vth, &vh);              \
+            _addcarry_u64(c, vo,   0, &vo);              \
+    }                                                    \
+    while (0)
+
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, vb, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+            _addcarry_u64(c, vh, vth, &vh);              \
+    }                                                    \
+    while (0)
+
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, vb, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+        c = _addcarry_u64(c, vh, vth, &vh);              \
+            _addcarry_u64(c, vo,   0, &vo);              \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+        c = _addcarry_u64(c, vh, vth, &vh);              \
+            _addcarry_u64(c, vo,   0, &vo);              \
+    }                                                    \
+    while (0)
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, vb, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+            _addcarry_u64(c, vh, vth, &vh);              \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+        c = _addcarry_u64(c, vh, vth, &vh);              \
+            _addcarry_u64(c, vo,   0, &vo);              \
+    }                                                    \
+    while (0)
+
+ /* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    vl = _umul128(va, va, &vh)
+
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, va, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+        c = _addcarry_u64(c, vh, vth, &vh);              \
+            _addcarry_u64(c, vo,   0, &vo);              \
+    }                                                    \
+    while (0)
+
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    do {                                                 \
+        unsigned __int64 vtl, vth;                       \
+        unsigned char c;                                 \
+        vtl = _umul128(va, va, &vth);                    \
+        c = _addcarry_u64(0, vl, vtl, &vl);              \
+            _addcarry_u64(c, vh, vth, &vh);              \
+    }                                                    \
+    while (0)
+
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    do {                                                 \
+        unsigned char c;                                 \
+        c = _addcarry_u64(0, vl, va, &vl);               \
+            _addcarry_u64(c, vh,  0, &vh);               \
+    }                                                    \
+    while (0)
+
+/* Add va, variable in a register, into: vh | vl */
+#define SP_ASM_ADDC_REG(vl, vh, va)                      \
+    do {                                                 \
+        unsigned char c;                                 \
+        c = _addcarry_u64(0, vl, va, &vl);               \
+            _addcarry_u64(c, vh,  0, &vh);               \
+    }                                                    \
+    while (0)
+
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    do {                                                 \
+        unsigned char c;                                 \
+        c = _subborrow_u64(0, vl, va, &vl);              \
+            _subborrow_u64(c, vh,  0, &vh);              \
+    }                                                    \
+    while (0)
+
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    do {                                                 \
+        unsigned char c;                                 \
+        c = _addcarry_u64(0, vl, va, &vl);               \
+        c = _addcarry_u64(c, vh, vb, &vh);               \
+            _addcarry_u64(c, vo, vc, &vo);               \
+        c = _addcarry_u64(0, vl, va, &vl);               \
+        c = _addcarry_u64(c, vh, vb, &vh);               \
+            _addcarry_u64(c, vo, vc, &vo);               \
+    }                                                    \
+    while (0)
+#endif
+
+#if !defined(WOLFSSL_SP_DIV_WORD_HALF) && (!defined(_WIN64) || _MSC_VER >= 1920)
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
  * Using divq instruction on Intel x64.
@@ -453,6 +589,7 @@ This library provides single precision (SP) integer math functions.
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
+#ifndef _WIN64
     __asm__ __volatile__ (
         "divq %2"
         : "+a" (lo)
@@ -460,6 +597,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : "cc"
     );
     return lo;
+#elif _MSC_VER >= 1920
+    return _udiv128(hi, lo, d, NULL);
+#endif
 }
 #define SP_ASM_DIV_WORD
 #endif
