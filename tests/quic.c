@@ -1174,8 +1174,18 @@ static int test_quic_server_hello(int verbose) {
     return ret;
 }
 
-#if defined(HAVE_ALPN) && defined(HAVE_SNI)
+/* This has gotten a bit out of hand. */
+#if (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))) \
+    && defined(HAVE_ALPN) && defined(HAVE_SNI)
+#define REALLY_HAVE_ALPN_AND_SNI
+#else
+#undef REALLY_HAVE_ALPN_AND_SNI
+#endif
 
+#ifdef REALLY_HAVE_ALPN_AND_SNI
 static int inspect_SNI(WOLFSSL *ssl, int *ad, void *baton)
 {
     char *stripe = baton;
@@ -1253,7 +1263,7 @@ static int test_quic_alpn(int verbose) {
 
     return ret;
 }
-#endif /* defined(HAVE_ALPN) && defined(HAVE_SNI) */
+#endif /* REALLY_HAVE_ALPN_AND_SNI */
 
 
 #ifdef HAVE_SESSION_TICKET
@@ -1618,9 +1628,9 @@ int QuicTest(void)
     if ((ret = test_quic_crypt()) != 0) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != 0) goto leave;
     if ((ret = test_quic_server_hello(verbose)) != 0) goto leave;
-#if defined(HAVE_ALPN) && defined(HAVE_SNI)
+#ifdef REALLY_HAVE_ALPN_AND_SNI
     if ((ret = test_quic_alpn(verbose)) != 0) goto leave;
-#endif /* defined(HAVE_ALPN) && defined(HAVE_SNI) */
+#endif /* REALLY_HAVE_ALPN_AND_SNI */
 #ifdef HAVE_SESSION_TICKET
     if ((ret = test_quic_key_share(verbose)) != 0) goto leave;
     if ((ret = test_quic_resumption(verbose)) != 0) goto leave;
