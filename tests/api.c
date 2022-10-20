@@ -42524,6 +42524,7 @@ static int test_wolfSSL_sk_DIST_POINT(void)
     int bytes, i, j;
     XFILE f;
     DIST_POINT* dp;
+    DIST_POINT_NAME* dpn;
     GENERAL_NAME* gn;
     ASN1_IA5STRING* uri;
     STACK_OF(DIST_POINT)* dps;
@@ -42546,6 +42547,10 @@ static int test_wolfSSL_sk_DIST_POINT(void)
     AssertIntEQ(sk_DIST_POINT_num(dps), 1);
     for (i = 0; i < sk_DIST_POINT_num(dps); i++) {
         AssertNotNull(dp = sk_DIST_POINT_value(dps, i));
+        AssertNotNull(dpn = dp->distpoint);
+
+        /* this should be type 0, fullname */
+        AssertIntEQ(dpn->type, 0);
 
         gns = dp->distpoint->name.fullname;
         AssertNotNull(gns);

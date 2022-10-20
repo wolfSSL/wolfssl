@@ -4118,8 +4118,9 @@ static WOLFSSL_DIST_POINT_NAME* wolfSSL_DIST_POINT_NAME_new(void)
     }
     gns->type = STACK_TYPE_GEN_NAME;
 
+    /* Setting type to 0 because this is fullname */
     dpn->name.fullname = gns;
-    dpn->type = CRL_DIST_OID;
+    dpn->type = 0;
 
     return dpn;
 }
