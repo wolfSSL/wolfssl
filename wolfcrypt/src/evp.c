@@ -6908,6 +6908,87 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return WOLFSSL_SUCCESS;
     }
 
+
+    int wolfSSL_EVP_CIPHER_CTX_nid(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_nid");
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad parameters");
+            return NID_undef;
+        }
+
+        switch (ctx->cipherType) {
+#ifndef NO_AES
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+            case AES_128_CBC_TYPE :
+                return NID_aes_128_cbc;
+            case AES_192_CBC_TYPE :
+                return NID_aes_192_cbc;
+            case AES_256_CBC_TYPE :
+                return NID_aes_256_cbc;
+#endif
+#ifdef HAVE_AESGCM
+            case AES_128_GCM_TYPE :
+                return NID_aes_128_gcm;
+            case AES_192_GCM_TYPE :
+                return NID_aes_192_gcm;
+            case AES_256_GCM_TYPE :
+                return NID_aes_256_gcm;
+#endif
+#ifdef HAVE_AES_ECB
+            case AES_128_ECB_TYPE :
+                return NID_aes_128_ecb;
+            case AES_192_ECB_TYPE :
+                return NID_aes_192_ecb;
+            case AES_256_ECB_TYPE :
+                return NID_aes_256_ecb;
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+            case AES_128_CTR_TYPE :
+                return NID_aes_128_ctr;
+            case AES_192_CTR_TYPE :
+                return NID_aes_192_ctr;
+            case AES_256_CTR_TYPE :
+                return NID_aes_256_ctr;
+#endif
+
+#endif /* NO_AES */
+
+#ifndef NO_DES3
+            case DES_CBC_TYPE :
+                return NID_des_cbc;
+
+            case DES_EDE3_CBC_TYPE :
+                return NID_des_ede3_cbc;
+#endif
+#ifdef WOLFSSL_DES_ECB
+            case DES_ECB_TYPE :
+                return NID_des_ecb;
+            case DES_EDE3_ECB_TYPE :
+                return NID_des_ede3_ecb;
+#endif
+
+            case ARC4_TYPE :
+                return NID_rc4;
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+            case CHACHA20_POLY1305_TYPE:
+                return NID_chacha20_poly1305;
+#endif
+
+#ifdef HAVE_CHACHA
+            case CHACHA20_TYPE:
+                return NID_chacha20;
+#endif
+
+            case NULL_CIPHER_TYPE :
+                WOLFSSL_MSG("Null cipher has no NID");
+                FALL_THROUGH;
+            default:
+                return NID_undef;
+        }
+    }
+
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_CIPHER_CTX_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
