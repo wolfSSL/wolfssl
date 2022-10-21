@@ -1494,7 +1494,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     \code
     ecc_key key;
     wc_ecc_init(&key);
-    WC_WC_RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 32, &key);
     int derSz = // Some appropriate size for der;
@@ -1538,7 +1538,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
     \code
     ecc_key key;
     wc_ecc_init(&key);
-    WC_WC_RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 32, &key);
     int derSz = // Some appropriate size for der;
