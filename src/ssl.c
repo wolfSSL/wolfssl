@@ -189,6 +189,9 @@
  *     wolfSSL_CTX_load_system_CA_certs.
  */
 
+#define WOLFSSL_SSL_MISC_INCLUDED
+#include "src/ssl_misc.c"
+
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
