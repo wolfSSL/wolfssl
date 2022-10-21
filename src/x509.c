@@ -4118,8 +4118,10 @@ static WOLFSSL_DIST_POINT_NAME* wolfSSL_DIST_POINT_NAME_new(void)
     }
     gns->type = STACK_TYPE_GEN_NAME;
 
+    /* DIST_POINT_NAME type may be 0 or 1, indicating whether fullname or
+     * relativename is used. See: RFC 5280 section 4.2.1.13 */
     dpn->name.fullname = gns;
-    dpn->type = CRL_DIST_OID;
+    dpn->type = 0;
 
     return dpn;
 }
