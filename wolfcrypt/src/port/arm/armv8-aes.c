@@ -5458,7 +5458,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
-#else
+
+#else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
+
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
@@ -5482,7 +5484,8 @@ extern void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
 extern void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
-extern void GCM_gmult_len(byte* x, const byte m[32][AES_BLOCK_SIZE],
+/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved. */
+extern void GCM_gmult_len(byte* x, /* const */ byte m[32][AES_BLOCK_SIZE],
     const unsigned char* data, unsigned long len);
 extern void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
@@ -5531,7 +5534,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 {
     return wc_AesSetKey(aes, userKey, keylen, iv, dir);
 }
-#endif
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 
 /* wc_AesSetIV is shared between software and hardware */
 int wc_AesSetIV(Aes* aes, const byte* iv)
@@ -5559,7 +5562,7 @@ static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (const unsigned char*)aes->key, aes->rounds);
     return 0;
 }
-#endif
+#endif /* HAVE_AESCCM && WOLFSSL_AES_DIRECT */
 
 #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
 static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
@@ -5573,7 +5576,7 @@ static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (const unsigned char*)aes->key, aes->rounds);
     return 0;
 }
-#endif
+#endif /* HAVE_AES_DECRYPT && WOLFSSL_AES_DIRECT */
 
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
@@ -5643,8 +5646,8 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     return 0;
 }
-#endif
-#endif
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_COUNTER
 int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -5698,7 +5701,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
     return 0;
 }
-#endif
+#endif /* WOLFSSL_AES_COUNTER */
 
 #ifdef HAVE_AESCCM
 /* Software version of AES-CCM from wolfcrypt/src/aes.c
