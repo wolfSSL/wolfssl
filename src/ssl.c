@@ -3112,14 +3112,19 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
     char *p;
     byte *s;
 
-    if (list == NULL || listSz == NULL)
+    if (ssl == NULL || list == NULL || listSz == NULL)
         return BAD_FUNC_ARG;
 
     if (ssl->alpn_peer_requested == NULL
         || ssl->alpn_peer_requested_length == 0)
         return BUFFER_ERROR;
 
-    *listSz = ssl->alpn_peer_requested_length -1;
+    /* ssl->alpn_peer_requested are the original bytes sent in a ClientHello,
+     * formatted as (len-byte chars+)+. To turn n protocols into a
+     * comma-separated C string, one needs (n-1) commas and a final 0 byte
+     * which has the same length as the original.
+     * The returned length is the strlen() of the C string, so -1 of that. */
+    *listSz = ssl->alpn_peer_requested_length-1;
     *list = p = (char *)XMALLOC(ssl->alpn_peer_requested_length, ssl->heap,
                                 DYNAMIC_TYPE_TLSX);
     if (p == NULL)

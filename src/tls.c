@@ -1585,7 +1585,6 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
 {
     TLSX    *extension;
     ALPN    *alpn, *list;
-    int     r = 0;
     const byte *sel = NULL, *s;
     byte sel_len = 0, wlen;
 
@@ -1595,10 +1594,8 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
                               TLSX_APPLICATION_LAYER_PROTOCOL);
 
     /* No ALPN configured here */
-    if (extension == NULL || extension->data == NULL) {
-        extension = NULL;
-        goto cleanup;
-    }
+    if (extension == NULL || extension->data == NULL)
+        return 0;
 
     list = (ALPN*)extension->data;
     for (s = alpn_val, wlen = 0;
@@ -1621,20 +1618,18 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
          is set to continue (like OpenSSL) */
         if (list->options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) {
             WOLFSSL_MSG("Continue on mismatch");
-            goto cleanup;
         }
-
-        SendAlert(ssl, alert_fatal, no_application_protocol);
-        WOLFSSL_ERROR_VERBOSE(UNKNOWN_ALPN_PROTOCOL_NAME_E);
-        r = UNKNOWN_ALPN_PROTOCOL_NAME_E;
-        goto cleanup;
+        else {
+            SendAlert(ssl, alert_fatal, no_application_protocol);
+            WOLFSSL_ERROR_VERBOSE(UNKNOWN_ALPN_PROTOCOL_NAME_E);
+            return UNKNOWN_ALPN_PROTOCOL_NAME_E;
+        }
     }
 
-cleanup:
     *pextension = extension;
     *psel = sel;
     *psel_len = sel_len;
-    return r;
+    return 0;
 }
 
 int ALPN_Select(WOLFSSL *ssl)
@@ -1645,9 +1640,8 @@ int ALPN_Select(WOLFSSL *ssl)
     int r = 0;
 
     WOLFSSL_ENTER("ALPN_Select");
-    if (ssl->alpn_peer_requested == NULL) {
-        goto cleanup;
-    }
+    if (ssl->alpn_peer_requested == NULL)
+        return 0;
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if (ssl->alpnSelect != NULL && ssl->options.side == WOLFSSL_SERVER_END) {
@@ -1668,7 +1662,7 @@ int ALPN_Select(WOLFSSL *ssl)
                             ssl->alpn_peer_requested,
                             ssl->alpn_peer_requested_length);
         if (r != 0)
-            goto cleanup;
+            return r;
     }
 
     if (sel != NULL) {
@@ -1676,19 +1670,14 @@ int ALPN_Select(WOLFSSL *ssl)
         r = TLSX_SetALPN(&ssl->extensions, sel, sel_len, ssl->heap);
         if (r != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("TLSX_SetALPN failed");
-            r = BUFFER_ERROR;
-            goto cleanup;
+            return BUFFER_ERROR;
         }
         /* reply to ALPN extension sent from peer */
 #ifndef NO_WOLFSSL_SERVER
         TLSX_SetResponse(ssl, TLSX_APPLICATION_LAYER_PROTOCOL);
 #endif
     }
-    r = 0;
-
-cleanup:
-    WOLFSSL_LEAVE("ALPN_Select", r);
-    return r;
+    return 0;
 }
 
 /** Parses a buffer of ALPN extensions and set the first one matching
@@ -1702,19 +1691,20 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
     const byte *s;
 
     if (OPAQUE16_LEN > length)
-        goto cleanup;
+        return BUFFER_ERROR;
 
     ato16(input, &size);
     offset += OPAQUE16_LEN;
 
     /* validating alpn list length */
     if (size == 0 || length != OPAQUE16_LEN + size)
-        goto cleanup;
+        return BUFFER_ERROR;
+
     /* validating length of entries before accepting */
     for (s = input + offset, wlen = 0; (s - input) < size; s += wlen) {
         wlen = *s++;
         if (wlen == 0 || (s + wlen - input) > length)
-            goto cleanup;
+            return BUFFER_ERROR;
     }
 
     if (isRequest) {
@@ -1726,8 +1716,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         ssl->alpn_peer_requested = (byte *)XMALLOC(size, ssl->heap,
                                                    DYNAMIC_TYPE_ALPN);
         if (ssl->alpn_peer_requested == NULL) {
-            r = MEMORY_ERROR;
-            goto cleanup;
+            return MEMORY_ERROR;
         }
         ssl->alpn_peer_requested_length = size;
         XMEMCPY(ssl->alpn_peer_requested, (char*)input + offset, size);
@@ -1739,30 +1728,24 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
 
         r = ALPN_find_match(ssl, &extension, &sel, &sel_len, input + offset, size);
         if (r != 0)
-            goto cleanup;
+            return r;
 
         if (sel != NULL) {
             /* set the matching negotiated protocol */
             r = TLSX_SetALPN(&ssl->extensions, sel, sel_len, ssl->heap);
             if (r != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("TLSX_SetALPN failed");
-                r = BUFFER_ERROR;
-                goto cleanup;
+                return BUFFER_ERROR;
             }
         }
         /* If we had nothing configured, the response is unexpected */
         else if (extension == NULL) {
             r = TLSX_HandleUnsupportedExtension(ssl);
-            goto cleanup;
-        }
-        else {
-            /* have sth configured, but did not match. no error returned
-             * means we accepted that. */
+            if (r != 0)
+                return r;
         }
     }
-    r = 0;
-cleanup:
-    return r;
+    return 0;
 }
 
 /** Add a protocol name to the list of accepted usable ones */
