@@ -36,7 +36,7 @@
 
 #ifdef WOLFSSL_DTLS
 
-void DtlsResetState(WOLFSSL *ssl)
+void DtlsResetState(WOLFSSL* ssl)
 {
     /* Reset the state so that we can statelessly await the
      * ClientHello that contains the cookie. Don't gate on IsAtLeastTLSv1_3
@@ -52,7 +52,7 @@ void DtlsResetState(WOLFSSL *ssl)
     w64Zero(&ssl->dtls13Epochs[0].nextSeqNumber);
     w64Zero(&ssl->dtls13Epochs[0].nextPeerSeqNumber);
     XMEMSET(ssl->dtls13Epochs[0].window, 0,
-            sizeof(ssl->dtls13Epochs[0].window));
+        sizeof(ssl->dtls13Epochs[0].window));
     Dtls13FreeFsmResources(ssl);
 #endif
     ssl->keys.dtls_expected_peer_handshake_number = 0;
@@ -62,8 +62,8 @@ void DtlsResetState(WOLFSSL *ssl)
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
     ssl->options.connectState = CONNECT_BEGIN;
-    ssl->options.acceptState  = ACCEPT_BEGIN;
-    ssl->options.handShakeState  = NULL_STATE;
+    ssl->options.acceptState = ACCEPT_BEGIN;
+    ssl->options.handShakeState = NULL_STATE;
     ssl->msgsReceived.got_client_hello = 0;
     ssl->keys.dtls_handshake_number = 0;
     ssl->keys.dtls_expected_peer_handshake_number = 0;

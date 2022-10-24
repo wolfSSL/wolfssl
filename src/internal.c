@@ -32782,7 +32782,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      *  was created, timeout value and the current time. If the tickets are
      *  judged expired, falls back to full-handshake. If you want disable this
      *  session ticket validation check in TLS1.2 and below, define
-     *  WOLFSSL_NO_TICKET_EXPRE.
+     *  WOLFSSL_NO_TICKET_EXPIRE.
      */
     int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
     {
@@ -33057,7 +33057,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         return ret;
                 }
                 else if (pv.minor == DTLS_MINOR) {
-                    WOLFSSL_MSG("\tDowngrading to DTLSv1.2");
+                    WOLFSSL_MSG("\tDowngrading to DTLSv1.0");
                     ssl->options.tls1_3 = 0;
                     ssl->version.minor = DTLS_MINOR;
                 }
