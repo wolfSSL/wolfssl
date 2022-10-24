@@ -1074,24 +1074,26 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
 {
     WOLFSSL_OCSP_CERTID *cid = NULL;
 
-    if ((cidOut != NULL) && (derIn != NULL) && (length > 0)) {
+    if ((cidOut != NULL) && (derIn != NULL) && (*derIn != NULL) &&
+        (length > 0)) {
 
         cid = *cidOut;
 
         /* If a NULL is passed we allocate the memory for the caller. */
-        if (cid == NULL)
+        if (cid == NULL) {
             cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*cid), NULL,
                                                 DYNAMIC_TYPE_OPENSSL);
-        else if (cid->rawCertId) {
+        }
+        else if (cid->rawCertId != NULL) {
             XFREE(cid->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
             cid->rawCertId = NULL;
             cid->rawCertIdSize = 0;
         }
 
         if (cid != NULL) {
-            cid->rawCertId = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_OPENSSL);
+            cid->rawCertId = (byte*)XMALLOC(length + 1, NULL, DYNAMIC_TYPE_OPENSSL);
             if (cid->rawCertId != NULL) {
-                XMEMCPY (cid->rawCertId, *derIn, length);
+                XMEMCPY(cid->rawCertId, *derIn, length);
                 cid->rawCertIdSize = length;
 
                 /* Per spec. advance past the data that is being returned
@@ -1104,8 +1106,9 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
         }
     }
 
-    if (cid && (!cidOut || cid != *cidOut))
+    if (cid && (!cidOut || cid != *cidOut)) {
         XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
 
     return NULL;
 }

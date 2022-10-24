@@ -48158,6 +48158,8 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
                                            DYNAMIC_TYPE_TMP_BUFFER);
     XMEMSET(certId, 0, sizeof(*certId));
 
+    /* Reset rawCertIdPtr since it was push forward in the previous call. */
+    rawCertIdPtr = &rawCertId[0];
     certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, sizeof(rawCertId));
 
     AssertNotNull(certId);
