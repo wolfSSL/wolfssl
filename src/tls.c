@@ -1710,9 +1710,10 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
     if (isRequest) {
         /* keep the list sent by peer, if this is from a request. We
          * use it later in ALPN_Select() for evaluation. */
-        if (ssl->alpn_peer_requested != NULL)
+        if (ssl->alpn_peer_requested != NULL) {
             XFREE(ssl->alpn_peer_requested, ssl->heap, DYNAMIC_TYPE_ALPN);
-
+            ssl->alpn_peer_requested_length = 0;
+        }
         ssl->alpn_peer_requested = (byte *)XMALLOC(size, ssl->heap,
                                                    DYNAMIC_TYPE_ALPN);
         if (ssl->alpn_peer_requested == NULL) {
