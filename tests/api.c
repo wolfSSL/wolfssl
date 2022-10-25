@@ -1672,6 +1672,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
 {
 #if defined(HAVE_OCSP) && !defined(NO_RSA) && defined(OPENSSL_ALL)
     const char* responseFile = "./certs/ocsp/test-response.der";
+    const char* responseMultiFile = "./certs/ocsp/test-multi-response.der";
     const char* responseNoInternFile = "./certs/ocsp/test-response-nointern.der";
     const char* caFile = "./certs/ocsp/root-ca-cert.pem";
     OcspResponse* res = NULL;
@@ -1719,6 +1720,65 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     res = wolfSSL_d2i_OCSP_RESPONSE(NULL, &pt, dataSz);
     AssertNotNull(res);
     wolfSSL_OCSP_RESPONSE_free(res);
+
+    /* check loading a response with multiple certs */
+    {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        OcspEntry entry[1];
+        CertStatus status[1];
+        OcspRequest* request;
+
+        byte serial[] = {0x02};
+
+        byte issuerHash[] = {
+            0x44, 0xA8, 0xDB, 0xD1, 0xBC, 0x97, 0x0A, 0x83,
+            0x3B, 0x5B, 0x31, 0x9A, 0x4C, 0xB8, 0xD2, 0x52,
+            0x37, 0x15, 0x8A, 0x88
+        };
+        byte issuerKeyHash[] = {
+            0x73, 0xB0, 0x1C, 0xA4, 0x2F, 0x82, 0xCB, 0xCF,
+            0x47, 0xA5, 0x38, 0xD7, 0xB0, 0x04, 0x82, 0x3A,
+            0x7E, 0x72, 0x15, 0x21
+        };
+
+        XMEMSET(entry, 0, sizeof(OcspEntry));
+        XMEMSET(status, 0, sizeof(CertStatus));
+
+        AssertNotNull(request = wolfSSL_OCSP_REQUEST_new());
+        request->serial = (byte*)XMALLOC(sizeof(serial), NULL,
+                                     DYNAMIC_TYPE_OCSP_REQUEST);
+        AssertNotNull(request->serial);
+
+        request->serialSz = sizeof(serial);
+        XMEMCPY(request->serial, serial, sizeof(serial));
+        XMEMCPY(request->issuerHash, issuerHash, sizeof(issuerHash));
+        XMEMCPY(request->issuerKeyHash, issuerKeyHash, sizeof(issuerKeyHash));
+
+        AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
+        AssertIntEQ(wolfSSL_CertManagerEnableOCSP(cm, 0), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CertManagerLoadCA(cm, caFile, NULL),
+            WOLFSSL_SUCCESS);
+
+        f = XFOPEN(responseMultiFile, "rb");
+        AssertTrue(f != XBADFILE);
+        dataSz = (word32)XFREAD(data, 1, sizeof(data), f);
+        AssertIntGT(dataSz, 0);
+        XFCLOSE(f);
+
+        AssertIntEQ(wolfSSL_CertManagerCheckOCSPResponse(cm, data,
+            dataSz, NULL, status, entry, request), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CertManagerCheckOCSPResponse(cm, data,
+            dataSz, NULL, entry->status, entry, request), WOLFSSL_SUCCESS);
+
+        /* compare the status found */
+        AssertNotNull(entry->status);
+        AssertIntEQ(status->serialSz, entry->status->serialSz);
+        AssertIntEQ(XMEMCMP(status->serial, entry->status->serial,
+            status->serialSz), 0);
+
+        wolfSSL_OCSP_REQUEST_free(request);
+        wolfSSL_CertManagerFree(cm);
+    }
 
 #if defined(WC_RSA_PSS)
     {

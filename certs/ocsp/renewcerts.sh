@@ -87,6 +87,7 @@ PID=$!
 
 openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response.der -noverify
 openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -url http://localhost:22221/ -respout test-response-nointern.der -no_intern -noverify
+openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -cert ./intermediate2-ca-cert.pem -url http://localhost:22221/ -respout test-multi-response.der -noverify
 kill $PID
 wait $PID
 
