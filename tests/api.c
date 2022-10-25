@@ -43343,6 +43343,8 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     AssertNotNull(evp = EVP_CIPHER_CTX_new());
     AssertIntNE((ret = EVP_CipherInit(evp, type, NULL, iv, 0)), 0);
 
+    AssertIntEQ(EVP_CIPHER_CTX_nid(evp), NID_aes_128_cbc);
+
     klen = EVP_CIPHER_CTX_key_length(evp);
     if (klen > 0 && keylen != klen) {
         AssertIntNE(EVP_CIPHER_CTX_set_key_length(evp, keylen), 0);
