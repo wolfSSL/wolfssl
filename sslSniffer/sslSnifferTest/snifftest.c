@@ -545,7 +545,7 @@ static int SnifferAsyncPollQueue(byte** data, char* err, SSLInfo* sslInfo,
             if (ret == 0) {
                 /* attempt to reprocess pending packet */
             #ifdef DEBUG_SNIFFER
-                printf("Retrying packet %d\n", asyncQueue[i].packetNumber);
+                printf("Packet Number: %d (retry)\n", asyncQueue[i].packetNumber);
             #endif
                 ret = ssl_DecodePacketAsync(asyncQueue[i].packet,
                     asyncQueue[i].length, 0, data, err, sslInfo, NULL);
@@ -828,7 +828,7 @@ int main(int argc, char** argv)
             /* grab next pcap packet */
             packetNumber++;
             packet = pcap_next(pcap, &header);
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(DEBUG_SNIFFER)
+        #ifdef DEBUG_SNIFFER
             printf("Packet Number: %d\n", packetNumber);
         #endif
         }

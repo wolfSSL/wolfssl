@@ -3733,7 +3733,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (session->sslServer->error != WC_PENDING_E)
+    if (session->sslServer->error != WC_PENDING_E && session->pendSeq == 0)
 #endif
     {
         /* hash server_hello */
@@ -4412,7 +4412,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     if (type != client_hello && type != server_hello
     #ifdef WOLFSSL_ASYNC_CRYPT
-        && session->sslServer->error != WC_PENDING_E
+        && session->sslServer->error != WC_PENDING_E && session->pendSeq == 0
     #endif
     ) {
         /* For resumption the hash is before / after client_hello PSK binder */
@@ -4492,11 +4492,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
         case client_key_exchange:
             Trace(GOT_CLIENT_KEY_EX_STR);
 #ifdef HAVE_EXTENDED_MASTER
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (session->sslServer->error != WC_PENDING_E)
-        #endif
-            {
-                if (session->flags.expectEms && session->hash != NULL) {
+            if (session->flags.expectEms) {
+                /* on async reentry the session->hash is already copied
+                 * and free'd */
+                if (session->hash != NULL) {
                     if (HashCopy(session->sslServer->hsHashes,
                                 session->hash) == 0 &&
                         HashCopy(session->sslClient->hsHashes,
@@ -4514,10 +4513,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
                     XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
                     session->hash = NULL;
                 }
-                else {
-                    session->sslServer->options.haveEMS = 0;
-                    session->sslClient->options.haveEMS = 0;
-                }
+            }
+            else {
+                session->sslServer->options.haveEMS = 0;
+                session->sslClient->options.haveEMS = 0;
             }
 #endif
             if (ret == 0) {
@@ -5437,7 +5436,11 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     if (real < *expected) {
 
         if (real + *sslBytes > *expected) {
-            if (session->sslServer->error != WC_PENDING_E) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (session->sslServer->error != WC_PENDING_E &&
+                session->pendSeq != tcpInfo->sequence)
+        #endif
+            {
                 Trace(OVERLAP_DUPLICATE_STR);
             }
 
@@ -5488,7 +5491,11 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             if (*sslBytes > 0) {
                 /* If packet has data attempt to process packet, if hasn't
                  * already been ack'd during handshake */
-                if (session->sslServer->error != WC_PENDING_E &&
+                if (
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    session->sslServer->error != WC_PENDING_E &&
+                    session->pendSeq != tcpInfo->sequence &&
+                #endif
                                                    FindPrevAck(session, real)) {
                     Trace(DUPLICATE_STR);
                     ret = 1;
@@ -5733,8 +5740,7 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* check if this session is pending */
-    if (session->sslServer->error == WC_PENDING_E &&
-        session->pendSeq != tcpInfo->sequence) {
+    if (session->pendSeq != 0 && session->pendSeq != tcpInfo->sequence) {
         /* this stream is processing, queue packet */
         return WC_PENDING_E;
     }
@@ -5773,38 +5779,56 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* Check Status before record processing */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
-                          const byte** sslFrame, SnifferSession** session,
+                          const byte** sslFrame, SnifferSession** pSession,
                           int* sslBytes, const byte** end,
                           void* vChain, word32 chainSz, char* error)
 {
     word32 length;
-    WOLFSSL* ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
-                                  (*session)->sslServer : (*session)->sslClient;
-    byte skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
-                        (*session)->flags.srvSkipPartial :
-                        (*session)->flags.cliSkipPartial;
+    SnifferSession* session = *pSession;
+    WOLFSSL* ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
+                                  session->sslServer : session->sslClient;
+    byte skipPartial = (session->flags.side == WOLFSSL_SERVER_END) ?
+                        session->flags.srvSkipPartial :
+                        session->flags.cliSkipPartial;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* if this is a pending async packet do not "grow" on partial (we already did) */
+    if (session->pendSeq == tcpInfo->sequence) {
+        if (session->sslServer->error == WC_PENDING_E) {
+            return 0; /* don't check pre-record again */
+        }
+        /* if record check already done then restore, otherwise process normal */
+        if (ssl->buffers.inputBuffer.length > 0) {
+            *sslBytes = ssl->buffers.inputBuffer.length;
+            *sslFrame = ssl->buffers.inputBuffer.buffer;
+            *end = *sslFrame + *sslBytes;
+            return 0;
+        }
+    }
+#endif
+
     /* remove SnifferSession on 2nd FIN or RST */
     if (tcpInfo->fin || tcpInfo->rst) {
         /* flag FIN and RST */
         if (tcpInfo->fin)
-            (*session)->flags.finCount += 1;
+            session->flags.finCount += 1;
         else if (tcpInfo->rst)
-            (*session)->flags.finCount += 2;
+            session->flags.finCount += 2;
 
-        if ((*session)->flags.finCount >= 2) {
-            RemoveSession(*session, ipInfo, tcpInfo, 0);
-            *session = NULL;
+        if (session->flags.finCount >= 2) {
+            RemoveSession(session, ipInfo, tcpInfo, 0);
+            *pSession = NULL;
             return 1;
         }
     }
 
-    if ((*session)->flags.fatalError == FATAL_ERROR_STATE) {
+    if (session->flags.fatalError == FATAL_ERROR_STATE) {
         SetError(FATAL_ERROR_STR, error, NULL, 0);
         return -1;
     }
 
     if (skipPartial) {
-        if (FindNextRecordInAssembly(*session,
+        if (FindNextRecordInAssembly(session,
                                      sslFrame, sslBytes, end, error) < 0) {
             return -1;
         }
@@ -5823,7 +5847,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
             if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
-                SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                 return -1;
             }
         }
@@ -5846,7 +5870,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
             if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
                 if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
-                    SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                    SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                     return -1;
                 }
             }
@@ -5876,14 +5900,14 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
+    if (session->flags.clientHello == 0 && **sslFrame != handshake) {
         /* Sanity check the packet for an old style client hello. */
         int rhSize = (((*sslFrame)[0] & 0x7f) << 8) | ((*sslFrame)[1]);
 
         if ((rhSize <= (*sslBytes - 2)) &&
             (*sslFrame)[2] == OLD_HELLO_ID && (*sslFrame)[3] == SSLv3_MAJOR) {
 #ifdef OLD_HELLO_ALLOWED
-        int ret = DoOldHello(*session, *sslFrame, &rhSize, sslBytes, error);
+        int ret = DoOldHello(session, *sslFrame, &rhSize, sslBytes, error);
         if (ret < 0)
             return -1;  /* error already set */
         if (*sslBytes <= 0)
@@ -5982,7 +6006,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     const byte*       recordEnd;   /* end of record indicator */
     const byte*       inRecordEnd; /* indicator from input stream not decrypt */
     RecordLayerHeader rh;
-    int               rhSize = 0;
+    int               rhSize;
     int               ret;
     int               errCode = 0;
     int               decoded = 0;      /* bytes stored for user in data */
@@ -5991,7 +6015,9 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     WOLFSSL*          ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
 doMessage:
+
     notEnough = 0;
+    rhSize = 0;
     if (sslBytes < 0) {
         SetError(PACKET_HDR_SHORT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
@@ -6003,8 +6029,9 @@ doMessage:
             return 0;
         }
     }
-    else
+    else {
         notEnough = 1;
+    }
 
     if (notEnough || rhSize > (sslBytes - RECORD_HEADER_SZ)) {
         /* don't have enough input yet to process full SSL record */
@@ -6031,7 +6058,7 @@ doMessage:
     inRecordEnd = recordEnd;
 
     /* Make sure cipher is on for client, if we get an application data packet
-     * and handhsake is done for server. This workaround is required if client
+     * and handshake is done for server. This workaround is required if client
      * handshake packets were missed, retransmitted or sent out of order. */
     if ((enum ContentType)rh.type == application_data &&
                   ssl->options.handShakeDone && session->flags.serverCipherOn) {
@@ -6431,7 +6458,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         session->sslServer->error = ret;
 #ifdef WOLFSSL_ASYNC_CRYPT
         /* capture the seq pending for this session */
-        session->pendSeq = tcpInfo.sequence;
+        session->pendSeq = (ret == WC_PENDING_E) ? tcpInfo.sequence : 0;
 
         if (ret == WC_PENDING_E) {
             session->flags.wasPolled = 0;
@@ -6892,6 +6919,7 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
         SnifferSession* session = FindSession(ssl);
         if (session) {
             session->flags.wasPolled = 1;
+            session->sslServer->error = events[i]->ret;
         }
     }
     wc_UnLockMutex(&SessionMutex);
