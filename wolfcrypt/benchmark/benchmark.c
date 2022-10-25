@@ -2377,9 +2377,9 @@ static void* benchmarks_do(void* args)
         else {
             #ifndef NO_ECC256
             bench_ecc_curve((int)ECC_SECP256R1);
-            #elif HAVE_ECC384
+            #elif defined(HAVE_ECC384)
             bench_ecc_curve((int)ECC_SECP384R1);
-            #elif HAVE_ECC521
+            #elif defined(HAVE_ECC521)
             bench_ecc_curve((int)ECC_SECP521R1);
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
@@ -8434,7 +8434,7 @@ static int string_matches(const char* arg, const char* str)
 }
 #endif /* MAIN_NO_ARGS */
 
-#ifndef NO_MAIN_FUNCTION
+#if !defined(NO_MAIN_DRIVER) && !defined(NO_MAIN_FUNCTION)
 #if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
 int wolf_benchmark_task(void)
 #elif defined(MAIN_NO_ARGS)
@@ -8449,7 +8449,7 @@ int main(int argc, char** argv)
 #endif
     return wolfcrypt_benchmark_main(argc, argv);
 }
-#endif /* NO_MAIN_FUNCTION */
+#endif /* NO_MAIN_DRIVER && NO_MAIN_FUNCTION */
 
 int wolfcrypt_benchmark_main(int argc, char** argv)
 {
