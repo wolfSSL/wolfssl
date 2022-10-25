@@ -48490,15 +48490,12 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 
     /* The below tests should fail when passed bad parameters. NULL should
      * always be returned. */
-    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
     certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr, sizeof(rawCertId));
     AssertNull(certIdBad);
 
-    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
     certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL, sizeof(rawCertId));
     AssertNull(certIdBad);
 
-    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
     certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0);
     AssertNull(certIdBad);
 
