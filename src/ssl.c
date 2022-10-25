@@ -13875,7 +13875,12 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         /* Attempt to retrieve the session from the external cache. */
         WOLFSSL_MSG("Calling external session cache");
         sess = ssl->ctx->get_sess_cb(ssl, (byte*)id, ID_LEN, &copy);
-        if (sess != NULL) {
+        if ((sess != NULL)
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+            && (IsAtLeastTLSv1_3(ssl->version) ==
+                IsAtLeastTLSv1_3(sess->version))
+        #endif
+            ) {
             WOLFSSL_MSG("Session found in external cache");
             error = wolfSSL_DupSession(sess, output, 0);
 #ifdef HAVE_EX_DATA
@@ -13991,8 +13996,13 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         WOLFSSL_SESSION* current;
 
         current = &sessRow->Sessions[idx];
-        if (XMEMCMP(current->sessionID, id, ID_LEN) == 0 &&
-                current->side == ssl->options.side) {
+        if (XMEMCMP(current->sessionID, id, ID_LEN) == 0
+                && current->side == ssl->options.side
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+                && (IsAtLeastTLSv1_3(ssl->version) ==
+                    IsAtLeastTLSv1_3(current->version))
+        #endif
+            ) {
             WOLFSSL_MSG("Found a session match");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");
@@ -31844,7 +31854,12 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
 
     for (i = 0; i < SESSIONS_PER_ROW && i < sessRow->totalCount; i++) {
         if (XMEMCMP(id, sessRow->Sessions[i].sessionID, ID_LEN) == 0
-                && session->side == sessRow->Sessions[i].side) {
+                && session->side == sessRow->Sessions[i].side
+        #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+                && (IsAtLeastTLSv1_3(session->version) ==
+                    IsAtLeastTLSv1_3(sessRow->Sessions[i].version))
+        #endif
+            ) {
             if (get) {
                 *getRet = wolfSSL_CRYPTO_get_ex_data(
                         &sessRow->Sessions[i].ex_data, idx);
