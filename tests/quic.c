@@ -1174,6 +1174,98 @@ static int test_quic_server_hello(int verbose) {
     return ret;
 }
 
+/* This has gotten a bit out of hand. */
+#if (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))) \
+    && defined(HAVE_ALPN) && defined(HAVE_SNI)
+#define REALLY_HAVE_ALPN_AND_SNI
+#else
+#undef REALLY_HAVE_ALPN_AND_SNI
+#endif
+
+#ifdef REALLY_HAVE_ALPN_AND_SNI
+static int inspect_SNI(WOLFSSL *ssl, int *ad, void *baton)
+{
+    char *stripe = baton;
+
+    (void)ssl;
+    *ad = 0;
+    strcat(stripe, "S");
+    return 0;
+}
+
+static int select_ALPN(WOLFSSL *ssl,
+            const unsigned char **out,
+            unsigned char *outlen,
+            const unsigned char *in,
+            unsigned int inlen,
+            void *baton)
+{
+    char *stripe = baton;
+
+    (void)ssl;
+    (void)inlen;
+    /* just select the first */
+    *out = in + 1;
+    *outlen = in[0];
+    strcat(stripe, "A");
+    return 0;
+}
+
+static int test_quic_alpn(int verbose) {
+    WOLFSSL_CTX *ctx_c, *ctx_s;
+    int ret = 0;
+    QuicTestContext tclient, tserver;
+    QuicConversation conv;
+    char stripe[256];
+    unsigned char alpn_protos[256];
+
+    AssertNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    AssertNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+
+    stripe[0] = '\0';
+    wolfSSL_CTX_set_servername_callback(ctx_s, inspect_SNI);
+    wolfSSL_CTX_set_servername_arg(ctx_s, stripe);
+    wolfSSL_CTX_set_alpn_select_cb(ctx_s, select_ALPN, stripe);
+
+    /* setup ssls */
+    QuicTestContext_init(&tclient, ctx_c, "client", verbose);
+    QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+
+    /* set SNI and ALPN callbacks on server side,
+     * provide values on client side */
+    wolfSSL_UseSNI(tclient.ssl, WOLFSSL_SNI_HOST_NAME,
+                   "wolfssl.com", sizeof("wolfssl.com")-1);
+    /* connect */
+    QuicConversation_init(&conv, &tclient, &tserver);
+
+    strcpy((char*)(alpn_protos + 1), "test");
+    alpn_protos[0] = 4;
+    wolfSSL_set_alpn_protos(tclient.ssl, alpn_protos, 5);
+
+    QuicConversation_do(&conv);
+    AssertIntEQ(tclient.output.len, 0);
+    AssertIntEQ(tserver.output.len, 0);
+
+    /* SNI callback needs to be called before ALPN callback */
+    AssertStrEQ(stripe, "SA");
+
+    QuicTestContext_free(&tclient);
+    QuicTestContext_free(&tserver);
+
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+    printf("    test_quic_alpn: %s\n", (ret == 0)? passed : failed);
+
+    return ret;
+}
+#endif /* REALLY_HAVE_ALPN_AND_SNI */
+
+
 #ifdef HAVE_SESSION_TICKET
 
 static int test_quic_key_share(int verbose) {
@@ -1536,6 +1628,9 @@ int QuicTest(void)
     if ((ret = test_quic_crypt()) != 0) goto leave;
     if ((ret = test_quic_client_hello(verbose)) != 0) goto leave;
     if ((ret = test_quic_server_hello(verbose)) != 0) goto leave;
+#ifdef REALLY_HAVE_ALPN_AND_SNI
+    if ((ret = test_quic_alpn(verbose)) != 0) goto leave;
+#endif /* REALLY_HAVE_ALPN_AND_SNI */
 #ifdef HAVE_SESSION_TICKET
     if ((ret = test_quic_key_share(verbose)) != 0) goto leave;
     if ((ret = test_quic_resumption(verbose)) != 0) goto leave;

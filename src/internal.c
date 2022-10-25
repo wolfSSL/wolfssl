@@ -6829,7 +6829,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
 #ifdef HAVE_ALPN
-    ssl->alpn_client_list = NULL;
+    ssl->alpn_peer_requested = NULL;
+    ssl->alpn_peer_requested_length = 0;
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         ssl->alpnSelect    = ctx->alpnSelect;
         ssl->alpnSelectArg = ctx->alpnSelectArg;
@@ -7659,9 +7660,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     TLSX_FreeAll(ssl->extensions, ssl->heap);
 #endif /* !NO_TLS */
 #ifdef HAVE_ALPN
-    if (ssl->alpn_client_list != NULL) {
-        XFREE(ssl->alpn_client_list, ssl->heap, DYNAMIC_TYPE_ALPN);
-        ssl->alpn_client_list = NULL;
+    if (ssl->alpn_peer_requested != NULL) {
+        XFREE(ssl->alpn_peer_requested, ssl->heap, DYNAMIC_TYPE_ALPN);
+        ssl->alpn_peer_requested = NULL;
+        ssl->alpn_peer_requested_length = 0;
     }
 #endif
 #endif /* HAVE_TLS_EXTENSIONS */
@@ -33303,6 +33305,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
     #ifdef HAVE_SNI
                 if((ret=SNI_Callback(ssl)))
+                    goto out;
+    #endif
+    #ifdef HAVE_ALPN
+                if((ret=ALPN_Select(ssl)))
                     goto out;
     #endif
 

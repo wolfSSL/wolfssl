@@ -3108,22 +3108,37 @@ int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name, word16 *size)
 
 int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
 {
-    if (list == NULL || listSz == NULL)
+    int i, len;
+    char *p;
+    byte *s;
+
+    if (ssl == NULL || list == NULL || listSz == NULL)
         return BAD_FUNC_ARG;
 
-    if (ssl->alpn_client_list == NULL)
+    if (ssl->alpn_peer_requested == NULL
+        || ssl->alpn_peer_requested_length == 0)
         return BUFFER_ERROR;
 
-    *listSz = (word16)XSTRLEN(ssl->alpn_client_list);
-    if (*listSz == 0)
-        return BUFFER_ERROR;
-
-    *list = (char *)XMALLOC((*listSz)+1, ssl->heap, DYNAMIC_TYPE_TLSX);
-    if (*list == NULL)
+    /* ssl->alpn_peer_requested are the original bytes sent in a ClientHello,
+     * formatted as (len-byte chars+)+. To turn n protocols into a
+     * comma-separated C string, one needs (n-1) commas and a final 0 byte
+     * which has the same length as the original.
+     * The returned length is the strlen() of the C string, so -1 of that. */
+    *listSz = ssl->alpn_peer_requested_length-1;
+    *list = p = (char *)XMALLOC(ssl->alpn_peer_requested_length, ssl->heap,
+                                DYNAMIC_TYPE_TLSX);
+    if (p == NULL)
         return MEMORY_ERROR;
 
-    XSTRNCPY(*list, ssl->alpn_client_list, (*listSz)+1);
-    (*list)[*listSz] = 0;
+    for (i = 0, s = ssl->alpn_peer_requested, len = 0;
+         i < ssl->alpn_peer_requested_length;
+         p += len, i += len) {
+        if (i)
+            *p++ = ',';
+        len = s[i++];
+        XSTRNCPY(p, (char *)(s + i), len);
+    }
+    *p = 0;
 
     return WOLFSSL_SUCCESS;
 }
