@@ -2416,15 +2416,26 @@ L_AES_CBC_ARM32_tdp:
 	.type	AES_CBC_decrypt, %function
 AES_CBC_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ldr	r12, [sp, #36]
-	ldr	lr, [sp, #40]
-	push	{lr}
+	sub	sp, sp, #24
+	ldr	r12, [sp, #60]
+	ldr	lr, [sp, #64]
+	str	lr, [sp, #20]
+	str	r3, [sp]
 	mov	r8, r12
 	ldr	lr, L_AES_CBC_ARM32_tdp
+	str	lr, [sp, #4]
 	cmp	r8, #10
-	beq	L_AES_CBC_decrypt_start_block_128
+	beq	L_AES_CBC_decrypt_loop_block_128
 	cmp	r8, #12
-	beq	L_AES_CBC_decrypt_start_block_192
+	beq	L_AES_CBC_decrypt_loop_block_192
+L_AES_CBC_decrypt_loop_block_256:
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2437,9 +2448,20 @@ AES_CBC_decrypt:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #16]
+	str	r5, [r0, #20]
+#else
+	strd	r4, r5, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #24]
+	str	r7, [r0, #28]
+#else
+	strd	r6, r7, [r0, #24]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2451,14 +2473,20 @@ AES_CBC_decrypt:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_14
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	ldr	r11, [sp]
-	ldm	r11, {r8, r9, r10, r11}
+	ldr	r0, [sp, #20]
+	ldm	r0, {r8, r9, r10, r11}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2478,8 +2506,14 @@ AES_CBC_decrypt:
 	subs	r2, r2, #16
 	add	r0, r0, #16
 	add	r1, r1, #16
-	beq	L_AES_CBC_decrypt_end
-L_AES_CBC_decrypt_loop_block_256:
+	beq	L_AES_CBC_decrypt_end_odd
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2492,9 +2526,20 @@ L_AES_CBC_decrypt_loop_block_256:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0]
+	str	r5, [r0, #4]
+#else
+	strd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
+#else
+	strd	r6, r7, [r0, #8]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2506,24 +2551,31 @@ L_AES_CBC_decrypt_loop_block_256:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_14
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
+	ldr	r0, [sp, #20]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r0, #-16]
-	ldr	r9, [r0, #-12]
+	ldr	r8, [r0, #16]
+	ldr	r9, [r0, #20]
 #else
-	ldrd	r8, r9, [r0, #-16]
+	ldrd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r10, [r0, #-8]
-	ldr	r11, [r0, #-4]
+	ldr	r10, [r0, #24]
+	ldr	r11, [r0, #28]
 #else
-	ldrd	r10, r11, [r0, #-8]
+	ldrd	r10, r11, [r0, #24]
 #endif
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2545,7 +2597,14 @@ L_AES_CBC_decrypt_loop_block_256:
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_256
 	b	L_AES_CBC_decrypt_end
-L_AES_CBC_decrypt_start_block_192:
+L_AES_CBC_decrypt_loop_block_192:
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2558,9 +2617,20 @@ L_AES_CBC_decrypt_start_block_192:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #16]
+	str	r5, [r0, #20]
+#else
+	strd	r4, r5, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #24]
+	str	r7, [r0, #28]
+#else
+	strd	r6, r7, [r0, #24]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2572,14 +2642,20 @@ L_AES_CBC_decrypt_start_block_192:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_12
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	ldr	r11, [sp]
-	ldm	r11, {r8, r9, r10, r11}
+	ldr	r0, [sp, #20]
+	ldm	r0, {r8, r9, r10, r11}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2599,8 +2675,14 @@ L_AES_CBC_decrypt_start_block_192:
 	subs	r2, r2, #16
 	add	r0, r0, #16
 	add	r1, r1, #16
-	beq	L_AES_CBC_decrypt_end
-L_AES_CBC_decrypt_loop_block_192:
+	beq	L_AES_CBC_decrypt_end_odd
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2613,9 +2695,20 @@ L_AES_CBC_decrypt_loop_block_192:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0]
+	str	r5, [r0, #4]
+#else
+	strd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
+#else
+	strd	r6, r7, [r0, #8]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2627,24 +2720,31 @@ L_AES_CBC_decrypt_loop_block_192:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_12
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
+	ldr	r0, [sp, #20]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r0, #-16]
-	ldr	r9, [r0, #-12]
+	ldr	r8, [r0, #16]
+	ldr	r9, [r0, #20]
 #else
-	ldrd	r8, r9, [r0, #-16]
+	ldrd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r10, [r0, #-8]
-	ldr	r11, [r0, #-4]
+	ldr	r10, [r0, #24]
+	ldr	r11, [r0, #28]
 #else
-	ldrd	r10, r11, [r0, #-8]
+	ldrd	r10, r11, [r0, #24]
 #endif
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2666,7 +2766,14 @@ L_AES_CBC_decrypt_loop_block_192:
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_192
 	b	L_AES_CBC_decrypt_end
-L_AES_CBC_decrypt_start_block_128:
+L_AES_CBC_decrypt_loop_block_128:
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2679,9 +2786,20 @@ L_AES_CBC_decrypt_start_block_128:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0, #16]
+	str	r5, [r0, #20]
+#else
+	strd	r4, r5, [r0, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #24]
+	str	r7, [r0, #28]
+#else
+	strd	r6, r7, [r0, #24]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2693,14 +2811,20 @@ L_AES_CBC_decrypt_start_block_128:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_10
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
-	ldr	r11, [sp]
-	ldm	r11, {r8, r9, r10, r11}
+	ldr	r0, [sp, #20]
+	ldm	r0, {r8, r9, r10, r11}
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2720,8 +2844,14 @@ L_AES_CBC_decrypt_start_block_128:
 	subs	r2, r2, #16
 	add	r0, r0, #16
 	add	r1, r1, #16
-	beq	L_AES_CBC_decrypt_end
-L_AES_CBC_decrypt_loop_block_128:
+	beq	L_AES_CBC_decrypt_end_odd
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r0, [sp, #8]
+	str	r1, [sp, #12]
+#else
+	strd	r0, r1, [sp, #8]
+#endif
+	str	r2, [sp, #16]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0]
 	ldr	r5, [r0, #4]
@@ -2734,9 +2864,20 @@ L_AES_CBC_decrypt_loop_block_128:
 #else
 	ldrd	r6, r7, [r0, #8]
 #endif
-	push	{r0, r1, r2}
+	ldr	r0, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r4, [r0]
+	str	r5, [r0, #4]
+#else
+	strd	r4, r5, [r0]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
+#else
+	strd	r6, r7, [r0, #8]
+#endif
 	mov	r2, #0xff
-	push	{r3, lr}
 	ldm	r3!, {r8, r9, r10, r11}
 	rev	r4, r4
 	rev	r5, r5
@@ -2748,24 +2889,31 @@ L_AES_CBC_decrypt_loop_block_128:
 	eor	r6, r6, r10
 	eor	r7, r7, r11
 	bl	L_AES_decrypt_block_10
-	pop	{r3, lr}
-	pop	{r0, r1, r2}
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
+	ldr	r0, [sp, #20]
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r0, #-16]
-	ldr	r9, [r0, #-12]
+	ldr	r8, [r0, #16]
+	ldr	r9, [r0, #20]
 #else
-	ldrd	r8, r9, [r0, #-16]
+	ldrd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r10, [r0, #-8]
-	ldr	r11, [r0, #-4]
+	ldr	r10, [r0, #24]
+	ldr	r11, [r0, #28]
 #else
-	ldrd	r10, r11, [r0, #-8]
+	ldrd	r10, r11, [r0, #24]
 #endif
+	ldr	r3, [sp]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r0, [sp, #8]
+	ldr	r1, [sp, #12]
+#else
+	ldrd	r0, r1, [sp, #8]
+#endif
+	ldr	r2, [sp, #16]
 	eor	r4, r4, r8
 	eor	r5, r5, r9
 	eor	r6, r6, r10
@@ -2786,21 +2934,36 @@ L_AES_CBC_decrypt_loop_block_128:
 	add	r0, r0, #16
 	add	r1, r1, #16
 	bne	L_AES_CBC_decrypt_loop_block_128
+	b	L_AES_CBC_decrypt_end
+L_AES_CBC_decrypt_end_odd:
+	ldr	lr, [sp, #20]
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r8, [lr, #16]
+	ldr	r9, [lr, #20]
+#else
+	ldrd	r8, r9, [lr, #16]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	ldr	r10, [lr, #24]
+	ldr	r11, [lr, #28]
+#else
+	ldrd	r10, r11, [lr, #24]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r8, [lr]
+	str	r9, [lr, #4]
+#else
+	strd	r8, r9, [lr]
+#endif
+#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
+	str	r10, [lr, #8]
+	str	r11, [lr, #12]
+#else
+	strd	r10, r11, [lr, #8]
+#endif
 L_AES_CBC_decrypt_end:
-	pop	{lr}
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r0, #-16]
-	ldr	r9, [r0, #-12]
-#else
-	ldrd	r8, r9, [r0, #-16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r10, [r0, #-8]
-	ldr	r11, [r0, #-4]
-#else
-	ldrd	r10, r11, [r0, #-8]
-#endif
-	stm	lr, {r8, r9, r10, r11}
+	ldr	lr, [sp, #4]
+	add	sp, sp, #24
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_CBC */
