@@ -33,11 +33,12 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
-#ifdef HAVE_FIPS
-#undef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
+#define FIPS_NO_WRAPPERS
 #endif
+
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
