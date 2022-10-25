@@ -31406,11 +31406,13 @@ static int test_wolfSSL_X509_subject_name_hash(void)
     ret1 = X509_subject_name_hash(x509);
     AssertIntNE(ret1, 0);
 
+#if !defined(NO_SHA)
     ret2 = X509_NAME_hash(X509_get_subject_name(x509));
     AssertIntNE(ret2, 0);
 
-#if !defined(NO_SHA)
     AssertIntEQ(ret1, ret2);
+#else
+    (void) ret2;
 #endif
 
     X509_free(x509);
@@ -31443,11 +31445,13 @@ static int test_wolfSSL_X509_issuer_name_hash(void)
     ret1 = X509_issuer_name_hash(x509);
     AssertIntNE(ret1, 0);
 
+#if !defined(NO_SHA)
     ret2 = X509_NAME_hash(X509_get_issuer_name(x509));
     AssertIntNE(ret2, 0);
 
-#if !defined(NO_SHA)
     AssertIntEQ(ret1, ret2);
+#else
+    (void) ret2;
 #endif
 
     X509_free(x509);
