@@ -363,7 +363,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 
         /* Replace existing certificate entry with updated */
         newSingle->status->next = status->next;
-        XMEMCPY(status, newSingle->status, sizeof(CertStatus));
+        XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
     }
     else {
         /* Save new certificate entry */
