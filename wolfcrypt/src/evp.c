@@ -6913,7 +6913,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_nid");
         if (ctx == NULL) {
-            WOLFSSL_MSG("Bad parameters");
+            WOLFSSL_ERROR_MSG("Bad parameters");
             return NID_undef;
         }
 
@@ -6982,7 +6982,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 #endif
 
             case NULL_CIPHER_TYPE :
-                WOLFSSL_MSG("Null cipher has no NID");
+                WOLFSSL_ERROR_MSG("Null cipher has no NID");
                 FALL_THROUGH;
             default:
                 return NID_undef;
