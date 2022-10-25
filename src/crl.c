@@ -99,7 +99,17 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     crle->lastDateFormat = dcrl->lastDateFormat;
     crle->nextDateFormat = dcrl->nextDateFormat;
     crle->version = dcrl->version;
+
 #if defined(OPENSSL_EXTRA)
+    crle->lastDateAsn1.length = MAX_DATE_SIZE;
+    XMEMCPY (crle->lastDateAsn1.data, crle->lastDate,
+             crle->lastDateAsn1.length);
+    crle->lastDateAsn1.type = crle->lastDateFormat;
+    crle->nextDateAsn1.length = MAX_DATE_SIZE;
+    XMEMCPY (crle->nextDateAsn1.data, crle->nextDate,
+             crle->nextDateAsn1.length);
+    crle->nextDateAsn1.type = crle->nextDateFormat;
+
     crle->issuer = NULL;
     wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
                           dcrl->issuerSz);
@@ -695,6 +705,17 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     XMEMCPY(dupl->nextDate, ent->nextDate, MAX_DATE_SIZE);
     dupl->lastDateFormat = ent->lastDateFormat;
     dupl->nextDateFormat = ent->nextDateFormat;
+
+#if defined(OPENSSL_EXTRA)
+    dupl->lastDateAsn1.length = MAX_DATE_SIZE;
+    XMEMCPY (dupl->lastDateAsn1.data, dupl->lastDate,
+             dupl->lastDateAsn1.length);
+    dupl->lastDateAsn1.type = dupl->lastDateFormat;
+    dupl->nextDateAsn1.length = MAX_DATE_SIZE;
+    XMEMCPY (dupl->nextDateAsn1.data, dupl->nextDate,
+             dupl->nextDateAsn1.length);
+    dupl->nextDateAsn1.type = dupl->nextDateFormat;
+#endif
 
 #ifdef CRL_STATIC_REVOKED_LIST
     XMEMCPY(dupl->certs, ent->certs, ent->totalCerts*sizeof(RevokedCert));

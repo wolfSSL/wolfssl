@@ -48439,6 +48439,73 @@ static int test_wolfSSL_i2d_OCSP_CERTID(void)
     return 0;
 }
 
+static int test_wolfSSL_d2i_OCSP_CERTID(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP)
+    WOLFSSL_OCSP_CERTID* certId;
+    WOLFSSL_OCSP_CERTID* certIdBad;
+    const unsigned char* rawCertIdPtr;
+
+    const unsigned char rawCertId[] = {
+        0x30, 0x49, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05,
+        0x00, 0x04, 0x14, 0x80, 0x51, 0x06, 0x01, 0x32, 0xad, 0x9a, 0xc2, 0x7d,
+        0x51, 0x87, 0xa0, 0xe8, 0x87, 0xfb, 0x01, 0x62, 0x01, 0x55, 0xee, 0x04,
+        0x14, 0x03, 0xde, 0x50, 0x35, 0x56, 0xd1, 0x4c, 0xbb, 0x66, 0xf0, 0xa3,
+        0xe2, 0x1b, 0x1b, 0xc3, 0x97, 0xb2, 0x3d, 0xd1, 0x55, 0x02, 0x10, 0x01,
+        0xfd, 0xa3, 0xeb, 0x6e, 0xca, 0x75, 0xc8, 0x88, 0x43, 0x8b, 0x72, 0x4b,
+        0xcf, 0xbc, 0x91
+    };
+
+    rawCertIdPtr = &rawCertId[0];
+
+    printf(testingFmt, "wolfSSL_d2i_OCSP_CERTID()");
+
+    /* If the cert ID is NULL the function should allocate it and copy the
+     * data to it. */
+    certId = NULL;
+    certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, sizeof(rawCertId));
+
+    AssertNotNull(certId);
+    AssertIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
+
+    XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    /* If the cert ID is not NULL the function will just copy the data to it. */
+    certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*certId), NULL,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMSET(certId, 0, sizeof(*certId));
+
+    /* Reset rawCertIdPtr since it was push forward in the previous call. */
+    rawCertIdPtr = &rawCertId[0];
+    certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, sizeof(rawCertId));
+
+    AssertNotNull(certId);
+    AssertIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
+
+    XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* The below tests should fail when passed bad parameters. NULL should
+     * always be returned. */
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr, sizeof(rawCertId));
+    AssertNull(certIdBad);
+
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL, sizeof(rawCertId));
+    AssertNull(certIdBad);
+
+    certIdBad = (WOLFSSL_OCSP_CERTID*) 1;
+    certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0);
+    AssertNull(certIdBad);
+
+    printf(resultFmt, passed);
+#endif
+
+    return 0;
+}
+
 static int test_wolfSSL_OCSP_id_cmp(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
@@ -59896,6 +59963,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_i2d_PrivateKey),
     TEST_DECL(test_wolfSSL_OCSP_id_get0_info),
     TEST_DECL(test_wolfSSL_i2d_OCSP_CERTID),
+    TEST_DECL(test_wolfSSL_d2i_OCSP_CERTID),
     TEST_DECL(test_wolfSSL_OCSP_id_cmp),
     TEST_DECL(test_wolfSSL_OCSP_SINGLERESP_get0_id),
     TEST_DECL(test_wolfSSL_OCSP_single_get0_status),

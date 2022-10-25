@@ -2901,6 +2901,13 @@ WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 #endif
 
+WOLFSSL_API
+const WOLFSSL_ASN1_INTEGER* wolfSSL_X509_REVOKED_get0_serial_number(const
+                                                     WOLFSSL_X509_REVOKED *rev);
+WOLFSSL_API
+const WOLFSSL_ASN1_TIME* wolfSSL_X509_REVOKED_get0_revocation_date(const
+                                                     WOLFSSL_X509_REVOKED *rev);
+
 #ifndef NO_FILESYSTEM
     #ifndef NO_STDIO_FILESYSTEM
     WOLFSSL_API WOLFSSL_X509*

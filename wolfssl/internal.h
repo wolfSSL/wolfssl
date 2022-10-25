@@ -2217,13 +2217,17 @@ struct CRL_Entry {
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* last date format */
     byte    nextDateFormat;          /* next date format */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_ASN1_TIME lastDateAsn1;  /* last date updated  */
+    WOLFSSL_ASN1_TIME nextDateAsn1;  /* next update date   */
+#endif
 #ifdef CRL_STATIC_REVOKED_LIST
     RevokedCert certs[CRL_MAX_REVOKED_CERTS];
 #else
-    RevokedCert* certs;              /* revoked cert list  */
+    RevokedCert* certs;             /* revoked cert list  */
 #endif
-    int          totalCerts;         /* number on list     */
-    int     version;                 /* version of certficate */
+    int     totalCerts;             /* number on list     */
+    int     version;                /* version of certficate */
     int     verified;
     byte*   toBeSigned;
     word32  tbsSz;
