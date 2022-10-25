@@ -19523,8 +19523,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
 #endif /* NO_DES3 */
 
 #if !defined(NO_AES) && !defined(WOLFCRYPT_ONLY)
-    if (openssl_aes_test() != 0) {
-        return -8616;
+    if ((ret = openssl_aes_test()) != 0) {
+        return ret;
     }
 #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
     {   /* evp_cipher test: EVP_aes_128_cbc */
