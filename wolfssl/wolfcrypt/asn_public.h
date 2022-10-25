@@ -238,7 +238,7 @@ enum Ctc_Misc {
      * We support only hash */
     CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_CERTPOL_SZ = 64,
+    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
     CTC_MAX_CRLINFO_SZ = 200, /* Arbitrary size that should be enough for at
                                * least two distribution points. */
