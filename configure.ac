@@ -2191,7 +2191,7 @@ then
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-	    ENABLED_AESGCM_STREAM=no # not yet implemented
+            ENABLED_AESGCM_STREAM=no # not yet implemented
             AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
             ;;
         *)

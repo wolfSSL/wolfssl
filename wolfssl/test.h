@@ -1585,7 +1585,8 @@ static int wolfsentry_setup(
 
 #if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
     if (_wolfsentry_config_path != NULL) {
-        char buf[512], err_buf[512];
+        unsigned char buf[512];
+        char err_buf[512];
         struct wolfsentry_json_process_state *jps;
 
         FILE *f = fopen(_wolfsentry_config_path, "r");
