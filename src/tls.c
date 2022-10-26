@@ -1648,7 +1648,7 @@ int ALPN_Select(WOLFSSL *ssl)
         if (ssl->alpnSelect(ssl, &sel, &sel_len, ssl->alpn_peer_requested,
                             ssl->alpn_peer_requested_length,
                             ssl->alpnSelectArg) == 0) {
-            WOLFSSL_MSG_EX("ALPN protocol match");
+            WOLFSSL_MSG("ALPN protocol match");
         }
         else {
             sel = NULL;
