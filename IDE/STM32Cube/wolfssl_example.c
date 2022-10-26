@@ -46,6 +46,16 @@
  * Configuration
  ****************************************************************************/
 
+
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(SINGLE_THREADED)
+    #define ENABLE_TLS_BENCH
+#endif
+
+#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_TLS13) && !defined(NO_TLS_UART_TEST)
+    #define ENABLE_TLS_UART
+#endif
+
 /* Defaults for configuration parameters */
 #define BENCH_DEFAULT_HOST   "localhost"
 #define BENCH_DEFAULT_PORT   11112
@@ -124,17 +134,21 @@ typedef struct func_args {
 const char menu1[] = "\n"
         "\tt. wolfCrypt Test\n"
         "\tb. wolfCrypt Benchmark\n"
+    #ifdef ENABLE_TLS_BENCH
         "\tl. wolfSSL TLS Bench\n"
+    #endif
         "\te. Show Cipher List\n"
+    #ifdef ENABLE_TLS_UART
         "\ts. Run TLS 1.3 Server over UART\n"
-        "\tc. Run TLS 1.3 Client over UART\n";
+        "\tc. Run TLS 1.3 Client over UART\n"
+    #endif
+    ;
 
 static void PrintMemStats(void);
 double current_time(void);
 
 
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY) && !defined(SINGLE_THREADED)
+#ifdef ENABLE_TLS_BENCH
 
 static const char* kShutdown = "shutdown";
 
@@ -350,8 +364,10 @@ static void PrintTlsStats(stats_t* wcStat, const char* desc, const char* cipher,
            wcStat->connTime * 1000,
            wcStat->connTime * 1000 / wcStat->connCount);
 }
+#endif /* ENABLE_TLS_BENCH */
 
 
+#if defined(ENABLE_TLS_BENCH) || defined(ENABLE_TLS_UART)
 #if defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT)
 static const char* client_showx509_msg[] = {
     "issuer",
@@ -426,7 +442,7 @@ static void ShowX509(WOLFSSL_X509* x509, const char* hdr)
     }
 #endif /* OPENSSL_EXTRA */
 }
-#endif
+#endif /* KEEP_PEER_CERT || KEEP_OUR_CERT */
 
 
 static const char* client_showpeer_msg[] = {
@@ -484,8 +500,9 @@ static void ShowPeer(WOLFSSL* ssl)
 
   (void)ssl;
 }
+#endif /* ENABLE_TLS_BENCH || ENABLE_TLS_UART */
 
-
+#ifdef ENABLE_TLS_BENCH
 
 /* server send callback */
 static int ServerMemSend(info_t* info, char* buf, int sz)
@@ -722,7 +739,7 @@ static int bench_tls_client(info_t* info)
 #ifdef WOLFSSL_TLS13
     if (tls13) {
 	#ifdef WOLFSSL_STATIC_MEMORY
-    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_3_client_method_ex, 
+    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_3_client_method_ex,
             gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
 	#else
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
@@ -732,14 +749,14 @@ static int bench_tls_client(info_t* info)
     if (!tls13) {
 #if !defined(WOLFSSL_TLS13)
 	#ifdef WOLFSSL_STATIC_MEMORY
-    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfSSLv23_client_method_ex, 
+    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfSSLv23_client_method_ex,
             gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
 	#else
         cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 	#endif
 #elif !defined(WOLFSSL_NO_TLS12)
 	#ifdef WOLFSSL_STATIC_MEMORY
-        ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_2_client_method_ex, 
+        ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_2_client_method_ex,
             gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
 	#else
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -753,7 +770,7 @@ static int bench_tls_client(info_t* info)
     }
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    ret = wolfSSL_CTX_load_static_memory(&cli_ctx, 0, gWolfIOCli, sizeof(gWolfIOCli), 
+    ret = wolfSSL_CTX_load_static_memory(&cli_ctx, 0, gWolfIOCli, sizeof(gWolfIOCli),
         WOLFMEM_IO_POOL, 10 );
 #endif
 
@@ -998,7 +1015,7 @@ static int bench_tls_server(info_t* info)
 #ifdef WOLFSSL_TLS13
     if (tls13) {
 	#ifdef WOLFSSL_STATIC_MEMORY
-    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_3_server_method_ex, 
+    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_3_server_method_ex,
             gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
 	#else
     	srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
@@ -1008,14 +1025,14 @@ static int bench_tls_server(info_t* info)
     if (!tls13) {
 #if !defined(WOLFSSL_TLS13)
 	#ifdef WOLFSSL_STATIC_MEMORY
-    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfSSLv23_server_method_ex, 
+    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfSSLv23_server_method_ex,
             gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
 	#else
     	srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
 	#endif
 #elif !defined(WOLFSSL_NO_TLS12)
 	#ifdef WOLFSSL_STATIC_MEMORY
-        ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_2_server_method_ex, 
+        ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_2_server_method_ex,
             gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
 	#else
         srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
@@ -1029,7 +1046,7 @@ static int bench_tls_server(info_t* info)
     }
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    ret = wolfSSL_CTX_load_static_memory(&srv_ctx, 0, gWolfIOSrv, sizeof(gWolfIOSrv), 
+    ret = wolfSSL_CTX_load_static_memory(&srv_ctx, 0, gWolfIOSrv, sizeof(gWolfIOSrv),
         WOLFMEM_IO_POOL, 10 );
 #endif
 
@@ -1444,7 +1461,8 @@ exit:
 
     return ret;
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY && !SINGLE_THREADED */
+#endif /* ENABLE_TLS_BENCH */
+
 
 #ifndef WOLFCRYPT_ONLY
 static void ShowCiphers(void)
@@ -1471,7 +1489,9 @@ static void PrintMemStats(void)
 #endif
 }
 
-#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_TLS13) && !defined(NO_TLS_UART_TEST)
+
+#ifdef ENABLE_TLS_UART
+
 /* UART DMA IO Routines */
 #ifndef B115200
 #define B115200 115200
@@ -1493,6 +1513,8 @@ typedef struct {
 #ifndef TLS_UART
 #define TLS_UART huart2
 #endif
+/* If you get an undefined error here you can optionally disable the TLS
+ * over UART test using NO_TLS_UART_TEST */
 extern UART_HandleTypeDef TLS_UART;
 
 static int msg_length = 0;
@@ -1524,11 +1546,15 @@ static int uartIORx(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     msg_length = 0;
     XMEMSET(tb, 0, sizeof(*tb));
 
-    /* Now setup the DMA RX. */
+    /* Now setup the DMA RX */
+    /* This requires enabling the UART RX DMA in the STM32Cube tool
+     * Under Connectivity click on your TLS UART (USART2) and goto DMA Settings
+     * and Add one for USART2_RX with default options */
     status = HAL_UARTEx_ReceiveToIdle_DMA(&TLS_UART, (uint8_t *)tb->buf, MAX_RECORD_SIZE);
     if (status != HAL_OK) {
         return WOLFSSL_CBIO_ERR_WANT_READ;
-    } else {
+    }
+    else {
         /* We now go into an infinite loop waiting for msg_length to be set to a
          * value other than 0. This will be done when the other side writes to
          * UART and then idles. That will trigger HAL_UARTEx_RxEventCallback()
@@ -1536,7 +1562,7 @@ static int uartIORx(WOLFSSL *ssl, char *buf, int sz, void *ctx)
          *
          * If you mistakenly get stuck here, please simply reset the board.
          */
-        while(msg_length == 0) {
+        while (msg_length == 0) {
             HAL_Delay(10);
         }
 #ifdef DEBUG_UART_IO
@@ -1578,6 +1604,11 @@ static int uartIOTx(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     return ret;
 }
 
+static void uartReset(void)
+{
+    HAL_UART_Abort_IT(&TLS_UART);
+}
+
 /* UART TLS 1.3 client and server */
 #ifndef NO_WOLFSSL_SERVER
 static int tls13_uart_server(void)
@@ -1587,8 +1618,8 @@ static int tls13_uart_server(void)
     WOLFSSL* ssl = NULL;
     byte echoBuffer[100];
 #ifdef WOLFSSL_SMALL_STACK
-    tls13_buf *tbuf = (tls13_buf *) XMALLOC(sizeof(*tbuf), NULL,
-                                            DYNAMIC_TYPE_TMP_BUFFER);
+    tls13_buf* tbuf = (tls13_buf*)XMALLOC(sizeof(*tbuf), NULL,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
     if (tbuf == NULL) {
         printf("Memory allocation error\n");
         goto done;
@@ -1597,7 +1628,7 @@ static int tls13_uart_server(void)
     tls13_buf tbuf[1];
 #endif
 
-    XMEMSET(tbuf, 0, sizeof(*tbuf));
+    XMEMSET(tbuf, 0, sizeof(tls13_buf));
 
     ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
     if (ctx == NULL) {
@@ -1606,6 +1637,7 @@ static int tls13_uart_server(void)
     }
 
     /* Register wolfSSL send/recv callbacks */
+    uartReset();
     wolfSSL_CTX_SetIOSend(ctx, uartIOTx);
     wolfSSL_CTX_SetIORecv(ctx, uartIORx);
 
@@ -1677,7 +1709,7 @@ done:
 }
 #endif
 
-#ifndef NO_WOLFSSL_CLIENT
+#ifdef ENABLE_TLS_UART
 static int tls13_uart_client(void)
 {
     int ret = -1, err;
@@ -1686,7 +1718,7 @@ static int tls13_uart_client(void)
     const char testStr[] = "Testing 1, 2 and 3\r\n";
     byte readBuf[100];
 #ifdef WOLFSSL_SMALL_STACK
-    tls13_buf *tbuf = (tls13_buf *) XMALLOC(sizeof(*tbuf), NULL,
+    tls13_buf* tbuf = (tls13_buf*)XMALLOC(sizeof(*tbuf), NULL,
                                             DYNAMIC_TYPE_TMP_BUFFER);
     if (tbuf == NULL) {
         printf("Memory allocation error\n");
@@ -1696,7 +1728,7 @@ static int tls13_uart_client(void)
     tls13_buf tbuf[1];
 #endif
 
-    XMEMSET(tbuf, 0, sizeof(*tbuf));
+    XMEMSET(tbuf, 0, sizeof(tls13_buf));
 
     ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     if (ctx == NULL) {
@@ -1705,6 +1737,7 @@ static int tls13_uart_client(void)
     }
 
     /* Register wolfSSL send/recv callbacks */
+    uartReset();
     wolfSSL_CTX_SetIOSend(ctx, uartIOTx);
     wolfSSL_CTX_SetIORecv(ctx, uartIORx);
 
@@ -1733,6 +1766,8 @@ static int tls13_uart_client(void)
         printf("TLS connect error %d\n", err);
         goto done;
     }
+
+    ShowPeer(ssl);
 
     printf("TLS Connect handshake done\n");
     printf("Sending test string\n");
@@ -1768,7 +1803,9 @@ done:
     return ret;
 }
 #endif
-#endif /* !WOLFCRYPT_ONLY && WOLFSSL_TLS13 && !NO_TLS_UART_TEST */
+#endif /* ENABLE_TLS_UART */
+
+
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
@@ -1806,7 +1843,7 @@ void wolfCryptDemo(const void* argument)
 	uint8_t buffer[2];
 	func_args args;
 
-#ifdef DEBUG_WOLFSSL
+#if 0
     wolfSSL_Debugging_ON();
 #endif
 
@@ -1818,7 +1855,7 @@ void wolfCryptDemo(const void* argument)
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    if (wc_LoadStaticMemory(&HEAP_HINT, gWolfMem, sizeof(gWolfMem), 
+    if (wc_LoadStaticMemory(&HEAP_HINT, gWolfMem, sizeof(gWolfMem),
             WOLFMEM_GENERAL, 10) != 0) {
     	printf("unable to load static memory");
     }
@@ -1863,7 +1900,7 @@ void wolfCryptDemo(const void* argument)
 
         case 'l':
             printf("Running TLS Benchmarks...\n");
-        #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY) && !defined(SINGLE_THREADED)
+        #ifdef ENABLE_TLS_BENCH
             bench_tls(&args);
         #else
             args.return_code = NOT_COMPILED_IN;
@@ -1878,9 +1915,9 @@ void wolfCryptDemo(const void* argument)
             printf("Not compiled in\n");
         #endif
             break;
-#if !defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_TLS13) && !defined(NO_TLS_UART_TEST)
+#ifdef ENABLE_TLS_UART
         case 's':
-        #if !defined(NO_WOLFSSL_SERVER)
+        #ifndef NO_WOLFSSL_SERVER
             printf("Running TLS 1.3 server...\n");
             args.return_code = tls13_uart_server();
         #else
@@ -1890,7 +1927,7 @@ void wolfCryptDemo(const void* argument)
             break;
 
         case 'c':
-        #if !defined(NO_WOLFSSL_CLIENT)
+        #ifndef NO_WOLFSSL_CLIENT
             printf("Running TLS 1.3 client...\n");
             args.return_code = tls13_uart_client();
         #else
@@ -1898,8 +1935,8 @@ void wolfCryptDemo(const void* argument)
         #endif
             printf("TLS 1.3 Client: Return code %d\n", args.return_code);
             break;
-#endif
-			// All other cases go here
+#endif /* ENABLE_TLS_UART */
+			/* All other cases go here */
 		default:
 			printf("\nSelection out of range\n");
 			break;

@@ -10797,7 +10797,9 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
     int  result = 0;
     int ret;
 #ifdef WOLFSSL_AES_256
+	#if !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
     int  alen;
+	#endif
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     int  plen;
     #endif

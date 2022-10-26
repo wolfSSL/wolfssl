@@ -29,8 +29,8 @@
 [/#list]
 [/#if]
 
-[#-- SWIPdatas is a list of SWIPconfigModel --]  
-[#list SWIPdatas as SWIP]  
+[#-- SWIPdatas is a list of SWIPconfigModel --]
+[#list SWIPdatas as SWIP]
 [#-- Global variables --]
 [#if SWIP.variables??]
 	[#list SWIP.variables as variable]
@@ -40,9 +40,9 @@ extern ${variable.value} ${variable.name};
 
 [#-- Global variables --]
 
-[#assign instName = SWIP.ipName]   
-[#assign fileName = SWIP.fileName]   
-[#assign version = SWIP.version]   
+[#assign instName = SWIP.ipName]
+[#assign fileName = SWIP.fileName]
+[#assign version = SWIP.version]
 
 /**
 	MiddleWare name : ${instName}
@@ -50,9 +50,9 @@ extern ${variable.value} ${variable.name};
 	MiddleWare version : ${version}
 */
 [#if SWIP.defines??]
-	[#list SWIP.defines as definition]	
+	[#list SWIP.defines as definition]
 /*---------- [#if definition.comments??]${definition.comments}[/#if] -----------*/
-#define ${definition.name} #t#t ${definition.value} 
+#define ${definition.name} #t#t ${definition.value}
 [#if definition.description??]${definition.description} [/#if]
 	[/#list]
 [/#if]
@@ -87,7 +87,12 @@ extern ${variable.value} ${variable.name};
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
     #define HAL_CONSOLE_UART huart2
-    #define STM32_AESGCM_PARTIAL /* allow partial blocks and add auth info (header) */
+#elif defined(STM32F756xx)
+    #define WOLFSSL_STM32F7
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define STM32_HAL_V2
+    #define HAL_CONSOLE_UART huart3
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
@@ -144,7 +149,7 @@ extern ${variable.value} ${variable.name};
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
     /* You need to define a CPU type, HW crypto and debug UART */
-    /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4, 
+    /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
         WOLFSSL_STM32G0, WOLFSSL_STM32WB and WOLFSSL_STM32U5 */
     #define WOLFSSL_STM32F4
