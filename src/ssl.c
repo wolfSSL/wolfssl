@@ -3130,13 +3130,20 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
     if (p == NULL)
         return MEMORY_ERROR;
 
-    for (i = 0, s = ssl->alpn_peer_requested, len = 0;
+    for (i = 0, s = ssl->alpn_peer_requested;
          i < ssl->alpn_peer_requested_length;
-         p += len, i += len) {
+         p += len, i += len)
+    {
         if (i)
             *p++ = ',';
         len = s[i++];
-        XSTRNCPY(p, (char *)(s + i), len);
+        /* guard against bad length bytes. */
+        if (i + len > ssl->alpn_peer_requested_length) {
+            XFREE(*list, ssl->heap, DYNAMIC_TYPE_TLSX);
+            *list = NULL;
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(p, s + i, len);
     }
     *p = 0;
 

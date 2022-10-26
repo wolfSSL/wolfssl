@@ -1594,11 +1594,15 @@ static int ALPN_find_match(WOLFSSL *ssl, TLSX **pextension,
                               TLSX_APPLICATION_LAYER_PROTOCOL);
 
     /* No ALPN configured here */
-    if (extension == NULL || extension->data == NULL)
+    if (extension == NULL || extension->data == NULL) {
+        *pextension = NULL;
+        *psel = NULL;
+        *psel_len = 0;
         return 0;
+    }
 
     list = (ALPN*)extension->data;
-    for (s = alpn_val, wlen = 0;
+    for (s = alpn_val;
          (s - alpn_val) < alpn_val_len;
          s += wlen) {
         wlen = *s++; /* bounds already checked on save */
@@ -1687,7 +1691,6 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
 {
     word16  size = 0, offset = 0, wlen;
     int     r = BUFFER_ERROR;
-    TLSX    *extension;
     const byte *s;
 
     if (OPAQUE16_LEN > length)
@@ -1701,7 +1704,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         return BUFFER_ERROR;
 
     /* validating length of entries before accepting */
-    for (s = input + offset, wlen = 0; (s - input) < size; s += wlen) {
+    for (s = input + offset; (s - input) < size; s += wlen) {
         wlen = *s++;
         if (wlen == 0 || (s + wlen - input) > length)
             return BUFFER_ERROR;
@@ -1726,6 +1729,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
         /* a response, we should find the value in our config */
         const byte *sel = NULL;
         byte sel_len = 0;
+        TLSX *extension = NULL;
 
         r = ALPN_find_match(ssl, &extension, &sel, &sel_len, input + offset, size);
         if (r != 0)

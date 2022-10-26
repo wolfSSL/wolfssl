@@ -1186,13 +1186,17 @@ static int test_quic_server_hello(int verbose) {
 #endif
 
 #ifdef REALLY_HAVE_ALPN_AND_SNI
+struct stripe_buffer {
+    char stripe[256];
+};
+
 static int inspect_SNI(WOLFSSL *ssl, int *ad, void *baton)
 {
-    char *stripe = baton;
+    struct stripe_buffer *stripe = (struct stripe_buffer *)baton;
 
     (void)ssl;
     *ad = 0;
-    strcat(stripe, "S");
+    XSTRLCAT(stripe->stripe, "S", sizeof(stripe->stripe));
     return 0;
 }
 
@@ -1203,14 +1207,14 @@ static int select_ALPN(WOLFSSL *ssl,
             unsigned int inlen,
             void *baton)
 {
-    char *stripe = baton;
+    struct stripe_buffer *stripe = (struct stripe_buffer *)baton;
 
     (void)ssl;
     (void)inlen;
     /* just select the first */
     *out = in + 1;
     *outlen = in[0];
-    strcat(stripe, "A");
+    XSTRLCAT(stripe->stripe, "A", sizeof(stripe->stripe));
     return 0;
 }
 
@@ -1219,7 +1223,7 @@ static int test_quic_alpn(int verbose) {
     int ret = 0;
     QuicTestContext tclient, tserver;
     QuicConversation conv;
-    char stripe[256];
+    struct stripe_buffer stripe;
     unsigned char alpn_protos[256];
 
     AssertNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1227,10 +1231,10 @@ static int test_quic_alpn(int verbose) {
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
 
-    stripe[0] = '\0';
+    stripe.stripe[0] = '\0';
     wolfSSL_CTX_set_servername_callback(ctx_s, inspect_SNI);
-    wolfSSL_CTX_set_servername_arg(ctx_s, stripe);
-    wolfSSL_CTX_set_alpn_select_cb(ctx_s, select_ALPN, stripe);
+    wolfSSL_CTX_set_servername_arg(ctx_s, &stripe);
+    wolfSSL_CTX_set_alpn_select_cb(ctx_s, select_ALPN, &stripe);
 
     /* setup ssls */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
@@ -1243,16 +1247,16 @@ static int test_quic_alpn(int verbose) {
     /* connect */
     QuicConversation_init(&conv, &tclient, &tserver);
 
-    strcpy((char*)(alpn_protos + 1), "test");
-    alpn_protos[0] = 4;
-    wolfSSL_set_alpn_protos(tclient.ssl, alpn_protos, 5);
+    XSTRLCPY((char*)(alpn_protos + 1), "test", sizeof(alpn_protos));
+    alpn_protos[0] = strlen("test");
+    wolfSSL_set_alpn_protos(tclient.ssl, alpn_protos, 1 + strlen("test"));
 
     QuicConversation_do(&conv);
     AssertIntEQ(tclient.output.len, 0);
     AssertIntEQ(tserver.output.len, 0);
 
     /* SNI callback needs to be called before ALPN callback */
-    AssertStrEQ(stripe, "SA");
+    AssertStrEQ(stripe.stripe, "SA");
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
