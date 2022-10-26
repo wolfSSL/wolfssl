@@ -3533,6 +3533,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       return ECC_BAD_ARG_E;
    }
 
+#ifdef HAVE_ECC_CDH
+   if (mp_count_bits(modulus) > mp_count_bits(order)) {
+      if (mp_count_bits(k) > mp_count_bits(modulus)) {
+          return ECC_OUT_OF_RANGE_E;
+      }
+   }
+   else
+#endif
    /* k can't have more bits than order */
    if (mp_count_bits(k) > mp_count_bits(order)) {
       return ECC_OUT_OF_RANGE_E;
@@ -3579,13 +3587,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
       goto exit;
    }
-
-   /* k can't have more bits than order */
-   if (mp_count_bits(k) > mp_count_bits(order)) {
-      err = ECC_OUT_OF_RANGE_E;
-      goto exit;
-   }
-
 
 #ifdef ECC_TIMING_RESISTANT
    if ((err = mp_init(&t)) != MP_OKAY)
@@ -9716,14 +9717,16 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* SP 800-56Ar3, section 5.6.2.3.4, process step 2 */
     /* Qx must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
+        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT) {
             err = ECC_OUT_OF_RANGE_E;
+        }
     }
 
     /* Qy must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
+        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT) {
             err = ECC_OUT_OF_RANGE_E;
+        }
     }
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 3 */
