@@ -34226,7 +34226,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
                     XMEMSET(single->next->status, 0, sizeof(CertStatus));
 
                     /* Entry to be freed. */
-                    single->isDynamic = 1;
+                    single->next->isDynamic = 1;
                     /* used will be 0 (false) */
 
                     single = single->next;
