@@ -36,16 +36,21 @@ you will need to install %{name}-devel.
 %prep
 %setup -q
 
-%configure
-
-
 %build
+%configure @WOLFSSL_CONFIG_ARGS@
 %{__make} %{?_smp_mflags}
+if [ "@ENABLED_FIPS@" = "yes" ]
+then
+echo Updating wolfSSL FIPS hash
+./fips-hash.sh
+%{__make} %{?_smp_mflags}
+fi
 
 %install
 %{__rm} -rf %{buildroot}
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
 mkdir -p $RPM_BUILD_ROOT/
+%{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.la
 
 %check
 
@@ -73,10 +78,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 
-%{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.35
-%{_libdir}/libwolfssl.so.35.1.0
+%{_libdir}/libwolfssl.so.@WOLFSSL_LIBRARY_VERSION_FIRST@
+%{_libdir}/libwolfssl.so.@WOLFSSL_LIBRARY_VERSION_FIRST@.@WOLFSSL_LIBRARY_VERSION_SECOND@.@WOLFSSL_LIBRARY_VERSION_THIRD@
 
 %files devel
 %defattr(-,root,root,-)
@@ -306,7 +310,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
 %{_includedir}/wolfssl/wolfcrypt/siphash.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
+%if "@INCLUDE_SP_INT@" != "no"
 %{_includedir}/wolfssl/wolfcrypt/sp_int.h
+%endif
 %{_includedir}/wolfssl/wolfcrypt/srp.h
 %{_includedir}/wolfssl/wolfcrypt/tfm.h
 %{_includedir}/wolfssl/wolfcrypt/types.h
@@ -318,8 +324,13 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/wolfmath.h
 %{_includedir}/wolfssl/wolfio.h
 %{_libdir}/pkgconfig/wolfssl.pc
+%if "@ENABLED_FIPS@" != "no"
+%{_includedir}/wolfssl/wolfcrypt/fips.h
+%endif
 
 %changelog
+* Mon Oct 17 2022 Juliusz Sosinowicz <juliusz@wolfssl.com>
+- Updates for building FIPS packages and general maintenance
 * Tue Sep 27 2022 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add include of kyber headers
 * Tue Aug 30 2022 Jacob Barthelmeh <jacob@wolfssl.com>
