@@ -327,6 +327,8 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         goto end;
     }
     if (ocspRequest != NULL) {
+        /* Has the chance to bubble up response changing ocspResponse->single to
+           no longer be pointing at newSingle */
         ret = CompareOcspReqResp(ocspRequest, ocspResponse);
         if (ret != 0) {
             goto end;
@@ -361,14 +363,14 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 
         /* Replace existing certificate entry with updated */
         newSingle->status->next = status->next;
-        XMEMCPY(status, newSingle->status, sizeof(CertStatus));
+        XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
     }
     else {
         /* Save new certificate entry */
         status = (CertStatus*)XMALLOC(sizeof(CertStatus),
                                       ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
         if (status != NULL) {
-            XMEMCPY(status, newSingle->status, sizeof(CertStatus));
+            XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
             status->next  = entry->status;
             entry->status = status;
             entry->ownStatus = 1;
@@ -397,6 +399,7 @@ end:
         ret = OCSP_LOOKUP_FAIL;
     }
 
+    FreeOcspResponse(ocspResponse);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_OCSP_STATUS);
     XFREE(newSingle,    NULL, DYNAMIC_TYPE_OCSP_ENTRY);
