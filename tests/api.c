@@ -1724,7 +1724,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     /* check loading a response with multiple certs */
     {
         WOLFSSL_CERT_MANAGER* cm = NULL;
-        OcspEntry entry[1];
+        OcspEntry *entry;
         CertStatus status[1];
         OcspRequest* request;
 
@@ -1740,6 +1740,10 @@ static int test_wolfSSL_CheckOCSPResponse(void)
             0x47, 0xA5, 0x38, 0xD7, 0xB0, 0x04, 0x82, 0x3A,
             0x7E, 0x72, 0x15, 0x21
         };
+
+        entry = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
+             DYNAMIC_TYPE_OPENSSL);
+        AssertNotNull(entry);
 
         XMEMSET(entry, 0, sizeof(OcspEntry));
         XMEMSET(status, 0, sizeof(CertStatus));
@@ -1776,6 +1780,7 @@ static int test_wolfSSL_CheckOCSPResponse(void)
         AssertIntEQ(XMEMCMP(status->serial, entry->status->serial,
             status->serialSz), 0);
 
+        wolfSSL_OCSP_CERTID_free(entry);
         wolfSSL_OCSP_REQUEST_free(request);
         wolfSSL_CertManagerFree(cm);
     }

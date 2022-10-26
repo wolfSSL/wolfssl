@@ -312,6 +312,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         return MEMORY_E;
     }
 #endif
+    XMEMSET(ocspResponse, 0, sizeof(OcspResponse));
     InitOcspResponse(ocspResponse, newSingle, newStatus, response, responseSz,
                      ocsp->cm->heap);
 
@@ -399,6 +400,7 @@ end:
         ret = OCSP_LOOKUP_FAIL;
     }
 
+    FreeOcspResponse(ocspResponse);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_OCSP_STATUS);
     XFREE(newSingle,    NULL, DYNAMIC_TYPE_OCSP_ENTRY);

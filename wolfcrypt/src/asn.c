@@ -34675,11 +34675,14 @@ void InitOcspResponse(OcspResponse* resp, OcspEntry* single, CertStatus* status,
 void FreeOcspResponse(OcspResponse* resp)
 {
     OcspEntry *single, *next;
-    for (single = resp->single; single; single = next) {
-        next = single->next;
-        if (single->isDynamic) {
-            XFREE(single->status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            XFREE(single, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+
+    if (resp != NULL) {
+        for (single = resp->single; single; single = next) {
+            next = single->next;
+            if (single->isDynamic) {
+                XFREE(single->status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
+                XFREE(single, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+            }
         }
     }
 }
