@@ -28268,7 +28268,7 @@ static int pem_write_bio_pubkey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 
     ret = pem_write_pubkey(key, bio->heap, &derBuf, &derSz);
     if (ret == WOLFSSL_SUCCESS) {
-        ret = pem_write_bio_der(bio, derBuf, derSz, PUBLICKEY_TYPE);
+        ret = der_write_to_bio_as_pem(derBuf, derSz, bio, PUBLICKEY_TYPE);
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
     }
 
@@ -28350,7 +28350,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
             type = PRIVATEKEY_TYPE;
     }
 
-    return pem_write_bio_der(bio, keyDer, key->pkey_sz, type);
+    return der_write_to_bio_as_pem(keyDer, key->pkey_sz, bio, type);
 }
 #endif /* !NO_BIO */
 

@@ -27,7 +27,7 @@
 
 #if !defined(WOLFSSL_SSL_MISC_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning misc.c does not need to be compiled separately from ssl.c
+        #warning ssl_misc.c does not need to be compiled separately from ssl.c
     #endif
 #else
 
@@ -42,12 +42,12 @@
  *
  * Allocates a chunk and reads into it until it is full.
  *
- * @param [in, out] bio  BIO object to read with.
- * @param [out]     pem  Read data in a new buffer.
+ * @param [in, out] bio   BIO object to read with.
+ * @param [out]     data  Read data in a new buffer.
  * @return  Negative on error.
  * @return  Number of bytes read on success.
  */
-static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** pem)
+static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** data)
 {
     int ret = 0;
     char* mem;
@@ -110,20 +110,20 @@ static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** pem)
         }
     }
 
-    *pem = mem;
+    *data = mem;
     return ret;
 }
 #endif
 
 /* Read exactly the required amount into a newly allocated buffer.
  *
- * @param [in, out] bio  BIO object to read with.
- * @param [in       sz   Amount of data to read.
- * @param [out]     pem  Read data in a new buffer.
+ * @param [in, out] bio   BIO object to read with.
+ * @param [in       sz    Amount of data to read.
+ * @param [out]     data  Read data in a new buffer.
  * @return  Negative on error.
  * @return  Number of bytes read on success.
  */
-static int wolfssl_read_bio_len(WOLFSSL_BIO* bio, int sz, char** pem)
+static int wolfssl_read_bio_len(WOLFSSL_BIO* bio, int sz, char** data)
 {
     int ret = 0;
     char* mem;
@@ -141,27 +141,27 @@ static int wolfssl_read_bio_len(WOLFSSL_BIO* bio, int sz, char** pem)
         ret = MEMORY_E;
     }
 
-    *pem = mem;
+    *data = mem;
     return ret;
 }
 
 /* Read all the data from a BIO.
  *
  * @param [in, out] bio         BIO object to read with.
- * @param [out]     pem         Read data in a buffer.
- * @param [out]     pemSz       Amount of data read in bytes.
+ * @param [out]     data        Read data in a buffer.
+ * @param [out]     dataSz      Amount of data read in bytes.
  * @param [out]     memAlloced  Indicates whether return buffer was allocated.
  * @return  Negative on error.
  * @return  0 on success.
  */
-static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** pem, int* pemSz,
+static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
     int* memAlloced)
 {
     int ret;
     int sz;
 
     if (bio->type == WOLFSSL_BIO_MEMORY) {
-        ret = wolfSSL_BIO_get_mem_data(bio, pem);
+        ret = wolfSSL_BIO_get_mem_data(bio, data);
         if (ret > 0) {
             bio->rdIdx += ret;
         }
@@ -170,20 +170,20 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** pem, int* pemSz,
 #ifndef WOLFSSL_NO_FSEEK
     /* Get pending or, when a file BIO, get length of file. */
     else if ((sz = wolfSSL_BIO_get_len(bio)) > 0) {
-        ret = wolfssl_read_bio_len(bio, sz, pem);
+        ret = wolfssl_read_bio_len(bio, sz, data);
         if (ret > 0) {
             *memAlloced = 1;
         }
     }
 #else
     else if ((sz = wolfSSL_BIO_pending(bio)) > 0) {
-        ret = wolfssl_read_bio_len(bio, sz, pem);
+        ret = wolfssl_read_bio_len(bio, sz, data);
         if (ret > 0) {
             *memAlloced = 1;
         }
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
-        ret = wolfssl_read_bio_file(bio, pem);
+        ret = wolfssl_read_bio_file(bio, data);
         if (ret > 0) {
             *memAlloced = 1;
         }
@@ -196,7 +196,7 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** pem, int* pemSz,
     }
 
     if (ret >= 0) {
-        *pemSz = ret;
+        *dataSz = ret;
         ret = 0;
     }
 
@@ -224,7 +224,7 @@ static int wolfssl_file_len(XFILE fp, long* fileSz)
     if (ret == 0) {
         /* Get file offset at end of file. */
         curr = (long)XFTELL(fp);
-        if (sz < 0) {
+        if (curr < 0) {
             ret = WOLFSSL_BAD_FILE;
         }
     }
@@ -259,7 +259,8 @@ static int wolfssl_file_len(XFILE fp, long* fileSz)
  * @param [in]  fp          File pointer to read with.
  * @param [out] data        Read data in an allocated buffer.
  * @param [out] dataSz      Amount of data read in bytes.
- * @return  WOLFSSL_BAD_FILE on error.
+ * @return  WOLFSSL_BAD_FILE when reading fails.
+ * @return  MEMORY_E when memory allocation fails.
  * @return  0 on success.
  */
 static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
@@ -270,10 +271,10 @@ static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
 
     ret = wolfssl_file_len(fp, &sz);
     if (ret == 0) {
-        /* Allocate memory to big enough to hold whole file. */
+        /* Allocate memory big enough to hold whole file. */
         mem = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_PEM);
         if (mem == NULL) {
-            ret = WOLFSSL_BAD_FILE;
+            ret = MEMORY_E;
         }
     }
     /* Read whole file into new buffer. */

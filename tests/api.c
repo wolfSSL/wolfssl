@@ -55487,7 +55487,10 @@ static int test_wolfSSL_DH(void)
     AssertIntEQ(BN_set_word(g, 2), 1);
     q = wolfSSL_BN_new();
     AssertNotNull(q);
-    AssertIntEQ(wolfSSL_DH_set0_pqg(dh, p, q, g), 1);
+    AssertIntEQ(wolfSSL_DH_set0_pqg(dh, p, NULL, NULL), 1);
+    AssertIntEQ(wolfSSL_DH_set0_pqg(dh, NULL, q, NULL), 1);
+    AssertIntEQ(wolfSSL_DH_set0_pqg(dh, NULL, NULL, g), 1);
+    AssertIntEQ(wolfSSL_DH_set0_pqg(dh, NULL, NULL, NULL), 1);
     /* p, q and g are now owned by dh - don't free. */
 
     DH_free(dh);
@@ -55685,7 +55688,8 @@ static int test_wolfSSL_DH_check(void)
     /* Break dh prime to test if codes = DH_CHECK_P_NOT_PRIME */
     pTmp = dh->p;
     dh->p  = NULL;
-    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 0);
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 1);
+    AssertIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     AssertIntEQ(codes, DH_CHECK_P_NOT_PRIME);
     /* set dh->p back to normal so it wont fail on next tests */
     dh->p = pTmp;
@@ -55694,7 +55698,8 @@ static int test_wolfSSL_DH_check(void)
     /* Break dh generator to test if codes = DH_NOT_SUITABLE_GENERATOR */
     gTmp = dh->g;
     dh->g = NULL;
-    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 0);
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 1);
+    AssertIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     AssertIntEQ(codes, DH_NOT_SUITABLE_GENERATOR);
     dh->g = gTmp;
     gTmp = NULL;
@@ -55705,7 +55710,8 @@ static int test_wolfSSL_DH_check(void)
     dh = DH_new();
     AssertNotNull(dh);
     /* Check empty DH. */
-    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 0);
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 1);
+    AssertIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     AssertIntEQ(codes, DH_NOT_SUITABLE_GENERATOR | DH_CHECK_P_NOT_PRIME);
     /* Check non-prime valued p. */
     AssertNotNull(p = BN_new());
@@ -55713,7 +55719,8 @@ static int test_wolfSSL_DH_check(void)
     AssertNotNull(g = BN_new());
     AssertIntEQ(BN_set_word(g, 2), 1);
     AssertIntEQ(DH_set0_pqg(dh, p, NULL, g), 1);
-    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 0);
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), 1);
+    AssertIntEQ(wolfSSL_DH_check(dh, NULL), 0);
     AssertIntEQ(codes, DH_CHECK_P_NOT_PRIME);
     DH_free(dh);
 
