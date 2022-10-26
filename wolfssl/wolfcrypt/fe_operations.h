@@ -61,21 +61,40 @@ Bounds on each t[i] vary depending on context.
 #endif
 
 #if defined(CURVE25519_SMALL) || defined(ED25519_SMALL)
-    #define F25519_SIZE 32
 
-    WOLFSSL_LOCAL void lm_copy(byte*, const byte*);
-    WOLFSSL_LOCAL void lm_add(byte*, const byte*, const byte*);
-    WOLFSSL_LOCAL void lm_sub(byte*, const byte*, const byte*);
-    WOLFSSL_LOCAL void lm_neg(byte*,const byte*);
-    WOLFSSL_LOCAL void lm_invert(byte*, const byte*);
-    WOLFSSL_LOCAL void lm_mul(byte*,const byte*,const byte*);
-#endif
+#define F25519_SIZE 32
+
+#include <wolfssl/wolfcrypt/curve25519.h>
+
+WOLFSSL_LOCAL void lm_copy(byte*, const byte*);
+WOLFSSL_LOCAL void lm_add(byte*, const byte*, const byte*);
+WOLFSSL_LOCAL void lm_sub(byte*, const byte*, const byte*);
+WOLFSSL_LOCAL void lm_neg(byte*,const byte*);
+WOLFSSL_LOCAL void lm_invert(byte*, const byte*);
+WOLFSSL_LOCAL void lm_mul(byte*,const byte*,const byte*);
+
+#ifdef WC_X25519_NONBLOCK
+
+#define WC_X25519_NB_NOT_DONE -1
+
+struct fe_inv__distinct_nb_ctx_t;
+struct x25519_nb_ctx_t;
+
+WOLFSSL_LOCAL int fe_inv__distinct_nb(byte *r, const byte *x,
+    struct fe_inv__distinct_nb_ctx_t* ctx);
+
+WOLFSSL_LOCAL int curve25519_nb(byte * q, const byte * n, const byte * p,
+    struct x25519_nb_ctx_t* ctx);
+
+#endif /* WC_X25519_NONBLOCK */
+
+#endif /* CURVE25519_SMALL || ED25519_SMALL */
 
 
 #if !defined(FREESCALE_LTC_ECC)
 WOLFSSL_LOCAL void fe_init(void);
 
-WOLFSSL_LOCAL int  curve25519(byte * q, const byte * n, const byte * p);
+WOLFSSL_LOCAL int curve25519(byte * q, const byte * n, const byte * p);
 #endif
 
 /* default to be faster but take more memory */

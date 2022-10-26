@@ -184,6 +184,118 @@ int curve25519(byte *result, const byte *n, const byte *p)
     fe_normalize(result);
     return 0;
 }
+
+#ifdef WC_X25519_NONBLOCK
+
+int fe_inv__distinct_nb(byte *r, const byte *x, fe_inv__distinct_nb_ctx_t* ctx)
+{
+    int ret = WC_X25519_NB_NOT_DONE;
+
+    switch (ctx->state) {
+        case 0:
+            fe_mul__distinct(ctx->s, x, x);
+            fe_mul__distinct(r, ctx->s, x);
+            ctx->i = 0;
+            ctx->state = 1;
+            break;
+        case 1:
+            if ((ctx->i)++ < 248) {
+                fe_mul__distinct(ctx->s, r, r);
+                fe_mul__distinct(r, ctx->s, x);
+            }
+            else {
+                ctx->state = 2;
+            }
+            break;
+        case 2:
+            fe_mul__distinct(ctx->s, r, r);
+            fe_mul__distinct(r, ctx->s, ctx->s);
+            fe_mul__distinct(ctx->s, r, x);
+            fe_mul__distinct(r, ctx->s, ctx->s);
+            fe_mul__distinct(ctx->s, r, r);
+            fe_mul__distinct(r, ctx->s, x);
+            fe_mul__distinct(ctx->s, r, r);
+            fe_mul__distinct(r, ctx->s, x);
+            ret = 0;
+            break;
+    }
+
+    if (ret == 0) {
+        XMEMSET(ctx, 0, sizeof(fe_inv__distinct_nb_ctx_t));
+    }
+
+    return ret;
+}
+
+
+int curve25519_nb(byte *result, const byte *n, const byte *p,
+    struct x25519_nb_ctx_t* ctx)
+{
+    int ret = WC_X25519_NB_NOT_DONE;
+
+    switch (ctx->state) {
+        case 0:
+            XMEMSET(ctx->zm, 0, sizeof(ctx->zm));
+            ctx->zm[0] = 1;
+            XMEMSET(ctx->xm1, 0, sizeof(ctx->xm1));
+            ctx->xm1[0] = 1;
+            XMEMSET(ctx->zm1, 0, sizeof(ctx->zm1));
+            lm_copy(ctx->xm, p);
+            ctx->i = 253;
+            ctx->state = 1;
+            break;
+        case 1:
+            if (ctx->i >= 0) {
+                const int bit = (n[ctx->i >> 3] >> (ctx->i & 7)) & 1;
+                byte xms[F25519_SIZE];
+                byte zms[F25519_SIZE];
+
+                /* From P_m and P_(m-1), compute P_(2m) and P_(2m-1) */
+                xc_diffadd(ctx->xm1, ctx->zm1, p, f25519_one, ctx->xm, ctx->zm,
+                    ctx->xm1, ctx->zm1);
+                xc_double(ctx->xm, ctx->zm, ctx->xm, ctx->zm);
+
+                /* Compute P_(2m+1) */
+                xc_diffadd(xms, zms, ctx->xm1, ctx->zm1, ctx->xm,
+                    ctx->zm, p, f25519_one);
+
+                /* Select:
+                 *   bit = 1 --> (P_(2m+1), P_(2m))
+                 *   bit = 0 --> (P_(2m), P_(2m-1))
+                 */
+                fe_select(ctx->xm1, ctx->xm1, ctx->xm, bit);
+                fe_select(ctx->zm1, ctx->zm1, ctx->zm, bit);
+                fe_select(ctx->xm, ctx->xm, xms, bit);
+                fe_select(ctx->zm, ctx->zm, zms, bit);
+
+                --(ctx->i);
+            }
+            else {
+                ctx->state = 2;
+            }
+            break;
+        case 2:
+            /* Freeze out of projective coordinates */
+            if (fe_inv__distinct_nb(ctx->zm1, ctx->zm,
+                                    &ctx->inv_distinct_nb_ctx) == 0) {
+                ctx->state = 3;
+            }
+            break;
+        case 3:
+            fe_mul__distinct(result, ctx->zm1, ctx->xm);
+            fe_normalize(result);
+            ret = 0;
+            break;
+    }
+
+    if (ret == 0) {
+        XMEMSET(ctx, 0, sizeof(x25519_nb_ctx_t));
+    }
+
+    return ret;
+}
+#endif /* WC_X25519_NONBLOCK */
+
 #endif /* !FREESCALE_LTC_ECC */
 #endif /* CURVE25519_SMALL */
 

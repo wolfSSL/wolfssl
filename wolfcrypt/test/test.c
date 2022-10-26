@@ -27350,6 +27350,87 @@ static int curve255519_der_test(void)
 }
 #endif /* !NO_ASN && HAVE_CURVE25519_KEY_EXPORT && HAVE_CURVE25519_KEY_IMPORT */
 
+#ifdef WC_X25519_NONBLOCK
+
+static int x25519_nonblock_test(WC_RNG* rng)
+{
+    int ret = 0;
+    x25519_nb_ctx_t nbCtx;
+    curve25519_key userA;
+    curve25519_key userB;
+#ifdef HAVE_CURVE25519_SHARED_SECRET
+    byte    sharedA[32];
+    byte    sharedB[32];
+    word32  x;
+    word32  y;
+#endif
+
+    XMEMSET(&nbCtx, 0, sizeof(nbCtx));
+
+    ret = wc_curve25519_set_nonblock(&userA, &nbCtx);
+    if (ret != 0) {
+        printf("wc_curve25519_set_nonblock 1 %d\n", ret);
+        return -10723;
+    }
+    do {
+        ret = wc_curve25519_make_key(rng, 32, &userA);
+    } while (ret == WC_X25519_NB_NOT_DONE);
+    if (ret != 0) {
+        printf("wc_curve25519_make_key_nb 1 %d\n", ret);
+        return -10724;
+    }
+
+    ret = wc_curve25519_set_nonblock(&userB, &nbCtx);
+    if (ret != 0) {
+        printf("wc_curve25519_set_nonblock 2 %d\n", ret);
+        return -10725;
+    }
+    do {
+        ret = wc_curve25519_make_key(rng, 32, &userB);
+    } while (ret == WC_X25519_NB_NOT_DONE);
+    if (ret != 0) {
+        printf("wc_curve25519_make_key_nb 2 %d\n", ret);
+        return -10726;
+    }
+
+#ifdef HAVE_CURVE25519_SHARED_SECRET
+    x = sizeof(sharedA);
+    do {
+        ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x);
+    } while (ret == WC_X25519_NB_NOT_DONE);
+    if (ret != 0) {
+        printf("wc_curve25519_shared_secret_nb 1 %d\n", ret);
+        return -10727;
+    }
+
+    y = sizeof(sharedB);
+    do {
+        ret = wc_curve25519_shared_secret(&userB, &userA, sharedB, &y);
+    }
+    while (ret == WC_X25519_NB_NOT_DONE);
+    if (ret != 0) {
+        printf("wc_curve25519_shared_secret_nb 2 %d\n", ret);
+        return -10728;
+    }
+
+    /* compare shared secret keys to test they are the same */
+    if (y != x) {
+        return -10729;
+    }
+
+    if (XMEMCMP(sharedA, sharedB, x) != 0) {
+        return -10730;
+    }
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+    wc_curve25519_free(&userA);
+    wc_curve25519_free(&userB);
+
+    return 0;
+}
+
+#endif /* WC_X25519_NONBLOCK */
+
 WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
 {
     WC_RNG  rng;
@@ -27545,6 +27626,13 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
     if (ret != 0)
         return ret;
 #endif
+
+#ifdef WC_X25519_NONBLOCK
+    ret = x25519_nonblock_test(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* WC_X25519_NONBLOCK */
 
     /* clean up keys when done */
     wc_curve25519_free(&pubKey);

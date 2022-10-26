@@ -5390,7 +5390,7 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
-    ret = wolfSSL_AsyncInit(ssl, &priv_key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wolfSSL_AsyncInit(ssl, &priv_key->asyncDev, WC_ASYNC_FLAG_NONE);
     if (ret != 0)
         return ret;
 #endif
@@ -7152,8 +7152,15 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 #endif /* HAVE_ECC */
 #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
     defined(WC_ASYNC_ENABLE_ECC)
-    ecc_nb_ctx_t* nbCtx;
-#endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW && WC_ASYNC_ENABLE_ECC*/
+    ecc_nb_ctx_t* eccNbCtx;
+#endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW && WC_ASYNC_ENABLE_ECC */
+#ifdef HAVE_CURVE25519
+    curve25519_key* x25519Key;
+#endif /* HAVE_CURVE25519 */
+#if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+    defined(WC_ASYNC_ENABLE_X25519)
+    x25519_nb_ctx_t* x25519NbCtx;
+#endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW && WC_ASYNC_ENABLE_X25519 */
 
     if (ssl == NULL || pKey == NULL) {
         return BAD_FUNC_ARG;
@@ -7235,23 +7242,23 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         case DYNAMIC_TYPE_ECC:
             eccKey = (ecc_key*)*pKey;
             ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
+        #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_ECC)
             if (ret == 0) {
-            #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
-                defined(WC_ASYNC_ENABLE_ECC)
-                nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
-                            eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                if (nbCtx == NULL) {
+                eccNbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
+                               eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (eccNbCtx == NULL) {
                     ret = MEMORY_E;
                 }
                 else {
-                    ret = wc_ecc_set_nonblock(eccKey, nbCtx);
+                    ret = wc_ecc_set_nonblock(eccKey, eccNbCtx);
                     if (ret != 0) {
-                        XFREE(nbCtx, eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        XFREE(eccNbCtx, eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     }
                 }
-            #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
-                      WC_ASYNC_ENABLE_ECC */
             }
+        #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_ECC */
             break;
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
@@ -7262,8 +7269,25 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
-            wc_curve25519_init_ex((curve25519_key*)*pKey, ssl->heap, ssl->devId);
-            ret = 0;
+            x25519Key = (curve25519_key*)*pKey;
+            ret = wc_curve25519_init_ex(x25519Key, ssl->heap, ssl->devId);
+        #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+            defined(WC_ASYNC_ENABLE_X25519)
+            if (ret == 0) {
+                x25519NbCtx = (x25519_nb_ctx_t*)XMALLOC(sizeof(x25519_nb_ctx_t),
+                                  ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (x25519NbCtx == NULL) {
+                    ret = MEMORY_E;
+                }
+                else {
+                    ret = wc_curve25519_set_nonblock(x25519Key, x25519NbCtx);
+                    if (ret != 0) {
+                        XFREE(x25519NbCtx, eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
+                }
+            }
+        #endif /* WC_X25519_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
+                  WC_ASYNC_ENABLE_X25519 */
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
