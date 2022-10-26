@@ -48476,6 +48476,7 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
     /* If the cert ID is not NULL the function will just copy the data to it. */
     certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*certId), NULL,
                                            DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(certId);
     XMEMSET(certId, 0, sizeof(*certId));
 
     /* Reset rawCertIdPtr since it was push forward in the previous call. */
