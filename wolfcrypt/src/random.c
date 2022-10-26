@@ -1169,7 +1169,7 @@ int wc_FreeRng(WC_RNG* rng)
     rng->status = DRBG_NOT_INIT;
 #endif /* HAVE_HASHDRBG */
 
-#ifdef WOLFSSL_XILINX_CRYPT_VERSAL\
+#ifdef WOLFSSL_XILINX_CRYPT_VERSAL
     /* don't overwrite previously set error */
     if (wc_VersalTrngReset() && !ret)
         ret = WC_HW_E;
