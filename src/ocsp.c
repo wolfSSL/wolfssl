@@ -312,7 +312,6 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         return MEMORY_E;
     }
 #endif
-    XMEMSET(ocspResponse, 0, sizeof(OcspResponse));
     InitOcspResponse(ocspResponse, newSingle, newStatus, response, responseSz,
                      ocsp->cm->heap);
 
