@@ -215,13 +215,15 @@ extern int wc_InitRsaHw(RsaKey* key);
 
 /* Calculates the minimum number of bytes required to encode the value.
  *
+ * Only support up to 2^24-1.
+ *
  * @param [in] value  Value to be encoded.
  * @return  Number of bytes to encode value.
  */
 static word32 BytePrecision(word32 value)
 {
     word32 i;
-    for (i = (word32)sizeof(value); i; --i)
+    for (i = (word32)sizeof(value) - 1; i; --i)
         if (value >> ((i - 1) * WOLFSSL_BIT_SIZE))
             break;
 
