@@ -8326,8 +8326,9 @@ static void print_alg(const char* str, int* line)
 /* Display the usage options of the benchmark program. */
 static void Usage(void)
 {
+    int e = 0;
 #ifndef WOLFSSL_BENCHMARK_ALL
-    int i, e = 0;
+    int i;
     int line;
 #endif
 

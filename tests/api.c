@@ -1350,7 +1350,8 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
 {
     int ret = 0;
 
-#if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx;
     byte dirValid = 0;
 

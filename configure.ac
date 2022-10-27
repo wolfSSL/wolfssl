@@ -7423,13 +7423,6 @@ esac
 # Update ENABLE_* variables                                                    #
 ################################################################################
 
-if test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_CERTS" = "xno" || \
-   test "x$ENABLED_ASN" = "xno"
-then
-   ENABLED_CERTS=no
-   ENABLED_ASN=no
-fi
-
 if test "x$ENABLED_SYS_CA_CERTS" = "xyes"
 then
     if test "x$ENABLED_FILESYSTEM" = "xno"
@@ -7544,6 +7537,11 @@ then
     ENABLED_CERTS=yes
 fi
 
+if test "$ENABLED_ED25519" != "no" || test "$ENABLED_ED448" != "no"
+then
+    ENABLED_CERTS=yes
+fi
+
 if test "$ENABLED_MD5" = "yes"
 then
     # turn off MD5 if leanpsk or leantls on
@@ -7551,6 +7549,13 @@ then
     then
         ENABLED_MD5=no
     fi
+fi
+
+if test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_CERTS" = "xno" || \
+   test "x$ENABLED_ASN" = "xno"
+then
+   ENABLED_CERTS=no
+   ENABLED_ASN=no
 fi
 
 ################################################################################
