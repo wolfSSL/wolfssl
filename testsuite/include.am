@@ -7,12 +7,13 @@ if BUILD_TESTS
 check_PROGRAMS += testsuite/testsuite.test
 noinst_PROGRAMS += testsuite/testsuite.test
 testsuite_testsuite_test_SOURCES = \
-			      wolfcrypt/test/test.c \
-			      examples/client/client.c \
-			      examples/echoclient/echoclient.c \
-			      examples/echoserver/echoserver.c \
-			      examples/server/server.c \
-			      testsuite/testsuite.c
+                  wolfcrypt/test/test.c \
+                  wolfcrypt/test/error_test.c \
+                  examples/client/client.c \
+                  examples/echoclient/echoclient.c \
+                  examples/echoserver/echoserver.c \
+                  examples/server/server.c \
+                  testsuite/testsuite.c
 testsuite_testsuite_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 testsuite_testsuite_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 testsuite_testsuite_test_DEPENDENCIES = src/libwolfssl.la

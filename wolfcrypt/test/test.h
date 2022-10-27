@@ -23,10 +23,14 @@
 #ifndef WOLFCRYPT_TEST_H
 #define WOLFCRYPT_TEST_H
 
+#ifndef WOLFSSL_TEST_SUBROUTINE
+#define WOLFSSL_TEST_SUBROUTINE
+#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
@@ -36,6 +40,9 @@ int wolfcrypt_test(void* args);
 #ifndef NO_MAIN_DRIVER
 int wolfcrypt_test_main(int argc, char** argv);
 #endif
+
+
+WOLFSSL_TEST_SUBROUTINE int  error_test(void);
 
 #ifdef __cplusplus
     }  /* extern "C" */

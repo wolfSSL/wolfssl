@@ -394,14 +394,12 @@ typedef struct testVector {
     size_t outLen;
 } testVector;
 
-#ifndef WOLFSSL_TEST_SUBROUTINE
-#define WOLFSSL_TEST_SUBROUTINE
-#endif
+
 
 PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-function\"")
 PRAGMA_CLANG("clang diagnostic ignored \"-Wunused-function\"")
 
-WOLFSSL_TEST_SUBROUTINE int  error_test(void);
+
 WOLFSSL_TEST_SUBROUTINE int  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE int  base16_test(void);
 WOLFSSL_TEST_SUBROUTINE int  asn_test(void);
@@ -1728,69 +1726,6 @@ static int _SaveDerAndPem(const byte* der, int derSz,
     return 0;
 }
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
-
-WOLFSSL_TEST_SUBROUTINE int error_test(void)
-{
-    const char* errStr;
-    char        out[WOLFSSL_MAX_ERROR_SZ];
-    const char* unknownStr = wc_GetErrorString(0);
-
-#ifdef NO_ERROR_STRINGS
-    /* Ensure a valid error code's string matches an invalid code's.
-     * The string is that error strings are not available.
-     */
-    errStr = wc_GetErrorString(OPEN_RAN_E);
-    wc_ErrorString(OPEN_RAN_E, out);
-    if (XSTRCMP(errStr, unknownStr) != 0)
-        return -1100;
-    if (XSTRCMP(out, unknownStr) != 0)
-        return -1101;
-#else
-    int i;
-    int j = 0;
-    /* Values that are not or no longer error codes. */
-    int missing[] = { -122, -123, -124,       -127, -128, -129, -159,
-                      -163, -164, -165, -166, -167, -168, -169, -233,
-                      0 };
-
-    /* Check that all errors have a string and it's the same through the two
-     * APIs. Check that the values that are not errors map to the unknown
-     * string.
-     */
-    for (i = MAX_CODE_E-1; i >= WC_LAST_E; i--) {
-        errStr = wc_GetErrorString(i);
-        wc_ErrorString(i, out);
-
-        if (i != missing[j]) {
-            if (XSTRCMP(errStr, unknownStr) == 0)
-                return -1102;
-            if (XSTRCMP(out, unknownStr) == 0)
-                return -1103;
-            if (XSTRCMP(errStr, out) != 0)
-                return -1104;
-            if (XSTRLEN(errStr) >= WOLFSSL_MAX_ERROR_SZ)
-                return -1105;
-        }
-        else {
-            j++;
-            if (XSTRCMP(errStr, unknownStr) != 0)
-                return -1106;
-            if (XSTRCMP(out, unknownStr) != 0)
-                return -1107;
-        }
-    }
-
-    /* Check if the next possible value has been given a string. */
-    errStr = wc_GetErrorString(i);
-    wc_ErrorString(i, out);
-    if (XSTRCMP(errStr, unknownStr) != 0)
-        return -1108;
-    if (XSTRCMP(out, unknownStr) != 0)
-        return -1109;
-#endif
-
-    return 0;
-}
 
 #ifndef NO_CODING
 
