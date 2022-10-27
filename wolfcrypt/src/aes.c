@@ -8204,7 +8204,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
                       const byte* authTag, word32 authTagSz,
                       const byte* authIn, word32 authInSz)
 {
-    int ret = 0;
+    int ret;
     word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* c = in;
@@ -8240,6 +8240,19 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     if (ret != 0)
         return ret;
     xorbuf(Tprime, EKY0, sizeof(Tprime));
+#ifdef WC_AES_GCM_DEC_AUTH_EARLY
+    /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
+     * the pairwise bytes in the strings.
+     */
+    res = ConstantCompare(authTag, Tprime, authTagSz);
+    /* convert positive retval from ConstantCompare() to all-1s word, in
+     * constant time.
+     */
+    res = 0 - (sword32)(((word32)(0 - res)) >> 31U);
+    ret = res & AES_GCM_AUTH_E;
+    if (ret != 0)
+        return ret;
+#endif
 
 #ifdef OPENSSL_EXTRA
     if (!out) {
@@ -8306,6 +8319,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
         XMEMCPY(p, scratch, partial);
     }
 
+#ifndef WC_AES_GCM_DEC_AUTH_EARLY
     /* ConstantCompare returns the cumulative bitwise or of the bitwise xor of
      * the pairwise bytes in the strings.
      */
@@ -8318,7 +8332,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
      * mismatch, whereupon AES_GCM_AUTH_E is returned.
      */
     ret = (ret & ~res) | (res & AES_GCM_AUTH_E);
-
+#endif
     return ret;
 }
 
