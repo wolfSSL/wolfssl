@@ -519,8 +519,7 @@ static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
 
 /* lookup by slotId or tokenName */
 static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
-    const char* tokenName, size_t tokenNameSz,
-    const unsigned char* userPin, size_t userPinSz)
+    const char* tokenName, size_t tokenNameSz)
 {
     int         ret = 0;
     CK_RV       rv;
@@ -577,8 +576,9 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->func = dev->func;
         token->slotId = (CK_SLOT_ID)slotId;
         token->handle = NULL_PTR;
-        token->userPin = (CK_UTF8CHAR_PTR)userPin;
-        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPin = NULL_PTR;
+        token->userPinSz = 0;
+        token->userPinLogin = 0;
     }
 
     if (slot != NULL) {
@@ -589,7 +589,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
 }
 
 /**
- * Set up a token for use. Lookup by slotId or tokenName
+ * Set up a token for use. Lookup by slotId or tokenName. Set User PIN.
  *
  * @param  [in]  token      Token object.
  * @param  [in]  dev        PKCS#11 device object.
@@ -606,16 +606,47 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
 int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     const char* tokenName, const unsigned char* userPin, int userPinSz)
 {
+    int ret;
+    size_t tokenNameSz = 0;
+
+    if (tokenName != NULL) {
+        tokenNameSz = XSTRLEN(tokenName);
+    }
+    ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
+    if (ret == 0) {
+        token->userPin = (CK_UTF8CHAR_PTR)userPin;
+        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPinLogin = 1;
+    }
+
+    return ret;
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName.
+ *
+ * @param  [in]  token      Token object.
+ * @param  [in]  dev        PKCS#11 device object.
+ * @param  [in]  slotId     Slot number of the token.<br>
+ *                          Passing -1 uses the first available slot.
+ * @param  [in]  tokenName  Name of token to initialize (optional)
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_Init_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
+    const char* tokenName)
+{
     size_t tokenNameSz = 0;
     if (tokenName != NULL) {
         tokenNameSz = XSTRLEN(tokenName);
     }
-    return Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz,
-        userPin, (size_t)userPinSz);
+    return Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
 }
 
 /**
- * Set up a token for use. Lookup by slotId or tokenName/size
+ * Set up a token for use. Lookup by slotId or tokenName/size. Set User PIN.
  *
  * @param  [in]  token       Token object.
  * @param  [in]  dev         PKCS#11 device object.
@@ -629,11 +660,37 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
  * @return  0 on success.
  */
 int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
-                             const char* tokenName, int tokenNameSz,
-                             const unsigned char* userPin, int userPinSz)
+    const char* tokenName, int tokenNameSz,
+    const unsigned char* userPin, int userPinSz)
 {
-    return Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz,
-        userPin, (size_t)userPinSz);
+    int ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
+    if (ret == 0) {
+        token->userPin = (CK_UTF8CHAR_PTR)userPin;
+        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPinLogin = 1;
+    }
+
+    return ret;
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName/size.
+ *
+ * @param  [in]  token       Token object.
+ * @param  [in]  dev         PKCS#11 device object.
+ * @param  [in]  tokenName   Name of token to initialize.
+ * @param  [in]  tokenNameSz Name size for token
+ * @param  [in]  userPin     PIN to use to login as user.
+ * @param  [in]  userPinSz   Number of bytes in PIN.
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_InitName_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev,
+    const char* tokenName, int tokenNameSz)
+{
+    return Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
 }
 
 /**
@@ -687,7 +744,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
             if (rv != CKR_OK) {
                 ret = WC_HW_E;
             }
-            if (ret == 0 && token->userPin != NULL) {
+            if (ret == 0 && token->userPinLogin) {
                 rv = token->func->C_Login(session->handle, CKU_USER,
                                               token->userPin, token->userPinSz);
                 PKCS11_RV("C_Login", rv);
