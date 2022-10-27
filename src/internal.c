@@ -9784,11 +9784,6 @@ retry:
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
-    if (IsEncryptionOn(ssl, 0)) {
-        ForceZero(ssl->buffers.outputBuffer.buffer -
-            ssl->buffers.outputBuffer.offset,
-            ssl->buffers.outputBuffer.bufferSize);
-    }
     XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
@@ -9819,11 +9814,9 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
                usedLength);
     }
 
-    if (IsEncryptionOn(ssl, 1) || forcedFree) {
-        ForceZero(ssl->buffers.inputBuffer.buffer -
-            ssl->buffers.inputBuffer.offset,
-            ssl->buffers.inputBuffer.bufferSize);
-    }
+    ForceZero(ssl->buffers.inputBuffer.buffer -
+        ssl->buffers.inputBuffer.offset,
+        ssl->buffers.inputBuffer.bufferSize);
     XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
@@ -9968,11 +9961,6 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
                ssl->buffers.outputBuffer.length);
 
     if (ssl->buffers.outputBuffer.dynamicFlag) {
-        if (IsEncryptionOn(ssl, 0)) {
-            ForceZero(ssl->buffers.outputBuffer.buffer -
-                ssl->buffers.outputBuffer.offset,
-                ssl->buffers.outputBuffer.bufferSize);
-        }
         XFREE(ssl->buffers.outputBuffer.buffer -
               ssl->buffers.outputBuffer.offset, ssl->heap,
               DYNAMIC_TYPE_OUT_BUFFER);
@@ -20819,8 +20807,17 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     #endif
             }
 
-            if (ret != 0)
+            if (ret != 0) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret != WC_PENDING_E)
+            #endif
+                {
+                    /* Zeroize plaintext. */
+                    ForceZero(output + args->headerSz,
+                        (word16)(args->size - args->digestSz));
+                }
                 goto exit_buildmsg;
+            }
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPTED_VERIFY_MAC;
         }
         FALL_THROUGH;
