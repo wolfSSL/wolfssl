@@ -1161,6 +1161,8 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     ForceZero(cBuf, cSz);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(cBuf, cSz);
 #endif
 
     /* tmpQ: M = min(2^N,q) - 1 */

@@ -3008,6 +3008,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 output += args->headerSz;
                 ret = EncryptTls13(ssl, output, output, args->size, aad,
                                    (word16)args->headerSz, asyncOkay);
+                if (ret != 0) {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret != WC_PENDING_E)
+                #endif
+                    {
+                        /* Zeroize plaintext. */
+                        ForceZero(output, args->size);
+                    }
+                }
 #ifdef WOLFSSL_DTLS13
                 if (ret == 0 && ssl->options.dtls) {
                     /* AAD points to the header. Reuse the variable  */

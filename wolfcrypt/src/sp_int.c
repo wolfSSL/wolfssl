@@ -4687,7 +4687,7 @@ void sp_forcezero(sp_int* a)
 {
     if (a != NULL) {
         /* Ensure all data zeroized - data not zeroed when used decreases. */
-        ForceZero(a->dp, a->used * sizeof(sp_int_digit));
+        ForceZero(a->dp, a->size * sizeof(sp_int_digit));
         _sp_zero(a);
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_zero(&a->raw);
