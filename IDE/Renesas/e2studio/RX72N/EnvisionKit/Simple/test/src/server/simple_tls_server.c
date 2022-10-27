@@ -1,4 +1,4 @@
-/* wolf_server.c
+/* simple_tls_server.c
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
