@@ -42,7 +42,7 @@ fe_init:
 	.globl	fe_frombytes
 	.type	fe_frombytes, %function
 fe_frombytes:
-	push	{r4, r5, r6, r7, r8, r9}
+	push	{r4, r5, r6, r7, r8, r9, lr}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
@@ -92,14 +92,14 @@ fe_frombytes:
 #else
 	strd	r8, r9, [r0, #24]
 #endif
-	pop	{r4, r5, r6, r7, r8, pc}
+	pop	{r4, r5, r6, r7, r8, r9, pc}
 	.size	fe_frombytes,.-fe_frombytes
 	.text
 	.align	4
 	.globl	fe_tobytes
 	.type	fe_tobytes, %function
 fe_tobytes:
-	push	{r4, r5, r6, r7, r8, r9}
+	push	{r4, r5, r6, r7, r8, r9, lr}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
@@ -167,7 +167,7 @@ fe_tobytes:
 #else
 	strd	r8, r9, [r0, #24]
 #endif
-	pop	{r4, r5, r6, r7, r8, pc}
+	pop	{r4, r5, r6, r7, r8, r9, pc}
 	.size	fe_tobytes,.-fe_tobytes
 	.text
 	.align	4
@@ -243,7 +243,7 @@ fe_0:
 	.globl	fe_copy
 	.type	fe_copy, %function
 fe_copy:
-	push	{r4, r5}
+	push	{r4, r5, lr}
 	# Copy
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
@@ -293,7 +293,7 @@ fe_copy:
 #else
 	strd	r4, r5, [r0, #24]
 #endif
-	pop	{r4, pc}
+	pop	{r4, r5, pc}
 	.size	fe_copy,.-fe_copy
 	.text
 	.align	4
@@ -627,7 +627,7 @@ fe_neg:
 	.globl	fe_isnonzero
 	.type	fe_isnonzero, %function
 fe_isnonzero:
-	push	{r4, r5, r6, r7, r8, r9}
+	push	{r4, r5, r6, r7, r8, r9, lr}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r0]
 	ldr	r3, [r0, #4]
@@ -678,14 +678,14 @@ fe_isnonzero:
 	orr	r4, r4, r6
 	orr	r2, r2, r8
 	orr	r0, r2, r4
-	pop	{r4, r5, r6, r7, r8, pc}
+	pop	{r4, r5, r6, r7, r8, r9, pc}
 	.size	fe_isnonzero,.-fe_isnonzero
 	.text
 	.align	4
 	.globl	fe_isnegative
 	.type	fe_isnegative, %function
 fe_isnegative:
-	push	{r4, r5}
+	push	{r4, r5, lr}
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r0]
 	ldr	r3, [r0, #4]
@@ -722,7 +722,7 @@ fe_isnegative:
 	and	r0, r2, #1
 	lsr	r1, r1, #31
 	eor	r0, r0, r1
-	pop	{r4, pc}
+	pop	{r4, r5, pc}
 	.size	fe_isnegative,.-fe_isnegative
 	.text
 	.align	4
