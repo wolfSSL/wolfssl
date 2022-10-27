@@ -687,7 +687,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
             if (rv != CKR_OK) {
                 ret = WC_HW_E;
             }
-            if (ret == 0 && token->userPin != NULL) {
+            if (ret == 0) {
                 rv = token->func->C_Login(session->handle, CKU_USER,
                                               token->userPin, token->userPinSz);
                 PKCS11_RV("C_Login", rv);
