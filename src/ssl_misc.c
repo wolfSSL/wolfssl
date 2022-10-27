@@ -272,7 +272,7 @@ static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
     ret = wolfssl_file_len(fp, &sz);
     if (ret == 0) {
         /* Allocate memory big enough to hold whole file. */
-        mem = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_PEM);
+        mem = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (mem == NULL) {
             ret = MEMORY_E;
         }
@@ -287,7 +287,7 @@ static int wolfssl_read_file(XFILE fp, char** data, int* dataSz)
         mem = NULL;
     }
 
-    XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
+    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* !NO_FILESYSTEM */
