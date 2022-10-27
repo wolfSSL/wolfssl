@@ -146,6 +146,11 @@ extern "C" {
     #else
         #error "Size of unsigned long long not detected"
     #endif
+#elif SP_ULONG_BITS == 32
+    /* Speculatively use long long as the 64-bit type as we don't have one
+     * otherwise. */
+    typedef unsigned long long sp_uint64;
+    typedef          long long  sp_int64;
 #else
     #define SP_ULLONG_BITS    0
 #endif
