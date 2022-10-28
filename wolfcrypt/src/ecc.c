@@ -6106,6 +6106,14 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
             key->state = ECC_STATE_SIGN_ENCODE;
 
             if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+                #if !defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(HAVE_ECC_CDH)
+                    DECLARE_CURVE_SPECS(1);
+                    ALLOC_CURVE_SPECS(1, err);
+
+                    /* get curve order */
+                    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+                #endif
+
                 #ifdef HAVE_CAVIUM_V
                     /* Nitrox requires r and s in sep buffer, so split it */
                     NitroxEccRsSplit(key, &r->raw, &s->raw);
@@ -6114,11 +6122,23 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
                     /* only do this if not software, since it overwrites result */
                     wc_bigint_to_mp(&r->raw, r);
                     wc_bigint_to_mp(&s->raw, s);
+
+                /* if using a curve with cofactor != 1 then reduce by mod order */
+                #ifdef HAVE_ECC_CDH
+                    /* if r is not less than order than reduce */
+                    if (err == 0 && mp_count_bits(r) > mp_count_bits(curve->order)) {
+                        err = mp_mod(r, curve->order, r);
+                    }
+                    wc_ecc_curve_free(curve);
+                    FREE_CURVE_SPECS();
                 #endif
+                #endif /* !WOLFSSL_ASYNC_CRYPT_SW */
             }
 
             /* encoded with DSA header */
-            err = StoreECC_DSA_Sig(out, outlen, r, s);
+            if (err == 0) {
+                err = StoreECC_DSA_Sig(out, outlen, r, s);
+            }
 
             /* done with R/S */
             mp_clear(r);
