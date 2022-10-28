@@ -2993,7 +2993,8 @@ char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 /* Given an X509_NAME, convert it to canonical form and then hash
  * with the provided hash type. Returns the first 4 bytes of the hash
  * as unsigned long on success, and 0 otherwise. */
-static unsigned long X509NameHash(WOLFSSL_X509_NAME* name, int hashType)
+static unsigned long X509NameHash(WOLFSSL_X509_NAME* name,
+    enum wc_HashType hashType)
 {
     unsigned long  hash = 0;
     unsigned char* canonName = NULL;
@@ -3001,7 +3002,7 @@ static unsigned long X509NameHash(WOLFSSL_X509_NAME* name, int hashType)
     int            size = 0;
     int            rc;
 
-    WOLFSSL_ENTER("wolfSSL_X509_name_sha256hash");
+    WOLFSSL_ENTER("X509NameHash");
 
     if (name == NULL) {
         WOLFSSL_ERROR_MSG("WOLFSSL_X509_NAME pointer was NULL");
