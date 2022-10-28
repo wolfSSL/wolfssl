@@ -78,63 +78,59 @@ macro `NO_OLD_SHA_NAMES`. These names get mapped to the OpenSSL API for a
 single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` and
 `WC_SHA512` should be used for the enum name.
 
-# wolfSSL Release 5.5.1 (Sep 28, 2022)
-Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
+# wolfSSL Release 5.5.2 (Oct 28, 2022)
+Release 5.5.2 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ## Vulnerabilities
-* [Med] Denial of service attack and buffer overflow against TLS 1.3 servers using session ticket resumption. When built with --enable-session-ticket and making use of TLS 1.3 server code in wolfSSL, there is the possibility of a malicious client to craft a malformed second ClientHello packet that causes the server to crash. This issue is limited to when using both --enable-session-ticket and TLS 1.3 on the server side. Users with TLS 1.3 servers, and having --enable-session-ticket, should update to the latest version of wolfSSL. Thanks to Max at Trail of Bits for the report, found by Lucca Hirschi from LORIA, Inria, France with the tlspuffin tool developed partly at LORIA and Trail of Bits. CVE-2022-39173
+* [Med] In the case that the WOLFSSL_CALLBACKS macro is set when building wolfSSL, there is a potential heap over read of 5 bytes when handling TLS 1.3 client connections. This heap over read is limited to wolfSSL builds explicitly setting the macro WOLFSSL_CALLBACKS, the feature does not get turned on by any other build options. The macro WOLFSSL_CALLBACKS is intended for debug use only, but if having it enabled in production, users are recommended to disable WOLFSSL_CALLBACKS. Users enabling WOLFSSL_CALLBACKS are recommended to update their version of wolfSSL. Thanks to Lucca Hirschi and Steve Kremer from LORIA, Inria and Max Ammann from Trail of Bits for finding and reporting the bug with the tlspuffin tool developed partly at LORIA and Trail of Bits. CVE 2022-42905
+
+Release 5.5.2 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ## New Feature Additions
-* Add support for non-blocking ECC key gen and shared secret gen for P-256/384/521
-* Add support for non-blocking ECDHE/ECDSA in TLS/DTLS layer.
-* Port to NXP RT685 with FreeRTOS
-* Add option to build post quantum Kyber API (--enable-kyber)
-* Add post quantum algorithm sphincs to wolfCrypt
-* Config. option to force no asm with SP build (--enable-sp=noasm)
-* Allow post quantum keyshare for DTLS 1.3
+* Add function wolfSSL_CTX_load_system_CA_certs to load system CA certs into a WOLFSSL_CTX and  --sys-ca-certs option to example client
+* Add wolfSSL_set1_host to OpenSSL compatible API
+* Added the function sk_X509_shift
+* AES x86 ASM for AES-CBC and GCM performance enhancements
+* Add assembly for AES for ARM32 without using crypto hardware instructions
+* Xilinx Versal port and hardware acceleration tie in
+* SP Cortex-M support for ICCARM
 
 ## Enhancements
-* DTLSv1.3: Do HRR Cookie exchange by default
-* Add wolfSSL_EVP_PKEY_new_CMAC_key to OpenSSL compatible API 
-* Update ide win10 build files to add missing sp source files 
-* Improve Workbench docs 
-* Improve EVP support for CHACHA20_POLY1305
-* Improve `wc_SetCustomExtension` documentation
-* RSA-PSS with OCSP and add simple OCSP response DER verify test case
-* Clean up some FIPS versioning logic in configure.ac and WIN10 user_settings.h
-* Don't over-allocate memory for DTLS fragments
-* Add WOLFSSL_ATECC_TFLXTLS for Atmel port
-* SHA-3 performance improvements with x86_64 assembly
-* Add code to fallback to S/W if TSIP cannot handle 
-* Improves entropy with VxWorks
-* Make time in milliseconds 64-bits for longer session ticket lives
-* Support for setting cipher list with bytes
-* wolfSSL_set1_curves_list(), wolfSSL_CTX_set1_curves_list() improvements
-* Add to RSAES-OAEP key parsing for pkcs7
-* Add missing DN nid to work with PrintName()
-* SP int: default to 16 bit word size when NO_64BIT defined 
-* Limit the amount of fragments we store per a DTLS connection and error out when max limit is reached
-* Detect when certificate's RSA public key size is too big and fail on loading of certificate
+* Add snifftest vcxproj file and documentation
+* Nucleus Thread Types supported
+* Handle certificates with RSA-PSS signature that have RSAk public keys
+* Small stack build improvements
+* DTLS 1.3 improvements for Alerts and unit tests
+* Add a binary search for CRL
+* Improvement of SSL/CTX_set_max_early_data() for client side
+* Remove unused ASN1_GENERALIZEDTIME enum value from wolfssl/ssl.h
+* Add user_settings.h for Intel/M1 FIPSv2 macOS C++ projects
+* Add dtlscid.test to ‘make check’ unit testing
+* Generate an assembler-safe user_settings.h in configure.ac and CMakeLists.txt
+* ForceZero enabled with USE_FAST_MATH
+* Add TLS 1.3 support of ticketNonce sizes bigger than MAX_TICKET_NONCE_SZ
+* FIPSv2 builds on win10 adjust for new fastmath default in settings.h
+* Add IRQ install for Aruix example
 
 ## Fixes
-* Fix for async with OCSP non-blocking in `ProcessPeerCerts`
-* Fixes for building with 32-bit and socket size sign/unsigned mismatch
-* Fix Windows CMakeList compiler options 
-* TLS 1.3 Middle-Box compat: fix missing brace 
-* Configuration consistency fixes for RSA keys and way to force disable of private keys 
-* Fix for Aarch64 Mac M1 SP use
-* Fix build errors and warnings for MSVC with DTLS 1.3
-* Fix HMAC compat layer function for SHA-1
-* Fix DTLS 1.3 do not negotiate ConnectionID in HelloRetryRequest
-* Check return from call to wc_Time
-* SP math: fix build configuration with opensslall
-* Fix for async session tickets
-* SP int mp_init_size fixes when SP_WORD_SIZE == 8 
-* Ed. function to make public key now checks for if the private key flag is set
-* Fix HashRaw WC_SHA256_DIGEST_SIZE for wc_Sha256GetHash 
-* Fix for building with PSK only
-* Set correct types in wolfSSL_sk_*_new functions
-* Sanity check that size passed to mp_init_size() is no more than SP_INT_DIGITS
+* When looking up the session by ID on the server, check that the protocol version of the SSL and session match on TLS 1.3 or not
+* Fix for potential EVP_PKEY_DH memory leak with OPENSSL_EXTRA
+* Curve448 32-bit C code: handle corner case
+* Fixup builds using WOLFSSL_LOG_PRINTF
+* Correct DIST_POINT_NAME type value
+* Do not perform IV Wrap test when using cert3389 inlined armasm
+* Fix for Linux kernel module and stdio.h
+* (D)TLS: send alert on version mismatch
+* Fix PKCS#7 SignedData verification when signer cert is not first in SET
+* Fix bug with wolfIO_TcpConnect not working with timeout on Windows
+* Fix output length bug in SP non-blocking ECC shared secret gen
+* Fix build with enable-fastmath and disable-rsa
+* Correct wolfSSL_sk_X509_new in OpenSSL compatible API
+* Fixes for SP and x86_64 with MSVC
+* Fix wrong size using DTLSv1.3 in RestartHandshakeHashWithCookie
+* Fix redundant file include with TI RTOS build
+* Fix wolfCrypt only build with wincrypt.h
+* DTLS 1.2: Reset state when sending HelloVerifyRequest
 
 For additional vulnerability information visit the vulnerability page at:
 https://www.wolfssl.com/docs/security-vulnerabilities/

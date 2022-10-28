@@ -1,3 +1,57 @@
+# wolfSSL Release 5.5.2 (Oct 28, 2022)
+Release 5.5.2 of wolfSSL embedded TLS has bug fixes and new features including:
+
+## Vulnerabilities
+* [Med] In the case that the WOLFSSL_CALLBACKS macro is set when building wolfSSL, there is a potential heap over read of 5 bytes when handling TLS 1.3 client connections. This heap over read is limited to wolfSSL builds explicitly setting the macro WOLFSSL_CALLBACKS, the feature does not get turned on by any other build options. The macro WOLFSSL_CALLBACKS is intended for debug use only, but if having it enabled in production, users are recommended to disable WOLFSSL_CALLBACKS. Users enabling WOLFSSL_CALLBACKS are recommended to update their version of wolfSSL. Thanks to Lucca Hirschi and Steve Kremer from LORIA, Inria and Max Ammann from Trail of Bits for finding and reporting the bug with the tlspuffin tool developed partly at LORIA and Trail of Bits. CVE 2022-42905
+
+Release 5.5.2 of wolfSSL embedded TLS has bug fixes and new features including:
+
+## New Feature Additions
+* Add function wolfSSL_CTX_load_system_CA_certs to load system CA certs into a WOLFSSL_CTX and  --sys-ca-certs option to example client
+* Add wolfSSL_set1_host to OpenSSL compatible API
+* Added the function sk_X509_shift
+* AES x86 ASM for AES-CBC and GCM performance enhancements
+* Add assembly for AES for ARM32 without using crypto hardware instructions
+* Xilinx Versal port and hardware acceleration tie in
+* SP Cortex-M support for ICCARM
+
+## Enhancements
+* Add snifftest vcxproj file and documentation
+* Nucleus Thread Types supported
+* Handle certificates with RSA-PSS signature that have RSAk public keys
+* Small stack build improvements
+* DTLS 1.3 improvements for Alerts and unit tests
+* Add a binary search for CRL
+* Improvement of SSL/CTX_set_max_early_data() for client side
+* Remove unused ASN1_GENERALIZEDTIME enum value from wolfssl/ssl.h
+* Add user_settings.h for Intel/M1 FIPSv2 macOS C++ projects
+* Add dtlscid.test to ‘make check’ unit testing
+* Generate an assembler-safe user_settings.h in configure.ac and CMakeLists.txt
+* ForceZero enabled with USE_FAST_MATH
+* Add TLS 1.3 support of ticketNonce sizes bigger than MAX_TICKET_NONCE_SZ
+* FIPSv2 builds on win10 adjust for new fastmath default in settings.h
+* Add IRQ install for Aruix example
+
+## Fixes
+* When looking up the session by ID on the server, check that the protocol version of the SSL and session match on TLS 1.3 or not
+* Fix for potential EVP_PKEY_DH memory leak with OPENSSL_EXTRA
+* Curve448 32-bit C code: handle corner case
+* Fixup builds using WOLFSSL_LOG_PRINTF
+* Correct DIST_POINT_NAME type value
+* Do not perform IV Wrap test when using cert3389 inlined armasm
+* Fix for Linux kernel module and stdio.h
+* (D)TLS: send alert on version mismatch
+* Fix PKCS#7 SignedData verification when signer cert is not first in SET
+* Fix bug with wolfIO_TcpConnect not working with timeout on Windows
+* Fix output length bug in SP non-blocking ECC shared secret gen
+* Fix build with enable-fastmath and disable-rsa
+* Correct wolfSSL_sk_X509_new in OpenSSL compatible API
+* Fixes for SP and x86_64 with MSVC
+* Fix wrong size using DTLSv1.3 in RestartHandshakeHashWithCookie
+* Fix redundant file include with TI RTOS build
+* Fix wolfCrypt only build with wincrypt.h
+* DTLS 1.2: Reset state when sending HelloVerifyRequest
+
 # wolfSSL Release 5.5.1 (Sep 28, 2022)
 Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
 
