@@ -32207,6 +32207,14 @@ static int test_wolfSSL_certs(void)
 
     sk = (STACK_OF(GENERAL_NAME)*)X509_get_ext_d2i(x509ext, NID_subject_alt_name,
             &crit, NULL);
+    {
+        int i;
+        for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
+            GENERAL_NAME* gen = sk_GENERAL_NAME_value(sk, i);
+            AssertIntEQ(gen->type, GEN_DNS);
+            AssertIntEQ(gen->d.dNSName->type, V_ASN1_IA5STRING);
+        }
+    }
     /* AssertNotNull(sk); no alt names set */
     sk_GENERAL_NAME_free(sk);
 
