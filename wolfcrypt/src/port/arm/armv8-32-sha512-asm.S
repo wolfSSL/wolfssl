@@ -200,7 +200,7 @@ L_SHA512_transform_len_k:
 	.globl	Transform_Sha512_Len
 	.type	Transform_Sha512_Len, %function
 Transform_Sha512_Len:
-	push	{r4, r5, r6, r7, r8, r9, r10, r11}
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xc0
 	adr	r3, L_SHA512_transform_len_k
 	# Copy digest to add in at end
@@ -7563,7 +7563,7 @@ L_SHA512_transform_len_start:
 	bne	L_SHA512_transform_len_begin
 	eor	r0, r0, r0
 	add	sp, sp, #0xc0
-	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifndef WOLFSSL_ARMASM_NO_NEON
