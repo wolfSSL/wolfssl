@@ -133,6 +133,10 @@
     /* Cache unclosed Sessions for 15 minutes since last used */
 #endif
 
+#ifndef MAX_FIX_SEQUENCE_ITER
+    #define MAX_FIX_SEQUENCE_ITER 5
+#endif
+
 /* Misc constants */
 enum {
     MAX_SERVER_ADDRESS = 128, /* maximum server address length */
@@ -5712,58 +5716,59 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
                          SnifferSession* session, int* sslBytes,
                          const byte** sslFrame, char* error)
 {
-    int actualLen;
-    byte* ackFault = (session->flags.side == WOLFSSL_SERVER_END) ?
-                        &session->flags.cliAckFault :
-                        &session->flags.srvAckFault;
+    int i = 0;
 
-    /* init SEQ from server to client - if not ack fault */
-    if (tcpInfo->syn && tcpInfo->ack && !*ackFault) {
-        session->srvSeqStart = tcpInfo->sequence;
-        session->srvExpected = 1;
-        TraceServerSyn(tcpInfo->sequence);
-        return 1;
-    }
+    while (i < MAX_FIX_SEQUENCE_ITER) {
+        int actualLen;
+        byte* ackFault = (session->flags.side == WOLFSSL_SERVER_END) ?
+                            &session->flags.cliAckFault :
+                            &session->flags.srvAckFault;
 
-    /* adjust potential ethernet trailer */
-    actualLen = ipInfo->total - ipInfo->length - tcpInfo->length;
-    if (*sslBytes > actualLen) {
-        *sslBytes = actualLen;
-    }
+        /* init SEQ from server to client - if not ack fault */
+        if (tcpInfo->syn && tcpInfo->ack && !*ackFault) {
+            session->srvSeqStart = tcpInfo->sequence;
+            session->srvExpected = 1;
+            TraceServerSyn(tcpInfo->sequence);
+            return 1;
+        }
+
+        /* adjust potential ethernet trailer */
+        actualLen = ipInfo->total - ipInfo->length - tcpInfo->length;
+        if (*sslBytes > actualLen) {
+            *sslBytes = actualLen;
+        }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    /* check if this session is pending */
-    if (session->sslServer->error == WC_PENDING_E &&
-        session->pendSeq != tcpInfo->sequence) {
-        /* this stream is processing, queue packet */
-        return WC_PENDING_E;
-    }
+        /* check if this session is pending */
+        if (session->sslServer->error == WC_PENDING_E &&
+            session->pendSeq != tcpInfo->sequence) {
+            /* this stream is processing, queue packet */
+            return WC_PENDING_E;
+        }
 #endif
 
-    TraceSequence(tcpInfo->sequence, *sslBytes);
-    if (CheckAck(tcpInfo, session) < 0) {
-        if (!RecoveryEnabled) {
-            UpdateMissedDataSessions();
-            SetError(ACK_MISSED_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
-        }
-        else {
-            SetError(ACK_MISSED_STR, error, session, 0);
-            if (*ackFault == 0) {
-                *ackFault = 1;
+        TraceSequence(tcpInfo->sequence, *sslBytes);
+        if (CheckAck(tcpInfo, session) < 0) {
+            if (!RecoveryEnabled) {
                 UpdateMissedDataSessions();
-            }
-            if (FixSequence(tcpInfo, session) != 1)
+                SetError(ACK_MISSED_STR, error, session, FATAL_ERROR_STATE);
                 return -1;
-            else
-                return CheckSequence(ipInfo, tcpInfo, session, sslBytes,
-                                     sslFrame, error);
+            }
+            else {
+                SetError(ACK_MISSED_STR, error, session, 0);
+                if (*ackFault == 0) {
+                    *ackFault = 1;
+                    UpdateMissedDataSessions();
+                }
+                FixSequence(tcpInfo, session);
+            }
         }
-    }
 
-    if (*ackFault) {
-        Trace(CLEAR_ACK_FAULT);
-        *ackFault = 0;
+        if (*ackFault) {
+            Trace(CLEAR_ACK_FAULT);
+            *ackFault = 0;
+        }
+        i++;
     }
 
     return AdjustSequence(tcpInfo, session, sslBytes, sslFrame, error);
