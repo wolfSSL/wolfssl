@@ -115,6 +115,7 @@ check_function_exists("inet_ntoa" HAVE_INET_NTOA)
 check_function_exists("memset" HAVE_MEMSET)
 check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
+check_function_exists("writev" HAVE_WRITEV)
 
 include(CheckTypeSize)
 

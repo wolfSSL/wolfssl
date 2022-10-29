@@ -3014,6 +3014,9 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
 
 
 #ifndef _WIN32
+    #if defined(HAVE_CONFIG_H) && !defined(HAVE_WRITEV) && !defined(NO_WRITEV)
+        #define NO_WRITEV
+    #endif
     #ifndef NO_WRITEV
         #ifdef __PPU
             #include <sys/types.h>
