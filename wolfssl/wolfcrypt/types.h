@@ -173,7 +173,8 @@ decouple library dependencies with standard string, memory and so on.
 #if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-         defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
+         (defined(__mips64) && defined(_ABI64) && (_MIPS_SIM == _ABI64))  || \
+         defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64)
         #define WC_64BIT_CPU
