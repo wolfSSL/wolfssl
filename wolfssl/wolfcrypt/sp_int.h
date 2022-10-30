@@ -274,6 +274,9 @@ extern "C" {
     !defined(_WIN64) && defined(WOLFSSL_UINT128_T_DEFINED)
     typedef sp_uint128  sp_int_word;
     typedef  sp_int128  sp_int_sword;
+#else
+    typedef  sp_uint64  sp_int_word;
+    typedef   sp_int64  sp_int_sword;
 #endif
 
     #define SP_MASK         0xffffffffffffffffUL
