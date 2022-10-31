@@ -736,6 +736,10 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+
+    /* Link store's new Certificate Manager to self by default */
+    store->cm->x509_store_p = store;
+
     if ((store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
                            NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
