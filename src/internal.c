@@ -20813,8 +20813,16 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             #endif
                 {
                     /* Zeroize plaintext. */
-                    ForceZero(output + args->headerSz,
-                        (word16)(args->size - args->digestSz));
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.startedETMWrite) {
+                        ForceZero(output + args->headerSz,
+                            (word16)(args->size - args->digestSz));
+                    }
+                    else
+            #endif
+                    {
+                        ForceZero(output + args->headerSz, (word16)args->size);
+                    }
                 }
                 goto exit_buildmsg;
             }
