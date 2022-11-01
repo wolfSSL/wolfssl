@@ -1345,12 +1345,6 @@ static int use_ffdhe = 0;
 /* Don't print out in CSV format by default */
 static int csv_format = 0;
 
-static int sym_header_printed = 0;
-static int asym_header_printed = 0;
-#ifdef HAVE_PQC
-static int pqasym_header_printed = 0;
-#endif
-
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
 /* Versal PLM maybe prints an error message to the same console.
  * In order to not mix those outputs up, sleep a little while
@@ -1642,6 +1636,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
     const char* blockType;
     char msg[128] = {0};
     const char** word = bench_result_words1[lng_index];
+    static int sym_header_printed = 0;
 
     END_INTEL_CYCLES
     total = current_time(0) - start;
@@ -1787,6 +1782,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char **word = bench_result_words2[lng_index];
     const char* kOpsSec = "Ops/Sec";
     char msg[256] = {0};
+    static int asym_header_printed = 0;
 
     total = current_time(0) - start;
 
@@ -1894,6 +1890,7 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID, int co
     const char **word = bench_result_words2[lng_index];
     const char* kOpsSec = "Ops/Sec";
     char msg[128] = {0};
+    static int pqasym_header_printed = 0;
 
     total = current_time(0) - start;
 
