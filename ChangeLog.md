@@ -1,3 +1,12 @@
+# wolfSSL Release 5.5.3 (Nov 2, 2022)
+
+Release 5.5.3 of wolfSSL embedded TLS has the following bug fix:
+
+## Fixes
+
+* Fix for possible buffer zeroization overrun introduced at the end of v5.5.2 release cycle in GitHub pull request 5743 (https://github.com/wolfSSL/wolfssl/pull/5743) and fixed in pull request 5757 (https://github.com/wolfSSL/wolfssl/pull/5757). In the case where a specific memory allocation failed or a hardware fault happened there was the potential for an overrun of 0’s when masking the buffer used for (D)TLS 1.2 and lower operations. (D)TLS 1.3 only and crypto only users are not affected by the issue. This is not related in any way to recent issues reported in OpenSSL.
+
+
 # wolfSSL Release 5.5.2 (Oct 28, 2022)
 Release 5.5.2 of wolfSSL embedded TLS has bug fixes and new features including:
 
