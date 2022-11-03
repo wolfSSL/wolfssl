@@ -7443,6 +7443,21 @@ then
     then
         ENABLED_SYS_CA_CERTS="no"
     fi
+
+    case $host_os in
+        *darwin*)
+            AC_CHECK_HEADERS([Security/SecTrustSettings.h],
+                [
+                    # For Mac we need these frameworks to load system CA certs
+                    LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
+                ],
+                [
+                    AC_MSG_NOTICE([Can't enable system CA certs without Security/SecTrustSettings.h])
+                    ENABLED_SYS_CA_CERTS="no"
+                ]
+            )
+            ;;
+    esac
 fi
 
 if test "x$ENABLED_WOLFCLU" = "xyes"
@@ -8059,10 +8074,6 @@ case $host_os in
                 MINGW_LIB_WARNING="yes"
             fi
         fi ;;
-    *darwin*)
-        # For Mac we need these frameworks to load system CA certs
-        LDFLAGS="$LDFLAGS -framework CoreFoundation -framework Security"
-        ;;
 esac
 
 if test "$enable_shared" = "no"; then

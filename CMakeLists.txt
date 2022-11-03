@@ -66,18 +66,6 @@ if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
     set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
-if(APPLE)
-    find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
-    if(NOT CORE_FOUNDATION_FRAMEWORK)
-        message(FATAL_ERROR "Couldn't find CoreFoundation framework.")
-    endif()
-
-    find_library(SECURITY_FRAMEWORK Security)
-    if(NOT SECURITY_FRAMEWORK)
-        message(FATAL_ERROR "Couldn't find Security framework.")
-    endif()
-endif()
-
 include(CheckIncludeFile)
 
 check_include_file("arpa/inet.h" HAVE_ARPA_INET_H)
@@ -1673,10 +1661,33 @@ add_option("WOLFSSL_OPTFLAGS"
 add_option("WOLFSSL_SYS_CA_CERTS"
     "Enable ability to load CA certs from OS (default: enabled)"
     "yes" "yes;no")
+
 if(WOLFSSL_SYS_CA_CERTS)
     if(NOT WOLFSSL_FILESYSTEM)
-        message(FATAL_ERROR "Cannot use system CA certs without a filesystem.")
-    else()
+        message("Can't enable system CA certs without a filesystem.")
+        override_cache(WOLFSSL_SYS_CA_CERTS "no")
+    elseif(APPLE)
+        check_include_file("Security/SecTrustSettings.h" HAVE_SECURITY_SECTRUSTSETTINGS_H)
+        if(NOT HAVE_SECURITY_SECTRUSTSETTINGS_H)
+            message("Can't enable system CA certs without Security/SecTrustSettings.h.")
+            override_cache(WOLFSSL_SYS_CA_CERTS "no")
+        else()
+            find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
+            if(NOT CORE_FOUNDATION_FRAMEWORK)
+                message("Can't enable system CA certs without CoreFoundation framework.")
+                override_cache(WOLFSSL_SYS_CA_CERTS "no")
+            else()
+                find_library(SECURITY_FRAMEWORK Security)
+                if(NOT SECURITY_FRAMEWORK)
+                    message("Can't enable system CA certs without Security framework.")
+                    override_cache(WOLFSSL_SYS_CA_CERTS "no")
+                endif()
+            endif()
+        endif()
+    endif()
+
+
+    if(WOLFSSL_SYS_CA_CERTS)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SYS_CA_CERTS")
     endif()
 endif()
@@ -1931,9 +1942,11 @@ if(WIN32)
     target_link_libraries(wolfssl PUBLIC
         $<$<PLATFORM_ID:Windows>:ws2_32>)
 elseif(APPLE)
-    target_link_libraries(wolfssl PUBLIC
-        ${CORE_FOUNDATION_FRAMEWORK}
-        ${SECURITY_FRAMEWORK})
+    if(WOLFSSL_SYS_CA_CERTS)
+        target_link_libraries(wolfssl PUBLIC
+            ${CORE_FOUNDATION_FRAMEWORK}
+            ${SECURITY_FRAMEWORK})
+    endif()
 else()
     # DH requires math (m) library
     target_link_libraries(wolfssl
