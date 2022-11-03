@@ -145,7 +145,7 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
     if (begin) {
         begin += 3;
 
-        end = XSTRSTR(begin, " ");
+        end = XSTRCHR(begin, ' ');
 
         if (end) {
             long len = end - begin;

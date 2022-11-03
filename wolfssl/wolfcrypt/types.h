@@ -627,6 +627,7 @@ typedef struct w64wrapper {
         #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
         #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
         #define XSTRCMP(s1,s2)    strcmp((s1),(s2))
+        #define XSTRCHR(s1,s2)    strchr((s1),(s2))
         #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 
         #ifdef USE_WOLF_STRSEP

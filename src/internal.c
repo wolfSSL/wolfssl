@@ -24163,7 +24163,7 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     const char*   nameDelim;
 
     /* Support trailing : */
-    nameDelim = XSTRSTR(name, ":");
+    nameDelim = XSTRCHR(name, ':');
     if (nameDelim)
         len = (unsigned long)(nameDelim - name);
     else
@@ -24237,7 +24237,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         int    allowing = 1;
     #endif
 
-        next = XSTRSTR(next, ":");
+        next = XSTRCHR(next, ':');
         length = MAX_SUITE_NAME;
         if (next != NULL) {
             word32 currLen = (word32)(next - current);
