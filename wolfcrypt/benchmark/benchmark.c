@@ -1059,6 +1059,11 @@ static const char* bench_desc_words[][15] = {
     double current_time(int reset);
 #endif
 
+#ifdef LINUX_RUSAGE_UTIME
+    static void check_for_excessive_stime(const char *desc,
+                                          const char *desc_extra);
+#endif
+
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
         !defined(HAVE_STACK_SIZE)
 #ifdef __cplusplus
@@ -1619,14 +1624,6 @@ static WC_INLINE int bench_stats_check(double start)
 }
 
 
-#ifdef LINUX_RUSAGE_UTIME
-    #include <sys/time.h>
-    #include <sys/resource.h>
-
-    static struct rusage base_rusage;
-    static struct rusage cur_rusage;
-#endif
-
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
  * except for AES direct that operates on AES_BLOCK_SIZE blocks */
 static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
@@ -1642,21 +1639,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
     total = current_time(0) - start;
 
 #ifdef LINUX_RUSAGE_UTIME
-    {
-        double start_utime = (double)base_rusage.ru_utime.tv_sec +
-            (double)base_rusage.ru_utime.tv_usec / 1000000.0;
-        double start_stime = (double)base_rusage.ru_stime.tv_sec +
-            (double)base_rusage.ru_stime.tv_usec / 1000000.0;
-        double cur_utime = (double)cur_rusage.ru_utime.tv_sec +
-            (double)cur_rusage.ru_utime.tv_usec / 1000000.0;
-        double cur_stime = (double)cur_rusage.ru_stime.tv_sec +
-            (double)cur_rusage.ru_stime.tv_usec / 1000000.0;
-        double stime_utime_ratio =
-            (cur_stime - start_stime) / (cur_utime - start_utime);
-        if (stime_utime_ratio > .1)
-            printf("%swarning, excessive system time ratio for %s (%.3f%%).\n",
-                   err_prefix, desc, stime_utime_ratio * 100.0);
-    }
+    check_for_excessive_stime(desc, "");
 #endif
 
     /* calculate actual bytes */
@@ -1787,21 +1770,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     total = current_time(0) - start;
 
 #ifdef LINUX_RUSAGE_UTIME
-    {
-        double start_utime = (double)base_rusage.ru_utime.tv_sec +
-            (double)base_rusage.ru_utime.tv_usec / 1000000.0;
-        double start_stime = (double)base_rusage.ru_stime.tv_sec +
-            (double)base_rusage.ru_stime.tv_usec / 1000000.0;
-        double cur_utime = (double)cur_rusage.ru_utime.tv_sec +
-            (double)cur_rusage.ru_utime.tv_usec / 1000000.0;
-        double cur_stime = (double)cur_rusage.ru_stime.tv_sec +
-            (double)cur_rusage.ru_stime.tv_usec / 1000000.0;
-        double stime_utime_ratio =
-            (cur_stime - start_stime) / (cur_utime - start_utime);
-        if (stime_utime_ratio > .1)
-            printf("%swarning, excessive system time ratio for %s (%.3f%%).\n",
-                   err_prefix, algo, stime_utime_ratio * 100.0);
-    }
+    check_for_excessive_stime(desc, desc_extra);
 #endif
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -1895,21 +1864,7 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID, int co
     total = current_time(0) - start;
 
 #ifdef LINUX_RUSAGE_UTIME
-    {
-        double start_utime = (double)base_rusage.ru_utime.tv_sec +
-            (double)base_rusage.ru_utime.tv_usec / 1000000.0;
-        double start_stime = (double)base_rusage.ru_stime.tv_sec +
-            (double)base_rusage.ru_stime.tv_usec / 1000000.0;
-        double cur_utime = (double)cur_rusage.ru_utime.tv_sec +
-            (double)cur_rusage.ru_utime.tv_usec / 1000000.0;
-        double cur_stime = (double)cur_rusage.ru_stime.tv_sec +
-            (double)cur_rusage.ru_stime.tv_usec / 1000000.0;
-        double stime_utime_ratio =
-            (cur_stime - start_stime) / (cur_utime - start_utime);
-        if (stime_utime_ratio > .1)
-            printf("%swarning, excessive system time ratio for %s (%.3f%%).\n",
-                   err_prefix, algo, stime_utime_ratio * 100.0);
-    }
+    check_for_excessive_stime(algo, "");
 #endif
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -8485,6 +8440,25 @@ void bench_sphincsKeySign(byte level, byte optim)
          */
         return (double)rusage.ru_utime.tv_sec +
             (double)rusage.ru_utime.tv_usec / 1000000.0;
+    }
+
+    static void check_for_excessive_stime(const char *desc,
+                                          const char *desc_extra)
+    {
+        double start_utime = (double)base_rusage.ru_utime.tv_sec +
+            (double)base_rusage.ru_utime.tv_usec / 1000000.0;
+        double start_stime = (double)base_rusage.ru_stime.tv_sec +
+            (double)base_rusage.ru_stime.tv_usec / 1000000.0;
+        double cur_utime = (double)cur_rusage.ru_utime.tv_sec +
+            (double)cur_rusage.ru_utime.tv_usec / 1000000.0;
+        double cur_stime = (double)cur_rusage.ru_stime.tv_sec +
+            (double)cur_rusage.ru_stime.tv_usec / 1000000.0;
+        double stime_utime_ratio =
+            (cur_stime - start_stime) / (cur_utime - start_utime);
+        if (stime_utime_ratio > .1)
+            printf("%swarning, "
+                   "excessive system time ratio for %s%s (%.3f%%).\n",
+                   err_prefix, desc, desc_extra, stime_utime_ratio * 100.0);
     }
 
 #else
