@@ -33,7 +33,7 @@
     #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #else
     #undef LOG_LOCAL_LEVEL
-    #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+    #define LOG_LOCAL_LEVEL ESP_LOG_ERROR
 #endif
 
 #include <freertos/FreeRTOS.h>

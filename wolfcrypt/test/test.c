@@ -1640,10 +1640,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("Testing complete. You may close the window now\n");
         while (1);
 #endif
-#ifndef WOLFSSL_ESPIDF
         printf("Exiting main with return code: %d\n", args.return_code);
         return args.return_code;
-#endif
     }
 
 #endif /* NO_MAIN_DRIVER */

@@ -179,7 +179,7 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
             /* this could be a warning of wonkiness in RTOS environment.
              * we were successful, but not expected depth count*/
 
-            ESP_LOGE(TAG, "warning lockDepth mismatch.");
+            ESP_LOGW(TAG, "warning lockDepth mismatch.");
         }
         ctx->lockDepth = 0;
         ctx->mode = ESP32_SHA_INIT;

@@ -168,9 +168,6 @@ void app_main(void)
     #endif
 #endif
 
-#ifndef NO_CRYPT_TEST
-    wolf_crypt_task();
-#endif
 #ifndef NO_CRYPT_BENCHMARK
     wolf_benchmark_task();
 #endif

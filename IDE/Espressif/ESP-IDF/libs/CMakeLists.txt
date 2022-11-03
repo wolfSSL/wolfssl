@@ -71,6 +71,7 @@ set(COMPONENT_SRCEXCLUDE
     "./src/pk.c"
     "./src/x509.c"
     "./src/x509_str.c"
+    "./src/ssl_misc.c"
     "./wolfcrypt/src/evp.c"
     "./wolfcrypt/src/misc.c"
     )
