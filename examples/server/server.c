@@ -577,8 +577,21 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
         else if (SSL_get_error(ssl, 0) == 0 &&
                             tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
-            err = wolfSSL_peek(ssl, buffer, 0);
-            if(err < 0) {
+            /* do a peek and check for "pending" */
+            err = 0;
+            do {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (err == WC_PENDING_E) {
+                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                    if (ret < 0) break;
+                }
+            #endif
+                ret = wolfSSL_peek(ssl, buffer, 0);
+                err = SSL_get_error(ssl, ret);
+            } while (err == WC_PENDING_E
+                || err == WOLFSSL_ERROR_WANT_READ
+                || err == WOLFSSL_ERROR_WANT_WRITE);
+            if (err < 0) {
                 err_sys_ex(runWithErrors, "wolfSSL_peek failed");
             }
             if (wolfSSL_pending(ssl))
