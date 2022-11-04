@@ -4936,7 +4936,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
             NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
     if (session == NULL) {
         SetError(MEMORY_STR, error, NULL, 0);
-        return 0;
+        return NULL;
     }
     InitSession(session);
 #ifdef HAVE_EXTENDED_MASTER
@@ -4946,12 +4946,12 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         if (newHash == NULL) {
             SetError(MEMORY_STR, error, NULL, 0);
             XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-            return 0;
+            return NULL;
         }
         if (HashInit(newHash) != 0) {
             SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
             XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-            return 0;
+            return NULL;
         }
         session->hash = newHash;
     }
@@ -4972,14 +4972,14 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-        return 0;
+        return NULL;
     }
 
     session->sslServer = wolfSSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-        return 0;
+        return NULL;
     }
     session->sslClient = wolfSSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
@@ -4988,7 +4988,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
-        return 0;
+        return NULL;
     }
     /* put server back into server mode */
     session->sslServer->options.side = WOLFSSL_SERVER_END;
@@ -5177,6 +5177,16 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
 {
     /* create a new SnifferSession on client SYN */
     if (tcpInfo->syn && !tcpInfo->ack) {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* if session already exists and is pending do not create another */
+        *session = GetSnifferSession(ipInfo, tcpInfo);
+        if (*session != NULL) {
+            if ((*session)->pendSeq != 0) {
+                return WC_PENDING_E;
+            }
+        }
+    #endif
+
         TraceClientSyn(tcpInfo->sequence);
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslEncryptedConns);
@@ -5724,6 +5734,17 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
                         &session->flags.cliAckFault :
                         &session->flags.srvAckFault;
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (session->sslServer->error == 0 && session->pendSeq != 0 &&
+        session->pendSeq == tcpInfo->sequence) {
+        return 0; /* ready to process, but skip sequence checking below (already done) */
+    }
+    /* check if this session is pending */
+    else if (session->pendSeq != 0 && session->pendSeq != tcpInfo->sequence) {
+        return WC_PENDING_E;
+    }
+#endif
+
     /* init SEQ from server to client - if not ack fault */
     if (tcpInfo->syn && tcpInfo->ack && !*ackFault) {
         session->srvSeqStart = tcpInfo->sequence;
@@ -5737,14 +5758,6 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
     if (*sslBytes > actualLen) {
         *sslBytes = actualLen;
     }
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* check if this session is pending */
-    if (session->pendSeq != 0 && session->pendSeq != tcpInfo->sequence) {
-        /* this stream is processing, queue packet */
-        return WC_PENDING_E;
-    }
-#endif
 
     TraceSequence(tcpInfo->sequence, *sslBytes);
     if (CheckAck(tcpInfo, session) < 0) {
@@ -6379,6 +6392,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
         return WOLFSSL_SNIFFER_FATAL_ERROR;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    else if (ret == WC_PENDING_E) return WC_PENDING_E;
+#endif
     else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
@@ -6458,10 +6474,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         session->sslServer->error = ret;
 #ifdef WOLFSSL_ASYNC_CRYPT
         /* capture the seq pending for this session */
-        session->pendSeq = (ret == WC_PENDING_E) ? tcpInfo.sequence : 0;
-
         if (ret == WC_PENDING_E) {
             session->flags.wasPolled = 0;
+            session->pendSeq = tcpInfo.sequence;
             if (!asyncOkay || CryptoDeviceId == INVALID_DEVID) {
                 /* If devId has not been set then we need to block here by
                  * polling and looping */
@@ -6470,6 +6485,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
             else {
                 return ret; /* return to caller */
             }
+        }
+        else {
+            session->pendSeq = 0;
         }
     } while (ret == WC_PENDING_E);
 #else
