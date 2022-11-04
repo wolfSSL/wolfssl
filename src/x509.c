@@ -2990,48 +2990,113 @@ char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 }
 
 #ifdef OPENSSL_EXTRA
+/* Given an X509_NAME, convert it to canonical form and then hash
+ * with the provided hash type. Returns the first 4 bytes of the hash
+ * as unsigned long on success, and 0 otherwise. */
+static unsigned long X509NameHash(WOLFSSL_X509_NAME* name,
+    enum wc_HashType hashType)
+{
+    unsigned long  hash = 0;
+    unsigned char* canonName = NULL;
+    byte           digest[WC_MAX_DIGEST_SIZE];
+    int            size = 0;
+    int            rc;
+
+    WOLFSSL_ENTER("X509NameHash");
+
+    if (name == NULL) {
+        WOLFSSL_ERROR_MSG("WOLFSSL_X509_NAME pointer was NULL");
+        return 0;
+    }
+
+    if (name->sz == 0) {
+        WOLFSSL_ERROR_MSG("Nothing to hash in WOLFSSL_X509_NAME");
+        return 0;
+    }
+
+    size = wolfSSL_i2d_X509_NAME_canon(name, &canonName);
+
+    if (size <= 0 || canonName == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_i2d_X509_NAME_canon error");
+        return 0;
+    }
+
+    rc = wc_Hash(hashType, (const byte*)canonName,(word32)size, digest,
+        sizeof(digest));
+
+    if (rc == 0) {
+        hash = (((unsigned long)digest[3] << 24) |
+                ((unsigned long)digest[2] << 16) |
+                ((unsigned long)digest[1] <<  8) |
+                ((unsigned long)digest[0]));
+    }
+    else if (rc == HASH_TYPE_E) {
+        WOLFSSL_ERROR_MSG("Hash function not compiled in");
+    }
+    else {
+        WOLFSSL_ERROR_MSG("Error hashing name");
+    }
+
+    XFREE(canonName, NULL, DYNAMIC_TYPE_OPENSSL);
+    return hash;
+}
+
 unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
 {
-#ifndef NO_SHA
-    byte digest[WC_SHA_DIGEST_SIZE];
-    unsigned long ret = 0;
-    unsigned char* canon_name = NULL;
-    int size = 0;
+    return X509NameHash(name, WC_HASH_TYPE_SHA);
+}
 
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_hash");
-    if (name == NULL) {
-        WOLFSSL_MSG("WOLFSSL_X509_NAME pointer was NULL");
+/******************************************************************************
+* wolfSSL_X509_subject_name_hash
+* wolfSSL_X509_issuer_name_hash
+* Compute the hash digest of the subject / issuer name.
+* These functions prefer SHA-1 (if available) for compatibility. Otherwise
+* they use SHA-256.
+*
+* RETURNS:
+* The first 4 bytes of SHA-1 (or SHA-256) hash in little endian order as
+* unsigned long.
+* Otherwise, returns zero.
+*
+* Note:
+* Returns the same hash value as OpenSSL's X509_X_name_hash() API
+* if SHA-1 support is compiled in. SHA-256 will be used if SHA-1 is
+* not available.
+*/
+unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
+{
+    if (x509 == NULL) {
+        WOLFSSL_ERROR_MSG("WOLFSSL_X509 pointer was NULL");
         return 0;
     }
-    if (name->sz == 0) {
-        WOLFSSL_MSG("nothing to hash in WOLFSSL_X509_NAME");
-        return 0;
-    }
 
-    size = wolfSSL_i2d_X509_NAME_canon(name, &canon_name);
-
-    if (size <= 0){
-        WOLFSSL_MSG("wolfSSL_i2d_X509_NAME_canon error");
-        return 0;
-    }
-
-    if (wc_ShaHash((byte*)canon_name, size, digest) != 0) {
-        WOLFSSL_MSG("wc_ShaHash error");
-        return 0;
-    }
-
-    XFREE(canon_name, NULL, DYNAMIC_TYPE_OPENSSL);
-
-    ret  =  (unsigned long) digest[0];
-    ret |= ((unsigned long) digest[1]) << 8;
-    ret |= ((unsigned long) digest[2]) << 16;
-    ret |= ((unsigned long) digest[3]) << 24;
-    return ret;
-#else
-    (void)name;
-    WOLFSSL_MSG("wolfSSL_X509_NAME_hash sha support not compiled in");
+    #ifndef NO_SHA
+    return X509NameHash((WOLFSSL_X509_NAME*) &x509->subject, WC_HASH_TYPE_SHA);
+    #elif !defined(NO_SHA256)
+    return X509NameHash((WOLFSSL_X509_NAME*) &x509->subject,
+                        WC_HASH_TYPE_SHA256);
+    #else
+    WOLFSSL_ERROR_MSG("Hash function not compiled in");
     return 0;
-#endif
+    #endif
+}
+
+unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509)
+{
+    if (x509 == NULL) {
+        WOLFSSL_ERROR_MSG("WOLFSSL_X509 pointer was NULL");
+        return 0;
+    }
+
+    #ifndef NO_SHA
+    return X509NameHash((WOLFSSL_X509_NAME*) &x509->issuer, WC_HASH_TYPE_SHA);
+    #elif !defined(NO_SHA256)
+    return X509NameHash((WOLFSSL_X509_NAME*) &x509->issuer,
+                        WC_HASH_TYPE_SHA256);
+    #else
+    WOLFSSL_ERROR_MSG("Hash function not compiled in");
+    return 0;
+    #endif
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -4764,73 +4829,6 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
         return &cert->subject;
     return NULL;
 }
-
-#if defined(OPENSSL_EXTRA) && (!defined(NO_SHA) || !defined(NO_SHA256))
-/******************************************************************************
-* wolfSSL_X509_subject_name_hash - compute the hash digest of the raw subject name
-* This function prefers SHA-1 (if available) for compatibility
-*
-* RETURNS:
-* The beginning of the hash digest. Otherwise, returns zero.
-* Note:
-* Returns a different hash value from OpenSSL's X509_subject_name_hash() API
-* depending on the subject name.
-*/
-unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
-{
-    unsigned long ret = 0;
-    int retHash = NOT_COMPILED_IN;
-    WOLFSSL_X509_NAME *subjectName = NULL;
-    byte digest[WC_MAX_DIGEST_SIZE];
-
-    if (x509 == NULL) {
-        return ret;
-    }
-
-    subjectName = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)x509);
-    if (subjectName != NULL) {
-    #ifndef NO_SHA
-        retHash = wc_ShaHash((const byte*)subjectName->name,
-                             (word32)subjectName->sz, digest);
-    #elif !defined(NO_SHA256)
-        retHash = wc_Sha256Hash((const byte*)subjectName->name,
-                                (word32)subjectName->sz, digest);
-    #endif
-        if (retHash == 0) {
-            ret = (unsigned long)MakeWordFromHash(digest);
-        }
-    }
-
-    return ret;
-}
-
-unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509)
-{
-    unsigned long ret = 0;
-    int retHash = NOT_COMPILED_IN;
-    WOLFSSL_X509_NAME *issuerName = NULL;
-    byte digest[WC_MAX_DIGEST_SIZE];
-
-    if (x509 == NULL) {
-        return ret;
-    }
-
-    issuerName = wolfSSL_X509_get_issuer_name((WOLFSSL_X509*)x509);
-    if (issuerName != NULL) {
-    #ifndef NO_SHA
-        retHash = wc_ShaHash((const byte*)issuerName->name,
-                             (word32)issuerName->sz, digest);
-    #elif !defined(NO_SHA256)
-        retHash = wc_Sha256Hash((const byte*)issuerName->name,
-                                (word32)issuerName->sz, digest);
-    #endif
-        if (retHash == 0) {
-            ret = (unsigned long)MakeWordFromHash(digest);
-        }
-    }
-    return ret;
-}
-#endif /* OPENSSL_EXTRA && (!NO_SHA || !NO_SHA256) */
 
 WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)

@@ -31472,25 +31472,38 @@ static int test_wolfSSL_X509_subject_name_hash(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_RSA) && (!defined(NO_SHA) || !defined(NO_SHA256))
-
     X509* x509;
     X509_NAME* subjectName = NULL;
-    unsigned long ret = 0;
+    unsigned long ret1 = 0;
+    unsigned long ret2 = 0;
 
     printf(testingFmt, "wolfSSL_X509_subject_name_hash()");
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
                 SSL_FILETYPE_PEM));
-
     AssertNotNull(subjectName = wolfSSL_X509_get_subject_name(x509));
-    ret = X509_subject_name_hash(x509);
-    AssertIntNE(ret, 0);
+
+    /* These two
+     *   - X509_subject_name_hash(x509)
+     *   - X509_NAME_hash(X509_get_subject_name(x509))
+     *  should give the same hash, if !defined(NO_SHA) is true. */
+
+    ret1 = X509_subject_name_hash(x509);
+    AssertIntNE(ret1, 0);
+
+#if !defined(NO_SHA)
+    ret2 = X509_NAME_hash(X509_get_subject_name(x509));
+    AssertIntNE(ret2, 0);
+
+    AssertIntEQ(ret1, ret2);
+#else
+    (void) ret2;
+#endif
 
     X509_free(x509);
     printf(resultFmt, passed);
 
 #endif
-
     return 0;
 }
 
@@ -31498,25 +31511,38 @@ static int test_wolfSSL_X509_issuer_name_hash(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
     && !defined(NO_RSA) && (!defined(NO_SHA) || !defined(NO_SHA256))
-
     X509* x509;
     X509_NAME* issuertName = NULL;
-    unsigned long ret = 0;
+    unsigned long ret1 = 0;
+    unsigned long ret2 = 0;
 
     printf(testingFmt, "wolfSSL_X509_issuer_name_hash()");
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
                 SSL_FILETYPE_PEM));
-
     AssertNotNull(issuertName = wolfSSL_X509_get_issuer_name(x509));
-    ret = X509_issuer_name_hash(x509);
-    AssertIntNE(ret, 0);
+
+    /* These two
+     *   - X509_issuer_name_hash(x509)
+     *   - X509_NAME_hash(X509_get_issuer_name(x509))
+     *  should give the same hash, if !defined(NO_SHA) is true. */
+
+    ret1 = X509_issuer_name_hash(x509);
+    AssertIntNE(ret1, 0);
+
+#if !defined(NO_SHA)
+    ret2 = X509_NAME_hash(X509_get_issuer_name(x509));
+    AssertIntNE(ret2, 0);
+
+    AssertIntEQ(ret1, ret2);
+#else
+    (void) ret2;
+#endif
 
     X509_free(x509);
     printf(resultFmt, passed);
 
 #endif
-
     return 0;
 }
 
