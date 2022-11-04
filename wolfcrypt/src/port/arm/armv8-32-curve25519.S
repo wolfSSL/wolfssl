@@ -24,6 +24,9 @@
  *   ruby ./x25519/x25519.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-curve25519.S
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
