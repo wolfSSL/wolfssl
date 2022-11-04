@@ -1726,9 +1726,10 @@ static int test_wolfSSL_CheckOCSPResponse(void)
     {
         WOLFSSL_CERT_MANAGER* cm = NULL;
         OcspEntry *entry;
-        CertStatus status[1];
+        CertStatus* status;
         OcspRequest* request;
 
+        byte serial1[] = {0x01};
         byte serial[] = {0x02};
 
         byte issuerHash[] = {
@@ -1745,6 +1746,10 @@ static int test_wolfSSL_CheckOCSPResponse(void)
         entry = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
              DYNAMIC_TYPE_OPENSSL);
         AssertNotNull(entry);
+
+        status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+             DYNAMIC_TYPE_OPENSSL);
+        AssertNotNull(status);
 
         XMEMSET(entry, 0, sizeof(OcspEntry));
         XMEMSET(status, 0, sizeof(CertStatus));
@@ -1774,9 +1779,23 @@ static int test_wolfSSL_CheckOCSPResponse(void)
             dataSz, NULL, status, entry, request), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_CertManagerCheckOCSPResponse(cm, data,
             dataSz, NULL, entry->status, entry, request), WOLFSSL_SUCCESS);
+        AssertNotNull(entry->status);
+
+        XMEMCPY(request->serial, serial1, sizeof(serial1));
+        AssertIntEQ(wolfSSL_CertManagerCheckOCSPResponse(cm, data,
+            dataSz, NULL, status, entry, request), WOLFSSL_SUCCESS);
+
+        /* store both status's in the entry to check that "next" is not
+         * overwritten */
+        status->next  = entry->status;
+        entry->status = status;
+
+        XMEMCPY(request->serial, serial, sizeof(serial));
+        AssertIntEQ(wolfSSL_CertManagerCheckOCSPResponse(cm, data,
+            dataSz, NULL, entry->status, entry, request), WOLFSSL_SUCCESS);
+        AssertNotNull(entry->status->next);
 
         /* compare the status found */
-        AssertNotNull(entry->status);
         AssertIntEQ(status->serialSz, entry->status->serialSz);
         AssertIntEQ(XMEMCMP(status->serial, entry->status->serial,
             status->serialSz), 0);
