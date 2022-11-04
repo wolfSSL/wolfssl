@@ -52,6 +52,24 @@ typedef struct WOLFSSL_BIGNUM {
 #define BN_ULONG         WOLFSSL_BN_ULONG
 #endif
 
+#ifndef WOLFSSL_MAX_BN_BITS
+    #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+        /* SP implementation supports numbers of SP_INT_BITS bits. */
+        #define WOLFSSL_MAX_BN_BITS     SP_INT_BITS
+    #elif defined(USE_FAST_MATH)
+        /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
+        #define WOLFSSL_MAX_BN_BITS     (FP_MAX_BITS / 2)
+    #else
+        #ifdef WOLFSSL_MYSQL_COMPATIBLE
+            /* Integer maths is dynamic but we only go up to 8192 bits. */
+            #define WOLFSSL_MAX_BN_BITS 8192
+        #else
+            /* Integer maths is dynamic but we only go up to 4096 bits. */
+            #define WOLFSSL_MAX_BN_BITS 4096
+        #endif
+    #endif
+#endif
+
 typedef struct WOLFSSL_BN_CTX   WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
 

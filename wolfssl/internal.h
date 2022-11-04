@@ -1137,9 +1137,13 @@ enum {
 /* set maximum DH key size allowed */
 #ifndef WOLFSSL_MAX_DHKEY_BITS
     #if (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
-        #define WOLFSSL_MAX_DHKEY_BITS (FP_MAX_BITS / 2)
+        #define WOLFSSL_MAX_DHKEY_BITS  (FP_MAX_BITS / 2)
+    #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
+           defined(SP_INT_BITS)
+        /* SP implementation supports numbers of SP_INT_BITS bits. */
+        #define WOLFSSL_MAX_DHKEY_BITS  (((SP_INT_BITS + 7) / 8) * 8)
     #else
-        #define WOLFSSL_MAX_DHKEY_BITS 4096
+        #define WOLFSSL_MAX_DHKEY_BITS  4096
     #endif
 #endif
 #if (WOLFSSL_MAX_DHKEY_BITS % 8)
