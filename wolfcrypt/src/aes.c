@@ -7419,9 +7419,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef STM32_CRYPTO_AES_GCM
 
 /* this function supports inline encrypt */
-/* define STM32_AESGCM_PARTIAL for newer STM Cube HAL's with workaround
-   for handling partial packets to improve auth tag calculation performance by
-   using hardware */
+/* define STM32_AESGCM_PARTIAL for STM HW that does not support authentication
+ * on byte multiples (see CRYP_HEADERWIDTHUNIT_BYTE) */
 static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -7527,9 +7526,6 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     hcryp.Init.HeaderSize = authInSz;
     #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    #endif
-    #ifdef STM32_AESGCM_PARTIAL
-    hcryp.Init.HeaderPadSize = authPadSz - authInSz;
     #endif
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Encrypt */
@@ -8055,9 +8051,6 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
     #endif
-    #ifdef STM32_AESGCM_PARTIAL
-    hcryp.Init.HeaderPadSize = authPadSz - authInSz;
-    #endif
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Decrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
@@ -8080,7 +8073,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
         status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)partialBlock, partial,
-(           uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
+            (uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
         XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
     }
     #endif
