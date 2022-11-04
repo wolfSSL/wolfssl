@@ -3533,6 +3533,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       return ECC_BAD_ARG_E;
    }
 
+#ifdef HAVE_ECC_CDH
+   if (mp_count_bits(modulus) > mp_count_bits(order)) {
+      if (mp_count_bits(k) > mp_count_bits(modulus)) {
+          return ECC_OUT_OF_RANGE_E;
+      }
+   }
+   else
+#endif
    /* k can't have more bits than order */
    if (mp_count_bits(k) > mp_count_bits(order)) {
       return ECC_OUT_OF_RANGE_E;
@@ -3579,13 +3587,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
       goto exit;
    }
-
-   /* k can't have more bits than order */
-   if (mp_count_bits(k) > mp_count_bits(order)) {
-      err = ECC_OUT_OF_RANGE_E;
-      goto exit;
-   }
-
 
 #ifdef ECC_TIMING_RESISTANT
    if ((err = mp_init(&t)) != MP_OKAY)
@@ -6105,6 +6106,14 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
             key->state = ECC_STATE_SIGN_ENCODE;
 
             if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+                #if !defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(HAVE_ECC_CDH)
+                    DECLARE_CURVE_SPECS(1);
+                    ALLOC_CURVE_SPECS(1, err);
+
+                    /* get curve order */
+                    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+                #endif
+
                 #ifdef HAVE_CAVIUM_V
                     /* Nitrox requires r and s in sep buffer, so split it */
                     NitroxEccRsSplit(key, &r->raw, &s->raw);
@@ -6113,11 +6122,23 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
                     /* only do this if not software, since it overwrites result */
                     wc_bigint_to_mp(&r->raw, r);
                     wc_bigint_to_mp(&s->raw, s);
+
+                /* if using a curve with cofactor != 1 then reduce by mod order */
+                #ifdef HAVE_ECC_CDH
+                    /* if r is not less than order than reduce */
+                    if (err == 0 && mp_count_bits(r) > mp_count_bits(curve->order)) {
+                        err = mp_mod(r, curve->order, r);
+                    }
+                    wc_ecc_curve_free(curve);
+                    FREE_CURVE_SPECS();
                 #endif
+                #endif /* !WOLFSSL_ASYNC_CRYPT_SW */
             }
 
             /* encoded with DSA header */
-            err = StoreECC_DSA_Sig(out, outlen, r, s);
+            if (err == 0) {
+                err = StoreECC_DSA_Sig(out, outlen, r, s);
+            }
 
             /* done with R/S */
             mp_clear(r);
@@ -9716,14 +9737,16 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     /* SP 800-56Ar3, section 5.6.2.3.4, process step 2 */
     /* Qx must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
+        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT) {
             err = ECC_OUT_OF_RANGE_E;
+        }
     }
 
     /* Qy must be in the range [0, p-1] */
     if (err == MP_OKAY) {
-        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
+        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT) {
             err = ECC_OUT_OF_RANGE_E;
+        }
     }
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 3 */
