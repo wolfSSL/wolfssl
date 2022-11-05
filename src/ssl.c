@@ -169,7 +169,10 @@
 #endif
 
 #ifdef __APPLE__
-# include <Security/SecTrustSettings.h>
+    #include <TargetConditionals.h>
+    #if TARGET_OS_MAC
+        #include <Security/SecTrustSettings.h>
+    #endif
 #endif
 
 /*
@@ -8172,7 +8175,7 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
     return ret;
 }
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && TARGET_OS_MAC
 
 static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 {
@@ -8304,7 +8307,7 @@ int wolfSSL_CTX_load_system_CA_certs(WOLFSSL_CTX* ctx)
 
 #ifdef USE_WINDOWS_API
     ret = LoadSystemCaCertsWindows(ctx, &loaded);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && TARGET_OS_MAC
     ret = LoadSystemCaCertsMac(ctx, &loaded);
 #else
     ret = LoadSystemCaCertsNix(ctx, &loaded);
