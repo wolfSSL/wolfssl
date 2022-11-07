@@ -7103,6 +7103,13 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         #endif /* HAVE_ED25519 */
         #ifdef HAVE_CURVE25519
             case DYNAMIC_TYPE_CURVE25519:
+            #if defined(WC_X25519_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
+                defined(WC_ASYNC_ENABLE_X25519)
+                if (((curve25519_key*)*pKey)->nbCtx != NULL) {
+                    XFREE(((curve25519_key*)*pKey)->nbCtx, ssl->heap,
+                          DYNAMIC_TYPE_TMP_BUFFER);
+                }
+            #endif
                 wc_curve25519_free((curve25519_key*)*pKey);
                 break;
         #endif /* HAVE_CURVE25519 */
@@ -7282,7 +7289,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
                 else {
                     ret = wc_curve25519_set_nonblock(x25519Key, x25519NbCtx);
                     if (ret != 0) {
-                        XFREE(x25519NbCtx, eccKey->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        XFREE(x25519NbCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     }
                 }
             }

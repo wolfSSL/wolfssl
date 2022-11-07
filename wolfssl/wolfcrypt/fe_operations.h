@@ -75,7 +75,9 @@ WOLFSSL_LOCAL void lm_mul(byte*,const byte*,const byte*);
 
 #ifdef WC_X25519_NONBLOCK
 
-#define WC_X25519_NB_NOT_DONE -1
+#ifndef FP_WOULDBLOCK
+#define FP_WOULDBLOCK   (-4)
+#endif
 
 struct fe_inv__distinct_nb_ctx_t;
 struct x25519_nb_ctx_t;
@@ -88,6 +90,10 @@ WOLFSSL_LOCAL int curve25519_nb(byte * q, const byte * n, const byte * p,
 
 #endif /* WC_X25519_NONBLOCK */
 
+#else
+    #ifdef WC_X25519_NONBLOCK
+        #error The X25519 non-blocking requires CURVE25519_SMALL (--enable-curve25519=small)
+    #endif
 #endif /* CURVE25519_SMALL || ED25519_SMALL */
 
 

@@ -189,7 +189,7 @@ int curve25519(byte *result, const byte *n, const byte *p)
 
 int fe_inv__distinct_nb(byte *r, const byte *x, fe_inv__distinct_nb_ctx_t* ctx)
 {
-    int ret = WC_X25519_NB_NOT_DONE;
+    int ret = FP_WOULDBLOCK;
 
     switch (ctx->state) {
         case 0:
@@ -231,7 +231,7 @@ int fe_inv__distinct_nb(byte *r, const byte *x, fe_inv__distinct_nb_ctx_t* ctx)
 int curve25519_nb(byte *result, const byte *n, const byte *p,
     struct x25519_nb_ctx_t* ctx)
 {
-    int ret = WC_X25519_NB_NOT_DONE;
+    int ret = FP_WOULDBLOCK;
 
     switch (ctx->state) {
         case 0:

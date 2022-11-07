@@ -27364,6 +27364,7 @@ static int x25519_nonblock_test(WC_RNG* rng)
     word32  x;
     word32  y;
 #endif
+    int count;
 
     XMEMSET(&nbCtx, 0, sizeof(nbCtx));
 
@@ -27372,22 +27373,29 @@ static int x25519_nonblock_test(WC_RNG* rng)
         printf("wc_curve25519_set_nonblock 1 %d\n", ret);
         return -10723;
     }
+    count = 0;
     do {
         ret = wc_curve25519_make_key(rng, 32, &userA);
-    } while (ret == WC_X25519_NB_NOT_DONE);
+        count++;
+    } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_make_key_nb 1 %d\n", ret);
         return -10724;
     }
+#ifdef DEBUG_WOLFSSL
+    fprintf(stderr, "CURVE25519 non-block key gen: %d times\n", count);
+#endif
 
     ret = wc_curve25519_set_nonblock(&userB, &nbCtx);
     if (ret != 0) {
         printf("wc_curve25519_set_nonblock 2 %d\n", ret);
         return -10725;
     }
+    count = 0;
     do {
         ret = wc_curve25519_make_key(rng, 32, &userB);
-    } while (ret == WC_X25519_NB_NOT_DONE);
+        count++;
+    } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_make_key_nb 2 %d\n", ret);
         return -10726;
@@ -27397,21 +27405,26 @@ static int x25519_nonblock_test(WC_RNG* rng)
     x = sizeof(sharedA);
     do {
         ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x);
-    } while (ret == WC_X25519_NB_NOT_DONE);
+    } while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_shared_secret_nb 1 %d\n", ret);
         return -10727;
     }
 
     y = sizeof(sharedB);
+    count = 0;
     do {
         ret = wc_curve25519_shared_secret(&userB, &userA, sharedB, &y);
+        count++;
     }
-    while (ret == WC_X25519_NB_NOT_DONE);
+    while (ret == FP_WOULDBLOCK);
     if (ret != 0) {
         printf("wc_curve25519_shared_secret_nb 2 %d\n", ret);
         return -10728;
     }
+#ifdef DEBUG_WOLFSSL
+    fprintf(stderr, "CURVE25519 non-block shared secret: %d times\n", count);
+#endif
 
     /* compare shared secret keys to test they are the same */
     if (y != x) {

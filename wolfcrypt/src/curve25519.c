@@ -364,7 +364,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
 static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
     curve25519_key* pubKey, byte* out, word32* outlen, int endian)
 {
-    int ret = WC_X25519_NB_NOT_DONE;
+    int ret = FP_WOULDBLOCK;
 
     switch (privKey->nbCtx->ssState) {
         case 0:
@@ -375,7 +375,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             ret = curve25519_nb(privKey->nbCtx->o.point, privKey->k,
                       pubKey->p.point, privKey->nbCtx);
             if (ret == 0) {
-                ret = WC_X25519_NB_NOT_DONE;
+                ret = FP_WOULDBLOCK;
                 privKey->nbCtx->ssState = 2;
             }
             break;
@@ -400,7 +400,7 @@ static int wc_curve25519_shared_secret_nb(curve25519_key* privKey,
             break;
     }
 
-    if (ret != WC_X25519_NB_NOT_DONE) {
+    if (ret != FP_WOULDBLOCK) {
         XMEMSET(privKey->nbCtx, 0, sizeof(x25519_nb_ctx_t));
     }
 
