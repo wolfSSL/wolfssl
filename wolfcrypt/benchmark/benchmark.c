@@ -902,8 +902,8 @@ static const char* bench_Usage_msg1[][21] = {
         "<num>       Size of block in bytes\n",
        ("-blocks <num>  Number of blocks. Can be used together with the 'Size of block'\n"
         "            option, but must be used after that one.\n"
-        "-threads <num> Number of threads to run\n"
        ),
+        "-threads <num> Number of threads to run\n",
         "-print      Show benchmark stats summary\n"
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -951,7 +951,7 @@ static const char* bench_result_words1[][4] = {
 
 static const char* bench_desc_words[][15] = {
     /* 0           1          2         3        4        5         6            7            8          9        10        11       12          13       14 */
-    {"public", "private", "key gen", "agree" , "sign", "verify", "encryption", "decryption", "rsk gen", "encap", "derive", "valid", "pair gen", "decap", NULL}, /* 0 English */
+    {"public", "private", "key gen", "agree" , "sign", "verify", "encrypt", "decrypt", "rsk gen", "encap", "derive", "valid", "pair gen", "decap", NULL}, /* 0 English */
 #ifndef NO_MULTIBYTE_PRINT
     {"公開鍵", "秘密鍵" ,"鍵生成" , "鍵共有" , "署名", "検証"  , "暗号化"    , "復号化"    , "rsk gen", "encap", "derive", "valid", "pair gen", "decap", NULL}, /* 1 Japanese */
 #endif
@@ -1810,14 +1810,14 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     } else {
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
         (void)XSNPRINTF(msg, sizeof(msg),
-                        "%-6s %5d %-9s%s %s %6d %s %5.3f %s, %s %5.3f ms,"
+                        "%-6s %5d %8s%-2s %s %6d %s %5.3f %s, %s %5.3f ms,"
                         " %.3f %s, %lu cycles\n", algo, strength, desc,
                         desc_extra, BENCH_ASYNC_GET_NAME(useDeviceID),
                         count, word[0], total, word[1], word[2], milliEach,
                         opsSec, word[3], total_cycles);
 #else
         (void)XSNPRINTF(msg, sizeof(msg),
-                        "%-6s %5d %-9s%s %s %6d %s %5.3f %s, %s %5.3f ms,"
+                        "%-6s %5d %8s%-2s %s %6d %s %5.3f %s, %s %5.3f ms,"
                         " %.3f %s\n", algo, strength, desc, desc_extra,
                         BENCH_ASYNC_GET_NAME(useDeviceID), count, word[0],
                         total, word[1], word[2], milliEach, opsSec, word[3]);
@@ -1881,7 +1881,7 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID, int co
         /* only print out header once */
         if (pqasym_header_printed == 0) {
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
-            printf(%s, "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs,cycles,"
+            printf("%s", "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs,cycles,"
                    "cycles/op\n");
 #else
             printf("\nPost Quantum Asymmetric Ciphers:\n\n");
