@@ -162,15 +162,19 @@
 #endif
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 
+#ifdef WOLFSSL_SYS_CA_CERTS
+
 #ifdef _WIN32
 #include <windows.h>
 #include <Wincrypt.h>
 #pragma comment(lib, "crypt32")
 #endif
 
-#ifdef __APPLE__
-# include <Security/SecTrustSettings.h>
+#if defined(__APPLE__) && defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
+#include <Security/SecTrustSettings.h>
 #endif
+
+#endif /* WOLFSSL_SYS_CA_CERTS */
 
 /*
  * OPENSSL_COMPATIBLE_DEFAULTS:
