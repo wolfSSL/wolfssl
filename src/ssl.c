@@ -31886,10 +31886,11 @@ int wolfSSL_CRYPTO_set_mem_functions(
             (wolfSSL_Realloc_cb)r) == 0)
         return WOLFSSL_SUCCESS;
 #else
-    WOLFSSL_MSG("wolfSSL was compiled without WOLFSSL_DEBUG_MEMORY. mem "
+    WOLFSSL_MSG("wolfSSL was compiled without WOLFSSL_DEBUG_MEMORY mem "
                 "functions will receive a NULL file name and 0 for the "
                 "line number.");
-    if (wolfSSL_SetAllocators(OSSL_Malloc, OSSL_Free, OSSL_Realloc) == 0) {
+    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)OSSL_Malloc,
+           (wolfSSL_Free_cb)OSSL_Free, (wolfSSL_Realloc_cb)OSSL_Realloc) == 0) {
         ossl_malloc = m;
         ossl_free = f;
         ossl_realloc = r;

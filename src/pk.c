@@ -1804,7 +1804,7 @@ static int wolfssl_pem_write_rsa_public_key(XFILE fp, WOLFSSL_RSA* rsa,
     }
 
     /* Dispose of DER buffer. */
-    XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -7605,7 +7605,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     if (!err) {
         /* Use wolfSSL API to get length of DER encode DH parameters. */
         key = (DhKey*)dh->internal;
-        ret = wc_DhParamsToDer(key, heap, &derSz);
+        ret = wc_DhParamsToDer(key, NULL, &derSz);
         if (ret != LENGTH_ONLY_E) {
             WOLFSSL_ERROR_MSG("Failed to get size of DH params");
             err = 1;
@@ -7614,7 +7614,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 
     if (!err) {
         /* Allocate memory for DER encoding. */
-        der = (byte*)XMALLOC(derSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        der = (byte*)XMALLOC(derSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
             WOLFSSL_LEAVE("wolfssl_dhparams_to_der", MEMORY_E);
             err = 1;
@@ -7631,6 +7631,10 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 
     if (!err) {
         *out = der;
+        der = NULL;
+    }
+    if (der != NULL) {
+        XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
@@ -7649,6 +7653,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     int ret = 1;
     int derSz;
     byte* derBuf = NULL;
+    void* heap = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_DHparams");
 
@@ -7659,7 +7664,10 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     }
 
     if (ret == 1) {
-        if ((derSz = wolfssl_dhparams_to_der(dh, &derBuf, NULL)) < 0) {
+        DhKey* key = (DhKey*)dh->internal;
+        if (key)
+            heap = key->heap;
+        if ((derSz = wolfssl_dhparams_to_der(dh, &derBuf, heap)) < 0) {
             WOLFSSL_ERROR_MSG("DER encoding failed");
             ret = 0;
         }
@@ -7674,7 +7682,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     }
 
     /* Dispose of DER buffer. */
-    XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
 
