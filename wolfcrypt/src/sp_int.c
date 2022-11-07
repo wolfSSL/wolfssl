@@ -288,7 +288,7 @@ This library provides single precision (SP) integer math functions.
  * CPU: x86_64
  */
 
-#ifndef _WIN64
+#ifndef _MSC_VER
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
     __asm__ __volatile__ (                               \
@@ -576,7 +576,8 @@ This library provides single precision (SP) integer math functions.
     while (0)
 #endif
 
-#if !defined(WOLFSSL_SP_DIV_WORD_HALF) && (!defined(_WIN64) || _MSC_VER >= 1920)
+#if !defined(WOLFSSL_SP_DIV_WORD_HALF) && (!defined(_MSC_VER) || \
+    _MSC_VER >= 1920)
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
  * Using divq instruction on Intel x64.
@@ -589,7 +590,7 @@ This library provides single precision (SP) integer math functions.
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
-#ifndef _WIN64
+#ifndef _MSC_VER
     __asm__ __volatile__ (
         "divq %2"
         : "+a" (lo)
