@@ -904,6 +904,11 @@ int main(int argc, char** argv)
 
         /* check if we are done reading file */
         if (packet == NULL && data == NULL && saveFile) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* if items pending still then keep processing */
+            if (queueSz > 0)
+                continue;
+        #endif
             break;
         }
 
