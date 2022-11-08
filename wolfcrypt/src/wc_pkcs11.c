@@ -1521,8 +1521,10 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     int             ret = 0;
     CK_ULONG        count;
     CK_ATTRIBUTE    keyTemplate[] = {
+#ifndef WC_PKCS11_FIND_WITH_ID_ONLY
         { CKA_CLASS,           &keyClass, sizeof(keyClass) },
         { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
+#endif
         { CKA_ID,              id,        (CK_ULONG)idLen  }
     };
     CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
