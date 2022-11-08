@@ -3112,7 +3112,7 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA* rsa, WC_RNG** tmpRng, int* initTmpRng)
     if ((!err) && (rng == NULL) && (tmpRng != NULL)) {
         /* Make an RNG with tmpRng or get global. */
         rng = wolfssl_make_rng(*tmpRng, initTmpRng);
-        if ((rng != NULL) && initTmpRng) {
+        if ((rng != NULL) && *initTmpRng) {
             *tmpRng = rng;
         }
     }
