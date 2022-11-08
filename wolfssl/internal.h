@@ -4871,6 +4871,7 @@ struct WOLFSSL {
     int             wflags;             /* user write flags */
     word32          timeout;            /* session timeout */
     word32          fragOffset;         /* fragment offset */
+    word32          startIdx;
     word16          curSize;
     byte            verifyDepth;
     RecordLayerHeader curRL;

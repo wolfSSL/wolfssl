@@ -18915,9 +18915,8 @@ int ProcessReply(WOLFSSL* ssl)
    closed and the endpoint wants to check for an alert sent by the other end. */
 int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
-    int    ret = 0, type = internal_error, readSz;
+    int    ret = 0, type = internal_error;
     int    atomicUser = 0;
-    word32 startIdx = 0;
 #if defined(WOLFSSL_DTLS)
     int    used;
 #endif
@@ -18978,18 +18977,19 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         /* in the WOLFSSL_SERVER case, get the first byte for detecting
          * old client hello */
         case doProcessInit:
-
-            readSz = RECORD_HEADER_SZ;
+        {
+            int readSz = RECORD_HEADER_SZ;
+            ssl->startIdx = 0;
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
                 readSz = DTLS_RECORD_HEADER_SZ;
-#ifdef WOLFSSL_DTLS13
+            #ifdef WOLFSSL_DTLS13
                 if (ssl->options.tls1_3) {
                     /* dtls1.3 unified header can be as little as 2 bytes */
                     readSz = DTLS_UNIFIED_HEADER_MIN_SZ;
                 }
-#endif /* WOLFSSL_DTLS13 */
+            #endif /* WOLFSSL_DTLS13 */
             }
         #endif
 
@@ -18997,8 +18997,9 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             if (!ssl->options.dtls) {
                 if ((ret = GetInputData(ssl, readSz)) < 0)
                     return ret;
-            } else {
-            #ifdef WOLFSSL_DTLS
+            }
+        #ifdef WOLFSSL_DTLS
+            else {
                 /* read ahead may already have header */
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
@@ -19006,11 +19007,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     if ((ret = GetInputData(ssl, readSz)) < 0)
                         return ret;
                 }
-            #endif
             }
+        #endif
 
-#ifdef OLD_HELLO_ALLOWED
-
+    #ifdef OLD_HELLO_ALLOWED
             /* see if sending SSLv2 client hello */
             if ( ssl->options.side == WOLFSSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
@@ -19048,8 +19048,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->options.processReply = getRecordLayerHeader;
                 continue;
             }
-            FALL_THROUGH;
+    #endif /* OLD_HELLO_ALLOWED */
 
+            FALL_THROUGH;
+        }
+
+    #ifdef OLD_HELLO_ALLOWED
         /* in the WOLFSSL_SERVER case, run the old client hello */
         case runProcessOldClientHello:
 
@@ -19081,9 +19085,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->options.processReply = doProcessInit;
                 return 0;
             }
-
-#endif  /* OLD_HELLO_ALLOWED */
             FALL_THROUGH;
+    #endif  /* OLD_HELLO_ALLOWED */
 
         /* get the record layer header */
         case getRecordLayerHeader:
@@ -19182,7 +19185,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             ssl->keys.padSz = 0;
 
             ssl->options.processReply = verifyEncryptedMessage;
-            startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
+            ssl->startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
+
             FALL_THROUGH;
 
         /* verify digest of encrypted message */
@@ -19525,7 +19529,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 /* For TLS v1.1 the block size and explcit IV are added to idx,
                  * so it needs to be included in this limit check */
                 if ((ssl->curSize - ssl->keys.padSz -
-                        (ssl->buffers.inputBuffer.idx - startIdx) -
+                        (ssl->buffers.inputBuffer.idx - ssl->startIdx) -
                         MacSize(ssl) > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
@@ -19547,7 +19551,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                  * so it needs to be included in this limit check */
                 if (!IsAtLeastTLSv1_3(ssl->version)
                         && ssl->curSize - ssl->keys.padSz -
-                            (ssl->buffers.inputBuffer.idx - startIdx)
+                            (ssl->buffers.inputBuffer.idx - ssl->startIdx)
                                 > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
@@ -19932,7 +19936,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 return ret;
             }
             /* more messages per record */
-            else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
+            else if ((ssl->buffers.inputBuffer.idx - ssl->startIdx) < ssl->curSize) {
                 WOLFSSL_MSG("More messages in record");
 
                 ssl->options.processReply = runProcessingOneMessage;
