@@ -1969,11 +1969,12 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             break;
 
                         default:
-                            if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
-                                    dns->len) != WOLFSSL_SUCCESS) {
+                            if (wolfSSL_ASN1_STRING_set(gn->d.dNSName,
+                                    dns->name, dns->len) != WOLFSSL_SUCCESS) {
                                 WOLFSSL_MSG("ASN1_STRING_set failed");
                                 goto err;
                             }
+                            gn->d.dNSName->type = V_ASN1_IA5STRING;
                     }
 
                     dns = dns->next;
