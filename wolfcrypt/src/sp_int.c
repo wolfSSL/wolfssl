@@ -122,7 +122,7 @@ This library provides single precision (SP) integer math functions.
     #endif
 #endif
 
-/* ALLOC_SP_INT: Allocate an 'sp_int' of reqired size. */
+/* ALLOC_SP_INT: Allocate an 'sp_int' of required size. */
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
     !defined(WOLFSSL_SP_NO_MALLOC)
     /* Dynamically allocate just enough data to support size. */
@@ -193,7 +193,7 @@ This library provides single precision (SP) integer math functions.
     #endif
 #endif
 
-/* ALLOC_SP_INT_ARRAY: Allocate an array of 'sp_int's of reqired size. */
+/* ALLOC_SP_INT_ARRAY: Allocate an array of 'sp_int's of required size. */
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
     !defined(WOLFSSL_SP_NO_MALLOC)
     /* Dynamically allocate just enough data to support multiple sp_ints of the
