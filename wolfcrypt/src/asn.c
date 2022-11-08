@@ -19302,18 +19302,14 @@ exit:
  * X.509: RFC 5280, 4.2.1.8 - Subject Directory Attributes.
  */
 static const ASNItem subjDirAttrASN[] = {
-/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 0 },
 /* OID  */          { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* PLEN */          { 2, ASN_SET, 1, 1, 0 },
-/* BIT_STR */       { 2, ASN_PRINTABLE_STRING, 0, 0, 0 }
+/* PLEN */          { 2, ASN_SET, 1, 0, 0 },
 };
 enum {
     SUBJDIRATTRASN_IDX_SEQ = 0,
-    SUBJDIRATTRASN_IDX_SEQ2,
     SUBJDIRATTRASN_IDX_OID,
     SUBJDIRATTRASN_IDX_SET,
-    SUBJDIRATTRASN_IDX_STRING,
 };
 
 /* Number of items in ASN.1 template for BasicContraints. */
@@ -19394,28 +19390,43 @@ static int DecodeSubjDirAttr(const byte* input, int sz, DecodedCert* cert)
     DECL_ASNGETDATA(dataASN, subjDirAttrASN_Length);
     int ret = 0;
     word32 idx = 0;
+    int length;
 
     WOLFSSL_ENTER("DecodeSubjDirAttr");
 
     CALLOC_ASNGETDATA(dataASN, subjDirAttrASN_Length, ret, cert->heap);
 
-    if (ret == 0) {
+    /* Strip outer SEQUENCE. */
+    if ((ret == 0) && (GetSequence(input, &idx, &length, sz) < 0)) {
+        ret = ASN_PARSE_E;
+    }
+    /* Handle each inner SEQUENCE. */
+    while ((ret == 0) && (idx < (word32)sz)) {
         ret = GetASN_Items(subjDirAttrASN, dataASN, subjDirAttrASN_Length, 1,
             input, &idx, sz);
-    }
 
-    /* There may be more than one countryOfCitizenship, but save the
-     * first one for now. */
-    if (dataASN[SUBJDIRATTRASN_IDX_OID].data.oid.sum == SDA_COC_OID) {
-        word32 cuLen;
+        /* There may be more than one countryOfCitizenship, but save the
+         * first one for now. */
+        if ((ret == 0) &&
+                (dataASN[SUBJDIRATTRASN_IDX_OID].data.oid.sum == SDA_COC_OID)) {
+            int cuLen;
+            word32 setIdx = 0;
+            byte* setData;
+            word32 setLen;
 
-        cuLen = dataASN[SUBJDIRATTRASN_IDX_STRING].data.ref.length;
-        if (cuLen != COUNTRY_CODE_LEN)
-            return ASN_PARSE_E;
-
-        XMEMCPY(cert->countryOfCitizenship,
-            dataASN[SUBJDIRATTRASN_IDX_STRING].data.ref.data, cuLen);
-        cert->countryOfCitizenship[COUNTRY_CODE_LEN] = 0;
+            GetASN_GetRef(&dataASN[SUBJDIRATTRASN_IDX_SET], &setData, &setLen);
+            if (GetASNHeader(setData, ASN_PRINTABLE_STRING, &setIdx, &cuLen,
+                    setLen) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            if ((ret == 0) && (cuLen != COUNTRY_CODE_LEN)) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                XMEMCPY(cert->countryOfCitizenship, setData + setIdx, cuLen);
+                cert->countryOfCitizenship[COUNTRY_CODE_LEN] = 0;
+            }
+        }
     }
     FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
