@@ -2037,6 +2037,11 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
         RESTORE_VECTOR_REGISTERS();
 
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+            ret = MP_VAL;
+        }
+
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2064,6 +2069,11 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
         RESTORE_VECTOR_REGISTERS();
 
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+            ret = MP_VAL;
+        }
+
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2090,6 +2100,11 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         mp_clear(y);
 
         RESTORE_VECTOR_REGISTERS();
+
+        /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
+        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+            ret = MP_VAL;
+        }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     #if !defined(WOLFSSL_SP_MATH)
