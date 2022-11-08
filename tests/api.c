@@ -43525,6 +43525,9 @@ static int test_wolfSSL_PEM_read_DHparams(void)
     AssertIntEQ(derOutSz, derExpectedSz);
     AssertIntEQ(XMEMCMP(derOut, derExpected, derOutSz), 0);
 
+    DH_free(dh);
+    dh = NULL;
+
     /* Test parsing with X9.42 header */
     fp = XFOPEN("./certs/x942dh2048.pem", "rb");
     AssertNotNull(dh = PEM_read_DHparams(fp, &dh, NULL, NULL));
@@ -56139,11 +56142,11 @@ static int test_wolfSSL_PEM_write_DHparams(void)
     AssertNotNull(fp = XFOPEN("./test-write-dhparams.pem", "wb"));
     AssertIntEQ(PEM_write_DHparams(fp, dh), WOLFSSL_SUCCESS);
     AssertIntEQ(PEM_write_DHparams(fp, NULL), WOLFSSL_FAILURE);
-    XFCLOSE(fp);
     DH_free(dh);
 
     dh = wolfSSL_DH_new();
     AssertIntEQ(PEM_write_DHparams(fp, dh), WOLFSSL_FAILURE);
+    XFCLOSE(fp);
     wolfSSL_DH_free(dh);
 
     /* check results */

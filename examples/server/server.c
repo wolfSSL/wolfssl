@@ -578,7 +578,9 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         else if (SSL_get_error(ssl, 0) == 0 &&
                             tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
             /* do a peek and check for "pending" */
+            #ifdef WOLFSSL_ASYNC_CRYPT
             err = 0;
+            #endif
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (err == WC_PENDING_E) {
