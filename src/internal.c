@@ -20427,6 +20427,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     int ret;
     BuildMsgArgs* args;
     BuildMsgArgs  lcl_args;
+    byte buildMsgState = BUILD_MSG_BEGIN;
 #endif
 
     WOLFSSL_ENTER("BuildMessage");
@@ -20456,8 +20457,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     }
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NOT_PENDING_E;
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (asyncOkay) {
         if (ssl->async == NULL) {
             return BAD_FUNC_ARG;
@@ -20470,6 +20471,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             if (ret < 0)
                 goto exit_buildmsg;
         }
+        buildMsgState = ssl->options.buildMsgState;
     }
     else
 #endif
@@ -20486,15 +20488,13 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->options.buildArgsSet = 1;
 #endif
-        ssl->options.buildMsgState = BUILD_MSG_BEGIN;
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
 
-        args->sz = RECORD_HEADER_SZ + inSz;
         args->idx  = RECORD_HEADER_SZ;
         args->headerSz = RECORD_HEADER_SZ;
     }
 
-    switch (ssl->options.buildMsgState) {
+    switch (buildMsgState) {
         case BUILD_MSG_BEGIN:
         {
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
@@ -20540,12 +20540,14 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
         #endif
 
-            ssl->options.buildMsgState = BUILD_MSG_SIZE;
+            buildMsgState = BUILD_MSG_SIZE;
         }
         FALL_THROUGH;
         case BUILD_MSG_SIZE:
         {
+            args->sz = RECORD_HEADER_SZ + inSz;
             args->digestSz = ssl->specs.hash_size;
+
         #ifdef HAVE_TRUNCATED_HMAC
             if (ssl->truncated_hmac)
                 args->digestSz = min(TRUNCATED_HMAC_SZ, args->digestSz);
@@ -20649,7 +20651,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             XMEMCPY(output + args->idx, input, inSz);
             args->idx += inSz;
 
-            ssl->options.buildMsgState = BUILD_MSG_HASH;
+            buildMsgState = BUILD_MSG_HASH;
         }
         FALL_THROUGH;
         case BUILD_MSG_HASH:
@@ -20680,7 +20682,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
         #endif
 
-            ssl->options.buildMsgState = BUILD_MSG_VERIFY_MAC;
+            buildMsgState = BUILD_MSG_VERIFY_MAC;
         }
         FALL_THROUGH;
         case BUILD_MSG_VERIFY_MAC:
@@ -20759,7 +20761,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             if (ret != 0)
                 goto exit_buildmsg;
 
-            ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
+            buildMsgState = BUILD_MSG_ENCRYPT;
         }
         FALL_THROUGH;
         case BUILD_MSG_ENCRYPT:
@@ -20830,7 +20832,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 }
                 goto exit_buildmsg;
             }
-            ssl->options.buildMsgState = BUILD_MSG_ENCRYPTED_VERIFY_MAC;
+            buildMsgState = BUILD_MSG_ENCRYPTED_VERIFY_MAC;
         }
         FALL_THROUGH;
         case BUILD_MSG_ENCRYPTED_VERIFY_MAC:
@@ -20891,6 +20893,7 @@ exit_buildmsg:
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
+        ssl->options.buildMsgState = buildMsgState;
         return ret;
     }
 #endif
