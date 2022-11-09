@@ -834,7 +834,7 @@ WC_STATIC WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 #endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE */
 
 
-#if !defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET)
+#if !defined(WOLFCRYPT_ONLY) && (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
 
 #include <wolfssl/wolfcrypt/hash.h>
 
@@ -855,7 +855,7 @@ WC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len, int* error)
 
     return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
 }
-#endif /* !NO_SESSION_CACHE || HAVE_SESSION_TICKET */
+#endif /* WOLFCRYPT_ONLY && (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
 
 #undef WC_STATIC
 
