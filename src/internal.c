@@ -13609,6 +13609,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     if (ret == ASN_NO_SIGNER_E || ret == ASN_SELF_SIGNED_E) {
+                        args->lastErr = ret; /* save error from last time */
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
                         ret = LoadCertByIssuer(SSL_STORE(ssl),
                            (WOLFSSL_X509_NAME*)args->dCert->issuerName,
@@ -13622,7 +13623,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 &subjectHash, &alreadySigner);
                         }
                         else {
-                            ret = ASN_NO_SIGNER_E;
+                            ret = args->lastErr; /* restore error */
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
                     }
