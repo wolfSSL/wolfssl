@@ -598,7 +598,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : "cc"
     );
     return lo;
-#elif _MSC_VER >= 1920
+#elif defined(_MSC_VER) && _MSC_VER >= 1920
     return _udiv128(hi, lo, d, NULL);
 #endif
 }
