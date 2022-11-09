@@ -23940,6 +23940,8 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRCMP(n[2],"RSA") == 0) || (XSTRCMP(n[0],"AES128") == 0) ||
              (XSTRCMP(n[0],"AES256") == 0) || (XSTRCMP(n[1],"MD5") == 0))
         keaStr = "RSA";
+    else if (XSTRCMP(n[0],"NULL") == 0)
+        keaStr = "None";
     else
         keaStr = "unknown";
 
@@ -23967,7 +23969,7 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
         authStr = "SRP";
     else if (XSTRCMP(n[1],"ECDSA") == 0)
         authStr = "ECDSA";
-    else if (XSTRCMP(n[0],"ADH") == 0)
+    else if (XSTRCMP(n[0],"ADH") == 0 || XSTRCMP(n[0],"NULL") == 0)
         authStr = "None";
     else
         authStr = "unknown";
