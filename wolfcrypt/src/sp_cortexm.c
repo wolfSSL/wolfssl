@@ -18359,7 +18359,7 @@ static void sp_256_mont_sqr_n_8(sp_digit* r, const sp_digit* a, int n,
     }
 }
 
-#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
+#endif /* !WOLFSSL_SP_SMALL || HAVE_COMP_KEY */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P256 curve. */
 static const uint32_t p256_mod_minus_2[8] = {
@@ -26040,7 +26040,7 @@ static void sp_384_mont_sqr_n_12(sp_digit* r, const sp_digit* a, int n,
     }
 }
 
-#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
+#endif /* !WOLFSSL_SP_SMALL || HAVE_COMP_KEY */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P384 curve. */
 static const uint32_t p384_mod_minus_2[12] = {
@@ -33528,7 +33528,7 @@ SP_NOINLINE static void sp_521_mont_sqr_17(sp_digit* r, const sp_digit* a,
     sp_521_mont_reduce_17(r, m, mp);
 }
 
-#if !defined(WOLFSSL_SP_SMALL) || defined(HAVE_COMP_KEY)
+#ifndef WOLFSSL_SP_SMALL
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
@@ -33546,7 +33546,7 @@ static void sp_521_mont_sqr_n_17(sp_digit* r, const sp_digit* a, int n,
     }
 }
 
-#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
+#endif /* !WOLFSSL_SP_SMALL */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P521 curve. */
 static const uint32_t p521_mod_minus_2[17] = {
