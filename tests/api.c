@@ -437,7 +437,6 @@ static int testDevId = WOLFSSL_CAAM_DEVID;
 static int testDevId = INVALID_DEVID;
 #endif
 
-
 /*----------------------------------------------------------------------------*
  | Setup
  *----------------------------------------------------------------------------*/
@@ -50593,6 +50592,77 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
 #endif /* HAVE_SMIME */
 #endif /* !NO_BIO */
 
+/* Test of X509 store use outside of SSL context w/ CRL lookup (ALWAYS
+   returns 0) */
+static int test_X509_STORE_No_SSL_CTX(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_WOLFSSL_DIR) && defined(HAVE_CRL) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+
+    X509_STORE      *store;
+    X509_STORE_CTX  *storeCtx;
+    X509_CRL        *crl;
+    X509            *ca, *cert;
+    const char      cliCrlPem[] = "./certs/crl/cliCrl.pem";
+    const char      srvCert[] = "./certs/server-cert.pem";
+    const char      caCert[] = "./certs/ca-cert.pem";
+    const char      caDir[] = "./certs/crl";
+    XFILE           fp;
+    X509_LOOKUP     *lookup;
+
+    printf(testingFmt, "test_X509_STORE_No_SSL_CTX");
+
+    AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+
+    /* Set up store with CA */
+    AssertNotNull((ca = wolfSSL_X509_load_certificate_file(caCert,
+            SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+
+    /* Add CRL lookup directory to store
+       NOTE: test uses ./certs/crl/0fdb2da4.r0, which is a copy of crl.pem */
+    AssertNotNull((lookup = X509_STORE_add_lookup(store,
+            X509_LOOKUP_hash_dir())));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, caDir,
+            X509_FILETYPE_PEM, NULL), SSL_SUCCESS);
+
+    AssertIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),
+            SSL_SUCCESS);
+
+    /* Add CRL to store NOT containing the verified certificate, which
+       forces use of the CRL lookup directory */
+    fp = XFOPEN(cliCrlPem, "rb");
+    AssertTrue((fp != XBADFILE));
+    AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
+            NULL, NULL));
+    XFCLOSE(fp);
+    AssertIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
+
+    /* Create verification context outside of an SSL session */
+    AssertNotNull((storeCtx = X509_STORE_CTX_new()));
+    AssertNotNull((cert = wolfSSL_X509_load_certificate_file(srvCert,
+            SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
+
+    /* Perform verification, which should NOT indicate CRL missing due to the
+       store CM's X509 store pointer being NULL */
+    AssertIntNE(X509_verify_cert(storeCtx), CRL_MISSING);
+
+    X509_CRL_free(crl);
+    X509_STORE_free(store);
+    X509_STORE_CTX_free(storeCtx);
+    X509_free(cert);
+    X509_free(ca);
+
+    printf(resultFmt, passed);
+
+#endif
+
+    return 0;
+}
+
 /*----------------------------------------------------------------------------*
  | Certificate Failure Checks
  *----------------------------------------------------------------------------*/
@@ -56560,7 +56630,6 @@ static int test_stubs_are_stubs(void)
     return 0;
 }
 
-
 static int test_CONF_modules_xxx(void)
 {
 #if defined(OPENSSL_EXTRA)
@@ -60729,6 +60798,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SMIME_write_PKCS7),
 #endif /* HAVE_SMIME */
 #endif /* !NO_BIO */
+
+    /* OpenSSL compatibility outside SSL context w/ CRL lookup directory */
+    TEST_DECL(test_X509_STORE_No_SSL_CTX),
 
     /* wolfCrypt ASN tests */
     TEST_DECL(test_wc_CreateEncryptedPKCS8Key),
