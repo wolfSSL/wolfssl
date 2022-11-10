@@ -11522,8 +11522,87 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 #endif /* WOLFSSL_AES_128 */
 #endif /* HAVE_AESGCM */
 
-#if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
-WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
+#if defined(HAVE_AESCCM)
+
+#if defined(WOLFSSL_AES_256)
+
+static int aesccm_256_test(void)
+{
+    int ret;
+    /* Test vectors from NIST AES CCM 256-bit CAST Example #1 */
+    WOLFSSL_SMALL_STACK_STATIC const byte in_key[32] = {
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+        0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte in_nonce[7] = {
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
+    WOLFSSL_SMALL_STACK_STATIC const byte in_auth[8] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    WOLFSSL_SMALL_STACK_STATIC const byte in_plaintext[4] = {
+        0x20, 0x21, 0x22, 0x23};
+    WOLFSSL_SMALL_STACK_STATIC const byte exp_ciphertext[4] = {
+        0x8A, 0xB1, 0xA8, 0x74};
+    WOLFSSL_SMALL_STACK_STATIC const byte exp_tag[4] = {
+        0x95, 0xFC, 0x08, 0x20};
+    byte output[sizeof(in_plaintext)];
+    byte atag[sizeof(exp_tag)];
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+    if (aes == NULL) {
+        return MEMORY_E;
+    }
+#else
+    Aes aes[1];
+#endif
+
+    ret = wc_AesInit(aes, HEAP_HINT, devId);
+    if (ret == 0) {
+        ret = wc_AesCcmSetKey(aes, in_key, sizeof(in_key));
+    }
+    if (ret == 0) {
+        ret = wc_AesCcmEncrypt(aes, output, in_plaintext, sizeof(in_plaintext),
+            in_nonce, sizeof(in_nonce),
+            atag, sizeof(atag),
+            in_auth, sizeof(in_auth));
+    }
+    /* Verify we produce the proper ciphertext and tag */
+    if (ret == 0 &&
+        (XMEMCMP(output, exp_ciphertext, sizeof(output)) ||
+         XMEMCMP(atag, exp_tag, sizeof(atag)))) {
+        ret = -1;
+    }
+
+    if (ret == 0) {
+        /* decrypt inline */
+        ret = wc_AesCcmDecrypt(aes, output, output, sizeof(output),
+            in_nonce, sizeof(in_nonce),
+            atag, sizeof(atag),
+            in_auth, sizeof(in_auth));
+    }
+
+    /* Verify decryption was successful */
+    if (ret == 0 &&
+        XMEMCMP(output, in_plaintext, sizeof(output))) {
+        ret = -1;
+    }
+
+    wc_AesFree(aes);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+
+#endif /* WOLFSSL_AES_256 */
+
+#if defined(WOLFSSL_AES_128)
+
+static int aesccm_128_test(void)
 {
     int ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -11795,7 +11874,22 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
 
     return ret;
 }
-#endif /* HAVE_AESCCM WOLFSSL_AES_128 */
+#endif /* WOLFSSL_AES_128 */
+
+WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
+{
+    int ret = 0;
+#ifdef WOLFSSL_AES_128
+    if (ret == 0)
+        ret = aesccm_128_test();
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0)
+        ret = aesccm_256_test();
+#endif
+    return ret;
+}
+#endif /* HAVE_AESCCM */
 
 
 #ifdef HAVE_AES_KEYWRAP
@@ -21497,7 +21591,7 @@ int sshkdf_test(void)
             result = -101;
         }
         else {
-            if (memcmp(cKey, tv->expectedKey, tv->expectedKeySz) != 0) {
+            if (XMEMCMP(cKey, tv->expectedKey, tv->expectedKeySz) != 0) {
                 printf("KDF: Calculated Key does not match Expected Key.\n");
                 result = -102;
             }
@@ -25625,8 +25719,8 @@ static const byte p521PubKey[] = {
 /* perform verify of signature and hash using public key */
 /* key is public Qx + public Qy */
 /* sig is r + s */
-static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
-    const uint8_t *hash, uint32_t hashSz, const uint8_t *sig, uint32_t sigSz,
+static int crypto_ecc_verify(const byte *key, uint32_t keySz,
+    const byte *hash, uint32_t hashSz, const byte *sig, uint32_t sigSz,
     uint32_t curveSz, int curveId)
 {
     int ret, verify_res = 0, count = 0;
@@ -25720,8 +25814,8 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
 }
 
 /* perform signature operation against hash using private key */
-static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
-    const uint8_t *hash, uint32_t hashSz, uint8_t *sig, uint32_t* sigSz,
+static int crypto_ecc_sign(const byte *key, uint32_t keySz,
+    const byte *hash, uint32_t hashSz, byte *sig, uint32_t* sigSz,
     uint32_t curveSz, int curveId, WC_RNG* rng)
 {
     int ret, count = 0;
