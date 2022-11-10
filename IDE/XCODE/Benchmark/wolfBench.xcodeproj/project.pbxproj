@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */ = {isa = PBXBuildFile; fileRef = 52114C8621B5A7320022ADA1 /* sp_c64.c */; };
+		9D0105D5291CECD000A854D3 /* armv8-sha3-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = 9D0105D4291CECD000A854D3 /* armv8-sha3-asm.S */; };
 		9D2E31E4291CE4800082B941 /* quic.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E2291CE4800082B941 /* quic.c */; };
 		9D2E31E5291CE4800082B941 /* dtls.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E3291CE4800082B941 /* dtls.c */; };
 		9D2E31E7291CE4AC0082B941 /* dtls13.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E6291CE4AC0082B941 /* dtls13.c */; };
@@ -107,6 +108,7 @@
 
 /* Begin PBXFileReference section */
 		52114C8621B5A7320022ADA1 /* sp_c64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_c64.c; path = ../../../wolfcrypt/src/sp_c64.c; sourceTree = "<group>"; };
+		9D0105D4291CECD000A854D3 /* armv8-sha3-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha3-asm.S"; path = "../../../wolfcrypt/src/port/arm/armv8-sha3-asm.S"; sourceTree = "<group>"; };
 		9D2E31E2291CE4800082B941 /* quic.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = quic.c; path = ../../../src/quic.c; sourceTree = "<group>"; };
 		9D2E31E3291CE4800082B941 /* dtls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls.c; path = ../../../src/dtls.c; sourceTree = "<group>"; };
 		9D2E31E6291CE4AC0082B941 /* dtls13.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls13.c; path = ../../../src/dtls13.c; sourceTree = "<group>"; };
@@ -287,6 +289,7 @@
 				CB81DE1E24C93EC000B98DA6 /* armv8-curve25519.S */,
 				CB81DE1C24C9284700B98DA6 /* armv8-poly1305.c */,
 				A4DFEC0E1FD4CB8500A7BB33 /* armv8-sha256.c */,
+				9D0105D4291CECD000A854D3 /* armv8-sha3-asm.S */,
 				A4CA2E9E24C8AF97003CCC50 /* armv8-sha512.c */,
 				CB81DE2224C93FB300B98DA6 /* armv8-sha512-asm.S */,
 				A4ADF8A01FCE0C4F00A06E90 /* asm.c */,
@@ -453,6 +456,7 @@
 				A4ADF8E41FCE0C5600A06E90 /* tfm.c in Sources */,
 				A4ADF8D91FCE0C5600A06E90 /* dsa.c in Sources */,
 				A4ADF9141FCE0C5600A06E90 /* wolfmath.c in Sources */,
+				9D0105D5291CECD000A854D3 /* armv8-sha3-asm.S in Sources */,
 				A4ADF8FC1FCE0C5600A06E90 /* asm.c in Sources */,
 				A46FE18D2493E8F800A25BE7 /* fe_448.c in Sources */,
 				A4ADF8721FCE0C1C00A06E90 /* crl.c in Sources */,
