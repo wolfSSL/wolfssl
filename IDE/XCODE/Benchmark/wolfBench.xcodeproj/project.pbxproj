@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */ = {isa = PBXBuildFile; fileRef = 52114C8621B5A7320022ADA1 /* sp_c64.c */; };
+		9D2E31E4291CE4800082B941 /* quic.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E2291CE4800082B941 /* quic.c */; };
+		9D2E31E5291CE4800082B941 /* dtls.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E3291CE4800082B941 /* dtls.c */; };
+		9D2E31E7291CE4AC0082B941 /* dtls13.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E6291CE4AC0082B941 /* dtls13.c */; };
+		9D2E31E9291CE5CB0082B941 /* kdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 9D2E31E8291CE5CB0082B941 /* kdf.c */; };
 		A46FE16F2493E8F800A25BE7 /* armv8-chacha.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */; };
 		A46FE1702493E8F800A25BE7 /* sp_int.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE14D2493E8F600A25BE7 /* sp_int.c */; };
 		A46FE1742493E8F800A25BE7 /* sp_cortexm.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE1512493E8F600A25BE7 /* sp_cortexm.c */; };
@@ -103,6 +107,10 @@
 
 /* Begin PBXFileReference section */
 		52114C8621B5A7320022ADA1 /* sp_c64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_c64.c; path = ../../../wolfcrypt/src/sp_c64.c; sourceTree = "<group>"; };
+		9D2E31E2291CE4800082B941 /* quic.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = quic.c; path = ../../../src/quic.c; sourceTree = "<group>"; };
+		9D2E31E3291CE4800082B941 /* dtls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls.c; path = ../../../src/dtls.c; sourceTree = "<group>"; };
+		9D2E31E6291CE4AC0082B941 /* dtls13.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dtls13.c; path = ../../../src/dtls13.c; sourceTree = "<group>"; };
+		9D2E31E8291CE5CB0082B941 /* kdf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = kdf.c; path = ../../../wolfcrypt/src/kdf.c; sourceTree = "<group>"; };
 		A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-chacha.c"; path = "../../../wolfcrypt/src/port/arm/armv8-chacha.c"; sourceTree = "<group>"; };
 		A46FE14D2493E8F600A25BE7 /* sp_int.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_int.c; path = ../../../wolfcrypt/src/sp_int.c; sourceTree = "<group>"; };
 		A46FE1512493E8F600A25BE7 /* sp_cortexm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_cortexm.c; path = ../../../wolfcrypt/src/sp_cortexm.c; sourceTree = "<group>"; };
@@ -253,9 +261,12 @@
 				A4DFEC3A1FD6B9B600A7BB33 /* test */,
 				A4DFEC0B1FD4CA8300A7BB33 /* benchmark */,
 				A4ADF8681FCE0C1C00A06E90 /* crl.c */,
+				9D2E31E3291CE4800082B941 /* dtls.c */,
+				9D2E31E6291CE4AC0082B941 /* dtls13.c */,
 				A4ADF8621FCE0C1B00A06E90 /* internal.c */,
 				A4ADF8611FCE0C1B00A06E90 /* keys.c */,
 				A4ADF8641FCE0C1C00A06E90 /* ocsp.c */,
+				9D2E31E2291CE4800082B941 /* quic.c */,
 				A4ADF8671FCE0C1C00A06E90 /* sniffer.c */,
 				A4ADF86A1FCE0C1C00A06E90 /* ssl.c */,
 				A4ADF8661FCE0C1C00A06E90 /* tls.c */,
@@ -309,6 +320,7 @@
 				A4ADF89A1FCE0C4F00A06E90 /* hash.c */,
 				A4ADF8751FCE0C4C00A06E90 /* hmac.c */,
 				A4ADF8A21FCE0C5000A06E90 /* integer.c */,
+				9D2E31E8291CE5CB0082B941 /* kdf.c */,
 				A4ADF8AF1FCE0C5100A06E90 /* logging.c */,
 				A4ADF8A51FCE0C5000A06E90 /* md2.c */,
 				A4ADF87C1FCE0C4D00A06E90 /* md4.c */,
@@ -447,6 +459,7 @@
 				A4ADF91B1FCE0C5600A06E90 /* srp.c in Sources */,
 				A46FE16F2493E8F800A25BE7 /* armv8-chacha.c in Sources */,
 				A4ADF8FE1FCE0C5600A06E90 /* integer.c in Sources */,
+				9D2E31E5291CE4800082B941 /* dtls.c in Sources */,
 				A4ADF9231FCE0C5600A06E90 /* camellia.c in Sources */,
 				A4ADF8321FCE0BD300A06E90 /* ViewController.m in Sources */,
 				A46FE17A2493E8F800A25BE7 /* cryptocb.c in Sources */,
@@ -460,6 +473,7 @@
 				CB81DE1F24C93EC000B98DA6 /* armv8-curve25519.S in Sources */,
 				A4ADF8F31FCE0C5600A06E90 /* rsa.c in Sources */,
 				A46FE1752493E8F800A25BE7 /* blake2s.c in Sources */,
+				9D2E31E9291CE5CB0082B941 /* kdf.c in Sources */,
 				A4ADF8FA1FCE0C5600A06E90 /* pkcs12.c in Sources */,
 				A4ADF86E1FCE0C1C00A06E90 /* ocsp.c in Sources */,
 				A46FE1842493E8F800A25BE7 /* sp_x86_64.c in Sources */,
@@ -479,7 +493,9 @@
 				A4ADF8E51FCE0C5600A06E90 /* sha.c in Sources */,
 				A4DFEC101FD4CB8500A7BB33 /* armv8-sha256.c in Sources */,
 				A4ADF83D1FCE0BD300A06E90 /* main.m in Sources */,
+				9D2E31E4291CE4800082B941 /* quic.c in Sources */,
 				A4ADF9271FCE0C5600A06E90 /* ed25519.c in Sources */,
+				9D2E31E7291CE4AC0082B941 /* dtls13.c in Sources */,
 				A4ADF8D11FCE0C5600A06E90 /* hmac.c in Sources */,
 				A4ADF8F01FCE0C5600A06E90 /* memory.c in Sources */,
 				A4ADF82F1FCE0BD300A06E90 /* AppDelegate.m in Sources */,
