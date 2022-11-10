@@ -422,20 +422,25 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             typeH = WC_SHA;
             derivedLen = 16;           /* may need iv for v1.5 */
             break;
-
+        #endif /* !NO_SHA */
+        #if !defined(NO_SHA) || !defined(NO_SHA256)
         case PBE_SHA1_DES3:
-            switch(shaOid) {
+            switch (shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 32;
                     break;
+            #endif
+            #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;
                     derivedLen = 32;           /* may need iv for v1.5 */
                     break;
+            #endif
             }
         break;
-        #endif /* !NO_SHA */
+        #endif
     #endif /* !NO_DES3 */
     #if !defined(NO_SHA) && !defined(NO_RC4)
         case PBE_SHA1_RC4_128:
