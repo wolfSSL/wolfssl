@@ -2038,7 +2038,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         RESTORE_VECTOR_REGISTERS();
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
-        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
             ret = MP_VAL;
         }
 
@@ -2070,7 +2072,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         RESTORE_VECTOR_REGISTERS();
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
-        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
             ret = MP_VAL;
         }
 
@@ -2102,7 +2106,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         RESTORE_VECTOR_REGISTERS();
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
-        if ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))) {
+        if ((ret == 0) &&
+            ((*agreeSz == 0) || ((*agreeSz == 1) && (agree[0] == 1))))
+        {
             ret = MP_VAL;
         }
 
