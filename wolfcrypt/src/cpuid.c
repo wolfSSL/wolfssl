@@ -28,6 +28,11 @@
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+#if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL)
+    static word32 cpuid_check = 0;
+    static word32 cpuid_flags = 0;
+#endif
+
 #ifdef HAVE_CPUID_INTEL
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
@@ -52,9 +57,6 @@
     #define EBX 1
     #define ECX 2
     #define EDX 3
-
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
 
     static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
     {
@@ -99,6 +101,14 @@
             if (cpuid_flag(1, 0, ECX, 22)) { cpuid_flags |= CPUID_MOVBE ; }
             if (cpuid_flag(7, 0, EBX,  3)) { cpuid_flags |= CPUID_BMI1  ; }
 
+            cpuid_check = 1;
+        }
+    }
+#elif defined(HAVE_CPUID)
+    void cpuid_set_flags(void)
+    {
+        if (!cpuid_check) {
+            cpuid_flags = 0;
             cpuid_check = 1;
         }
     }
