@@ -1927,7 +1927,7 @@ WOLFSSL_API int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509, unsigned char
         int* bufSz);
 WOLFSSL_API int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509);
 
-WOLFSSL_API int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup,const char* dir,long len);
+WOLFSSL_API int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup,const char* dir,long type);
 WOLFSSL_API int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup, const char* file,
                                             long type);
 WOLFSSL_API WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_hash_dir(void);
@@ -2376,8 +2376,6 @@ enum {
                               * limit the possibility of an infinite retry loop
                               */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
-
-    X509_FILETYPE_PEM = 8,
 
     /* Not all of these are actually used in wolfSSL. Some are included to
      * satisfy OpenSSL compatibility consumers to prevent compilation errors. */

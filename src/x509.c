@@ -6536,17 +6536,16 @@ const char* wolfSSL_X509_verify_cert_error_string(long err)
 
 #ifdef OPENSSL_EXTRA
 
-#ifndef NO_WOLFSSL_STUB
+/* Add directory path that will be used for loading certs and CRLs
+ * which have the <hash>.rn name format.
+ * type may be X509_FILETYPE_PEM or X509_FILETYPE_ASN1.
+ * returns WOLFSSL_SUCCESS on successful, otherwise negative or zero. */
 int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
-                               long len)
+                               long type)
 {
-    (void)lookup;
-    (void)dir;
-    (void)len;
-    WOLFSSL_STUB("X509_LOOKUP_add_dir");
-    return 0;
+    return wolfSSL_X509_LOOKUP_ctrl(lookup, WOLFSSL_X509_L_ADD_DIR, dir, type,
+                                    NULL);
 }
-#endif
 
 int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
                                  const char* file, long type)
@@ -7396,7 +7395,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         return ret;
     }
 
-    if (type == WOLFSSL_FILETYPE_PEM) {
+    if (type == X509_FILETYPE_PEM) {
         do {
             crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
             if (crl == NULL) {
@@ -7417,7 +7416,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         }   while(crl == NULL);
 
         ret = count;
-    } else if (type == WOLFSSL_FILETYPE_ASN1) {
+    } else if (type == X509_FILETYPE_ASN1) {
         crl = wolfSSL_d2i_X509_CRL_bio(bio, NULL);
         if (crl == NULL) {
             WOLFSSL_MSG("Load crl failed");

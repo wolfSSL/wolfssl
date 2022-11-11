@@ -12712,7 +12712,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                 else if (type == X509_LU_CRL) {
 #if defined(HAVE_CRL)
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
-                                                    WOLFSSL_FILETYPE_PEM);
+                                                     entry->dir_type);
                     if (ret != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("failed to load CRL");
                         break;

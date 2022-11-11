@@ -243,6 +243,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define TLSv1_3_client_method           wolfTLSv1_3_client_method
 #define TLS_method                      wolfSSLv23_method
 
+#define X509_FILETYPE_PEM               WOLFSSL_FILETYPE_PEM
 #define X509_FILETYPE_ASN1              WOLFSSL_FILETYPE_ASN1
 #define X509_FILETYPE_DEFAULT           WOLFSSL_FILETYPE_DEFAULT
 
