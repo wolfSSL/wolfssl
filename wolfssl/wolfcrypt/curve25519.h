@@ -91,7 +91,8 @@ struct curve25519_key {
 #endif
 
 #ifdef WOLFSSL_SE050
-    int keyId;
+    word32 keyId;
+    byte   keyIdSet;
 #endif
 
     /* bit fields */

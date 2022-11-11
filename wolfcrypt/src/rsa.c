@@ -55,6 +55,9 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 #include <xsecure_rsaclient.h>
 #endif
+#ifdef WOLFSSL_SE050
+#include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
@@ -572,6 +575,43 @@ static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
     return ret;
 }
 #endif /* WOLFSSL_CRYPTOCELL */
+
+#ifdef WOLFSSL_SE050
+/* Use specified hardware key ID with RsaKey operations. Unlike devId,
+ * keyId is a word32 so can handle key IDs larger than an int.
+ *
+ * key    initialized RsaKey struct
+ * keyId  hardware key ID which stores RSA key
+ * flags  optional flags, currently unused
+ *
+ * Return 0 on success, negative on error */
+int wc_RsaUseKeyId(RsaKey* key, word32 keyId, word32 flags)
+{
+    (void)flags;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return se050_rsa_use_key_id(key, keyId);
+}
+
+/* Get hardware key ID associated with this RsaKey structure.
+ *
+ * key    initialized RsaKey struct
+ * keyId  [OUT] output for key ID associated with this structure
+ *
+ * Returns 0 on success, negative on error.
+ */
+int wc_RsaGetKeyId(RsaKey* key, word32* keyId)
+{
+    if (key == NULL || keyId == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return se050_rsa_get_key_id(key, keyId);
+}
+#endif /* WOLFSSL_SE050 */
 
 int wc_FreeRsaKey(RsaKey* key)
 {
@@ -3304,6 +3344,18 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
                                   cc310_hashModeRSA(hash, 0));
         }
+    #elif defined(WOLFSSL_SE050)
+        if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
+            return se050_rsa_public_encrypt(in, inLen, out, outLen, key,
+                                            rsa_type, pad_value, pad_type, hash,
+                                            mgf, label, labelSz, sz);
+        }
+        else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
+                                              pad_value == RSA_BLOCK_TYPE_1) {
+            return se050_rsa_sign(in, inLen, out, outLen, key, rsa_type,
+                                  pad_value, pad_type, hash, mgf, label,
+                                  labelSz, sz);
+        }
     #endif /* WOLFSSL_CRYPTOCELL */
 
         key->state = RSA_STATE_ENCRYPT_PAD;
@@ -3426,6 +3478,26 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                                             pad_value == RSA_BLOCK_TYPE_1) {
             return cc310_RsaSSL_Verify(in, inLen, out, key,
                                        cc310_hashModeRSA(hash, 0));
+        }
+    #elif defined(WOLFSSL_SE050)
+        if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
+            ret = se050_rsa_private_decrypt(in, inLen, out, outLen, key,
+                                            rsa_type, pad_value, pad_type, hash,
+                                            mgf, label, labelSz);
+            if (outPtr != NULL) {
+                *outPtr = out;
+            }
+            return ret;
+        }
+        else if (rsa_type == RSA_PUBLIC_DECRYPT &&
+                                                pad_value == RSA_BLOCK_TYPE_1) {
+            ret = se050_rsa_verify(in, inLen, out, outLen, key, rsa_type,
+                                   pad_value, pad_type, hash, mgf, label,
+                                   labelSz);
+            if (outPtr != NULL) {
+                *outPtr = out;
+            }
+            return ret;
         }
     #endif /* WOLFSSL_CRYPTOCELL */
 
@@ -4625,6 +4697,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *p = NULL;
     mp_int *q = NULL;
@@ -4637,14 +4710,35 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_int tmp1_buf, *tmp1 = &tmp1_buf;
     mp_int tmp2_buf, *tmp2 = &tmp2_buf;
     mp_int tmp3_buf, *tmp3 = &tmp3_buf;
-#endif
-    int err, i, failCount, primeSz, isPrime = 0;
+#endif /* WOLFSSL_SMALL_STACK */
+    int i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;
+#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 */
+    int err;
 
     if (key == NULL || rng == NULL) {
         err = BAD_FUNC_ARG;
         goto out;
     }
+
+    if (!RsaSizeCheck(size)) {
+        err = BAD_FUNC_ARG;
+        goto out;
+    }
+
+    if (e < 3 || (e & 1) == 0) {
+        err = BAD_FUNC_ARG;
+        goto out;
+    }
+
+#if defined(WOLFSSL_CRYPTOCELL)
+    err = cc310_RSA_GenerateKeyPair(key, size, e);
+    goto out;
+#elif defined(WOLFSSL_SE050)
+    err = se050_rsa_create_key(key, size, e);
+    goto out;
+#else
+    /* software crypto */
 
 #ifdef WOLFSSL_SMALL_STACK
     p = (mp_int *)XMALLOC(sizeof *p, key->heap, DYNAMIC_TYPE_RSA);
@@ -4662,23 +4756,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
       goto out;
     }
 #endif
-
-    if (!RsaSizeCheck(size)) {
-        err = BAD_FUNC_ARG;
-        goto out;
-    }
-
-    if (e < 3 || (e & 1) == 0) {
-        err = BAD_FUNC_ARG;
-        goto out;
-    }
-
-#if defined(WOLFSSL_CRYPTOCELL)
-
-    err = cc310_RSA_GenerateKeyPair(key, size, e);
-    goto out;
-
-#endif /* WOLFSSL_CRYPTOCELL */
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
@@ -4979,8 +5056,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     err = 0;
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
+#endif /* WOLFSSL_CRYPTOCELL / SW only */
   out:
 
+#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 #ifdef WOLFSSL_SMALL_STACK
     if (p)
         XFREE(p, key->heap, DYNAMIC_TYPE_RSA);
@@ -4998,7 +5077,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_memzero_check(tmp1);
     mp_memzero_check(tmp2);
     mp_memzero_check(tmp3);
-#endif
+#endif /* WOLFSSL_SMALL_STACK */
+#endif /* !WOLFSSL_CRYPTOCELL && !WOLFSSL_SE050 */
 
     return err;
 

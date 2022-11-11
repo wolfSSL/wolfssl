@@ -264,6 +264,10 @@ int wolfCrypt_Init(void)
 
     #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
         ret = wc_se050_init(NULL);
+        if (ret != 0) {
+            WOLFSSL_MSG("SE050 init failed");
+            return ret;
+        }
     #endif
 
     #ifdef WOLFSSL_ARMASM

@@ -697,7 +697,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 }
 #endif /* WOLFSSL_SE050 */
 
-#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+#if defined(WOLFSSL_ED25519_STREAMING_VERIFY) && !defined(WOLFSSL_SE050)
 
 int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen) {
@@ -717,7 +717,7 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
                                          key, &key->sha);
 }
 
-#endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY && !WOLFSSL_SE050 */
 
 /*
    sig     is array of bytes containing the signature

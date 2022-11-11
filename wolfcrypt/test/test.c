@@ -1546,7 +1546,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     {
         int ret;
         func_args args;
-#ifdef WOLFSSL_ESPIDF
+#if defined(WOLFSSL_ESPIDF) || defined(WOLFSSL_SE050)
         /* set dummy wallclock time. */
         struct timeval utctime;
         struct timezone tz;
@@ -2205,6 +2205,7 @@ WOLFSSL_TEST_SUBROUTINE int md5_test(void)
             ERROR_OUT(-1607 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
     const char* large_digest =
@@ -2229,6 +2230,7 @@ WOLFSSL_TEST_SUBROUTINE int md5_test(void)
     if (XMEMCMP(hash, large_digest, WC_MD5_DIGEST_SIZE) != 0)
         ERROR_OUT(-1610, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
 
@@ -2400,9 +2402,11 @@ WOLFSSL_TEST_SUBROUTINE int sha_test(void)
             ERROR_OUT(-1807 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(HASH_SIZE_LIMIT)
     const char* large_digest =
             "\x1d\x6a\x5a\xf6\xe5\x7c\x86\xce\x7f\x7c\xaf\xd5\xdb\x08\xcd\x59"
             "\x15\x8c\x6d\xb6";
@@ -2414,7 +2418,8 @@ WOLFSSL_TEST_SUBROUTINE int sha_test(void)
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(HASH_SIZE_LIMIT)
     times = 20;
 #else
     times = 100;
@@ -2434,6 +2439,7 @@ WOLFSSL_TEST_SUBROUTINE int sha_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA_DIGEST_SIZE) != 0)
         ERROR_OUT(-1810, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
 
@@ -2790,6 +2796,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
             ERROR_OUT(-2307 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
 #ifdef HASH_SIZE_LIMIT
@@ -2824,6 +2831,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA256_DIGEST_SIZE) != 0)
         ERROR_OUT(-2310, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
 
@@ -2910,6 +2918,7 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
             ERROR_OUT(-2407 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
 #ifdef HASH_SIZE_LIMIT
@@ -2957,6 +2966,7 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
     }
 #endif
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     wc_Sha512Free(&sha);
@@ -3040,6 +3050,7 @@ WOLFSSL_TEST_SUBROUTINE int sha384_test(void)
             ERROR_OUT(-2507 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
 #ifdef HASH_SIZE_LIMIT
@@ -3074,6 +3085,7 @@ WOLFSSL_TEST_SUBROUTINE int sha384_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA384_DIGEST_SIZE) != 0)
         ERROR_OUT(-2510, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
 
@@ -3141,6 +3153,7 @@ static int sha3_224_test(void)
             ERROR_OUT(-2605 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
     const char* large_digest =
@@ -3163,6 +3176,7 @@ static int sha3_224_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA3_224_DIGEST_SIZE) != 0)
         ERROR_OUT(-2608, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     wc_Sha3_224_Free(&sha);
@@ -3242,6 +3256,7 @@ static int sha3_256_test(void)
             ERROR_OUT(-2705 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -3259,6 +3274,7 @@ static int sha3_256_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA3_256_DIGEST_SIZE) != 0)
         ERROR_OUT(-2708, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
     /* this is a software only variant of SHA3 not supported by external hardware devices */
 #if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
@@ -3372,6 +3388,7 @@ static int sha3_384_test(void)
     #endif
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
     const char* large_digest =
@@ -3395,6 +3412,7 @@ static int sha3_384_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA3_384_DIGEST_SIZE) != 0)
         ERROR_OUT(-2808, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     wc_Sha3_384_Free(&sha);
@@ -3468,6 +3486,7 @@ static int sha3_512_test(void)
             ERROR_OUT(-2905 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
     const char* large_digest =
@@ -3492,6 +3511,7 @@ static int sha3_512_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA3_512_DIGEST_SIZE) != 0)
         ERROR_OUT(-2908, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     wc_Sha3_512_Free(&sha);
@@ -3680,6 +3700,7 @@ static int shake128_absorb_test(wc_Shake* sha)
             ERROR_OUT(-3103 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -3703,6 +3724,7 @@ static int shake128_absorb_test(wc_Shake* sha)
     if (XMEMCMP(hash, large_digest, sizeof(hash)) != 0)
         ERROR_OUT(-3107, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     return ret;
@@ -3828,6 +3850,7 @@ WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
             ERROR_OUT(-3103 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -3845,6 +3868,7 @@ WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
     if (XMEMCMP(hash, large_digest, 114) != 0)
         ERROR_OUT(-3106, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
     ret = shake128_absorb_test(&sha);
 
@@ -3992,6 +4016,7 @@ static int shake256_absorb_test(wc_Shake* sha, byte *large_input_buf,
             ERROR_OUT(-3103 - i, exit);
     }
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     for (i = 0; i < (int)large_input_buf_size; i++) {
         large_input_buf[i] = (byte)(i & 0xFF);
@@ -4015,6 +4040,7 @@ static int shake256_absorb_test(wc_Shake* sha, byte *large_input_buf,
     if (XMEMCMP(hash, large_digest, sizeof(hash)) != 0)
         ERROR_OUT(-3107, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
 exit:
     return ret;
@@ -4152,6 +4178,7 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
         ERROR_OUT(-3107, exit);
 #endif
 
+#ifndef NO_LARGE_HASH_TEST
     /* BEGIN LARGE HASH TEST */ {
     for (i = 0; i < SHAKE256_LARGE_INPUT_BUFSIZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -4169,6 +4196,7 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
     if (XMEMCMP(hash, large_digest, 114) != 0)
         ERROR_OUT(-3106, exit);
     } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
 
     ret = shake256_absorb_test(&sha, large_input, SHAKE256_LARGE_INPUT_BUFSIZ);
 exit:
@@ -13978,8 +14006,8 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
     if (ret != SIG_TYPE_E)
-#elif defined(WOLFSSL_CRYPTOCELL)
-    /* RNG is handled with the cryptocell */
+#elif defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SE050)
+    /* RNG is handled by hardware */
     if (ret != 0)
 #else
     if (ret != MISSING_RNG_E)
@@ -14482,7 +14510,9 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
     int              k, l;
 #endif
+#ifndef WOLFSSL_SE050
     int              len;
+#endif
     byte*            plain;
     int              mgf[]   = {
 #ifndef NO_SHA
@@ -14533,7 +14563,12 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
             ERROR_OUT(-7730, exit_rsa_pss);
         digestSz = wc_HashGetDigestSize(hash[j]);
 
+#ifdef WOLFSSL_SE050
+        /* SE050 only supports MGF matched to same hash type */
+        i = j;
+#else
         for (i = 0; i < (int)(sizeof(mgf)/sizeof(*mgf)); i++) {
+#endif
             outSz = RSA_TEST_BYTES;
             do {
             #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -14605,9 +14640,13 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
                 }
             }
 #endif
-        }
+#ifndef WOLFSSL_SE050
+        } /* end mgf for loop */
+#endif
     }
 
+/* SE050 generates salts internally only of hash length */
+#ifndef WOLFSSL_SE050
     /* Test that a salt length of zero works. */
     digestSz = wc_HashGetDigestSize(hash[0]);
     outSz = RSA_TEST_BYTES;
@@ -14795,6 +14834,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-7745, exit_rsa_pss);
 
     ret = 0;
+#endif /* WOLFSSL_SE050 */
 exit_rsa_pss:
     WC_FREE_VAR(sig, HEAP_HINT);
     WC_FREE_VAR(in, HEAP_HINT);
@@ -15997,8 +16037,9 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL)
-/* label is unused in cryptocell so it won't detect decrypt error due to label */
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+    /* label is unused in cryptocell and SE050 so it won't detect decrypt error
+     * due to label */
     idx = (word32)ret;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -16072,7 +16113,7 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
         idx = (word32)ret;
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)

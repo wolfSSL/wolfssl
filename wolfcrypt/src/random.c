@@ -2806,7 +2806,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return 0;
         }
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_TRNG)
      #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
