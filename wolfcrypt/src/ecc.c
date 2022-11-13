@@ -8182,12 +8182,21 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                            (byte*)hash,
                            msgLenInBytes);
 
-   if (err != SA_SILIB_RET_OK) {
+   if (err == CRYS_ECDSA_VERIFY_INCONSISTENT_VERIFY_ERROR) {
+       /* CRYS returns error in case of negative verification */
+       *res = 0;
+       err = MP_OKAY;
+   }
+   else if (err != SA_SILIB_RET_OK) {
        WOLFSSL_MSG("CRYS_ECDSA_Verify failed");
        return err;
    }
-   /* valid signature if we get to this point */
-   *res = 1;
+   else
+   {
+       /* valid signature if we get to this point */
+       *res = 1;
+       err = MP_OKAY;
+   }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
    err = silabs_ecc_verify_hash(&sigRS[0], keySz * 2,
                                 hash, hashlen,
