@@ -68,6 +68,9 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->keys.dtls_handshake_number = 0;
     ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->options.clientState = 0;
+    XMEMSET(ssl->keys.peerSeq->window, 0, sizeof(ssl->keys.peerSeq->window));
+    XMEMSET(ssl->keys.peerSeq->prevWindow, 0,
+        sizeof(ssl->keys.peerSeq->prevWindow));
 }
 
 #if defined(WOLFSSL_DTLS_CID)
