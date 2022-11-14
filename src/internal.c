@@ -34281,12 +34281,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     }
 
-
-    /* Parse ticket sent by client, returns callback return value */
-    int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
+    int DoDecryptTicket(WOLFSSL* ssl, const byte* input, word32 len,
+        InternalTicket **it)
     {
         ExternalTicket* et;
-        InternalTicket* it;
         int             ret;
         int             outLen;
         word16          inLen;
@@ -34346,8 +34344,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
             return BAD_TICKET_KEY_CB_SZ;
         }
+        *it = (InternalTicket*)et->enc_ticket;
+        return 0;
+    }
 
-        it = (InternalTicket*)et->enc_ticket;
+    /* Parse ticket sent by client, returns callback return value */
+    int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
+    {
+        InternalTicket* it;
+        int             ret;
+
+        WOLFSSL_START(WC_FUNC_TICKET_DO);
+        WOLFSSL_ENTER("DoClientTicket");
+
+        ret = DoDecryptTicket(ssl, input, len, &it);
+        if (ret != 0)
+            return ret;
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */
         wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
