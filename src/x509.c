@@ -6538,7 +6538,7 @@ const char* wolfSSL_X509_verify_cert_error_string(long err)
 
 /* Add directory path that will be used for loading certs and CRLs
  * which have the <hash>.rn name format.
- * type may be X509_FILETYPE_PEM or X509_FILETYPE_ASN1.
+ * type may be WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
  * returns WOLFSSL_SUCCESS on successful, otherwise negative or zero. */
 int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
                                long type)
@@ -6562,7 +6562,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     const char* header = NULL;
     const char* footer = NULL;
 
-    if (type != X509_FILETYPE_PEM)
+    if (type != WOLFSSL_FILETYPE_PEM)
         return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     fp = XFOPEN(file, "rb");
@@ -6799,7 +6799,7 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 /* @param **ret  return value of the control command                    */
 /* @return WOLFSSL_SUCCESS on successful, othewise WOLFSSL_FAILURE      */
 /* note: WOLFSSL_X509_L_ADD_STORE and WOLFSSL_X509_L_LOAD_STORE have not*/
-/*       yet implemented. It retutns WOLFSSL_NOT_IMPLEMENTED            */
+/*       yet implemented. It returns WOLFSSL_NOT_IMPLEMENTED            */
 /*       when those control commands are passed.                        */
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
@@ -6816,7 +6816,7 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
                             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
             break;
         case WOLFSSL_X509_L_ADD_DIR:
-            /* store directory loaction to use it later */
+            /* store directory location to use it later */
 #if !defined(NO_WOLFSSL_DIR)
             lret = x509AddCertDir(ctx->dirs, argc, argl);
 #else
@@ -7395,7 +7395,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         return ret;
     }
 
-    if (type == X509_FILETYPE_PEM) {
+    if (type == WOLFSSL_FILETYPE_PEM) {
         do {
             crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
             if (crl == NULL) {
@@ -7416,7 +7416,8 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         }   while(crl == NULL);
 
         ret = count;
-    } else if (type == X509_FILETYPE_ASN1) {
+    }
+    else if (type == WOLFSSL_FILETYPE_ASN1) {
         crl = wolfSSL_d2i_X509_CRL_bio(bio, NULL);
         if (crl == NULL) {
             WOLFSSL_MSG("Load crl failed");

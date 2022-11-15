@@ -50593,7 +50593,7 @@ static int test_wolfSSL_SMIME_write_PKCS7(void)
 #endif /* !NO_BIO */
 
 /* Test of X509 store use outside of SSL context w/ CRL lookup (ALWAYS
-   returns 0) */
+ * returns 0) */
 static int test_X509_STORE_No_SSL_CTX(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
@@ -50601,16 +50601,17 @@ static int test_X509_STORE_No_SSL_CTX(void)
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
 
-    X509_STORE      *store;
-    X509_STORE_CTX  *storeCtx;
-    X509_CRL        *crl;
-    X509            *ca, *cert;
-    const char      cliCrlPem[] = "./certs/crl/cliCrl.pem";
-    const char      srvCert[] = "./certs/server-cert.pem";
-    const char      caCert[] = "./certs/ca-cert.pem";
-    const char      caDir[] = "./certs/crl/hash_pem/";
-    XFILE           fp;
-    X509_LOOKUP     *lookup;
+    X509_STORE *     store;
+    X509_STORE_CTX * storeCtx;
+    X509_CRL *       crl;
+    X509 *           ca;
+    X509 *           cert;
+    const char       cliCrlPem[] = "./certs/crl/cliCrl.pem";
+    const char       srvCert[] = "./certs/server-cert.pem";
+    const char       caCert[] = "./certs/ca-cert.pem";
+    const char       caDir[] = "./certs/crl/hash_pem";
+    XFILE            fp;
+    X509_LOOKUP *    lookup;
 
     printf(testingFmt, "test_X509_STORE_No_SSL_CTX");
 
@@ -50622,8 +50623,8 @@ static int test_X509_STORE_No_SSL_CTX(void)
     AssertIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
 
     /* Add CRL lookup directory to store
-       NOTE: test uses ./certs/crl/hash_pem/0fdb2da4.r0, which is a copy
-       of crl.pem */
+     * NOTE: test uses ./certs/crl/hash_pem/0fdb2da4.r0, which is a copy
+     * of crl.pem */
     AssertNotNull((lookup = X509_STORE_add_lookup(store,
             X509_LOOKUP_hash_dir())));
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, caDir,
@@ -50633,7 +50634,7 @@ static int test_X509_STORE_No_SSL_CTX(void)
             SSL_SUCCESS);
 
     /* Add CRL to store NOT containing the verified certificate, which
-       forces use of the CRL lookup directory */
+     * forces use of the CRL lookup directory */
     fp = XFOPEN(cliCrlPem, "rb");
     AssertTrue((fp != XBADFILE));
     AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
@@ -50648,7 +50649,7 @@ static int test_X509_STORE_No_SSL_CTX(void)
     AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
 
     /* Perform verification, which should NOT indicate CRL missing due to the
-       store CM's X509 store pointer being NULL */
+     * store CM's X509 store pointer being NULL */
     AssertIntNE(X509_verify_cert(storeCtx), CRL_MISSING);
 
     X509_CRL_free(crl);
@@ -50664,8 +50665,8 @@ static int test_X509_STORE_No_SSL_CTX(void)
     return 0;
 }
 
-/* Basically the same test as test_X509_STORE_No_SSL_CTX, but with
- * X509_LOOKUP_add_dir and X509_FILETYPE_ASN1. */
+/* Test of X509 store use outside of SSL context w/ CRL lookup, but
+ * with X509_LOOKUP_add_dir and X509_FILETYPE_ASN1. */
 static int test_X509_LOOKUP_add_dir(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
@@ -50676,11 +50677,12 @@ static int test_X509_LOOKUP_add_dir(void)
     X509_STORE *     store;
     X509_STORE_CTX * storeCtx;
     X509_CRL *       crl;
-    X509 *ca, *      cert;
+    X509 *           ca;
+    X509 *           cert;
     const char       cliCrlPem[] = "./certs/crl/cliCrl.pem";
     const char       srvCert[] = "./certs/server-cert.pem";
     const char       caCert[] = "./certs/ca-cert.pem";
-    const char       caDir[] = "./certs/crl/hash_der/";
+    const char       caDir[] = "./certs/crl/hash_der";
     XFILE            fp;
     X509_LOOKUP *    lookup;
 
@@ -50694,8 +50696,8 @@ static int test_X509_LOOKUP_add_dir(void)
     AssertIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
 
     /* Add CRL lookup directory to store.
-       Test uses ./certs/crl/hash_der/0fdb2da4.r0, which is a copy
-       of crl.der */
+     * Test uses ./certs/crl/hash_der/0fdb2da4.r0, which is a copy
+     * of crl.der */
     AssertNotNull((lookup = X509_STORE_add_lookup(store,
             X509_LOOKUP_hash_dir())));
 
@@ -50706,7 +50708,7 @@ static int test_X509_LOOKUP_add_dir(void)
             SSL_SUCCESS);
 
     /* Add CRL to store NOT containing the verified certificate, which
-       forces use of the CRL lookup directory */
+     * forces use of the CRL lookup directory */
     fp = XFOPEN(cliCrlPem, "rb");
     AssertTrue((fp != XBADFILE));
     AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
@@ -50761,7 +50763,7 @@ static int test_X509_LOOKUP_add_dir(void)
     AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
 
     /* Now we SHOULD get CRL_MISSING, because we looked for PEM
-       in dir containing only ASN1/DER. */
+     * in dir containing only ASN1/DER. */
     AssertIntEQ(X509_verify_cert(storeCtx), CRL_MISSING);
 
     X509_CRL_free(crl);
