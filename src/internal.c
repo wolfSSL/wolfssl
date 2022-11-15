@@ -32339,6 +32339,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             int doHelloRetry = 0;
             /* Try to establish a key share. */
             int ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
+
+            if (ret != 0) {
+                return ret;
+            }
             if (doHelloRetry) {
                 ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             }
@@ -32386,6 +32390,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             else {
                 WOLFSSL_MSG("Could not verify suite validity, continue");
+                if (ret == MEMORY_E) {
+                    WOLFSSL_MSG("Out of memory error");
+                    return ret;
+                }
             }
         }
 

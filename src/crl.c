@@ -76,6 +76,9 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
         return BAD_COND_E;
     }
 #endif
+#ifdef HAVE_CRL_IO
+    crl->crlIOCb = NULL;
+#endif
     if (wc_InitMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("Init Mutex failed");
         return BAD_MUTEX_E;
