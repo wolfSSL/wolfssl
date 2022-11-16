@@ -32339,6 +32339,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             int doHelloRetry = 0;
             /* Try to establish a key share. */
             int ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
+
+            if (ret != 0) {
+                return ret;
+            }
             if (doHelloRetry) {
                 ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             }
@@ -32369,10 +32373,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
             int ret = VerifyServerSuite(ssl, i);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E)
+            if (ret < 0) {
                 return ret;
-            #endif
+            }
             if (ret) {
                 WOLFSSL_MSG("Verified suite validity");
                 ssl->options.cipherSuite0 = ssl->suites->suites[i];

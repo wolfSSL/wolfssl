@@ -35538,6 +35538,7 @@ static int GetRevoked(RevokedCert* rcert, const byte* buff, word32* idx,
     ret = wc_GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,maxIdx);
     if (ret < 0) {
         WOLFSSL_MSG("wc_GetSerialNumber error");
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ret;
     }
     /* add to list */

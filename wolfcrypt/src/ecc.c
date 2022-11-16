@@ -7847,6 +7847,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
  res         Result of signature, 1==valid, 0==invalid
  key         The corresponding public ECC key
  return      MP_OKAY if successful (even if the signature is not valid)
+             Caller should check the *res value to determine if the signature
+             is valid or invalid. Other negative values are returned on error.
  */
 WOLFSSL_ABI
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
@@ -8032,7 +8034,6 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 }
 #endif /* !WOLFSSL_STM32_PKA && !WOLFSSL_PSOC6_CRYPTO */
 
-
 /**
    Verify an ECC signature
    r           The signature R component to verify
@@ -8042,6 +8043,8 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
    res         Result of signature, 1==valid, 0==invalid
    key         The corresponding public ECC key
    return      MP_OKAY if successful (even if the signature is not valid)
+               Caller should check the *res value to determine if the signature
+               is valid or invalid. Other negative values are returned on error.
 */
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
@@ -8182,12 +8185,20 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                            (byte*)hash,
                            msgLenInBytes);
 
-   if (err != SA_SILIB_RET_OK) {
+   if (err == CRYS_ECDSA_VERIFY_INCONSISTENT_VERIFY_ERROR) {
+       /* signature verification reported invalid signature. */
+       *res = 0; /* Redundant, added for code clarity */
+       err = MP_OKAY;
+   }
+   else if (err != SA_SILIB_RET_OK) {
        WOLFSSL_MSG("CRYS_ECDSA_Verify failed");
        return err;
    }
-   /* valid signature if we get to this point */
-   *res = 1;
+   else {
+       /* valid signature. */
+       *res = 1;
+       err = MP_OKAY;
+   }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
    err = silabs_ecc_verify_hash(&sigRS[0], keySz * 2,
                                 hash, hashlen,
