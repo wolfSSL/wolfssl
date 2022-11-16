@@ -5136,8 +5136,7 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
     ||                                                                         \
     (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
-    !defined(NO_OLD_TLS))
+     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER))
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 struct test_memio_ctx
 {
@@ -5206,6 +5205,51 @@ static WC_INLINE int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
     return read_sz;
 }
 
+static WC_INLINE int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
+    int max_rounds, int *rounds)
+{
+    byte handshake_complete = 0, hs_c = 0, hs_s = 0;
+    int ret, err;
+
+    if (rounds != NULL)
+        *rounds = 0;
+    while (!handshake_complete && max_rounds > 0) {
+        if (!hs_c) {
+            ret = wolfSSL_connect(ssl_c);
+            if (ret == WOLFSSL_SUCCESS) {
+                hs_c = 1;
+            }
+            else {
+                err = wolfSSL_get_error(ssl_c, ret);
+                if (err != WOLFSSL_ERROR_WANT_READ &&
+                    err != WOLFSSL_ERROR_WANT_WRITE)
+                    return -1;
+            }
+        }
+        if (!hs_s) {
+            ret = wolfSSL_accept(ssl_s);
+            if (ret == WOLFSSL_SUCCESS) {
+                hs_s = 1;
+            }
+            else {
+                err = wolfSSL_get_error(ssl_c, ret);
+                if (err != WOLFSSL_ERROR_WANT_READ &&
+                    err != WOLFSSL_ERROR_WANT_WRITE)
+                    return -1;
+            }
+        }
+        handshake_complete = hs_c && hs_s;
+        max_rounds--;
+        if (rounds != NULL)
+            *rounds = *rounds + 1;
+    }
+
+    if (!handshake_complete)
+        return -1;
+
+    return 0;
+}
+
 static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
     WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
     method_provider method_c, method_provider method_s)
@@ -5224,6 +5268,9 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
 
     ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
                                            WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+    ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
     if (ret != WOLFSSL_SUCCESS)
         return -1;
     wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
