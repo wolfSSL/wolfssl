@@ -32373,10 +32373,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
             int ret = VerifyServerSuite(ssl, i);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E)
+            if (ret < 0) {
                 return ret;
-            #endif
+            }
             if (ret) {
                 WOLFSSL_MSG("Verified suite validity");
                 ssl->options.cipherSuite0 = ssl->suites->suites[i];
@@ -32390,10 +32389,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             else {
                 WOLFSSL_MSG("Could not verify suite validity, continue");
-                if (ret == MEMORY_E) {
-                    WOLFSSL_MSG("Out of memory error");
-                    return ret;
-                }
             }
         }
 
