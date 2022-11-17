@@ -597,8 +597,9 @@ int wc_LoggingCleanup(void)
 
 /* peek at an error node
  *
- * idx : if -1 then the most recent node is looked at, otherwise search
- *         through queue for node at the given index
+ * idx : if -1 then the most recent node is looked at,
+ *       otherwise search through queue for node at the given index starting
+ *          from the absolute head wc_errors
  * file  : pointer to internal file string
  * reason : pointer to internal error reason
  * line  : line number that error happened at
@@ -811,9 +812,32 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
 #endif
 }
 
+/* returns the current index into the queue, can be greater than zero in cases
+ * where wc_PullErrorNode() has been callded. */
+int wc_GetCurrentIdx()
+{
+    int ret = 0;
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+    struct wc_error_queue* current;
+
+    current = (struct wc_error_queue*)wc_errors;
+    while (current != wc_current_node && current != NULL) {
+        current = current->next;
+        ret++;
+    }
+
+    /* wc_current_node was not found in the list! use index 0 */
+    if (current == NULL) {
+        ret = 0;
+    }
+#endif
+    return ret;
+}
+
 /* Removes the error node at the specified index.
- * idx : if -1 then the most recent node is looked at, otherwise search
- *         through queue for node at the given index
+ * idx : if -1 then the most recent node is looked at,
+ *       otherwise search through queue for node at the given index starting
+ *          from the absolute head wc_errors
  */
 void wc_RemoveErrorNode(int idx)
 {
@@ -825,8 +849,9 @@ void wc_RemoveErrorNode(int idx)
         return;
     }
 
-    if (idx == -1)
+    if (idx == -1) {
         current = wc_last_node;
+    }
     else {
         current = (struct wc_error_queue*)wc_errors;
         for (; current != NULL && idx > 0; idx--)
@@ -845,6 +870,13 @@ void wc_RemoveErrorNode(int idx)
             wc_current_node = current->next;
         XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
         wc_error_queue_count--;
+
+        /* last node left in list was free'd, reset list head */
+        if (wc_error_queue_count == 0) {
+            wc_errors       = NULL;
+            wc_last_node    = NULL;
+            wc_current_node = NULL;
+        }
     }
 
     wc_UnLockMutex(&debug_mutex);
@@ -865,7 +897,8 @@ void wc_ClearErrorNodes(void)
         return;
     }
 
-    /* free all nodes from error queue */
+    /* free all nodes from error queue (even previously 'pulled' ones) starting
+     * at the lists absolute head of wc_errors */
     {
         struct wc_error_queue* current;
         struct wc_error_queue* next;

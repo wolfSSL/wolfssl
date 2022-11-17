@@ -17075,7 +17075,11 @@ cleanup:
             }
         }
         else {
-            wc_RemoveErrorNode(0);
+            int idx = wc_GetCurrentIdx();
+            if (idx > 0) {
+                idx = idx -1;
+            }
+            wc_RemoveErrorNode(idx);
         }
 
         return ret;
@@ -33241,9 +33245,10 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
     {
         int ret = 0;
+        int idx = wc_GetCurrentIdx();
 
         while (1) {
-            ret = wc_PeekErrorNode(0, file, NULL, line);
+            ret = wc_PeekErrorNode(idx, file, NULL, line);
             if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
                 WOLFSSL_MSG("Issue peeking at error node in queue");
                 return 0;
@@ -33270,7 +33275,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                     ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
                 break;
 
-            wc_RemoveErrorNode(0);
+            wc_RemoveErrorNode(idx);
         }
 
         return (unsigned long)ret;

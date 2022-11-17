@@ -39821,7 +39821,7 @@ static int test_wolfSSL_ERR_put_error(void)
     ERR_put_error(0,SYS_F_SOCKET, 15, "this file", 15);
     AssertIntEQ(ERR_get_error_line(&file, &line), 15);
 
-#ifdef WOLFSSL_PYTHON
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
     ERR_put_error(ERR_LIB_ASN1, SYS_F_ACCEPT, ASN1_R_HEADER_TOO_LONG,
             "this file", 100);
     AssertIntEQ(wolfSSL_ERR_peek_last_error_line(&file, &line),
