@@ -1,5 +1,5 @@
-/* wolfcrypt/test/test.h
- *
+#pragma once
+/*
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
@@ -19,33 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#ifndef WOLFCRYPT_TEST_H
-#define WOLFCRYPT_TEST_H
-
+int set_time(void);
 
 #ifdef __cplusplus
-    extern "C" {
+} /* extern "C" */
 #endif
-
-#ifdef HAVE_STACK_SIZE
-THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
-#else
-int wolfcrypt_test(void* args);
-#endif
-
-#ifndef NO_MAIN_DRIVER
-int wolfcrypt_test_main(int argc, char** argv);
-#endif
-
-#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
-int wolf_test_task(void);
-#endif
-
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-
-
-#endif /* WOLFCRYPT_TEST_H */
-

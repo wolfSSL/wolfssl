@@ -1640,11 +1640,20 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("Testing complete. You may close the window now\n");
         while (1);
 #endif
-#ifndef WOLFSSL_ESPIDF
+
+#ifdef WOLFSSL_ESPIDF
+        ESP_LOGI("wolfcrypt_test", "Exiting main with return code: % d\n", args.return_code);
+        return args.return_code;
+#endif
+
+/* everything else */
+#if !defined(WOLFSSL_ESPIDF)
+/* gate this for target platforms wishing to avoid printf reference */
         printf("Exiting main with return code: %d\n", args.return_code);
         return args.return_code;
 #endif
-    }
+
+    } /* wolfcrypt_test_main or wolf_test_task */
 
 #endif /* NO_MAIN_DRIVER */
 

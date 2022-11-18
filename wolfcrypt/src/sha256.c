@@ -1752,7 +1752,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
          * should have already been released (lockDepth = 0)
          */
         InitSha256(sha256); /* unlock mutex, set mode to ESP32_SHA_INIT */
-        ESP_LOGE("sha256", "ERROR: hardware unlock needed in wc_Sha256Free");
+        ESP_LOGV("sha256", "ERROR: hardware unlock needed in wc_Sha256Free");
     }
     else {
         ESP_LOGV("sha256", "hardware unlock not needed in wc_Sha256Free");
