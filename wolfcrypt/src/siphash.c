@@ -90,7 +90,7 @@
  * @param [out] a  Byte array to write into.
  * @param [in]  n  Number to encode.
  */
-#define SET_U64(a, n)   ((*(word64*)(a)) = n)
+#define SET_U64(a, n)   ((*(word64*)(a)) = (n))
 #else
 /**
  * Decode little-endian byte array to 64-bit number.
@@ -465,6 +465,12 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         "orq    %%r12, %%r13\n\t"
         "L_siphash_n6:\n\t"
 
+    : [in] "+r" (in), [inSz] "+r" (inSz)
+    : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+    : "memory", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13"
+    );
+
+    __asm__ __volatile__ (
         "cmp    $5, %[inSz]\n\t"
         "jl     L_siphash_n5\n\t"
         "movzbq 4(%[in]), %%r12\n\t"
@@ -510,6 +516,12 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         "cmp    $8, %[outSz]\n\t"
         "je     L_siphash_8_end\n\t"
 
+    : [in] "+r" (in), [inSz] "+r" (inSz)
+    : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+    : "memory", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13"
+    );
+
+    __asm__ __volatile__ (
         "xor    $0xee, %%r10b\n\t"
 #if WOLFSSL_SIPHASH_DROUNDS == 2
         SIPHASH_ROUND(%%r8, %%r9, %%r10, %%r11)
