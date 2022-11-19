@@ -683,6 +683,7 @@ then
     test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_xts" = "" && enable_xts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
@@ -953,6 +954,9 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+
+    # Enable Brainpool
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_BRAINPOOL"
 fi
 
 # liboqs
