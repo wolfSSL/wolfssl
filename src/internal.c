@@ -32340,8 +32340,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Try to establish a key share. */
             int ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
 
-            if (ret != 0) {
-                return ret;
+            if (ret == MEMORY_E) {
+                WOLFSSL_MSG("TLSX_KeyShare_Establish() failed in "
+                            "VerifyServerSuite() with MEMORY_E");
+                return 0;
             }
             if (doHelloRetry) {
                 ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
