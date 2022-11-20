@@ -745,6 +745,7 @@ then
     then
         test "$enable_dsa" = "" && enable_dsa=yes
         test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+        test "$enable_brainpool" = "" && enable_brainpool=yes
         test "$enable_srp" = "" && enable_srp=yes
         # linuxkm is incompatible with opensslextra and its dependents.
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -909,6 +910,7 @@ then
     then
         test "$enable_dsa" = "" && enable_dsa=yes
         test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+        test "$enable_brainpool" = "" && enable_brainpool=yes
         test "$enable_srp" = "" && enable_srp=yes
     fi
 
@@ -954,9 +956,6 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
-
-    # Enable Brainpool
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_BRAINPOOL"
 fi
 
 # liboqs
@@ -3047,7 +3046,6 @@ then
     fi
 fi
 
-
 # ECC Minimum Key Size
 ENABLED_ECCMINSZ=224
 AC_ARG_WITH([eccminsz],
@@ -3068,6 +3066,30 @@ AC_ARG_ENABLE([compkey],
 if test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_COMPKEY=yes
+fi
+
+
+# Brainpool (depends on _ECCCUSTCURVES)
+if test "$ENABLED_ECCCUSTCURVES" != "no"
+then
+    BRAINPOOL_DEFAULT=yes
+else
+    BRAINPOOL_DEFAULT=no
+fi
+
+AC_ARG_ENABLE([brainpool],
+    [AS_HELP_STRING([--enable-brainpool],[Enable Brainpool ECC curves (default: ${BRAINPOOL_DEFAULT})])],
+    [ ENABLED_BRAINPOOL=$enableval ],
+    [ ENABLED_BRAINPOOL="$BRAINPOOL_DEFAULT" ]
+    )
+
+if test "$ENABLED_BRAINPOOL" != "no"
+then
+    if test "$ENABLED_ECCCUSTCURVES" = "no"
+    then
+        AC_MSG_ERROR([cannot enable Brainpool without enabling ecccustcurves.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_BRAINPOOL"
 fi
 
 
@@ -8624,6 +8646,7 @@ echo "   * ECC Custom Curves:          $ENABLED_ECCCUSTCURVES"
 echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * FPECC:                      $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
+echo "   * Brainpool:                  $ENABLED_BRAINPOOL"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * ED25519 streaming:          $ENABLED_ED25519_STREAM"
