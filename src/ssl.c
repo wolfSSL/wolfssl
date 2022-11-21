@@ -8245,7 +8245,8 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 static const char* systemCaDirs[] = {
     "/etc/ssl/certs",                   /* Debian, Ubuntu, Gentoo, others */
     "/etc/pki/ca-trust/source/anchors", /* Fedora, RHEL */
-    "/etc/pki/tls/certs"                /* Older RHEL */
+    "/etc/pki/tls/certs",               /* Older RHEL */
+    "/system/etc/security/cacerts"      /* Android */
 };
 
 const char** wolfSSL_get_system_CA_dirs(word32* num)
