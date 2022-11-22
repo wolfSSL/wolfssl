@@ -12702,6 +12702,7 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
 
     list->data.string = url;
     list->next = NULL;
+    list->num = 1;
 
     return list;
 }
