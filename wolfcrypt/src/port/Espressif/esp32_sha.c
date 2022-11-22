@@ -274,7 +274,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
             ESP_LOGV(TAG, "Hardware Mode, lock depth = %d", ctx->lockDepth);
         }
         else {
-            ESP_LOGI(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
+            ESP_LOGV(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
             ctx->mode = ESP32_SHA_SW;
             return 0; /* success, but revert to SW */
         }
