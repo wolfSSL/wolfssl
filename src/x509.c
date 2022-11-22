@@ -10336,7 +10336,11 @@ cleanup:
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
             /* No certificate in buffer */
+#if defined (WOLFSSL_HAPROXY)
+            WOLFSSL_ERROR(PEM_R_NO_START_LINE);
+#else
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+#endif
             return NULL;
         }
 
