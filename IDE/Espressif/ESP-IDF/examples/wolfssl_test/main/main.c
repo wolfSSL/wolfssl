@@ -125,7 +125,6 @@ void my_atmel_free(int slotId)
 /* entry point */
 void app_main(void)
 {
-    (void) TAG;
     int rc = 0;
 
 #if defined (WOLFSSL_USE_TIME_HELPER)
