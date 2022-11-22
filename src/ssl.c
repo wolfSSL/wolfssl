@@ -17076,10 +17076,22 @@ cleanup:
         }
         else {
             int idx = wc_GetCurrentIdx();
-            if (idx > 0) {
-                idx = idx -1;
+            if (idx < 0) {
+                WOLFSSL_MSG("Error with getting current index!");
+                ret = BAD_STATE_E;
+                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+
+                /* panic and try to clear out nodes and reset queue state */
+                wc_ClearErrorNodes();
             }
-            wc_RemoveErrorNode(idx);
+            else if (idx > 0) {
+                idx -= 1;
+                wc_RemoveErrorNode(idx);
+            }
+            else {
+                /* if current idx is 0 then the queue only had one node */
+                wc_RemoveErrorNode(idx);
+            }
         }
 
         return ret;

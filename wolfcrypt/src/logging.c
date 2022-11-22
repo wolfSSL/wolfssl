@@ -812,8 +812,10 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
 #endif
 }
 
-/* returns the current index into the queue, can be greater than zero in cases
- * where wc_PullErrorNode() has been callded. */
+/* returns the current index into the queue, which is the node that
+ * wc_current_node is pointing to. It can be greater than zero in cases
+ * where wc_PullErrorNode() has been called without the node having been
+ * removed. */
 int wc_GetCurrentIdx()
 {
     int ret = 0;
