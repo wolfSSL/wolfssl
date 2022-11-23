@@ -10337,7 +10337,11 @@ cleanup:
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
             /* No certificate in buffer */
+#if defined (WOLFSSL_HAPROXY)
+            WOLFSSL_ERROR(PEM_R_NO_START_LINE);
+#else
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+#endif
             return NULL;
         }
 
@@ -12702,6 +12706,7 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
 
     list->data.string = url;
     list->next = NULL;
+    list->num = 1;
 
     return list;
 }

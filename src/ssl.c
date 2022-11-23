@@ -30894,18 +30894,16 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
     WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne)
     {
-        WOLFSSL_ASN1_OBJECT* obj = NULL;
-
 #ifdef WOLFSSL_DEBUG_OPENSSL
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
 #endif
-        if (ne == NULL) return NULL;
-        obj = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
-        if (obj != NULL) {
-            obj->nid = ne->nid;
-            return obj;
+        if (ne == NULL) {
+            return NULL;
         }
-        return NULL;
+
+        ne->object = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
+
+        return ne->object;
     }
 
 
