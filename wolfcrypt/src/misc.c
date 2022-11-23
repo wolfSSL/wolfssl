@@ -834,7 +834,8 @@ WC_STATIC WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 #endif /* HAVE_SESSION_TICKET || !NO_CERTS || !NO_SESSION_CACHE */
 
 
-#if !defined(WOLFCRYPT_ONLY) && (!defined(NO_SESSION_CACHE) || defined(HAVE_SESSION_TICKET))
+#if !defined(WOLFCRYPT_ONLY) && (!defined(NO_SESSION_CACHE) || \
+    defined(HAVE_SESSION_TICKET))
 
 #include <wolfssl/wolfcrypt/hash.h>
 

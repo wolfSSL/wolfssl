@@ -296,9 +296,11 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
 
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
+#ifndef WOLFSSL_MAXQ108X
     byte*  ip;
     byte*  op;
     word32 i, hmac_block_size = 0;
+#endif
     int    ret = 0;
     void*  heap = NULL;
 
@@ -340,6 +342,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     hmac->keyRaw = key; /* use buffer directly */
     hmac->keyLen = length;
 #endif
+
+#ifdef WOLFSSL_MAXQ108X
+    /* For MAXQ108x, nothing left to do. */
+    return 0;
+#else
 
     ip = (byte*)hmac->ipad;
     op = (byte*)hmac->opad;
@@ -585,6 +592,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     }
 
     return ret;
+#endif /* WOLFSSL_MAXQ108X */
 }
 
 

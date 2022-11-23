@@ -247,6 +247,10 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->devId = wc_CryptoCb_DefaultDevID();
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    XMEMSET(&sha256->maxq_ctx, 0, sizeof(sha256->maxq_ctx));
+#endif
+
     return ret;
 }
 #endif
@@ -1741,6 +1745,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #ifdef WOLFSSL_IMXRT_DCP
     DCPSha256Free(sha256);
 #endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_Sha256Free(sha256);
+#endif
+
 /* Espressif embedded hardware acceleration specific: */
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
     if (sha256->ctx.lockDepth > 0) {
@@ -1974,6 +1982,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_Sha256Copy(src);
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
 #endif

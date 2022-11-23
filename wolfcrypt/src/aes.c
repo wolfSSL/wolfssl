@@ -2798,6 +2798,12 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         word32 localSz = 32;
     #endif
 
+    #ifdef WOLFSSL_MAXQ10XX_CRYPTO
+        if (wc_MAXQ10XX_AesSetKey(aes, userKey, keylen) != 0) {
+            return WC_HW_E;
+        }
+    #endif
+
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
             keylen == (24 + WC_CAAM_BLOB_SZ) ||
@@ -10671,6 +10677,9 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     DCPAesInit(aes);
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    XMEMSET(&aes->maxq_ctx, 0, sizeof(aes->maxq_ctx));
+#endif
 
 #ifdef HAVE_AESGCM
 #ifdef OPENSSL_EXTRA
@@ -10796,6 +10805,10 @@ void wc_AesFree(Aes* aes)
 
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     wc_psa_aes_free(aes);
+#endif
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_AesFree(aes);
 #endif
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO

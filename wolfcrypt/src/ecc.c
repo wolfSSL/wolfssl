@@ -7345,6 +7345,10 @@ int wc_ecc_free(ecc_key* key)
     ForceZero(&key->xSec, sizeof(key->xSec));
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_EccFree(key);
+#endif
+
     mp_clear(key->pubkey.x);
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);
@@ -10104,6 +10108,12 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         err = wc_ecc_check_key(key);
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    if (err == MP_OKAY) {
+        err = wc_MAXQ10XX_EccSetKey(key, keysize);
+    }
+#endif
+
     if (err != MP_OKAY) {
         mp_clear(key->pubkey.x);
         mp_clear(key->pubkey.y);
@@ -10446,6 +10456,12 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     RESTORE_VECTOR_REGISTERS();
+#endif
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    if (ret == 0) {
+        ret = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
 #endif
 
     return ret;
@@ -10836,6 +10852,12 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     RESTORE_VECTOR_REGISTERS();
+#endif
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    if (err == MP_OKAY) {
+        err = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
+    }
 #endif
 
     if (err != MP_OKAY) {

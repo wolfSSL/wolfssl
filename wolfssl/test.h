@@ -4559,7 +4559,7 @@ static WC_INLINE int myVerifyMac(WOLFSSL *ssl, const byte* message,
 
 static WC_INLINE int myTlsFinished(WOLFSSL* ssl,
                             const byte *side,
-                            const byte *handshake_hash,
+                            const byte *handshake_hash, word32 hashSz,
                             byte *hashes, void* ctx)
 {
     int       ret;
@@ -4569,6 +4569,7 @@ static WC_INLINE int myTlsFinished(WOLFSSL* ssl,
     (void)cbInfo;
     (void)side;
     (void)handshake_hash;
+    (void)hashSz;
     (void)hashes;
 
     WOLFSSL_PKMSG("Tls Finished Cb");

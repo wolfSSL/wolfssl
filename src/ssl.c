@@ -8147,8 +8147,8 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
          i < sizeof(storeNames)/sizeof(*storeNames); ++i) {
         handle = CertOpenSystemStoreA(hProv, storeNames[i]);
         if (handle != NULL) {
-            while (certCtx = CertEnumCertificatesInStore(handle,
-                   certCtx)) {
+            while ((certCtx = CertEnumCertificatesInStore(handle, certCtx))
+                   != NULL) {
                 if (certCtx->dwCertEncodingType == X509_ASN_ENCODING) {
                     if (ProcessBuffer(ctx, certCtx->pbCertEncoded,
                           certCtx->cbCertEncoded, WOLFSSL_FILETYPE_ASN1,
@@ -29475,10 +29475,41 @@ void* wolfSSL_GetVerifyMacCtx(WOLFSSL* ssl)
 }
 #endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
 
+void wolfSSL_CTX_SetHKDFExpandLabelCb(WOLFSSL_CTX* ctx,
+                                      CallbackHKDFExpandLabel cb)
+{
+    if (ctx)
+        ctx->HKDFExpandLabelCb = cb;
+}
+#ifdef WOLFSSL_PUBLIC_ASN
+void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
+                                        CallbackProcessPeerCert cb)
+{
+    if (ctx)
+        ctx->ProcessPeerCertCb = cb;
+}
+#endif /* WOLFSSL_PUBLIC_ASN */
+void wolfSSL_CTX_SetProcessServerSigKexCb(WOLFSSL_CTX* ctx,
+                                       CallbackProcessServerSigKex cb)
+{
+    if (ctx)
+        ctx->ProcessServerSigKexCb = cb;
+}
+void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
+                                          CallbackPerformTlsRecordProcessing cb)
+{
+    if (ctx)
+        ctx->PerformTlsRecordProcessingCb = cb;
+}
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(NO_DH)
+void wolfSSL_CTX_SetDhGenerateKeyPair(WOLFSSL_CTX* ctx,
+                                      CallbackDhGenerateKeyPair cb) {
+    if (ctx)
+        ctx->DhGenerateKeyPairCb = cb;
+}
 void wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX* ctx, CallbackDhAgree cb)
 {
     if (ctx)

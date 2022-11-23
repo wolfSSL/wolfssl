@@ -1816,6 +1816,9 @@ struct DecodedCert {
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     byte*  sce_tsip_encRsaKeyIdx;
 #endif
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    word32 publicKeyIndex; /* offset to start of public key */
+#endif
 
     int badDate;
     int criticalExt;

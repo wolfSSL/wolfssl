@@ -157,6 +157,10 @@ enum {
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
 
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    #include <wolfssl/wolfcrypt/port/maxim/maxq10xx.h>
+#endif
+
 /* wc_Sha256 digest */
 struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
@@ -205,6 +209,9 @@ struct wc_Sha256 {
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     WC_ESP32SHA ctx;
+#endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    maxq_sha256_t maxq_ctx;
 #endif
 #ifdef WOLFSSL_CRYPTOCELL
     CRYS_HASHUserContext_t ctx;

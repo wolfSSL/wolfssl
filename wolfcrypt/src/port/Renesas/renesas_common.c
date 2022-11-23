@@ -594,11 +594,12 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_
  * return FSP_SUCCESS(0) on success, otherwise FSP/TSIP error code
  */
 WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
-                            const byte *handshake_hash,
+                            const byte *handshake_hash, word32 hashSz,
                             byte *hashes, void* ctx)
 {
     int ret = -1;
 
+    (void)hashSz;
     (void)ctx;
 
     WOLFSSL_ENTER("Renesas_cmn_TlsFinished");

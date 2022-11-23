@@ -2388,6 +2388,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ret = wolfEventQueue_Init(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
+#ifdef WOLFSSL_MAXQ10XX_TLS
+    /* Let maxq10xx know what TLS version we are using. */
+    ctx->devId = MAXQ_DEVICE_ID;
+    maxq10xx_SetupPkCallbacks(ctx, &method->version);
+#endif /* WOLFSSL_MAXQ10XX_TLS */
+
     return ret;
 }
 
@@ -4985,7 +4991,8 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
             &ssl->eccVerifyRes, ctx);
     }
     #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
-        !defined(WOLFSSL_RENESAS_TSIP_TLS)
+        !defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+        !defined(WOLFSSL_MAXQ108X)
     else
     #else
     if (!ssl->ctx->EccVerifyCb || ret == CRYPTOCB_UNAVAILABLE)
@@ -5825,9 +5832,19 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
         return ret;
 #endif
 
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
-    PRIVATE_KEY_LOCK();
+#if defined(HAVE_PK_CALLBACKS)
+    ret = NOT_COMPILED_IN;
+    if (ssl && ssl->ctx && ssl->ctx->DhGenerateKeyPairCb) {
+        ret = ssl->ctx->DhGenerateKeyPairCb(dhKey, ssl->rng, priv, privSz,
+                                            pub, pubSz);
+    }
+    if (ret == NOT_COMPILED_IN)
+#endif
+    {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        PRIVATE_KEY_LOCK();
+    }
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -7048,6 +7065,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return ret;
     }
 #endif
+
+#if defined(WOLFSSL_MAXQ10XX_TLS)
+    ret = wolfSSL_maxq10xx_load_certificate(ssl);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+#endif
+
     return 0;
 }
 
@@ -12903,6 +12927,18 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
     }
 #endif
 
+#if defined(WOLFSSL_PUBLIC_ASN) && defined(HAVE_PK_CALLBACKS)
+    /* This block gives the callback a chance to process the peer cert.
+     * If there is no callback set or it returns NOT_COMPILED_IN, then the
+     * original return code is returned. */
+    if (ssl->ctx && ssl->ctx->ProcessPeerCertCb) {
+        int new_ret = ssl->ctx->ProcessPeerCertCb(ssl, args->dCert);
+        if (new_ret != NOT_COMPILED_IN) {
+            ret = new_ret;
+        }
+    }
+#endif /* WOLFSSL_PUBLIC_ASN && HAVE_PK_CALLBACKS */
+
     return ret;
 }
 
@@ -17240,13 +17276,30 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
                                 ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
 #endif
-            ret = aes_auth_fn(ssl->encrypt.aes,
-                    out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
-                    sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                    ssl->encrypt.nonce, AESGCM_NONCE_SZ,
-                    out + sz - ssl->specs.aead_mac_size,
-                    ssl->specs.aead_mac_size,
-                    ssl->encrypt.additional, AEAD_AUTH_DATA_SZ);
+        #ifdef HAVE_PK_CALLBACKS
+            ret = NOT_COMPILED_IN;
+            if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
+                ret = ssl->ctx->PerformTlsRecordProcessingCb(ssl, 1,
+                         out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
+                         sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                         ssl->encrypt.nonce, AESGCM_NONCE_SZ,
+                         out + sz - ssl->specs.aead_mac_size,
+                         ssl->specs.aead_mac_size,
+                         ssl->encrypt.additional, AEAD_AUTH_DATA_SZ);
+            }
+
+            if (ret == NOT_COMPILED_IN)
+        #endif /* HAVE_PK_CALLBACKS */
+            {
+                ret = aes_auth_fn(ssl->encrypt.aes,
+                        out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
+                        sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        ssl->encrypt.nonce, AESGCM_NONCE_SZ,
+                        out + sz - ssl->specs.aead_mac_size,
+                        ssl->specs.aead_mac_size,
+                        ssl->encrypt.additional, AEAD_AUTH_DATA_SZ);
+            }
+
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E && asyncOkay) {
                 ret = wolfSSL_AsyncPush(ssl, asyncDev);
@@ -17527,19 +17580,37 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                         AESGCM_IMP_IV_SZ);
             XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
                                                             AESGCM_EXP_IV_SZ);
-            if ((ret = aes_auth_fn(ssl->decrypt.aes,
+        #ifdef HAVE_PK_CALLBACKS
+            ret = NOT_COMPILED_IN;
+            if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
+                ret = ssl->ctx->PerformTlsRecordProcessingCb(ssl, 0,
                         plain + AESGCM_EXP_IV_SZ,
                         input + AESGCM_EXP_IV_SZ,
-                           sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         ssl->decrypt.nonce, AESGCM_NONCE_SZ,
-                        input + sz - ssl->specs.aead_mac_size,
+                        (byte *)(input + sz - ssl->specs.aead_mac_size),
                         ssl->specs.aead_mac_size,
-                        ssl->decrypt.additional, AEAD_AUTH_DATA_SZ)) < 0) {
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E) {
-                    ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                        ssl->decrypt.additional, AEAD_AUTH_DATA_SZ);
+            }
+
+            if (ret == NOT_COMPILED_IN)
+        #endif /* HAVE_PK_CALLBACKS */
+            {
+                if ((ret = aes_auth_fn(ssl->decrypt.aes,
+                            plain + AESGCM_EXP_IV_SZ,
+                            input + AESGCM_EXP_IV_SZ,
+                            sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                            ssl->decrypt.nonce, AESGCM_NONCE_SZ,
+                            input + sz - ssl->specs.aead_mac_size,
+                            ssl->specs.aead_mac_size,
+                            ssl->decrypt.additional, AEAD_AUTH_DATA_SZ)) < 0) {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl,
+                                                &ssl->decrypt.aes->asyncDev);
+                    }
+                #endif
                 }
-            #endif
             }
         }
         break;
@@ -25919,8 +25990,14 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                                 ssl->buffers.sig.length,
                                 ssl->buffers.digest.buffer,
                                 ssl->buffers.digest.length);
-        XFREE(ssl->buffers.sig.buffer, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-        ssl->buffers.sig.buffer = NULL;
+#ifdef HAVE_PK_CALLBACKS
+        if (ssl->ctx->ProcessServerSigKexCb == NULL)
+#endif
+        {
+            /* No further processing will be done. It can be freed. */
+            XFREE(ssl->buffers.sig.buffer, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+            ssl->buffers.sig.buffer = NULL;
+        }
     }
 
     return ret;
@@ -28073,17 +28150,30 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifdef HAVE_ECC
                         case ecc_dsa_sa_algo:
                         {
-                            ret = EccVerify(ssl,
-                                args->verifySig, args->verifySigSz,
-                                ssl->buffers.digest.buffer,
-                                ssl->buffers.digest.length,
-                                ssl->peerEccDsaKey,
-                            #ifdef HAVE_PK_CALLBACKS
-                                &ssl->buffers.peerEccDsaKey
-                            #else
-                                NULL
-                            #endif
-                            );
+                            ret = NOT_COMPILED_IN;
+                        #ifdef HAVE_PK_CALLBACKS
+                            if (ssl->ctx && ssl->ctx->ProcessServerSigKexCb) {
+                                ret = ssl->ctx->ProcessServerSigKexCb(ssl,
+                                    args->sigAlgo,
+                                    args->verifySig, args->verifySigSz,
+                                    ssl->buffers.sig.buffer, SEED_LEN,
+                                    &ssl->buffers.sig.buffer[SEED_LEN],
+                                    (ssl->buffers.sig.length - SEED_LEN));
+                            }
+                        #endif /* HAVE_PK_CALLBACKS */
+                            if (ret == NOT_COMPILED_IN) {
+                                ret = EccVerify(ssl,
+                                    args->verifySig, args->verifySigSz,
+                                    ssl->buffers.digest.buffer,
+                                    ssl->buffers.digest.length,
+                                    ssl->peerEccDsaKey,
+                                #ifdef HAVE_PK_CALLBACKS
+                                    &ssl->buffers.peerEccDsaKey
+                                #else
+                                    NULL
+                                #endif
+                                );
+                            }
 
                         #ifdef WOLFSSL_ASYNC_CRYPT
                             if (ret != WC_PENDING_E)
@@ -28691,7 +28781,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
 
                     ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, peerKey);
-                #endif
+                #endif /* HAVE_ECC */
 
                     break;
                 }
@@ -28833,36 +28923,52 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case psk_kea:
                 {
                     byte* pms = ssl->arrays->preMasterSecret;
-                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                    int cbret = (int)ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
-                    if (ssl->arrays->psk_keySz == 0 ||
-                        ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                        ERROR_OUT(PSK_KEY_ERROR, exit_scke);
+
+                    if (cbret == 0 || cbret > MAX_PSK_KEY_LEN) {
+                        if (cbret != USE_HW_PSK) {
+                            ERROR_OUT(PSK_KEY_ERROR, exit_scke);
+                        }
                     }
-                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
+
+                    if (cbret == USE_HW_PSK) {
+                        /* USE_HW_PSK indicates that the hardware has the PSK
+                         * and generates the premaster secret. */
+                        ssl->arrays->psk_keySz = 0;
+                    }
+                    else {
+                        ssl->arrays->psk_keySz = (word32)cbret;
+                    }
+
+                    /* Ensure the buffer is null-terminated. */
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
                     args->encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
                     if (args->encSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
                     }
                     XMEMCPY(args->encSecret, ssl->arrays->client_identity,
-                                                                args->encSz);
-                    /* CLIENT: Pre-shared Key for peer authentication. */
+                            args->encSz);
                     ssl->options.peerAuthGood = 1;
+                    if (cbret != USE_HW_PSK) {
+                        /* CLIENT: Pre-shared Key for peer authentication. */
 
-                    /* make psk pre master secret */
-                    /* length of key + length 0s + length of key + key */
-                    c16toa((word16)ssl->arrays->psk_keySz, pms);
-                    pms += OPAQUE16_LEN;
-                    XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-                    pms += ssl->arrays->psk_keySz;
-                    c16toa((word16)ssl->arrays->psk_keySz, pms);
-                    pms += OPAQUE16_LEN;
-                    XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2) +
-                        (2 * OPAQUE16_LEN);
-                    ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                        /* make psk pre master secret */
+                        /* length of key + length 0s + length of key + key */
+                        c16toa((word16)ssl->arrays->psk_keySz, pms);
+                        pms += OPAQUE16_LEN;
+                        XMEMSET(pms, 0, ssl->arrays->psk_keySz);
+                        pms += ssl->arrays->psk_keySz;
+                        c16toa((word16)ssl->arrays->psk_keySz, pms);
+                        pms += OPAQUE16_LEN;
+                        XMEMCPY(pms, ssl->arrays->psk_key,
+                                ssl->arrays->psk_keySz);
+                        ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2)
+                                                   + (2 * OPAQUE16_LEN);
+                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                        ssl->arrays->psk_keySz = 0; /* No further need */
+                    }
                     break;
                 }
             #endif /* !NO_PSK */
@@ -29296,12 +29402,12 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                               ssl->peerEccDsaKey : ssl->peerEccKey;
 
                     ret = EccSharedSecret(ssl,
-                        (ecc_key*)ssl->hsKey, peerKey,
-                        args->encSecret + OPAQUE8_LEN, &args->encSz,
-                        ssl->arrays->preMasterSecret,
-                        &ssl->arrays->preMasterSz,
-                        WOLFSSL_CLIENT_END
-                    );
+                              (ecc_key*)ssl->hsKey, peerKey,
+                              args->encSecret + OPAQUE8_LEN, &args->encSz,
+                              ssl->arrays->preMasterSecret,
+                              &ssl->arrays->preMasterSz,
+                              WOLFSSL_CLIENT_END);
+
                     if (!ssl->specs.static_ecdh
                 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ret != WC_PENDING_E
@@ -29885,12 +29991,13 @@ int SendCertificateVerify(WOLFSSL* ssl)
         case TLS_ASYNC_DO:
         {
         #ifdef HAVE_ECC
-           if (ssl->hsType == DYNAMIC_TYPE_ECC) {
+            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 ecc_key* key = (ecc_key*)ssl->hsKey;
 
                 ret = EccSign(ssl,
                     ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                    ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
+                    ssl->buffers.sig.buffer,
+                    (word32*)&ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
