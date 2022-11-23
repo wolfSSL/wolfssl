@@ -7,10 +7,10 @@ CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 #
 # This is typically way bigger than needed for stack size. See user_settings.h
 #
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=7500
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=55500
 
 # Legacy stack size for older ESP-IDF versions
-CONFIG_MAIN_TASK_STACK_SIZE=7500
+CONFIG_MAIN_TASK_STACK_SIZE=55500
 
 #
 # Watchdog Timers
