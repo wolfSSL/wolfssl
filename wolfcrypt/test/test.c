@@ -118,6 +118,7 @@
 #elif defined(WOLFSSL_ESPIDF)
     #include <time.h>
     #include <sys/time.h>
+    #include <esp_log.h>
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
 
