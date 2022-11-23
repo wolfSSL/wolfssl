@@ -5833,17 +5833,18 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
 #endif
 
 #if defined(HAVE_PK_CALLBACKS)
+    ret = NOT_COMPILED_IN;
     if (ssl && ssl->ctx && ssl->ctx->DhGenerateKeyPairCb) {
         ret = ssl->ctx->DhGenerateKeyPairCb(dhKey, ssl->rng, priv, privSz,
                                             pub, pubSz);
-        if (ret != NOT_COMPILED_IN)
-            return ret;
     }
+    if (ret == NOT_COMPILED_IN)
 #endif
-
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
-    PRIVATE_KEY_LOCK();
+    {
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        PRIVATE_KEY_LOCK();
+    }
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
