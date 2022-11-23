@@ -5501,6 +5501,12 @@ then
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
+    # Requires key gen make sure on
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
 fi
 
 if test "$ENABLED_NETSNMP" = "yes"
