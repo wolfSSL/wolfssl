@@ -13482,6 +13482,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ret = CheckCertCRL(SSL_CM(ssl)->crl,
                                         args->dCert);
                             #ifdef WOLFSSL_NONBLOCK_OCSP
+                                /* The CRL lookup I/O callback is using the
+                                 * same WOULD_BLOCK error code as OCSP's I/O
+                                 * callback, and it is enabling it using the
+                                 * same flag. */
                                 if (ret == OCSP_WANT_READ) {
                                     args->lastErr = ret;
                                     goto exit_ppc;
@@ -13852,6 +13856,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("Doing Leaf CRL check");
                         ret = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert);
                     #ifdef WOLFSSL_NONBLOCK_OCSP
+                        /* The CRL lookup I/O callback is using the
+                         * same WOULD_BLOCK error code as OCSP's I/O
+                         * callback, and it is enabling it using the
+                         * same flag. */
                         if (ret == OCSP_WANT_READ) {
                             goto exit_ppc;
                         }
