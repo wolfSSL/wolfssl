@@ -49,7 +49,6 @@
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 #ifdef HAVE_PQC
-#ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
@@ -63,7 +62,6 @@
     #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
     #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
     #include <wolfssl/wolfcrypt/ext_kyber.h>
-#endif
 #endif
 #endif
 
