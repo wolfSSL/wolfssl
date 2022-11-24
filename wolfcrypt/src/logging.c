@@ -816,7 +816,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
  * wc_current_node is pointing to. It can be greater than zero in cases
  * where wc_PullErrorNode() has been called without the node having been
  * removed. */
-int wc_GetCurrentIdx()
+int wc_GetCurrentIdx(void)
 {
     int ret = 0;
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
