@@ -2931,6 +2931,9 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_KYBER_90S_LEVEL1:
         case WOLFSSL_KYBER_90S_LEVEL3:
         case WOLFSSL_KYBER_90S_LEVEL5:
+        case WOLFSSL_P256_KYBER_LEVEL1:
+        case WOLFSSL_P384_KYBER_LEVEL3:
+        case WOLFSSL_P521_KYBER_LEVEL5:
         case WOLFSSL_P256_KYBER_90S_LEVEL1:
         case WOLFSSL_P384_KYBER_90S_LEVEL3:
         case WOLFSSL_P521_KYBER_90S_LEVEL5:
