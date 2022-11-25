@@ -306,6 +306,14 @@ int wolfCrypt_Init(void)
             return ret;
     #endif
 
+#ifdef HAVE_ENTROPY_MEMUSE
+    ret = Entropy_Init();
+    if (ret != 0) {
+        WOLFSSL_MSG("Error initializing entropy");
+        return ret;
+    }
+#endif
+
 #ifdef HAVE_ECC
     #ifdef FP_ECC
         wc_ecc_fp_init();
@@ -446,6 +454,10 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_LINUXKM_SIMD_X86)
         free_wolfcrypt_linuxkm_fpu_states();
+    #endif
+
+    #ifdef HAVE_ENTROPY_MEMUSE
+        Entropy_Final();
     #endif
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
