@@ -72,6 +72,8 @@ enum Pkcs11KeyType {
 
 WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library,
                                      void* heap);
+WOLFSSL_API int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library,
+                                        void* heap, CK_RV* rvp);
 WOLFSSL_API void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 
 WOLFSSL_API int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,
