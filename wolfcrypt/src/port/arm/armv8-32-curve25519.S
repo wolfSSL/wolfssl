@@ -46,30 +46,14 @@ fe_init:
 	.type	fe_frombytes, %function
 fe_frombytes:
 	push	{r4, r5, r6, r7, r8, r9, lr}
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r2, [r1]
 	ldr	r3, [r1, #4]
-#else
-	ldrd	r2, r3, [r1]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r1, #8]
 	ldr	r5, [r1, #12]
-#else
-	ldrd	r4, r5, [r1, #8]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r1, #16]
 	ldr	r7, [r1, #20]
-#else
-	ldrd	r6, r7, [r1, #16]
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r1, #24]
 	ldr	r9, [r1, #28]
-#else
-	ldrd	r8, r9, [r1, #24]
-#endif
 	and	r9, r9, #0x7fffffff
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	str	r2, [r0]

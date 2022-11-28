@@ -57,30 +57,14 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
     register const unsigned char* in asm ("r1") = in_p;
 
     __asm__ __volatile__ (
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r2, [%[in]]\n\t"
         "ldr	r3, [%[in], #4]\n\t"
-#else
-        "ldrd	r2, r3, [%[in]]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r4, [%[in], #8]\n\t"
         "ldr	r5, [%[in], #12]\n\t"
-#else
-        "ldrd	r4, r5, [%[in], #8]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r6, [%[in], #16]\n\t"
         "ldr	r7, [%[in], #20]\n\t"
-#else
-        "ldrd	r6, r7, [%[in], #16]\n\t"
-#endif
-#if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "ldr	r8, [%[in], #24]\n\t"
         "ldr	r9, [%[in], #28]\n\t"
-#else
-        "ldrd	r8, r9, [%[in], #24]\n\t"
-#endif
         "and	r9, r9, #0x7fffffff\n\t"
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
         "str	r2, [%[out]]\n\t"
