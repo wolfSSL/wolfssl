@@ -12379,7 +12379,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
                       ssl->buffers.dtlsCookieSecret.length);
             XFREE(ssl->buffers.dtlsCookieSecret.buffer,
-                  ssl->heap, DYNAMIC_TYPE_NONE);
+                  ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
         }
 
         newSecret = (byte*)XMALLOC(secretSz, ssl->heap,DYNAMIC_TYPE_COOKIE_PWD);
