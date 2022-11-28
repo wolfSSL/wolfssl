@@ -409,6 +409,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
  *
  * @param  [in]  dev      Device object.
  * @param  [in]  library  Library name including path.
+ * @param  [in]  heap     Heap hint.
  * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
  * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
  * @return  WC_INIT_E when the initialization PKCS#11 fails.
@@ -417,8 +418,28 @@ static void pkcs11_val(const char* op, CK_ULONG val)
  */
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
+    return wc_Pkcs11_Initialize_ex(dev, library, heap, NULL);
+}
+
+/**
+ * Load library, get function list and initialize PKCS#11.
+ *
+ * @param  [in]   dev      Device object.
+ * @param  [in]   library  Library name including path.
+ * @param  [in]   heap     Heap hint.
+ * @param  [out]  rvp      PKCS#11 return value. Last return value seen.
+ *                         May be NULL.
+ * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
+ * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
+ * @return  WC_INIT_E when the initialization PKCS#11 fails.
+ * @return  WC_HW_E when unable to get PKCS#11 function list.
+ * @return  0 on success.
+ */
+int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library, void* heap,
+                            CK_RV* rvp)
+{
     int                  ret = 0;
-    CK_RV                rv;
+    CK_RV                rv = CKR_OK;
 #ifndef HAVE_PKCS11_STATIC
     void*                func;
 #endif
@@ -466,8 +487,13 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
         }
     }
 
-    if (ret != 0)
+    if (rvp != NULL) {
+        *rvp = rv;
+    }
+
+    if (ret != 0) {
         wc_Pkcs11_Finalize(dev);
+    }
 
     return ret;
 }
