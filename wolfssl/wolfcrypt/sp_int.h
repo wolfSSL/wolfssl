@@ -252,29 +252,29 @@ extern "C" {
 #endif
 
 #if SP_WORD_SIZE == 8
-    typedef   sp_uint8  sp_int_digit;
-    typedef    sp_int8 sp_sint_digit;
-    typedef  sp_uint16  sp_int_word;
-    typedef   sp_int16  sp_int_sword;
+    typedef   sp_uint8 sp_int_digit;
+    typedef    sp_int8 sp_int_sdigit;
+    typedef  sp_uint16 sp_int_word;
+    typedef   sp_int16 sp_int_sword;
 
     #define SP_MASK         0xffU
 #elif SP_WORD_SIZE == 16
-    typedef  sp_uint16  sp_int_digit;
-    typedef   sp_int16 sp_sint_digit;
-    typedef  sp_uint32  sp_int_word;
-    typedef   sp_int32  sp_int_sword;
+    typedef  sp_uint16 sp_int_digit;
+    typedef   sp_int16 sp_int_sdigit;
+    typedef  sp_uint32 sp_int_word;
+    typedef   sp_int32 sp_int_sword;
 
     #define SP_MASK         0xffffU
 #elif SP_WORD_SIZE == 32
-    typedef  sp_uint32  sp_int_digit;
-    typedef   sp_int32 sp_sint_digit;
-    typedef  sp_uint64  sp_int_word;
-    typedef   sp_int64  sp_int_sword;
+    typedef  sp_uint32 sp_int_digit;
+    typedef   sp_int32 sp_int_sdigit;
+    typedef  sp_uint64 sp_int_word;
+    typedef   sp_int64 sp_int_sword;
 
     #define SP_MASK         0xffffffffU
 #elif SP_WORD_SIZE == 64
-    typedef  sp_uint64  sp_int_digit;
-    typedef   sp_int64 sp_sint_digit;
+    typedef  sp_uint64 sp_int_digit;
+    typedef   sp_int64 sp_int_sdigit;
 #if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
     !defined(_WIN64) && defined(WOLFSSL_UINT128_T_DEFINED)
     typedef sp_uint128  sp_int_word;

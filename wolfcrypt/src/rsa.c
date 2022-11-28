@@ -4802,7 +4802,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     err = mp_init_multi(p, q, tmp1, tmp2, tmp3, NULL);
 
     if (err == MP_OKAY)
-        err = mp_set_int(tmp3, e);
+        err = mp_set_int(tmp3, (unsigned long)e);
 
     /* The failCount value comes from NIST FIPS 186-4, section B.3.3,
      * process steps 4.7 and 5.8. */
@@ -4945,7 +4945,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
     /* make key */
     if (err == MP_OKAY)                /* key->e = e */
-        err = mp_set_int(&key->e, (mp_digit)e);
+        err = mp_set_int(&key->e, (unsigned long)e);
 #ifdef WC_RSA_BLINDING
     /* Blind the inverse operation with a value that is invertable */
     if (err == MP_OKAY) {
@@ -4960,8 +4960,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         }
         while ((err == MP_OKAY) && !mp_isone(&key->q));
     }
+    /* 8/16-bit word size requires a full multiply when e=0x10001 */
     if (err == MP_OKAY)
-        err = mp_mul_d(&key->p, (mp_digit)e, &key->e);
+        err = mp_mul(&key->p, &key->e, &key->e);
 #endif
     if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
         err = mp_invmod(&key->e, tmp3, &key->d);
@@ -4970,7 +4971,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_mulmod(&key->d, &key->p, tmp3, &key->d);
     if (err == MP_OKAY)
-        err = mp_set_int(&key->e, (mp_digit)e);
+        err = mp_set_int(&key->e, (unsigned long)e);
 #endif
     if (err == MP_OKAY)                /* key->n = pq */
         err = mp_mul(p, q, &key->n);
