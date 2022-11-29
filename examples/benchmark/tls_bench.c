@@ -2040,7 +2040,9 @@ int bench_tls(void* args)
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
+#if ! (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
         const char *gname = "N/A";
+#endif
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
@@ -2052,7 +2054,8 @@ int bench_tls(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
-            gname = theadInfo[0].group == 0 ? "N/A" : groups[group_index].name;
+            const char *gname = theadInfo[0].group == 0 ? "N/A"
+                : groups[group_index].name;
 
             if (argDoGroups && groups[group_index].group == 0) {
                 /* Skip unsupported group. */
