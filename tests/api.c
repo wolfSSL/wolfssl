@@ -410,9 +410,20 @@ typedef struct testVector {
  * @return  When condition is true: TEST_SUCCESS.
  * @return  When condition is false: TEST_FAIL.
  */
+#ifdef DEBUG_WOLFSSL_VERBOSE
+#define XSTRINGIFY(s) STRINGIFY(s)
+#define STRINGIFY(s)  #s
+#define TEST_RES_CHECK(check) ({ \
+    int _ret = (check) ? TEST_SUCCESS : TEST_FAIL; \
+    if (_ret == TEST_FAIL) { \
+        fprintf(stderr, " check \"%s\" at %d ", \
+            XSTRINGIFY(check), __LINE__); \
+    } \
+    _ret; })
+#else
 #define TEST_RES_CHECK(check) \
     ((check) ? TEST_SUCCESS : TEST_FAIL)
-
+#endif /* DEBUG_WOLFSSL_VERBOSE */
 
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
@@ -17095,6 +17106,7 @@ static int test_wc_ChaCha20Poly1305_aead(void)
                     plaintext, sizeof(plaintext), generatedCiphertext, NULL);
     if (ret == BAD_FUNC_ARG) {
         ret = 0;
+        (void)ret; /* suppress never read */
     }
 
     ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
@@ -20998,8 +21010,8 @@ static int test_wc_DsaPublicPrivateKeyDecode(void)
     DsaKey  key;
     word32  bytes;
     word32  idx  = 0;
-    int     priv = WOLFSSL_FATAL_ERROR;
-    int     pub  = WOLFSSL_FATAL_ERROR;
+    int     priv = 0;
+    int     pub  = 0;
     int     ret = 0;
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -21039,7 +21051,7 @@ static int test_wc_DsaPublicPrivateKeyDecode(void)
             if (priv == BAD_FUNC_ARG) {
                 priv = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
             }
-            if (priv == ASN_PARSE_E) {
+            if (priv == ASN_PARSE_E || priv == BUFFER_E) {
                 priv = 0;
             }
             else {
@@ -21054,6 +21066,7 @@ static int test_wc_DsaPublicPrivateKeyDecode(void)
     if (ret == 0) {
         idx = 0; /* Reset */
         pub = wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes);
+
         /* Test bad args. */
         if (pub == 0) {
             pub = wc_DsaPublicKeyDecode(NULL, &idx, &key, bytes);
@@ -21066,7 +21079,7 @@ static int test_wc_DsaPublicPrivateKeyDecode(void)
             if (pub == BAD_FUNC_ARG) {
                 pub = wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes);
             }
-            if (pub == ASN_PARSE_E) {
+            if (pub == ASN_PARSE_E || pub == BUFFER_E) {
                 pub = 0;
             }
             else {
@@ -21078,8 +21091,8 @@ static int test_wc_DsaPublicPrivateKeyDecode(void)
 
     wc_FreeDsaKey(&key);
 
-    res = TEST_RES_CHECK(ret == 0);
-#endif
+    res = TEST_RES_CHECK(ret == 0 && pub == 0 && priv == 0);
+#endif /* !NO_DSA */
     return res;
 
 } /* END test_wc_DsaPublicPrivateKeyDecode */
@@ -21325,12 +21338,12 @@ static int test_wc_DsaKeyToPublicDer(void)
         ret = WOLFSSL_FATAL_ERROR;
     }
 
-    XFREE(der,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeDsaKey(&genKey);
 
     res = TEST_RES_CHECK(ret == 0);
-#endif /* !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN) */
-#endif /* HAVE_SELFTEST */
+#endif /* !NO_DSA && WOLFSSL_KEY_GEN */
+#endif /* !HAVE_SELFTEST */
     return res;
 
 } /* END test_wc_DsaKeyToPublicDer */
@@ -24821,7 +24834,7 @@ static int test_wc_ecc_signVerify_hash(void)
     wc_ecc_fp_free();
 #endif
 
-    res = TEST_RES_CHECK(ret == 0);
+    res = TEST_RES_CHECK(ret == 0 && signH == 0 && verifyH == 0);
 #endif
     return res;
 } /*  END test_wc_ecc_sign_hash */
@@ -44571,41 +44584,47 @@ static int test_wolfSSL_EVP_PKEY_assign(void)
     (void)pkey;
 
 #ifndef NO_RSA
-    type = EVP_PKEY_RSA;
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertNotNull(rsa = wolfSSL_RSA_new());
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,rsa),  WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),  WOLFSSL_SUCCESS);
-    wolfSSL_EVP_PKEY_free(pkey);
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        type = EVP_PKEY_RSA;
+        AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
+        AssertNotNull(rsa = wolfSSL_RSA_new());
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,rsa),  WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),  WOLFSSL_SUCCESS);
+        wolfSSL_EVP_PKEY_free(pkey);
+        res = TEST_RES_CHECK(1);
+    }
 #endif /* NO_RSA */
 
 #ifndef NO_DSA
-    type = EVP_PKEY_DSA;
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertNotNull(dsa = wolfSSL_DSA_new());
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,dsa),  WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,dsa),    WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,dsa),  WOLFSSL_SUCCESS);
-    wolfSSL_EVP_PKEY_free(pkey);
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        type = EVP_PKEY_DSA;
+        AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
+        AssertNotNull(dsa = wolfSSL_DSA_new());
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,dsa),  WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,dsa),    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,dsa),  WOLFSSL_SUCCESS);
+        wolfSSL_EVP_PKEY_free(pkey);
+        res = TEST_RES_CHECK(1);
+    }
 #endif /* NO_DSA */
 
 #ifdef HAVE_ECC
-    type = EVP_PKEY_EC;
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL),  WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,ecKey),   WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey),   WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey), WOLFSSL_SUCCESS);
-    wolfSSL_EVP_PKEY_free(pkey);
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        type = EVP_PKEY_EC;
+        AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
+        AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey), WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL),  WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,ecKey),   WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey),   WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+        AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey), WOLFSSL_SUCCESS);
+        wolfSSL_EVP_PKEY_free(pkey);
+        res = TEST_RES_CHECK(1);
+    }
 #endif /* HAVE_ECC */
 
     (void)type;
@@ -45187,78 +45206,92 @@ static int test_wolfSSL_EVP_CIPHER_block_size(void)
     int res = TEST_SKIPPED;
 
 #ifdef HAVE_AES_CBC
-    #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_cbc()), AES_BLOCK_SIZE);
-    #endif
-    #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_cbc()), AES_BLOCK_SIZE);
-    #endif
-    #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_cbc()), AES_BLOCK_SIZE);
-    #endif
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        #ifdef WOLFSSL_AES_128
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_cbc()), AES_BLOCK_SIZE);
+        #endif
+        #ifdef WOLFSSL_AES_192
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_cbc()), AES_BLOCK_SIZE);
+        #endif
+        #ifdef WOLFSSL_AES_256
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_cbc()), AES_BLOCK_SIZE);
+        #endif
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #ifdef HAVE_AESGCM
-    #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_gcm()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_gcm()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_gcm()), 1);
-    #endif
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        #ifdef WOLFSSL_AES_128
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_gcm()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_192
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_gcm()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_256
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_gcm()), 1);
+        #endif
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #ifdef WOLFSSL_AES_COUNTER
-    #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), 1);
-    #endif
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        #ifdef WOLFSSL_AES_128
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_192
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_256
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), 1);
+        #endif
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #ifdef HAVE_AES_ECB
-    #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ecb()), AES_BLOCK_SIZE);
-    #endif
-    #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ecb()), AES_BLOCK_SIZE);
-    #endif
-    #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ecb()), AES_BLOCK_SIZE);
-    #endif
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        #ifdef WOLFSSL_AES_128
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ecb()), AES_BLOCK_SIZE);
+        #endif
+        #ifdef WOLFSSL_AES_192
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ecb()), AES_BLOCK_SIZE);
+        #endif
+        #ifdef WOLFSSL_AES_256
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ecb()), AES_BLOCK_SIZE);
+        #endif
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #ifdef WOLFSSL_AES_OFB
-    #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ofb()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ofb()), 1);
-    #endif
-    #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ofb()), 1);
-    #endif
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        #ifdef WOLFSSL_AES_128
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ofb()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_192
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ofb()), 1);
+        #endif
+        #ifdef WOLFSSL_AES_256
+        AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ofb()), 1);
+        #endif
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #ifndef NO_RC4
-    AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-    AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_chacha20_poly1305()), 1);
-    res = TEST_RES_CHECK(1);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_chacha20_poly1305()), 1);
+        res = TEST_RES_CHECK(1);
+    }
 #endif
 
     return res;
@@ -54951,52 +54984,56 @@ static int test_wolfSSL_d2i_DHparams(void)
 
     /* Test 2048 bit parameters */
 #ifdef HAVE_FFDHE_2048
-    f = XFOPEN(params1, "rb");
-    AssertTrue(f != XBADFILE);
-    len = (long)XFREAD(buf, 1, sizeof(buf), f);
-    XFCLOSE(f);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        f = XFOPEN(params1, "rb");
+        AssertTrue(f != XBADFILE);
+        len = (long)XFREAD(buf, 1, sizeof(buf), f);
+        XFCLOSE(f);
 
-    /* Valid case */
-    AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
-    AssertNotNull(dh->p);
-    AssertNotNull(dh->g);
-    AssertTrue(pt == buf);
-    AssertIntEQ(DH_set_length(NULL, BN_num_bits(dh->p)), 0);
-    AssertIntEQ(DH_set_length(dh, BN_num_bits(dh->p)), 1);
-    AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
+        /* Valid case */
+        AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+        AssertNotNull(dh->p);
+        AssertNotNull(dh->g);
+        AssertTrue(pt == buf);
+        AssertIntEQ(DH_set_length(NULL, BN_num_bits(dh->p)), 0);
+        AssertIntEQ(DH_set_length(dh, BN_num_bits(dh->p)), 1);
+        AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
 
-    /* Invalid cases */
-    AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
-    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
-    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, 10));
+        /* Invalid cases */
+        AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
+        AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
+        AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, 10));
 
-    DH_free(dh);
+        DH_free(dh);
 
-    *buf = 0;
-    pt = buf;
-    res = TEST_RES_CHECK(1);
+        *buf = 0;
+        pt = buf;
+        res = TEST_RES_CHECK(1);
+    }
 #endif /* HAVE_FFDHE_2048 */
 
     /* Test 3072 bit parameters */
 #ifdef HAVE_FFDHE_3072
-    f = XFOPEN(params2, "rb");
-    AssertTrue(f != XBADFILE);
-    len = (long)XFREAD(buf, 1, sizeof(buf), f);
-    XFCLOSE(f);
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
+        f = XFOPEN(params2, "rb");
+        AssertTrue(f != XBADFILE);
+        len = (long)XFREAD(buf, 1, sizeof(buf), f);
+        XFCLOSE(f);
 
-    /* Valid case */
-    AssertNotNull(dh = wolfSSL_d2i_DHparams(&dh, &pt, len));
-    AssertNotNull(dh->p);
-    AssertNotNull(dh->g);
-    AssertTrue(pt != buf);
-    AssertIntEQ(DH_generate_key(dh), 1);
+        /* Valid case */
+        AssertNotNull(dh = wolfSSL_d2i_DHparams(&dh, &pt, len));
+        AssertNotNull(dh->p);
+        AssertNotNull(dh->g);
+        AssertTrue(pt != buf);
+        AssertIntEQ(DH_generate_key(dh), 1);
 
-    /* Invalid cases */
-    AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
-    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
+        /* Invalid cases */
+        AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
+        AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
 
-    DH_free(dh);
-    res = TEST_RES_CHECK(1);
+        DH_free(dh);
+        res = TEST_RES_CHECK(1);
+    }
 #endif /* HAVE_FFDHE_3072 */
 
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
@@ -55200,7 +55237,7 @@ static int test_openssl_generate_key_and_cert(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA)
 #if !defined(NO_RSA)
-    {
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
         EVP_PKEY* pkey = EVP_PKEY_new();
         int key_length = 2048;
         BIGNUM* exponent = BN_new();
@@ -55244,12 +55281,12 @@ static int test_openssl_generate_key_and_cert(void)
         }
 
         EVP_PKEY_free(pkey);
+        res = TEST_RES_CHECK(1);
     }
-    res = TEST_RES_CHECK(1);
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
-    {
+    if (res == TEST_SKIPPED || res == TEST_SUCCESS) {
         EVP_PKEY* pkey = EVP_PKEY_new();
         EC_KEY* ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 
@@ -55269,8 +55306,8 @@ static int test_openssl_generate_key_and_cert(void)
     #endif
 
         EVP_PKEY_free(pkey);
+        res = TEST_RES_CHECK(1);
     }
-    res = TEST_RES_CHECK(1);
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
     return res;
