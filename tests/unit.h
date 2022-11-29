@@ -110,7 +110,11 @@
 #define AssertPtrLE(x, y) AssertPtr(x, y, <=,  >)
 
 
+void ApiTest_PrintTestCases(void);
+int ApiTest_RunIdx(int idx);
+int ApiTest_RunName(char* name);
 void ApiTest(void);
+
 int  SuiteTest(int argc, char** argv);
 int  HashTest(void);
 void SrpTest(void);
