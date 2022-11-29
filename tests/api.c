@@ -6865,7 +6865,8 @@ static int test_wolfSSL_read_write(void)
 static int test_wolfSSL_reuse_WOLFSSLobj(void)
 {
     int res = TEST_SKIPPED;
-#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
+    !defined(WOLFSSL_TLS13)
     /* The unit test for session resumption by re-using WOLFSSL object.
      * WOLFSSL object is not cleared after first session. It re-use the obeject
      * for second connection.
@@ -9138,14 +9139,16 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
 #endif
     int idx;
     ASN1_OBJECT *object = NULL;
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX)
 #ifndef NO_BIO
     BIO* bio;
 #endif
 #endif
 
 #ifndef NO_FILESYSTEM
-    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
     name = X509_get_subject_name(x509);
     idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
@@ -9159,13 +9162,15 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
     wolfSSL_FreeX509(x509);
 #endif
 
-    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+        WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
     name = X509_get_subject_name(x509);
     idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
     AssertIntGE(idx, 0);
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX)
 #ifndef NO_BIO
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(X509_NAME_print_ex(bio, name, 4,
@@ -10311,7 +10316,8 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
     ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 
     for (itr = 0; itr < (int)(sizeof(versions)/sizeof(int)); itr++) {
-        if (wolfSSL_CTX_SetMinVersion(ctx, *(versions + itr)) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CTX_SetMinVersion(ctx, *(versions + itr))
+                != WOLFSSL_SUCCESS) {
             failFlag = WOLFSSL_FAILURE;
         }
     }
@@ -10455,7 +10461,8 @@ static int test_wolfSSL_mcast(void)
     wolfSSL_CTX_free(ctx);
 
     res = TEST_RES_CHECK(1);
-#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST && (WOLFSSL_TLS13 || WOLFSSL_SNIFFER) */
+#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST && (WOLFSSL_TLS13 ||
+        * WOLFSSL_SNIFFER) */
     return res;
 }
 
@@ -12206,7 +12213,7 @@ static int test_wc_Sha512_224FinalRaw(void)
     defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_224) && \
     !defined(WOLFSSL_NO_HASH_RAW)
     int ret = test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_224, 1);
-    
+
     res = TEST_RES_CHECK(ret == 0);
 #endif
     return res;
@@ -34799,7 +34806,8 @@ static int test_wolfSSL_CTX_set_client_CA_list(void)
     wolfSSL_CTX_free(ctx);
 
     res = TEST_RES_CHECK(1);
-#endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT && !NO_BIO */
+#endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT &&
+        * !NO_BIO */
     return res;
 }
 
