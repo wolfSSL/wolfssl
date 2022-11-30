@@ -5383,7 +5383,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         else {
             WOLFSSL_MSG("\tCA Mutex Lock failed");
             ret = BAD_MUTEX_E;
-            FreeSigner(signer, cm->heap);
         }
     }
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
@@ -5411,6 +5410,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
+    if (ret != 0 && signer != NULL)
+        FreeSigner(signer, cm->heap);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
 #endif
