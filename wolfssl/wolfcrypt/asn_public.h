@@ -222,6 +222,11 @@ enum Ctc_Encoding {
 #ifndef WC_CTC_MAX_ALT_SIZE
     #define WC_CTC_MAX_ALT_SIZE 16384
 #endif
+#ifdef WOLFSSL_CERT_EXT
+    #ifndef WC_CTC_MAX_CRLINFO_SZ
+        #define WC_CTC_MAX_CRLINFO_SZ 200
+    #endif
+#endif
 
 enum Ctc_Misc {
     CTC_COUNTRY_SIZE  =     2,
@@ -240,8 +245,9 @@ enum Ctc_Misc {
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
-    CTC_MAX_CRLINFO_SZ = 200, /* Arbitrary size that should be enough for at
-                               * least two distribution points. */
+    CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
+                                                 * enough for at least two
+                                                 * distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
 };
 
