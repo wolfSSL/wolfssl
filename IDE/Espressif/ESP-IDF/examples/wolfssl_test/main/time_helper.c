@@ -74,11 +74,11 @@ int set_time(void)
 #ifndef NTP_SERVER_COUNT
     #define NTP_SERVER_COUNT 0
     char* ntpServerList[NTP_SERVER_COUNT];
-#endif // !NTP_SERVER_COUNT
+#endif /* not defined: NTP_SERVER_COUNT */
 
 #ifndef TIME_ZONE
     #define TIME_ZONE "PST-8"
-#endif // !#define TIME_ZONE
+#endif /* not defined: TIME_ZONE */
 
 
     /* set interim static time */

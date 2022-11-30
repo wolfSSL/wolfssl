@@ -75,7 +75,7 @@ static byte mSlotList[ATECC_MAX_SLOT];
 void my_atmel_slotInit()
 {
     int i;
-    for(i = 0;i < ATECC_MAX_SLOT;i++) {
+    for (i = 0; i < ATECC_MAX_SLOT; i++) {
         mSlotList[i] = ATECC_INVALID_SLOT;
     }
 }
@@ -83,9 +83,9 @@ void my_atmel_slotInit()
 /* allocate slot depending on slotType */
 int my_atmel_alloc(int slotType)
 {
-    int i, slot = -1;
+    int i, slot = ATECC_INVALID_SLOT;
 
-    switch(slotType){
+    switch (slotType) {
         case ATMEL_SLOT_ENCKEY:
             slot = 4;
             break;
@@ -99,13 +99,13 @@ int my_atmel_alloc(int slotType)
             slot = 4;
             break;
         case ATMEL_SLOT_ANY:
-            for(i = 0;i < ATECC_MAX_SLOT;i++){
-                if(mSlotList[i] == ATECC_INVALID_SLOT){
+            for (i = 0; i < ATECC_MAX_SLOT; i++) {
+                if (mSlotList[i] == ATECC_INVALID_SLOT) {
                     slot = i;
                     break;
-                }
-            }
-    }
+                } /* if */
+            } /* for */
+    } /* switch */
 
     return slot;
 }
@@ -113,7 +113,7 @@ int my_atmel_alloc(int slotType)
 /* free slot array       */
 void my_atmel_free(int slotId)
 {
-    if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
+    if (slotId >= 0 && slotId < ATECC_MAX_SLOT) {
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
 }
@@ -138,8 +138,8 @@ void app_main(void)
     my_atmel_slotInit();
     /* to register the callback, it needs to be initialized. */
     if ((wolfCrypt_Init()) != 0) {
-       ESP_LOGE(TAG, "wolfCrypt_Init failed");
-       return;
+        ESP_LOGE(TAG, "wolfCrypt_Init failed");
+        return;
     }
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
@@ -148,7 +148,14 @@ void app_main(void)
 #ifdef NO_CRYPT_TEST
     ESP_LOGI(TAG, "NO_CRYPT_TEST defined, skipping wolf_test_task");
 #else
+    /* Although wolfCrypt_Init() may be explicitly called above,
+    ** Note it is still always called in wolf_test_task.
+    */
     rc = wolf_test_task();
+    /* note wolfCrypt_Cleanup() should always be called when finished.
+    ** This is called at the end of wolf_test_task();
+    */
+
     if (rc == 0) {
         ESP_LOGI(TAG, "wolf_test_task complete success result code = %d", rc);
     }

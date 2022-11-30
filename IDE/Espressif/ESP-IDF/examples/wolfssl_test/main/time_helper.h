@@ -1,4 +1,4 @@
-#pragma once
+#ifndef _TIME_HELPER_H
 /*
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -28,3 +28,5 @@ int set_time(void);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* #ifndef _TIME_HELPER_H */

@@ -147,9 +147,10 @@ int construct_argv()
 
     while (*ch != '\0') {
         /* check that we don't overflow manual arg assembly */
-        if (cnt >= (WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS))
-        {
-            ESP_LOGE(TAG, "Abort construct_argv; Reached maximum defined arguments = %d", WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS);
+        if (cnt >= (WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS)) {
+            ESP_LOGE(TAG, "Abort construct_argv;"
+                          "Reached maximum defined arguments = %d",
+                          WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS);
             break;
         }
 
@@ -181,7 +182,6 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
-    (void) TAG;
     ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
 
 /* when using atecc608a on esp32-wroom-32se */
@@ -202,7 +202,13 @@ void app_main(void)
     ESP_LOGI(TAG, "NO_CRYPT_BENCHMARK defined, skipping wolf_benchmark_task")
 #else
 
+    /* although wolfCrypt_Init() may be explicitly called above,
+    ** note it is still always called in wolf_benchmark_task.
+    */
     wolf_benchmark_task();
+    /* wolfCrypt_Cleanup should always be called at completion,
+    ** and is called in wolf_benchmark_task().
+    */
 
     /* after the test, we'll just wait */
     while (1) {
