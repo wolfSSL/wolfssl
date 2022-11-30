@@ -11651,21 +11651,22 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             sp_mod(m, a, v);
             /* v == 0 when a divides m evenly - no inverse.  */
             if (sp_iszero(v)) {
-                /* Force u to be the no inverse answer. */
-                sp_set(u, 0);
+                err = MP_VAL;
             }
             evenMod = 1;
         }
 
-        /* Calculate inverse. */
-    #if !defined(WOLFSSL_SP_SMALL) && (!defined(NO_RSA) || !defined(NO_DH))
-        if (sp_count_bits(mm) >= 1024) {
-            err = _sp_invmod_div(ma, mm, u, v, b, c, c);
-        }
-        else
-    #endif
-        {
-            err = _sp_invmod(ma, mm, u, v, b, c);
+        if (err == MP_OKAY) {
+            /* Calculate inverse. */
+        #if !defined(WOLFSSL_SP_SMALL) && (!defined(NO_RSA) || !defined(NO_DH))
+            if (sp_count_bits(mm) >= 1024) {
+                err = _sp_invmod_div(ma, mm, u, v, b, c, c);
+            }
+            else
+        #endif
+            {
+                err = _sp_invmod(ma, mm, u, v, b, c);
+            }
         }
 
         /* Fixup for even modulus. */
@@ -11683,7 +11684,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
                 sp_sub(m, c, r);
             }
         }
-        else {
+        else if (err == MP_OKAY) {
             err = sp_copy(c, r);
         }
     }
