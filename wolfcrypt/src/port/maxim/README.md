@@ -45,7 +45,7 @@ sudo make install
 You can find a very simple example client application in our wolfssl-examples
 repo on github:
 
-https://https://github.com/wolfSSL/wolfssl-examples/tree/master/maxq10xx
+https://github.com/wolfSSL/wolfssl-examples/tree/master/maxq10xx
 
 NOTE: It assumes you have built wolfSSL using the SDK or Evkit.
 
