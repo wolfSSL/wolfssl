@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		sdkconfig = sdkconfig
 		sdkconfig.defaults = sdkconfig.defaults
 		build\config\sdkconfig.h = build\config\sdkconfig.h
+		..\..\..\..\..\wolfcrypt\test\test.c = ..\..\..\..\..\wolfcrypt\test\test.c
+		..\..\..\..\..\wolfcrypt\test\test.h = ..\..\..\..\..\wolfcrypt\test\test.h
 		..\..\..\..\..\..\..\SysGCC\esp32\esp-idf\v4.4.1\components\wolfssl\include\user_settings.h = ..\..\..\..\..\..\..\SysGCC\esp32\esp-idf\v4.4.1\components\wolfssl\include\user_settings.h
 	EndProjectSection
 EndProject

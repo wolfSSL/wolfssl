@@ -67,11 +67,11 @@
       <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
       <ESPIDFExtension>
         <IDFCheckout>
-          <Version>v4.4.1</Version>
-          <Subdirectory>esp-idf/v4.4.1</Subdirectory>
+          <Version>v4.4.2</Version>
+          <Subdirectory>esp-idf/v4.4.2</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
-        <COMPort>COM7</COMPort>
+        <COMPort>COM20</COMPort>
         <SuppressTestPrerequisiteChecks>false</SuppressTestPrerequisiteChecks>
         <UseCCache>false</UseCCache>
         <DeviceID>ESP32</DeviceID>
