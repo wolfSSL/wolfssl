@@ -1,4 +1,4 @@
-/* helper.c
+/* benchmark main.c
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -18,24 +18,42 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+/* ESP-IDF */
+#include <esp_log.h>
+#include "sdkconfig.h"
+
+/* wolfSSL */
+#include <user_settings.h>
+#ifndef WOLFSSL_ESPIDF
+#warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+#endif
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
-#include "sdkconfig.h"
-#include "esp_log.h"
+/* check BENCH_ARGV in sdkconfig to determine need to set WOLFSSL_BENCH_ARGV */
+#ifdef CONFIG_BENCH_ARGV
+#define WOLFSSL_BENCH_ARGV CONFIG_BENCH_ARGV
+#define WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS 22 /* arbitrary number of max args */
+#endif
 
-#define WOLFSSL_BENCH_ARGV                 CONFIG_BENCH_ARGV
+/*
+** the wolfssl component can be installed in either:
+**
+**   - the ESP-IDF component directory
+**
+**       ** OR **
+**
+**   - the local project component directory
+**
+** it is not recommended to install in both.
+**
+*/
 
-/* proto-type */
-extern void wolf_benchmark_task();
-extern void wolf_crypt_task();
-static const char* const TAG = "wolfbenchmark";
-char* __argv[22];
+#include "main.h"
+
+static const char* const TAG = "wolfssl_benchmark";
 
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
@@ -98,22 +116,26 @@ void my_atmel_free(int slotId)
 #endif /* CUSTOM_SLOT_ALLOCATION                                       */
 #endif /* WOLFSSL_ESPWROOM32SE && HAVE_PK_CALLBACK && WOLFSSL_ATECC508A */
 
+/* the following are needed by benchmark.c with args */
+#ifdef WOLFSSL_BENCH_ARGV
+char* __argv[WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS];
+
 int construct_argv()
 {
     int cnt = 0;
     int i = 0;
     int len = 0;
-    char *_argv;            /* buffer for copying the string    */
-    char *ch;               /* char pointer to trace the string */
-    char buff[16] = { 0 };  /* buffer for a argument copy       */
+    char *_argv; /* buffer for copying the string    */
+    char *ch; /* char pointer to trace the string */
+    char buff[16] = { 0 }; /* buffer for a argument copy       */
 
-    printf("arg:%s\n", CONFIG_BENCH_ARGV);
+    ESP_LOGI(TAG, "construct_argv arg:%s\n", CONFIG_BENCH_ARGV);
     len = strlen(CONFIG_BENCH_ARGV);
     _argv = (char*)malloc(len + 1);
     if (!_argv) {
         return -1;
     }
-    memset(_argv, 0, len+1);
+    memset(_argv, 0, len + 1);
     memcpy(_argv, CONFIG_BENCH_ARGV, len);
     _argv[len] = '\0';
     ch = _argv;
@@ -123,8 +145,15 @@ int construct_argv()
     __argv[cnt][9] = '\0';
     cnt = 1;
 
-    while (*ch != '\0')
-    {
+    while (*ch != '\0') {
+        /* check that we don't overflow manual arg assembly */
+        if (cnt >= (WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS)) {
+            ESP_LOGE(TAG, "Abort construct_argv;"
+                          "Reached maximum defined arguments = %d",
+                          WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS);
+            break;
+        }
+
         /* skip white-space */
         while (*ch == ' ') { ++ch; }
 
@@ -148,11 +177,12 @@ int construct_argv()
 
     return (cnt);
 }
+#endif
 
 /* entry point */
 void app_main(void)
 {
-    (void) TAG;
+    ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
 
 /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
@@ -168,10 +198,22 @@ void app_main(void)
     #endif
 #endif
 
-#ifndef NO_CRYPT_TEST
-    wolf_crypt_task();
-#endif
-#ifndef NO_CRYPT_BENCHMARK
+#ifdef NO_CRYPT_BENCHMARK
+    ESP_LOGI(TAG, "NO_CRYPT_BENCHMARK defined, skipping wolf_benchmark_task")
+#else
+
+    /* although wolfCrypt_Init() may be explicitly called above,
+    ** note it is still always called in wolf_benchmark_task.
+    */
     wolf_benchmark_task();
-#endif
-}
+    /* wolfCrypt_Cleanup should always be called at completion,
+    ** and is called in wolf_benchmark_task().
+    */
+
+    /* after the test, we'll just wait */
+    while (1) {
+        /* nothing */
+    }
+
+#endif /* NO_CRYPT_BENCHMARK */
+} /* main */

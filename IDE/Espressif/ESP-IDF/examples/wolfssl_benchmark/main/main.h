@@ -1,4 +1,5 @@
-/* wolfcrypt/test/test.h
+#pragma once
+/* benchmark main.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -19,33 +20,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+void app_main(void);
 
-#ifndef WOLFCRYPT_TEST_H
-#define WOLFCRYPT_TEST_H
-
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-#ifdef HAVE_STACK_SIZE
-THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
-#else
-int wolfcrypt_test(void* args);
-#endif
-
-#ifndef NO_MAIN_DRIVER
-int wolfcrypt_test_main(int argc, char** argv);
-#endif
-
-#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
-int wolf_test_task(void);
-#endif
-
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
+/* see wolfssl/wolfcrypt/benchmark/benchmark.h */
+extern void wolf_benchmark_task();
 
 
-#endif /* WOLFCRYPT_TEST_H */
 

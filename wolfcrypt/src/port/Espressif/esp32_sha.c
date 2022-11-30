@@ -179,7 +179,7 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
             /* this could be a warning of wonkiness in RTOS environment.
              * we were successful, but not expected depth count*/
 
-            ESP_LOGE(TAG, "warning lockDepth mismatch.");
+            ESP_LOGV(TAG, "warning lockDepth mismatch.");
         }
         ctx->lockDepth = 0;
         ctx->mode = ESP32_SHA_INIT;
@@ -274,7 +274,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
             ESP_LOGV(TAG, "Hardware Mode, lock depth = %d", ctx->lockDepth);
         }
         else {
-            ESP_LOGI(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
+            ESP_LOGV(TAG, ">>>> Hardware in use; Mode REVERT to ESP32_SHA_SW");
             ctx->mode = ESP32_SHA_SW;
             return 0; /* success, but revert to SW */
         }

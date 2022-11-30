@@ -118,6 +118,7 @@
 #elif defined(WOLFSSL_ESPIDF)
     #include <time.h>
     #include <sys/time.h>
+    #include <esp_log.h>
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
 
@@ -1640,11 +1641,20 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("Testing complete. You may close the window now\n");
         while (1);
 #endif
-#ifndef WOLFSSL_ESPIDF
-        printf("Exiting main with return code: %d\n", args.return_code);
-        return args.return_code;
+
+#ifdef WOLFSSL_ESPIDF
+        /* ESP_LOGI to print takes up a lot less memory than printf */
+        ESP_LOGI("wolfcrypt_test", "Exiting main with return code: % d\n", args.return_code);
 #endif
-    }
+
+/* everything else will use printf */
+#if !defined(WOLFSSL_ESPIDF)
+/* gate this for target platforms wishing to avoid printf reference */
+        printf("Exiting main with return code: %d\n", args.return_code);
+#endif
+
+        return args.return_code;
+    } /* wolfcrypt_test_main or wolf_test_task */
 
 #endif /* NO_MAIN_DRIVER */
 
