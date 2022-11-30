@@ -5614,9 +5614,6 @@ static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
  */
 static void _sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
-    int i = 0;
-    sp_int_digit a0 = a->dp[0];
-
     /* Set result used to be same as input. Updated with clamp. */
     r->used = a->used;
     /* Only possible when not handling negatives. */
@@ -5625,6 +5622,9 @@ static void _sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
         r->dp[0] = 0;
     }
     else {
+        int i = 0;
+        sp_int_digit a0 = a->dp[0];
+
         r->dp[0] = a0 - d;
         /* Check for borrow. */
         if (r->dp[0] > a0) {
@@ -7796,9 +7796,12 @@ static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
     /* Set result size to clear. */
     r->used = a->used - d->used + 1;
     /* Set all potentially used digits to zero. */
-    sp_clear(r);
-    /* Set result size. */
-    r->used = a->used - d->used + 1;
+    for (i = 0; i < r->used; i++) {
+        r->dp[i] = 0;
+    }
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    r->sign = MP_ZPOS;
+#endif
     /* Get the most significant digit (will have top bit set). */
     dt = d->dp[d->used-1];
 
@@ -17716,7 +17719,7 @@ static WC_INLINE int sp_div_primes(sp_int* a, int* haveRes, int* result)
     /* Do trial division of a with all known small primes. */
     for (i = 0; i < SP_PRIME_SIZE; i++) {
         /* Small prime divides a when remainder is 0. */
-        err = sp_mod_d(a, sp_primes[i], &d);
+        err = sp_mod_d(a, (sp_int_digit)sp_primes[i], &d);
         if ((err != MP_OKAY) || (d == 0)) {
             *result = MP_NO;
             *haveRes = 1;
@@ -17726,7 +17729,7 @@ static WC_INLINE int sp_div_primes(sp_int* a, int* haveRes, int* result)
 #else
     /* Start with first prime in composite. */
     i = 0;
-    for (j = 0; (!*haveRes) && (j < SP_COMP_CNT); j++) {
+    for (j = 0; (!(*haveRes)) && (j < SP_COMP_CNT); j++) {
         /* Reduce a down to a single word.  */
         err = sp_mod_d(a, sp_comp[j], &d);
         if ((err != MP_OKAY) || (d == 0)) {
@@ -17891,7 +17894,7 @@ int sp_prime_is_prime_ex(sp_int* a, int trials, int* result, WC_RNG* rng)
 
     /* Check against known small primes when a has 1 digit. */
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1) &&
-            (a->dp[0] <= sp_primes[SP_PRIME_SIZE - 1])) {
+            (a->dp[0] <= (sp_int_digit)sp_primes[SP_PRIME_SIZE - 1])) {
         haveRes = sp_cmp_primes(a, &ret);
     }
 
@@ -17940,7 +17943,7 @@ int sp_prime_is_prime_ex(sp_int* a, int trials, int* result, WC_RNG* rng)
                     b->dp[b->used-1] >>=
                         SP_WORD_SIZE - ((baseSz * 8) & SP_WORD_MASK);
                 }
-            #endif /* LITTLE_ENDIAN_ORDER */
+            #endif /* BIG_ENDIAN_ORDER */
 
                 /* Ensure the top word has no more bits than necessary. */
                 if (bits > 0) {
