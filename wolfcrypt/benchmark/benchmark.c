@@ -3302,7 +3302,7 @@ static void bench_aesecb_internal(int useDeviceID, const byte* key, word32 keySz
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = (bench_size / AES_BLOCK_SIZE) + 1;
+        int outer_loop_limit = ((bench_size / AES_BLOCK_SIZE) * 10) + 1;
         for (times = 0;
              times < outer_loop_limit /* numBlocks */ || pending > 0;
             ) {
@@ -3344,7 +3344,7 @@ exit_aes_enc:
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = (bench_size / AES_BLOCK_SIZE) + 1;
+        int outer_loop_limit = (10 * (bench_size / AES_BLOCK_SIZE)) + 1;
         for (times = 0; times < outer_loop_limit || pending > 0; ) {
             bench_async_poll(&pending);
 
