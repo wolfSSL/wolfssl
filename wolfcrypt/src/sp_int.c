@@ -17146,7 +17146,7 @@ int sp_todecimal(sp_int* a, char* str)
     int err = MP_OKAY;
     int i;
     int j;
-    sp_int_digit d;
+    sp_int_digit d = 0;
 
     /* Validate parameters. */
     if ((a == NULL) || (str == NULL)) {
@@ -17178,7 +17178,7 @@ int sp_todecimal(sp_int* a, char* str)
             /* Write out little endian. */
             i = 0;
             do {
-                /* Divide by 10 and and get remainder of division. */
+                /* Divide by 10 and get remainder of division. */
                 (void)sp_div_d(t, 10, t, &d);
                 /* Write out remainder as a character. */
                 str[i++] = (char)('0' + d);
