@@ -385,15 +385,6 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else if (XSTRCMP(pqcAlg, "KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_KYBER_LEVEL5;
             }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL1") == 0) {
-                group = WOLFSSL_KYBER_90S_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL3") == 0) {
-                group = WOLFSSL_KYBER_90S_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "KYBER_90S_LEVEL5") == 0) {
-                group = WOLFSSL_KYBER_90S_LEVEL5;
-            }
             else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_P256_KYBER_LEVEL1;
             }
@@ -402,15 +393,6 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_P521_KYBER_LEVEL5;
-            }
-            else if (XSTRCMP(pqcAlg, "P256_KYBER_90S_LEVEL1") == 0) {
-                group = WOLFSSL_P256_KYBER_90S_LEVEL1;
-            }
-            else if (XSTRCMP(pqcAlg, "P384_KYBER_90S_LEVEL3") == 0) {
-                group = WOLFSSL_P384_KYBER_90S_LEVEL3;
-            }
-            else if (XSTRCMP(pqcAlg, "P521_KYBER_90S_LEVEL5") == 0) {
-                group = WOLFSSL_P521_KYBER_90S_LEVEL5;
             } else {
                 err_sys("invalid post-quantum KEM specified");
             }
@@ -1265,9 +1247,7 @@ static const char* client_usage_msg[][70] = {
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1,\n"
-            "            P384_KYBER_90S_LEVEL3, P521_KYBER_90S_LEVEL5]\n",  /* 70 */
+            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n",  /* 70 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
@@ -1485,9 +1465,7 @@ static const char* client_usage_msg[][70] = {
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n"
-            "            P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5,\n"
-            "            P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3, P521_KYBER_90S_LEVEL5]\n", /* 70 */
+            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 70 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 71 */

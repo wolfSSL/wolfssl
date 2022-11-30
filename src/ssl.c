@@ -249,9 +249,6 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("P256_KYBER_LEVEL1"), "P256_KYBER_LEVEL1", WOLFSSL_P256_KYBER_LEVEL1},
     {XSTR_SIZEOF("P384_KYBER_LEVEL3"), "P384_KYBER_LEVEL3", WOLFSSL_P384_KYBER_LEVEL3},
     {XSTR_SIZEOF("P521_KYBER_LEVEL5"), "P521_KYBER_LEVEL5", WOLFSSL_P521_KYBER_LEVEL5},
-    {XSTR_SIZEOF("P256_KYBER_90S_LEVEL1"), "P256_KYBER_90S_LEVEL1", WOLFSSL_P256_KYBER_90S_LEVEL1},
-    {XSTR_SIZEOF("P384_KYBER_90S_LEVEL3"), "P384_KYBER_90S_LEVEL3", WOLFSSL_P384_KYBER_90S_LEVEL3},
-    {XSTR_SIZEOF("P521_KYBER_90S_LEVEL5"), "P521_KYBER_90S_LEVEL5", WOLFSSL_P521_KYBER_90S_LEVEL5},
 #endif
 #endif
     {0, NULL, 0},
@@ -2928,15 +2925,9 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
     #ifdef HAVE_LIBOQS
-        case WOLFSSL_KYBER_90S_LEVEL1:
-        case WOLFSSL_KYBER_90S_LEVEL3:
-        case WOLFSSL_KYBER_90S_LEVEL5:
         case WOLFSSL_P256_KYBER_LEVEL1:
         case WOLFSSL_P384_KYBER_LEVEL3:
         case WOLFSSL_P521_KYBER_LEVEL5:
-        case WOLFSSL_P256_KYBER_90S_LEVEL1:
-        case WOLFSSL_P384_KYBER_90S_LEVEL3:
-        case WOLFSSL_P521_KYBER_90S_LEVEL5:
     #endif
 #endif
             return 1;
@@ -21310,24 +21301,12 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "KYBER_LEVEL3";
         case WOLFSSL_KYBER_LEVEL5:
             return "KYBER_LEVEL5";
-        case WOLFSSL_KYBER_90S_LEVEL1:
-            return "KYBER_90S_LEVEL1";
-        case WOLFSSL_KYBER_90S_LEVEL3:
-            return "KYBER_90S_LEVEL3";
-        case WOLFSSL_KYBER_90S_LEVEL5:
-            return "KYBER_90S_LEVEL5";
         case WOLFSSL_P256_KYBER_LEVEL1:
             return "P256_KYBER_LEVEL1";
         case WOLFSSL_P384_KYBER_LEVEL3:
             return "P384_KYBER_LEVEL3";
         case WOLFSSL_P521_KYBER_LEVEL5:
             return "P521_KYBER_LEVEL5";
-        case WOLFSSL_P256_KYBER_90S_LEVEL1:
-            return "P256_KYBER_90S_LEVEL1";
-        case WOLFSSL_P384_KYBER_90S_LEVEL3:
-            return "P384_KYBER_90S_LEVEL3";
-        case WOLFSSL_P521_KYBER_90S_LEVEL5:
-            return "P521_KYBER_90S_LEVEL5";
 #elif defined(HAVE_PQM4)
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";

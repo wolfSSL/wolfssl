@@ -26,10 +26,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#if defined(WOLFSSL_KYBER_90S) && defined(HAVE_PQM4)
-#error "KYBER-90s is not supported when building PQM4"
-#endif
-
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/ext_kyber.h>
 
@@ -41,21 +37,22 @@
 #endif
 
 #if defined (HAVE_LIBOQS)
+
 static const char* OQS_ID2name(int id) {
     switch (id) {
-#ifdef WOLFSSL_KYBER_90S
-        case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512_90s;
-        case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768_90s;
-        case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024_90s;
-#else
         case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512;
         case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768;
         case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024;
-#endif
         default:           break;
     }
     return NULL;
 }
+
+int ext_kyber_enabled(int id)
+{
+    const char * name = OQS_ID2name(id);
+    return OQS_KEM_alg_is_enabled(name);
+}   
 #endif
 
 /******************************************************************************/

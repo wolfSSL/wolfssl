@@ -1030,10 +1030,6 @@ do
     ENABLED_WC_KYBER=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
     ;;
-  90s)
-    ENABLED_KYBER_90S=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_90S"
-    ;;
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_SMALL"
     ;;
@@ -1067,15 +1063,9 @@ then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
         fi
 
-        if test "$ENABLED_KYBER_90S" != "yes"; then
-            test "$enable_sha3" = "" && enable_sha3=yes
-            test "$enable_shake128" = "" && enable_shake128=yes
-            test "$enable_shake256" = "" && enable_shake256=yes
-        else
-            test "$enable_sha256" = "" && enable_sha256=yes
-            test "$enable_sha512" = "" && enable_sha512=yes
-            test "$enable_aesctr" = "" && enable_aesctr=yes
-        fi
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
     else
         # Default is to use liboqs. Make sure its enabled.
         if test "$ENABLED_LIBOQS" = "no"; then
