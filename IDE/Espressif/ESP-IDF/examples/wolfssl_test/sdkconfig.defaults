@@ -3,7 +3,7 @@
 #
 # This is typically way bigger than needed for stack size. See user_settings.h
 #
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=11000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=55000
 
 # Legacy stack size for older ESP-IDF versions
 CONFIG_MAIN_TASK_STACK_SIZE=11000
