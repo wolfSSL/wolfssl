@@ -33,6 +33,7 @@
 #include <wolfssl/wolfcrypt/fips_test.h>
 
 
+int allTesting = 1;
 int myoptind = 0;
 char* myoptarg = NULL;
 int unit_test(int argc, char** argv);
@@ -43,6 +44,21 @@ int main(int argc, char** argv)
     return unit_test(argc, argv);
 }
 #endif
+
+/* Print usage options for unit test.
+ */
+static void UnitTest_Usage(void)
+{
+    printf("Usage: ./tests/unit.test <options>\n");
+    printf(" -?, --help     Display this usage information.\n");
+    printf(" --list         List the API tests.\n");
+    printf(" --api          Only perform API tests.\n");
+    printf(" -<number>      Run the API test identified by number.\n");
+    printf("                Can be specified multiple times.\n");
+    printf(" -<string>      Run the API test identified by name.\n");
+    printf("                Can be specified multiple times.\n");
+    printf(" <filename>     Name of cipher suite testing file.\n");
+}
 
 int unit_test(int argc, char** argv)
 {
@@ -154,39 +170,76 @@ int unit_test(int argc, char** argv)
     }
 #endif
 #endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
+
+    while (argc > 1) {
+        if (argv[1][0] != '-') {
+            break;
+        }
+
+        if (XSTRCMP(argv[1], "-?") == 0 || XSTRCMP(argv[1], "--help") == 0) {
+            UnitTest_Usage();
+            goto exit;
+        }
+        else if (XSTRCMP(argv[1], "--list") == 0) {
+            ApiTest_PrintTestCases();
+            goto exit;
+        }
+        else if (XSTRCMP(argv[1], "--api") == 0) {
+        }
+        else if (argv[1][1] >= '0' && argv[1][1] <= '9') {
+            ret = ApiTest_RunIdx(atoi(argv[1] + 1));
+            if (ret != 0) {
+                goto exit;
+            }
+        }
+        else {
+            ret = ApiTest_RunName(argv[1] + 1);
+            if (ret != 0) {
+                goto exit;
+            }
+        }
+
+        allTesting = 0;
+        argc--;
+        argv++;
+    }
+
 #ifdef WOLFSSL_ALLOW_SKIP_UNIT_TESTS
     if (argc == 1)
 #endif
     {
         ApiTest();
 
-        if ( (ret = HashTest()) != 0){
+        if (!allTesting) {
+            goto exit;
+        }
+
+        if ((ret = HashTest()) != 0) {
             fprintf(stderr, "hash test failed with %d\n", ret);
             goto exit;
         }
 
-#ifdef WOLFSSL_W64_WRAPPER
+    #ifdef WOLFSSL_W64_WRAPPER
         if ((ret = w64wrapper_test()) != 0) {
             fprintf(stderr, "w64wrapper test failed with %d\n", ret);
             goto exit;
         }
-#endif /* WOLFSSL_W64_WRAPPER */
+    #endif /* WOLFSSL_W64_WRAPPER */
 
+    #ifdef WOLFSSL_QUIC
+        if ((ret = QuicTest()) != 0) {
+            printf("quic test failed with %d\n", ret);
+            goto exit;
+        }
+    #endif
+
+        SrpTest();
     }
-
-#ifdef WOLFSSL_QUIC
-    if ( (ret = QuicTest()) != 0){
-        printf("quic test failed with %d\n", ret);
-        goto exit;
-    }
-#endif
-
-    SrpTest();
 
 #ifndef NO_WOLFSSL_CIPHER_SUITE_TEST
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifndef SINGLE_THREADED
-    if ( (ret = SuiteTest(argc, argv)) != 0){
+    if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;
     }

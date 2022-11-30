@@ -558,8 +558,6 @@ int StackSizeHWMReset(void)
     fprintf(stderr, "%ld\t%s\n", (long int)HWM, msg); \
     StackSizeHWMReset();                              \
     })
- \
-
 
 #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
     ssize_t HWM = StackSizeHWM_OffsetCorrected();    \

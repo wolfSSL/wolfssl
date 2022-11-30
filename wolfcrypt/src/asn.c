@@ -10395,7 +10395,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         for (i = 0; i < DSA_INTS - 1; i++)
             GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_VER + i], GetDsaInt(key, i));
         /* Parse as simple form. */
-        ret = GetASN_Items(dsaKeyASN, dataASN, dsaPublicKeyASN_Length, 1, input,
+        ret = GetASN_Items(dsaKeyASN, dataASN, dsaPublicKeyASN_Length, 0, input,
                            inOutIdx, inSz);
         if (ret != 0) {
             /* Clear dynamic data items. */
