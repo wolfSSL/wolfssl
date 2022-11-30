@@ -11430,8 +11430,8 @@ static int _sp_invmod_div(sp_int* a, sp_int* m, sp_int* x, sp_int* y, sp_int* b,
     sp_int* c, sp_int* inv)
 {
     int err = MP_OKAY;
-    sp_int* d;
-    sp_int* r;
+    sp_int* d = NULL;
+    sp_int* r = NULL;
     sp_int* s;
 #ifndef WOLFSSL_SP_INT_NEGATIVE
     int bneg = 0;
@@ -11456,23 +11456,25 @@ static int _sp_invmod_div(sp_int* a, sp_int* m, sp_int* x, sp_int* y, sp_int* b,
     while ((err == MP_OKAY) && (!sp_isone(x)) && (!sp_iszero(x))) {
         /* 2.1. d = x / y, r = x mod y */
         err = sp_div(x, y, d, r);
-        /* 2.2. c -= d * b */
-        if (sp_isone(d)) {
-            /* c -= 1 * b */
-            sp_sub(c, b, c);
-        }
-        else {
-            /* d *= b */
-            err = sp_mul(d, b, d);
-            /* c -= d */
-            if (err == MP_OKAY) {
-                sp_sub(c, d, c);
+        if (err == MP_OKAY) {
+            /* 2.2. c -= d * b */
+            if (sp_isone(d)) {
+                /* c -= 1 * b */
+                sp_sub(c, b, c);
             }
+            else {
+                /* d *= b */
+                err = sp_mul(d, b, d);
+                /* c -= d */
+                if (err == MP_OKAY) {
+                    sp_sub(c, d, c);
+                }
+            }
+            /* 2.3. x = y, y = r */
+            s = x; x = y; y = r; r = s;
+            /* 2.4. s = b, b = c, c = s */
+            s = b; b = c; c = s;
         }
-        /* 2.3. x = y, y = r */
-        s = x; x = y; y = r; r = s;
-        /* 2.4. s = b, b = c, c = s */
-        s = b; b = c; c = s;
     }
     /* 3. If y != 0 then NO_INVERSE */
     if ((err == MP_OKAY) && (!sp_iszero(y))) {
@@ -11491,46 +11493,49 @@ static int _sp_invmod_div(sp_int* a, sp_int* m, sp_int* x, sp_int* y, sp_int* b,
     while ((err == MP_OKAY) && (!sp_isone(x)) && (!sp_iszero(x))) {
         /* 2.1. d = x / y, r = x mod y */
         err = sp_div(x, y, d, r);
-        if (sp_isone(d)) {
-            /* c -= 1 * b */
-            if ((bneg ^ cneg) == 1) {
-                /* c -= -b or -c -= b, therefore add. */
-                _sp_add_off(c, b, c, 0);
-            }
-            else if (_sp_cmp_abs(c, b) == MP_LT) {
-                /* |c| < |b| and same sign, reverse subtract and negate. */
-                _sp_sub_off(b, c, c, 0);
-                cneg = !cneg;
-            }
-            else {
-                /* |c| >= |b| */
-                _sp_sub_off(c, b, c, 0);
-            }
-        }
-        else {
-            /* d *= b */
-            err = sp_mul(d, b, d);
-            /* c -= d */
-            if (err == MP_OKAY) {
+        if (err == MP_OKAY) {
+            if (sp_isone(d)) {
+                /* c -= 1 * b */
                 if ((bneg ^ cneg) == 1) {
-                    /* c -= -d or -c -= d, therefore add. */
-                    _sp_add_off(c, d, c, 0);
+                    /* c -= -b or -c -= b, therefore add. */
+                    _sp_add_off(c, b, c, 0);
                 }
-                else if (_sp_cmp_abs(c, d) == MP_LT) {
-                    /* |c| < |d| and same sign, reverse subtract and negate. */
-                    _sp_sub_off(d, c, c, 0);
+                else if (_sp_cmp_abs(c, b) == MP_LT) {
+                    /* |c| < |b| and same sign, reverse subtract and negate. */
+                    _sp_sub_off(b, c, c, 0);
                     cneg = !cneg;
                 }
                 else {
-                    _sp_sub_off(c, d, c, 0);
+                    /* |c| >= |b| */
+                    _sp_sub_off(c, b, c, 0);
                 }
             }
+            else {
+                /* d *= b */
+                err = sp_mul(d, b, d);
+                /* c -= d */
+                if (err == MP_OKAY) {
+                    if ((bneg ^ cneg) == 1) {
+                        /* c -= -d or -c -= d, therefore add. */
+                        _sp_add_off(c, d, c, 0);
+                    }
+                    else if (_sp_cmp_abs(c, d) == MP_LT) {
+                        /* |c| < |d| and same sign, reverse subtract and negate.
+                         */
+                        _sp_sub_off(d, c, c, 0);
+                        cneg = !cneg;
+                    }
+                    else {
+                        _sp_sub_off(c, d, c, 0);
+                    }
+                }
+            }
+            /* 2.3. x = y, y = r */
+            s = x; x = y; y = r; r = s;
+            /* 2.4. s = b, b = c, c = s */
+            s = b; b = c; c = s;
+            neg = bneg; bneg = cneg; cneg = neg;
         }
-        /* 2.3. x = y, y = r */
-        s = x; x = y; y = r; r = s;
-        /* 2.4. s = b, b = c, c = s */
-        s = b; b = c; c = s;
-        neg = bneg; bneg = cneg; cneg = neg;
     }
     /* 3. If y != 0 then NO_INVERSE */
     if ((err == MP_OKAY) && (!sp_iszero(y))) {
