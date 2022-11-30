@@ -96,7 +96,7 @@ extern "C" {
     #error "Size of unsigned int not detected"
 #endif
 
-#if ULONG_MAX == 18446744073709551615ULL && \
+#if !defined(NO_64BIT) && ULONG_MAX == 18446744073709551615ULL && \
         4294967295UL != 18446744073709551615ULL /* verify pre-processor supports
                                                 * 64-bit ULL types */
     #define SP_ULONG_BITS    64
@@ -146,7 +146,7 @@ extern "C" {
     #else
         #error "Size of unsigned long long not detected"
     #endif
-#elif SP_ULONG_BITS == 32
+#elif (SP_ULONG_BITS == 32) && !defined(NO_64BIT)
     /* Speculatively use long long as the 64-bit type as we don't have one
      * otherwise. */
     typedef unsigned long long sp_uint64;
