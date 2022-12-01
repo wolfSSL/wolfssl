@@ -16802,6 +16802,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     #endif /* WOLFSSL_EKU_OID */
     #endif /* WOLFSSL_CERT_EXT */
 
+        req->version = 2; /* test bad version fails */
+        derSz = wc_MakeCertReq(req, der, FOURK_BUF, key, NULL);
+        if (derSz >= 0) {
+            ERROR_OUT(-7976, exit_rsa);
+        }
+
+        req->version = 0;
         derSz = wc_MakeCertReq(req, der, FOURK_BUF, key, NULL);
         if (derSz < 0) {
             ERROR_OUT(-7970, exit_rsa);
