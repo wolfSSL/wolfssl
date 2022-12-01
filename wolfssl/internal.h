@@ -5987,6 +5987,11 @@ WOLFSSL_LOCAL int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf,
     int publicKey, void* heap);
 #endif
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || defined(HAVE_SECRET_CALLBACK)
+WOLFSSL_LOCAL int wolfSSL_SSL_do_handshake_internal(WOLFSSL *s);
+#endif
+
 #ifdef WOLFSSL_QUIC
 #define WOLFSSL_IS_QUIC(s)  (((s) != NULL) && ((s)->quic.method != NULL))
 WOLFSSL_LOCAL int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz);

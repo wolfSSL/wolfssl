@@ -12608,7 +12608,12 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
     if (ssl->options.handShakeState == NULL_STATE) {
         if (ssl->error != WC_PENDING_E)
             ssl->earlyData = expecting_early_data;
-        ret = wolfSSL_accept_TLSv13(ssl);
+        /* this used to be: ret = wolfSSL_accept_TLSv13(ssl);
+         * However, wolfSSL_accept_TLSv13() expects a certificate to
+         * be installed already, which is not the case in servers
+         * such as HAProxy. They do it after inspecting the ClientHello.
+         * The common wolfssl_accept() allows that. */
+        ret = wolfSSL_accept(ssl);
         if (ret <= 0)
             return WOLFSSL_FATAL_ERROR;
     }

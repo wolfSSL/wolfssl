@@ -1902,8 +1902,8 @@ int wolfSSL_EVP_PKEY_CTX_set_hkdf_md(WOLFSSL_EVP_PKEY_CTX* ctx,
     return ret;
 }
 
-int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx, byte* salt,
-                                        int saltSz)
+int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx,
+                                        const byte* salt, int saltSz)
 {
     int ret = WOLFSSL_SUCCESS;
 
@@ -1938,8 +1938,8 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx, byte* salt,
     return ret;
 }
 
-int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx, byte* key,
-                                       int keySz)
+int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx,
+                                       const byte* key, int keySz)
 {
     int ret = WOLFSSL_SUCCESS;
 
@@ -1974,8 +1974,8 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx, byte* key,
     return ret;
 }
 
-int wolfSSL_EVP_PKEY_CTX_add1_hkdf_info(WOLFSSL_EVP_PKEY_CTX* ctx, byte* info,
-                                        int infoSz)
+int wolfSSL_EVP_PKEY_CTX_add1_hkdf_info(WOLFSSL_EVP_PKEY_CTX* ctx,
+                                        const byte* info, int infoSz)
 {
     int ret = WOLFSSL_SUCCESS;
 
