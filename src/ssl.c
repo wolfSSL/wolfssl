@@ -23027,6 +23027,7 @@ int wolfSSL_ERR_GET_LIB(unsigned long err)
     switch (value) {
     case -SSL_R_HTTP_REQUEST:
         return ERR_LIB_SSL;
+    case -ASN_NO_PEM_HEADER:
     case PEM_R_NO_START_LINE:
     case PEM_R_PROBLEMS_GETTING_PASSWORD:
     case PEM_R_BAD_PASSWORD_READ:
@@ -23058,8 +23059,10 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     WOLFSSL_ENTER("wolfSSL_ERR_GET_REASON");
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    /* Nginx looks for this error to know to stop parsing certificates. */
-    if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
+    /* Nginx looks for this error to know to stop parsing certificates.
+     * Same for HAProxy. */
+    if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE)
+        || (err & 0xFFFFFFL) == -ASN_NO_PEM_HEADER)
         return PEM_R_NO_START_LINE;
     if (err == ((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))
         return SSL_R_HTTP_REQUEST;
@@ -30917,7 +30920,8 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
+        || defined(WOLFSSL_HAPROXY)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
@@ -33588,10 +33592,9 @@ BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s)
 }
 #endif /* !NO_BIO */
 
-int wolfSSL_SSL_do_handshake(WOLFSSL *s)
+int wolfSSL_SSL_do_handshake_internal(WOLFSSL *s)
 {
-    WOLFSSL_ENTER("wolfSSL_SSL_do_handshake");
-
+    WOLFSSL_ENTER("wolfSSL_SSL_do_handshake_internal");
     if (s == NULL)
         return WOLFSSL_FAILURE;
 
@@ -33610,6 +33613,17 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
     WOLFSSL_MSG("Server not compiled in");
     return WOLFSSL_FAILURE;
 #endif
+}
+
+int wolfSSL_SSL_do_handshake(WOLFSSL *s)
+{
+    WOLFSSL_ENTER("wolfSSL_SSL_do_handshake");
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(s)) {
+        return wolfSSL_quic_do_handshake(s);
+    }
+#endif
+    return wolfSSL_SSL_do_handshake_internal(s);
 }
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L

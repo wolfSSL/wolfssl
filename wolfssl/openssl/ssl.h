@@ -1306,8 +1306,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CONF_TYPE_FILE               WOLFSSL_CONF_TYPE_FILE
 #define SSL_CONF_TYPE_DIR                WOLFSSL_CONF_TYPE_DIR
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
-                                                         || defined(OPENSSL_ALL)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 #define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
 #define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)
@@ -1317,6 +1317,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
 #define SSL_AD_NO_RENEGOTIATION          no_renegotiation
 #define SSL_AD_INTERNAL_ERROR            80
+#define SSL_AD_NO_APPLICATION_PROTOCOL   no_application_protocol
+#define SSL_AD_MISSING_EXTENSION         missing_extension
 
 #define ASN1_STRFLGS_ESC_MSB             4
 
@@ -1638,6 +1640,68 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+
+#ifdef WOLFSSL_QUIC
+
+#include <wolfssl/quic.h>
+
+/* Used by Chromium/QUIC - according to quictls/openssl fork */
+#define X25519_PRIVATE_KEY_LEN          32
+#define X25519_PUBLIC_VALUE_LEN         32
+
+/* TLSv1.3 cipher ids as defined in RFC 8446, returned by
+ * SSL_CIPHER_get_id(cipher)
+ * used by QUIC implementations, such as HAProxy
+ */
+#define TLS1_3_CK_AES_128_GCM_SHA256       0x1301
+#define TLS1_3_CK_AES_256_GCM_SHA384       0x1302
+#define TLS1_3_CK_CHACHA20_POLY1305_SHA256 0x1303
+#define TLS1_3_CK_AES_128_CCM_SHA256       0x1304
+#define TLS1_3_CK_AES_128_CCM_8_SHA256     0x1305
+
+#define SSL_R_MISSING_QUIC_TRANSPORT_PARAMETERS_EXTENSION   QUIC_TP_MISSING_E
+#define SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED               QUIC_WRONG_ENC_LEVEL
+
+#define ssl_quic_method_st              wolfssl_quic_method_t
+typedef WOLFSSL_QUIC_METHOD             SSL_QUIC_METHOD;
+
+#define ssl_encryption_level_t          wolfssl_encryption_level_t
+typedef WOLFSSL_ENCRYPTION_LEVEL        OSSL_ENCRYPTION_LEVEL;
+#define ssl_encryption_initial          wolfssl_encryption_initial
+#define ssl_encryption_early_data       wolfssl_encryption_early_data
+#define ssl_encryption_handshake        wolfssl_encryption_handshake
+#define ssl_encryption_application      wolfssl_encryption_application
+
+#define SSL_CTX_set_quic_method         wolfSSL_CTX_set_quic_method
+#define SSL_set_quic_method             wolfSSL_set_quic_method
+
+#define SSL_set_quic_transport_params   wolfSSL_set_quic_transport_params
+#define SSL_get_peer_quic_transport_params  wolfSSL_get_peer_quic_transport_params
+
+#define SSL_quic_max_handshake_flight_len   wolfSSL_quic_max_handshake_flight_len
+#define SSL_quic_read_level             wolfSSL_quic_read_level
+#define SSL_quic_write_level            wolfSSL_quic_write_level
+#define SSL_provide_quic_data           wolfSSL_provide_quic_data
+#define SSL_process_quic_post_handshake     wolfSSL_process_quic_post_handshake
+
+#define SSL_is_quic                     wolfSSL_is_quic
+
+#define SSL_set_quic_transport_version      wolfSSL_set_quic_transport_version
+#define SSL_get_quic_transport_version      wolfSSL_get_quic_transport_version
+#define SSL_get_peer_quic_transport_version wolfSSL_get_peer_quic_transport_version
+
+#define SSL_set_quic_early_data_enabled     wolfSSL_set_quic_early_data_enabled
+
+/* BoringSSL API - according to quictls/openssl fork */
+#define SSL_set_quic_use_legacy_codepoint   wolfSSL_set_quic_use_legacy_codepoint
+
+/* TODO: we do not have this in our QUIC api and HAProxy does not use it
+int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
+*/
+
+#endif /* WOLFSSL_QUIC */
+
 
 #ifdef __cplusplus
     } /* extern "C" */

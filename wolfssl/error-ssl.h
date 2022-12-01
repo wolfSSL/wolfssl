@@ -180,6 +180,7 @@ enum wolfSSL_ErrorCodes {
     DILITHIUM_KEY_SIZE_E         = -453,   /* Wrong key size for Dilithium. */
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
+    QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

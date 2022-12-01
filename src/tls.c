@@ -10783,6 +10783,7 @@ static int TLSX_EarlyData_Write(word32 maxSz, byte* output, byte msgType,
 static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                  byte msgType)
 {
+    WOLFSSL_ENTER("TLSX_EarlyData_Parse");
     if (msgType == client_hello) {
         if (length != 0)
             return BUFFER_E;
@@ -10860,7 +10861,10 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz, int is_response)
     }
 
     extension->resp = is_response;
-    extension->val  = maxSz;
+    /* In QUIC, earlydata size is either 0 or 0xffffffff.
+     * Override any size between, possibly left from our intial value */
+    extension->val  = (WOLFSSL_IS_QUIC(ssl) && is_response && maxSz > 0) ?
+                       WOLFSSL_MAX_32BIT : maxSz;
 
     return 0;
 }

@@ -243,6 +243,7 @@ typedef struct w64wrapper {
     };
 
     #define WOLFSSL_MAX_16BIT 0xffffU
+    #define WOLFSSL_MAX_32BIT 0xffffffffU
 
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
