@@ -3922,6 +3922,9 @@ WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
 #endif
 WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
+WOLFSSL_LOCAL void TlsSessionCacheUnlockRow(word32 row);
+WOLFSSL_LOCAL int TlsSessionCacheGetAndLock(const byte *id,
+    WOLFSSL_SESSION **sess, word32 *lockedRow);
 /* WOLFSSL_API to test it in tests/api.c */
 WOLFSSL_API int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
@@ -5480,6 +5483,10 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
+#ifdef HAVE_SESSION_TICKET
+WOLFSSL_LOCAL int DoDecryptTicket(WOLFSSL* ssl, const byte* input, word32 len,
+    InternalTicket **it);
+#endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
 #ifdef WOLFSSL_TLS13
@@ -5683,6 +5690,13 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
         word32 *inOutIdx, byte *type, word32 *size, word32 *fragOffset,
         word32 *fragSz, word32 totalSz);
     WOLFSSL_LOCAL int DtlsMsgDrain(WOLFSSL *ssl);
+    WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL* ssl,
+        const byte* cookie, byte cookieSz);
+
+#if !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
+        word32* inOutIdx, word32 helloSz, byte *process);
+#endif /* !defined(NO_WOLFSSL_SERVER) */
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
