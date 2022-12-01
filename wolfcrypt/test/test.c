@@ -43216,6 +43216,16 @@ static int mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
     ret = mp_invmod(a, m, r);
     if (ret != MP_VAL)
         return -13172;
+    mp_set(a, 3);
+    mp_set(m, 6);
+    ret = mp_invmod(a, m, r);
+    if (ret != MP_VAL)
+        return -13181;
+    mp_set(a, 5*9);
+    mp_set(m, 6*9);
+    ret = mp_invmod(a, m, r);
+    if (ret != MP_VAL)
+        return -13182;
     mp_set(a, 1);
     mp_set(m, 4);
     ret = mp_invmod(a, m, r);
