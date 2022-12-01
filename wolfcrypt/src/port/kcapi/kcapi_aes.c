@@ -241,7 +241,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     /* argument checks */
-    if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
+    if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
+        (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
+        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -352,8 +354,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
     /* argument checks */
-    if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-                                                   authTagSz > AES_BLOCK_SIZE) {
+    if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
+        (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
+        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 
