@@ -138,7 +138,10 @@
 #define CHAIN_INPUT_STR 93
 #define GOT_ENC_EXT_STR 94
 #define GOT_HELLO_RETRY_REQ_STR 95
+
 #define SNIFFER_KEY_SETUP_STR 96
+#define UNSUPPORTED_TLS_VER_STR 97
+#define KEY_MISMATCH_STR 98
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 
