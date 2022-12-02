@@ -2785,7 +2785,7 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_FALCON
 #define HAVE_DILITHIUM
 #define HAVE_SPHINCS
-#define HAVE_KYBER
+#define WOLFSSL_HAVE_KYBER
 #define WOLFSSL_KYBER512
 #define WOLFSSL_KYBER768
 #define WOLFSSL_KYBER1024
