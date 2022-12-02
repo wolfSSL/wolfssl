@@ -33,6 +33,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifndef WOLFCRYPT_ONLY
+
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
@@ -701,3 +704,5 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buf,
 
 #endif /* WOLFSSL_DTLS_CID */
 #endif /* WOLFSSL_DTLS */
+
+#endif /* WOLFCRYPT_ONLY */
