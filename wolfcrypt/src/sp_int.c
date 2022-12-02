@@ -7661,8 +7661,7 @@ void sp_rshd(sp_int* a, int c)
         }
     }
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || !NO_DH ||
-        * HAVE_ECC || (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+#endif /* WOLFSSL_SP_MATH_ALL */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
@@ -7955,9 +7954,6 @@ static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
  * @return  MP_VAL when a or d is NULL, r and rem are NULL, or d is 0.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-#ifndef WOLFSSL_SP_MATH_ALL
-static
-#endif
 int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
 {
     int err = MP_OKAY;

@@ -881,10 +881,14 @@ MP_API int sp_addmod_ct (sp_int* a, sp_int* b, sp_int* c, sp_int* d);
 #endif
 
 MP_API int sp_lshd(sp_int* a, int s);
+#ifdef WOLFSSL_SP_MATH_ALL
 MP_API void sp_rshd(sp_int* a, int c);
+#endif
 MP_API int sp_rshb(sp_int* a, int n, sp_int* r);
 
-#ifdef WOLFSSL_SP_MATH_ALL
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 MP_API int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem);
 #endif
 MP_API int sp_mod(sp_int* a, sp_int* m, sp_int* r);

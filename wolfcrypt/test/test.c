@@ -41311,7 +41311,11 @@ static int mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
         mp_copy(r1, a);
         if (mp_lshd(r1, i) != MP_OKAY)
             return -12681;
+#ifndef WOLFSSL_SP_MATH
         mp_rshd(r1, i);
+#else
+        mp_rshb(r1, i * SP_WORD_SIZE);
+#endif
         if (mp_cmp(a, r1) != MP_EQ)
             return -12682;
     }
@@ -41655,7 +41659,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     if (ret != MP_LT)
         return -12772;
 
-#if !defined(NO_DH) || defined(HAVE_ECC) || !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#ifdef WOLFSSL_SP_MATH_ALL
     mp_rshd(NULL, 1);
 #endif
 
@@ -42655,13 +42659,18 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
                 ret = mp_lshd(a, k);
                 if (ret != MP_OKAY)
                     return -13024;
+#ifndef WOLFSSL_SP_MATH
                 mp_rshd(a, k);
+#else
+                mp_rshb(a, k * SP_WORD_SIZE);
+#endif
                 if (mp_cmp(a, b) != MP_EQ)
                     return -13025;
             }
         }
     }
 
+#ifndef WOLFSSL_SP_MATH
     mp_zero(a);
     mp_rshd(a, 1);
     if (!mp_iszero(a))
@@ -42676,12 +42685,15 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
     mp_rshd(a, 2);
     if (!mp_iszero(a))
         return -13028;
+#endif
 
     return 0;
 }
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 static int mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
                        WC_RNG* rng)
 {
@@ -42788,10 +42800,10 @@ static int mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
      * a digit. So mp_div must detect and handle.
      * For example: 0x800000 / 0x8001, DIGIT_BIT = 8
      */
-    mp_set(a, 1);
-    mp_mul_2d(a, DIGIT_BIT * 3 - 1, a);
-    mp_set(d, 1);
-    mp_mul_2d(d, DIGIT_BIT * 2 - 1, d);
+    mp_zero(a);
+    mp_set_bit(a, DIGIT_BIT * 3 - 1);
+    mp_zero(d);
+    mp_set_bit(d, DIGIT_BIT * 2 - 1);
     mp_add_d(d, 1, d);
     ret = mp_div(a, d, r, rem);
     if (ret != MP_OKAY)
