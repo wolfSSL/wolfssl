@@ -11615,9 +11615,6 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     /* write the PEM to BIO */
     ret = wolfSSL_BIO_write(bio, pem, pemSz);
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #ifdef WOLFSSL_SMALL_STACK
-    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 
     if (ret <= 0) return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
