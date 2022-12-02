@@ -1444,7 +1444,10 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
                 MatchAddr(sniffer->server, ipInfo->dst))
             break;
 
-        sniffer = sniffer->next;
+        if (sniffer->next)
+            sniffer = sniffer->next;
+        else
+           break;
     }
 #else
     (void)ipInfo;
