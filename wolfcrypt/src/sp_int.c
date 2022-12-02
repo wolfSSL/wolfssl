@@ -4503,12 +4503,12 @@ WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(OPENSSL_ALL)
-static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
+static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE) || \
     defined(OPENSSL_ALL)
-static void _sp_mont_setup(sp_int* m, sp_int_digit* rho);
+static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 #endif
 
 /* Determine when mp_add_d is required. */
@@ -4828,7 +4828,7 @@ int sp_copy(const sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or r is NULL.
  */
-int sp_init_copy(sp_int* r, sp_int* a)
+int sp_init_copy(sp_int* r, const sp_int* a)
 {
     int err;
 
@@ -4901,7 +4901,7 @@ int sp_exch(sp_int* a, sp_int* b)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_cond_swap_ct(sp_int * a, sp_int * b, int cnt, int swap)
+int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
 {
     int i;
     int err = MP_OKAY;
@@ -4955,7 +4955,7 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int cnt, int swap)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or r is NULL.
  */
-int sp_abs(sp_int* a, sp_int* r)
+int sp_abs(const sp_int* a, sp_int* r)
 {
     int err;
 
@@ -4980,7 +4980,7 @@ int sp_abs(sp_int* a, sp_int* r)
  * @return  MP_LT when a is less than b.
  * @return  MP_EQ when a is equals b.
  */
-static int _sp_cmp_abs(sp_int* a, sp_int* b)
+static int _sp_cmp_abs(const sp_int* a, const sp_int* b)
 {
     int ret = MP_EQ;
 
@@ -5026,7 +5026,7 @@ static int _sp_cmp_abs(sp_int* a, sp_int* b)
  * @return  MP_LT when a is less than b.
  * @return  MP_EQ when a equals b.
  */
-int sp_cmp_mag(sp_int* a, sp_int* b)
+int sp_cmp_mag(const sp_int* a, const sp_int* b)
 {
     int ret;
 
@@ -5066,7 +5066,7 @@ int sp_cmp_mag(sp_int* a, sp_int* b)
  * @return  MP_LT when a is less than b.
  * @return  MP_EQ when a is equals b.
  */
-static int _sp_cmp(sp_int* a, sp_int* b)
+static int _sp_cmp(const sp_int* a, const sp_int* b)
 {
     int ret;
 
@@ -5110,7 +5110,7 @@ static int _sp_cmp(sp_int* a, sp_int* b)
  * @return  MP_LT when a is less than b.
  * @return  MP_EQ when a is equals b.
  */
-int sp_cmp(sp_int* a, sp_int* b)
+int sp_cmp(const sp_int* a, const sp_int* b)
 {
     int ret;
 
@@ -5152,7 +5152,7 @@ int sp_cmp(sp_int* a, sp_int* b)
  * @return  0 when bit is not set.
  * @return  1 when bit is set.
  */
-int sp_is_bit_set(sp_int* a, unsigned int b)
+int sp_is_bit_set(const sp_int* a, unsigned int b)
 {
     int ret = 0;
     /* Index of word. */
@@ -5253,7 +5253,7 @@ static const int sp_lnz[SP_LNZ_CNT] = {
 #if !defined(HAVE_ECC) || !defined(HAVE_COMP_KEY)
 static
 #endif /* !HAVE_ECC || HAVE_COMP_KEY */
-int sp_cnt_lsb(sp_int* a)
+int sp_cnt_lsb(const sp_int* a)
 {
     int bc = 0;
 
@@ -5295,7 +5295,7 @@ int sp_cnt_lsb(sp_int* a)
  * @return  1 when the top bit of top byte is set.
  * @return  0 when the top bit of top byte is not set.
  */
-int sp_leading_bit(sp_int* a)
+int sp_leading_bit(const sp_int* a)
 {
     int bit = 0;
 
@@ -5494,7 +5494,7 @@ int sp_set_int(sp_int* a, unsigned long n)
  * @return  MP_LT when a is less than d.
  * @return  MP_EQ when a is equals d.
  */
-int sp_cmp_d(sp_int* a, sp_int_digit d)
+int sp_cmp_d(const sp_int* a, sp_int_digit d)
 {
     int ret = MP_EQ;
 
@@ -5549,7 +5549,7 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when result is too large for fixed size dp array.
  */
-static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
+static int _sp_add_d(const sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -5612,7 +5612,7 @@ static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @param  [in]   d  Digit to subtract.
  * @param  [out]  r  SP integer to store result in.
  */
-static void _sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
+static void _sp_sub_d(const sp_int* a, sp_int_digit d, sp_int* r)
 {
     /* Set result used to be same as input. Updated with clamp. */
     r->used = a->used;
@@ -5661,7 +5661,7 @@ static void _sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when result is too large for fixed size dp array.
  */
-int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
+int sp_add_d(const sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -5724,7 +5724,7 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or r is NULL.
  */
-int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
+int sp_sub_d(const sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -5793,7 +5793,7 @@ int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when result is too large for sp_int.
  */
-static int _sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r, int o)
+static int _sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r, int o)
 {
     int err = MP_OKAY;
     int i;
@@ -5876,7 +5876,7 @@ static int _sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r, int o)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or b is NULL, or a has maximum number of digits used.
  */
-int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
+int sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -6043,7 +6043,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
  * @param  [out]  r    SP integer that is the quotient. May be NULL.
  * @param  [out]  rem  SP integer that is the remainder. May be NULL.
  */
-static void _sp_div_3(sp_int* a, sp_int* r, sp_int_digit* rem)
+static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
 {
     int i;
 #ifndef SQR_MUL_ASM
@@ -6133,7 +6133,7 @@ static void _sp_div_3(sp_int* a, sp_int* r, sp_int_digit* rem)
  * @param  [out]  r    SP integer that is the quotient. May be NULL.
  * @param  [out]  rem  SP integer that is the remainder. May be NULL.
  */
-static void _sp_div_10(sp_int* a, sp_int* r, sp_int_digit* rem)
+static void _sp_div_10(const sp_int* a, sp_int* r, sp_int_digit* rem)
 {
     int i;
 #ifndef SQR_MUL_ASM
@@ -6221,7 +6221,7 @@ static void _sp_div_10(sp_int* a, sp_int* r, sp_int_digit* rem)
  * @param  [out]  r    SP integer that is the quotient. May be NULL.
  * @param  [out]  rem  SP integer that is the remainder. May be NULL.
  */
-static void _sp_div_small(sp_int* a, sp_int_digit d, sp_int* r,
+static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
     sp_int_digit* rem)
 {
     int i;
@@ -6325,7 +6325,8 @@ static void _sp_div_small(sp_int* a, sp_int_digit d, sp_int* r,
  * @param  [out]  r    SP integer that is the quotient. May be NULL.
  * @param  [out]  rem  Digit that is the remainder. May be NULL.
  */
-static void _sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
+static void _sp_div_d(const sp_int* a, sp_int_digit d, sp_int* r,
+    sp_int_digit* rem)
 {
     int i;
 #ifndef SQR_MUL_ASM
@@ -6387,7 +6388,7 @@ static void _sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a is NULL or d is 0.
  */
-int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
+int sp_div_d(const sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
 {
     int err = MP_OKAY;
 
@@ -6442,7 +6443,7 @@ int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
  * @param  [in]   d  Digit to that is the modulus.
  * @param  [out]  r  Digit that is the result.
  */
-static void _sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
+static void _sp_mod_d(const sp_int* a, const sp_int_digit d, sp_int_digit* r)
 {
     int i;
 #ifndef SQR_MUL_ASM
@@ -6489,7 +6490,7 @@ static void _sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     !defined(HAVE_COMP_KEY)) && !defined(OPENSSL_EXTRA)
 static
 #endif /* !WOLFSSL_SP_MATH_ALL && (!HAVE_ECC || !HAVE_COMP_KEY) */
-int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
+int sp_mod_d(const sp_int* a, sp_int_digit d, sp_int_digit* r)
 {
     int err = MP_OKAY;
 
@@ -6560,7 +6561,7 @@ int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, m or r is NULL.
  */
-int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
+int sp_div_2_mod_ct(const sp_int* a, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -6658,7 +6659,7 @@ int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
 #if !(defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC))
 static
 #endif
-int sp_div_2(sp_int* a, sp_int* r)
+int sp_div_2(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -6711,7 +6712,7 @@ int sp_div_2(sp_int* a, sp_int* r)
  *
  * @return  MP_OKAY on success.
  */
-static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
+static int _sp_add_off(const sp_int* a, const sp_int* b, sp_int* r, int o)
 {
     int i = 0;
 #ifndef SQR_MUL_ASM
@@ -6862,7 +6863,7 @@ static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
  *
  * @return  MP_OKAY on success.
  */
-static int _sp_sub_off(sp_int* a, sp_int* b, sp_int* r, int o)
+static int _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r, int o)
 {
     int i = 0;
     int j;
@@ -6945,7 +6946,7 @@ static int _sp_sub_off(sp_int* a, sp_int* b, sp_int* r, int o)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, b, or r is NULL.
  */
-int sp_add(sp_int* a, sp_int* b, sp_int* r)
+int sp_add(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -7005,7 +7006,7 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, b, or r is NULL.
  */
-int sp_sub(sp_int* a, sp_int* b, sp_int* r)
+int sp_sub(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -7072,7 +7073,7 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_VAL when a, b, m or r is NULL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_addmod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
     /* Calculate used based on digits used in a and b. */
@@ -7130,7 +7131,7 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  * @return  MP_VAL when a, b, m or r is NULL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_submod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
 #ifndef WOLFSSL_SP_INT_NEGATIVE
     int err = MP_OKAY;
@@ -7246,7 +7247,7 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  *
  * @return  MP_OKAY on success.
  */
-int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_addmod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 #ifndef SQR_MUL_ASM
@@ -7411,7 +7412,7 @@ int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  *
  * @return  MP_OKAY on success.
  */
-int sp_submod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 #ifndef SQR_MUL_ASM
@@ -7672,7 +7673,7 @@ void sp_rshd(sp_int* a, int c)
  * @param  [in]   n  Number of bits to shift.
  * @param  [out]  r  SP integer to store result in.
  */
-int sp_rshb(sp_int* a, int n, sp_int* r)
+int sp_rshb(const sp_int* a, int n, sp_int* r)
 {
     int err = MP_OKAY;
     /* Number of digits to shift down. */
@@ -7735,7 +7736,7 @@ int sp_rshb(sp_int* a, int n, sp_int* r)
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
-static void _sp_div_same_size(sp_int* a, sp_int* d, sp_int* r)
+static void _sp_div_same_size(sp_int* a, const sp_int* d, sp_int* r)
 {
     int i;
 
@@ -7772,7 +7773,7 @@ static void _sp_div_same_size(sp_int* a, sp_int* d, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when operation fails - only when compiling small code.
  */
-static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
+static int _sp_div(sp_int* a, const sp_int* d, sp_int* r, sp_int* trial)
 {
     int err = MP_OKAY;
     int i;
@@ -7954,7 +7955,7 @@ static int _sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* trial)
  * @return  MP_VAL when a or d is NULL, r and rem are NULL, or d is 0.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
+int sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem)
 {
     int err = MP_OKAY;
     int ret;
@@ -8189,7 +8190,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, m or r is NULL or m is 0.
  */
-int sp_mod(sp_int* a, sp_int* m, sp_int* r)
+int sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -8258,7 +8259,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_nxn(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -8281,8 +8282,10 @@ static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
     }
 #endif
     if (err == MP_OKAY) {
-        sp_int_digit l, h, o;
-        sp_int_digit* dp;
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o;
+        const sp_int_digit* dp;
 
         h = 0;
         l = 0;
@@ -8335,7 +8338,7 @@ static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -8413,7 +8416,7 @@ static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY otherwise.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -8504,7 +8507,7 @@ static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -8512,8 +8515,8 @@ static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
 #else
     sp_int_word w[16];
 #endif
-    sp_int_digit* da = a->dp;
-    sp_int_digit* db = b->dp;
+    const sp_int_digit* da = a->dp;
+    const sp_int_digit* db = b->dp;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
@@ -8625,7 +8628,7 @@ static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -8692,7 +8695,7 @@ static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_6(const sp_int* a, const sp_int* b, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -8795,7 +8798,7 @@ static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_8(const sp_int* a, const sp_int* b, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -8942,7 +8945,7 @@ static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_12(const sp_int* a, const sp_int* b, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -9203,7 +9206,7 @@ static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_16(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int_digit l = 0;
@@ -9624,7 +9627,7 @@ static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_24(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int_digit l = 0;
@@ -10429,7 +10432,7 @@ static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_32(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -10595,7 +10598,7 @@ static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_48(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -10761,7 +10764,7 @@ static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_64(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -10927,7 +10930,7 @@ static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
+static int _sp_mul_96(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -11095,7 +11098,7 @@ static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
  *          data length.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_mul(sp_int* a, sp_int* b, sp_int* r)
+int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -11242,7 +11245,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
  *          fixed data length.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_mulmod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -11334,8 +11337,8 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when no inverse.
  */
-static int _sp_invmod(sp_int* a, sp_int* m, sp_int* u, sp_int* v, sp_int* b,
-    sp_int* c)
+static int _sp_invmod(const sp_int* a, const sp_int* m, sp_int* u, sp_int* v,
+    sp_int* b, sp_int* c)
 {
     int err = MP_OKAY;
 
@@ -11425,8 +11428,8 @@ static int _sp_invmod(sp_int* a, sp_int* m, sp_int* u, sp_int* v, sp_int* b,
  * @return  MP_VAL when no inverse.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_invmod_div(sp_int* a, sp_int* m, sp_int* x, sp_int* y, sp_int* b,
-    sp_int* c, sp_int* inv)
+static int _sp_invmod_div(const sp_int* a, const sp_int* m, sp_int* x,
+    sp_int* y, sp_int* b, sp_int* c, sp_int* inv)
 {
     int err = MP_OKAY;
     sp_int* d = NULL;
@@ -11569,7 +11572,7 @@ static int _sp_invmod_div(sp_int* a, sp_int* m, sp_int* x, sp_int* y, sp_int* b,
  *          m is negative.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
+int sp_invmod(const sp_int* a, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int* u = NULL;
@@ -11643,8 +11646,8 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         sp_set(r, 1);
     }
     else if (err == MP_OKAY) {
-        sp_int* mm = m;
-        sp_int* ma = a;
+        const sp_int* mm = m;
+        const sp_int* ma = a;
         int evenMod = 0;
 
         if (sp_iseven(m)) {
@@ -11750,7 +11753,8 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
  * @return  MP_VAL when a, m or r is NULL; a is 0 or m is less than 3.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
+int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
+    sp_int_digit mp)
 {
     int err = MP_OKAY;
     int i;
@@ -11938,7 +11942,8 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_ex(sp_int* b, sp_int* e, int bits, sp_int* m, sp_int* r)
+static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
+    const sp_int* m, sp_int* r)
 {
     int i;
     int err = MP_OKAY;
@@ -12078,8 +12083,8 @@ static int _sp_exptmod_ex(sp_int* b, sp_int* e, int bits, sp_int* m, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
-    sp_int* r)
+static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+    const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
     int done = 0;
@@ -12222,8 +12227,8 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
-    sp_int* r)
+static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+    const sp_int* m, sp_int* r)
 {
     int i;
     int c;
@@ -12460,7 +12465,8 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
+static int _sp_exptmod_base_2(const sp_int* e, int digits, const sp_int* m,
+    sp_int* r)
 {
     int i = 0;
     int c = 0;
@@ -12661,7 +12667,8 @@ static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
  * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
+int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
+    sp_int* r)
 {
     int err = MP_OKAY;
     int done = 0;
@@ -12731,34 +12738,34 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
     (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))
     #ifndef WOLFSSL_SP_NO_2048
         if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
-            (eBits <= 1024)) {
-            err = sp_ModExp_1024(b, e, m, r);
+                (eBits <= 1024)) {
+            err = sp_ModExp_1024((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
             done = 1;
         }
         else if ((mBits == 2048) && sp_isodd(m) && (bBits <= 2048) &&
                  (eBits <= 2048)) {
-            err = sp_ModExp_2048(b, e, m, r);
+            err = sp_ModExp_2048((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
             done = 1;
         }
         else
     #endif
     #ifndef WOLFSSL_SP_NO_3072
         if ((mBits == 1536) && sp_isodd(m) && (bBits <= 1536) &&
-            (eBits <= 1536)) {
-            err = sp_ModExp_1536(b, e, m, r);
+                (eBits <= 1536)) {
+            err = sp_ModExp_1536((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
             done = 1;
         }
         else if ((mBits == 3072) && sp_isodd(m) && (bBits <= 3072) &&
                  (eBits <= 3072)) {
-            err = sp_ModExp_3072(b, e, m, r);
+            err = sp_ModExp_3072((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
             done = 1;
         }
         else
     #endif
     #ifdef WOLFSSL_SP_4096
         if ((mBits == 4096) && sp_isodd(m) && (bBits <= 4096) &&
-            (eBits <= 4096)) {
-            err = sp_ModExp_4096(b, e, m, r);
+                (eBits <= 4096)) {
+            err = sp_ModExp_4096((sp_int*)b, (sp_int*)e, (sp_int*)m, r);
             done = 1;
         }
         else
@@ -12834,7 +12841,7 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
  * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
+int sp_exptmod(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -12895,7 +12902,8 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
+static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
+    sp_int* r)
 {
     int i = 0;
     int c = 0;
@@ -13192,7 +13200,8 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
+static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
+    sp_int* r)
 {
     int i;
     int err = MP_OKAY;
@@ -13287,7 +13296,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  * @return  MP_VAL when b, e, m or r is NULL; or m <= 0 or e is negative.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
+int sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -13362,7 +13371,7 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a is NULL.
  */
-int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
+int sp_div_2d(const sp_int* a, int e, sp_int* r, sp_int* rem)
 {
     int err = MP_OKAY;
 
@@ -13419,7 +13428,7 @@ int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or r is NULL.
  */
-int sp_mod_2d(sp_int* a, int e, sp_int* r)
+int sp_mod_2d(const sp_int* a, int e, sp_int* r)
 {
     int err = MP_OKAY;
     int digits = (e + SP_WORD_SIZE - 1) >> SP_WORD_SHIFT;
@@ -13492,7 +13501,7 @@ int sp_mod_2d(sp_int* a, int e, sp_int* r)
  * @return  MP_VAL when a or r is NULL, or result is too big for fixed data
  *          length.
  */
-int sp_mul_2d(sp_int* a, int e, sp_int* r)
+int sp_mul_2d(const sp_int* a, int e, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -13549,7 +13558,7 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr(sp_int* a, sp_int* r)
+static int _sp_sqr(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -13572,7 +13581,8 @@ static int _sp_sqr(sp_int* a, sp_int* r)
     }
 #endif
     if ((err == MP_OKAY) && (a->used <= 1)) {
-        sp_int_digit l, h;
+        sp_int_digit l;
+        sp_int_digit h;
 
         h = 0;
         l = 0;
@@ -13581,7 +13591,9 @@ static int _sp_sqr(sp_int* a, sp_int* r)
         t[1] = l;
     }
     else if (err == MP_OKAY) {
-        sp_int_digit l, h, o;
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o;
 
         h = 0;
         l = 0;
@@ -13658,7 +13670,7 @@ static int _sp_sqr(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr(sp_int* a, sp_int* r)
+static int _sp_sqr(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -13767,7 +13779,7 @@ static int _sp_sqr(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_4(sp_int* a, sp_int* r)
+static int _sp_sqr_4(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -13775,7 +13787,7 @@ static int _sp_sqr_4(sp_int* a, sp_int* r)
 #else
     sp_int_word w[10];
 #endif
-    sp_int_digit* da = a->dp;
+    const sp_int_digit* da = a->dp;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
@@ -13875,7 +13887,7 @@ static int _sp_sqr_4(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_4(sp_int* a, sp_int* r)
+static int _sp_sqr_4(const sp_int* a, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -13935,7 +13947,7 @@ static int _sp_sqr_4(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_6(sp_int* a, sp_int* r)
+static int _sp_sqr_6(const sp_int* a, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -14030,7 +14042,7 @@ static int _sp_sqr_6(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_8(sp_int* a, sp_int* r)
+static int _sp_sqr_8(const sp_int* a, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -14160,7 +14172,7 @@ static int _sp_sqr_8(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_12(sp_int* a, sp_int* r)
+static int _sp_sqr_12(const sp_int* a, sp_int* r)
 {
     sp_int_digit l = 0;
     sp_int_digit h = 0;
@@ -14374,7 +14386,7 @@ static int _sp_sqr_12(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_16(sp_int* a, sp_int* r)
+static int _sp_sqr_16(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int_digit l = 0;
@@ -14702,7 +14714,7 @@ static int _sp_sqr_16(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_24(sp_int* a, sp_int* r)
+static int _sp_sqr_24(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int_digit l = 0;
@@ -15274,7 +15286,7 @@ static int _sp_sqr_24(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_32(sp_int* a, sp_int* r)
+static int _sp_sqr_32(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -15413,7 +15425,7 @@ static int _sp_sqr_32(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_48(sp_int* a, sp_int* r)
+static int _sp_sqr_48(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -15552,7 +15564,7 @@ static int _sp_sqr_48(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_64(sp_int* a, sp_int* r)
+static int _sp_sqr_64(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -15691,7 +15703,7 @@ static int _sp_sqr_64(sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int _sp_sqr_96(sp_int* a, sp_int* r)
+static int _sp_sqr_96(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
     int i;
@@ -15832,7 +15844,7 @@ static int _sp_sqr_96(sp_int* a, sp_int* r)
  *          data length.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_sqr(sp_int* a, sp_int* r)
+int sp_sqr(const sp_int* a, sp_int* r)
 {
 #if defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_SMALL)
     return sp_mul(a, a, r);
@@ -15968,7 +15980,7 @@ int sp_sqr(sp_int* a, sp_int* r)
  *          for fixed data length.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
+int sp_sqrmod(const sp_int* a, const sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -16046,7 +16058,7 @@ int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
  *
  * @return  MP_OKAY on success.
  */
-static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
+static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp)
 {
 #if !defined(SQR_MUL_ASM)
     int i;
@@ -16386,7 +16398,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         sp_int_digit h;
         sp_int_digit o2;
         sp_int_digit* ad;
-        sp_int_digit* md;
+        const sp_int_digit* md;
 
         o = 0;
         o2 = 0;
@@ -16474,7 +16486,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or m is NULL or m is zero.
  */
-int sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
+int sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp)
 {
     int err;
 
@@ -16506,7 +16518,7 @@ int sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
  * @param  [in]   m   SP integer that is the modulus.
  * @param  [out]  mp  SP integer digit that is the bottom digit of inv(-m).
  */
-static void _sp_mont_setup(sp_int* m, sp_int_digit* rho)
+static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho)
 {
     sp_int_digit d = m->dp[0];
     sp_int_digit x = (3 * d) ^ 2;
@@ -16538,7 +16550,7 @@ static void _sp_mont_setup(sp_int* m, sp_int_digit* rho)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when m or rho is NULL.
  */
-int sp_mont_setup(sp_int* m, sp_int_digit* rho)
+int sp_mont_setup(const sp_int* m, sp_int_digit* rho)
 {
     int err = MP_OKAY;
 
@@ -16569,7 +16581,7 @@ int sp_mont_setup(sp_int* m, sp_int_digit* rho)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when norm or m is NULL, or number of bits in m is maximual.
  */
-int sp_mont_norm(sp_int* norm, sp_int* m)
+int sp_mont_norm(sp_int* norm, const sp_int* m)
 {
     int err = MP_OKAY;
     int bits = 0;
@@ -16749,7 +16761,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or out is NULL.
  */
-int sp_to_unsigned_bin(sp_int* a, byte* out)
+int sp_to_unsigned_bin(const sp_int* a, byte* out)
 {
     /* Write assuming output buffer is big enough. */
     return sp_to_unsigned_bin_len(a, out, sp_unsigned_bin_size(a));
@@ -16768,7 +16780,7 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or out is NULL.
  */
-int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
+int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
 {
     int err = MP_OKAY;
 
@@ -16819,7 +16831,7 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
  * @return  Index of next byte after data.
  * @return  MP_VAL when a or out is NULL.
  */
-int sp_to_unsigned_bin_at_pos(int o, sp_int* a, unsigned char* out)
+int sp_to_unsigned_bin_at_pos(int o, const sp_int* a, unsigned char* out)
 {
     /* Get length of data that will be written. */
     int len = sp_unsigned_bin_size(a);
@@ -17042,7 +17054,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or str is NULL.
  */
-int sp_tohex(sp_int* a, char* str)
+int sp_tohex(const sp_int* a, char* str)
 {
     int err = MP_OKAY;
 
@@ -17146,7 +17158,7 @@ int sp_tohex(sp_int* a, char* str)
  * @return  MP_VAL when a or str is NULL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_todecimal(sp_int* a, char* str)
+int sp_todecimal(const sp_int* a, char* str)
 {
     int err = MP_OKAY;
     int i;
@@ -17222,7 +17234,7 @@ int sp_todecimal(sp_int* a, char* str)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or str is NULL, or radix not supported.
  */
-int sp_toradix(sp_int* a, char* str, int radix)
+int sp_toradix(const sp_int* a, char* str, int radix)
 {
     int err = MP_OKAY;
 
@@ -17263,7 +17275,7 @@ int sp_toradix(sp_int* a, char* str, int radix)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or size is NULL, or radix not supported.
  */
-int sp_radix_size(sp_int* a, int radix, int* size)
+int sp_radix_size(const sp_int* a, int radix, int* size)
 {
     int err = MP_OKAY;
 
@@ -17527,8 +17539,8 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static int sp_prime_miller_rabin(sp_int* a, sp_int* b, int* result, sp_int* n1,
-    sp_int* r)
+static int sp_prime_miller_rabin(const sp_int* a, sp_int* b, int* result,
+    sp_int* n1, sp_int* r)
 {
     int err = MP_OKAY;
     int s = 0;
@@ -17652,7 +17664,7 @@ static const sp_uint16 sp_primes[SP_PRIME_SIZE] = {
  * @return  0 when no small prime matches.
  * @return  1 when small prime matches.
  */
-static WC_INLINE int sp_cmp_primes(sp_int* a, int* result)
+static WC_INLINE int sp_cmp_primes(const sp_int* a, int* result)
 {
     int i;
     int haveRes = 0;
@@ -17708,7 +17720,7 @@ static int sp_comp_idx[SP_COMP_CNT] = {
  * @return  MP_OKAY on success.
  * @return  Negative on failure.
  */
-static WC_INLINE int sp_div_primes(sp_int* a, int* haveRes, int* result)
+static WC_INLINE int sp_div_primes(const sp_int* a, int* haveRes, int* result)
 {
     int i;
 #if !defined(WOLFSSL_SP_SMALL) && (SP_WORD_SIZE == 64)
@@ -17767,7 +17779,7 @@ static WC_INLINE int sp_div_primes(sp_int* a, int* haveRes, int* result)
  * @return  MP_VAL when a or result is NULL, or trials is out of range.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_prime_is_prime(sp_int* a, int trials, int* result)
+int sp_prime_is_prime(const sp_int* a, int trials, int* result)
 {
     int         err = MP_OKAY;
     int         i;
@@ -17865,7 +17877,7 @@ int sp_prime_is_prime(sp_int* a, int trials, int* result)
  * @return  MP_VAL when a, result or rng is NULL.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_prime_is_prime_ex(sp_int* a, int trials, int* result, WC_RNG* rng)
+int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
 {
     int err = MP_OKAY;
     int ret = MP_YES;
@@ -17878,6 +17890,9 @@ int sp_prime_is_prime_ex(sp_int* a, int trials, int* result, WC_RNG* rng)
 #endif /* WC_NO_RNG */
 
     if ((a == NULL) || (result == NULL) || (rng == NULL)) {
+        err = MP_VAL;
+    }
+    if ((err == MP_OKAY) && (a->used < 0)) {
         err = MP_VAL;
     }
 
@@ -18014,7 +18029,7 @@ int sp_prime_is_prime_ex(sp_int* a, int trials, int* result, WC_RNG* rng)
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-static WC_INLINE int _sp_gcd(sp_int* a, sp_int* b, sp_int* r)
+static WC_INLINE int _sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     sp_int* u = NULL;
@@ -18042,9 +18057,10 @@ static WC_INLINE int _sp_gcd(sp_int* a, sp_int* b, sp_int* r)
          *    Make a <= b.
          */
         if (_sp_cmp(a, b) == MP_GT) {
-            s = a;
+            const sp_int* tmp;
+            tmp = a;
             a = b;
-            b = s;
+            b = tmp;
         }
         /* 2. u = a, v = b mod a */
         sp_copy(a, u);
@@ -18108,7 +18124,7 @@ static WC_INLINE int _sp_gcd(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_VAL when a, b or r is NULL or too large.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
+int sp_gcd(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -18177,7 +18193,7 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
  * @return  MP_VAL when a, b or r is NULL; or a or b is zero.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
-int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
+int sp_lcm(const sp_int* a, const sp_int* b, sp_int* r)
 {
     int err = MP_OKAY;
     /* Determine maximum digit length numbers will reach. */
@@ -18274,20 +18290,20 @@ word32 CheckRunTimeFastMath(void)
 /* Add an MP to check.
  *
  * @param [in] name  Name of address to check.
- * @param [in] mp    mp_int that needs to be checked.
+ * @param [in] sp    sp_int that needs to be checked.
  */
-void sp_memzero_add(const char* name, mp_int* mp)
+void sp_memzero_add(const char* name, sp_int* sp)
 {
-    wc_MemZero_Add(name, mp->dp, mp->size * sizeof(sp_digit));
+    wc_MemZero_Add(name, sp->dp, sp->size * sizeof(sp_digit));
 }
 
 /* Check the memory in the data pointer for memory that must be zero.
  *
- * @param [in] mp    mp_int that needs to be checked.
+ * @param [in] sp    sp_int that needs to be checked.
  */
-void sp_memzero_check(mp_int* mp)
+void sp_memzero_check(sp_int* sp)
 {
-    wc_MemZero_Check(mp->dp, mp->size * sizeof(sp_digit));
+    wc_MemZero_Check(sp->dp, sp->size * sizeof(sp_digit));
 }
 #endif /* WOLFSSL_CHECK_MEM_ZERO */
 
