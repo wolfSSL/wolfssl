@@ -16332,7 +16332,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp)
         sp_int_digit h;
         sp_int_digit o2;
         sp_int_digit* ad;
-        sp_int_digit* md;
+        const sp_int_digit* md;
 
         o = 0;
         o2 = 0;
