@@ -8123,8 +8123,9 @@ AX_HARDEN_CC_COMPILER_FLAGS
 
 case $host_os in
     mingw*)
-        # if mingw then link to ws2_32 for sockets
+        # if mingw then link to ws2_32 for sockets, and crypt32
         LDFLAGS="$LDFLAGS -lws2_32"
+        LIB_ADD="$LIB_ADD -lcrypt32"
         if test "$enable_shared" = "yes"
         then
             AC_DEFINE([WOLFSSL_DLL], [1], [Use __declspec(dllexport) when building library])

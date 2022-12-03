@@ -165,9 +165,14 @@
 #ifdef WOLFSSL_SYS_CA_CERTS
 
 #ifdef _WIN32
-#include <windows.h>
-#include <Wincrypt.h>
-#pragma comment(lib, "crypt32")
+  #include <windows.h>
+  #include <Wincrypt.h>
+
+  /* mingw gcc does not support pragma comment, and the
+   * linking with crypt32 is handled in configure.ac */
+  #if !defined(__MINGW32__) && !defined(__MINGW64__)
+    #pragma comment(lib, "crypt32")
+  #endif
 #endif
 
 #if defined(__APPLE__) && defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)

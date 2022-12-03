@@ -36310,8 +36310,8 @@ static int test_wolfSSL_set_options(void)
                WOLFSSL_OP_NO_COMPRESSION) == WOLFSSL_OP_NO_COMPRESSION);
 
 #ifdef OPENSSL_EXTRA
-    AssertNull((wolfSSL_clear_options(ssl, WOLFSSL_OP_NO_COMPRESSION) &
-                                      WOLFSSL_OP_NO_COMPRESSION));
+    AssertFalse((wolfSSL_clear_options(ssl, WOLFSSL_OP_NO_COMPRESSION) &
+                                       WOLFSSL_OP_NO_COMPRESSION));
 #endif
 
 #ifdef OPENSSL_EXTRA

@@ -358,7 +358,11 @@
 #endif
 
 #ifdef USE_WINDOWS_API
-    typedef unsigned int SOCKET_T;
+    #if defined(__MINGW64__)
+        typedef size_t SOCKET_T;
+    #else
+        typedef unsigned int SOCKET_T;
+    #endif
     #ifndef SOCKET_INVALID
         #define SOCKET_INVALID INVALID_SOCKET
     #endif
@@ -745,7 +749,11 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #ifdef USE_WINDOWS_API /* Windows-friendly definition */
         #undef  XINET_PTON
-        #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+        #if defined(__MINGW64__) && !defined(UNICODE)
+            #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
+        #else
+            #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+        #endif
     #endif
 #endif
 

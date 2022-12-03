@@ -451,7 +451,12 @@ void wait_tcp_ready(func_args* args)
     (void)tx_mutex_put(&args->signal->mutex);
 #elif defined(USE_WINDOWS_API)
     /* Give peer a moment to get running */
-    _sleep(500);
+    #if defined(__MINGW32__) || defined(__MINGW64__)
+        Sleep(500);
+    #else
+        _sleep(500);
+    #endif
+    (void)args;
 #else
     (void)args;
 #endif
