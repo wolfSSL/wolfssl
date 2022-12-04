@@ -13050,7 +13050,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
             }
 
             /* 4. While at least window bits left. */
-            while (err == MP_OKAY && ((i >= 0) || (c >= winBits))) {
+            while ((err == MP_OKAY) && ((i >= 0) || (c >= winBits))) {
                 /* Number of squares to before due to top bits being 0. */
                 int sqrs = 0;
 
@@ -13074,9 +13074,9 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
                     n <<= 1;
                     c--;
                 }
-                while (err == MP_OKAY && ((i >= 0) || (c >= winBits)));
+                while ((err == MP_OKAY) && ((i >= 0) || (c >= winBits)));
 
-                if (err == MP_OKAY && ((i >= 0) || (c >= winBits))) {
+                if ((err == MP_OKAY) && ((i >= 0) || (c >= winBits))) {
                     /* Add squares needed before using table entry. */
                     sqrs += winBits;
                 }
@@ -13084,7 +13084,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
                 /* 4.2. Montgomery square result for each leading 0 and window
                  *      bits if bits left.
                  */
-                for (; sqrs > 0; sqrs--) {
+                for (; (err == MP_OKAY) && (sqrs > 0); sqrs--) {
                     err = sp_sqr(tr, tr);
                     if (err == MP_OKAY) {
                         err = _sp_mont_red(tr, m, mp);
