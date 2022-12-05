@@ -39594,7 +39594,6 @@ static int test_wolfSSL_PEM_write_bio_X509(void)
     BIO_free(input);
     BIO_free(output);
     X509_free(x509a);
-    X509_free(x509b);
 
     /* test CA and basicConstSet values are encoded when
      * the cert is a CA */
