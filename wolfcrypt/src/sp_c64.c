@@ -3589,106 +3589,110 @@ static void sp_2048_norm_36(sp_digit* a)
 SP_NOINLINE static void sp_2048_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint128 t0   = ((sp_uint128)a[ 0]) * b[ 0];
-    sp_uint128 t1   = ((sp_uint128)a[ 0]) * b[ 1]
-                 + ((sp_uint128)a[ 1]) * b[ 0];
-    sp_uint128 t2   = ((sp_uint128)a[ 0]) * b[ 2]
-                 + ((sp_uint128)a[ 1]) * b[ 1]
-                 + ((sp_uint128)a[ 2]) * b[ 0];
-    sp_uint128 t3   = ((sp_uint128)a[ 0]) * b[ 3]
-                 + ((sp_uint128)a[ 1]) * b[ 2]
-                 + ((sp_uint128)a[ 2]) * b[ 1]
-                 + ((sp_uint128)a[ 3]) * b[ 0];
-    sp_uint128 t4   = ((sp_uint128)a[ 0]) * b[ 4]
-                 + ((sp_uint128)a[ 1]) * b[ 3]
-                 + ((sp_uint128)a[ 2]) * b[ 2]
-                 + ((sp_uint128)a[ 3]) * b[ 1]
-                 + ((sp_uint128)a[ 4]) * b[ 0];
-    sp_uint128 t5   = ((sp_uint128)a[ 0]) * b[ 5]
-                 + ((sp_uint128)a[ 1]) * b[ 4]
-                 + ((sp_uint128)a[ 2]) * b[ 3]
-                 + ((sp_uint128)a[ 3]) * b[ 2]
-                 + ((sp_uint128)a[ 4]) * b[ 1]
-                 + ((sp_uint128)a[ 5]) * b[ 0];
-    sp_uint128 t6   = ((sp_uint128)a[ 0]) * b[ 6]
-                 + ((sp_uint128)a[ 1]) * b[ 5]
-                 + ((sp_uint128)a[ 2]) * b[ 4]
-                 + ((sp_uint128)a[ 3]) * b[ 3]
-                 + ((sp_uint128)a[ 4]) * b[ 2]
-                 + ((sp_uint128)a[ 5]) * b[ 1]
-                 + ((sp_uint128)a[ 6]) * b[ 0];
-    sp_uint128 t7   = ((sp_uint128)a[ 0]) * b[ 7]
-                 + ((sp_uint128)a[ 1]) * b[ 6]
-                 + ((sp_uint128)a[ 2]) * b[ 5]
-                 + ((sp_uint128)a[ 3]) * b[ 4]
-                 + ((sp_uint128)a[ 4]) * b[ 3]
-                 + ((sp_uint128)a[ 5]) * b[ 2]
-                 + ((sp_uint128)a[ 6]) * b[ 1]
-                 + ((sp_uint128)a[ 7]) * b[ 0];
-    sp_uint128 t8   = ((sp_uint128)a[ 0]) * b[ 8]
-                 + ((sp_uint128)a[ 1]) * b[ 7]
-                 + ((sp_uint128)a[ 2]) * b[ 6]
-                 + ((sp_uint128)a[ 3]) * b[ 5]
-                 + ((sp_uint128)a[ 4]) * b[ 4]
-                 + ((sp_uint128)a[ 5]) * b[ 3]
-                 + ((sp_uint128)a[ 6]) * b[ 2]
-                 + ((sp_uint128)a[ 7]) * b[ 1]
-                 + ((sp_uint128)a[ 8]) * b[ 0];
-    sp_uint128 t9   = ((sp_uint128)a[ 1]) * b[ 8]
-                 + ((sp_uint128)a[ 2]) * b[ 7]
-                 + ((sp_uint128)a[ 3]) * b[ 6]
-                 + ((sp_uint128)a[ 4]) * b[ 5]
-                 + ((sp_uint128)a[ 5]) * b[ 4]
-                 + ((sp_uint128)a[ 6]) * b[ 3]
-                 + ((sp_uint128)a[ 7]) * b[ 2]
-                 + ((sp_uint128)a[ 8]) * b[ 1];
-    sp_uint128 t10  = ((sp_uint128)a[ 2]) * b[ 8]
-                 + ((sp_uint128)a[ 3]) * b[ 7]
-                 + ((sp_uint128)a[ 4]) * b[ 6]
-                 + ((sp_uint128)a[ 5]) * b[ 5]
-                 + ((sp_uint128)a[ 6]) * b[ 4]
-                 + ((sp_uint128)a[ 7]) * b[ 3]
-                 + ((sp_uint128)a[ 8]) * b[ 2];
-    sp_uint128 t11  = ((sp_uint128)a[ 3]) * b[ 8]
-                 + ((sp_uint128)a[ 4]) * b[ 7]
-                 + ((sp_uint128)a[ 5]) * b[ 6]
-                 + ((sp_uint128)a[ 6]) * b[ 5]
-                 + ((sp_uint128)a[ 7]) * b[ 4]
-                 + ((sp_uint128)a[ 8]) * b[ 3];
-    sp_uint128 t12  = ((sp_uint128)a[ 4]) * b[ 8]
-                 + ((sp_uint128)a[ 5]) * b[ 7]
-                 + ((sp_uint128)a[ 6]) * b[ 6]
-                 + ((sp_uint128)a[ 7]) * b[ 5]
-                 + ((sp_uint128)a[ 8]) * b[ 4];
-    sp_uint128 t13  = ((sp_uint128)a[ 5]) * b[ 8]
-                 + ((sp_uint128)a[ 6]) * b[ 7]
-                 + ((sp_uint128)a[ 7]) * b[ 6]
-                 + ((sp_uint128)a[ 8]) * b[ 5];
-    sp_uint128 t14  = ((sp_uint128)a[ 6]) * b[ 8]
-                 + ((sp_uint128)a[ 7]) * b[ 7]
-                 + ((sp_uint128)a[ 8]) * b[ 6];
-    sp_uint128 t15  = ((sp_uint128)a[ 7]) * b[ 8]
-                 + ((sp_uint128)a[ 8]) * b[ 7];
-    sp_uint128 t16  = ((sp_uint128)a[ 8]) * b[ 8];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 = ((sp_uint128)a[ 0]) * b[ 0];
+    t1 = ((sp_uint128)a[ 0]) * b[ 1]
+       + ((sp_uint128)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 2]
+       + ((sp_uint128)a[ 1]) * b[ 1]
+       + ((sp_uint128)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 3]
+       + ((sp_uint128)a[ 1]) * b[ 2]
+       + ((sp_uint128)a[ 2]) * b[ 1]
+       + ((sp_uint128)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 4]
+       + ((sp_uint128)a[ 1]) * b[ 3]
+       + ((sp_uint128)a[ 2]) * b[ 2]
+       + ((sp_uint128)a[ 3]) * b[ 1]
+       + ((sp_uint128)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 5]
+       + ((sp_uint128)a[ 1]) * b[ 4]
+       + ((sp_uint128)a[ 2]) * b[ 3]
+       + ((sp_uint128)a[ 3]) * b[ 2]
+       + ((sp_uint128)a[ 4]) * b[ 1]
+       + ((sp_uint128)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 6]
+       + ((sp_uint128)a[ 1]) * b[ 5]
+       + ((sp_uint128)a[ 2]) * b[ 4]
+       + ((sp_uint128)a[ 3]) * b[ 3]
+       + ((sp_uint128)a[ 4]) * b[ 2]
+       + ((sp_uint128)a[ 5]) * b[ 1]
+       + ((sp_uint128)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 7]
+       + ((sp_uint128)a[ 1]) * b[ 6]
+       + ((sp_uint128)a[ 2]) * b[ 5]
+       + ((sp_uint128)a[ 3]) * b[ 4]
+       + ((sp_uint128)a[ 4]) * b[ 3]
+       + ((sp_uint128)a[ 5]) * b[ 2]
+       + ((sp_uint128)a[ 6]) * b[ 1]
+       + ((sp_uint128)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 8]
+       + ((sp_uint128)a[ 1]) * b[ 7]
+       + ((sp_uint128)a[ 2]) * b[ 6]
+       + ((sp_uint128)a[ 3]) * b[ 5]
+       + ((sp_uint128)a[ 4]) * b[ 4]
+       + ((sp_uint128)a[ 5]) * b[ 3]
+       + ((sp_uint128)a[ 6]) * b[ 2]
+       + ((sp_uint128)a[ 7]) * b[ 1]
+       + ((sp_uint128)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 1]) * b[ 8]
+       + ((sp_uint128)a[ 2]) * b[ 7]
+       + ((sp_uint128)a[ 3]) * b[ 6]
+       + ((sp_uint128)a[ 4]) * b[ 5]
+       + ((sp_uint128)a[ 5]) * b[ 4]
+       + ((sp_uint128)a[ 6]) * b[ 3]
+       + ((sp_uint128)a[ 7]) * b[ 2]
+       + ((sp_uint128)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 2]) * b[ 8]
+       + ((sp_uint128)a[ 3]) * b[ 7]
+       + ((sp_uint128)a[ 4]) * b[ 6]
+       + ((sp_uint128)a[ 5]) * b[ 5]
+       + ((sp_uint128)a[ 6]) * b[ 4]
+       + ((sp_uint128)a[ 7]) * b[ 3]
+       + ((sp_uint128)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 3]) * b[ 8]
+       + ((sp_uint128)a[ 4]) * b[ 7]
+       + ((sp_uint128)a[ 5]) * b[ 6]
+       + ((sp_uint128)a[ 6]) * b[ 5]
+       + ((sp_uint128)a[ 7]) * b[ 4]
+       + ((sp_uint128)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 4]) * b[ 8]
+       + ((sp_uint128)a[ 5]) * b[ 7]
+       + ((sp_uint128)a[ 6]) * b[ 6]
+       + ((sp_uint128)a[ 7]) * b[ 5]
+       + ((sp_uint128)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 5]) * b[ 8]
+       + ((sp_uint128)a[ 6]) * b[ 7]
+       + ((sp_uint128)a[ 7]) * b[ 6]
+       + ((sp_uint128)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 6]) * b[ 8]
+       + ((sp_uint128)a[ 7]) * b[ 7]
+       + ((sp_uint128)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 7]) * b[ 8]
+       + ((sp_uint128)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -3880,70 +3884,74 @@ SP_NOINLINE static void sp_2048_mul_36(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_2048_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_uint128 t0   =  ((sp_uint128)a[ 0]) * a[ 0];
-    sp_uint128 t1   = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
-    sp_uint128 t2   = (((sp_uint128)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint128)a[ 1]) * a[ 1];
-    sp_uint128 t3   = (((sp_uint128)a[ 0]) * a[ 3]
-                 +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
-    sp_uint128 t4   = (((sp_uint128)a[ 0]) * a[ 4]
-                 +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint128)a[ 2]) * a[ 2];
-    sp_uint128 t5   = (((sp_uint128)a[ 0]) * a[ 5]
-                 +  ((sp_uint128)a[ 1]) * a[ 4]
-                 +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
-    sp_uint128 t6   = (((sp_uint128)a[ 0]) * a[ 6]
-                 +  ((sp_uint128)a[ 1]) * a[ 5]
-                 +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint128)a[ 3]) * a[ 3];
-    sp_uint128 t7   = (((sp_uint128)a[ 0]) * a[ 7]
-                 +  ((sp_uint128)a[ 1]) * a[ 6]
-                 +  ((sp_uint128)a[ 2]) * a[ 5]
-                 +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
-    sp_uint128 t8   = (((sp_uint128)a[ 0]) * a[ 8]
-                 +  ((sp_uint128)a[ 1]) * a[ 7]
-                 +  ((sp_uint128)a[ 2]) * a[ 6]
-                 +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint128)a[ 4]) * a[ 4];
-    sp_uint128 t9   = (((sp_uint128)a[ 1]) * a[ 8]
-                 +  ((sp_uint128)a[ 2]) * a[ 7]
-                 +  ((sp_uint128)a[ 3]) * a[ 6]
-                 +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
-    sp_uint128 t10  = (((sp_uint128)a[ 2]) * a[ 8]
-                 +  ((sp_uint128)a[ 3]) * a[ 7]
-                 +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint128)a[ 5]) * a[ 5];
-    sp_uint128 t11  = (((sp_uint128)a[ 3]) * a[ 8]
-                 +  ((sp_uint128)a[ 4]) * a[ 7]
-                 +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
-    sp_uint128 t12  = (((sp_uint128)a[ 4]) * a[ 8]
-                 +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint128)a[ 6]) * a[ 6];
-    sp_uint128 t13  = (((sp_uint128)a[ 5]) * a[ 8]
-                 +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
-    sp_uint128 t14  = (((sp_uint128)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint128)a[ 7]) * a[ 7];
-    sp_uint128 t15  = (((sp_uint128)a[ 7]) * a[ 8]) * 2;
-    sp_uint128 t16  =  ((sp_uint128)a[ 8]) * a[ 8];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 =  ((sp_uint128)a[ 0]) * a[ 0];
+    t1 = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint128)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 3]
+       +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 4]
+       +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint128)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 5]
+       +  ((sp_uint128)a[ 1]) * a[ 4]
+       +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 6]
+       +  ((sp_uint128)a[ 1]) * a[ 5]
+       +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint128)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 7]
+       +  ((sp_uint128)a[ 1]) * a[ 6]
+       +  ((sp_uint128)a[ 2]) * a[ 5]
+       +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 8]
+       +  ((sp_uint128)a[ 1]) * a[ 7]
+       +  ((sp_uint128)a[ 2]) * a[ 6]
+       +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint128)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 1]) * a[ 8]
+       +  ((sp_uint128)a[ 2]) * a[ 7]
+       +  ((sp_uint128)a[ 3]) * a[ 6]
+       +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 2]) * a[ 8]
+       +  ((sp_uint128)a[ 3]) * a[ 7]
+       +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint128)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 3]) * a[ 8]
+       +  ((sp_uint128)a[ 4]) * a[ 7]
+       +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 4]) * a[ 8]
+       +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint128)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 5]) * a[ 8]
+       +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint128)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 =  ((sp_uint128)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -10467,106 +10475,110 @@ static void sp_3072_norm_54(sp_digit* a)
 SP_NOINLINE static void sp_3072_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint128 t0   = ((sp_uint128)a[ 0]) * b[ 0];
-    sp_uint128 t1   = ((sp_uint128)a[ 0]) * b[ 1]
-                 + ((sp_uint128)a[ 1]) * b[ 0];
-    sp_uint128 t2   = ((sp_uint128)a[ 0]) * b[ 2]
-                 + ((sp_uint128)a[ 1]) * b[ 1]
-                 + ((sp_uint128)a[ 2]) * b[ 0];
-    sp_uint128 t3   = ((sp_uint128)a[ 0]) * b[ 3]
-                 + ((sp_uint128)a[ 1]) * b[ 2]
-                 + ((sp_uint128)a[ 2]) * b[ 1]
-                 + ((sp_uint128)a[ 3]) * b[ 0];
-    sp_uint128 t4   = ((sp_uint128)a[ 0]) * b[ 4]
-                 + ((sp_uint128)a[ 1]) * b[ 3]
-                 + ((sp_uint128)a[ 2]) * b[ 2]
-                 + ((sp_uint128)a[ 3]) * b[ 1]
-                 + ((sp_uint128)a[ 4]) * b[ 0];
-    sp_uint128 t5   = ((sp_uint128)a[ 0]) * b[ 5]
-                 + ((sp_uint128)a[ 1]) * b[ 4]
-                 + ((sp_uint128)a[ 2]) * b[ 3]
-                 + ((sp_uint128)a[ 3]) * b[ 2]
-                 + ((sp_uint128)a[ 4]) * b[ 1]
-                 + ((sp_uint128)a[ 5]) * b[ 0];
-    sp_uint128 t6   = ((sp_uint128)a[ 0]) * b[ 6]
-                 + ((sp_uint128)a[ 1]) * b[ 5]
-                 + ((sp_uint128)a[ 2]) * b[ 4]
-                 + ((sp_uint128)a[ 3]) * b[ 3]
-                 + ((sp_uint128)a[ 4]) * b[ 2]
-                 + ((sp_uint128)a[ 5]) * b[ 1]
-                 + ((sp_uint128)a[ 6]) * b[ 0];
-    sp_uint128 t7   = ((sp_uint128)a[ 0]) * b[ 7]
-                 + ((sp_uint128)a[ 1]) * b[ 6]
-                 + ((sp_uint128)a[ 2]) * b[ 5]
-                 + ((sp_uint128)a[ 3]) * b[ 4]
-                 + ((sp_uint128)a[ 4]) * b[ 3]
-                 + ((sp_uint128)a[ 5]) * b[ 2]
-                 + ((sp_uint128)a[ 6]) * b[ 1]
-                 + ((sp_uint128)a[ 7]) * b[ 0];
-    sp_uint128 t8   = ((sp_uint128)a[ 0]) * b[ 8]
-                 + ((sp_uint128)a[ 1]) * b[ 7]
-                 + ((sp_uint128)a[ 2]) * b[ 6]
-                 + ((sp_uint128)a[ 3]) * b[ 5]
-                 + ((sp_uint128)a[ 4]) * b[ 4]
-                 + ((sp_uint128)a[ 5]) * b[ 3]
-                 + ((sp_uint128)a[ 6]) * b[ 2]
-                 + ((sp_uint128)a[ 7]) * b[ 1]
-                 + ((sp_uint128)a[ 8]) * b[ 0];
-    sp_uint128 t9   = ((sp_uint128)a[ 1]) * b[ 8]
-                 + ((sp_uint128)a[ 2]) * b[ 7]
-                 + ((sp_uint128)a[ 3]) * b[ 6]
-                 + ((sp_uint128)a[ 4]) * b[ 5]
-                 + ((sp_uint128)a[ 5]) * b[ 4]
-                 + ((sp_uint128)a[ 6]) * b[ 3]
-                 + ((sp_uint128)a[ 7]) * b[ 2]
-                 + ((sp_uint128)a[ 8]) * b[ 1];
-    sp_uint128 t10  = ((sp_uint128)a[ 2]) * b[ 8]
-                 + ((sp_uint128)a[ 3]) * b[ 7]
-                 + ((sp_uint128)a[ 4]) * b[ 6]
-                 + ((sp_uint128)a[ 5]) * b[ 5]
-                 + ((sp_uint128)a[ 6]) * b[ 4]
-                 + ((sp_uint128)a[ 7]) * b[ 3]
-                 + ((sp_uint128)a[ 8]) * b[ 2];
-    sp_uint128 t11  = ((sp_uint128)a[ 3]) * b[ 8]
-                 + ((sp_uint128)a[ 4]) * b[ 7]
-                 + ((sp_uint128)a[ 5]) * b[ 6]
-                 + ((sp_uint128)a[ 6]) * b[ 5]
-                 + ((sp_uint128)a[ 7]) * b[ 4]
-                 + ((sp_uint128)a[ 8]) * b[ 3];
-    sp_uint128 t12  = ((sp_uint128)a[ 4]) * b[ 8]
-                 + ((sp_uint128)a[ 5]) * b[ 7]
-                 + ((sp_uint128)a[ 6]) * b[ 6]
-                 + ((sp_uint128)a[ 7]) * b[ 5]
-                 + ((sp_uint128)a[ 8]) * b[ 4];
-    sp_uint128 t13  = ((sp_uint128)a[ 5]) * b[ 8]
-                 + ((sp_uint128)a[ 6]) * b[ 7]
-                 + ((sp_uint128)a[ 7]) * b[ 6]
-                 + ((sp_uint128)a[ 8]) * b[ 5];
-    sp_uint128 t14  = ((sp_uint128)a[ 6]) * b[ 8]
-                 + ((sp_uint128)a[ 7]) * b[ 7]
-                 + ((sp_uint128)a[ 8]) * b[ 6];
-    sp_uint128 t15  = ((sp_uint128)a[ 7]) * b[ 8]
-                 + ((sp_uint128)a[ 8]) * b[ 7];
-    sp_uint128 t16  = ((sp_uint128)a[ 8]) * b[ 8];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 = ((sp_uint128)a[ 0]) * b[ 0];
+    t1 = ((sp_uint128)a[ 0]) * b[ 1]
+       + ((sp_uint128)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 2]
+       + ((sp_uint128)a[ 1]) * b[ 1]
+       + ((sp_uint128)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 3]
+       + ((sp_uint128)a[ 1]) * b[ 2]
+       + ((sp_uint128)a[ 2]) * b[ 1]
+       + ((sp_uint128)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 4]
+       + ((sp_uint128)a[ 1]) * b[ 3]
+       + ((sp_uint128)a[ 2]) * b[ 2]
+       + ((sp_uint128)a[ 3]) * b[ 1]
+       + ((sp_uint128)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 5]
+       + ((sp_uint128)a[ 1]) * b[ 4]
+       + ((sp_uint128)a[ 2]) * b[ 3]
+       + ((sp_uint128)a[ 3]) * b[ 2]
+       + ((sp_uint128)a[ 4]) * b[ 1]
+       + ((sp_uint128)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 6]
+       + ((sp_uint128)a[ 1]) * b[ 5]
+       + ((sp_uint128)a[ 2]) * b[ 4]
+       + ((sp_uint128)a[ 3]) * b[ 3]
+       + ((sp_uint128)a[ 4]) * b[ 2]
+       + ((sp_uint128)a[ 5]) * b[ 1]
+       + ((sp_uint128)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 0]) * b[ 7]
+       + ((sp_uint128)a[ 1]) * b[ 6]
+       + ((sp_uint128)a[ 2]) * b[ 5]
+       + ((sp_uint128)a[ 3]) * b[ 4]
+       + ((sp_uint128)a[ 4]) * b[ 3]
+       + ((sp_uint128)a[ 5]) * b[ 2]
+       + ((sp_uint128)a[ 6]) * b[ 1]
+       + ((sp_uint128)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 0]) * b[ 8]
+       + ((sp_uint128)a[ 1]) * b[ 7]
+       + ((sp_uint128)a[ 2]) * b[ 6]
+       + ((sp_uint128)a[ 3]) * b[ 5]
+       + ((sp_uint128)a[ 4]) * b[ 4]
+       + ((sp_uint128)a[ 5]) * b[ 3]
+       + ((sp_uint128)a[ 6]) * b[ 2]
+       + ((sp_uint128)a[ 7]) * b[ 1]
+       + ((sp_uint128)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 1]) * b[ 8]
+       + ((sp_uint128)a[ 2]) * b[ 7]
+       + ((sp_uint128)a[ 3]) * b[ 6]
+       + ((sp_uint128)a[ 4]) * b[ 5]
+       + ((sp_uint128)a[ 5]) * b[ 4]
+       + ((sp_uint128)a[ 6]) * b[ 3]
+       + ((sp_uint128)a[ 7]) * b[ 2]
+       + ((sp_uint128)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 2]) * b[ 8]
+       + ((sp_uint128)a[ 3]) * b[ 7]
+       + ((sp_uint128)a[ 4]) * b[ 6]
+       + ((sp_uint128)a[ 5]) * b[ 5]
+       + ((sp_uint128)a[ 6]) * b[ 4]
+       + ((sp_uint128)a[ 7]) * b[ 3]
+       + ((sp_uint128)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 3]) * b[ 8]
+       + ((sp_uint128)a[ 4]) * b[ 7]
+       + ((sp_uint128)a[ 5]) * b[ 6]
+       + ((sp_uint128)a[ 6]) * b[ 5]
+       + ((sp_uint128)a[ 7]) * b[ 4]
+       + ((sp_uint128)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 4]) * b[ 8]
+       + ((sp_uint128)a[ 5]) * b[ 7]
+       + ((sp_uint128)a[ 6]) * b[ 6]
+       + ((sp_uint128)a[ 7]) * b[ 5]
+       + ((sp_uint128)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 5]) * b[ 8]
+       + ((sp_uint128)a[ 6]) * b[ 7]
+       + ((sp_uint128)a[ 7]) * b[ 6]
+       + ((sp_uint128)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 6]) * b[ 8]
+       + ((sp_uint128)a[ 7]) * b[ 7]
+       + ((sp_uint128)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_uint128)a[ 7]) * b[ 8]
+       + ((sp_uint128)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_uint128)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -10816,70 +10828,74 @@ SP_NOINLINE static void sp_3072_mul_54(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_uint128 t0   =  ((sp_uint128)a[ 0]) * a[ 0];
-    sp_uint128 t1   = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
-    sp_uint128 t2   = (((sp_uint128)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint128)a[ 1]) * a[ 1];
-    sp_uint128 t3   = (((sp_uint128)a[ 0]) * a[ 3]
-                 +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
-    sp_uint128 t4   = (((sp_uint128)a[ 0]) * a[ 4]
-                 +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint128)a[ 2]) * a[ 2];
-    sp_uint128 t5   = (((sp_uint128)a[ 0]) * a[ 5]
-                 +  ((sp_uint128)a[ 1]) * a[ 4]
-                 +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
-    sp_uint128 t6   = (((sp_uint128)a[ 0]) * a[ 6]
-                 +  ((sp_uint128)a[ 1]) * a[ 5]
-                 +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint128)a[ 3]) * a[ 3];
-    sp_uint128 t7   = (((sp_uint128)a[ 0]) * a[ 7]
-                 +  ((sp_uint128)a[ 1]) * a[ 6]
-                 +  ((sp_uint128)a[ 2]) * a[ 5]
-                 +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
-    sp_uint128 t8   = (((sp_uint128)a[ 0]) * a[ 8]
-                 +  ((sp_uint128)a[ 1]) * a[ 7]
-                 +  ((sp_uint128)a[ 2]) * a[ 6]
-                 +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint128)a[ 4]) * a[ 4];
-    sp_uint128 t9   = (((sp_uint128)a[ 1]) * a[ 8]
-                 +  ((sp_uint128)a[ 2]) * a[ 7]
-                 +  ((sp_uint128)a[ 3]) * a[ 6]
-                 +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
-    sp_uint128 t10  = (((sp_uint128)a[ 2]) * a[ 8]
-                 +  ((sp_uint128)a[ 3]) * a[ 7]
-                 +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint128)a[ 5]) * a[ 5];
-    sp_uint128 t11  = (((sp_uint128)a[ 3]) * a[ 8]
-                 +  ((sp_uint128)a[ 4]) * a[ 7]
-                 +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
-    sp_uint128 t12  = (((sp_uint128)a[ 4]) * a[ 8]
-                 +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint128)a[ 6]) * a[ 6];
-    sp_uint128 t13  = (((sp_uint128)a[ 5]) * a[ 8]
-                 +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
-    sp_uint128 t14  = (((sp_uint128)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint128)a[ 7]) * a[ 7];
-    sp_uint128 t15  = (((sp_uint128)a[ 7]) * a[ 8]) * 2;
-    sp_uint128 t16  =  ((sp_uint128)a[ 8]) * a[ 8];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 =  ((sp_uint128)a[ 0]) * a[ 0];
+    t1 = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint128)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 3]
+       +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 4]
+       +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint128)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 5]
+       +  ((sp_uint128)a[ 1]) * a[ 4]
+       +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 6]
+       +  ((sp_uint128)a[ 1]) * a[ 5]
+       +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint128)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 0]) * a[ 7]
+       +  ((sp_uint128)a[ 1]) * a[ 6]
+       +  ((sp_uint128)a[ 2]) * a[ 5]
+       +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 0]) * a[ 8]
+       +  ((sp_uint128)a[ 1]) * a[ 7]
+       +  ((sp_uint128)a[ 2]) * a[ 6]
+       +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint128)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 1]) * a[ 8]
+       +  ((sp_uint128)a[ 2]) * a[ 7]
+       +  ((sp_uint128)a[ 3]) * a[ 6]
+       +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 2]) * a[ 8]
+       +  ((sp_uint128)a[ 3]) * a[ 7]
+       +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint128)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 3]) * a[ 8]
+       +  ((sp_uint128)a[ 4]) * a[ 7]
+       +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 4]) * a[ 8]
+       +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint128)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 5]) * a[ 8]
+       +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_uint128)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint128)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_uint128)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 =  ((sp_uint128)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a into r. (r = a * a)
@@ -17392,202 +17408,206 @@ static void sp_4096_norm_78(sp_digit* a)
 SP_NOINLINE static void sp_4096_mul_13(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint128 t0   = ((sp_uint128)a[ 0]) * b[ 0];
-    sp_uint128 t1   = ((sp_uint128)a[ 0]) * b[ 1]
-                 + ((sp_uint128)a[ 1]) * b[ 0];
-    sp_uint128 t2   = ((sp_uint128)a[ 0]) * b[ 2]
-                 + ((sp_uint128)a[ 1]) * b[ 1]
-                 + ((sp_uint128)a[ 2]) * b[ 0];
-    sp_uint128 t3   = ((sp_uint128)a[ 0]) * b[ 3]
-                 + ((sp_uint128)a[ 1]) * b[ 2]
-                 + ((sp_uint128)a[ 2]) * b[ 1]
-                 + ((sp_uint128)a[ 3]) * b[ 0];
-    sp_uint128 t4   = ((sp_uint128)a[ 0]) * b[ 4]
-                 + ((sp_uint128)a[ 1]) * b[ 3]
-                 + ((sp_uint128)a[ 2]) * b[ 2]
-                 + ((sp_uint128)a[ 3]) * b[ 1]
-                 + ((sp_uint128)a[ 4]) * b[ 0];
-    sp_uint128 t5   = ((sp_uint128)a[ 0]) * b[ 5]
-                 + ((sp_uint128)a[ 1]) * b[ 4]
-                 + ((sp_uint128)a[ 2]) * b[ 3]
-                 + ((sp_uint128)a[ 3]) * b[ 2]
-                 + ((sp_uint128)a[ 4]) * b[ 1]
-                 + ((sp_uint128)a[ 5]) * b[ 0];
-    sp_uint128 t6   = ((sp_uint128)a[ 0]) * b[ 6]
-                 + ((sp_uint128)a[ 1]) * b[ 5]
-                 + ((sp_uint128)a[ 2]) * b[ 4]
-                 + ((sp_uint128)a[ 3]) * b[ 3]
-                 + ((sp_uint128)a[ 4]) * b[ 2]
-                 + ((sp_uint128)a[ 5]) * b[ 1]
-                 + ((sp_uint128)a[ 6]) * b[ 0];
-    sp_uint128 t7   = ((sp_uint128)a[ 0]) * b[ 7]
-                 + ((sp_uint128)a[ 1]) * b[ 6]
-                 + ((sp_uint128)a[ 2]) * b[ 5]
-                 + ((sp_uint128)a[ 3]) * b[ 4]
-                 + ((sp_uint128)a[ 4]) * b[ 3]
-                 + ((sp_uint128)a[ 5]) * b[ 2]
-                 + ((sp_uint128)a[ 6]) * b[ 1]
-                 + ((sp_uint128)a[ 7]) * b[ 0];
-    sp_uint128 t8   = ((sp_uint128)a[ 0]) * b[ 8]
-                 + ((sp_uint128)a[ 1]) * b[ 7]
-                 + ((sp_uint128)a[ 2]) * b[ 6]
-                 + ((sp_uint128)a[ 3]) * b[ 5]
-                 + ((sp_uint128)a[ 4]) * b[ 4]
-                 + ((sp_uint128)a[ 5]) * b[ 3]
-                 + ((sp_uint128)a[ 6]) * b[ 2]
-                 + ((sp_uint128)a[ 7]) * b[ 1]
-                 + ((sp_uint128)a[ 8]) * b[ 0];
-    sp_uint128 t9   = ((sp_uint128)a[ 0]) * b[ 9]
-                 + ((sp_uint128)a[ 1]) * b[ 8]
-                 + ((sp_uint128)a[ 2]) * b[ 7]
-                 + ((sp_uint128)a[ 3]) * b[ 6]
-                 + ((sp_uint128)a[ 4]) * b[ 5]
-                 + ((sp_uint128)a[ 5]) * b[ 4]
-                 + ((sp_uint128)a[ 6]) * b[ 3]
-                 + ((sp_uint128)a[ 7]) * b[ 2]
-                 + ((sp_uint128)a[ 8]) * b[ 1]
-                 + ((sp_uint128)a[ 9]) * b[ 0];
-    sp_uint128 t10  = ((sp_uint128)a[ 0]) * b[10]
-                 + ((sp_uint128)a[ 1]) * b[ 9]
-                 + ((sp_uint128)a[ 2]) * b[ 8]
-                 + ((sp_uint128)a[ 3]) * b[ 7]
-                 + ((sp_uint128)a[ 4]) * b[ 6]
-                 + ((sp_uint128)a[ 5]) * b[ 5]
-                 + ((sp_uint128)a[ 6]) * b[ 4]
-                 + ((sp_uint128)a[ 7]) * b[ 3]
-                 + ((sp_uint128)a[ 8]) * b[ 2]
-                 + ((sp_uint128)a[ 9]) * b[ 1]
-                 + ((sp_uint128)a[10]) * b[ 0];
-    sp_uint128 t11  = ((sp_uint128)a[ 0]) * b[11]
-                 + ((sp_uint128)a[ 1]) * b[10]
-                 + ((sp_uint128)a[ 2]) * b[ 9]
-                 + ((sp_uint128)a[ 3]) * b[ 8]
-                 + ((sp_uint128)a[ 4]) * b[ 7]
-                 + ((sp_uint128)a[ 5]) * b[ 6]
-                 + ((sp_uint128)a[ 6]) * b[ 5]
-                 + ((sp_uint128)a[ 7]) * b[ 4]
-                 + ((sp_uint128)a[ 8]) * b[ 3]
-                 + ((sp_uint128)a[ 9]) * b[ 2]
-                 + ((sp_uint128)a[10]) * b[ 1]
-                 + ((sp_uint128)a[11]) * b[ 0];
-    sp_uint128 t12  = ((sp_uint128)a[ 0]) * b[12]
-                 + ((sp_uint128)a[ 1]) * b[11]
-                 + ((sp_uint128)a[ 2]) * b[10]
-                 + ((sp_uint128)a[ 3]) * b[ 9]
-                 + ((sp_uint128)a[ 4]) * b[ 8]
-                 + ((sp_uint128)a[ 5]) * b[ 7]
-                 + ((sp_uint128)a[ 6]) * b[ 6]
-                 + ((sp_uint128)a[ 7]) * b[ 5]
-                 + ((sp_uint128)a[ 8]) * b[ 4]
-                 + ((sp_uint128)a[ 9]) * b[ 3]
-                 + ((sp_uint128)a[10]) * b[ 2]
-                 + ((sp_uint128)a[11]) * b[ 1]
-                 + ((sp_uint128)a[12]) * b[ 0];
-    sp_uint128 t13  = ((sp_uint128)a[ 1]) * b[12]
-                 + ((sp_uint128)a[ 2]) * b[11]
-                 + ((sp_uint128)a[ 3]) * b[10]
-                 + ((sp_uint128)a[ 4]) * b[ 9]
-                 + ((sp_uint128)a[ 5]) * b[ 8]
-                 + ((sp_uint128)a[ 6]) * b[ 7]
-                 + ((sp_uint128)a[ 7]) * b[ 6]
-                 + ((sp_uint128)a[ 8]) * b[ 5]
-                 + ((sp_uint128)a[ 9]) * b[ 4]
-                 + ((sp_uint128)a[10]) * b[ 3]
-                 + ((sp_uint128)a[11]) * b[ 2]
-                 + ((sp_uint128)a[12]) * b[ 1];
-    sp_uint128 t14  = ((sp_uint128)a[ 2]) * b[12]
-                 + ((sp_uint128)a[ 3]) * b[11]
-                 + ((sp_uint128)a[ 4]) * b[10]
-                 + ((sp_uint128)a[ 5]) * b[ 9]
-                 + ((sp_uint128)a[ 6]) * b[ 8]
-                 + ((sp_uint128)a[ 7]) * b[ 7]
-                 + ((sp_uint128)a[ 8]) * b[ 6]
-                 + ((sp_uint128)a[ 9]) * b[ 5]
-                 + ((sp_uint128)a[10]) * b[ 4]
-                 + ((sp_uint128)a[11]) * b[ 3]
-                 + ((sp_uint128)a[12]) * b[ 2];
-    sp_uint128 t15  = ((sp_uint128)a[ 3]) * b[12]
-                 + ((sp_uint128)a[ 4]) * b[11]
-                 + ((sp_uint128)a[ 5]) * b[10]
-                 + ((sp_uint128)a[ 6]) * b[ 9]
-                 + ((sp_uint128)a[ 7]) * b[ 8]
-                 + ((sp_uint128)a[ 8]) * b[ 7]
-                 + ((sp_uint128)a[ 9]) * b[ 6]
-                 + ((sp_uint128)a[10]) * b[ 5]
-                 + ((sp_uint128)a[11]) * b[ 4]
-                 + ((sp_uint128)a[12]) * b[ 3];
-    sp_uint128 t16  = ((sp_uint128)a[ 4]) * b[12]
-                 + ((sp_uint128)a[ 5]) * b[11]
-                 + ((sp_uint128)a[ 6]) * b[10]
-                 + ((sp_uint128)a[ 7]) * b[ 9]
-                 + ((sp_uint128)a[ 8]) * b[ 8]
-                 + ((sp_uint128)a[ 9]) * b[ 7]
-                 + ((sp_uint128)a[10]) * b[ 6]
-                 + ((sp_uint128)a[11]) * b[ 5]
-                 + ((sp_uint128)a[12]) * b[ 4];
-    sp_uint128 t17  = ((sp_uint128)a[ 5]) * b[12]
-                 + ((sp_uint128)a[ 6]) * b[11]
-                 + ((sp_uint128)a[ 7]) * b[10]
-                 + ((sp_uint128)a[ 8]) * b[ 9]
-                 + ((sp_uint128)a[ 9]) * b[ 8]
-                 + ((sp_uint128)a[10]) * b[ 7]
-                 + ((sp_uint128)a[11]) * b[ 6]
-                 + ((sp_uint128)a[12]) * b[ 5];
-    sp_uint128 t18  = ((sp_uint128)a[ 6]) * b[12]
-                 + ((sp_uint128)a[ 7]) * b[11]
-                 + ((sp_uint128)a[ 8]) * b[10]
-                 + ((sp_uint128)a[ 9]) * b[ 9]
-                 + ((sp_uint128)a[10]) * b[ 8]
-                 + ((sp_uint128)a[11]) * b[ 7]
-                 + ((sp_uint128)a[12]) * b[ 6];
-    sp_uint128 t19  = ((sp_uint128)a[ 7]) * b[12]
-                 + ((sp_uint128)a[ 8]) * b[11]
-                 + ((sp_uint128)a[ 9]) * b[10]
-                 + ((sp_uint128)a[10]) * b[ 9]
-                 + ((sp_uint128)a[11]) * b[ 8]
-                 + ((sp_uint128)a[12]) * b[ 7];
-    sp_uint128 t20  = ((sp_uint128)a[ 8]) * b[12]
-                 + ((sp_uint128)a[ 9]) * b[11]
-                 + ((sp_uint128)a[10]) * b[10]
-                 + ((sp_uint128)a[11]) * b[ 9]
-                 + ((sp_uint128)a[12]) * b[ 8];
-    sp_uint128 t21  = ((sp_uint128)a[ 9]) * b[12]
-                 + ((sp_uint128)a[10]) * b[11]
-                 + ((sp_uint128)a[11]) * b[10]
-                 + ((sp_uint128)a[12]) * b[ 9];
-    sp_uint128 t22  = ((sp_uint128)a[10]) * b[12]
-                 + ((sp_uint128)a[11]) * b[11]
-                 + ((sp_uint128)a[12]) * b[10];
-    sp_uint128 t23  = ((sp_uint128)a[11]) * b[12]
-                 + ((sp_uint128)a[12]) * b[11];
-    sp_uint128 t24  = ((sp_uint128)a[12]) * b[12];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[13];
 
-    t1   += t0  >> 53; r[ 0] = t0  & 0x1fffffffffffffL;
-    t2   += t1  >> 53; r[ 1] = t1  & 0x1fffffffffffffL;
-    t3   += t2  >> 53; r[ 2] = t2  & 0x1fffffffffffffL;
-    t4   += t3  >> 53; r[ 3] = t3  & 0x1fffffffffffffL;
-    t5   += t4  >> 53; r[ 4] = t4  & 0x1fffffffffffffL;
-    t6   += t5  >> 53; r[ 5] = t5  & 0x1fffffffffffffL;
-    t7   += t6  >> 53; r[ 6] = t6  & 0x1fffffffffffffL;
-    t8   += t7  >> 53; r[ 7] = t7  & 0x1fffffffffffffL;
-    t9   += t8  >> 53; r[ 8] = t8  & 0x1fffffffffffffL;
-    t10  += t9  >> 53; r[ 9] = t9  & 0x1fffffffffffffL;
-    t11  += t10 >> 53; r[10] = t10 & 0x1fffffffffffffL;
-    t12  += t11 >> 53; r[11] = t11 & 0x1fffffffffffffL;
-    t13  += t12 >> 53; r[12] = t12 & 0x1fffffffffffffL;
-    t14  += t13 >> 53; r[13] = t13 & 0x1fffffffffffffL;
-    t15  += t14 >> 53; r[14] = t14 & 0x1fffffffffffffL;
-    t16  += t15 >> 53; r[15] = t15 & 0x1fffffffffffffL;
-    t17  += t16 >> 53; r[16] = t16 & 0x1fffffffffffffL;
-    t18  += t17 >> 53; r[17] = t17 & 0x1fffffffffffffL;
-    t19  += t18 >> 53; r[18] = t18 & 0x1fffffffffffffL;
-    t20  += t19 >> 53; r[19] = t19 & 0x1fffffffffffffL;
-    t21  += t20 >> 53; r[20] = t20 & 0x1fffffffffffffL;
-    t22  += t21 >> 53; r[21] = t21 & 0x1fffffffffffffL;
-    t23  += t22 >> 53; r[22] = t22 & 0x1fffffffffffffL;
-    t24  += t23 >> 53; r[23] = t23 & 0x1fffffffffffffL;
-    r[25] = (sp_digit)(t24 >> 53);
-                       r[24] = t24 & 0x1fffffffffffffL;
+    t0 = ((sp_uint128)a[ 0]) * b[ 0];
+    t1 = ((sp_uint128)a[ 0]) * b[ 1]
+       + ((sp_uint128)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[ 2]
+       + ((sp_uint128)a[ 1]) * b[ 1]
+       + ((sp_uint128)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 0]) * b[ 3]
+       + ((sp_uint128)a[ 1]) * b[ 2]
+       + ((sp_uint128)a[ 2]) * b[ 1]
+       + ((sp_uint128)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[ 4]
+       + ((sp_uint128)a[ 1]) * b[ 3]
+       + ((sp_uint128)a[ 2]) * b[ 2]
+       + ((sp_uint128)a[ 3]) * b[ 1]
+       + ((sp_uint128)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 0]) * b[ 5]
+       + ((sp_uint128)a[ 1]) * b[ 4]
+       + ((sp_uint128)a[ 2]) * b[ 3]
+       + ((sp_uint128)a[ 3]) * b[ 2]
+       + ((sp_uint128)a[ 4]) * b[ 1]
+       + ((sp_uint128)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[ 6]
+       + ((sp_uint128)a[ 1]) * b[ 5]
+       + ((sp_uint128)a[ 2]) * b[ 4]
+       + ((sp_uint128)a[ 3]) * b[ 3]
+       + ((sp_uint128)a[ 4]) * b[ 2]
+       + ((sp_uint128)a[ 5]) * b[ 1]
+       + ((sp_uint128)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 0]) * b[ 7]
+       + ((sp_uint128)a[ 1]) * b[ 6]
+       + ((sp_uint128)a[ 2]) * b[ 5]
+       + ((sp_uint128)a[ 3]) * b[ 4]
+       + ((sp_uint128)a[ 4]) * b[ 3]
+       + ((sp_uint128)a[ 5]) * b[ 2]
+       + ((sp_uint128)a[ 6]) * b[ 1]
+       + ((sp_uint128)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[ 8]
+       + ((sp_uint128)a[ 1]) * b[ 7]
+       + ((sp_uint128)a[ 2]) * b[ 6]
+       + ((sp_uint128)a[ 3]) * b[ 5]
+       + ((sp_uint128)a[ 4]) * b[ 4]
+       + ((sp_uint128)a[ 5]) * b[ 3]
+       + ((sp_uint128)a[ 6]) * b[ 2]
+       + ((sp_uint128)a[ 7]) * b[ 1]
+       + ((sp_uint128)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 0]) * b[ 9]
+       + ((sp_uint128)a[ 1]) * b[ 8]
+       + ((sp_uint128)a[ 2]) * b[ 7]
+       + ((sp_uint128)a[ 3]) * b[ 6]
+       + ((sp_uint128)a[ 4]) * b[ 5]
+       + ((sp_uint128)a[ 5]) * b[ 4]
+       + ((sp_uint128)a[ 6]) * b[ 3]
+       + ((sp_uint128)a[ 7]) * b[ 2]
+       + ((sp_uint128)a[ 8]) * b[ 1]
+       + ((sp_uint128)a[ 9]) * b[ 0];
+    t[ 8] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[10]
+       + ((sp_uint128)a[ 1]) * b[ 9]
+       + ((sp_uint128)a[ 2]) * b[ 8]
+       + ((sp_uint128)a[ 3]) * b[ 7]
+       + ((sp_uint128)a[ 4]) * b[ 6]
+       + ((sp_uint128)a[ 5]) * b[ 5]
+       + ((sp_uint128)a[ 6]) * b[ 4]
+       + ((sp_uint128)a[ 7]) * b[ 3]
+       + ((sp_uint128)a[ 8]) * b[ 2]
+       + ((sp_uint128)a[ 9]) * b[ 1]
+       + ((sp_uint128)a[10]) * b[ 0];
+    t[ 9] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 0]) * b[11]
+       + ((sp_uint128)a[ 1]) * b[10]
+       + ((sp_uint128)a[ 2]) * b[ 9]
+       + ((sp_uint128)a[ 3]) * b[ 8]
+       + ((sp_uint128)a[ 4]) * b[ 7]
+       + ((sp_uint128)a[ 5]) * b[ 6]
+       + ((sp_uint128)a[ 6]) * b[ 5]
+       + ((sp_uint128)a[ 7]) * b[ 4]
+       + ((sp_uint128)a[ 8]) * b[ 3]
+       + ((sp_uint128)a[ 9]) * b[ 2]
+       + ((sp_uint128)a[10]) * b[ 1]
+       + ((sp_uint128)a[11]) * b[ 0];
+    t[10] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 0]) * b[12]
+       + ((sp_uint128)a[ 1]) * b[11]
+       + ((sp_uint128)a[ 2]) * b[10]
+       + ((sp_uint128)a[ 3]) * b[ 9]
+       + ((sp_uint128)a[ 4]) * b[ 8]
+       + ((sp_uint128)a[ 5]) * b[ 7]
+       + ((sp_uint128)a[ 6]) * b[ 6]
+       + ((sp_uint128)a[ 7]) * b[ 5]
+       + ((sp_uint128)a[ 8]) * b[ 4]
+       + ((sp_uint128)a[ 9]) * b[ 3]
+       + ((sp_uint128)a[10]) * b[ 2]
+       + ((sp_uint128)a[11]) * b[ 1]
+       + ((sp_uint128)a[12]) * b[ 0];
+    t[11] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 1]) * b[12]
+       + ((sp_uint128)a[ 2]) * b[11]
+       + ((sp_uint128)a[ 3]) * b[10]
+       + ((sp_uint128)a[ 4]) * b[ 9]
+       + ((sp_uint128)a[ 5]) * b[ 8]
+       + ((sp_uint128)a[ 6]) * b[ 7]
+       + ((sp_uint128)a[ 7]) * b[ 6]
+       + ((sp_uint128)a[ 8]) * b[ 5]
+       + ((sp_uint128)a[ 9]) * b[ 4]
+       + ((sp_uint128)a[10]) * b[ 3]
+       + ((sp_uint128)a[11]) * b[ 2]
+       + ((sp_uint128)a[12]) * b[ 1];
+    t[12] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 2]) * b[12]
+       + ((sp_uint128)a[ 3]) * b[11]
+       + ((sp_uint128)a[ 4]) * b[10]
+       + ((sp_uint128)a[ 5]) * b[ 9]
+       + ((sp_uint128)a[ 6]) * b[ 8]
+       + ((sp_uint128)a[ 7]) * b[ 7]
+       + ((sp_uint128)a[ 8]) * b[ 6]
+       + ((sp_uint128)a[ 9]) * b[ 5]
+       + ((sp_uint128)a[10]) * b[ 4]
+       + ((sp_uint128)a[11]) * b[ 3]
+       + ((sp_uint128)a[12]) * b[ 2];
+    r[13] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 3]) * b[12]
+       + ((sp_uint128)a[ 4]) * b[11]
+       + ((sp_uint128)a[ 5]) * b[10]
+       + ((sp_uint128)a[ 6]) * b[ 9]
+       + ((sp_uint128)a[ 7]) * b[ 8]
+       + ((sp_uint128)a[ 8]) * b[ 7]
+       + ((sp_uint128)a[ 9]) * b[ 6]
+       + ((sp_uint128)a[10]) * b[ 5]
+       + ((sp_uint128)a[11]) * b[ 4]
+       + ((sp_uint128)a[12]) * b[ 3];
+    r[14] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 4]) * b[12]
+       + ((sp_uint128)a[ 5]) * b[11]
+       + ((sp_uint128)a[ 6]) * b[10]
+       + ((sp_uint128)a[ 7]) * b[ 9]
+       + ((sp_uint128)a[ 8]) * b[ 8]
+       + ((sp_uint128)a[ 9]) * b[ 7]
+       + ((sp_uint128)a[10]) * b[ 6]
+       + ((sp_uint128)a[11]) * b[ 5]
+       + ((sp_uint128)a[12]) * b[ 4];
+    r[15] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 5]) * b[12]
+       + ((sp_uint128)a[ 6]) * b[11]
+       + ((sp_uint128)a[ 7]) * b[10]
+       + ((sp_uint128)a[ 8]) * b[ 9]
+       + ((sp_uint128)a[ 9]) * b[ 8]
+       + ((sp_uint128)a[10]) * b[ 7]
+       + ((sp_uint128)a[11]) * b[ 6]
+       + ((sp_uint128)a[12]) * b[ 5];
+    r[16] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 6]) * b[12]
+       + ((sp_uint128)a[ 7]) * b[11]
+       + ((sp_uint128)a[ 8]) * b[10]
+       + ((sp_uint128)a[ 9]) * b[ 9]
+       + ((sp_uint128)a[10]) * b[ 8]
+       + ((sp_uint128)a[11]) * b[ 7]
+       + ((sp_uint128)a[12]) * b[ 6];
+    r[17] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 7]) * b[12]
+       + ((sp_uint128)a[ 8]) * b[11]
+       + ((sp_uint128)a[ 9]) * b[10]
+       + ((sp_uint128)a[10]) * b[ 9]
+       + ((sp_uint128)a[11]) * b[ 8]
+       + ((sp_uint128)a[12]) * b[ 7];
+    r[18] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[ 8]) * b[12]
+       + ((sp_uint128)a[ 9]) * b[11]
+       + ((sp_uint128)a[10]) * b[10]
+       + ((sp_uint128)a[11]) * b[ 9]
+       + ((sp_uint128)a[12]) * b[ 8];
+    r[19] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[ 9]) * b[12]
+       + ((sp_uint128)a[10]) * b[11]
+       + ((sp_uint128)a[11]) * b[10]
+       + ((sp_uint128)a[12]) * b[ 9];
+    r[20] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[10]) * b[12]
+       + ((sp_uint128)a[11]) * b[11]
+       + ((sp_uint128)a[12]) * b[10];
+    r[21] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = ((sp_uint128)a[11]) * b[12]
+       + ((sp_uint128)a[12]) * b[11];
+    r[22] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = ((sp_uint128)a[12]) * b[12];
+    r[23] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    r[24] = t0 & 0x1fffffffffffffL;
+    r[25] = t0 >> 53;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -17845,124 +17865,128 @@ SP_NOINLINE static void sp_4096_mul_78(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_4096_sqr_13(sp_digit* r, const sp_digit* a)
 {
-    sp_uint128 t0   =  ((sp_uint128)a[ 0]) * a[ 0];
-    sp_uint128 t1   = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
-    sp_uint128 t2   = (((sp_uint128)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint128)a[ 1]) * a[ 1];
-    sp_uint128 t3   = (((sp_uint128)a[ 0]) * a[ 3]
-                 +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
-    sp_uint128 t4   = (((sp_uint128)a[ 0]) * a[ 4]
-                 +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint128)a[ 2]) * a[ 2];
-    sp_uint128 t5   = (((sp_uint128)a[ 0]) * a[ 5]
-                 +  ((sp_uint128)a[ 1]) * a[ 4]
-                 +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
-    sp_uint128 t6   = (((sp_uint128)a[ 0]) * a[ 6]
-                 +  ((sp_uint128)a[ 1]) * a[ 5]
-                 +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint128)a[ 3]) * a[ 3];
-    sp_uint128 t7   = (((sp_uint128)a[ 0]) * a[ 7]
-                 +  ((sp_uint128)a[ 1]) * a[ 6]
-                 +  ((sp_uint128)a[ 2]) * a[ 5]
-                 +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
-    sp_uint128 t8   = (((sp_uint128)a[ 0]) * a[ 8]
-                 +  ((sp_uint128)a[ 1]) * a[ 7]
-                 +  ((sp_uint128)a[ 2]) * a[ 6]
-                 +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint128)a[ 4]) * a[ 4];
-    sp_uint128 t9   = (((sp_uint128)a[ 0]) * a[ 9]
-                 +  ((sp_uint128)a[ 1]) * a[ 8]
-                 +  ((sp_uint128)a[ 2]) * a[ 7]
-                 +  ((sp_uint128)a[ 3]) * a[ 6]
-                 +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
-    sp_uint128 t10  = (((sp_uint128)a[ 0]) * a[10]
-                 +  ((sp_uint128)a[ 1]) * a[ 9]
-                 +  ((sp_uint128)a[ 2]) * a[ 8]
-                 +  ((sp_uint128)a[ 3]) * a[ 7]
-                 +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint128)a[ 5]) * a[ 5];
-    sp_uint128 t11  = (((sp_uint128)a[ 0]) * a[11]
-                 +  ((sp_uint128)a[ 1]) * a[10]
-                 +  ((sp_uint128)a[ 2]) * a[ 9]
-                 +  ((sp_uint128)a[ 3]) * a[ 8]
-                 +  ((sp_uint128)a[ 4]) * a[ 7]
-                 +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
-    sp_uint128 t12  = (((sp_uint128)a[ 0]) * a[12]
-                 +  ((sp_uint128)a[ 1]) * a[11]
-                 +  ((sp_uint128)a[ 2]) * a[10]
-                 +  ((sp_uint128)a[ 3]) * a[ 9]
-                 +  ((sp_uint128)a[ 4]) * a[ 8]
-                 +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint128)a[ 6]) * a[ 6];
-    sp_uint128 t13  = (((sp_uint128)a[ 1]) * a[12]
-                 +  ((sp_uint128)a[ 2]) * a[11]
-                 +  ((sp_uint128)a[ 3]) * a[10]
-                 +  ((sp_uint128)a[ 4]) * a[ 9]
-                 +  ((sp_uint128)a[ 5]) * a[ 8]
-                 +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
-    sp_uint128 t14  = (((sp_uint128)a[ 2]) * a[12]
-                 +  ((sp_uint128)a[ 3]) * a[11]
-                 +  ((sp_uint128)a[ 4]) * a[10]
-                 +  ((sp_uint128)a[ 5]) * a[ 9]
-                 +  ((sp_uint128)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint128)a[ 7]) * a[ 7];
-    sp_uint128 t15  = (((sp_uint128)a[ 3]) * a[12]
-                 +  ((sp_uint128)a[ 4]) * a[11]
-                 +  ((sp_uint128)a[ 5]) * a[10]
-                 +  ((sp_uint128)a[ 6]) * a[ 9]
-                 +  ((sp_uint128)a[ 7]) * a[ 8]) * 2;
-    sp_uint128 t16  = (((sp_uint128)a[ 4]) * a[12]
-                 +  ((sp_uint128)a[ 5]) * a[11]
-                 +  ((sp_uint128)a[ 6]) * a[10]
-                 +  ((sp_uint128)a[ 7]) * a[ 9]) * 2
-                 +  ((sp_uint128)a[ 8]) * a[ 8];
-    sp_uint128 t17  = (((sp_uint128)a[ 5]) * a[12]
-                 +  ((sp_uint128)a[ 6]) * a[11]
-                 +  ((sp_uint128)a[ 7]) * a[10]
-                 +  ((sp_uint128)a[ 8]) * a[ 9]) * 2;
-    sp_uint128 t18  = (((sp_uint128)a[ 6]) * a[12]
-                 +  ((sp_uint128)a[ 7]) * a[11]
-                 +  ((sp_uint128)a[ 8]) * a[10]) * 2
-                 +  ((sp_uint128)a[ 9]) * a[ 9];
-    sp_uint128 t19  = (((sp_uint128)a[ 7]) * a[12]
-                 +  ((sp_uint128)a[ 8]) * a[11]
-                 +  ((sp_uint128)a[ 9]) * a[10]) * 2;
-    sp_uint128 t20  = (((sp_uint128)a[ 8]) * a[12]
-                 +  ((sp_uint128)a[ 9]) * a[11]) * 2
-                 +  ((sp_uint128)a[10]) * a[10];
-    sp_uint128 t21  = (((sp_uint128)a[ 9]) * a[12]
-                 +  ((sp_uint128)a[10]) * a[11]) * 2;
-    sp_uint128 t22  = (((sp_uint128)a[10]) * a[12]) * 2
-                 +  ((sp_uint128)a[11]) * a[11];
-    sp_uint128 t23  = (((sp_uint128)a[11]) * a[12]) * 2;
-    sp_uint128 t24  =  ((sp_uint128)a[12]) * a[12];
+    sp_uint128 t0;
+    sp_uint128 t1;
+    sp_digit t[13];
 
-    t1   += t0  >> 53; r[ 0] = t0  & 0x1fffffffffffffL;
-    t2   += t1  >> 53; r[ 1] = t1  & 0x1fffffffffffffL;
-    t3   += t2  >> 53; r[ 2] = t2  & 0x1fffffffffffffL;
-    t4   += t3  >> 53; r[ 3] = t3  & 0x1fffffffffffffL;
-    t5   += t4  >> 53; r[ 4] = t4  & 0x1fffffffffffffL;
-    t6   += t5  >> 53; r[ 5] = t5  & 0x1fffffffffffffL;
-    t7   += t6  >> 53; r[ 6] = t6  & 0x1fffffffffffffL;
-    t8   += t7  >> 53; r[ 7] = t7  & 0x1fffffffffffffL;
-    t9   += t8  >> 53; r[ 8] = t8  & 0x1fffffffffffffL;
-    t10  += t9  >> 53; r[ 9] = t9  & 0x1fffffffffffffL;
-    t11  += t10 >> 53; r[10] = t10 & 0x1fffffffffffffL;
-    t12  += t11 >> 53; r[11] = t11 & 0x1fffffffffffffL;
-    t13  += t12 >> 53; r[12] = t12 & 0x1fffffffffffffL;
-    t14  += t13 >> 53; r[13] = t13 & 0x1fffffffffffffL;
-    t15  += t14 >> 53; r[14] = t14 & 0x1fffffffffffffL;
-    t16  += t15 >> 53; r[15] = t15 & 0x1fffffffffffffL;
-    t17  += t16 >> 53; r[16] = t16 & 0x1fffffffffffffL;
-    t18  += t17 >> 53; r[17] = t17 & 0x1fffffffffffffL;
-    t19  += t18 >> 53; r[18] = t18 & 0x1fffffffffffffL;
-    t20  += t19 >> 53; r[19] = t19 & 0x1fffffffffffffL;
-    t21  += t20 >> 53; r[20] = t20 & 0x1fffffffffffffL;
-    t22  += t21 >> 53; r[21] = t21 & 0x1fffffffffffffL;
-    t23  += t22 >> 53; r[22] = t22 & 0x1fffffffffffffL;
-    t24  += t23 >> 53; r[23] = t23 & 0x1fffffffffffffL;
-    r[25] = (sp_digit)(t24 >> 53);
-                       r[24] = t24 & 0x1fffffffffffffL;
+    t0 =  ((sp_uint128)a[ 0]) * a[ 0];
+    t1 = (((sp_uint128)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint128)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 0]) * a[ 3]
+       +  ((sp_uint128)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[ 4]
+       +  ((sp_uint128)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint128)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 0]) * a[ 5]
+       +  ((sp_uint128)a[ 1]) * a[ 4]
+       +  ((sp_uint128)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[ 6]
+       +  ((sp_uint128)a[ 1]) * a[ 5]
+       +  ((sp_uint128)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint128)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 0]) * a[ 7]
+       +  ((sp_uint128)a[ 1]) * a[ 6]
+       +  ((sp_uint128)a[ 2]) * a[ 5]
+       +  ((sp_uint128)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[ 8]
+       +  ((sp_uint128)a[ 1]) * a[ 7]
+       +  ((sp_uint128)a[ 2]) * a[ 6]
+       +  ((sp_uint128)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint128)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 0]) * a[ 9]
+       +  ((sp_uint128)a[ 1]) * a[ 8]
+       +  ((sp_uint128)a[ 2]) * a[ 7]
+       +  ((sp_uint128)a[ 3]) * a[ 6]
+       +  ((sp_uint128)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[10]
+       +  ((sp_uint128)a[ 1]) * a[ 9]
+       +  ((sp_uint128)a[ 2]) * a[ 8]
+       +  ((sp_uint128)a[ 3]) * a[ 7]
+       +  ((sp_uint128)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint128)a[ 5]) * a[ 5];
+    t[ 9] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 0]) * a[11]
+       +  ((sp_uint128)a[ 1]) * a[10]
+       +  ((sp_uint128)a[ 2]) * a[ 9]
+       +  ((sp_uint128)a[ 3]) * a[ 8]
+       +  ((sp_uint128)a[ 4]) * a[ 7]
+       +  ((sp_uint128)a[ 5]) * a[ 6]) * 2;
+    t[10] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 0]) * a[12]
+       +  ((sp_uint128)a[ 1]) * a[11]
+       +  ((sp_uint128)a[ 2]) * a[10]
+       +  ((sp_uint128)a[ 3]) * a[ 9]
+       +  ((sp_uint128)a[ 4]) * a[ 8]
+       +  ((sp_uint128)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint128)a[ 6]) * a[ 6];
+    t[11] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 1]) * a[12]
+       +  ((sp_uint128)a[ 2]) * a[11]
+       +  ((sp_uint128)a[ 3]) * a[10]
+       +  ((sp_uint128)a[ 4]) * a[ 9]
+       +  ((sp_uint128)a[ 5]) * a[ 8]
+       +  ((sp_uint128)a[ 6]) * a[ 7]) * 2;
+    t[12] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 2]) * a[12]
+       +  ((sp_uint128)a[ 3]) * a[11]
+       +  ((sp_uint128)a[ 4]) * a[10]
+       +  ((sp_uint128)a[ 5]) * a[ 9]
+       +  ((sp_uint128)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint128)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 3]) * a[12]
+       +  ((sp_uint128)a[ 4]) * a[11]
+       +  ((sp_uint128)a[ 5]) * a[10]
+       +  ((sp_uint128)a[ 6]) * a[ 9]
+       +  ((sp_uint128)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 4]) * a[12]
+       +  ((sp_uint128)a[ 5]) * a[11]
+       +  ((sp_uint128)a[ 6]) * a[10]
+       +  ((sp_uint128)a[ 7]) * a[ 9]) * 2
+       +  ((sp_uint128)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 5]) * a[12]
+       +  ((sp_uint128)a[ 6]) * a[11]
+       +  ((sp_uint128)a[ 7]) * a[10]
+       +  ((sp_uint128)a[ 8]) * a[ 9]) * 2;
+    r[16] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 6]) * a[12]
+       +  ((sp_uint128)a[ 7]) * a[11]
+       +  ((sp_uint128)a[ 8]) * a[10]) * 2
+       +  ((sp_uint128)a[ 9]) * a[ 9];
+    r[17] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 7]) * a[12]
+       +  ((sp_uint128)a[ 8]) * a[11]
+       +  ((sp_uint128)a[ 9]) * a[10]) * 2;
+    r[18] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[ 8]) * a[12]
+       +  ((sp_uint128)a[ 9]) * a[11]) * 2
+       +  ((sp_uint128)a[10]) * a[10];
+    r[19] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[ 9]) * a[12]
+       +  ((sp_uint128)a[10]) * a[11]) * 2;
+    r[20] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 = (((sp_uint128)a[10]) * a[12]) * 2
+       +  ((sp_uint128)a[11]) * a[11];
+    r[21] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    t1 = (((sp_uint128)a[11]) * a[12]) * 2;
+    r[22] = t0 & 0x1fffffffffffffL; t1 += t0 >> 53;
+    t0 =  ((sp_uint128)a[12]) * a[12];
+    r[23] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
+    r[24] = t0 & 0x1fffffffffffffL;
+    r[25] = t0 >> 53;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a into r. (r = a * a)
@@ -35555,106 +35579,110 @@ SP_NOINLINE static void sp_521_mul_9(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static void sp_521_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_int128 t0   = ((sp_int128)a[ 0]) * b[ 0];
-    sp_int128 t1   = ((sp_int128)a[ 0]) * b[ 1]
-                 + ((sp_int128)a[ 1]) * b[ 0];
-    sp_int128 t2   = ((sp_int128)a[ 0]) * b[ 2]
-                 + ((sp_int128)a[ 1]) * b[ 1]
-                 + ((sp_int128)a[ 2]) * b[ 0];
-    sp_int128 t3   = ((sp_int128)a[ 0]) * b[ 3]
-                 + ((sp_int128)a[ 1]) * b[ 2]
-                 + ((sp_int128)a[ 2]) * b[ 1]
-                 + ((sp_int128)a[ 3]) * b[ 0];
-    sp_int128 t4   = ((sp_int128)a[ 0]) * b[ 4]
-                 + ((sp_int128)a[ 1]) * b[ 3]
-                 + ((sp_int128)a[ 2]) * b[ 2]
-                 + ((sp_int128)a[ 3]) * b[ 1]
-                 + ((sp_int128)a[ 4]) * b[ 0];
-    sp_int128 t5   = ((sp_int128)a[ 0]) * b[ 5]
-                 + ((sp_int128)a[ 1]) * b[ 4]
-                 + ((sp_int128)a[ 2]) * b[ 3]
-                 + ((sp_int128)a[ 3]) * b[ 2]
-                 + ((sp_int128)a[ 4]) * b[ 1]
-                 + ((sp_int128)a[ 5]) * b[ 0];
-    sp_int128 t6   = ((sp_int128)a[ 0]) * b[ 6]
-                 + ((sp_int128)a[ 1]) * b[ 5]
-                 + ((sp_int128)a[ 2]) * b[ 4]
-                 + ((sp_int128)a[ 3]) * b[ 3]
-                 + ((sp_int128)a[ 4]) * b[ 2]
-                 + ((sp_int128)a[ 5]) * b[ 1]
-                 + ((sp_int128)a[ 6]) * b[ 0];
-    sp_int128 t7   = ((sp_int128)a[ 0]) * b[ 7]
-                 + ((sp_int128)a[ 1]) * b[ 6]
-                 + ((sp_int128)a[ 2]) * b[ 5]
-                 + ((sp_int128)a[ 3]) * b[ 4]
-                 + ((sp_int128)a[ 4]) * b[ 3]
-                 + ((sp_int128)a[ 5]) * b[ 2]
-                 + ((sp_int128)a[ 6]) * b[ 1]
-                 + ((sp_int128)a[ 7]) * b[ 0];
-    sp_int128 t8   = ((sp_int128)a[ 0]) * b[ 8]
-                 + ((sp_int128)a[ 1]) * b[ 7]
-                 + ((sp_int128)a[ 2]) * b[ 6]
-                 + ((sp_int128)a[ 3]) * b[ 5]
-                 + ((sp_int128)a[ 4]) * b[ 4]
-                 + ((sp_int128)a[ 5]) * b[ 3]
-                 + ((sp_int128)a[ 6]) * b[ 2]
-                 + ((sp_int128)a[ 7]) * b[ 1]
-                 + ((sp_int128)a[ 8]) * b[ 0];
-    sp_int128 t9   = ((sp_int128)a[ 1]) * b[ 8]
-                 + ((sp_int128)a[ 2]) * b[ 7]
-                 + ((sp_int128)a[ 3]) * b[ 6]
-                 + ((sp_int128)a[ 4]) * b[ 5]
-                 + ((sp_int128)a[ 5]) * b[ 4]
-                 + ((sp_int128)a[ 6]) * b[ 3]
-                 + ((sp_int128)a[ 7]) * b[ 2]
-                 + ((sp_int128)a[ 8]) * b[ 1];
-    sp_int128 t10  = ((sp_int128)a[ 2]) * b[ 8]
-                 + ((sp_int128)a[ 3]) * b[ 7]
-                 + ((sp_int128)a[ 4]) * b[ 6]
-                 + ((sp_int128)a[ 5]) * b[ 5]
-                 + ((sp_int128)a[ 6]) * b[ 4]
-                 + ((sp_int128)a[ 7]) * b[ 3]
-                 + ((sp_int128)a[ 8]) * b[ 2];
-    sp_int128 t11  = ((sp_int128)a[ 3]) * b[ 8]
-                 + ((sp_int128)a[ 4]) * b[ 7]
-                 + ((sp_int128)a[ 5]) * b[ 6]
-                 + ((sp_int128)a[ 6]) * b[ 5]
-                 + ((sp_int128)a[ 7]) * b[ 4]
-                 + ((sp_int128)a[ 8]) * b[ 3];
-    sp_int128 t12  = ((sp_int128)a[ 4]) * b[ 8]
-                 + ((sp_int128)a[ 5]) * b[ 7]
-                 + ((sp_int128)a[ 6]) * b[ 6]
-                 + ((sp_int128)a[ 7]) * b[ 5]
-                 + ((sp_int128)a[ 8]) * b[ 4];
-    sp_int128 t13  = ((sp_int128)a[ 5]) * b[ 8]
-                 + ((sp_int128)a[ 6]) * b[ 7]
-                 + ((sp_int128)a[ 7]) * b[ 6]
-                 + ((sp_int128)a[ 8]) * b[ 5];
-    sp_int128 t14  = ((sp_int128)a[ 6]) * b[ 8]
-                 + ((sp_int128)a[ 7]) * b[ 7]
-                 + ((sp_int128)a[ 8]) * b[ 6];
-    sp_int128 t15  = ((sp_int128)a[ 7]) * b[ 8]
-                 + ((sp_int128)a[ 8]) * b[ 7];
-    sp_int128 t16  = ((sp_int128)a[ 8]) * b[ 8];
+    sp_int128 t0;
+    sp_int128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 58; r[ 0] = t0  & 0x3ffffffffffffffL;
-    t2   += t1  >> 58; r[ 1] = t1  & 0x3ffffffffffffffL;
-    t3   += t2  >> 58; r[ 2] = t2  & 0x3ffffffffffffffL;
-    t4   += t3  >> 58; r[ 3] = t3  & 0x3ffffffffffffffL;
-    t5   += t4  >> 58; r[ 4] = t4  & 0x3ffffffffffffffL;
-    t6   += t5  >> 58; r[ 5] = t5  & 0x3ffffffffffffffL;
-    t7   += t6  >> 58; r[ 6] = t6  & 0x3ffffffffffffffL;
-    t8   += t7  >> 58; r[ 7] = t7  & 0x3ffffffffffffffL;
-    t9   += t8  >> 58; r[ 8] = t8  & 0x3ffffffffffffffL;
-    t10  += t9  >> 58; r[ 9] = t9  & 0x3ffffffffffffffL;
-    t11  += t10 >> 58; r[10] = t10 & 0x3ffffffffffffffL;
-    t12  += t11 >> 58; r[11] = t11 & 0x3ffffffffffffffL;
-    t13  += t12 >> 58; r[12] = t12 & 0x3ffffffffffffffL;
-    t14  += t13 >> 58; r[13] = t13 & 0x3ffffffffffffffL;
-    t15  += t14 >> 58; r[14] = t14 & 0x3ffffffffffffffL;
-    t16  += t15 >> 58; r[15] = t15 & 0x3ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 58);
-                       r[16] = t16 & 0x3ffffffffffffffL;
+    t0 = ((sp_int128)a[ 0]) * b[ 0];
+    t1 = ((sp_int128)a[ 0]) * b[ 1]
+       + ((sp_int128)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 0]) * b[ 2]
+       + ((sp_int128)a[ 1]) * b[ 1]
+       + ((sp_int128)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 0]) * b[ 3]
+       + ((sp_int128)a[ 1]) * b[ 2]
+       + ((sp_int128)a[ 2]) * b[ 1]
+       + ((sp_int128)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 0]) * b[ 4]
+       + ((sp_int128)a[ 1]) * b[ 3]
+       + ((sp_int128)a[ 2]) * b[ 2]
+       + ((sp_int128)a[ 3]) * b[ 1]
+       + ((sp_int128)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 0]) * b[ 5]
+       + ((sp_int128)a[ 1]) * b[ 4]
+       + ((sp_int128)a[ 2]) * b[ 3]
+       + ((sp_int128)a[ 3]) * b[ 2]
+       + ((sp_int128)a[ 4]) * b[ 1]
+       + ((sp_int128)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 0]) * b[ 6]
+       + ((sp_int128)a[ 1]) * b[ 5]
+       + ((sp_int128)a[ 2]) * b[ 4]
+       + ((sp_int128)a[ 3]) * b[ 3]
+       + ((sp_int128)a[ 4]) * b[ 2]
+       + ((sp_int128)a[ 5]) * b[ 1]
+       + ((sp_int128)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 0]) * b[ 7]
+       + ((sp_int128)a[ 1]) * b[ 6]
+       + ((sp_int128)a[ 2]) * b[ 5]
+       + ((sp_int128)a[ 3]) * b[ 4]
+       + ((sp_int128)a[ 4]) * b[ 3]
+       + ((sp_int128)a[ 5]) * b[ 2]
+       + ((sp_int128)a[ 6]) * b[ 1]
+       + ((sp_int128)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 0]) * b[ 8]
+       + ((sp_int128)a[ 1]) * b[ 7]
+       + ((sp_int128)a[ 2]) * b[ 6]
+       + ((sp_int128)a[ 3]) * b[ 5]
+       + ((sp_int128)a[ 4]) * b[ 4]
+       + ((sp_int128)a[ 5]) * b[ 3]
+       + ((sp_int128)a[ 6]) * b[ 2]
+       + ((sp_int128)a[ 7]) * b[ 1]
+       + ((sp_int128)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 1]) * b[ 8]
+       + ((sp_int128)a[ 2]) * b[ 7]
+       + ((sp_int128)a[ 3]) * b[ 6]
+       + ((sp_int128)a[ 4]) * b[ 5]
+       + ((sp_int128)a[ 5]) * b[ 4]
+       + ((sp_int128)a[ 6]) * b[ 3]
+       + ((sp_int128)a[ 7]) * b[ 2]
+       + ((sp_int128)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 2]) * b[ 8]
+       + ((sp_int128)a[ 3]) * b[ 7]
+       + ((sp_int128)a[ 4]) * b[ 6]
+       + ((sp_int128)a[ 5]) * b[ 5]
+       + ((sp_int128)a[ 6]) * b[ 4]
+       + ((sp_int128)a[ 7]) * b[ 3]
+       + ((sp_int128)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 3]) * b[ 8]
+       + ((sp_int128)a[ 4]) * b[ 7]
+       + ((sp_int128)a[ 5]) * b[ 6]
+       + ((sp_int128)a[ 6]) * b[ 5]
+       + ((sp_int128)a[ 7]) * b[ 4]
+       + ((sp_int128)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 4]) * b[ 8]
+       + ((sp_int128)a[ 5]) * b[ 7]
+       + ((sp_int128)a[ 6]) * b[ 6]
+       + ((sp_int128)a[ 7]) * b[ 5]
+       + ((sp_int128)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 5]) * b[ 8]
+       + ((sp_int128)a[ 6]) * b[ 7]
+       + ((sp_int128)a[ 7]) * b[ 6]
+       + ((sp_int128)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 6]) * b[ 8]
+       + ((sp_int128)a[ 7]) * b[ 7]
+       + ((sp_int128)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = ((sp_int128)a[ 7]) * b[ 8]
+       + ((sp_int128)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = ((sp_int128)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    r[16] = t0 & 0x3ffffffffffffffL;
+    r[17] = t0 >> 58;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
@@ -35708,70 +35736,74 @@ SP_NOINLINE static void sp_521_sqr_9(sp_digit* r, const sp_digit* a)
  */
 SP_NOINLINE static void sp_521_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_int128 t0   =  ((sp_int128)a[ 0]) * a[ 0];
-    sp_int128 t1   = (((sp_int128)a[ 0]) * a[ 1]) * 2;
-    sp_int128 t2   = (((sp_int128)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_int128)a[ 1]) * a[ 1];
-    sp_int128 t3   = (((sp_int128)a[ 0]) * a[ 3]
-                 +  ((sp_int128)a[ 1]) * a[ 2]) * 2;
-    sp_int128 t4   = (((sp_int128)a[ 0]) * a[ 4]
-                 +  ((sp_int128)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_int128)a[ 2]) * a[ 2];
-    sp_int128 t5   = (((sp_int128)a[ 0]) * a[ 5]
-                 +  ((sp_int128)a[ 1]) * a[ 4]
-                 +  ((sp_int128)a[ 2]) * a[ 3]) * 2;
-    sp_int128 t6   = (((sp_int128)a[ 0]) * a[ 6]
-                 +  ((sp_int128)a[ 1]) * a[ 5]
-                 +  ((sp_int128)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_int128)a[ 3]) * a[ 3];
-    sp_int128 t7   = (((sp_int128)a[ 0]) * a[ 7]
-                 +  ((sp_int128)a[ 1]) * a[ 6]
-                 +  ((sp_int128)a[ 2]) * a[ 5]
-                 +  ((sp_int128)a[ 3]) * a[ 4]) * 2;
-    sp_int128 t8   = (((sp_int128)a[ 0]) * a[ 8]
-                 +  ((sp_int128)a[ 1]) * a[ 7]
-                 +  ((sp_int128)a[ 2]) * a[ 6]
-                 +  ((sp_int128)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_int128)a[ 4]) * a[ 4];
-    sp_int128 t9   = (((sp_int128)a[ 1]) * a[ 8]
-                 +  ((sp_int128)a[ 2]) * a[ 7]
-                 +  ((sp_int128)a[ 3]) * a[ 6]
-                 +  ((sp_int128)a[ 4]) * a[ 5]) * 2;
-    sp_int128 t10  = (((sp_int128)a[ 2]) * a[ 8]
-                 +  ((sp_int128)a[ 3]) * a[ 7]
-                 +  ((sp_int128)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_int128)a[ 5]) * a[ 5];
-    sp_int128 t11  = (((sp_int128)a[ 3]) * a[ 8]
-                 +  ((sp_int128)a[ 4]) * a[ 7]
-                 +  ((sp_int128)a[ 5]) * a[ 6]) * 2;
-    sp_int128 t12  = (((sp_int128)a[ 4]) * a[ 8]
-                 +  ((sp_int128)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_int128)a[ 6]) * a[ 6];
-    sp_int128 t13  = (((sp_int128)a[ 5]) * a[ 8]
-                 +  ((sp_int128)a[ 6]) * a[ 7]) * 2;
-    sp_int128 t14  = (((sp_int128)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_int128)a[ 7]) * a[ 7];
-    sp_int128 t15  = (((sp_int128)a[ 7]) * a[ 8]) * 2;
-    sp_int128 t16  =  ((sp_int128)a[ 8]) * a[ 8];
+    sp_int128 t0;
+    sp_int128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 58; r[ 0] = t0  & 0x3ffffffffffffffL;
-    t2   += t1  >> 58; r[ 1] = t1  & 0x3ffffffffffffffL;
-    t3   += t2  >> 58; r[ 2] = t2  & 0x3ffffffffffffffL;
-    t4   += t3  >> 58; r[ 3] = t3  & 0x3ffffffffffffffL;
-    t5   += t4  >> 58; r[ 4] = t4  & 0x3ffffffffffffffL;
-    t6   += t5  >> 58; r[ 5] = t5  & 0x3ffffffffffffffL;
-    t7   += t6  >> 58; r[ 6] = t6  & 0x3ffffffffffffffL;
-    t8   += t7  >> 58; r[ 7] = t7  & 0x3ffffffffffffffL;
-    t9   += t8  >> 58; r[ 8] = t8  & 0x3ffffffffffffffL;
-    t10  += t9  >> 58; r[ 9] = t9  & 0x3ffffffffffffffL;
-    t11  += t10 >> 58; r[10] = t10 & 0x3ffffffffffffffL;
-    t12  += t11 >> 58; r[11] = t11 & 0x3ffffffffffffffL;
-    t13  += t12 >> 58; r[12] = t12 & 0x3ffffffffffffffL;
-    t14  += t13 >> 58; r[13] = t13 & 0x3ffffffffffffffL;
-    t15  += t14 >> 58; r[14] = t14 & 0x3ffffffffffffffL;
-    t16  += t15 >> 58; r[15] = t15 & 0x3ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 58);
-                       r[16] = t16 & 0x3ffffffffffffffL;
+    t0 =  ((sp_int128)a[ 0]) * a[ 0];
+    t1 = (((sp_int128)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 0]) * a[ 2]) * 2
+       +  ((sp_int128)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 0]) * a[ 3]
+       +  ((sp_int128)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 0]) * a[ 4]
+       +  ((sp_int128)a[ 1]) * a[ 3]) * 2
+       +  ((sp_int128)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 0]) * a[ 5]
+       +  ((sp_int128)a[ 1]) * a[ 4]
+       +  ((sp_int128)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 0]) * a[ 6]
+       +  ((sp_int128)a[ 1]) * a[ 5]
+       +  ((sp_int128)a[ 2]) * a[ 4]) * 2
+       +  ((sp_int128)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 0]) * a[ 7]
+       +  ((sp_int128)a[ 1]) * a[ 6]
+       +  ((sp_int128)a[ 2]) * a[ 5]
+       +  ((sp_int128)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 0]) * a[ 8]
+       +  ((sp_int128)a[ 1]) * a[ 7]
+       +  ((sp_int128)a[ 2]) * a[ 6]
+       +  ((sp_int128)a[ 3]) * a[ 5]) * 2
+       +  ((sp_int128)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 1]) * a[ 8]
+       +  ((sp_int128)a[ 2]) * a[ 7]
+       +  ((sp_int128)a[ 3]) * a[ 6]
+       +  ((sp_int128)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 2]) * a[ 8]
+       +  ((sp_int128)a[ 3]) * a[ 7]
+       +  ((sp_int128)a[ 4]) * a[ 6]) * 2
+       +  ((sp_int128)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 3]) * a[ 8]
+       +  ((sp_int128)a[ 4]) * a[ 7]
+       +  ((sp_int128)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 4]) * a[ 8]
+       +  ((sp_int128)a[ 5]) * a[ 7]) * 2
+       +  ((sp_int128)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 5]) * a[ 8]
+       +  ((sp_int128)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 = (((sp_int128)a[ 6]) * a[ 8]) * 2
+       +  ((sp_int128)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    t1 = (((sp_int128)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x3ffffffffffffffL; t1 += t0 >> 58;
+    t0 =  ((sp_int128)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
+    r[16] = t0 & 0x3ffffffffffffffL;
+    r[17] = t0 >> 58;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
@@ -42853,106 +42885,110 @@ typedef struct sp_point_1024 {
 SP_NOINLINE static void sp_1024_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_int128 t0   = ((sp_int128)a[ 0]) * b[ 0];
-    sp_int128 t1   = ((sp_int128)a[ 0]) * b[ 1]
-                 + ((sp_int128)a[ 1]) * b[ 0];
-    sp_int128 t2   = ((sp_int128)a[ 0]) * b[ 2]
-                 + ((sp_int128)a[ 1]) * b[ 1]
-                 + ((sp_int128)a[ 2]) * b[ 0];
-    sp_int128 t3   = ((sp_int128)a[ 0]) * b[ 3]
-                 + ((sp_int128)a[ 1]) * b[ 2]
-                 + ((sp_int128)a[ 2]) * b[ 1]
-                 + ((sp_int128)a[ 3]) * b[ 0];
-    sp_int128 t4   = ((sp_int128)a[ 0]) * b[ 4]
-                 + ((sp_int128)a[ 1]) * b[ 3]
-                 + ((sp_int128)a[ 2]) * b[ 2]
-                 + ((sp_int128)a[ 3]) * b[ 1]
-                 + ((sp_int128)a[ 4]) * b[ 0];
-    sp_int128 t5   = ((sp_int128)a[ 0]) * b[ 5]
-                 + ((sp_int128)a[ 1]) * b[ 4]
-                 + ((sp_int128)a[ 2]) * b[ 3]
-                 + ((sp_int128)a[ 3]) * b[ 2]
-                 + ((sp_int128)a[ 4]) * b[ 1]
-                 + ((sp_int128)a[ 5]) * b[ 0];
-    sp_int128 t6   = ((sp_int128)a[ 0]) * b[ 6]
-                 + ((sp_int128)a[ 1]) * b[ 5]
-                 + ((sp_int128)a[ 2]) * b[ 4]
-                 + ((sp_int128)a[ 3]) * b[ 3]
-                 + ((sp_int128)a[ 4]) * b[ 2]
-                 + ((sp_int128)a[ 5]) * b[ 1]
-                 + ((sp_int128)a[ 6]) * b[ 0];
-    sp_int128 t7   = ((sp_int128)a[ 0]) * b[ 7]
-                 + ((sp_int128)a[ 1]) * b[ 6]
-                 + ((sp_int128)a[ 2]) * b[ 5]
-                 + ((sp_int128)a[ 3]) * b[ 4]
-                 + ((sp_int128)a[ 4]) * b[ 3]
-                 + ((sp_int128)a[ 5]) * b[ 2]
-                 + ((sp_int128)a[ 6]) * b[ 1]
-                 + ((sp_int128)a[ 7]) * b[ 0];
-    sp_int128 t8   = ((sp_int128)a[ 0]) * b[ 8]
-                 + ((sp_int128)a[ 1]) * b[ 7]
-                 + ((sp_int128)a[ 2]) * b[ 6]
-                 + ((sp_int128)a[ 3]) * b[ 5]
-                 + ((sp_int128)a[ 4]) * b[ 4]
-                 + ((sp_int128)a[ 5]) * b[ 3]
-                 + ((sp_int128)a[ 6]) * b[ 2]
-                 + ((sp_int128)a[ 7]) * b[ 1]
-                 + ((sp_int128)a[ 8]) * b[ 0];
-    sp_int128 t9   = ((sp_int128)a[ 1]) * b[ 8]
-                 + ((sp_int128)a[ 2]) * b[ 7]
-                 + ((sp_int128)a[ 3]) * b[ 6]
-                 + ((sp_int128)a[ 4]) * b[ 5]
-                 + ((sp_int128)a[ 5]) * b[ 4]
-                 + ((sp_int128)a[ 6]) * b[ 3]
-                 + ((sp_int128)a[ 7]) * b[ 2]
-                 + ((sp_int128)a[ 8]) * b[ 1];
-    sp_int128 t10  = ((sp_int128)a[ 2]) * b[ 8]
-                 + ((sp_int128)a[ 3]) * b[ 7]
-                 + ((sp_int128)a[ 4]) * b[ 6]
-                 + ((sp_int128)a[ 5]) * b[ 5]
-                 + ((sp_int128)a[ 6]) * b[ 4]
-                 + ((sp_int128)a[ 7]) * b[ 3]
-                 + ((sp_int128)a[ 8]) * b[ 2];
-    sp_int128 t11  = ((sp_int128)a[ 3]) * b[ 8]
-                 + ((sp_int128)a[ 4]) * b[ 7]
-                 + ((sp_int128)a[ 5]) * b[ 6]
-                 + ((sp_int128)a[ 6]) * b[ 5]
-                 + ((sp_int128)a[ 7]) * b[ 4]
-                 + ((sp_int128)a[ 8]) * b[ 3];
-    sp_int128 t12  = ((sp_int128)a[ 4]) * b[ 8]
-                 + ((sp_int128)a[ 5]) * b[ 7]
-                 + ((sp_int128)a[ 6]) * b[ 6]
-                 + ((sp_int128)a[ 7]) * b[ 5]
-                 + ((sp_int128)a[ 8]) * b[ 4];
-    sp_int128 t13  = ((sp_int128)a[ 5]) * b[ 8]
-                 + ((sp_int128)a[ 6]) * b[ 7]
-                 + ((sp_int128)a[ 7]) * b[ 6]
-                 + ((sp_int128)a[ 8]) * b[ 5];
-    sp_int128 t14  = ((sp_int128)a[ 6]) * b[ 8]
-                 + ((sp_int128)a[ 7]) * b[ 7]
-                 + ((sp_int128)a[ 8]) * b[ 6];
-    sp_int128 t15  = ((sp_int128)a[ 7]) * b[ 8]
-                 + ((sp_int128)a[ 8]) * b[ 7];
-    sp_int128 t16  = ((sp_int128)a[ 8]) * b[ 8];
+    sp_int128 t0;
+    sp_int128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 = ((sp_int128)a[ 0]) * b[ 0];
+    t1 = ((sp_int128)a[ 0]) * b[ 1]
+       + ((sp_int128)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 0]) * b[ 2]
+       + ((sp_int128)a[ 1]) * b[ 1]
+       + ((sp_int128)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 0]) * b[ 3]
+       + ((sp_int128)a[ 1]) * b[ 2]
+       + ((sp_int128)a[ 2]) * b[ 1]
+       + ((sp_int128)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 0]) * b[ 4]
+       + ((sp_int128)a[ 1]) * b[ 3]
+       + ((sp_int128)a[ 2]) * b[ 2]
+       + ((sp_int128)a[ 3]) * b[ 1]
+       + ((sp_int128)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 0]) * b[ 5]
+       + ((sp_int128)a[ 1]) * b[ 4]
+       + ((sp_int128)a[ 2]) * b[ 3]
+       + ((sp_int128)a[ 3]) * b[ 2]
+       + ((sp_int128)a[ 4]) * b[ 1]
+       + ((sp_int128)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 0]) * b[ 6]
+       + ((sp_int128)a[ 1]) * b[ 5]
+       + ((sp_int128)a[ 2]) * b[ 4]
+       + ((sp_int128)a[ 3]) * b[ 3]
+       + ((sp_int128)a[ 4]) * b[ 2]
+       + ((sp_int128)a[ 5]) * b[ 1]
+       + ((sp_int128)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 0]) * b[ 7]
+       + ((sp_int128)a[ 1]) * b[ 6]
+       + ((sp_int128)a[ 2]) * b[ 5]
+       + ((sp_int128)a[ 3]) * b[ 4]
+       + ((sp_int128)a[ 4]) * b[ 3]
+       + ((sp_int128)a[ 5]) * b[ 2]
+       + ((sp_int128)a[ 6]) * b[ 1]
+       + ((sp_int128)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 0]) * b[ 8]
+       + ((sp_int128)a[ 1]) * b[ 7]
+       + ((sp_int128)a[ 2]) * b[ 6]
+       + ((sp_int128)a[ 3]) * b[ 5]
+       + ((sp_int128)a[ 4]) * b[ 4]
+       + ((sp_int128)a[ 5]) * b[ 3]
+       + ((sp_int128)a[ 6]) * b[ 2]
+       + ((sp_int128)a[ 7]) * b[ 1]
+       + ((sp_int128)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 1]) * b[ 8]
+       + ((sp_int128)a[ 2]) * b[ 7]
+       + ((sp_int128)a[ 3]) * b[ 6]
+       + ((sp_int128)a[ 4]) * b[ 5]
+       + ((sp_int128)a[ 5]) * b[ 4]
+       + ((sp_int128)a[ 6]) * b[ 3]
+       + ((sp_int128)a[ 7]) * b[ 2]
+       + ((sp_int128)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 2]) * b[ 8]
+       + ((sp_int128)a[ 3]) * b[ 7]
+       + ((sp_int128)a[ 4]) * b[ 6]
+       + ((sp_int128)a[ 5]) * b[ 5]
+       + ((sp_int128)a[ 6]) * b[ 4]
+       + ((sp_int128)a[ 7]) * b[ 3]
+       + ((sp_int128)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 3]) * b[ 8]
+       + ((sp_int128)a[ 4]) * b[ 7]
+       + ((sp_int128)a[ 5]) * b[ 6]
+       + ((sp_int128)a[ 6]) * b[ 5]
+       + ((sp_int128)a[ 7]) * b[ 4]
+       + ((sp_int128)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 4]) * b[ 8]
+       + ((sp_int128)a[ 5]) * b[ 7]
+       + ((sp_int128)a[ 6]) * b[ 6]
+       + ((sp_int128)a[ 7]) * b[ 5]
+       + ((sp_int128)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 5]) * b[ 8]
+       + ((sp_int128)a[ 6]) * b[ 7]
+       + ((sp_int128)a[ 7]) * b[ 6]
+       + ((sp_int128)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 6]) * b[ 8]
+       + ((sp_int128)a[ 7]) * b[ 7]
+       + ((sp_int128)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = ((sp_int128)a[ 7]) * b[ 8]
+       + ((sp_int128)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = ((sp_int128)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -42962,70 +42998,74 @@ SP_NOINLINE static void sp_1024_mul_9(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_1024_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_int128 t0   =  ((sp_int128)a[ 0]) * a[ 0];
-    sp_int128 t1   = (((sp_int128)a[ 0]) * a[ 1]) * 2;
-    sp_int128 t2   = (((sp_int128)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_int128)a[ 1]) * a[ 1];
-    sp_int128 t3   = (((sp_int128)a[ 0]) * a[ 3]
-                 +  ((sp_int128)a[ 1]) * a[ 2]) * 2;
-    sp_int128 t4   = (((sp_int128)a[ 0]) * a[ 4]
-                 +  ((sp_int128)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_int128)a[ 2]) * a[ 2];
-    sp_int128 t5   = (((sp_int128)a[ 0]) * a[ 5]
-                 +  ((sp_int128)a[ 1]) * a[ 4]
-                 +  ((sp_int128)a[ 2]) * a[ 3]) * 2;
-    sp_int128 t6   = (((sp_int128)a[ 0]) * a[ 6]
-                 +  ((sp_int128)a[ 1]) * a[ 5]
-                 +  ((sp_int128)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_int128)a[ 3]) * a[ 3];
-    sp_int128 t7   = (((sp_int128)a[ 0]) * a[ 7]
-                 +  ((sp_int128)a[ 1]) * a[ 6]
-                 +  ((sp_int128)a[ 2]) * a[ 5]
-                 +  ((sp_int128)a[ 3]) * a[ 4]) * 2;
-    sp_int128 t8   = (((sp_int128)a[ 0]) * a[ 8]
-                 +  ((sp_int128)a[ 1]) * a[ 7]
-                 +  ((sp_int128)a[ 2]) * a[ 6]
-                 +  ((sp_int128)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_int128)a[ 4]) * a[ 4];
-    sp_int128 t9   = (((sp_int128)a[ 1]) * a[ 8]
-                 +  ((sp_int128)a[ 2]) * a[ 7]
-                 +  ((sp_int128)a[ 3]) * a[ 6]
-                 +  ((sp_int128)a[ 4]) * a[ 5]) * 2;
-    sp_int128 t10  = (((sp_int128)a[ 2]) * a[ 8]
-                 +  ((sp_int128)a[ 3]) * a[ 7]
-                 +  ((sp_int128)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_int128)a[ 5]) * a[ 5];
-    sp_int128 t11  = (((sp_int128)a[ 3]) * a[ 8]
-                 +  ((sp_int128)a[ 4]) * a[ 7]
-                 +  ((sp_int128)a[ 5]) * a[ 6]) * 2;
-    sp_int128 t12  = (((sp_int128)a[ 4]) * a[ 8]
-                 +  ((sp_int128)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_int128)a[ 6]) * a[ 6];
-    sp_int128 t13  = (((sp_int128)a[ 5]) * a[ 8]
-                 +  ((sp_int128)a[ 6]) * a[ 7]) * 2;
-    sp_int128 t14  = (((sp_int128)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_int128)a[ 7]) * a[ 7];
-    sp_int128 t15  = (((sp_int128)a[ 7]) * a[ 8]) * 2;
-    sp_int128 t16  =  ((sp_int128)a[ 8]) * a[ 8];
+    sp_int128 t0;
+    sp_int128 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 57; r[ 0] = t0  & 0x1ffffffffffffffL;
-    t2   += t1  >> 57; r[ 1] = t1  & 0x1ffffffffffffffL;
-    t3   += t2  >> 57; r[ 2] = t2  & 0x1ffffffffffffffL;
-    t4   += t3  >> 57; r[ 3] = t3  & 0x1ffffffffffffffL;
-    t5   += t4  >> 57; r[ 4] = t4  & 0x1ffffffffffffffL;
-    t6   += t5  >> 57; r[ 5] = t5  & 0x1ffffffffffffffL;
-    t7   += t6  >> 57; r[ 6] = t6  & 0x1ffffffffffffffL;
-    t8   += t7  >> 57; r[ 7] = t7  & 0x1ffffffffffffffL;
-    t9   += t8  >> 57; r[ 8] = t8  & 0x1ffffffffffffffL;
-    t10  += t9  >> 57; r[ 9] = t9  & 0x1ffffffffffffffL;
-    t11  += t10 >> 57; r[10] = t10 & 0x1ffffffffffffffL;
-    t12  += t11 >> 57; r[11] = t11 & 0x1ffffffffffffffL;
-    t13  += t12 >> 57; r[12] = t12 & 0x1ffffffffffffffL;
-    t14  += t13 >> 57; r[13] = t13 & 0x1ffffffffffffffL;
-    t15  += t14 >> 57; r[14] = t14 & 0x1ffffffffffffffL;
-    t16  += t15 >> 57; r[15] = t15 & 0x1ffffffffffffffL;
-    r[17] = (sp_digit)(t16 >> 57);
-                       r[16] = t16 & 0x1ffffffffffffffL;
+    t0 =  ((sp_int128)a[ 0]) * a[ 0];
+    t1 = (((sp_int128)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 0]) * a[ 2]) * 2
+       +  ((sp_int128)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 0]) * a[ 3]
+       +  ((sp_int128)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 0]) * a[ 4]
+       +  ((sp_int128)a[ 1]) * a[ 3]) * 2
+       +  ((sp_int128)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 0]) * a[ 5]
+       +  ((sp_int128)a[ 1]) * a[ 4]
+       +  ((sp_int128)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 0]) * a[ 6]
+       +  ((sp_int128)a[ 1]) * a[ 5]
+       +  ((sp_int128)a[ 2]) * a[ 4]) * 2
+       +  ((sp_int128)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 0]) * a[ 7]
+       +  ((sp_int128)a[ 1]) * a[ 6]
+       +  ((sp_int128)a[ 2]) * a[ 5]
+       +  ((sp_int128)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 0]) * a[ 8]
+       +  ((sp_int128)a[ 1]) * a[ 7]
+       +  ((sp_int128)a[ 2]) * a[ 6]
+       +  ((sp_int128)a[ 3]) * a[ 5]) * 2
+       +  ((sp_int128)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 1]) * a[ 8]
+       +  ((sp_int128)a[ 2]) * a[ 7]
+       +  ((sp_int128)a[ 3]) * a[ 6]
+       +  ((sp_int128)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 2]) * a[ 8]
+       +  ((sp_int128)a[ 3]) * a[ 7]
+       +  ((sp_int128)a[ 4]) * a[ 6]) * 2
+       +  ((sp_int128)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 3]) * a[ 8]
+       +  ((sp_int128)a[ 4]) * a[ 7]
+       +  ((sp_int128)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 4]) * a[ 8]
+       +  ((sp_int128)a[ 5]) * a[ 7]) * 2
+       +  ((sp_int128)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 5]) * a[ 8]
+       +  ((sp_int128)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 = (((sp_int128)a[ 6]) * a[ 8]) * 2
+       +  ((sp_int128)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    t1 = (((sp_int128)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1ffffffffffffffL; t1 += t0 >> 57;
+    t0 =  ((sp_int128)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
+    r[16] = t0 & 0x1ffffffffffffffL;
+    r[17] = t0 >> 57;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
