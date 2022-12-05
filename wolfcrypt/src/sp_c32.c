@@ -331,175 +331,179 @@ static void sp_2048_norm_72(sp_digit* a)
 SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint64 t0   = ((sp_uint64)a[ 0]) * b[ 0];
-    sp_uint64 t1   = ((sp_uint64)a[ 0]) * b[ 1]
-                 + ((sp_uint64)a[ 1]) * b[ 0];
-    sp_uint64 t2   = ((sp_uint64)a[ 0]) * b[ 2]
-                 + ((sp_uint64)a[ 1]) * b[ 1]
-                 + ((sp_uint64)a[ 2]) * b[ 0];
-    sp_uint64 t3   = ((sp_uint64)a[ 0]) * b[ 3]
-                 + ((sp_uint64)a[ 1]) * b[ 2]
-                 + ((sp_uint64)a[ 2]) * b[ 1]
-                 + ((sp_uint64)a[ 3]) * b[ 0];
-    sp_uint64 t4   = ((sp_uint64)a[ 0]) * b[ 4]
-                 + ((sp_uint64)a[ 1]) * b[ 3]
-                 + ((sp_uint64)a[ 2]) * b[ 2]
-                 + ((sp_uint64)a[ 3]) * b[ 1]
-                 + ((sp_uint64)a[ 4]) * b[ 0];
-    sp_uint64 t5   = ((sp_uint64)a[ 0]) * b[ 5]
-                 + ((sp_uint64)a[ 1]) * b[ 4]
-                 + ((sp_uint64)a[ 2]) * b[ 3]
-                 + ((sp_uint64)a[ 3]) * b[ 2]
-                 + ((sp_uint64)a[ 4]) * b[ 1]
-                 + ((sp_uint64)a[ 5]) * b[ 0];
-    sp_uint64 t6   = ((sp_uint64)a[ 0]) * b[ 6]
-                 + ((sp_uint64)a[ 1]) * b[ 5]
-                 + ((sp_uint64)a[ 2]) * b[ 4]
-                 + ((sp_uint64)a[ 3]) * b[ 3]
-                 + ((sp_uint64)a[ 4]) * b[ 2]
-                 + ((sp_uint64)a[ 5]) * b[ 1]
-                 + ((sp_uint64)a[ 6]) * b[ 0];
-    sp_uint64 t7   = ((sp_uint64)a[ 0]) * b[ 7]
-                 + ((sp_uint64)a[ 1]) * b[ 6]
-                 + ((sp_uint64)a[ 2]) * b[ 5]
-                 + ((sp_uint64)a[ 3]) * b[ 4]
-                 + ((sp_uint64)a[ 4]) * b[ 3]
-                 + ((sp_uint64)a[ 5]) * b[ 2]
-                 + ((sp_uint64)a[ 6]) * b[ 1]
-                 + ((sp_uint64)a[ 7]) * b[ 0];
-    sp_uint64 t8   = ((sp_uint64)a[ 0]) * b[ 8]
-                 + ((sp_uint64)a[ 1]) * b[ 7]
-                 + ((sp_uint64)a[ 2]) * b[ 6]
-                 + ((sp_uint64)a[ 3]) * b[ 5]
-                 + ((sp_uint64)a[ 4]) * b[ 4]
-                 + ((sp_uint64)a[ 5]) * b[ 3]
-                 + ((sp_uint64)a[ 6]) * b[ 2]
-                 + ((sp_uint64)a[ 7]) * b[ 1]
-                 + ((sp_uint64)a[ 8]) * b[ 0];
-    sp_uint64 t9   = ((sp_uint64)a[ 0]) * b[ 9]
-                 + ((sp_uint64)a[ 1]) * b[ 8]
-                 + ((sp_uint64)a[ 2]) * b[ 7]
-                 + ((sp_uint64)a[ 3]) * b[ 6]
-                 + ((sp_uint64)a[ 4]) * b[ 5]
-                 + ((sp_uint64)a[ 5]) * b[ 4]
-                 + ((sp_uint64)a[ 6]) * b[ 3]
-                 + ((sp_uint64)a[ 7]) * b[ 2]
-                 + ((sp_uint64)a[ 8]) * b[ 1]
-                 + ((sp_uint64)a[ 9]) * b[ 0];
-    sp_uint64 t10  = ((sp_uint64)a[ 0]) * b[10]
-                 + ((sp_uint64)a[ 1]) * b[ 9]
-                 + ((sp_uint64)a[ 2]) * b[ 8]
-                 + ((sp_uint64)a[ 3]) * b[ 7]
-                 + ((sp_uint64)a[ 4]) * b[ 6]
-                 + ((sp_uint64)a[ 5]) * b[ 5]
-                 + ((sp_uint64)a[ 6]) * b[ 4]
-                 + ((sp_uint64)a[ 7]) * b[ 3]
-                 + ((sp_uint64)a[ 8]) * b[ 2]
-                 + ((sp_uint64)a[ 9]) * b[ 1]
-                 + ((sp_uint64)a[10]) * b[ 0];
-    sp_uint64 t11  = ((sp_uint64)a[ 0]) * b[11]
-                 + ((sp_uint64)a[ 1]) * b[10]
-                 + ((sp_uint64)a[ 2]) * b[ 9]
-                 + ((sp_uint64)a[ 3]) * b[ 8]
-                 + ((sp_uint64)a[ 4]) * b[ 7]
-                 + ((sp_uint64)a[ 5]) * b[ 6]
-                 + ((sp_uint64)a[ 6]) * b[ 5]
-                 + ((sp_uint64)a[ 7]) * b[ 4]
-                 + ((sp_uint64)a[ 8]) * b[ 3]
-                 + ((sp_uint64)a[ 9]) * b[ 2]
-                 + ((sp_uint64)a[10]) * b[ 1]
-                 + ((sp_uint64)a[11]) * b[ 0];
-    sp_uint64 t12  = ((sp_uint64)a[ 1]) * b[11]
-                 + ((sp_uint64)a[ 2]) * b[10]
-                 + ((sp_uint64)a[ 3]) * b[ 9]
-                 + ((sp_uint64)a[ 4]) * b[ 8]
-                 + ((sp_uint64)a[ 5]) * b[ 7]
-                 + ((sp_uint64)a[ 6]) * b[ 6]
-                 + ((sp_uint64)a[ 7]) * b[ 5]
-                 + ((sp_uint64)a[ 8]) * b[ 4]
-                 + ((sp_uint64)a[ 9]) * b[ 3]
-                 + ((sp_uint64)a[10]) * b[ 2]
-                 + ((sp_uint64)a[11]) * b[ 1];
-    sp_uint64 t13  = ((sp_uint64)a[ 2]) * b[11]
-                 + ((sp_uint64)a[ 3]) * b[10]
-                 + ((sp_uint64)a[ 4]) * b[ 9]
-                 + ((sp_uint64)a[ 5]) * b[ 8]
-                 + ((sp_uint64)a[ 6]) * b[ 7]
-                 + ((sp_uint64)a[ 7]) * b[ 6]
-                 + ((sp_uint64)a[ 8]) * b[ 5]
-                 + ((sp_uint64)a[ 9]) * b[ 4]
-                 + ((sp_uint64)a[10]) * b[ 3]
-                 + ((sp_uint64)a[11]) * b[ 2];
-    sp_uint64 t14  = ((sp_uint64)a[ 3]) * b[11]
-                 + ((sp_uint64)a[ 4]) * b[10]
-                 + ((sp_uint64)a[ 5]) * b[ 9]
-                 + ((sp_uint64)a[ 6]) * b[ 8]
-                 + ((sp_uint64)a[ 7]) * b[ 7]
-                 + ((sp_uint64)a[ 8]) * b[ 6]
-                 + ((sp_uint64)a[ 9]) * b[ 5]
-                 + ((sp_uint64)a[10]) * b[ 4]
-                 + ((sp_uint64)a[11]) * b[ 3];
-    sp_uint64 t15  = ((sp_uint64)a[ 4]) * b[11]
-                 + ((sp_uint64)a[ 5]) * b[10]
-                 + ((sp_uint64)a[ 6]) * b[ 9]
-                 + ((sp_uint64)a[ 7]) * b[ 8]
-                 + ((sp_uint64)a[ 8]) * b[ 7]
-                 + ((sp_uint64)a[ 9]) * b[ 6]
-                 + ((sp_uint64)a[10]) * b[ 5]
-                 + ((sp_uint64)a[11]) * b[ 4];
-    sp_uint64 t16  = ((sp_uint64)a[ 5]) * b[11]
-                 + ((sp_uint64)a[ 6]) * b[10]
-                 + ((sp_uint64)a[ 7]) * b[ 9]
-                 + ((sp_uint64)a[ 8]) * b[ 8]
-                 + ((sp_uint64)a[ 9]) * b[ 7]
-                 + ((sp_uint64)a[10]) * b[ 6]
-                 + ((sp_uint64)a[11]) * b[ 5];
-    sp_uint64 t17  = ((sp_uint64)a[ 6]) * b[11]
-                 + ((sp_uint64)a[ 7]) * b[10]
-                 + ((sp_uint64)a[ 8]) * b[ 9]
-                 + ((sp_uint64)a[ 9]) * b[ 8]
-                 + ((sp_uint64)a[10]) * b[ 7]
-                 + ((sp_uint64)a[11]) * b[ 6];
-    sp_uint64 t18  = ((sp_uint64)a[ 7]) * b[11]
-                 + ((sp_uint64)a[ 8]) * b[10]
-                 + ((sp_uint64)a[ 9]) * b[ 9]
-                 + ((sp_uint64)a[10]) * b[ 8]
-                 + ((sp_uint64)a[11]) * b[ 7];
-    sp_uint64 t19  = ((sp_uint64)a[ 8]) * b[11]
-                 + ((sp_uint64)a[ 9]) * b[10]
-                 + ((sp_uint64)a[10]) * b[ 9]
-                 + ((sp_uint64)a[11]) * b[ 8];
-    sp_uint64 t20  = ((sp_uint64)a[ 9]) * b[11]
-                 + ((sp_uint64)a[10]) * b[10]
-                 + ((sp_uint64)a[11]) * b[ 9];
-    sp_uint64 t21  = ((sp_uint64)a[10]) * b[11]
-                 + ((sp_uint64)a[11]) * b[10];
-    sp_uint64 t22  = ((sp_uint64)a[11]) * b[11];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[12];
 
-    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
-    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
-    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
-    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
-    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
-    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
-    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
-    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
-    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
-    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
-    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
-    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
-    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
-    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
-    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
-    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
-    t17  += t16 >> 29; r[16] = t16 & 0x1fffffff;
-    t18  += t17 >> 29; r[17] = t17 & 0x1fffffff;
-    t19  += t18 >> 29; r[18] = t18 & 0x1fffffff;
-    t20  += t19 >> 29; r[19] = t19 & 0x1fffffff;
-    t21  += t20 >> 29; r[20] = t20 & 0x1fffffff;
-    t22  += t21 >> 29; r[21] = t21 & 0x1fffffff;
-    r[23] = (sp_digit)(t22 >> 29);
-                       r[22] = t22 & 0x1fffffff;
+    t0 = ((sp_uint64)a[ 0]) * b[ 0];
+    t1 = ((sp_uint64)a[ 0]) * b[ 1]
+       + ((sp_uint64)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 0]) * b[ 2]
+       + ((sp_uint64)a[ 1]) * b[ 1]
+       + ((sp_uint64)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 0]) * b[ 3]
+       + ((sp_uint64)a[ 1]) * b[ 2]
+       + ((sp_uint64)a[ 2]) * b[ 1]
+       + ((sp_uint64)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 0]) * b[ 4]
+       + ((sp_uint64)a[ 1]) * b[ 3]
+       + ((sp_uint64)a[ 2]) * b[ 2]
+       + ((sp_uint64)a[ 3]) * b[ 1]
+       + ((sp_uint64)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 0]) * b[ 5]
+       + ((sp_uint64)a[ 1]) * b[ 4]
+       + ((sp_uint64)a[ 2]) * b[ 3]
+       + ((sp_uint64)a[ 3]) * b[ 2]
+       + ((sp_uint64)a[ 4]) * b[ 1]
+       + ((sp_uint64)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 0]) * b[ 6]
+       + ((sp_uint64)a[ 1]) * b[ 5]
+       + ((sp_uint64)a[ 2]) * b[ 4]
+       + ((sp_uint64)a[ 3]) * b[ 3]
+       + ((sp_uint64)a[ 4]) * b[ 2]
+       + ((sp_uint64)a[ 5]) * b[ 1]
+       + ((sp_uint64)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 0]) * b[ 7]
+       + ((sp_uint64)a[ 1]) * b[ 6]
+       + ((sp_uint64)a[ 2]) * b[ 5]
+       + ((sp_uint64)a[ 3]) * b[ 4]
+       + ((sp_uint64)a[ 4]) * b[ 3]
+       + ((sp_uint64)a[ 5]) * b[ 2]
+       + ((sp_uint64)a[ 6]) * b[ 1]
+       + ((sp_uint64)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 0]) * b[ 8]
+       + ((sp_uint64)a[ 1]) * b[ 7]
+       + ((sp_uint64)a[ 2]) * b[ 6]
+       + ((sp_uint64)a[ 3]) * b[ 5]
+       + ((sp_uint64)a[ 4]) * b[ 4]
+       + ((sp_uint64)a[ 5]) * b[ 3]
+       + ((sp_uint64)a[ 6]) * b[ 2]
+       + ((sp_uint64)a[ 7]) * b[ 1]
+       + ((sp_uint64)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 0]) * b[ 9]
+       + ((sp_uint64)a[ 1]) * b[ 8]
+       + ((sp_uint64)a[ 2]) * b[ 7]
+       + ((sp_uint64)a[ 3]) * b[ 6]
+       + ((sp_uint64)a[ 4]) * b[ 5]
+       + ((sp_uint64)a[ 5]) * b[ 4]
+       + ((sp_uint64)a[ 6]) * b[ 3]
+       + ((sp_uint64)a[ 7]) * b[ 2]
+       + ((sp_uint64)a[ 8]) * b[ 1]
+       + ((sp_uint64)a[ 9]) * b[ 0];
+    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 0]) * b[10]
+       + ((sp_uint64)a[ 1]) * b[ 9]
+       + ((sp_uint64)a[ 2]) * b[ 8]
+       + ((sp_uint64)a[ 3]) * b[ 7]
+       + ((sp_uint64)a[ 4]) * b[ 6]
+       + ((sp_uint64)a[ 5]) * b[ 5]
+       + ((sp_uint64)a[ 6]) * b[ 4]
+       + ((sp_uint64)a[ 7]) * b[ 3]
+       + ((sp_uint64)a[ 8]) * b[ 2]
+       + ((sp_uint64)a[ 9]) * b[ 1]
+       + ((sp_uint64)a[10]) * b[ 0];
+    t[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 0]) * b[11]
+       + ((sp_uint64)a[ 1]) * b[10]
+       + ((sp_uint64)a[ 2]) * b[ 9]
+       + ((sp_uint64)a[ 3]) * b[ 8]
+       + ((sp_uint64)a[ 4]) * b[ 7]
+       + ((sp_uint64)a[ 5]) * b[ 6]
+       + ((sp_uint64)a[ 6]) * b[ 5]
+       + ((sp_uint64)a[ 7]) * b[ 4]
+       + ((sp_uint64)a[ 8]) * b[ 3]
+       + ((sp_uint64)a[ 9]) * b[ 2]
+       + ((sp_uint64)a[10]) * b[ 1]
+       + ((sp_uint64)a[11]) * b[ 0];
+    t[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 1]) * b[11]
+       + ((sp_uint64)a[ 2]) * b[10]
+       + ((sp_uint64)a[ 3]) * b[ 9]
+       + ((sp_uint64)a[ 4]) * b[ 8]
+       + ((sp_uint64)a[ 5]) * b[ 7]
+       + ((sp_uint64)a[ 6]) * b[ 6]
+       + ((sp_uint64)a[ 7]) * b[ 5]
+       + ((sp_uint64)a[ 8]) * b[ 4]
+       + ((sp_uint64)a[ 9]) * b[ 3]
+       + ((sp_uint64)a[10]) * b[ 2]
+       + ((sp_uint64)a[11]) * b[ 1];
+    t[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 2]) * b[11]
+       + ((sp_uint64)a[ 3]) * b[10]
+       + ((sp_uint64)a[ 4]) * b[ 9]
+       + ((sp_uint64)a[ 5]) * b[ 8]
+       + ((sp_uint64)a[ 6]) * b[ 7]
+       + ((sp_uint64)a[ 7]) * b[ 6]
+       + ((sp_uint64)a[ 8]) * b[ 5]
+       + ((sp_uint64)a[ 9]) * b[ 4]
+       + ((sp_uint64)a[10]) * b[ 3]
+       + ((sp_uint64)a[11]) * b[ 2];
+    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 3]) * b[11]
+       + ((sp_uint64)a[ 4]) * b[10]
+       + ((sp_uint64)a[ 5]) * b[ 9]
+       + ((sp_uint64)a[ 6]) * b[ 8]
+       + ((sp_uint64)a[ 7]) * b[ 7]
+       + ((sp_uint64)a[ 8]) * b[ 6]
+       + ((sp_uint64)a[ 9]) * b[ 5]
+       + ((sp_uint64)a[10]) * b[ 4]
+       + ((sp_uint64)a[11]) * b[ 3];
+    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 4]) * b[11]
+       + ((sp_uint64)a[ 5]) * b[10]
+       + ((sp_uint64)a[ 6]) * b[ 9]
+       + ((sp_uint64)a[ 7]) * b[ 8]
+       + ((sp_uint64)a[ 8]) * b[ 7]
+       + ((sp_uint64)a[ 9]) * b[ 6]
+       + ((sp_uint64)a[10]) * b[ 5]
+       + ((sp_uint64)a[11]) * b[ 4];
+    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 5]) * b[11]
+       + ((sp_uint64)a[ 6]) * b[10]
+       + ((sp_uint64)a[ 7]) * b[ 9]
+       + ((sp_uint64)a[ 8]) * b[ 8]
+       + ((sp_uint64)a[ 9]) * b[ 7]
+       + ((sp_uint64)a[10]) * b[ 6]
+       + ((sp_uint64)a[11]) * b[ 5];
+    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 6]) * b[11]
+       + ((sp_uint64)a[ 7]) * b[10]
+       + ((sp_uint64)a[ 8]) * b[ 9]
+       + ((sp_uint64)a[ 9]) * b[ 8]
+       + ((sp_uint64)a[10]) * b[ 7]
+       + ((sp_uint64)a[11]) * b[ 6];
+    r[16] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 7]) * b[11]
+       + ((sp_uint64)a[ 8]) * b[10]
+       + ((sp_uint64)a[ 9]) * b[ 9]
+       + ((sp_uint64)a[10]) * b[ 8]
+       + ((sp_uint64)a[11]) * b[ 7];
+    r[17] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[ 8]) * b[11]
+       + ((sp_uint64)a[ 9]) * b[10]
+       + ((sp_uint64)a[10]) * b[ 9]
+       + ((sp_uint64)a[11]) * b[ 8];
+    r[18] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[ 9]) * b[11]
+       + ((sp_uint64)a[10]) * b[10]
+       + ((sp_uint64)a[11]) * b[ 9];
+    r[19] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_uint64)a[10]) * b[11]
+       + ((sp_uint64)a[11]) * b[10];
+    r[20] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_uint64)a[11]) * b[11];
+    r[21] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[22] = t0 & 0x1fffffff;
+    r[23] = t0 >> 29;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -845,109 +849,113 @@ SP_NOINLINE static void sp_2048_mul_72(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_2048_sqr_12(sp_digit* r, const sp_digit* a)
 {
-    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
-    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint64)a[ 1]) * a[ 1];
-    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
-                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
-                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint64)a[ 2]) * a[ 2];
-    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
-                 +  ((sp_uint64)a[ 1]) * a[ 4]
-                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
-                 +  ((sp_uint64)a[ 1]) * a[ 5]
-                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint64)a[ 3]) * a[ 3];
-    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
-                 +  ((sp_uint64)a[ 1]) * a[ 6]
-                 +  ((sp_uint64)a[ 2]) * a[ 5]
-                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
-                 +  ((sp_uint64)a[ 1]) * a[ 7]
-                 +  ((sp_uint64)a[ 2]) * a[ 6]
-                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint64)a[ 4]) * a[ 4];
-    sp_uint64 t9   = (((sp_uint64)a[ 0]) * a[ 9]
-                 +  ((sp_uint64)a[ 1]) * a[ 8]
-                 +  ((sp_uint64)a[ 2]) * a[ 7]
-                 +  ((sp_uint64)a[ 3]) * a[ 6]
-                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    sp_uint64 t10  = (((sp_uint64)a[ 0]) * a[10]
-                 +  ((sp_uint64)a[ 1]) * a[ 9]
-                 +  ((sp_uint64)a[ 2]) * a[ 8]
-                 +  ((sp_uint64)a[ 3]) * a[ 7]
-                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint64)a[ 5]) * a[ 5];
-    sp_uint64 t11  = (((sp_uint64)a[ 0]) * a[11]
-                 +  ((sp_uint64)a[ 1]) * a[10]
-                 +  ((sp_uint64)a[ 2]) * a[ 9]
-                 +  ((sp_uint64)a[ 3]) * a[ 8]
-                 +  ((sp_uint64)a[ 4]) * a[ 7]
-                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    sp_uint64 t12  = (((sp_uint64)a[ 1]) * a[11]
-                 +  ((sp_uint64)a[ 2]) * a[10]
-                 +  ((sp_uint64)a[ 3]) * a[ 9]
-                 +  ((sp_uint64)a[ 4]) * a[ 8]
-                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint64)a[ 6]) * a[ 6];
-    sp_uint64 t13  = (((sp_uint64)a[ 2]) * a[11]
-                 +  ((sp_uint64)a[ 3]) * a[10]
-                 +  ((sp_uint64)a[ 4]) * a[ 9]
-                 +  ((sp_uint64)a[ 5]) * a[ 8]
-                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    sp_uint64 t14  = (((sp_uint64)a[ 3]) * a[11]
-                 +  ((sp_uint64)a[ 4]) * a[10]
-                 +  ((sp_uint64)a[ 5]) * a[ 9]
-                 +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint64)a[ 7]) * a[ 7];
-    sp_uint64 t15  = (((sp_uint64)a[ 4]) * a[11]
-                 +  ((sp_uint64)a[ 5]) * a[10]
-                 +  ((sp_uint64)a[ 6]) * a[ 9]
-                 +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    sp_uint64 t16  = (((sp_uint64)a[ 5]) * a[11]
-                 +  ((sp_uint64)a[ 6]) * a[10]
-                 +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
-                 +  ((sp_uint64)a[ 8]) * a[ 8];
-    sp_uint64 t17  = (((sp_uint64)a[ 6]) * a[11]
-                 +  ((sp_uint64)a[ 7]) * a[10]
-                 +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
-    sp_uint64 t18  = (((sp_uint64)a[ 7]) * a[11]
-                 +  ((sp_uint64)a[ 8]) * a[10]) * 2
-                 +  ((sp_uint64)a[ 9]) * a[ 9];
-    sp_uint64 t19  = (((sp_uint64)a[ 8]) * a[11]
-                 +  ((sp_uint64)a[ 9]) * a[10]) * 2;
-    sp_uint64 t20  = (((sp_uint64)a[ 9]) * a[11]) * 2
-                 +  ((sp_uint64)a[10]) * a[10];
-    sp_uint64 t21  = (((sp_uint64)a[10]) * a[11]) * 2;
-    sp_uint64 t22  =  ((sp_uint64)a[11]) * a[11];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[12];
 
-    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
-    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
-    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
-    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
-    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
-    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
-    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
-    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
-    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
-    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
-    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
-    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
-    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
-    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
-    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
-    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
-    t17  += t16 >> 29; r[16] = t16 & 0x1fffffff;
-    t18  += t17 >> 29; r[17] = t17 & 0x1fffffff;
-    t19  += t18 >> 29; r[18] = t18 & 0x1fffffff;
-    t20  += t19 >> 29; r[19] = t19 & 0x1fffffff;
-    t21  += t20 >> 29; r[20] = t20 & 0x1fffffff;
-    t22  += t21 >> 29; r[21] = t21 & 0x1fffffff;
-    r[23] = (sp_digit)(t22 >> 29);
-                       r[22] = t22 & 0x1fffffff;
+    t0 =  ((sp_uint64)a[ 0]) * a[ 0];
+    t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint64)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 0]) * a[ 3]
+       +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 0]) * a[ 4]
+       +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint64)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 0]) * a[ 5]
+       +  ((sp_uint64)a[ 1]) * a[ 4]
+       +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 0]) * a[ 6]
+       +  ((sp_uint64)a[ 1]) * a[ 5]
+       +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint64)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 0]) * a[ 7]
+       +  ((sp_uint64)a[ 1]) * a[ 6]
+       +  ((sp_uint64)a[ 2]) * a[ 5]
+       +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 0]) * a[ 8]
+       +  ((sp_uint64)a[ 1]) * a[ 7]
+       +  ((sp_uint64)a[ 2]) * a[ 6]
+       +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint64)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 0]) * a[ 9]
+       +  ((sp_uint64)a[ 1]) * a[ 8]
+       +  ((sp_uint64)a[ 2]) * a[ 7]
+       +  ((sp_uint64)a[ 3]) * a[ 6]
+       +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 0]) * a[10]
+       +  ((sp_uint64)a[ 1]) * a[ 9]
+       +  ((sp_uint64)a[ 2]) * a[ 8]
+       +  ((sp_uint64)a[ 3]) * a[ 7]
+       +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint64)a[ 5]) * a[ 5];
+    t[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 0]) * a[11]
+       +  ((sp_uint64)a[ 1]) * a[10]
+       +  ((sp_uint64)a[ 2]) * a[ 9]
+       +  ((sp_uint64)a[ 3]) * a[ 8]
+       +  ((sp_uint64)a[ 4]) * a[ 7]
+       +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
+    t[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 1]) * a[11]
+       +  ((sp_uint64)a[ 2]) * a[10]
+       +  ((sp_uint64)a[ 3]) * a[ 9]
+       +  ((sp_uint64)a[ 4]) * a[ 8]
+       +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint64)a[ 6]) * a[ 6];
+    t[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 2]) * a[11]
+       +  ((sp_uint64)a[ 3]) * a[10]
+       +  ((sp_uint64)a[ 4]) * a[ 9]
+       +  ((sp_uint64)a[ 5]) * a[ 8]
+       +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 3]) * a[11]
+       +  ((sp_uint64)a[ 4]) * a[10]
+       +  ((sp_uint64)a[ 5]) * a[ 9]
+       +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint64)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 4]) * a[11]
+       +  ((sp_uint64)a[ 5]) * a[10]
+       +  ((sp_uint64)a[ 6]) * a[ 9]
+       +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 5]) * a[11]
+       +  ((sp_uint64)a[ 6]) * a[10]
+       +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
+       +  ((sp_uint64)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 6]) * a[11]
+       +  ((sp_uint64)a[ 7]) * a[10]
+       +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
+    r[16] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 7]) * a[11]
+       +  ((sp_uint64)a[ 8]) * a[10]) * 2
+       +  ((sp_uint64)a[ 9]) * a[ 9];
+    r[17] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[ 8]) * a[11]
+       +  ((sp_uint64)a[ 9]) * a[10]) * 2;
+    r[18] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_uint64)a[ 9]) * a[11]) * 2
+       +  ((sp_uint64)a[10]) * a[10];
+    r[19] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_uint64)a[10]) * a[11]) * 2;
+    r[20] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 =  ((sp_uint64)a[11]) * a[11];
+    r[21] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[22] = t0 & 0x1fffffff;
+    r[23] = t0 >> 29;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a into r. (r = a * a)
@@ -8426,231 +8434,235 @@ static void sp_3072_norm_110(sp_digit* a)
 SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint64 t0   = ((sp_uint64)a[ 0]) * b[ 0];
-    sp_uint64 t1   = ((sp_uint64)a[ 0]) * b[ 1]
-                 + ((sp_uint64)a[ 1]) * b[ 0];
-    sp_uint64 t2   = ((sp_uint64)a[ 0]) * b[ 2]
-                 + ((sp_uint64)a[ 1]) * b[ 1]
-                 + ((sp_uint64)a[ 2]) * b[ 0];
-    sp_uint64 t3   = ((sp_uint64)a[ 0]) * b[ 3]
-                 + ((sp_uint64)a[ 1]) * b[ 2]
-                 + ((sp_uint64)a[ 2]) * b[ 1]
-                 + ((sp_uint64)a[ 3]) * b[ 0];
-    sp_uint64 t4   = ((sp_uint64)a[ 0]) * b[ 4]
-                 + ((sp_uint64)a[ 1]) * b[ 3]
-                 + ((sp_uint64)a[ 2]) * b[ 2]
-                 + ((sp_uint64)a[ 3]) * b[ 1]
-                 + ((sp_uint64)a[ 4]) * b[ 0];
-    sp_uint64 t5   = ((sp_uint64)a[ 0]) * b[ 5]
-                 + ((sp_uint64)a[ 1]) * b[ 4]
-                 + ((sp_uint64)a[ 2]) * b[ 3]
-                 + ((sp_uint64)a[ 3]) * b[ 2]
-                 + ((sp_uint64)a[ 4]) * b[ 1]
-                 + ((sp_uint64)a[ 5]) * b[ 0];
-    sp_uint64 t6   = ((sp_uint64)a[ 0]) * b[ 6]
-                 + ((sp_uint64)a[ 1]) * b[ 5]
-                 + ((sp_uint64)a[ 2]) * b[ 4]
-                 + ((sp_uint64)a[ 3]) * b[ 3]
-                 + ((sp_uint64)a[ 4]) * b[ 2]
-                 + ((sp_uint64)a[ 5]) * b[ 1]
-                 + ((sp_uint64)a[ 6]) * b[ 0];
-    sp_uint64 t7   = ((sp_uint64)a[ 0]) * b[ 7]
-                 + ((sp_uint64)a[ 1]) * b[ 6]
-                 + ((sp_uint64)a[ 2]) * b[ 5]
-                 + ((sp_uint64)a[ 3]) * b[ 4]
-                 + ((sp_uint64)a[ 4]) * b[ 3]
-                 + ((sp_uint64)a[ 5]) * b[ 2]
-                 + ((sp_uint64)a[ 6]) * b[ 1]
-                 + ((sp_uint64)a[ 7]) * b[ 0];
-    sp_uint64 t8   = ((sp_uint64)a[ 0]) * b[ 8]
-                 + ((sp_uint64)a[ 1]) * b[ 7]
-                 + ((sp_uint64)a[ 2]) * b[ 6]
-                 + ((sp_uint64)a[ 3]) * b[ 5]
-                 + ((sp_uint64)a[ 4]) * b[ 4]
-                 + ((sp_uint64)a[ 5]) * b[ 3]
-                 + ((sp_uint64)a[ 6]) * b[ 2]
-                 + ((sp_uint64)a[ 7]) * b[ 1]
-                 + ((sp_uint64)a[ 8]) * b[ 0];
-    sp_uint64 t9   = ((sp_uint64)a[ 0]) * b[ 9]
-                 + ((sp_uint64)a[ 1]) * b[ 8]
-                 + ((sp_uint64)a[ 2]) * b[ 7]
-                 + ((sp_uint64)a[ 3]) * b[ 6]
-                 + ((sp_uint64)a[ 4]) * b[ 5]
-                 + ((sp_uint64)a[ 5]) * b[ 4]
-                 + ((sp_uint64)a[ 6]) * b[ 3]
-                 + ((sp_uint64)a[ 7]) * b[ 2]
-                 + ((sp_uint64)a[ 8]) * b[ 1]
-                 + ((sp_uint64)a[ 9]) * b[ 0];
-    sp_uint64 t10  = ((sp_uint64)a[ 0]) * b[10]
-                 + ((sp_uint64)a[ 1]) * b[ 9]
-                 + ((sp_uint64)a[ 2]) * b[ 8]
-                 + ((sp_uint64)a[ 3]) * b[ 7]
-                 + ((sp_uint64)a[ 4]) * b[ 6]
-                 + ((sp_uint64)a[ 5]) * b[ 5]
-                 + ((sp_uint64)a[ 6]) * b[ 4]
-                 + ((sp_uint64)a[ 7]) * b[ 3]
-                 + ((sp_uint64)a[ 8]) * b[ 2]
-                 + ((sp_uint64)a[ 9]) * b[ 1]
-                 + ((sp_uint64)a[10]) * b[ 0];
-    sp_uint64 t11  = ((sp_uint64)a[ 0]) * b[11]
-                 + ((sp_uint64)a[ 1]) * b[10]
-                 + ((sp_uint64)a[ 2]) * b[ 9]
-                 + ((sp_uint64)a[ 3]) * b[ 8]
-                 + ((sp_uint64)a[ 4]) * b[ 7]
-                 + ((sp_uint64)a[ 5]) * b[ 6]
-                 + ((sp_uint64)a[ 6]) * b[ 5]
-                 + ((sp_uint64)a[ 7]) * b[ 4]
-                 + ((sp_uint64)a[ 8]) * b[ 3]
-                 + ((sp_uint64)a[ 9]) * b[ 2]
-                 + ((sp_uint64)a[10]) * b[ 1]
-                 + ((sp_uint64)a[11]) * b[ 0];
-    sp_uint64 t12  = ((sp_uint64)a[ 0]) * b[12]
-                 + ((sp_uint64)a[ 1]) * b[11]
-                 + ((sp_uint64)a[ 2]) * b[10]
-                 + ((sp_uint64)a[ 3]) * b[ 9]
-                 + ((sp_uint64)a[ 4]) * b[ 8]
-                 + ((sp_uint64)a[ 5]) * b[ 7]
-                 + ((sp_uint64)a[ 6]) * b[ 6]
-                 + ((sp_uint64)a[ 7]) * b[ 5]
-                 + ((sp_uint64)a[ 8]) * b[ 4]
-                 + ((sp_uint64)a[ 9]) * b[ 3]
-                 + ((sp_uint64)a[10]) * b[ 2]
-                 + ((sp_uint64)a[11]) * b[ 1]
-                 + ((sp_uint64)a[12]) * b[ 0];
-    sp_uint64 t13  = ((sp_uint64)a[ 0]) * b[13]
-                 + ((sp_uint64)a[ 1]) * b[12]
-                 + ((sp_uint64)a[ 2]) * b[11]
-                 + ((sp_uint64)a[ 3]) * b[10]
-                 + ((sp_uint64)a[ 4]) * b[ 9]
-                 + ((sp_uint64)a[ 5]) * b[ 8]
-                 + ((sp_uint64)a[ 6]) * b[ 7]
-                 + ((sp_uint64)a[ 7]) * b[ 6]
-                 + ((sp_uint64)a[ 8]) * b[ 5]
-                 + ((sp_uint64)a[ 9]) * b[ 4]
-                 + ((sp_uint64)a[10]) * b[ 3]
-                 + ((sp_uint64)a[11]) * b[ 2]
-                 + ((sp_uint64)a[12]) * b[ 1]
-                 + ((sp_uint64)a[13]) * b[ 0];
-    sp_uint64 t14  = ((sp_uint64)a[ 1]) * b[13]
-                 + ((sp_uint64)a[ 2]) * b[12]
-                 + ((sp_uint64)a[ 3]) * b[11]
-                 + ((sp_uint64)a[ 4]) * b[10]
-                 + ((sp_uint64)a[ 5]) * b[ 9]
-                 + ((sp_uint64)a[ 6]) * b[ 8]
-                 + ((sp_uint64)a[ 7]) * b[ 7]
-                 + ((sp_uint64)a[ 8]) * b[ 6]
-                 + ((sp_uint64)a[ 9]) * b[ 5]
-                 + ((sp_uint64)a[10]) * b[ 4]
-                 + ((sp_uint64)a[11]) * b[ 3]
-                 + ((sp_uint64)a[12]) * b[ 2]
-                 + ((sp_uint64)a[13]) * b[ 1];
-    sp_uint64 t15  = ((sp_uint64)a[ 2]) * b[13]
-                 + ((sp_uint64)a[ 3]) * b[12]
-                 + ((sp_uint64)a[ 4]) * b[11]
-                 + ((sp_uint64)a[ 5]) * b[10]
-                 + ((sp_uint64)a[ 6]) * b[ 9]
-                 + ((sp_uint64)a[ 7]) * b[ 8]
-                 + ((sp_uint64)a[ 8]) * b[ 7]
-                 + ((sp_uint64)a[ 9]) * b[ 6]
-                 + ((sp_uint64)a[10]) * b[ 5]
-                 + ((sp_uint64)a[11]) * b[ 4]
-                 + ((sp_uint64)a[12]) * b[ 3]
-                 + ((sp_uint64)a[13]) * b[ 2];
-    sp_uint64 t16  = ((sp_uint64)a[ 3]) * b[13]
-                 + ((sp_uint64)a[ 4]) * b[12]
-                 + ((sp_uint64)a[ 5]) * b[11]
-                 + ((sp_uint64)a[ 6]) * b[10]
-                 + ((sp_uint64)a[ 7]) * b[ 9]
-                 + ((sp_uint64)a[ 8]) * b[ 8]
-                 + ((sp_uint64)a[ 9]) * b[ 7]
-                 + ((sp_uint64)a[10]) * b[ 6]
-                 + ((sp_uint64)a[11]) * b[ 5]
-                 + ((sp_uint64)a[12]) * b[ 4]
-                 + ((sp_uint64)a[13]) * b[ 3];
-    sp_uint64 t17  = ((sp_uint64)a[ 4]) * b[13]
-                 + ((sp_uint64)a[ 5]) * b[12]
-                 + ((sp_uint64)a[ 6]) * b[11]
-                 + ((sp_uint64)a[ 7]) * b[10]
-                 + ((sp_uint64)a[ 8]) * b[ 9]
-                 + ((sp_uint64)a[ 9]) * b[ 8]
-                 + ((sp_uint64)a[10]) * b[ 7]
-                 + ((sp_uint64)a[11]) * b[ 6]
-                 + ((sp_uint64)a[12]) * b[ 5]
-                 + ((sp_uint64)a[13]) * b[ 4];
-    sp_uint64 t18  = ((sp_uint64)a[ 5]) * b[13]
-                 + ((sp_uint64)a[ 6]) * b[12]
-                 + ((sp_uint64)a[ 7]) * b[11]
-                 + ((sp_uint64)a[ 8]) * b[10]
-                 + ((sp_uint64)a[ 9]) * b[ 9]
-                 + ((sp_uint64)a[10]) * b[ 8]
-                 + ((sp_uint64)a[11]) * b[ 7]
-                 + ((sp_uint64)a[12]) * b[ 6]
-                 + ((sp_uint64)a[13]) * b[ 5];
-    sp_uint64 t19  = ((sp_uint64)a[ 6]) * b[13]
-                 + ((sp_uint64)a[ 7]) * b[12]
-                 + ((sp_uint64)a[ 8]) * b[11]
-                 + ((sp_uint64)a[ 9]) * b[10]
-                 + ((sp_uint64)a[10]) * b[ 9]
-                 + ((sp_uint64)a[11]) * b[ 8]
-                 + ((sp_uint64)a[12]) * b[ 7]
-                 + ((sp_uint64)a[13]) * b[ 6];
-    sp_uint64 t20  = ((sp_uint64)a[ 7]) * b[13]
-                 + ((sp_uint64)a[ 8]) * b[12]
-                 + ((sp_uint64)a[ 9]) * b[11]
-                 + ((sp_uint64)a[10]) * b[10]
-                 + ((sp_uint64)a[11]) * b[ 9]
-                 + ((sp_uint64)a[12]) * b[ 8]
-                 + ((sp_uint64)a[13]) * b[ 7];
-    sp_uint64 t21  = ((sp_uint64)a[ 8]) * b[13]
-                 + ((sp_uint64)a[ 9]) * b[12]
-                 + ((sp_uint64)a[10]) * b[11]
-                 + ((sp_uint64)a[11]) * b[10]
-                 + ((sp_uint64)a[12]) * b[ 9]
-                 + ((sp_uint64)a[13]) * b[ 8];
-    sp_uint64 t22  = ((sp_uint64)a[ 9]) * b[13]
-                 + ((sp_uint64)a[10]) * b[12]
-                 + ((sp_uint64)a[11]) * b[11]
-                 + ((sp_uint64)a[12]) * b[10]
-                 + ((sp_uint64)a[13]) * b[ 9];
-    sp_uint64 t23  = ((sp_uint64)a[10]) * b[13]
-                 + ((sp_uint64)a[11]) * b[12]
-                 + ((sp_uint64)a[12]) * b[11]
-                 + ((sp_uint64)a[13]) * b[10];
-    sp_uint64 t24  = ((sp_uint64)a[11]) * b[13]
-                 + ((sp_uint64)a[12]) * b[12]
-                 + ((sp_uint64)a[13]) * b[11];
-    sp_uint64 t25  = ((sp_uint64)a[12]) * b[13]
-                 + ((sp_uint64)a[13]) * b[12];
-    sp_uint64 t26  = ((sp_uint64)a[13]) * b[13];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[14];
 
-    t1   += t0  >> 28; r[ 0] = t0  & 0xfffffff;
-    t2   += t1  >> 28; r[ 1] = t1  & 0xfffffff;
-    t3   += t2  >> 28; r[ 2] = t2  & 0xfffffff;
-    t4   += t3  >> 28; r[ 3] = t3  & 0xfffffff;
-    t5   += t4  >> 28; r[ 4] = t4  & 0xfffffff;
-    t6   += t5  >> 28; r[ 5] = t5  & 0xfffffff;
-    t7   += t6  >> 28; r[ 6] = t6  & 0xfffffff;
-    t8   += t7  >> 28; r[ 7] = t7  & 0xfffffff;
-    t9   += t8  >> 28; r[ 8] = t8  & 0xfffffff;
-    t10  += t9  >> 28; r[ 9] = t9  & 0xfffffff;
-    t11  += t10 >> 28; r[10] = t10 & 0xfffffff;
-    t12  += t11 >> 28; r[11] = t11 & 0xfffffff;
-    t13  += t12 >> 28; r[12] = t12 & 0xfffffff;
-    t14  += t13 >> 28; r[13] = t13 & 0xfffffff;
-    t15  += t14 >> 28; r[14] = t14 & 0xfffffff;
-    t16  += t15 >> 28; r[15] = t15 & 0xfffffff;
-    t17  += t16 >> 28; r[16] = t16 & 0xfffffff;
-    t18  += t17 >> 28; r[17] = t17 & 0xfffffff;
-    t19  += t18 >> 28; r[18] = t18 & 0xfffffff;
-    t20  += t19 >> 28; r[19] = t19 & 0xfffffff;
-    t21  += t20 >> 28; r[20] = t20 & 0xfffffff;
-    t22  += t21 >> 28; r[21] = t21 & 0xfffffff;
-    t23  += t22 >> 28; r[22] = t22 & 0xfffffff;
-    t24  += t23 >> 28; r[23] = t23 & 0xfffffff;
-    t25  += t24 >> 28; r[24] = t24 & 0xfffffff;
-    t26  += t25 >> 28; r[25] = t25 & 0xfffffff;
-    r[27] = (sp_digit)(t26 >> 28);
-                       r[26] = t26 & 0xfffffff;
+    t0 = ((sp_uint64)a[ 0]) * b[ 0];
+    t1 = ((sp_uint64)a[ 0]) * b[ 1]
+       + ((sp_uint64)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[ 2]
+       + ((sp_uint64)a[ 1]) * b[ 1]
+       + ((sp_uint64)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[ 3]
+       + ((sp_uint64)a[ 1]) * b[ 2]
+       + ((sp_uint64)a[ 2]) * b[ 1]
+       + ((sp_uint64)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[ 4]
+       + ((sp_uint64)a[ 1]) * b[ 3]
+       + ((sp_uint64)a[ 2]) * b[ 2]
+       + ((sp_uint64)a[ 3]) * b[ 1]
+       + ((sp_uint64)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[ 5]
+       + ((sp_uint64)a[ 1]) * b[ 4]
+       + ((sp_uint64)a[ 2]) * b[ 3]
+       + ((sp_uint64)a[ 3]) * b[ 2]
+       + ((sp_uint64)a[ 4]) * b[ 1]
+       + ((sp_uint64)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[ 6]
+       + ((sp_uint64)a[ 1]) * b[ 5]
+       + ((sp_uint64)a[ 2]) * b[ 4]
+       + ((sp_uint64)a[ 3]) * b[ 3]
+       + ((sp_uint64)a[ 4]) * b[ 2]
+       + ((sp_uint64)a[ 5]) * b[ 1]
+       + ((sp_uint64)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[ 7]
+       + ((sp_uint64)a[ 1]) * b[ 6]
+       + ((sp_uint64)a[ 2]) * b[ 5]
+       + ((sp_uint64)a[ 3]) * b[ 4]
+       + ((sp_uint64)a[ 4]) * b[ 3]
+       + ((sp_uint64)a[ 5]) * b[ 2]
+       + ((sp_uint64)a[ 6]) * b[ 1]
+       + ((sp_uint64)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[ 8]
+       + ((sp_uint64)a[ 1]) * b[ 7]
+       + ((sp_uint64)a[ 2]) * b[ 6]
+       + ((sp_uint64)a[ 3]) * b[ 5]
+       + ((sp_uint64)a[ 4]) * b[ 4]
+       + ((sp_uint64)a[ 5]) * b[ 3]
+       + ((sp_uint64)a[ 6]) * b[ 2]
+       + ((sp_uint64)a[ 7]) * b[ 1]
+       + ((sp_uint64)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[ 9]
+       + ((sp_uint64)a[ 1]) * b[ 8]
+       + ((sp_uint64)a[ 2]) * b[ 7]
+       + ((sp_uint64)a[ 3]) * b[ 6]
+       + ((sp_uint64)a[ 4]) * b[ 5]
+       + ((sp_uint64)a[ 5]) * b[ 4]
+       + ((sp_uint64)a[ 6]) * b[ 3]
+       + ((sp_uint64)a[ 7]) * b[ 2]
+       + ((sp_uint64)a[ 8]) * b[ 1]
+       + ((sp_uint64)a[ 9]) * b[ 0];
+    t[ 8] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[10]
+       + ((sp_uint64)a[ 1]) * b[ 9]
+       + ((sp_uint64)a[ 2]) * b[ 8]
+       + ((sp_uint64)a[ 3]) * b[ 7]
+       + ((sp_uint64)a[ 4]) * b[ 6]
+       + ((sp_uint64)a[ 5]) * b[ 5]
+       + ((sp_uint64)a[ 6]) * b[ 4]
+       + ((sp_uint64)a[ 7]) * b[ 3]
+       + ((sp_uint64)a[ 8]) * b[ 2]
+       + ((sp_uint64)a[ 9]) * b[ 1]
+       + ((sp_uint64)a[10]) * b[ 0];
+    t[ 9] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[11]
+       + ((sp_uint64)a[ 1]) * b[10]
+       + ((sp_uint64)a[ 2]) * b[ 9]
+       + ((sp_uint64)a[ 3]) * b[ 8]
+       + ((sp_uint64)a[ 4]) * b[ 7]
+       + ((sp_uint64)a[ 5]) * b[ 6]
+       + ((sp_uint64)a[ 6]) * b[ 5]
+       + ((sp_uint64)a[ 7]) * b[ 4]
+       + ((sp_uint64)a[ 8]) * b[ 3]
+       + ((sp_uint64)a[ 9]) * b[ 2]
+       + ((sp_uint64)a[10]) * b[ 1]
+       + ((sp_uint64)a[11]) * b[ 0];
+    t[10] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 0]) * b[12]
+       + ((sp_uint64)a[ 1]) * b[11]
+       + ((sp_uint64)a[ 2]) * b[10]
+       + ((sp_uint64)a[ 3]) * b[ 9]
+       + ((sp_uint64)a[ 4]) * b[ 8]
+       + ((sp_uint64)a[ 5]) * b[ 7]
+       + ((sp_uint64)a[ 6]) * b[ 6]
+       + ((sp_uint64)a[ 7]) * b[ 5]
+       + ((sp_uint64)a[ 8]) * b[ 4]
+       + ((sp_uint64)a[ 9]) * b[ 3]
+       + ((sp_uint64)a[10]) * b[ 2]
+       + ((sp_uint64)a[11]) * b[ 1]
+       + ((sp_uint64)a[12]) * b[ 0];
+    t[11] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 0]) * b[13]
+       + ((sp_uint64)a[ 1]) * b[12]
+       + ((sp_uint64)a[ 2]) * b[11]
+       + ((sp_uint64)a[ 3]) * b[10]
+       + ((sp_uint64)a[ 4]) * b[ 9]
+       + ((sp_uint64)a[ 5]) * b[ 8]
+       + ((sp_uint64)a[ 6]) * b[ 7]
+       + ((sp_uint64)a[ 7]) * b[ 6]
+       + ((sp_uint64)a[ 8]) * b[ 5]
+       + ((sp_uint64)a[ 9]) * b[ 4]
+       + ((sp_uint64)a[10]) * b[ 3]
+       + ((sp_uint64)a[11]) * b[ 2]
+       + ((sp_uint64)a[12]) * b[ 1]
+       + ((sp_uint64)a[13]) * b[ 0];
+    t[12] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 1]) * b[13]
+       + ((sp_uint64)a[ 2]) * b[12]
+       + ((sp_uint64)a[ 3]) * b[11]
+       + ((sp_uint64)a[ 4]) * b[10]
+       + ((sp_uint64)a[ 5]) * b[ 9]
+       + ((sp_uint64)a[ 6]) * b[ 8]
+       + ((sp_uint64)a[ 7]) * b[ 7]
+       + ((sp_uint64)a[ 8]) * b[ 6]
+       + ((sp_uint64)a[ 9]) * b[ 5]
+       + ((sp_uint64)a[10]) * b[ 4]
+       + ((sp_uint64)a[11]) * b[ 3]
+       + ((sp_uint64)a[12]) * b[ 2]
+       + ((sp_uint64)a[13]) * b[ 1];
+    t[13] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 2]) * b[13]
+       + ((sp_uint64)a[ 3]) * b[12]
+       + ((sp_uint64)a[ 4]) * b[11]
+       + ((sp_uint64)a[ 5]) * b[10]
+       + ((sp_uint64)a[ 6]) * b[ 9]
+       + ((sp_uint64)a[ 7]) * b[ 8]
+       + ((sp_uint64)a[ 8]) * b[ 7]
+       + ((sp_uint64)a[ 9]) * b[ 6]
+       + ((sp_uint64)a[10]) * b[ 5]
+       + ((sp_uint64)a[11]) * b[ 4]
+       + ((sp_uint64)a[12]) * b[ 3]
+       + ((sp_uint64)a[13]) * b[ 2];
+    r[14] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 3]) * b[13]
+       + ((sp_uint64)a[ 4]) * b[12]
+       + ((sp_uint64)a[ 5]) * b[11]
+       + ((sp_uint64)a[ 6]) * b[10]
+       + ((sp_uint64)a[ 7]) * b[ 9]
+       + ((sp_uint64)a[ 8]) * b[ 8]
+       + ((sp_uint64)a[ 9]) * b[ 7]
+       + ((sp_uint64)a[10]) * b[ 6]
+       + ((sp_uint64)a[11]) * b[ 5]
+       + ((sp_uint64)a[12]) * b[ 4]
+       + ((sp_uint64)a[13]) * b[ 3];
+    r[15] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 4]) * b[13]
+       + ((sp_uint64)a[ 5]) * b[12]
+       + ((sp_uint64)a[ 6]) * b[11]
+       + ((sp_uint64)a[ 7]) * b[10]
+       + ((sp_uint64)a[ 8]) * b[ 9]
+       + ((sp_uint64)a[ 9]) * b[ 8]
+       + ((sp_uint64)a[10]) * b[ 7]
+       + ((sp_uint64)a[11]) * b[ 6]
+       + ((sp_uint64)a[12]) * b[ 5]
+       + ((sp_uint64)a[13]) * b[ 4];
+    r[16] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 5]) * b[13]
+       + ((sp_uint64)a[ 6]) * b[12]
+       + ((sp_uint64)a[ 7]) * b[11]
+       + ((sp_uint64)a[ 8]) * b[10]
+       + ((sp_uint64)a[ 9]) * b[ 9]
+       + ((sp_uint64)a[10]) * b[ 8]
+       + ((sp_uint64)a[11]) * b[ 7]
+       + ((sp_uint64)a[12]) * b[ 6]
+       + ((sp_uint64)a[13]) * b[ 5];
+    r[17] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 6]) * b[13]
+       + ((sp_uint64)a[ 7]) * b[12]
+       + ((sp_uint64)a[ 8]) * b[11]
+       + ((sp_uint64)a[ 9]) * b[10]
+       + ((sp_uint64)a[10]) * b[ 9]
+       + ((sp_uint64)a[11]) * b[ 8]
+       + ((sp_uint64)a[12]) * b[ 7]
+       + ((sp_uint64)a[13]) * b[ 6];
+    r[18] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 7]) * b[13]
+       + ((sp_uint64)a[ 8]) * b[12]
+       + ((sp_uint64)a[ 9]) * b[11]
+       + ((sp_uint64)a[10]) * b[10]
+       + ((sp_uint64)a[11]) * b[ 9]
+       + ((sp_uint64)a[12]) * b[ 8]
+       + ((sp_uint64)a[13]) * b[ 7];
+    r[19] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[ 8]) * b[13]
+       + ((sp_uint64)a[ 9]) * b[12]
+       + ((sp_uint64)a[10]) * b[11]
+       + ((sp_uint64)a[11]) * b[10]
+       + ((sp_uint64)a[12]) * b[ 9]
+       + ((sp_uint64)a[13]) * b[ 8];
+    r[20] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[ 9]) * b[13]
+       + ((sp_uint64)a[10]) * b[12]
+       + ((sp_uint64)a[11]) * b[11]
+       + ((sp_uint64)a[12]) * b[10]
+       + ((sp_uint64)a[13]) * b[ 9];
+    r[21] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[10]) * b[13]
+       + ((sp_uint64)a[11]) * b[12]
+       + ((sp_uint64)a[12]) * b[11]
+       + ((sp_uint64)a[13]) * b[10];
+    r[22] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[11]) * b[13]
+       + ((sp_uint64)a[12]) * b[12]
+       + ((sp_uint64)a[13]) * b[11];
+    r[23] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = ((sp_uint64)a[12]) * b[13]
+       + ((sp_uint64)a[13]) * b[12];
+    r[24] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = ((sp_uint64)a[13]) * b[13];
+    r[25] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[26] = t0 & 0xfffffff;
+    r[27] = t0 >> 28;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -8995,140 +9007,144 @@ SP_NOINLINE static void sp_3072_mul_112(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
 {
-    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
-    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint64)a[ 1]) * a[ 1];
-    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
-                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
-                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint64)a[ 2]) * a[ 2];
-    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
-                 +  ((sp_uint64)a[ 1]) * a[ 4]
-                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
-                 +  ((sp_uint64)a[ 1]) * a[ 5]
-                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint64)a[ 3]) * a[ 3];
-    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
-                 +  ((sp_uint64)a[ 1]) * a[ 6]
-                 +  ((sp_uint64)a[ 2]) * a[ 5]
-                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
-                 +  ((sp_uint64)a[ 1]) * a[ 7]
-                 +  ((sp_uint64)a[ 2]) * a[ 6]
-                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint64)a[ 4]) * a[ 4];
-    sp_uint64 t9   = (((sp_uint64)a[ 0]) * a[ 9]
-                 +  ((sp_uint64)a[ 1]) * a[ 8]
-                 +  ((sp_uint64)a[ 2]) * a[ 7]
-                 +  ((sp_uint64)a[ 3]) * a[ 6]
-                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    sp_uint64 t10  = (((sp_uint64)a[ 0]) * a[10]
-                 +  ((sp_uint64)a[ 1]) * a[ 9]
-                 +  ((sp_uint64)a[ 2]) * a[ 8]
-                 +  ((sp_uint64)a[ 3]) * a[ 7]
-                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint64)a[ 5]) * a[ 5];
-    sp_uint64 t11  = (((sp_uint64)a[ 0]) * a[11]
-                 +  ((sp_uint64)a[ 1]) * a[10]
-                 +  ((sp_uint64)a[ 2]) * a[ 9]
-                 +  ((sp_uint64)a[ 3]) * a[ 8]
-                 +  ((sp_uint64)a[ 4]) * a[ 7]
-                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    sp_uint64 t12  = (((sp_uint64)a[ 0]) * a[12]
-                 +  ((sp_uint64)a[ 1]) * a[11]
-                 +  ((sp_uint64)a[ 2]) * a[10]
-                 +  ((sp_uint64)a[ 3]) * a[ 9]
-                 +  ((sp_uint64)a[ 4]) * a[ 8]
-                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint64)a[ 6]) * a[ 6];
-    sp_uint64 t13  = (((sp_uint64)a[ 0]) * a[13]
-                 +  ((sp_uint64)a[ 1]) * a[12]
-                 +  ((sp_uint64)a[ 2]) * a[11]
-                 +  ((sp_uint64)a[ 3]) * a[10]
-                 +  ((sp_uint64)a[ 4]) * a[ 9]
-                 +  ((sp_uint64)a[ 5]) * a[ 8]
-                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    sp_uint64 t14  = (((sp_uint64)a[ 1]) * a[13]
-                 +  ((sp_uint64)a[ 2]) * a[12]
-                 +  ((sp_uint64)a[ 3]) * a[11]
-                 +  ((sp_uint64)a[ 4]) * a[10]
-                 +  ((sp_uint64)a[ 5]) * a[ 9]
-                 +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint64)a[ 7]) * a[ 7];
-    sp_uint64 t15  = (((sp_uint64)a[ 2]) * a[13]
-                 +  ((sp_uint64)a[ 3]) * a[12]
-                 +  ((sp_uint64)a[ 4]) * a[11]
-                 +  ((sp_uint64)a[ 5]) * a[10]
-                 +  ((sp_uint64)a[ 6]) * a[ 9]
-                 +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    sp_uint64 t16  = (((sp_uint64)a[ 3]) * a[13]
-                 +  ((sp_uint64)a[ 4]) * a[12]
-                 +  ((sp_uint64)a[ 5]) * a[11]
-                 +  ((sp_uint64)a[ 6]) * a[10]
-                 +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
-                 +  ((sp_uint64)a[ 8]) * a[ 8];
-    sp_uint64 t17  = (((sp_uint64)a[ 4]) * a[13]
-                 +  ((sp_uint64)a[ 5]) * a[12]
-                 +  ((sp_uint64)a[ 6]) * a[11]
-                 +  ((sp_uint64)a[ 7]) * a[10]
-                 +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
-    sp_uint64 t18  = (((sp_uint64)a[ 5]) * a[13]
-                 +  ((sp_uint64)a[ 6]) * a[12]
-                 +  ((sp_uint64)a[ 7]) * a[11]
-                 +  ((sp_uint64)a[ 8]) * a[10]) * 2
-                 +  ((sp_uint64)a[ 9]) * a[ 9];
-    sp_uint64 t19  = (((sp_uint64)a[ 6]) * a[13]
-                 +  ((sp_uint64)a[ 7]) * a[12]
-                 +  ((sp_uint64)a[ 8]) * a[11]
-                 +  ((sp_uint64)a[ 9]) * a[10]) * 2;
-    sp_uint64 t20  = (((sp_uint64)a[ 7]) * a[13]
-                 +  ((sp_uint64)a[ 8]) * a[12]
-                 +  ((sp_uint64)a[ 9]) * a[11]) * 2
-                 +  ((sp_uint64)a[10]) * a[10];
-    sp_uint64 t21  = (((sp_uint64)a[ 8]) * a[13]
-                 +  ((sp_uint64)a[ 9]) * a[12]
-                 +  ((sp_uint64)a[10]) * a[11]) * 2;
-    sp_uint64 t22  = (((sp_uint64)a[ 9]) * a[13]
-                 +  ((sp_uint64)a[10]) * a[12]) * 2
-                 +  ((sp_uint64)a[11]) * a[11];
-    sp_uint64 t23  = (((sp_uint64)a[10]) * a[13]
-                 +  ((sp_uint64)a[11]) * a[12]) * 2;
-    sp_uint64 t24  = (((sp_uint64)a[11]) * a[13]) * 2
-                 +  ((sp_uint64)a[12]) * a[12];
-    sp_uint64 t25  = (((sp_uint64)a[12]) * a[13]) * 2;
-    sp_uint64 t26  =  ((sp_uint64)a[13]) * a[13];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[14];
 
-    t1   += t0  >> 28; r[ 0] = t0  & 0xfffffff;
-    t2   += t1  >> 28; r[ 1] = t1  & 0xfffffff;
-    t3   += t2  >> 28; r[ 2] = t2  & 0xfffffff;
-    t4   += t3  >> 28; r[ 3] = t3  & 0xfffffff;
-    t5   += t4  >> 28; r[ 4] = t4  & 0xfffffff;
-    t6   += t5  >> 28; r[ 5] = t5  & 0xfffffff;
-    t7   += t6  >> 28; r[ 6] = t6  & 0xfffffff;
-    t8   += t7  >> 28; r[ 7] = t7  & 0xfffffff;
-    t9   += t8  >> 28; r[ 8] = t8  & 0xfffffff;
-    t10  += t9  >> 28; r[ 9] = t9  & 0xfffffff;
-    t11  += t10 >> 28; r[10] = t10 & 0xfffffff;
-    t12  += t11 >> 28; r[11] = t11 & 0xfffffff;
-    t13  += t12 >> 28; r[12] = t12 & 0xfffffff;
-    t14  += t13 >> 28; r[13] = t13 & 0xfffffff;
-    t15  += t14 >> 28; r[14] = t14 & 0xfffffff;
-    t16  += t15 >> 28; r[15] = t15 & 0xfffffff;
-    t17  += t16 >> 28; r[16] = t16 & 0xfffffff;
-    t18  += t17 >> 28; r[17] = t17 & 0xfffffff;
-    t19  += t18 >> 28; r[18] = t18 & 0xfffffff;
-    t20  += t19 >> 28; r[19] = t19 & 0xfffffff;
-    t21  += t20 >> 28; r[20] = t20 & 0xfffffff;
-    t22  += t21 >> 28; r[21] = t21 & 0xfffffff;
-    t23  += t22 >> 28; r[22] = t22 & 0xfffffff;
-    t24  += t23 >> 28; r[23] = t23 & 0xfffffff;
-    t25  += t24 >> 28; r[24] = t24 & 0xfffffff;
-    t26  += t25 >> 28; r[25] = t25 & 0xfffffff;
-    r[27] = (sp_digit)(t26 >> 28);
-                       r[26] = t26 & 0xfffffff;
+    t0 =  ((sp_uint64)a[ 0]) * a[ 0];
+    t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint64)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[ 3]
+       +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[ 4]
+       +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint64)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[ 5]
+       +  ((sp_uint64)a[ 1]) * a[ 4]
+       +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[ 6]
+       +  ((sp_uint64)a[ 1]) * a[ 5]
+       +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint64)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[ 7]
+       +  ((sp_uint64)a[ 1]) * a[ 6]
+       +  ((sp_uint64)a[ 2]) * a[ 5]
+       +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[ 8]
+       +  ((sp_uint64)a[ 1]) * a[ 7]
+       +  ((sp_uint64)a[ 2]) * a[ 6]
+       +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint64)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[ 9]
+       +  ((sp_uint64)a[ 1]) * a[ 8]
+       +  ((sp_uint64)a[ 2]) * a[ 7]
+       +  ((sp_uint64)a[ 3]) * a[ 6]
+       +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[10]
+       +  ((sp_uint64)a[ 1]) * a[ 9]
+       +  ((sp_uint64)a[ 2]) * a[ 8]
+       +  ((sp_uint64)a[ 3]) * a[ 7]
+       +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint64)a[ 5]) * a[ 5];
+    t[ 9] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[11]
+       +  ((sp_uint64)a[ 1]) * a[10]
+       +  ((sp_uint64)a[ 2]) * a[ 9]
+       +  ((sp_uint64)a[ 3]) * a[ 8]
+       +  ((sp_uint64)a[ 4]) * a[ 7]
+       +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
+    t[10] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 0]) * a[12]
+       +  ((sp_uint64)a[ 1]) * a[11]
+       +  ((sp_uint64)a[ 2]) * a[10]
+       +  ((sp_uint64)a[ 3]) * a[ 9]
+       +  ((sp_uint64)a[ 4]) * a[ 8]
+       +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint64)a[ 6]) * a[ 6];
+    t[11] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 0]) * a[13]
+       +  ((sp_uint64)a[ 1]) * a[12]
+       +  ((sp_uint64)a[ 2]) * a[11]
+       +  ((sp_uint64)a[ 3]) * a[10]
+       +  ((sp_uint64)a[ 4]) * a[ 9]
+       +  ((sp_uint64)a[ 5]) * a[ 8]
+       +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
+    t[12] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 1]) * a[13]
+       +  ((sp_uint64)a[ 2]) * a[12]
+       +  ((sp_uint64)a[ 3]) * a[11]
+       +  ((sp_uint64)a[ 4]) * a[10]
+       +  ((sp_uint64)a[ 5]) * a[ 9]
+       +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint64)a[ 7]) * a[ 7];
+    t[13] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 2]) * a[13]
+       +  ((sp_uint64)a[ 3]) * a[12]
+       +  ((sp_uint64)a[ 4]) * a[11]
+       +  ((sp_uint64)a[ 5]) * a[10]
+       +  ((sp_uint64)a[ 6]) * a[ 9]
+       +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 3]) * a[13]
+       +  ((sp_uint64)a[ 4]) * a[12]
+       +  ((sp_uint64)a[ 5]) * a[11]
+       +  ((sp_uint64)a[ 6]) * a[10]
+       +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
+       +  ((sp_uint64)a[ 8]) * a[ 8];
+    r[15] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 4]) * a[13]
+       +  ((sp_uint64)a[ 5]) * a[12]
+       +  ((sp_uint64)a[ 6]) * a[11]
+       +  ((sp_uint64)a[ 7]) * a[10]
+       +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
+    r[16] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 5]) * a[13]
+       +  ((sp_uint64)a[ 6]) * a[12]
+       +  ((sp_uint64)a[ 7]) * a[11]
+       +  ((sp_uint64)a[ 8]) * a[10]) * 2
+       +  ((sp_uint64)a[ 9]) * a[ 9];
+    r[17] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 6]) * a[13]
+       +  ((sp_uint64)a[ 7]) * a[12]
+       +  ((sp_uint64)a[ 8]) * a[11]
+       +  ((sp_uint64)a[ 9]) * a[10]) * 2;
+    r[18] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 7]) * a[13]
+       +  ((sp_uint64)a[ 8]) * a[12]
+       +  ((sp_uint64)a[ 9]) * a[11]) * 2
+       +  ((sp_uint64)a[10]) * a[10];
+    r[19] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[ 8]) * a[13]
+       +  ((sp_uint64)a[ 9]) * a[12]
+       +  ((sp_uint64)a[10]) * a[11]) * 2;
+    r[20] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[ 9]) * a[13]
+       +  ((sp_uint64)a[10]) * a[12]) * 2
+       +  ((sp_uint64)a[11]) * a[11];
+    r[21] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[10]) * a[13]
+       +  ((sp_uint64)a[11]) * a[12]) * 2;
+    r[22] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 = (((sp_uint64)a[11]) * a[13]) * 2
+       +  ((sp_uint64)a[12]) * a[12];
+    r[23] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t1 = (((sp_uint64)a[12]) * a[13]) * 2;
+    r[24] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t0 =  ((sp_uint64)a[13]) * a[13];
+    r[25] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[26] = t0 & 0xfffffff;
+    r[27] = t0 >> 28;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -15923,106 +15939,110 @@ static void sp_4096_norm_158(sp_digit* a)
 SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_uint64 t0   = ((sp_uint64)a[ 0]) * b[ 0];
-    sp_uint64 t1   = ((sp_uint64)a[ 0]) * b[ 1]
-                 + ((sp_uint64)a[ 1]) * b[ 0];
-    sp_uint64 t2   = ((sp_uint64)a[ 0]) * b[ 2]
-                 + ((sp_uint64)a[ 1]) * b[ 1]
-                 + ((sp_uint64)a[ 2]) * b[ 0];
-    sp_uint64 t3   = ((sp_uint64)a[ 0]) * b[ 3]
-                 + ((sp_uint64)a[ 1]) * b[ 2]
-                 + ((sp_uint64)a[ 2]) * b[ 1]
-                 + ((sp_uint64)a[ 3]) * b[ 0];
-    sp_uint64 t4   = ((sp_uint64)a[ 0]) * b[ 4]
-                 + ((sp_uint64)a[ 1]) * b[ 3]
-                 + ((sp_uint64)a[ 2]) * b[ 2]
-                 + ((sp_uint64)a[ 3]) * b[ 1]
-                 + ((sp_uint64)a[ 4]) * b[ 0];
-    sp_uint64 t5   = ((sp_uint64)a[ 0]) * b[ 5]
-                 + ((sp_uint64)a[ 1]) * b[ 4]
-                 + ((sp_uint64)a[ 2]) * b[ 3]
-                 + ((sp_uint64)a[ 3]) * b[ 2]
-                 + ((sp_uint64)a[ 4]) * b[ 1]
-                 + ((sp_uint64)a[ 5]) * b[ 0];
-    sp_uint64 t6   = ((sp_uint64)a[ 0]) * b[ 6]
-                 + ((sp_uint64)a[ 1]) * b[ 5]
-                 + ((sp_uint64)a[ 2]) * b[ 4]
-                 + ((sp_uint64)a[ 3]) * b[ 3]
-                 + ((sp_uint64)a[ 4]) * b[ 2]
-                 + ((sp_uint64)a[ 5]) * b[ 1]
-                 + ((sp_uint64)a[ 6]) * b[ 0];
-    sp_uint64 t7   = ((sp_uint64)a[ 0]) * b[ 7]
-                 + ((sp_uint64)a[ 1]) * b[ 6]
-                 + ((sp_uint64)a[ 2]) * b[ 5]
-                 + ((sp_uint64)a[ 3]) * b[ 4]
-                 + ((sp_uint64)a[ 4]) * b[ 3]
-                 + ((sp_uint64)a[ 5]) * b[ 2]
-                 + ((sp_uint64)a[ 6]) * b[ 1]
-                 + ((sp_uint64)a[ 7]) * b[ 0];
-    sp_uint64 t8   = ((sp_uint64)a[ 0]) * b[ 8]
-                 + ((sp_uint64)a[ 1]) * b[ 7]
-                 + ((sp_uint64)a[ 2]) * b[ 6]
-                 + ((sp_uint64)a[ 3]) * b[ 5]
-                 + ((sp_uint64)a[ 4]) * b[ 4]
-                 + ((sp_uint64)a[ 5]) * b[ 3]
-                 + ((sp_uint64)a[ 6]) * b[ 2]
-                 + ((sp_uint64)a[ 7]) * b[ 1]
-                 + ((sp_uint64)a[ 8]) * b[ 0];
-    sp_uint64 t9   = ((sp_uint64)a[ 1]) * b[ 8]
-                 + ((sp_uint64)a[ 2]) * b[ 7]
-                 + ((sp_uint64)a[ 3]) * b[ 6]
-                 + ((sp_uint64)a[ 4]) * b[ 5]
-                 + ((sp_uint64)a[ 5]) * b[ 4]
-                 + ((sp_uint64)a[ 6]) * b[ 3]
-                 + ((sp_uint64)a[ 7]) * b[ 2]
-                 + ((sp_uint64)a[ 8]) * b[ 1];
-    sp_uint64 t10  = ((sp_uint64)a[ 2]) * b[ 8]
-                 + ((sp_uint64)a[ 3]) * b[ 7]
-                 + ((sp_uint64)a[ 4]) * b[ 6]
-                 + ((sp_uint64)a[ 5]) * b[ 5]
-                 + ((sp_uint64)a[ 6]) * b[ 4]
-                 + ((sp_uint64)a[ 7]) * b[ 3]
-                 + ((sp_uint64)a[ 8]) * b[ 2];
-    sp_uint64 t11  = ((sp_uint64)a[ 3]) * b[ 8]
-                 + ((sp_uint64)a[ 4]) * b[ 7]
-                 + ((sp_uint64)a[ 5]) * b[ 6]
-                 + ((sp_uint64)a[ 6]) * b[ 5]
-                 + ((sp_uint64)a[ 7]) * b[ 4]
-                 + ((sp_uint64)a[ 8]) * b[ 3];
-    sp_uint64 t12  = ((sp_uint64)a[ 4]) * b[ 8]
-                 + ((sp_uint64)a[ 5]) * b[ 7]
-                 + ((sp_uint64)a[ 6]) * b[ 6]
-                 + ((sp_uint64)a[ 7]) * b[ 5]
-                 + ((sp_uint64)a[ 8]) * b[ 4];
-    sp_uint64 t13  = ((sp_uint64)a[ 5]) * b[ 8]
-                 + ((sp_uint64)a[ 6]) * b[ 7]
-                 + ((sp_uint64)a[ 7]) * b[ 6]
-                 + ((sp_uint64)a[ 8]) * b[ 5];
-    sp_uint64 t14  = ((sp_uint64)a[ 6]) * b[ 8]
-                 + ((sp_uint64)a[ 7]) * b[ 7]
-                 + ((sp_uint64)a[ 8]) * b[ 6];
-    sp_uint64 t15  = ((sp_uint64)a[ 7]) * b[ 8]
-                 + ((sp_uint64)a[ 8]) * b[ 7];
-    sp_uint64 t16  = ((sp_uint64)a[ 8]) * b[ 8];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
-    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
-    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
-    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
-    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
-    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
-    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
-    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
-    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
-    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
-    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
-    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
-    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
-    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
-    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
-    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
-    r[17] = (sp_digit)(t16 >> 26);
-                       r[16] = t16 & 0x3ffffff;
+    t0 = ((sp_uint64)a[ 0]) * b[ 0];
+    t1 = ((sp_uint64)a[ 0]) * b[ 1]
+       + ((sp_uint64)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 0]) * b[ 2]
+       + ((sp_uint64)a[ 1]) * b[ 1]
+       + ((sp_uint64)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 0]) * b[ 3]
+       + ((sp_uint64)a[ 1]) * b[ 2]
+       + ((sp_uint64)a[ 2]) * b[ 1]
+       + ((sp_uint64)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 0]) * b[ 4]
+       + ((sp_uint64)a[ 1]) * b[ 3]
+       + ((sp_uint64)a[ 2]) * b[ 2]
+       + ((sp_uint64)a[ 3]) * b[ 1]
+       + ((sp_uint64)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 0]) * b[ 5]
+       + ((sp_uint64)a[ 1]) * b[ 4]
+       + ((sp_uint64)a[ 2]) * b[ 3]
+       + ((sp_uint64)a[ 3]) * b[ 2]
+       + ((sp_uint64)a[ 4]) * b[ 1]
+       + ((sp_uint64)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 0]) * b[ 6]
+       + ((sp_uint64)a[ 1]) * b[ 5]
+       + ((sp_uint64)a[ 2]) * b[ 4]
+       + ((sp_uint64)a[ 3]) * b[ 3]
+       + ((sp_uint64)a[ 4]) * b[ 2]
+       + ((sp_uint64)a[ 5]) * b[ 1]
+       + ((sp_uint64)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 0]) * b[ 7]
+       + ((sp_uint64)a[ 1]) * b[ 6]
+       + ((sp_uint64)a[ 2]) * b[ 5]
+       + ((sp_uint64)a[ 3]) * b[ 4]
+       + ((sp_uint64)a[ 4]) * b[ 3]
+       + ((sp_uint64)a[ 5]) * b[ 2]
+       + ((sp_uint64)a[ 6]) * b[ 1]
+       + ((sp_uint64)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 0]) * b[ 8]
+       + ((sp_uint64)a[ 1]) * b[ 7]
+       + ((sp_uint64)a[ 2]) * b[ 6]
+       + ((sp_uint64)a[ 3]) * b[ 5]
+       + ((sp_uint64)a[ 4]) * b[ 4]
+       + ((sp_uint64)a[ 5]) * b[ 3]
+       + ((sp_uint64)a[ 6]) * b[ 2]
+       + ((sp_uint64)a[ 7]) * b[ 1]
+       + ((sp_uint64)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 1]) * b[ 8]
+       + ((sp_uint64)a[ 2]) * b[ 7]
+       + ((sp_uint64)a[ 3]) * b[ 6]
+       + ((sp_uint64)a[ 4]) * b[ 5]
+       + ((sp_uint64)a[ 5]) * b[ 4]
+       + ((sp_uint64)a[ 6]) * b[ 3]
+       + ((sp_uint64)a[ 7]) * b[ 2]
+       + ((sp_uint64)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 2]) * b[ 8]
+       + ((sp_uint64)a[ 3]) * b[ 7]
+       + ((sp_uint64)a[ 4]) * b[ 6]
+       + ((sp_uint64)a[ 5]) * b[ 5]
+       + ((sp_uint64)a[ 6]) * b[ 4]
+       + ((sp_uint64)a[ 7]) * b[ 3]
+       + ((sp_uint64)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 3]) * b[ 8]
+       + ((sp_uint64)a[ 4]) * b[ 7]
+       + ((sp_uint64)a[ 5]) * b[ 6]
+       + ((sp_uint64)a[ 6]) * b[ 5]
+       + ((sp_uint64)a[ 7]) * b[ 4]
+       + ((sp_uint64)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 4]) * b[ 8]
+       + ((sp_uint64)a[ 5]) * b[ 7]
+       + ((sp_uint64)a[ 6]) * b[ 6]
+       + ((sp_uint64)a[ 7]) * b[ 5]
+       + ((sp_uint64)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 5]) * b[ 8]
+       + ((sp_uint64)a[ 6]) * b[ 7]
+       + ((sp_uint64)a[ 7]) * b[ 6]
+       + ((sp_uint64)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 6]) * b[ 8]
+       + ((sp_uint64)a[ 7]) * b[ 7]
+       + ((sp_uint64)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_uint64)a[ 7]) * b[ 8]
+       + ((sp_uint64)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_uint64)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[16] = t0 & 0x3ffffff;
+    r[17] = t0 >> 26;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Add b to a into r. (r = a + b)
@@ -16528,70 +16548,74 @@ SP_NOINLINE static void sp_4096_mul_162(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_4096_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_uint64 t0   =  ((sp_uint64)a[ 0]) * a[ 0];
-    sp_uint64 t1   = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    sp_uint64 t2   = (((sp_uint64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_uint64)a[ 1]) * a[ 1];
-    sp_uint64 t3   = (((sp_uint64)a[ 0]) * a[ 3]
-                 +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    sp_uint64 t4   = (((sp_uint64)a[ 0]) * a[ 4]
-                 +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_uint64)a[ 2]) * a[ 2];
-    sp_uint64 t5   = (((sp_uint64)a[ 0]) * a[ 5]
-                 +  ((sp_uint64)a[ 1]) * a[ 4]
-                 +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    sp_uint64 t6   = (((sp_uint64)a[ 0]) * a[ 6]
-                 +  ((sp_uint64)a[ 1]) * a[ 5]
-                 +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_uint64)a[ 3]) * a[ 3];
-    sp_uint64 t7   = (((sp_uint64)a[ 0]) * a[ 7]
-                 +  ((sp_uint64)a[ 1]) * a[ 6]
-                 +  ((sp_uint64)a[ 2]) * a[ 5]
-                 +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    sp_uint64 t8   = (((sp_uint64)a[ 0]) * a[ 8]
-                 +  ((sp_uint64)a[ 1]) * a[ 7]
-                 +  ((sp_uint64)a[ 2]) * a[ 6]
-                 +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_uint64)a[ 4]) * a[ 4];
-    sp_uint64 t9   = (((sp_uint64)a[ 1]) * a[ 8]
-                 +  ((sp_uint64)a[ 2]) * a[ 7]
-                 +  ((sp_uint64)a[ 3]) * a[ 6]
-                 +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    sp_uint64 t10  = (((sp_uint64)a[ 2]) * a[ 8]
-                 +  ((sp_uint64)a[ 3]) * a[ 7]
-                 +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_uint64)a[ 5]) * a[ 5];
-    sp_uint64 t11  = (((sp_uint64)a[ 3]) * a[ 8]
-                 +  ((sp_uint64)a[ 4]) * a[ 7]
-                 +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    sp_uint64 t12  = (((sp_uint64)a[ 4]) * a[ 8]
-                 +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_uint64)a[ 6]) * a[ 6];
-    sp_uint64 t13  = (((sp_uint64)a[ 5]) * a[ 8]
-                 +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    sp_uint64 t14  = (((sp_uint64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_uint64)a[ 7]) * a[ 7];
-    sp_uint64 t15  = (((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    sp_uint64 t16  =  ((sp_uint64)a[ 8]) * a[ 8];
+    sp_uint64 t0;
+    sp_uint64 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
-    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
-    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
-    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
-    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
-    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
-    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
-    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
-    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
-    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
-    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
-    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
-    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
-    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
-    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
-    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
-    r[17] = (sp_digit)(t16 >> 26);
-                       r[16] = t16 & 0x3ffffff;
+    t0 =  ((sp_uint64)a[ 0]) * a[ 0];
+    t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
+       +  ((sp_uint64)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 0]) * a[ 3]
+       +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 0]) * a[ 4]
+       +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
+       +  ((sp_uint64)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 0]) * a[ 5]
+       +  ((sp_uint64)a[ 1]) * a[ 4]
+       +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 0]) * a[ 6]
+       +  ((sp_uint64)a[ 1]) * a[ 5]
+       +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
+       +  ((sp_uint64)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 0]) * a[ 7]
+       +  ((sp_uint64)a[ 1]) * a[ 6]
+       +  ((sp_uint64)a[ 2]) * a[ 5]
+       +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 0]) * a[ 8]
+       +  ((sp_uint64)a[ 1]) * a[ 7]
+       +  ((sp_uint64)a[ 2]) * a[ 6]
+       +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
+       +  ((sp_uint64)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 1]) * a[ 8]
+       +  ((sp_uint64)a[ 2]) * a[ 7]
+       +  ((sp_uint64)a[ 3]) * a[ 6]
+       +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 2]) * a[ 8]
+       +  ((sp_uint64)a[ 3]) * a[ 7]
+       +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
+       +  ((sp_uint64)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 3]) * a[ 8]
+       +  ((sp_uint64)a[ 4]) * a[ 7]
+       +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 4]) * a[ 8]
+       +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
+       +  ((sp_uint64)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 5]) * a[ 8]
+       +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_uint64)a[ 6]) * a[ 8]) * 2
+       +  ((sp_uint64)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_uint64)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 =  ((sp_uint64)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[16] = t0 & 0x3ffffff;
+    r[17] = t0 >> 26;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 /* Square a into r. (r = a * a)
@@ -20089,106 +20113,110 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_int64 t0   = ((sp_int64)a[ 0]) * b[ 0];
-    sp_int64 t1   = ((sp_int64)a[ 0]) * b[ 1]
-                 + ((sp_int64)a[ 1]) * b[ 0];
-    sp_int64 t2   = ((sp_int64)a[ 0]) * b[ 2]
-                 + ((sp_int64)a[ 1]) * b[ 1]
-                 + ((sp_int64)a[ 2]) * b[ 0];
-    sp_int64 t3   = ((sp_int64)a[ 0]) * b[ 3]
-                 + ((sp_int64)a[ 1]) * b[ 2]
-                 + ((sp_int64)a[ 2]) * b[ 1]
-                 + ((sp_int64)a[ 3]) * b[ 0];
-    sp_int64 t4   = ((sp_int64)a[ 0]) * b[ 4]
-                 + ((sp_int64)a[ 1]) * b[ 3]
-                 + ((sp_int64)a[ 2]) * b[ 2]
-                 + ((sp_int64)a[ 3]) * b[ 1]
-                 + ((sp_int64)a[ 4]) * b[ 0];
-    sp_int64 t5   = ((sp_int64)a[ 0]) * b[ 5]
-                 + ((sp_int64)a[ 1]) * b[ 4]
-                 + ((sp_int64)a[ 2]) * b[ 3]
-                 + ((sp_int64)a[ 3]) * b[ 2]
-                 + ((sp_int64)a[ 4]) * b[ 1]
-                 + ((sp_int64)a[ 5]) * b[ 0];
-    sp_int64 t6   = ((sp_int64)a[ 0]) * b[ 6]
-                 + ((sp_int64)a[ 1]) * b[ 5]
-                 + ((sp_int64)a[ 2]) * b[ 4]
-                 + ((sp_int64)a[ 3]) * b[ 3]
-                 + ((sp_int64)a[ 4]) * b[ 2]
-                 + ((sp_int64)a[ 5]) * b[ 1]
-                 + ((sp_int64)a[ 6]) * b[ 0];
-    sp_int64 t7   = ((sp_int64)a[ 0]) * b[ 7]
-                 + ((sp_int64)a[ 1]) * b[ 6]
-                 + ((sp_int64)a[ 2]) * b[ 5]
-                 + ((sp_int64)a[ 3]) * b[ 4]
-                 + ((sp_int64)a[ 4]) * b[ 3]
-                 + ((sp_int64)a[ 5]) * b[ 2]
-                 + ((sp_int64)a[ 6]) * b[ 1]
-                 + ((sp_int64)a[ 7]) * b[ 0];
-    sp_int64 t8   = ((sp_int64)a[ 0]) * b[ 8]
-                 + ((sp_int64)a[ 1]) * b[ 7]
-                 + ((sp_int64)a[ 2]) * b[ 6]
-                 + ((sp_int64)a[ 3]) * b[ 5]
-                 + ((sp_int64)a[ 4]) * b[ 4]
-                 + ((sp_int64)a[ 5]) * b[ 3]
-                 + ((sp_int64)a[ 6]) * b[ 2]
-                 + ((sp_int64)a[ 7]) * b[ 1]
-                 + ((sp_int64)a[ 8]) * b[ 0];
-    sp_int64 t9   = ((sp_int64)a[ 1]) * b[ 8]
-                 + ((sp_int64)a[ 2]) * b[ 7]
-                 + ((sp_int64)a[ 3]) * b[ 6]
-                 + ((sp_int64)a[ 4]) * b[ 5]
-                 + ((sp_int64)a[ 5]) * b[ 4]
-                 + ((sp_int64)a[ 6]) * b[ 3]
-                 + ((sp_int64)a[ 7]) * b[ 2]
-                 + ((sp_int64)a[ 8]) * b[ 1];
-    sp_int64 t10  = ((sp_int64)a[ 2]) * b[ 8]
-                 + ((sp_int64)a[ 3]) * b[ 7]
-                 + ((sp_int64)a[ 4]) * b[ 6]
-                 + ((sp_int64)a[ 5]) * b[ 5]
-                 + ((sp_int64)a[ 6]) * b[ 4]
-                 + ((sp_int64)a[ 7]) * b[ 3]
-                 + ((sp_int64)a[ 8]) * b[ 2];
-    sp_int64 t11  = ((sp_int64)a[ 3]) * b[ 8]
-                 + ((sp_int64)a[ 4]) * b[ 7]
-                 + ((sp_int64)a[ 5]) * b[ 6]
-                 + ((sp_int64)a[ 6]) * b[ 5]
-                 + ((sp_int64)a[ 7]) * b[ 4]
-                 + ((sp_int64)a[ 8]) * b[ 3];
-    sp_int64 t12  = ((sp_int64)a[ 4]) * b[ 8]
-                 + ((sp_int64)a[ 5]) * b[ 7]
-                 + ((sp_int64)a[ 6]) * b[ 6]
-                 + ((sp_int64)a[ 7]) * b[ 5]
-                 + ((sp_int64)a[ 8]) * b[ 4];
-    sp_int64 t13  = ((sp_int64)a[ 5]) * b[ 8]
-                 + ((sp_int64)a[ 6]) * b[ 7]
-                 + ((sp_int64)a[ 7]) * b[ 6]
-                 + ((sp_int64)a[ 8]) * b[ 5];
-    sp_int64 t14  = ((sp_int64)a[ 6]) * b[ 8]
-                 + ((sp_int64)a[ 7]) * b[ 7]
-                 + ((sp_int64)a[ 8]) * b[ 6];
-    sp_int64 t15  = ((sp_int64)a[ 7]) * b[ 8]
-                 + ((sp_int64)a[ 8]) * b[ 7];
-    sp_int64 t16  = ((sp_int64)a[ 8]) * b[ 8];
+    sp_int64 t0;
+    sp_int64 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
-    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
-    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
-    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
-    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
-    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
-    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
-    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
-    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
-    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
-    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
-    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
-    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
-    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
-    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
-    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
-    r[17] = (sp_digit)(t16 >> 29);
-                       r[16] = t16 & 0x1fffffff;
+    t0 = ((sp_int64)a[ 0]) * b[ 0];
+    t1 = ((sp_int64)a[ 0]) * b[ 1]
+       + ((sp_int64)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 0]) * b[ 2]
+       + ((sp_int64)a[ 1]) * b[ 1]
+       + ((sp_int64)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 0]) * b[ 3]
+       + ((sp_int64)a[ 1]) * b[ 2]
+       + ((sp_int64)a[ 2]) * b[ 1]
+       + ((sp_int64)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 0]) * b[ 4]
+       + ((sp_int64)a[ 1]) * b[ 3]
+       + ((sp_int64)a[ 2]) * b[ 2]
+       + ((sp_int64)a[ 3]) * b[ 1]
+       + ((sp_int64)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 0]) * b[ 5]
+       + ((sp_int64)a[ 1]) * b[ 4]
+       + ((sp_int64)a[ 2]) * b[ 3]
+       + ((sp_int64)a[ 3]) * b[ 2]
+       + ((sp_int64)a[ 4]) * b[ 1]
+       + ((sp_int64)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 0]) * b[ 6]
+       + ((sp_int64)a[ 1]) * b[ 5]
+       + ((sp_int64)a[ 2]) * b[ 4]
+       + ((sp_int64)a[ 3]) * b[ 3]
+       + ((sp_int64)a[ 4]) * b[ 2]
+       + ((sp_int64)a[ 5]) * b[ 1]
+       + ((sp_int64)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 0]) * b[ 7]
+       + ((sp_int64)a[ 1]) * b[ 6]
+       + ((sp_int64)a[ 2]) * b[ 5]
+       + ((sp_int64)a[ 3]) * b[ 4]
+       + ((sp_int64)a[ 4]) * b[ 3]
+       + ((sp_int64)a[ 5]) * b[ 2]
+       + ((sp_int64)a[ 6]) * b[ 1]
+       + ((sp_int64)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 0]) * b[ 8]
+       + ((sp_int64)a[ 1]) * b[ 7]
+       + ((sp_int64)a[ 2]) * b[ 6]
+       + ((sp_int64)a[ 3]) * b[ 5]
+       + ((sp_int64)a[ 4]) * b[ 4]
+       + ((sp_int64)a[ 5]) * b[ 3]
+       + ((sp_int64)a[ 6]) * b[ 2]
+       + ((sp_int64)a[ 7]) * b[ 1]
+       + ((sp_int64)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 1]) * b[ 8]
+       + ((sp_int64)a[ 2]) * b[ 7]
+       + ((sp_int64)a[ 3]) * b[ 6]
+       + ((sp_int64)a[ 4]) * b[ 5]
+       + ((sp_int64)a[ 5]) * b[ 4]
+       + ((sp_int64)a[ 6]) * b[ 3]
+       + ((sp_int64)a[ 7]) * b[ 2]
+       + ((sp_int64)a[ 8]) * b[ 1];
+    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 2]) * b[ 8]
+       + ((sp_int64)a[ 3]) * b[ 7]
+       + ((sp_int64)a[ 4]) * b[ 6]
+       + ((sp_int64)a[ 5]) * b[ 5]
+       + ((sp_int64)a[ 6]) * b[ 4]
+       + ((sp_int64)a[ 7]) * b[ 3]
+       + ((sp_int64)a[ 8]) * b[ 2];
+    r[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 3]) * b[ 8]
+       + ((sp_int64)a[ 4]) * b[ 7]
+       + ((sp_int64)a[ 5]) * b[ 6]
+       + ((sp_int64)a[ 6]) * b[ 5]
+       + ((sp_int64)a[ 7]) * b[ 4]
+       + ((sp_int64)a[ 8]) * b[ 3];
+    r[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 4]) * b[ 8]
+       + ((sp_int64)a[ 5]) * b[ 7]
+       + ((sp_int64)a[ 6]) * b[ 6]
+       + ((sp_int64)a[ 7]) * b[ 5]
+       + ((sp_int64)a[ 8]) * b[ 4];
+    r[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 5]) * b[ 8]
+       + ((sp_int64)a[ 6]) * b[ 7]
+       + ((sp_int64)a[ 7]) * b[ 6]
+       + ((sp_int64)a[ 8]) * b[ 5];
+    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 6]) * b[ 8]
+       + ((sp_int64)a[ 7]) * b[ 7]
+       + ((sp_int64)a[ 8]) * b[ 6];
+    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = ((sp_int64)a[ 7]) * b[ 8]
+       + ((sp_int64)a[ 8]) * b[ 7];
+    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = ((sp_int64)a[ 8]) * b[ 8];
+    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[16] = t0 & 0x1fffffff;
+    r[17] = t0 >> 29;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
@@ -20242,70 +20270,74 @@ SP_NOINLINE static void sp_256_sqr_9(sp_digit* r, const sp_digit* a)
  */
 SP_NOINLINE static void sp_256_sqr_9(sp_digit* r, const sp_digit* a)
 {
-    sp_int64 t0   =  ((sp_int64)a[ 0]) * a[ 0];
-    sp_int64 t1   = (((sp_int64)a[ 0]) * a[ 1]) * 2;
-    sp_int64 t2   = (((sp_int64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_int64)a[ 1]) * a[ 1];
-    sp_int64 t3   = (((sp_int64)a[ 0]) * a[ 3]
-                 +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
-    sp_int64 t4   = (((sp_int64)a[ 0]) * a[ 4]
-                 +  ((sp_int64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_int64)a[ 2]) * a[ 2];
-    sp_int64 t5   = (((sp_int64)a[ 0]) * a[ 5]
-                 +  ((sp_int64)a[ 1]) * a[ 4]
-                 +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
-    sp_int64 t6   = (((sp_int64)a[ 0]) * a[ 6]
-                 +  ((sp_int64)a[ 1]) * a[ 5]
-                 +  ((sp_int64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_int64)a[ 3]) * a[ 3];
-    sp_int64 t7   = (((sp_int64)a[ 0]) * a[ 7]
-                 +  ((sp_int64)a[ 1]) * a[ 6]
-                 +  ((sp_int64)a[ 2]) * a[ 5]
-                 +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
-    sp_int64 t8   = (((sp_int64)a[ 0]) * a[ 8]
-                 +  ((sp_int64)a[ 1]) * a[ 7]
-                 +  ((sp_int64)a[ 2]) * a[ 6]
-                 +  ((sp_int64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_int64)a[ 4]) * a[ 4];
-    sp_int64 t9   = (((sp_int64)a[ 1]) * a[ 8]
-                 +  ((sp_int64)a[ 2]) * a[ 7]
-                 +  ((sp_int64)a[ 3]) * a[ 6]
-                 +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
-    sp_int64 t10  = (((sp_int64)a[ 2]) * a[ 8]
-                 +  ((sp_int64)a[ 3]) * a[ 7]
-                 +  ((sp_int64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_int64)a[ 5]) * a[ 5];
-    sp_int64 t11  = (((sp_int64)a[ 3]) * a[ 8]
-                 +  ((sp_int64)a[ 4]) * a[ 7]
-                 +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
-    sp_int64 t12  = (((sp_int64)a[ 4]) * a[ 8]
-                 +  ((sp_int64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_int64)a[ 6]) * a[ 6];
-    sp_int64 t13  = (((sp_int64)a[ 5]) * a[ 8]
-                 +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
-    sp_int64 t14  = (((sp_int64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_int64)a[ 7]) * a[ 7];
-    sp_int64 t15  = (((sp_int64)a[ 7]) * a[ 8]) * 2;
-    sp_int64 t16  =  ((sp_int64)a[ 8]) * a[ 8];
+    sp_int64 t0;
+    sp_int64 t1;
+    sp_digit t[9];
 
-    t1   += t0  >> 29; r[ 0] = t0  & 0x1fffffff;
-    t2   += t1  >> 29; r[ 1] = t1  & 0x1fffffff;
-    t3   += t2  >> 29; r[ 2] = t2  & 0x1fffffff;
-    t4   += t3  >> 29; r[ 3] = t3  & 0x1fffffff;
-    t5   += t4  >> 29; r[ 4] = t4  & 0x1fffffff;
-    t6   += t5  >> 29; r[ 5] = t5  & 0x1fffffff;
-    t7   += t6  >> 29; r[ 6] = t6  & 0x1fffffff;
-    t8   += t7  >> 29; r[ 7] = t7  & 0x1fffffff;
-    t9   += t8  >> 29; r[ 8] = t8  & 0x1fffffff;
-    t10  += t9  >> 29; r[ 9] = t9  & 0x1fffffff;
-    t11  += t10 >> 29; r[10] = t10 & 0x1fffffff;
-    t12  += t11 >> 29; r[11] = t11 & 0x1fffffff;
-    t13  += t12 >> 29; r[12] = t12 & 0x1fffffff;
-    t14  += t13 >> 29; r[13] = t13 & 0x1fffffff;
-    t15  += t14 >> 29; r[14] = t14 & 0x1fffffff;
-    t16  += t15 >> 29; r[15] = t15 & 0x1fffffff;
-    r[17] = (sp_digit)(t16 >> 29);
-                       r[16] = t16 & 0x1fffffff;
+    t0 =  ((sp_int64)a[ 0]) * a[ 0];
+    t1 = (((sp_int64)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 0]) * a[ 2]) * 2
+       +  ((sp_int64)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 0]) * a[ 3]
+       +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 0]) * a[ 4]
+       +  ((sp_int64)a[ 1]) * a[ 3]) * 2
+       +  ((sp_int64)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 0]) * a[ 5]
+       +  ((sp_int64)a[ 1]) * a[ 4]
+       +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 0]) * a[ 6]
+       +  ((sp_int64)a[ 1]) * a[ 5]
+       +  ((sp_int64)a[ 2]) * a[ 4]) * 2
+       +  ((sp_int64)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 0]) * a[ 7]
+       +  ((sp_int64)a[ 1]) * a[ 6]
+       +  ((sp_int64)a[ 2]) * a[ 5]
+       +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 0]) * a[ 8]
+       +  ((sp_int64)a[ 1]) * a[ 7]
+       +  ((sp_int64)a[ 2]) * a[ 6]
+       +  ((sp_int64)a[ 3]) * a[ 5]) * 2
+       +  ((sp_int64)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 1]) * a[ 8]
+       +  ((sp_int64)a[ 2]) * a[ 7]
+       +  ((sp_int64)a[ 3]) * a[ 6]
+       +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 2]) * a[ 8]
+       +  ((sp_int64)a[ 3]) * a[ 7]
+       +  ((sp_int64)a[ 4]) * a[ 6]) * 2
+       +  ((sp_int64)a[ 5]) * a[ 5];
+    r[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 3]) * a[ 8]
+       +  ((sp_int64)a[ 4]) * a[ 7]
+       +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
+    r[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 4]) * a[ 8]
+       +  ((sp_int64)a[ 5]) * a[ 7]) * 2
+       +  ((sp_int64)a[ 6]) * a[ 6];
+    r[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 5]) * a[ 8]
+       +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
+    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 = (((sp_int64)a[ 6]) * a[ 8]) * 2
+       +  ((sp_int64)a[ 7]) * a[ 7];
+    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t1 = (((sp_int64)a[ 7]) * a[ 8]) * 2;
+    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t0 =  ((sp_int64)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[16] = t0 & 0x1fffffff;
+    r[17] = t0 >> 29;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
@@ -27172,262 +27204,266 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
     const sp_digit* b)
 {
-    sp_int64 t0   = ((sp_int64)a[ 0]) * b[ 0];
-    sp_int64 t1   = ((sp_int64)a[ 0]) * b[ 1]
-                 + ((sp_int64)a[ 1]) * b[ 0];
-    sp_int64 t2   = ((sp_int64)a[ 0]) * b[ 2]
-                 + ((sp_int64)a[ 1]) * b[ 1]
-                 + ((sp_int64)a[ 2]) * b[ 0];
-    sp_int64 t3   = ((sp_int64)a[ 0]) * b[ 3]
-                 + ((sp_int64)a[ 1]) * b[ 2]
-                 + ((sp_int64)a[ 2]) * b[ 1]
-                 + ((sp_int64)a[ 3]) * b[ 0];
-    sp_int64 t4   = ((sp_int64)a[ 0]) * b[ 4]
-                 + ((sp_int64)a[ 1]) * b[ 3]
-                 + ((sp_int64)a[ 2]) * b[ 2]
-                 + ((sp_int64)a[ 3]) * b[ 1]
-                 + ((sp_int64)a[ 4]) * b[ 0];
-    sp_int64 t5   = ((sp_int64)a[ 0]) * b[ 5]
-                 + ((sp_int64)a[ 1]) * b[ 4]
-                 + ((sp_int64)a[ 2]) * b[ 3]
-                 + ((sp_int64)a[ 3]) * b[ 2]
-                 + ((sp_int64)a[ 4]) * b[ 1]
-                 + ((sp_int64)a[ 5]) * b[ 0];
-    sp_int64 t6   = ((sp_int64)a[ 0]) * b[ 6]
-                 + ((sp_int64)a[ 1]) * b[ 5]
-                 + ((sp_int64)a[ 2]) * b[ 4]
-                 + ((sp_int64)a[ 3]) * b[ 3]
-                 + ((sp_int64)a[ 4]) * b[ 2]
-                 + ((sp_int64)a[ 5]) * b[ 1]
-                 + ((sp_int64)a[ 6]) * b[ 0];
-    sp_int64 t7   = ((sp_int64)a[ 0]) * b[ 7]
-                 + ((sp_int64)a[ 1]) * b[ 6]
-                 + ((sp_int64)a[ 2]) * b[ 5]
-                 + ((sp_int64)a[ 3]) * b[ 4]
-                 + ((sp_int64)a[ 4]) * b[ 3]
-                 + ((sp_int64)a[ 5]) * b[ 2]
-                 + ((sp_int64)a[ 6]) * b[ 1]
-                 + ((sp_int64)a[ 7]) * b[ 0];
-    sp_int64 t8   = ((sp_int64)a[ 0]) * b[ 8]
-                 + ((sp_int64)a[ 1]) * b[ 7]
-                 + ((sp_int64)a[ 2]) * b[ 6]
-                 + ((sp_int64)a[ 3]) * b[ 5]
-                 + ((sp_int64)a[ 4]) * b[ 4]
-                 + ((sp_int64)a[ 5]) * b[ 3]
-                 + ((sp_int64)a[ 6]) * b[ 2]
-                 + ((sp_int64)a[ 7]) * b[ 1]
-                 + ((sp_int64)a[ 8]) * b[ 0];
-    sp_int64 t9   = ((sp_int64)a[ 0]) * b[ 9]
-                 + ((sp_int64)a[ 1]) * b[ 8]
-                 + ((sp_int64)a[ 2]) * b[ 7]
-                 + ((sp_int64)a[ 3]) * b[ 6]
-                 + ((sp_int64)a[ 4]) * b[ 5]
-                 + ((sp_int64)a[ 5]) * b[ 4]
-                 + ((sp_int64)a[ 6]) * b[ 3]
-                 + ((sp_int64)a[ 7]) * b[ 2]
-                 + ((sp_int64)a[ 8]) * b[ 1]
-                 + ((sp_int64)a[ 9]) * b[ 0];
-    sp_int64 t10  = ((sp_int64)a[ 0]) * b[10]
-                 + ((sp_int64)a[ 1]) * b[ 9]
-                 + ((sp_int64)a[ 2]) * b[ 8]
-                 + ((sp_int64)a[ 3]) * b[ 7]
-                 + ((sp_int64)a[ 4]) * b[ 6]
-                 + ((sp_int64)a[ 5]) * b[ 5]
-                 + ((sp_int64)a[ 6]) * b[ 4]
-                 + ((sp_int64)a[ 7]) * b[ 3]
-                 + ((sp_int64)a[ 8]) * b[ 2]
-                 + ((sp_int64)a[ 9]) * b[ 1]
-                 + ((sp_int64)a[10]) * b[ 0];
-    sp_int64 t11  = ((sp_int64)a[ 0]) * b[11]
-                 + ((sp_int64)a[ 1]) * b[10]
-                 + ((sp_int64)a[ 2]) * b[ 9]
-                 + ((sp_int64)a[ 3]) * b[ 8]
-                 + ((sp_int64)a[ 4]) * b[ 7]
-                 + ((sp_int64)a[ 5]) * b[ 6]
-                 + ((sp_int64)a[ 6]) * b[ 5]
-                 + ((sp_int64)a[ 7]) * b[ 4]
-                 + ((sp_int64)a[ 8]) * b[ 3]
-                 + ((sp_int64)a[ 9]) * b[ 2]
-                 + ((sp_int64)a[10]) * b[ 1]
-                 + ((sp_int64)a[11]) * b[ 0];
-    sp_int64 t12  = ((sp_int64)a[ 0]) * b[12]
-                 + ((sp_int64)a[ 1]) * b[11]
-                 + ((sp_int64)a[ 2]) * b[10]
-                 + ((sp_int64)a[ 3]) * b[ 9]
-                 + ((sp_int64)a[ 4]) * b[ 8]
-                 + ((sp_int64)a[ 5]) * b[ 7]
-                 + ((sp_int64)a[ 6]) * b[ 6]
-                 + ((sp_int64)a[ 7]) * b[ 5]
-                 + ((sp_int64)a[ 8]) * b[ 4]
-                 + ((sp_int64)a[ 9]) * b[ 3]
-                 + ((sp_int64)a[10]) * b[ 2]
-                 + ((sp_int64)a[11]) * b[ 1]
-                 + ((sp_int64)a[12]) * b[ 0];
-    sp_int64 t13  = ((sp_int64)a[ 0]) * b[13]
-                 + ((sp_int64)a[ 1]) * b[12]
-                 + ((sp_int64)a[ 2]) * b[11]
-                 + ((sp_int64)a[ 3]) * b[10]
-                 + ((sp_int64)a[ 4]) * b[ 9]
-                 + ((sp_int64)a[ 5]) * b[ 8]
-                 + ((sp_int64)a[ 6]) * b[ 7]
-                 + ((sp_int64)a[ 7]) * b[ 6]
-                 + ((sp_int64)a[ 8]) * b[ 5]
-                 + ((sp_int64)a[ 9]) * b[ 4]
-                 + ((sp_int64)a[10]) * b[ 3]
-                 + ((sp_int64)a[11]) * b[ 2]
-                 + ((sp_int64)a[12]) * b[ 1]
-                 + ((sp_int64)a[13]) * b[ 0];
-    sp_int64 t14  = ((sp_int64)a[ 0]) * b[14]
-                 + ((sp_int64)a[ 1]) * b[13]
-                 + ((sp_int64)a[ 2]) * b[12]
-                 + ((sp_int64)a[ 3]) * b[11]
-                 + ((sp_int64)a[ 4]) * b[10]
-                 + ((sp_int64)a[ 5]) * b[ 9]
-                 + ((sp_int64)a[ 6]) * b[ 8]
-                 + ((sp_int64)a[ 7]) * b[ 7]
-                 + ((sp_int64)a[ 8]) * b[ 6]
-                 + ((sp_int64)a[ 9]) * b[ 5]
-                 + ((sp_int64)a[10]) * b[ 4]
-                 + ((sp_int64)a[11]) * b[ 3]
-                 + ((sp_int64)a[12]) * b[ 2]
-                 + ((sp_int64)a[13]) * b[ 1]
-                 + ((sp_int64)a[14]) * b[ 0];
-    sp_int64 t15  = ((sp_int64)a[ 1]) * b[14]
-                 + ((sp_int64)a[ 2]) * b[13]
-                 + ((sp_int64)a[ 3]) * b[12]
-                 + ((sp_int64)a[ 4]) * b[11]
-                 + ((sp_int64)a[ 5]) * b[10]
-                 + ((sp_int64)a[ 6]) * b[ 9]
-                 + ((sp_int64)a[ 7]) * b[ 8]
-                 + ((sp_int64)a[ 8]) * b[ 7]
-                 + ((sp_int64)a[ 9]) * b[ 6]
-                 + ((sp_int64)a[10]) * b[ 5]
-                 + ((sp_int64)a[11]) * b[ 4]
-                 + ((sp_int64)a[12]) * b[ 3]
-                 + ((sp_int64)a[13]) * b[ 2]
-                 + ((sp_int64)a[14]) * b[ 1];
-    sp_int64 t16  = ((sp_int64)a[ 2]) * b[14]
-                 + ((sp_int64)a[ 3]) * b[13]
-                 + ((sp_int64)a[ 4]) * b[12]
-                 + ((sp_int64)a[ 5]) * b[11]
-                 + ((sp_int64)a[ 6]) * b[10]
-                 + ((sp_int64)a[ 7]) * b[ 9]
-                 + ((sp_int64)a[ 8]) * b[ 8]
-                 + ((sp_int64)a[ 9]) * b[ 7]
-                 + ((sp_int64)a[10]) * b[ 6]
-                 + ((sp_int64)a[11]) * b[ 5]
-                 + ((sp_int64)a[12]) * b[ 4]
-                 + ((sp_int64)a[13]) * b[ 3]
-                 + ((sp_int64)a[14]) * b[ 2];
-    sp_int64 t17  = ((sp_int64)a[ 3]) * b[14]
-                 + ((sp_int64)a[ 4]) * b[13]
-                 + ((sp_int64)a[ 5]) * b[12]
-                 + ((sp_int64)a[ 6]) * b[11]
-                 + ((sp_int64)a[ 7]) * b[10]
-                 + ((sp_int64)a[ 8]) * b[ 9]
-                 + ((sp_int64)a[ 9]) * b[ 8]
-                 + ((sp_int64)a[10]) * b[ 7]
-                 + ((sp_int64)a[11]) * b[ 6]
-                 + ((sp_int64)a[12]) * b[ 5]
-                 + ((sp_int64)a[13]) * b[ 4]
-                 + ((sp_int64)a[14]) * b[ 3];
-    sp_int64 t18  = ((sp_int64)a[ 4]) * b[14]
-                 + ((sp_int64)a[ 5]) * b[13]
-                 + ((sp_int64)a[ 6]) * b[12]
-                 + ((sp_int64)a[ 7]) * b[11]
-                 + ((sp_int64)a[ 8]) * b[10]
-                 + ((sp_int64)a[ 9]) * b[ 9]
-                 + ((sp_int64)a[10]) * b[ 8]
-                 + ((sp_int64)a[11]) * b[ 7]
-                 + ((sp_int64)a[12]) * b[ 6]
-                 + ((sp_int64)a[13]) * b[ 5]
-                 + ((sp_int64)a[14]) * b[ 4];
-    sp_int64 t19  = ((sp_int64)a[ 5]) * b[14]
-                 + ((sp_int64)a[ 6]) * b[13]
-                 + ((sp_int64)a[ 7]) * b[12]
-                 + ((sp_int64)a[ 8]) * b[11]
-                 + ((sp_int64)a[ 9]) * b[10]
-                 + ((sp_int64)a[10]) * b[ 9]
-                 + ((sp_int64)a[11]) * b[ 8]
-                 + ((sp_int64)a[12]) * b[ 7]
-                 + ((sp_int64)a[13]) * b[ 6]
-                 + ((sp_int64)a[14]) * b[ 5];
-    sp_int64 t20  = ((sp_int64)a[ 6]) * b[14]
-                 + ((sp_int64)a[ 7]) * b[13]
-                 + ((sp_int64)a[ 8]) * b[12]
-                 + ((sp_int64)a[ 9]) * b[11]
-                 + ((sp_int64)a[10]) * b[10]
-                 + ((sp_int64)a[11]) * b[ 9]
-                 + ((sp_int64)a[12]) * b[ 8]
-                 + ((sp_int64)a[13]) * b[ 7]
-                 + ((sp_int64)a[14]) * b[ 6];
-    sp_int64 t21  = ((sp_int64)a[ 7]) * b[14]
-                 + ((sp_int64)a[ 8]) * b[13]
-                 + ((sp_int64)a[ 9]) * b[12]
-                 + ((sp_int64)a[10]) * b[11]
-                 + ((sp_int64)a[11]) * b[10]
-                 + ((sp_int64)a[12]) * b[ 9]
-                 + ((sp_int64)a[13]) * b[ 8]
-                 + ((sp_int64)a[14]) * b[ 7];
-    sp_int64 t22  = ((sp_int64)a[ 8]) * b[14]
-                 + ((sp_int64)a[ 9]) * b[13]
-                 + ((sp_int64)a[10]) * b[12]
-                 + ((sp_int64)a[11]) * b[11]
-                 + ((sp_int64)a[12]) * b[10]
-                 + ((sp_int64)a[13]) * b[ 9]
-                 + ((sp_int64)a[14]) * b[ 8];
-    sp_int64 t23  = ((sp_int64)a[ 9]) * b[14]
-                 + ((sp_int64)a[10]) * b[13]
-                 + ((sp_int64)a[11]) * b[12]
-                 + ((sp_int64)a[12]) * b[11]
-                 + ((sp_int64)a[13]) * b[10]
-                 + ((sp_int64)a[14]) * b[ 9];
-    sp_int64 t24  = ((sp_int64)a[10]) * b[14]
-                 + ((sp_int64)a[11]) * b[13]
-                 + ((sp_int64)a[12]) * b[12]
-                 + ((sp_int64)a[13]) * b[11]
-                 + ((sp_int64)a[14]) * b[10];
-    sp_int64 t25  = ((sp_int64)a[11]) * b[14]
-                 + ((sp_int64)a[12]) * b[13]
-                 + ((sp_int64)a[13]) * b[12]
-                 + ((sp_int64)a[14]) * b[11];
-    sp_int64 t26  = ((sp_int64)a[12]) * b[14]
-                 + ((sp_int64)a[13]) * b[13]
-                 + ((sp_int64)a[14]) * b[12];
-    sp_int64 t27  = ((sp_int64)a[13]) * b[14]
-                 + ((sp_int64)a[14]) * b[13];
-    sp_int64 t28  = ((sp_int64)a[14]) * b[14];
+    sp_int64 t0;
+    sp_int64 t1;
+    sp_digit t[15];
 
-    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
-    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
-    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
-    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
-    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
-    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
-    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
-    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
-    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
-    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
-    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
-    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
-    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
-    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
-    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
-    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
-    t17  += t16 >> 26; r[16] = t16 & 0x3ffffff;
-    t18  += t17 >> 26; r[17] = t17 & 0x3ffffff;
-    t19  += t18 >> 26; r[18] = t18 & 0x3ffffff;
-    t20  += t19 >> 26; r[19] = t19 & 0x3ffffff;
-    t21  += t20 >> 26; r[20] = t20 & 0x3ffffff;
-    t22  += t21 >> 26; r[21] = t21 & 0x3ffffff;
-    t23  += t22 >> 26; r[22] = t22 & 0x3ffffff;
-    t24  += t23 >> 26; r[23] = t23 & 0x3ffffff;
-    t25  += t24 >> 26; r[24] = t24 & 0x3ffffff;
-    t26  += t25 >> 26; r[25] = t25 & 0x3ffffff;
-    t27  += t26 >> 26; r[26] = t26 & 0x3ffffff;
-    t28  += t27 >> 26; r[27] = t27 & 0x3ffffff;
-    r[29] = (sp_digit)(t28 >> 26);
-                       r[28] = t28 & 0x3ffffff;
+    t0 = ((sp_int64)a[ 0]) * b[ 0];
+    t1 = ((sp_int64)a[ 0]) * b[ 1]
+       + ((sp_int64)a[ 1]) * b[ 0];
+    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[ 2]
+       + ((sp_int64)a[ 1]) * b[ 1]
+       + ((sp_int64)a[ 2]) * b[ 0];
+    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[ 3]
+       + ((sp_int64)a[ 1]) * b[ 2]
+       + ((sp_int64)a[ 2]) * b[ 1]
+       + ((sp_int64)a[ 3]) * b[ 0];
+    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[ 4]
+       + ((sp_int64)a[ 1]) * b[ 3]
+       + ((sp_int64)a[ 2]) * b[ 2]
+       + ((sp_int64)a[ 3]) * b[ 1]
+       + ((sp_int64)a[ 4]) * b[ 0];
+    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[ 5]
+       + ((sp_int64)a[ 1]) * b[ 4]
+       + ((sp_int64)a[ 2]) * b[ 3]
+       + ((sp_int64)a[ 3]) * b[ 2]
+       + ((sp_int64)a[ 4]) * b[ 1]
+       + ((sp_int64)a[ 5]) * b[ 0];
+    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[ 6]
+       + ((sp_int64)a[ 1]) * b[ 5]
+       + ((sp_int64)a[ 2]) * b[ 4]
+       + ((sp_int64)a[ 3]) * b[ 3]
+       + ((sp_int64)a[ 4]) * b[ 2]
+       + ((sp_int64)a[ 5]) * b[ 1]
+       + ((sp_int64)a[ 6]) * b[ 0];
+    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[ 7]
+       + ((sp_int64)a[ 1]) * b[ 6]
+       + ((sp_int64)a[ 2]) * b[ 5]
+       + ((sp_int64)a[ 3]) * b[ 4]
+       + ((sp_int64)a[ 4]) * b[ 3]
+       + ((sp_int64)a[ 5]) * b[ 2]
+       + ((sp_int64)a[ 6]) * b[ 1]
+       + ((sp_int64)a[ 7]) * b[ 0];
+    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[ 8]
+       + ((sp_int64)a[ 1]) * b[ 7]
+       + ((sp_int64)a[ 2]) * b[ 6]
+       + ((sp_int64)a[ 3]) * b[ 5]
+       + ((sp_int64)a[ 4]) * b[ 4]
+       + ((sp_int64)a[ 5]) * b[ 3]
+       + ((sp_int64)a[ 6]) * b[ 2]
+       + ((sp_int64)a[ 7]) * b[ 1]
+       + ((sp_int64)a[ 8]) * b[ 0];
+    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[ 9]
+       + ((sp_int64)a[ 1]) * b[ 8]
+       + ((sp_int64)a[ 2]) * b[ 7]
+       + ((sp_int64)a[ 3]) * b[ 6]
+       + ((sp_int64)a[ 4]) * b[ 5]
+       + ((sp_int64)a[ 5]) * b[ 4]
+       + ((sp_int64)a[ 6]) * b[ 3]
+       + ((sp_int64)a[ 7]) * b[ 2]
+       + ((sp_int64)a[ 8]) * b[ 1]
+       + ((sp_int64)a[ 9]) * b[ 0];
+    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[10]
+       + ((sp_int64)a[ 1]) * b[ 9]
+       + ((sp_int64)a[ 2]) * b[ 8]
+       + ((sp_int64)a[ 3]) * b[ 7]
+       + ((sp_int64)a[ 4]) * b[ 6]
+       + ((sp_int64)a[ 5]) * b[ 5]
+       + ((sp_int64)a[ 6]) * b[ 4]
+       + ((sp_int64)a[ 7]) * b[ 3]
+       + ((sp_int64)a[ 8]) * b[ 2]
+       + ((sp_int64)a[ 9]) * b[ 1]
+       + ((sp_int64)a[10]) * b[ 0];
+    t[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[11]
+       + ((sp_int64)a[ 1]) * b[10]
+       + ((sp_int64)a[ 2]) * b[ 9]
+       + ((sp_int64)a[ 3]) * b[ 8]
+       + ((sp_int64)a[ 4]) * b[ 7]
+       + ((sp_int64)a[ 5]) * b[ 6]
+       + ((sp_int64)a[ 6]) * b[ 5]
+       + ((sp_int64)a[ 7]) * b[ 4]
+       + ((sp_int64)a[ 8]) * b[ 3]
+       + ((sp_int64)a[ 9]) * b[ 2]
+       + ((sp_int64)a[10]) * b[ 1]
+       + ((sp_int64)a[11]) * b[ 0];
+    t[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[12]
+       + ((sp_int64)a[ 1]) * b[11]
+       + ((sp_int64)a[ 2]) * b[10]
+       + ((sp_int64)a[ 3]) * b[ 9]
+       + ((sp_int64)a[ 4]) * b[ 8]
+       + ((sp_int64)a[ 5]) * b[ 7]
+       + ((sp_int64)a[ 6]) * b[ 6]
+       + ((sp_int64)a[ 7]) * b[ 5]
+       + ((sp_int64)a[ 8]) * b[ 4]
+       + ((sp_int64)a[ 9]) * b[ 3]
+       + ((sp_int64)a[10]) * b[ 2]
+       + ((sp_int64)a[11]) * b[ 1]
+       + ((sp_int64)a[12]) * b[ 0];
+    t[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 0]) * b[13]
+       + ((sp_int64)a[ 1]) * b[12]
+       + ((sp_int64)a[ 2]) * b[11]
+       + ((sp_int64)a[ 3]) * b[10]
+       + ((sp_int64)a[ 4]) * b[ 9]
+       + ((sp_int64)a[ 5]) * b[ 8]
+       + ((sp_int64)a[ 6]) * b[ 7]
+       + ((sp_int64)a[ 7]) * b[ 6]
+       + ((sp_int64)a[ 8]) * b[ 5]
+       + ((sp_int64)a[ 9]) * b[ 4]
+       + ((sp_int64)a[10]) * b[ 3]
+       + ((sp_int64)a[11]) * b[ 2]
+       + ((sp_int64)a[12]) * b[ 1]
+       + ((sp_int64)a[13]) * b[ 0];
+    t[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 0]) * b[14]
+       + ((sp_int64)a[ 1]) * b[13]
+       + ((sp_int64)a[ 2]) * b[12]
+       + ((sp_int64)a[ 3]) * b[11]
+       + ((sp_int64)a[ 4]) * b[10]
+       + ((sp_int64)a[ 5]) * b[ 9]
+       + ((sp_int64)a[ 6]) * b[ 8]
+       + ((sp_int64)a[ 7]) * b[ 7]
+       + ((sp_int64)a[ 8]) * b[ 6]
+       + ((sp_int64)a[ 9]) * b[ 5]
+       + ((sp_int64)a[10]) * b[ 4]
+       + ((sp_int64)a[11]) * b[ 3]
+       + ((sp_int64)a[12]) * b[ 2]
+       + ((sp_int64)a[13]) * b[ 1]
+       + ((sp_int64)a[14]) * b[ 0];
+    t[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 1]) * b[14]
+       + ((sp_int64)a[ 2]) * b[13]
+       + ((sp_int64)a[ 3]) * b[12]
+       + ((sp_int64)a[ 4]) * b[11]
+       + ((sp_int64)a[ 5]) * b[10]
+       + ((sp_int64)a[ 6]) * b[ 9]
+       + ((sp_int64)a[ 7]) * b[ 8]
+       + ((sp_int64)a[ 8]) * b[ 7]
+       + ((sp_int64)a[ 9]) * b[ 6]
+       + ((sp_int64)a[10]) * b[ 5]
+       + ((sp_int64)a[11]) * b[ 4]
+       + ((sp_int64)a[12]) * b[ 3]
+       + ((sp_int64)a[13]) * b[ 2]
+       + ((sp_int64)a[14]) * b[ 1];
+    t[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 2]) * b[14]
+       + ((sp_int64)a[ 3]) * b[13]
+       + ((sp_int64)a[ 4]) * b[12]
+       + ((sp_int64)a[ 5]) * b[11]
+       + ((sp_int64)a[ 6]) * b[10]
+       + ((sp_int64)a[ 7]) * b[ 9]
+       + ((sp_int64)a[ 8]) * b[ 8]
+       + ((sp_int64)a[ 9]) * b[ 7]
+       + ((sp_int64)a[10]) * b[ 6]
+       + ((sp_int64)a[11]) * b[ 5]
+       + ((sp_int64)a[12]) * b[ 4]
+       + ((sp_int64)a[13]) * b[ 3]
+       + ((sp_int64)a[14]) * b[ 2];
+    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 3]) * b[14]
+       + ((sp_int64)a[ 4]) * b[13]
+       + ((sp_int64)a[ 5]) * b[12]
+       + ((sp_int64)a[ 6]) * b[11]
+       + ((sp_int64)a[ 7]) * b[10]
+       + ((sp_int64)a[ 8]) * b[ 9]
+       + ((sp_int64)a[ 9]) * b[ 8]
+       + ((sp_int64)a[10]) * b[ 7]
+       + ((sp_int64)a[11]) * b[ 6]
+       + ((sp_int64)a[12]) * b[ 5]
+       + ((sp_int64)a[13]) * b[ 4]
+       + ((sp_int64)a[14]) * b[ 3];
+    r[16] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 4]) * b[14]
+       + ((sp_int64)a[ 5]) * b[13]
+       + ((sp_int64)a[ 6]) * b[12]
+       + ((sp_int64)a[ 7]) * b[11]
+       + ((sp_int64)a[ 8]) * b[10]
+       + ((sp_int64)a[ 9]) * b[ 9]
+       + ((sp_int64)a[10]) * b[ 8]
+       + ((sp_int64)a[11]) * b[ 7]
+       + ((sp_int64)a[12]) * b[ 6]
+       + ((sp_int64)a[13]) * b[ 5]
+       + ((sp_int64)a[14]) * b[ 4];
+    r[17] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 5]) * b[14]
+       + ((sp_int64)a[ 6]) * b[13]
+       + ((sp_int64)a[ 7]) * b[12]
+       + ((sp_int64)a[ 8]) * b[11]
+       + ((sp_int64)a[ 9]) * b[10]
+       + ((sp_int64)a[10]) * b[ 9]
+       + ((sp_int64)a[11]) * b[ 8]
+       + ((sp_int64)a[12]) * b[ 7]
+       + ((sp_int64)a[13]) * b[ 6]
+       + ((sp_int64)a[14]) * b[ 5];
+    r[18] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 6]) * b[14]
+       + ((sp_int64)a[ 7]) * b[13]
+       + ((sp_int64)a[ 8]) * b[12]
+       + ((sp_int64)a[ 9]) * b[11]
+       + ((sp_int64)a[10]) * b[10]
+       + ((sp_int64)a[11]) * b[ 9]
+       + ((sp_int64)a[12]) * b[ 8]
+       + ((sp_int64)a[13]) * b[ 7]
+       + ((sp_int64)a[14]) * b[ 6];
+    r[19] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 7]) * b[14]
+       + ((sp_int64)a[ 8]) * b[13]
+       + ((sp_int64)a[ 9]) * b[12]
+       + ((sp_int64)a[10]) * b[11]
+       + ((sp_int64)a[11]) * b[10]
+       + ((sp_int64)a[12]) * b[ 9]
+       + ((sp_int64)a[13]) * b[ 8]
+       + ((sp_int64)a[14]) * b[ 7];
+    r[20] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[ 8]) * b[14]
+       + ((sp_int64)a[ 9]) * b[13]
+       + ((sp_int64)a[10]) * b[12]
+       + ((sp_int64)a[11]) * b[11]
+       + ((sp_int64)a[12]) * b[10]
+       + ((sp_int64)a[13]) * b[ 9]
+       + ((sp_int64)a[14]) * b[ 8];
+    r[21] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[ 9]) * b[14]
+       + ((sp_int64)a[10]) * b[13]
+       + ((sp_int64)a[11]) * b[12]
+       + ((sp_int64)a[12]) * b[11]
+       + ((sp_int64)a[13]) * b[10]
+       + ((sp_int64)a[14]) * b[ 9];
+    r[22] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[10]) * b[14]
+       + ((sp_int64)a[11]) * b[13]
+       + ((sp_int64)a[12]) * b[12]
+       + ((sp_int64)a[13]) * b[11]
+       + ((sp_int64)a[14]) * b[10];
+    r[23] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[11]) * b[14]
+       + ((sp_int64)a[12]) * b[13]
+       + ((sp_int64)a[13]) * b[12]
+       + ((sp_int64)a[14]) * b[11];
+    r[24] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[12]) * b[14]
+       + ((sp_int64)a[13]) * b[13]
+       + ((sp_int64)a[14]) * b[12];
+    r[25] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = ((sp_int64)a[13]) * b[14]
+       + ((sp_int64)a[14]) * b[13];
+    r[26] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = ((sp_int64)a[14]) * b[14];
+    r[27] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[28] = t0 & 0x3ffffff;
+    r[29] = t0 >> 26;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
@@ -27481,157 +27517,161 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
  */
 SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
 {
-    sp_int64 t0   =  ((sp_int64)a[ 0]) * a[ 0];
-    sp_int64 t1   = (((sp_int64)a[ 0]) * a[ 1]) * 2;
-    sp_int64 t2   = (((sp_int64)a[ 0]) * a[ 2]) * 2
-                 +  ((sp_int64)a[ 1]) * a[ 1];
-    sp_int64 t3   = (((sp_int64)a[ 0]) * a[ 3]
-                 +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
-    sp_int64 t4   = (((sp_int64)a[ 0]) * a[ 4]
-                 +  ((sp_int64)a[ 1]) * a[ 3]) * 2
-                 +  ((sp_int64)a[ 2]) * a[ 2];
-    sp_int64 t5   = (((sp_int64)a[ 0]) * a[ 5]
-                 +  ((sp_int64)a[ 1]) * a[ 4]
-                 +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
-    sp_int64 t6   = (((sp_int64)a[ 0]) * a[ 6]
-                 +  ((sp_int64)a[ 1]) * a[ 5]
-                 +  ((sp_int64)a[ 2]) * a[ 4]) * 2
-                 +  ((sp_int64)a[ 3]) * a[ 3];
-    sp_int64 t7   = (((sp_int64)a[ 0]) * a[ 7]
-                 +  ((sp_int64)a[ 1]) * a[ 6]
-                 +  ((sp_int64)a[ 2]) * a[ 5]
-                 +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
-    sp_int64 t8   = (((sp_int64)a[ 0]) * a[ 8]
-                 +  ((sp_int64)a[ 1]) * a[ 7]
-                 +  ((sp_int64)a[ 2]) * a[ 6]
-                 +  ((sp_int64)a[ 3]) * a[ 5]) * 2
-                 +  ((sp_int64)a[ 4]) * a[ 4];
-    sp_int64 t9   = (((sp_int64)a[ 0]) * a[ 9]
-                 +  ((sp_int64)a[ 1]) * a[ 8]
-                 +  ((sp_int64)a[ 2]) * a[ 7]
-                 +  ((sp_int64)a[ 3]) * a[ 6]
-                 +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
-    sp_int64 t10  = (((sp_int64)a[ 0]) * a[10]
-                 +  ((sp_int64)a[ 1]) * a[ 9]
-                 +  ((sp_int64)a[ 2]) * a[ 8]
-                 +  ((sp_int64)a[ 3]) * a[ 7]
-                 +  ((sp_int64)a[ 4]) * a[ 6]) * 2
-                 +  ((sp_int64)a[ 5]) * a[ 5];
-    sp_int64 t11  = (((sp_int64)a[ 0]) * a[11]
-                 +  ((sp_int64)a[ 1]) * a[10]
-                 +  ((sp_int64)a[ 2]) * a[ 9]
-                 +  ((sp_int64)a[ 3]) * a[ 8]
-                 +  ((sp_int64)a[ 4]) * a[ 7]
-                 +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
-    sp_int64 t12  = (((sp_int64)a[ 0]) * a[12]
-                 +  ((sp_int64)a[ 1]) * a[11]
-                 +  ((sp_int64)a[ 2]) * a[10]
-                 +  ((sp_int64)a[ 3]) * a[ 9]
-                 +  ((sp_int64)a[ 4]) * a[ 8]
-                 +  ((sp_int64)a[ 5]) * a[ 7]) * 2
-                 +  ((sp_int64)a[ 6]) * a[ 6];
-    sp_int64 t13  = (((sp_int64)a[ 0]) * a[13]
-                 +  ((sp_int64)a[ 1]) * a[12]
-                 +  ((sp_int64)a[ 2]) * a[11]
-                 +  ((sp_int64)a[ 3]) * a[10]
-                 +  ((sp_int64)a[ 4]) * a[ 9]
-                 +  ((sp_int64)a[ 5]) * a[ 8]
-                 +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
-    sp_int64 t14  = (((sp_int64)a[ 0]) * a[14]
-                 +  ((sp_int64)a[ 1]) * a[13]
-                 +  ((sp_int64)a[ 2]) * a[12]
-                 +  ((sp_int64)a[ 3]) * a[11]
-                 +  ((sp_int64)a[ 4]) * a[10]
-                 +  ((sp_int64)a[ 5]) * a[ 9]
-                 +  ((sp_int64)a[ 6]) * a[ 8]) * 2
-                 +  ((sp_int64)a[ 7]) * a[ 7];
-    sp_int64 t15  = (((sp_int64)a[ 1]) * a[14]
-                 +  ((sp_int64)a[ 2]) * a[13]
-                 +  ((sp_int64)a[ 3]) * a[12]
-                 +  ((sp_int64)a[ 4]) * a[11]
-                 +  ((sp_int64)a[ 5]) * a[10]
-                 +  ((sp_int64)a[ 6]) * a[ 9]
-                 +  ((sp_int64)a[ 7]) * a[ 8]) * 2;
-    sp_int64 t16  = (((sp_int64)a[ 2]) * a[14]
-                 +  ((sp_int64)a[ 3]) * a[13]
-                 +  ((sp_int64)a[ 4]) * a[12]
-                 +  ((sp_int64)a[ 5]) * a[11]
-                 +  ((sp_int64)a[ 6]) * a[10]
-                 +  ((sp_int64)a[ 7]) * a[ 9]) * 2
-                 +  ((sp_int64)a[ 8]) * a[ 8];
-    sp_int64 t17  = (((sp_int64)a[ 3]) * a[14]
-                 +  ((sp_int64)a[ 4]) * a[13]
-                 +  ((sp_int64)a[ 5]) * a[12]
-                 +  ((sp_int64)a[ 6]) * a[11]
-                 +  ((sp_int64)a[ 7]) * a[10]
-                 +  ((sp_int64)a[ 8]) * a[ 9]) * 2;
-    sp_int64 t18  = (((sp_int64)a[ 4]) * a[14]
-                 +  ((sp_int64)a[ 5]) * a[13]
-                 +  ((sp_int64)a[ 6]) * a[12]
-                 +  ((sp_int64)a[ 7]) * a[11]
-                 +  ((sp_int64)a[ 8]) * a[10]) * 2
-                 +  ((sp_int64)a[ 9]) * a[ 9];
-    sp_int64 t19  = (((sp_int64)a[ 5]) * a[14]
-                 +  ((sp_int64)a[ 6]) * a[13]
-                 +  ((sp_int64)a[ 7]) * a[12]
-                 +  ((sp_int64)a[ 8]) * a[11]
-                 +  ((sp_int64)a[ 9]) * a[10]) * 2;
-    sp_int64 t20  = (((sp_int64)a[ 6]) * a[14]
-                 +  ((sp_int64)a[ 7]) * a[13]
-                 +  ((sp_int64)a[ 8]) * a[12]
-                 +  ((sp_int64)a[ 9]) * a[11]) * 2
-                 +  ((sp_int64)a[10]) * a[10];
-    sp_int64 t21  = (((sp_int64)a[ 7]) * a[14]
-                 +  ((sp_int64)a[ 8]) * a[13]
-                 +  ((sp_int64)a[ 9]) * a[12]
-                 +  ((sp_int64)a[10]) * a[11]) * 2;
-    sp_int64 t22  = (((sp_int64)a[ 8]) * a[14]
-                 +  ((sp_int64)a[ 9]) * a[13]
-                 +  ((sp_int64)a[10]) * a[12]) * 2
-                 +  ((sp_int64)a[11]) * a[11];
-    sp_int64 t23  = (((sp_int64)a[ 9]) * a[14]
-                 +  ((sp_int64)a[10]) * a[13]
-                 +  ((sp_int64)a[11]) * a[12]) * 2;
-    sp_int64 t24  = (((sp_int64)a[10]) * a[14]
-                 +  ((sp_int64)a[11]) * a[13]) * 2
-                 +  ((sp_int64)a[12]) * a[12];
-    sp_int64 t25  = (((sp_int64)a[11]) * a[14]
-                 +  ((sp_int64)a[12]) * a[13]) * 2;
-    sp_int64 t26  = (((sp_int64)a[12]) * a[14]) * 2
-                 +  ((sp_int64)a[13]) * a[13];
-    sp_int64 t27  = (((sp_int64)a[13]) * a[14]) * 2;
-    sp_int64 t28  =  ((sp_int64)a[14]) * a[14];
+    sp_int64 t0;
+    sp_int64 t1;
+    sp_digit t[15];
 
-    t1   += t0  >> 26; r[ 0] = t0  & 0x3ffffff;
-    t2   += t1  >> 26; r[ 1] = t1  & 0x3ffffff;
-    t3   += t2  >> 26; r[ 2] = t2  & 0x3ffffff;
-    t4   += t3  >> 26; r[ 3] = t3  & 0x3ffffff;
-    t5   += t4  >> 26; r[ 4] = t4  & 0x3ffffff;
-    t6   += t5  >> 26; r[ 5] = t5  & 0x3ffffff;
-    t7   += t6  >> 26; r[ 6] = t6  & 0x3ffffff;
-    t8   += t7  >> 26; r[ 7] = t7  & 0x3ffffff;
-    t9   += t8  >> 26; r[ 8] = t8  & 0x3ffffff;
-    t10  += t9  >> 26; r[ 9] = t9  & 0x3ffffff;
-    t11  += t10 >> 26; r[10] = t10 & 0x3ffffff;
-    t12  += t11 >> 26; r[11] = t11 & 0x3ffffff;
-    t13  += t12 >> 26; r[12] = t12 & 0x3ffffff;
-    t14  += t13 >> 26; r[13] = t13 & 0x3ffffff;
-    t15  += t14 >> 26; r[14] = t14 & 0x3ffffff;
-    t16  += t15 >> 26; r[15] = t15 & 0x3ffffff;
-    t17  += t16 >> 26; r[16] = t16 & 0x3ffffff;
-    t18  += t17 >> 26; r[17] = t17 & 0x3ffffff;
-    t19  += t18 >> 26; r[18] = t18 & 0x3ffffff;
-    t20  += t19 >> 26; r[19] = t19 & 0x3ffffff;
-    t21  += t20 >> 26; r[20] = t20 & 0x3ffffff;
-    t22  += t21 >> 26; r[21] = t21 & 0x3ffffff;
-    t23  += t22 >> 26; r[22] = t22 & 0x3ffffff;
-    t24  += t23 >> 26; r[23] = t23 & 0x3ffffff;
-    t25  += t24 >> 26; r[24] = t24 & 0x3ffffff;
-    t26  += t25 >> 26; r[25] = t25 & 0x3ffffff;
-    t27  += t26 >> 26; r[26] = t26 & 0x3ffffff;
-    t28  += t27 >> 26; r[27] = t27 & 0x3ffffff;
-    r[29] = (sp_digit)(t28 >> 26);
-                       r[28] = t28 & 0x3ffffff;
+    t0 =  ((sp_int64)a[ 0]) * a[ 0];
+    t1 = (((sp_int64)a[ 0]) * a[ 1]) * 2;
+    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[ 2]) * 2
+       +  ((sp_int64)a[ 1]) * a[ 1];
+    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[ 3]
+       +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
+    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[ 4]
+       +  ((sp_int64)a[ 1]) * a[ 3]) * 2
+       +  ((sp_int64)a[ 2]) * a[ 2];
+    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[ 5]
+       +  ((sp_int64)a[ 1]) * a[ 4]
+       +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
+    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[ 6]
+       +  ((sp_int64)a[ 1]) * a[ 5]
+       +  ((sp_int64)a[ 2]) * a[ 4]) * 2
+       +  ((sp_int64)a[ 3]) * a[ 3];
+    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[ 7]
+       +  ((sp_int64)a[ 1]) * a[ 6]
+       +  ((sp_int64)a[ 2]) * a[ 5]
+       +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
+    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[ 8]
+       +  ((sp_int64)a[ 1]) * a[ 7]
+       +  ((sp_int64)a[ 2]) * a[ 6]
+       +  ((sp_int64)a[ 3]) * a[ 5]) * 2
+       +  ((sp_int64)a[ 4]) * a[ 4];
+    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[ 9]
+       +  ((sp_int64)a[ 1]) * a[ 8]
+       +  ((sp_int64)a[ 2]) * a[ 7]
+       +  ((sp_int64)a[ 3]) * a[ 6]
+       +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
+    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[10]
+       +  ((sp_int64)a[ 1]) * a[ 9]
+       +  ((sp_int64)a[ 2]) * a[ 8]
+       +  ((sp_int64)a[ 3]) * a[ 7]
+       +  ((sp_int64)a[ 4]) * a[ 6]) * 2
+       +  ((sp_int64)a[ 5]) * a[ 5];
+    t[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[11]
+       +  ((sp_int64)a[ 1]) * a[10]
+       +  ((sp_int64)a[ 2]) * a[ 9]
+       +  ((sp_int64)a[ 3]) * a[ 8]
+       +  ((sp_int64)a[ 4]) * a[ 7]
+       +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
+    t[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[12]
+       +  ((sp_int64)a[ 1]) * a[11]
+       +  ((sp_int64)a[ 2]) * a[10]
+       +  ((sp_int64)a[ 3]) * a[ 9]
+       +  ((sp_int64)a[ 4]) * a[ 8]
+       +  ((sp_int64)a[ 5]) * a[ 7]) * 2
+       +  ((sp_int64)a[ 6]) * a[ 6];
+    t[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 0]) * a[13]
+       +  ((sp_int64)a[ 1]) * a[12]
+       +  ((sp_int64)a[ 2]) * a[11]
+       +  ((sp_int64)a[ 3]) * a[10]
+       +  ((sp_int64)a[ 4]) * a[ 9]
+       +  ((sp_int64)a[ 5]) * a[ 8]
+       +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
+    t[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 0]) * a[14]
+       +  ((sp_int64)a[ 1]) * a[13]
+       +  ((sp_int64)a[ 2]) * a[12]
+       +  ((sp_int64)a[ 3]) * a[11]
+       +  ((sp_int64)a[ 4]) * a[10]
+       +  ((sp_int64)a[ 5]) * a[ 9]
+       +  ((sp_int64)a[ 6]) * a[ 8]) * 2
+       +  ((sp_int64)a[ 7]) * a[ 7];
+    t[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 1]) * a[14]
+       +  ((sp_int64)a[ 2]) * a[13]
+       +  ((sp_int64)a[ 3]) * a[12]
+       +  ((sp_int64)a[ 4]) * a[11]
+       +  ((sp_int64)a[ 5]) * a[10]
+       +  ((sp_int64)a[ 6]) * a[ 9]
+       +  ((sp_int64)a[ 7]) * a[ 8]) * 2;
+    t[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 2]) * a[14]
+       +  ((sp_int64)a[ 3]) * a[13]
+       +  ((sp_int64)a[ 4]) * a[12]
+       +  ((sp_int64)a[ 5]) * a[11]
+       +  ((sp_int64)a[ 6]) * a[10]
+       +  ((sp_int64)a[ 7]) * a[ 9]) * 2
+       +  ((sp_int64)a[ 8]) * a[ 8];
+    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 3]) * a[14]
+       +  ((sp_int64)a[ 4]) * a[13]
+       +  ((sp_int64)a[ 5]) * a[12]
+       +  ((sp_int64)a[ 6]) * a[11]
+       +  ((sp_int64)a[ 7]) * a[10]
+       +  ((sp_int64)a[ 8]) * a[ 9]) * 2;
+    r[16] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 4]) * a[14]
+       +  ((sp_int64)a[ 5]) * a[13]
+       +  ((sp_int64)a[ 6]) * a[12]
+       +  ((sp_int64)a[ 7]) * a[11]
+       +  ((sp_int64)a[ 8]) * a[10]) * 2
+       +  ((sp_int64)a[ 9]) * a[ 9];
+    r[17] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 5]) * a[14]
+       +  ((sp_int64)a[ 6]) * a[13]
+       +  ((sp_int64)a[ 7]) * a[12]
+       +  ((sp_int64)a[ 8]) * a[11]
+       +  ((sp_int64)a[ 9]) * a[10]) * 2;
+    r[18] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 6]) * a[14]
+       +  ((sp_int64)a[ 7]) * a[13]
+       +  ((sp_int64)a[ 8]) * a[12]
+       +  ((sp_int64)a[ 9]) * a[11]) * 2
+       +  ((sp_int64)a[10]) * a[10];
+    r[19] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 7]) * a[14]
+       +  ((sp_int64)a[ 8]) * a[13]
+       +  ((sp_int64)a[ 9]) * a[12]
+       +  ((sp_int64)a[10]) * a[11]) * 2;
+    r[20] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[ 8]) * a[14]
+       +  ((sp_int64)a[ 9]) * a[13]
+       +  ((sp_int64)a[10]) * a[12]) * 2
+       +  ((sp_int64)a[11]) * a[11];
+    r[21] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[ 9]) * a[14]
+       +  ((sp_int64)a[10]) * a[13]
+       +  ((sp_int64)a[11]) * a[12]) * 2;
+    r[22] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[10]) * a[14]
+       +  ((sp_int64)a[11]) * a[13]) * 2
+       +  ((sp_int64)a[12]) * a[12];
+    r[23] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[11]) * a[14]
+       +  ((sp_int64)a[12]) * a[13]) * 2;
+    r[24] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 = (((sp_int64)a[12]) * a[14]) * 2
+       +  ((sp_int64)a[13]) * a[13];
+    r[25] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t1 = (((sp_int64)a[13]) * a[14]) * 2;
+    r[26] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t0 =  ((sp_int64)a[14]) * a[14];
+    r[27] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[28] = t0 & 0x3ffffff;
+    r[29] = t0 >> 26;
+    XMEMCPY(r, t, sizeof(t));
 }
 
 #endif /* WOLFSSL_SP_SMALL */
