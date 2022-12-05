@@ -22,7 +22,6 @@
 #ifndef EXT_KYBER_H
 #define EXT_KYBER_H
 
-
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/kyber.h>
 
@@ -61,5 +60,8 @@ struct KyberKey {
     byte pub[EXT_KYBER_MAX_PUB_SZ];
 };
 
+#if defined (HAVE_LIBOQS)
+WOLFSSL_LOCAL int ext_kyber_enabled(int id);
+#endif
 #endif /* WOLFSSL_HAVE_KYBER */
 #endif /* EXT_KYBER_H */
