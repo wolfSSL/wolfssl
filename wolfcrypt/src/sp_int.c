@@ -128,8 +128,12 @@ This library provides single precision (SP) integer math functions.
     /* Dynamically allocate just enough data to support size. */
     #define ALLOC_SP_INT(n, s, err, h)                                         \
     do {                                                                       \
+        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+            (err) = MP_VAL;                                                    \
+        }                                                                      \
         if ((err) == MP_OKAY) {                                                \
-            (n) = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), (h), DYNAMIC_TYPE_BIGINT); \
+            (n) = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), (h),                      \
+                DYNAMIC_TYPE_BIGINT);                                          \
             if ((n) == NULL) {                                                 \
                 (err) = MP_MEM;                                                \
             }                                                                  \
@@ -147,11 +151,24 @@ This library provides single precision (SP) integer math functions.
     }                                                                          \
     while (0)
 #else
-    /* Array declared on stack - nothing to do. */
-    #define ALLOC_SP_INT(n, s, err, h)
+    /* Array declared on stack - check size is valid. */
+    #define ALLOC_SP_INT(n, s, err, h)                                         \
+    do {                                                                       \
+        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+            (err) = MP_VAL;                                                    \
+        }                                                                      \
+    }                                                                          \
+    while (0)
+
     /* Array declared on stack - set the size field. */
-    #define ALLOC_SP_INT_SIZE(n, s, err, h)     \
-        n->size = s;
+    #define ALLOC_SP_INT_SIZE(n, s, err, h)                                    \
+    do {                                                                       \
+        ALLOC_SP_INT(n, s, err, h);                                            \
+        if ((err) == MP_OKAY) {                                                \
+            (n)->size = (s);                                                   \
+        }                                                                      \
+    }                                                                          \
+    while (0)
 #endif
 
 /* FREE_SP_INT: Free an 'sp_int' variable. */
@@ -184,7 +201,7 @@ This library provides single precision (SP) integer math functions.
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT_ARRAY(n, s, c)          \
             byte    n##d[MP_INT_SIZEOF(s) * (c)];   \
-            sp_int* (n)[c]
+            sp_int* (n)[c] = { NULL, }
     #else
         /* Declare a variable on the stack. */
         #define DECL_SP_INT_ARRAY(n, s, c)      \
@@ -201,6 +218,9 @@ This library provides single precision (SP) integer math functions.
      */
     #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                                \
     do {                                                                       \
+        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+            (err) = MP_VAL;                                                    \
+        }                                                                      \
         if ((err) == MP_OKAY) {                                                \
             n##d = (sp_int*)XMALLOC(MP_INT_SIZEOF(s) * (c), (h),               \
                                                          DYNAMIC_TYPE_BIGINT); \
@@ -227,6 +247,9 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
+            if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                   \
+                (err) = MP_VAL;                                                \
+            }                                                                  \
             if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
                 (n)[0] = (sp_int*)n##d;                                        \
@@ -244,6 +267,9 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
+            if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                   \
+                (err) = MP_VAL;                                                \
+            }                                                                  \
             if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
                 for (n##ii = 0; n##ii < (c); n##ii++) {                        \
@@ -12861,11 +12887,12 @@ int sp_exptmod(const sp_int* b, const sp_int* e, const sp_int* m, sp_int* r)
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
 #if defined(WOLFSSL_SP_FAST_NCT_EXPTMOD) || !defined(WOLFSSL_SP_SMALL)
 
+/* Always allocate large array of sp_ints unless defined WOLFSSL_SP_NO_MALLOC */
 #ifdef SP_ALLOC
 #define SP_ALLOC_PREDEFINED
-#endif
-/* Always allocate large array of sp_ints unless defined WOLFSSL_SP_NO_MALLOC */
+#else
 #define SP_ALLOC
+#endif
 
 /* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  * Creates a window of precalculated exponents with base in Montgomery form.
