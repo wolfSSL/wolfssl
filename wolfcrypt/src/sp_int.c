@@ -128,7 +128,7 @@ This library provides single precision (SP) integer math functions.
     /* Dynamically allocate just enough data to support size. */
     #define ALLOC_SP_INT(n, s, err, h)                                         \
     do {                                                                       \
-        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+        if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                     \
             (err) = MP_VAL;                                                    \
         }                                                                      \
         if ((err) == MP_OKAY) {                                                \
@@ -154,7 +154,7 @@ This library provides single precision (SP) integer math functions.
     /* Array declared on stack - check size is valid. */
     #define ALLOC_SP_INT(n, s, err, h)                                         \
     do {                                                                       \
-        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+        if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                     \
             (err) = MP_VAL;                                                    \
         }                                                                      \
     }                                                                          \
@@ -218,7 +218,7 @@ This library provides single precision (SP) integer math functions.
      */
     #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                                \
     do {                                                                       \
-        if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                       \
+        if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                     \
             (err) = MP_VAL;                                                    \
         }                                                                      \
         if ((err) == MP_OKAY) {                                                \
@@ -247,7 +247,7 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                   \
+            if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                 \
                 (err) = MP_VAL;                                                \
             }                                                                  \
             if ((err) == MP_OKAY) {                                            \
@@ -267,7 +267,7 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (((err) == MP_OKAY) && (s > SP_INT_DIGITS)) {                   \
+            if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                 \
                 (err) = MP_VAL;                                                \
             }                                                                  \
             if ((err) == MP_OKAY) {                                            \
