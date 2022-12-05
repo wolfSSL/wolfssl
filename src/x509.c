@@ -5381,6 +5381,31 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                         break;
                     }
                 }
+                else if (entry->type == ASN_DIR_TYPE) {
+                    /* @TODO entry->name in ASN1 syntax */
+                    len = XSNPRINTF(scratch, MAX_WIDTH,
+                        "DirName:<print out not supported yet>");
+                    if (len >= MAX_WIDTH) {
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                }
+                else if (entry->type == ASN_URI_TYPE) {
+                    len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
+                        entry->name);
+                    if (len >= MAX_WIDTH) {
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                }
+                else if (entry->type == ASN_OTHER_TYPE) {
+                    len = XSNPRINTF(scratch, MAX_WIDTH,
+                        "othername <unsupported>");
+                    if (len >= MAX_WIDTH) {
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                }
                 else {
                     WOLFSSL_MSG("Bad alt name type.");
                     ret = WOLFSSL_FAILURE;

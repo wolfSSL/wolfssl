@@ -17284,7 +17284,6 @@ static int DecodeConstructedOtherName(DecodedCert* cert, const byte* input,
 
             default:
                 WOLFSSL_MSG("Unknown constructed other name, skipping");
-                *idx += strLen;
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 dnsEntry = NULL;
         }
@@ -17645,13 +17644,8 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                             WOLFSSL_MSG("\tfail: unsupported other name length");
                             return ASN_PARSE_E;
                         }
-                        else {
-                            /* idx will have been advanced to end of alt name */
-                            length -= (idx - lenStartIdx);
-                        }
                     }
                     else {
-                        length -= (strLen + idx - lenStartIdx);
                         idx += strLen;
                     }
             }
