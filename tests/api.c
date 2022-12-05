@@ -39512,9 +39512,10 @@ static int test_wolfSSL_i2t_ASN1_OBJECT(void)
 static int test_wolfSSL_PEM_write_bio_X509(void)
 {
     int res = TEST_SKIPPED;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AKID_NAME) && \
-    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) && \
-    !defined(NO_BIO) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_ALL) && \
+    defined(WOLFSSL_AKID_NAME) && defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
     /* This test contains the hard coded expected
      * lengths. Update if necessary */
     FILE* fp = NULL;
@@ -39555,12 +39556,13 @@ static int test_wolfSSL_PEM_write_bio_X509(void)
     AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
     /* read exported X509 PEM back into struct, sanity check on export,
-     * make sure notBefore/notAfter are the same. */
+     * make sure notBefore/notAfter are the same and certs are identical. */
     AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
     AssertNotNull(notBeforeB = X509_get_notBefore(x509b));
     AssertNotNull(notAfterB = X509_get_notAfter(x509b));
     AssertIntEQ(ASN1_TIME_compare(notBeforeA, notBeforeB), 0);
     AssertIntEQ(ASN1_TIME_compare(notAfterA, notAfterB), 0);
+    AssertIntEQ(0, wolfSSL_X509_cmp(x509a, x509b));
     X509_free(x509b);
 
     /* Reset output buffer */
@@ -39592,6 +39594,7 @@ static int test_wolfSSL_PEM_write_bio_X509(void)
     BIO_free(input);
     BIO_free(output);
     X509_free(x509a);
+    X509_free(x509b);
 
     /* test CA and basicConstSet values are encoded when
      * the cert is a CA */
@@ -39601,15 +39604,16 @@ static int test_wolfSSL_PEM_write_bio_X509(void)
     /* read PEM into X509 struct */
     AssertNotNull(PEM_read_bio_X509(input, &x509a, NULL, NULL));
 
-    /* write X509 back to PEM BIO */
+    /* write X509 back to PEM BIO; no need to sign as nothing changed */
     AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
 
     /* read exported X509 PEM back into struct, ensure isCa and basicConstSet
-     * values are maintained; no need to sign as nothing changed. */
+     * values are maintained and certs are identical.*/
     AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
     AssertIntEQ(x509b->isCa, 1);
     AssertIntEQ(x509b->basicConstSet, 1);
+    AssertIntEQ(0, wolfSSL_X509_cmp(x509a, x509b));
 
     X509_free(x509a);
     X509_free(x509b);
@@ -39624,15 +39628,16 @@ static int test_wolfSSL_PEM_write_bio_X509(void)
     /* read PEM into X509 struct */
     AssertNotNull(PEM_read_bio_X509(input, &x509a, NULL, NULL));
 
-    /* write X509 back to PEM BIO */
+    /* write X509 back to PEM BIO; no need to sign as nothing changed */
     AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_X509(output, x509a), WOLFSSL_SUCCESS);
 
     /* read exported X509 PEM back into struct, ensure isCa and
-     * basicConstSet values are maintained */
+     * basicConstSet values are maintained and certs are identical */
     AssertNotNull(PEM_read_bio_X509(output, &x509b, NULL, NULL));
     AssertIntEQ(x509b->isCa, 0);
     AssertIntEQ(x509b->basicConstSet, 1);
+    AssertIntEQ(0, wolfSSL_X509_cmp(x509a, x509b));
 
     wolfSSL_EVP_PKEY_free(priv);
     X509_free(x509a);
