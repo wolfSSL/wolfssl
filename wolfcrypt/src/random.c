@@ -848,20 +848,32 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG,
                                                         rng->heap, rng->devId);
-    if (ret != 0)
+    if (ret != 0) {
+    #ifdef HAVE_HASHDRBG
+        rng->status = DRBG_OK;
+    #endif
         return ret;
+    }
 #endif
 
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
-    if (IS_INTEL_RDRAND(intel_flags))
+    if (IS_INTEL_RDRAND(intel_flags)) {
+    #ifdef HAVE_HASHDRBG
+        rng->status = DRBG_OK;
+    #endif
         return 0;
+    }
 #endif
 
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
     ret = wc_VersalTrngInit(nonce, nonceSz);
-    if (ret)
+    if (ret) {
+    #ifdef HAVE_HASHDRBG
+        rng->status = DRBG_OK;
+    #endif
         return ret;
+    }
 #endif
 
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
