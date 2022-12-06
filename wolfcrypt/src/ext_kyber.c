@@ -52,7 +52,7 @@ int ext_kyber_enabled(int id)
 {
     const char * name = OQS_ID2name(id);
     return OQS_KEM_alg_is_enabled(name);
-}   
+}
 #endif
 
 /******************************************************************************/
