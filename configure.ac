@@ -4505,6 +4505,37 @@ else
 fi
 
 
+# MemUse Entropy
+AC_ARG_ENABLE([entropy-memuse],
+    [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
+    [ ENABLED_ENTROPY_MEMUSE=$enableval ],
+    [ ENABLED_ENTROPY_MEMUSE=no ]
+    )
+
+if test "x$ENABLED_ENTROPY_MEMUSE" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ENTROPY_MEMUSE"
+    enable_sha3=yes
+
+    for v in `echo $ENABLED_ENTROPY_MEMUSE | tr "," " "`
+    do
+      case $v in
+      yes)
+        ;;
+      thread)
+        AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_THREAD"
+        ;;
+      nofallback)
+        AM_CFLAGS="$AM_CFLAGS -DENTROPY_MEMUSE_FORCE_FAILURE"
+        ;;
+      *)
+        AC_MSG_ERROR([Invalid MemUse Entropy option. Valid are: thread, nofallback. Seen: $ENABLED_ENTROPY_MEMUSE.])
+        break;;
+      esac
+    done
+fi
+
+
 # Filesystem Build
 if test "$ENABLED_LINUXKM" = "yes"
 then
@@ -8644,6 +8675,7 @@ echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
+echo "   * MmemUse Entropy:            $ENABLED_ENTROPY_MEMUSE"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
