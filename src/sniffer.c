@@ -362,7 +362,11 @@ static const char* const msgTable[] =
     "Loading chain input",
     "Got encrypted extension",
     "Got Hello Retry Request",
+
+    /* 96 */
     "Setting up keys",
+    "Unsupported TLS Version",
+    "Server Client Key Mismatch",
 };
 
 
@@ -552,6 +556,9 @@ typedef struct SnifferSession {
     void*          userCtx;
     word32         pendSeq; /* when WC_PENDING_E is returned capture sequence */
 #endif
+    int            error;   /* store the last set error number */
+    byte           verboseErr; /* Last set error is helpful and should
+                                *  not be overwritten by FATAL_ERROR_STATE */
 } SnifferSession;
 
 
@@ -1330,6 +1337,8 @@ static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 {
     GetError(idx, error);
     TraceError(idx, error);
+    if (session)
+        session->error = idx;
     if (session && fatal == FATAL_ERROR_STATE)
         session->flags.fatalError = 1;
 }
@@ -1804,6 +1813,10 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->next = ServerList;
         ServerList = sniffer;
     }
+
+#ifndef WOLFSSL_STATIC_EPHEMERAL
+    (void)isEphemeralKey;
+#endif
 
     return 0;
 }
@@ -3028,11 +3041,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+            session->verboseErr = 1;
             ret = -1; break;
         }
 
         if (SetCipherSpecs(session->sslClient) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+            session->verboseErr = 1;
             ret = -1; break;
         }
 
@@ -3105,6 +3120,9 @@ exit_sk:
     FreeAsyncCtx(ssl, 1);
 #else
     FreeSetupKeysArgs(ssl, args);
+#endif
+#ifndef WOLFSSL_STATIC_EPHEMERAL
+    (void)ctx;
 #endif
 
     return ret;
@@ -3426,11 +3444,13 @@ static int DoResume(SnifferSession* session, char* error)
 #endif
     if (SetCipherSpecs(session->sslServer) != 0) {
         SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
         return -1;
     }
 
     if (SetCipherSpecs(session->sslClient) != 0) {
         SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
         return -1;
     }
 
@@ -3685,6 +3705,21 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         }
     }
 
+    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+#ifndef WOLFSSL_TLS13
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return -1;
+#endif
+    }
+    else {
+#ifdef WOLFSSL_NO_TLS12
+        SetError(UNSUPPORTED_TLS_VER_STR, error, session, FATAL_ERROR_STATE);
+        session->verboseErr = 1;
+        return -1;
+#endif
+    }
+
 #ifdef HAVE_EXTENDED_MASTER
     if (!session->flags.expectEms) {
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
@@ -3771,7 +3806,8 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 return ret;
             }
         #endif
-            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
+            session->verboseErr = 1;
             return ret;
         }
 
@@ -4461,6 +4497,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
             Trace(GOT_SERVER_KEY_EX_STR);
             /* can't know temp key passively */
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+            session->verboseErr = 1;
             ret = -1;
             break;
         case encrypted_extensions:
@@ -4525,8 +4562,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 if (ret == WC_PENDING_E)
                     return ret;
             #endif
-                if (ret != 0)
-                    SetError(GOT_CLIENT_KEY_EX_STR, error, session, FATAL_ERROR_STATE);
+                if (ret != 0) {
+                    SetError(KEY_MISMATCH_STR, error, session, FATAL_ERROR_STATE);
+                    session->verboseErr = 1;
+                }
             }
             break;
         case certificate_verify:
@@ -4964,6 +5003,8 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliExpected = 1;  /* relative */
     session->lastUsed= wc_Time(NULL);
     session->keySz = 0;
+    session->error = 0;
+    session->verboseErr = 0;
 #ifdef HAVE_SNI
     session->sni = NULL;
 #endif
@@ -6334,7 +6375,9 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 {
     if (session && session->flags.fatalError == FATAL_ERROR_STATE) {
         RemoveSession(session, ipInfo, tcpInfo, 0);
-        SetError(FATAL_ERROR_STR, error, NULL, 0);
+        if (!session->verboseErr) {
+            SetError(FATAL_ERROR_STR, error, NULL, 0);
+        }
         return 1;
     }
     return 0;

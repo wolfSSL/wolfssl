@@ -363,7 +363,7 @@ static int load_key(const char* name, const char* server, int port,
 
         if (loadCount == 0) {
             printf("Failed loading private key %s: ret %d\n", keyFile, ret);
-            printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
+            printf("Please run directly from wolfSSL root dir\n");
             ret = -1;
         }
         else {
