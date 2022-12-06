@@ -10479,7 +10479,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12)
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(NO_WOLFSSL_CLIENT)
     case hello_verify_request:
         WOLFSSL_MSG("processing hello verify request");
         ret = DoHelloVerifyRequest(ssl, input, inOutIdx, size);
@@ -11229,7 +11230,7 @@ int wolfSSL_disable_hrr_cookie(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
 
 #ifdef NO_WOLFSSL_SERVER
-    return SIDE_ERROR
+    return SIDE_ERROR;
 #else
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
