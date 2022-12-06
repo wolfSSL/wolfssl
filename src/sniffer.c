@@ -1184,10 +1184,11 @@ static void TraceSequence(word32 seq, int len)
 
 
 /* Show sequence and payload length for Trace */
-static void TraceAck(word32 ack, word32 expected)
+static void TraceAck(word32 acknowledgement, word32 expected)
 {
     if (TraceOn) {
-        XFPRINTF(TraceFile, "\tAck:%u Expected:%u\n", ack, expected);
+        XFPRINTF(TraceFile, "\tAck:%u Expected:%u\n", acknowledgement,
+                 expected);
     }
 }
 
@@ -6258,6 +6259,10 @@ doPart:
             sslFrame += rhSize;
             sslBytes -= rhSize;
             break;
+#ifdef WOLFSSL_DTLS13
+        case ack:
+            /* TODO */
+#endif /* WOLFSSL_DTLS13 */
         case no_type:
         default:
             SetError(GOT_UNKNOWN_RECORD_STR, error, session, FATAL_ERROR_STATE);

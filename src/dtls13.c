@@ -117,6 +117,7 @@ typedef struct Dtls13RecordPlaintextHeader {
 #define DTLS13_MIN_CIPHERTEXT 16
 #define DTLS13_MIN_RTX_INTERVAL 1
 
+#ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
 {
     WOLFSSL_METHOD* method;
@@ -131,6 +132,14 @@ WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
     return method;
 }
 
+WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
+{
+    return wolfDTLSv1_3_client_method_ex(NULL);
+}
+#endif /* !NO_WOLFSSL_CLIENT */
+
+
+#ifndef NO_WOLFSSL_SERVER
 WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
 {
     WOLFSSL_METHOD* method;
@@ -147,15 +156,11 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
     return method;
 }
 
-WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
-{
-    return wolfDTLSv1_3_client_method_ex(NULL);
-}
-
 WOLFSSL_METHOD* wolfDTLSv1_3_server_method(void)
 {
     return wolfDTLSv1_3_server_method_ex(NULL);
 }
+#endif /* !NO_WOLFSSL_SERVER */
 
 int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
     enum ContentType content_type, word16 length)
