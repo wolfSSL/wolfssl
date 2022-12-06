@@ -837,7 +837,7 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
     int recvd;
 
     recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
-    recvd = TranslateReturnCode(recvd, sd);
+    recvd = TranslateReturnCode(recvd, (int)sd);
 
     return recvd;
 }
@@ -847,7 +847,7 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
     int sent;
 
     sent = (int)SEND_FUNCTION(sd, buf, sz, wrFlags);
-    sent = TranslateReturnCode(sent, sd);
+    sent = TranslateReturnCode(sent, (int)sd);
 
     return sent;
 }
@@ -1142,6 +1142,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif
     {
         WOLFSSL_MSG("bad socket fd, out of fds?");
+        *sockfd = SOCKET_INVALID;
         return -1;
     }
 
@@ -1206,7 +1207,12 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     sin->sin_port = XHTONS(port);
     *sockfd = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
 
-    if (*sockfd < 0) {
+#ifdef USE_WINDOWS_API
+    if (*sockfd == SOCKET_INVALID)
+#else
+    if (*sockfd <= SOCKET_INVALID)
+#endif
+    {
         WOLFSSL_MSG("socket failed");
         *sockfd = SOCKET_INVALID;
         return -1;
@@ -1794,7 +1800,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                 WOLFSSL_MSG("OCSP ocsp request failed");
             }
             else {
-                ret = wolfIO_HttpProcessResponseOcsp(sfd, ocspRespBuf, httpBuf,
+                ret = wolfIO_HttpProcessResponseOcsp((int)sfd, ocspRespBuf, httpBuf,
                                                  HTTP_SCRATCH_BUFFER_SIZE, ctx);
             }
             if (sfd != SOCKET_INVALID)

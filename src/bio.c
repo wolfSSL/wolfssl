@@ -2144,7 +2144,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        b->num = sfd;
+        b->num = (int)sfd;
         b->shutdown = BIO_CLOSE;
         return WOLFSSL_SUCCESS;
     }
@@ -2173,7 +2173,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
             }
-            b->num = sfd;
+            b->num = (int)sfd;
             b->shutdown = BIO_CLOSE;
         }
         else {
