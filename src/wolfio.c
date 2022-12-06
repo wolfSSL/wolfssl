@@ -837,7 +837,7 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
     int recvd;
 
     recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
-    recvd = TranslateReturnCode(recvd, (int) sd);
+    recvd = TranslateReturnCode(recvd, (int)sd);
 
     return recvd;
 }
@@ -847,7 +847,7 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
     int sent;
 
     sent = (int)SEND_FUNCTION(sd, buf, sz, wrFlags);
-    sent = TranslateReturnCode(sent, (int) sd);
+    sent = TranslateReturnCode(sent, (int)sd);
 
     return sent;
 }
@@ -1800,7 +1800,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                 WOLFSSL_MSG("OCSP ocsp request failed");
             }
             else {
-                ret = wolfIO_HttpProcessResponseOcsp((int) sfd, ocspRespBuf, httpBuf,
+                ret = wolfIO_HttpProcessResponseOcsp((int)sfd, ocspRespBuf, httpBuf,
                                                  HTTP_SCRATCH_BUFFER_SIZE, ctx);
             }
             if (sfd != SOCKET_INVALID)
