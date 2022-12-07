@@ -246,29 +246,11 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
 
 
-/* For FIPS builds, the user should not be adjusting the values. */
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    #if defined(RNG_SECURITY_STRENGTH) \
-            || defined(ENTROPY_SCALE_FACTOR) \
-            || defined(SEED_BLOCK_SZ)
-
-        #error "Do not change the RNG parameters for FIPS builds."
-    #endif
-#endif
 /* The security strength for the RNG is the target number of bits of
  * entropy you are looking for in a seed. */
 #ifndef RNG_SECURITY_STRENGTH
-    #if defined(HAVE_FIPS) && \
-        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-        /* SHA-256 requires a minimum of 256-bits of entropy. The goal
-         * of 1024 will provide 4 times that. */
-        #define RNG_SECURITY_STRENGTH (1024)
-    #else
-        /* If not using FIPS or using old FIPS, set the number down a bit.
-         * More is better, but more is also slower. */
-        #define RNG_SECURITY_STRENGTH (256)
-    #endif
+    /* SHA-256 requires a minimum of 256-bits of entropy. */
+    #define RNG_SECURITY_STRENGTH (256)
 #endif
 
 #ifndef ENTROPY_SCALE_FACTOR
@@ -276,7 +258,12 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
      * minimum bits of entropy per bit of NDRNG output. */
     #if defined(HAVE_ENTROPY_MEMUSE)
         /* Full strength, conditioned entropy is requested of MemUse Entropy. */
-        #define ENTROPY_SCALE_FACTOR  (1)
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION >= 2)
+            #define ENTROPY_SCALE_FACTOR (4)
+        #else
+            #define ENTROPY_SCALE_FACTOR (1)
+        #endif
     #elif defined(HAVE_AMD_RDSEED)
         /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
          * we'll add an additional 8kb on top. */
