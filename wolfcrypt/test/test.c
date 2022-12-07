@@ -17507,11 +17507,13 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(-8057, done);
     }
 
+#ifndef HAVE_SELFTEST
     ret = wc_DhCheckKeyPair(key, pub, pubSz, priv, privSz);
     if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != MP_CMP_E &&
             ret != ASYNC_OP_E) {
         ERROR_OUT(-8057, done);
     }
+#endif
 
     /* Getting here means success - set ret to 0. */
     ret = 0;

@@ -566,6 +566,17 @@ AC_ARG_ENABLE([sp-asm],
     [ ENABLED_SP_ASM=$SP_ASM_DEFAULT ],
     )
 
+if test "$ENABLED_SP_ASM" != "no"
+then
+    if test "$ENABLED_SP" = "no"
+    then
+        AC_MSG_ERROR([--enable-sp-asm requries SP to be enabled.])
+    fi
+    if test "$ENABLED_SP" = ""
+    then
+        ENABLED_SP=yes
+    fi
+fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
