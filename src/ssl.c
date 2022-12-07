@@ -17045,51 +17045,12 @@ cleanup:
 
     unsigned long wolfSSL_ERR_get_error(void)
     {
-        int ret;
-
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
-
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
-        ret = wc_PullErrorNode(NULL, NULL, NULL);
-        if (ret < 0) {
-            if (ret == BAD_STATE_E) {
-                ret = 0; /* no errors in queue */
-            }
-            else {
-                WOLFSSL_MSG("Error with pulling error node!");
-                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
-                ret = 0 - ret; /* return absolute value of error */
-                /* panic and try to clear out nodes */
-                wc_ClearErrorNodes();
-            }
-        }
-        else {
-            int idx = wc_GetCurrentIdx();
-            if (idx < 0) {
-                WOLFSSL_MSG("Error with getting current index!");
-                ret = BAD_STATE_E;
-                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
-
-                /* panic and try to clear out nodes and reset queue state */
-                wc_ClearErrorNodes();
-            }
-            else if (idx > 0) {
-                idx -= 1;
-                wc_RemoveErrorNode(idx);
-            }
-            else {
-                /* if current idx is 0 then the queue only had one node */
-                wc_RemoveErrorNode(idx);
-            }
-        }
-
-        return ret;
+        return wc_GetErrorNodeErr();
 #else
-
-        (void)ret;
-
         return (unsigned long)(0 - NOT_COMPILED_IN);
-#endif /* WOLFSSL_HAVE_ERROR_QUEUE */
+#endif
     }
 
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
@@ -33220,63 +33181,42 @@ int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef OPENSSL_EXTRA
+
+static int peek_ignore_err(int err)
+{
+  switch(err) {
+    case -WANT_READ:
+    case -WANT_WRITE:
+    case -ZERO_RETURN:
+    case -WOLFSSL_ERROR_ZERO_RETURN:
+    case -SOCKET_PEER_CLOSED_E:
+    case -SOCKET_ERROR_E:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                                                const char **data, int *flags)
 {
+  unsigned long err;
+
     WOLFSSL_ENTER("wolfSSL_ERR_peek_error_line_data");
+    err = wc_PeekErrorNodeLineData(file, line, data, flags, peek_ignore_err);
 
-    (void)line;
-    (void)file;
-
-    /* No data or flags stored - error display only in Nginx. */
-    if (data != NULL) {
-        *data = "";
-    }
-    if (flags != NULL) {
-        *flags = 0;
-    }
-
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
-    {
-        int ret = 0;
-        int idx = wc_GetCurrentIdx();
-
-        while (1) {
-            ret = wc_PeekErrorNode(idx, file, NULL, line);
-            if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
-                WOLFSSL_MSG("Issue peeking at error node in queue");
-                return 0;
-            }
-            /* OpenSSL uses positive error codes */
-            if (ret < 0) {
-                ret = -ret;
-            }
-
-            if (ret == -ASN_NO_PEM_HEADER)
-                return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
-        #ifdef OPENSSL_ALL
-            /* PARSE_ERROR is returned if an HTTP request is detected. */
-            if (ret == -SSL_R_HTTP_REQUEST)
-                return (ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST;
-        #endif
-        #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-            if (ret == ASN1_R_HEADER_TOO_LONG) {
-                return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
-            }
-        #endif
-            if (ret != -WANT_READ && ret != -WANT_WRITE &&
-                    ret != -ZERO_RETURN && ret != -WOLFSSL_ERROR_ZERO_RETURN &&
-                    ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
-                break;
-
-            wc_RemoveErrorNode(idx);
-        }
-
-        return (unsigned long)ret;
-    }
-#else
-    return (unsigned long)(0 - NOT_COMPILED_IN);
+    if (err == -ASN_NO_PEM_HEADER)
+        return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+#ifdef OPENSSL_ALL
+    /* PARSE_ERROR is returned if an HTTP request is detected. */
+    else if (err == -SSL_R_HTTP_REQUEST)
+        return (ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST;
 #endif
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
+    else if (ret == ASN1_R_HEADER_TOO_LONG)
+        return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
+#endif
+  return err;
 }
 #endif
 

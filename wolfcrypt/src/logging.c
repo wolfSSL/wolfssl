@@ -33,57 +33,6 @@
 #include <wolfssl/error-ssl.h>
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-static
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
-
-/* accessing any node from the queue should be wrapped in a lock of
- * debug_mutex */
-static
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-void* wc_error_heap;
-struct wc_error_queue {
-    void*  heap; /* the heap hint used with nodes creation */
-    struct wc_error_queue* next;
-    struct wc_error_queue* prev;
-    char   error[WOLFSSL_MAX_ERROR_SZ];
-    char   file[WOLFSSL_MAX_ERROR_SZ];
-    int    value;
-    int    line;
-};
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-volatile struct wc_error_queue* wc_errors;
-static
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-struct wc_error_queue* wc_current_node;
-static
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-struct wc_error_queue* wc_last_node;
-/* pointer to last node in queue to make insertion O(1) */
-
-#ifndef ERROR_QUEUE_MAX
-    /* this breaks from compat of unlimited error queue size */
-    #define ERROR_QUEUE_MAX 100
-#endif
-static
-#ifdef ERROR_QUEUE_PER_THREAD
-THREAD_LS_T
-#endif
-int wc_error_queue_count = 0;
-
-#endif
-
 #ifdef WOLFSSL_FUNC_TIME
 /* WARNING: This code is only to be used for debugging performance.
  *          The code is not thread-safe.
@@ -481,101 +430,358 @@ WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
 #endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
 #endif /* DEBUG_WOLFSSL */
 
-/*
- * When using OPENSSL_EXTRA or DEBUG_WOLFSSL_VERBOSE macro then WOLFSSL_ERROR is
- * mapped to new function WOLFSSL_ERROR_LINE which gets the line # and function
- * name where WOLFSSL_ERROR is called at.
- */
-#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
-void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
-        const char* file, void* usrCtx)
-#else
-void WOLFSSL_ERROR(int error)
+
+#ifdef ERROR_QUEUE_PER_THREAD
+/* Keep the error queue in thread-local-storage. The only ways this
+ * API can deliver meaningful semantics in a multi-threaded setup.
+ */
+#ifndef ERROR_QUEUE_MAX
+/* Same as OpenSSL v1.1.x limit, note that this is per thread */
+#define ERROR_QUEUE_MAX 16
 #endif
-{
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (error != WC_PENDING_E)
-#endif
-    {
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
 
-    #ifdef WOLFSSL_HAVE_ERROR_QUEUE
-        (void)usrCtx; /* a user ctx for future flexibility */
-        (void)func;
+struct wc_error_entry {
+    char   reason[WOLFSSL_MAX_ERROR_SZ];
+    char   file[WOLFSSL_MAX_ERROR_SZ];
+    int    line;
+    int    err;
+};
 
-        if (wc_LockMutex(&debug_mutex) != 0) {
-            WOLFSSL_MSG("Lock debug mutex failed");
-            (void)XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d", error);
-        }
-        else {
-            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
-            /* If running in compatibility mode do not add want read and
-               want right to error queue */
-            if (error != WANT_READ && error != WANT_WRITE) {
-            #endif
-            if (error < 0)
-                error = error - (2 * error); /* get absolute value */
-            (void)XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d line:%u file:%s",
-                    error, line, file);
+struct wc_error_queue {
+    struct wc_error_entry entries[ERROR_QUEUE_MAX];
+    size_t head_idx;
+    size_t count;
+};
 
-            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
-                WOLFSSL_MSG("Error creating logging node");
-                /* with void function there is no return here, continue on
-                 * to unlock mutex and log what buffer was created. */
-            }
-            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
-            }
-            else {
-                (void)XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d", error);
-            }
-            #endif
+/* The complete queue in a thread local without allocations */
+static THREAD_LS_T struct wc_error_queue wc_errors;
 
-            wc_UnLockMutex(&debug_mutex);
-        }
-    #else
-        (void)XSNPRINTF(buffer, sizeof(buffer),
-                "wolfSSL error occurred, error = %d", error);
-    #endif
+/* Using thread-local-storage, we do not need a mutex. */
+#define ERRQ_LOCK()            0
+#define ERRQ_UNLOCK()          (void)0
 
-    #ifdef DEBUG_WOLFSSL
-        if (loggingEnabled)
-            wolfssl_log(ERROR_LOG , buffer);
-    #endif
-    }
-}
-
-void WOLFSSL_ERROR_MSG(const char* msg)
-{
-#ifdef DEBUG_WOLFSSL
-    if (loggingEnabled)
-        wolfssl_log(ERROR_LOG , msg);
-#else
-    (void)msg;
-#endif
-}
-
-#endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
-
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 /* Internal function that is called by wolfCrypt_Init() */
 int wc_LoggingInit(void)
 {
-    if (wc_InitMutex(&debug_mutex) != 0) {
+    return 0;
+}
+
+/* internal function that is called by wolfCrypt_Cleanup */
+int wc_LoggingCleanup(void)
+{
+    /* clear logging entries */
+    wc_ClearErrorNodes();
+    return 0;
+}
+
+static int get_abs_idx(int relative_idx)
+{
+    if ((wc_errors.count == 0) || (relative_idx >= (int)wc_errors.count)) {
+        return -1;
+    }
+    if (relative_idx < 0) {
+        return (int)((wc_errors.head_idx + wc_errors.count - 1)
+                      % ERROR_QUEUE_MAX);
+    }
+    return (int)((wc_errors.head_idx + relative_idx) % ERROR_QUEUE_MAX);
+}
+
+static struct wc_error_entry *get_entry(int relative_idx)
+{
+    int abs_idx;
+
+    abs_idx = get_abs_idx(relative_idx);
+    if (abs_idx < 0) {
+        return NULL;
+    }
+    return &wc_errors.entries[abs_idx];
+}
+
+static int pass_entry(struct wc_error_entry *entry,
+                      const char **file, const char **reason,
+                      int *line)
+{
+    if (entry == NULL) {
+        WOLFSSL_MSG("No Error found in queue");
+        return BAD_STATE_E;
+    }
+    if (file != NULL) {
+        *file = entry->file;
+    }
+    if (reason != NULL) {
+        *reason = entry->reason;
+    }
+    if (line != NULL) {
+        *line = entry->line;
+    }
+    return entry->err;
+}
+
+static void set_entry(struct wc_error_entry *entry, int error,
+                      const char *file, const char *reason, int line)
+{
+    int sz;
+
+    XMEMSET(entry, 0, sizeof(struct wc_error_entry));
+    entry->err = error;
+
+    entry->line  = line;
+    sz = (int)XSTRLEN(reason);
+    if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+        sz = WOLFSSL_MAX_ERROR_SZ - 1;
+    }
+    if (sz > 0) {
+        XMEMCPY(entry->reason, reason, sz);
+        entry->reason[WOLFSSL_MAX_ERROR_SZ - 1] = '\0';
+    }
+
+    sz = (int)XSTRLEN(file);
+    if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+        sz = WOLFSSL_MAX_ERROR_SZ - 1;
+    }
+    if (sz > 0) {
+        XMEMCPY(entry->file, file, sz);
+        entry->file[WOLFSSL_MAX_ERROR_SZ - 1]  = '\0';
+    }
+}
+
+int wc_PeekErrorNode(int idx, const char **file, const char **reason,
+                     int *line)
+{
+    return pass_entry(get_entry(idx), file, reason, line);
+}
+
+int wc_PullErrorNode(const char **file, const char **reason, int *line)
+{
+    struct wc_error_entry *entry;
+    int ret;
+
+    entry = get_entry(0);
+    ret = pass_entry(entry, file, reason, line);
+
+    if (entry != NULL) {
+      wc_RemoveErrorNode(0);
+    }
+    return ret;
+}
+
+/* create new error node and add it to the queue
+ * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
+ * function. */
+int wc_AddErrorNode(int error, int line, char* reason, char* file)
+{
+    struct wc_error_entry *entry;
+    size_t idx;
+
+    if (wc_errors.count >= ERROR_QUEUE_MAX) {
+        WOLFSSL_MSG("Error queue is full, at ERROR_QUEUE_MAX");
+        return MEMORY_E;
+    }
+
+    idx = (wc_errors.head_idx + wc_errors.count) % ERROR_QUEUE_MAX;
+    entry = &wc_errors.entries[idx];
+    set_entry(entry, error, file, reason, line);
+    ++wc_errors.count;
+
+    return 0;
+}
+
+void wc_RemoveErrorNode(int relative_idx)
+{
+    int last_idx, abs_idx = get_abs_idx(relative_idx);
+    size_t move_count;
+
+    if (abs_idx >= 0) {
+        if (abs_idx >= (int)wc_errors.head_idx) {
+            /* removed entry sits "above" head (or is head),
+             * move entries below it "up" */
+            move_count = (abs_idx - (int)wc_errors.head_idx);
+            if (move_count > 0) {
+                XMEMMOVE(&wc_errors.entries[wc_errors.head_idx + 1],
+                         &wc_errors.entries[wc_errors.head_idx],
+                         sizeof(wc_errors.entries[0]) * move_count);
+            }
+            wc_errors.head_idx = (wc_errors.head_idx + 1) % ERROR_QUEUE_MAX;
+            --wc_errors.count;
+        }
+        else {
+            /* removed entry sits "below" head (wrap around),
+             * move entries above it "down" */
+            last_idx = get_abs_idx(-1);
+            if (last_idx >= abs_idx) {  /* this SHOULD always be true */
+                move_count = (last_idx - abs_idx);
+                if (move_count > 0) {
+                    XMEMMOVE(&wc_errors.entries[abs_idx],
+                             &wc_errors.entries[abs_idx + 1],
+                             sizeof(wc_errors.entries[0]) * move_count);
+                }
+                --wc_errors.count;
+            }
+        }
+    }
+}
+
+void wc_ClearErrorNodes(void)
+{
+    if (wc_errors.count > 0) {
+        XMEMSET(&wc_errors, 0, sizeof(wc_errors));
+    }
+}
+
+int wc_SetLoggingHeap(void* h)
+{
+    (void)h;
+    return 0;
+}
+
+int wc_ERR_remove_state(void)
+{
+    wc_ClearErrorNodes();
+    return 0;
+}
+
+unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
+                                       const char **data, int *flags,
+                                       int (*ignore_err)(int err))
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wc_PeekErrorNodeLineData");
+
+    /* No data or flags stored - error display only in Nginx. */
+    if (data != NULL) {
+        *data = "";
+    }
+    if (flags != NULL) {
+        *flags = 0;
+    }
+
+    while (1) {
+        ret = wc_PeekErrorNode(0, file, NULL, line);
+        if (ret == BAD_STATE_E) {
+            WOLFSSL_MSG("Issue peeking at error node in queue");
+            return 0;
+        }
+        /* OpenSSL uses positive error codes */
+        if (ret < 0) {
+            ret = -ret;
+        }
+        /* an error that the caller wants to ignore? */
+        if (ignore_err && ignore_err(ret)) {
+          wc_RemoveErrorNode(0);
+          continue;
+        }
+
+        return (unsigned long)ret;
+    }
+}
+
+unsigned long wc_GetErrorNodeErr(void)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wc_GetErrorNodeErr");
+
+    ret = wc_PullErrorNode(NULL, NULL, NULL);
+    if (ret < 0) {
+        if (ret == BAD_STATE_E) {
+            ret = 0; /* no errors in queue */
+        }
+        else {
+            WOLFSSL_MSG("Error with pulling error node!");
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+            ret = 0 - ret; /* return absolute value of error */
+            /* panic and try to clear out nodes */
+            wc_ClearErrorNodes();
+        }
+    }
+    return ret;
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+/* This callback allows the application to provide a custom error printing
+ * function. */
+void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
+                            void *u)
+{
+    struct wc_error_entry *entry;
+    size_t i;
+
+    WOLFSSL_ENTER("wc_ERR_print_errors_cb");
+
+    if (cb == NULL) {
+        /* Invalid param */
+        return;
+    }
+
+    for (i = 0; i < wc_errors.count; ++i) {
+        entry = get_entry((int)i);
+        if (entry == NULL)
+            break;
+        cb(entry->reason, XSTRLEN(entry->reason), u);
+    }
+
+    wc_ClearErrorNodes();
+}
+#endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
+
+#else /* ERROR_QUEUE_PER_THREAD */
+/* Error queue is a global list. This is the original implementation and
+ * the fallback on platforms that do not have thread-local-storage.
+ *
+ * Access and manipulations of the list are protected by a mutex, however
+ * that does not prevent errors from another thread showing up. Therefore,
+ * its usefulness  is limited to applications with restricted thread
+ * concurrency in using wolfSSL.
+ */
+#ifndef ERROR_QUEUE_MAX
+/* With a global list, we allow a higher limit. */
+#define ERROR_QUEUE_MAX 100
+#endif
+
+/* The information we keep about a single error */
+struct wc_error_queue {
+    void*  heap; /* the heap hint used with nodes creation */
+    struct wc_error_queue* next;
+    struct wc_error_queue* prev;
+    char   error[WOLFSSL_MAX_ERROR_SZ];
+    char   file[WOLFSSL_MAX_ERROR_SZ];
+    int    value;
+    int    line;
+};
+
+/* The global list of errors encountered */
+static struct wc_error_queue* wc_errors;
+static int wc_errors_count = 0;
+/* pointer to last node in queue to make insertion O(1) */
+static struct wc_error_queue* wc_last_node;
+/* The 'current' cursor the application is using to access the list */
+static struct wc_error_queue* wc_current_node;
+
+/* heap info currently used for allocation of entries */
+static void* wc_error_heap;
+
+/* mutex for list operation protection */
+static wolfSSL_Mutex wc_error_mutex;
+#define ERRQ_MUTEX_INIT()      wc_InitMutex(&wc_error_mutex)
+#define ERRQ_MUTEX_FREE()      wc_FreeMutex(&wc_error_mutex)
+#define ERRQ_LOCK()            wc_LockMutex(&wc_error_mutex)
+#define ERRQ_UNLOCK()          wc_UnLockMutex(&wc_error_mutex)
+
+/* Internal function that is called by wolfCrypt_Init() */
+int wc_LoggingInit(void)
+{
+    if (ERRQ_MUTEX_INIT() != 0) {
         WOLFSSL_MSG("Bad Init Mutex");
         return BAD_MUTEX_E;
     }
-    wc_error_queue_count = 0;
+    wc_errors_count = 0;
     wc_errors          = NULL;
     wc_current_node    = NULL;
     wc_last_node       = NULL;
-
     return 0;
 }
 
@@ -585,15 +791,52 @@ int wc_LoggingCleanup(void)
 {
     /* clear logging entries */
     wc_ClearErrorNodes();
-
     /* free mutex */
-    if (wc_FreeMutex(&debug_mutex) != 0) {
+    if (ERRQ_MUTEX_FREE() != 0) {
         WOLFSSL_MSG("Bad Mutex free");
         return BAD_MUTEX_E;
     }
     return 0;
 }
 
+static int peekErrorNode(int idx, const char **file, const char **reason,
+        int *line)
+{
+    struct wc_error_queue* err;
+
+    if (idx < 0) {
+        err = wc_last_node;
+    }
+    else {
+        int i;
+
+        err = (struct wc_error_queue*)wc_errors;
+        for (i = 0; i < idx; i++) {
+            if (err == NULL) {
+                WOLFSSL_MSG("Error node not found. Bad index?");
+                return BAD_FUNC_ARG;
+            }
+            err = err->next;
+        }
+    }
+
+    if (err == NULL) {
+        WOLFSSL_MSG("No Errors in queue");
+        return BAD_STATE_E;
+    }
+
+    if (file != NULL) {
+        *file = err->file;
+    }
+    if (reason != NULL) {
+        *reason = err->error;
+    }
+    if (line != NULL) {
+        *line = err->line;
+    }
+
+    return err->value;
+}
 
 /* peek at an error node
  *
@@ -610,62 +853,42 @@ int wc_LoggingCleanup(void)
 int wc_PeekErrorNode(int idx, const char **file, const char **reason,
         int *line)
 {
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
-    struct wc_error_queue* err;
+    int ret;
 
-    if (wc_LockMutex(&debug_mutex) != 0) {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
+    ret = peekErrorNode(idx, file, reason, line);
+    ERRQ_UNLOCK();
+    return ret;
+}
 
-    if (idx < 0) {
-        err = wc_last_node;
-    }
-    else {
-        int i;
+static int pullErrorNode(const char **file, const char **reason, int *line)
+{
+    struct wc_error_queue* err;
+    int value;
 
-        err = (struct wc_error_queue*)wc_errors;
-        for (i = 0; i < idx; i++) {
-            if (err == NULL) {
-                WOLFSSL_MSG("Error node not found. Bad index?");
-                wc_UnLockMutex(&debug_mutex);
-                return BAD_FUNC_ARG;
-            }
-            err = err->next;
-        }
-    }
-
+    err = wc_current_node;
     if (err == NULL) {
         WOLFSSL_MSG("No Errors in queue");
-        wc_UnLockMutex(&debug_mutex);
         return BAD_STATE_E;
     }
 
     if (file != NULL) {
         *file = err->file;
     }
-
     if (reason != NULL) {
         *reason = err->error;
     }
-
     if (line != NULL) {
         *line = err->line;
     }
+    value = err->value;
+    wc_current_node = err->next;
 
-    wc_UnLockMutex(&debug_mutex);
-
-    return err->value;
-#else
-    (void)idx;
-    (void)file;
-    (void)reason;
-    (void)line;
-    WOLFSSL_MSG("Error queue turned off, can not peak nodes");
-    return NOT_COMPILED_IN;
-#endif
+    return value;
 }
-
 
 /* Pulls the current node from error queue and increments current state.
  * Note: this does not delete nodes because input arguments are pointing to
@@ -679,58 +902,27 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
  */
 int wc_PullErrorNode(const char **file, const char **reason, int *line)
 {
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
-    struct wc_error_queue* err;
     int value;
 
-    if (wc_LockMutex(&debug_mutex) != 0) {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
 
-    err = wc_current_node;
-    if (err == NULL) {
-        WOLFSSL_MSG("No Errors in queue");
-        wc_UnLockMutex(&debug_mutex);
-        return BAD_STATE_E;
-    }
+    value = pullErrorNode(file, reason, line);
 
-    if (file != NULL) {
-        *file = err->file;
-    }
-
-    if (reason != NULL) {
-        *reason = err->error;
-    }
-
-    if (line != NULL) {
-        *line = err->line;
-    }
-
-    value = err->value;
-    wc_current_node = err->next;
-    wc_UnLockMutex(&debug_mutex);
-
+    ERRQ_UNLOCK();
     return value;
-#else
-    (void)file;
-    (void)reason;
-    (void)line;
-    WOLFSSL_MSG("Error queue turned off, can not pull nodes");
-    return NOT_COMPILED_IN;
-#endif
 }
-
 
 /* create new error node and add it to the queue
  * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
- * function. debug_mutex should be locked before a call to this function. */
+ * function. */
 int wc_AddErrorNode(int error, int line, char* buf, char* file)
 {
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     struct wc_error_queue* err;
 
-    if (wc_error_queue_count >= ERROR_QUEUE_MAX) {
+    if (wc_errors_count >= ERROR_QUEUE_MAX) {
         WOLFSSL_MSG("Error queue is full, at ERROR_QUEUE_MAX");
         return MEMORY_E;
     }
@@ -799,27 +991,18 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
                 wc_current_node = err;
             }
         }
-        wc_error_queue_count++;
+        wc_errors_count++;
     }
     return 0;
-#else
-    (void)error;
-    (void)line;
-    (void)buf;
-    (void)file;
-    WOLFSSL_MSG("Error queue turned off, can not add nodes");
-    return NOT_COMPILED_IN;
-#endif
 }
 
 /* returns the current index into the queue, which is the node that
  * wc_current_node is pointing to. It can be greater than zero in cases
  * where wc_PullErrorNode() has been called without the node having been
  * removed. */
-int wc_GetCurrentIdx(void)
+static int getErrorNodeCurrentIdx(void)
 {
     int ret = 0;
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     struct wc_error_queue* current;
 
     current = (struct wc_error_queue*)wc_errors;
@@ -832,24 +1015,12 @@ int wc_GetCurrentIdx(void)
     if (current == NULL) {
         ret = 0;
     }
-#endif
     return ret;
 }
 
-/* Removes the error node at the specified index.
- * idx : if -1 then the most recent node is looked at,
- *       otherwise search through queue for node at the given index starting
- *          from the absolute head wc_errors
- */
-void wc_RemoveErrorNode(int idx)
+static void removeErrorNode(int idx)
 {
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     struct wc_error_queue* current;
-
-    if (wc_LockMutex(&debug_mutex) != 0) {
-        WOLFSSL_MSG("Lock debug mutex failed");
-        return;
-    }
 
     if (idx == -1) {
         current = wc_last_node;
@@ -871,69 +1042,78 @@ void wc_RemoveErrorNode(int idx)
         if (wc_current_node == current)
             wc_current_node = current->next;
         XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-        wc_error_queue_count--;
+        wc_errors_count--;
 
         /* last node left in list was free'd, reset list head */
-        if (wc_error_queue_count == 0) {
+        if (wc_errors_count == 0) {
             wc_errors       = NULL;
             wc_last_node    = NULL;
             wc_current_node = NULL;
         }
     }
-
-    wc_UnLockMutex(&debug_mutex);
-#else
-    (void)idx;
-    WOLFSSL_MSG("Error queue turned off, can not remove nodes");
-#endif
 }
 
+/* Removes the error node at the specified index.
+ * idx : if -1 then the most recent node is looked at,
+ *       otherwise search through queue for node at the given index starting
+ *          from the absolute head wc_errors
+ */
+void wc_RemoveErrorNode(int idx)
+{
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return;
+    }
+
+    removeErrorNode(idx);
+
+    ERRQ_UNLOCK();
+}
+
+static void clearErrorNodes(void)
+{
+    struct wc_error_queue* current;
+    struct wc_error_queue* next;
+    /* free all nodes from error queue (even previously 'pulled' ones) starting
+     * at the lists absolute head of wc_errors */
+
+    current = (struct wc_error_queue*)wc_errors;
+    while (current != NULL) {
+        next = current->next;
+        XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+        current = next;
+    }
+
+    wc_errors_count = 0;
+    wc_errors       = NULL;
+    wc_last_node    = NULL;
+    wc_current_node = NULL;
+}
 
 /* Clears out the list of error nodes.
  */
 void wc_ClearErrorNodes(void)
 {
-#ifdef WOLFSSL_HAVE_ERROR_QUEUE
-    if (wc_LockMutex(&debug_mutex) != 0) {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return;
     }
 
-    /* free all nodes from error queue (even previously 'pulled' ones) starting
-     * at the lists absolute head of wc_errors */
-    {
-        struct wc_error_queue* current;
-        struct wc_error_queue* next;
+    clearErrorNodes();
 
-        current = (struct wc_error_queue*)wc_errors;
-        while (current != NULL) {
-            next = current->next;
-            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-            current = next;
-        }
-    }
-
-    wc_error_queue_count = 0;
-    wc_errors       = NULL;
-    wc_last_node    = NULL;
-    wc_current_node = NULL;
-    wc_UnLockMutex(&debug_mutex);
-#else
-    WOLFSSL_MSG("Error queue turned off, can not clear nodes");
-#endif
+    ERRQ_UNLOCK();
 }
 
 int wc_SetLoggingHeap(void* h)
 {
-    if (wc_LockMutex(&debug_mutex) != 0) {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
     wc_error_heap = h;
-    wc_UnLockMutex(&debug_mutex);
+    ERRQ_UNLOCK();
     return 0;
 }
-
 
 /* frees all nodes in the queue
  *
@@ -944,7 +1124,7 @@ int wc_ERR_remove_state(void)
     struct wc_error_queue* current;
     struct wc_error_queue* next;
 
-    if (wc_LockMutex(&debug_mutex) != 0) {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return BAD_MUTEX_E;
     }
@@ -957,25 +1137,108 @@ int wc_ERR_remove_state(void)
         current = next;
     }
 
-    wc_error_queue_count = 0;
+    wc_errors_count = 0;
     wc_errors          = NULL;
     wc_last_node       = NULL;
 
-    wc_UnLockMutex(&debug_mutex);
+    ERRQ_UNLOCK();
 
     return 0;
+}
+
+unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
+                                       const char **data, int *flags,
+                                       int (*ignore_err)(int err))
+{
+    int ret = 0;
+    int idx;
+
+    WOLFSSL_ENTER("wc_PeekErrorNodeLineData");
+
+/* No data or flags stored - error display only in Nginx. */
+    if (data != NULL) {
+        *data = "";
+    }
+    if (flags != NULL) {
+        *flags = 0;
+    }
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    idx = getErrorNodeCurrentIdx();
+    while (1) {
+        ret = peekErrorNode(idx, file, NULL, line);
+        if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
+            WOLFSSL_MSG("Issue peeking at error node in queue");
+            return 0;
+        }
+        /* OpenSSL uses positive error codes */
+        if (ret < 0) {
+            ret = -ret;
+        }
+
+        if (ignore_err && ignore_err(ret)) {
+          removeErrorNode(idx);
+          continue;
+        }
+
+        ERRQ_UNLOCK();
+        return (unsigned long)ret;
+    }
+}
+
+unsigned long wc_GetErrorNodeErr(void)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wc_GetErrorNodeErr");
+
+    if (ERRQ_LOCK() != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    ret = pullErrorNode(NULL, NULL, NULL);
+    if (ret < 0) {
+        if (ret == BAD_STATE_E) {
+            ret = 0; /* no errors in queue */
+        }
+        else {
+            WOLFSSL_MSG("Error with pulling error node!");
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+            ret = 0 - ret; /* return absolute value of error */
+            /* panic and try to clear out nodes */
+            clearErrorNodes();
+        }
+    }
+    else {
+        int idx = getErrorNodeCurrentIdx();
+        if (idx < 0) {
+            WOLFSSL_MSG("Error with getting current index!");
+            ret = BAD_STATE_E;
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+
+            /* panic and try to clear out nodes and reset queue state */
+            clearErrorNodes();
+        }
+        else if (idx > 0) {
+            idx -= 1;
+            removeErrorNode(idx);
+        }
+        else {
+            /* if current idx is 0 then the queue only had one node */
+            removeErrorNode(idx);
+        }
+    }
+
+    ERRQ_UNLOCK();
+    return ret;
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
-/* empties out the error queue into the file */
-static int wc_ERR_dump_to_file (const char *str, size_t len, void *u)
-{
-    XFILE fp = (XFILE ) u;
-    if (fprintf(fp, "%-*.*s\n", (int)len, (int)len, str) < 0)
-        return IO_FAILED_E;
-    return 0;
-}
-
 /* This callback allows the application to provide a custom error printing
  * function. */
 void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
@@ -988,12 +1251,10 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         return;
     }
 
-    if (wc_LockMutex(&debug_mutex) != 0)
-    {
+    if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
     }
-    else
-    {
+    else {
         /* free all nodes from error queue and print them to file */
         struct wc_error_queue *current;
         struct wc_error_queue *next;
@@ -1008,12 +1269,128 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         }
 
         /* set global pointers to match having been freed */
-        wc_error_queue_count = 0;
+        wc_errors_count = 0;
         wc_errors = NULL;
         wc_last_node = NULL;
 
-        wc_UnLockMutex(&debug_mutex);
+        ERRQ_UNLOCK();
     }
+}
+#endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
+
+#endif /* !ERROR_QUEUE_PER_THREAD */
+
+#else  /* WOLFSSL_HAVE_ERROR_QUEUE */
+/* NO ERROR_QUEUE at all */
+
+int wc_LoggingInit(void)
+{
+    return 0;
+}
+
+
+/* internal function that is called by wolfCrypt_Cleanup */
+int wc_LoggingCleanup(void)
+{
+    return 0;
+}
+
+int wc_PeekErrorNode(int idx, const char **file, const char **reason,
+        int *line)
+{
+    (void)idx;
+    (void)file;
+    (void)reason;
+    (void)line;
+    WOLFSSL_MSG("Error queue turned off, can not peak nodes");
+    return NOT_COMPILED_IN;
+}
+
+int wc_PullErrorNode(const char **file, const char **reason, int *line)
+{
+    (void)file;
+    (void)reason;
+    (void)line;
+    WOLFSSL_MSG("Error queue turned off, can not pull nodes");
+    return NOT_COMPILED_IN;
+}
+
+int wc_AddErrorNode(int error, int line, char* buf, char* file)
+{
+    (void)error;
+    (void)line;
+    (void)buf;
+    (void)file;
+    WOLFSSL_MSG("Error queue turned off, can not add nodes");
+    return NOT_COMPILED_IN;
+}
+
+void wc_RemoveErrorNode(int idx)
+{
+    (void)idx;
+    WOLFSSL_MSG("Error queue turned off, can not remove nodes");
+}
+
+void wc_ClearErrorNodes(void)
+{
+    WOLFSSL_MSG("Error queue turned off, can not clear nodes");
+}
+
+int wc_SetLoggingHeap(void* h)
+{
+    (void)h;
+    return 0;
+}
+
+int wc_ERR_remove_state(void)
+{
+    return 0;
+}
+
+unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
+                                       const char **data, int *flags,
+                                       int (*ignore_err)(int err))
+{
+    WOLFSSL_ENTER("wc_PeekErrorNodeLineData");
+
+    (void)line;
+    (void)file;
+    (void)ignore_err;
+    if (data != NULL) {
+        *data = "";
+    }
+    if (flags != NULL) {
+        *flags = 0;
+    }
+    return (unsigned long)(0 - NOT_COMPILED_IN);
+}
+
+unsigned long wc_GetErrorNodeErr(void)
+{
+    WOLFSSL_ENTER("wc_GetErrorNodeErr");
+    return (unsigned long)(0 - NOT_COMPILED_IN);
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
+                            void *u)
+{
+    WOLFSSL_ENTER("wc_ERR_print_errors_cb");
+    (void)cb;
+    (void)u;
+}
+#endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
+
+#endif /* !WOLFSSL_HAVE_ERROR_QUEUE */
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+/* empties out the error queue into the file */
+static int wc_ERR_dump_to_file (const char *str, size_t len, void *u)
+{
+    XFILE fp = (XFILE ) u;
+    if (fprintf(fp, "%-*.*s\n", (int)len, (int)len, str) < 0)
+        return IO_FAILED_E;
+    return 0;
 }
 
 void wc_ERR_print_errors_fp(XFILE fp)
@@ -1027,3 +1404,86 @@ void wc_ERR_print_errors_fp(XFILE fp)
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
 
 #endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
+
+/*
+ * When using OPENSSL_EXTRA or DEBUG_WOLFSSL_VERBOSE macro then WOLFSSL_ERROR is
+ * mapped to new function WOLFSSL_ERROR_LINE which gets the line # and function
+ * name where WOLFSSL_ERROR is called at.
+ */
+#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA)
+
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
+        const char* file, void* usrCtx)
+#else
+void WOLFSSL_ERROR(int error)
+#endif
+{
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (error != WC_PENDING_E)
+#endif
+    {
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+
+    #ifdef WOLFSSL_HAVE_ERROR_QUEUE
+        (void)usrCtx; /* a user ctx for future flexibility */
+        (void)func;
+
+        if (ERRQ_LOCK() != 0) {
+            WOLFSSL_MSG("Lock debug mutex failed");
+            (void)XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d", error);
+        }
+        else {
+            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+            /* If running in compatibility mode do not add want read and
+               want right to error queue */
+            if (error != WANT_READ && error != WANT_WRITE) {
+            #endif
+            if (error < 0)
+                error = error - (2 * error); /* get absolute value */
+            (void)XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d line:%u file:%s",
+                    error, line, file);
+
+            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+                WOLFSSL_MSG("Error creating logging node");
+                /* with void function there is no return here, continue on
+                 * to unlock mutex and log what buffer was created. */
+            }
+            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+            }
+            else {
+                (void)XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d", error);
+            }
+            #endif
+
+            ERRQ_UNLOCK();
+        }
+    #else
+        (void)XSNPRINTF(buffer, sizeof(buffer),
+                "wolfSSL error occurred, error = %d", error);
+    #endif
+
+    #ifdef DEBUG_WOLFSSL
+        if (loggingEnabled)
+            wolfssl_log(ERROR_LOG , buffer);
+    #endif
+    }
+}
+
+void WOLFSSL_ERROR_MSG(const char* msg)
+{
+#ifdef DEBUG_WOLFSSL
+    if (loggingEnabled)
+        wolfssl_log(ERROR_LOG , msg);
+#else
+    (void)msg;
+#endif
+}
+
+#endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
