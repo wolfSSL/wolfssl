@@ -258,7 +258,12 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
      * minimum bits of entropy per bit of NDRNG output. */
     #if defined(HAVE_ENTROPY_MEMUSE)
         /* Full strength, conditioned entropy is requested of MemUse Entropy. */
-        #define ENTROPY_SCALE_FACTOR  (1)
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION >= 2)
+            #define ENTROPY_SCALE_FACTOR (4)
+        #else
+            #define ENTROPY_SCALE_FACTOR (1)
+        #endif
     #elif defined(HAVE_AMD_RDSEED)
         /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
          * we'll add an additional 8kb on top. */
