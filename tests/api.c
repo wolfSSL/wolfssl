@@ -7229,6 +7229,9 @@ static void test_wolfSSL_CTX_add_session_ctx_ready(WOLFSSL_CTX* ctx)
     /* Don't store sessions. Lookup is still enabled. */
     AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
     /* Require both peers to provide certs */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
 }
