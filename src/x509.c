@@ -3122,7 +3122,7 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     WOLFSSL_ENTER("wolfSSL_X509_get_name_oneline");
 
     if (name == NULL) {
-        WOLFSSL_MSG("wolfSSL_X509_get_subject_name failed");
+        WOLFSSL_MSG("wolfSSL_X509_get_name_oneline failed");
         return NULL;
     }
     #ifdef WOLFSSL_STATIC_MEMORY
