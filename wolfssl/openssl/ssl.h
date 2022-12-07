@@ -307,8 +307,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
 #define SSL_SESSION_get0_peer           wolfSSL_SESSION_get0_peer
 #define SSL_flush_sessions              wolfSSL_flush_sessions
-/* assume unlimited temporarily */
-#define SSL_CTX_get_session_cache_mode(ctx) 0
+#define SSL_CTX_get_session_cache_mode(ctx) \
+                                       wolfSSL_CTX_get_session_cache_mode((ctx))
 
 #define SSL_CTX_set_verify              wolfSSL_CTX_set_verify
 #define SSL_CTX_set_cert_verify_callback wolfSSL_CTX_set_cert_verify_callback
