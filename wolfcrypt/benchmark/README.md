@@ -7,6 +7,16 @@ Tool for performing cryptographic algorithm benchmarking.
 * Symmetric algorithms like AES and ChaCha20 are measured in Killobytes (KB) or Megabytes (MB) per second.
 * Asymmetric algorithms like RSA and ECC are measured using Operations Per Second (Ops) per second.
 
+## Compile Options
+
+Compile with the following options for fixed units. Otherwise the units will auto-scale. See `-base10` parameter option, below.
+
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_GB` for GB/GiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_MB` for MB/MiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_KB` for KB/KiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_B` for Bytes
+
+
 ## Usage
 
 ```sh
