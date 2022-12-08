@@ -1687,7 +1687,9 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID, int count,
         printf("%sBenchmark %s failed: %d\n", err_prefix, desc, ret);
     }
 
+#ifndef WOLFSSL_SGX
     fflush(stdout);
+#endif
 
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_SYM, desc, 0, desc, useDeviceID, persec,
@@ -1778,7 +1780,9 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
                err_prefix, algo, desc, strength, ret);
     }
 
+#ifndef WOLFSSL_SGX
     fflush(stdout);
+#endif
 
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, useDeviceID, opsSec,
