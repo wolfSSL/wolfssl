@@ -33213,7 +33213,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         return (ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-    else if (ret == ASN1_R_HEADER_TOO_LONG)
+    else if (err == ASN1_R_HEADER_TOO_LONG)
         return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
 #endif
   return err;

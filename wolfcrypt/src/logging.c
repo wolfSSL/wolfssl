@@ -463,20 +463,11 @@ static THREAD_LS_T struct wc_error_queue wc_errors;
 #define ERRQ_LOCK()            0
 #define ERRQ_UNLOCK()          (void)0
 
-/* Internal function that is called by wolfCrypt_Init() */
-int wc_LoggingInit(void)
-{
-    return 0;
-}
-
-/* internal function that is called by wolfCrypt_Cleanup */
-int wc_LoggingCleanup(void)
-{
-    /* clear logging entries */
-    wc_ClearErrorNodes();
-    return 0;
-}
-
+/**
+ * Given a relative index (from head of the error list), return
+ * the absolute index in the `wc_errors->entries` array for
+ * the entry or -1 if no such entry exists/is present.
+ */
 static int get_abs_idx(int relative_idx)
 {
     if ((wc_errors.count == 0) || (relative_idx >= (int)wc_errors.count)) {
@@ -489,6 +480,10 @@ static int get_abs_idx(int relative_idx)
     return (int)((wc_errors.head_idx + relative_idx) % ERROR_QUEUE_MAX);
 }
 
+/**
+ * Return the error entry at the given relative index, if
+ * it exists, e.g. `relative_idx` is in a valid range.
+ */
 static struct wc_error_entry *get_entry(int relative_idx)
 {
     int abs_idx;
@@ -500,6 +495,11 @@ static struct wc_error_entry *get_entry(int relative_idx)
     return &wc_errors.entries[abs_idx];
 }
 
+/**
+ * Return the error code in the given error `entry` and populate
+ * `file`, `reason` and `line` with its values.
+ * `entry` may be NULL, in which case BAD_STATE_E is returned.
+ */
 static int pass_entry(struct wc_error_entry *entry,
                       const char **file, const char **reason,
                       int *line)
@@ -520,6 +520,9 @@ static int pass_entry(struct wc_error_entry *entry,
     return entry->err;
 }
 
+/**
+ * Assign entry with values, resets all previously present values.
+ */
 static void set_entry(struct wc_error_entry *entry, int error,
                       const char *file, const char *reason, int line)
 {
@@ -548,12 +551,34 @@ static void set_entry(struct wc_error_entry *entry, int error,
     }
 }
 
+/* Internal function that is called by wolfCrypt_Init() */
+int wc_LoggingInit(void)
+{
+    return 0;
+}
+
+/* internal function that is called by wolfCrypt_Cleanup */
+int wc_LoggingCleanup(void)
+{
+    /* clear logging entries */
+    wc_ClearErrorNodes();
+    return 0;
+}
+
+/**
+ * Get the values from the HEAD of the ERR queue, but keep it in place.
+ * If the queue is empty, return BAD_STATE_E.
+ */
 int wc_PeekErrorNode(int idx, const char **file, const char **reason,
                      int *line)
 {
     return pass_entry(get_entry(idx), file, reason, line);
 }
 
+/**
+ * Get the values from the HEAD of the ERR queue and remove it.
+ * If the queue is empty, return BAD_STATE_E.
+ */
 int wc_PullErrorNode(const char **file, const char **reason, int *line)
 {
     struct wc_error_entry *entry;
@@ -589,6 +614,11 @@ int wc_AddErrorNode(int error, int line, char* reason, char* file)
     return 0;
 }
 
+/**
+ * Remove the entry at relative position `relative_idx` from the ERR queue.
+ * For `relative_idx == 0` it removes the queue's head entry, for -1
+ * it removes the last entry in the queue.
+ */
 void wc_RemoveErrorNode(int relative_idx)
 {
     int last_idx, abs_idx = get_abs_idx(relative_idx);
@@ -624,6 +654,9 @@ void wc_RemoveErrorNode(int relative_idx)
     }
 }
 
+/**
+ * Clear the ERR queue.
+ */
 void wc_ClearErrorNodes(void)
 {
     if (wc_errors.count > 0) {
@@ -643,6 +676,19 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
+/**
+ * Get the first entry's values in the ERR queue that is not filtered
+ * by the provided `ignore_err` callback. All ignored entries are removed,
+ * making the returned entry the head of the ERR queue afterwards.
+ *
+ * In case all entries are ignored, the ERR queue will be empty afterwards.
+ * For an empty ERR queue  0 is returned.
+ *
+ * ìgnore_err` may be NULL, in which case this returns the HEAD values.
+ *
+ * `flags` is present for OpenSSL compatibility, but will always be
+ * set to 0, since we do not keep flags at ERR entries.
+ */
 unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
                                        const char **data, int *flags,
                                        int (*ignore_err)(int err))
@@ -679,6 +725,10 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     }
 }
 
+/**
+ * Get the error value at the HEAD of the ERR queue or 0 if the queue
+ * is emtpy. The HEAD entry is removed by this call.
+ */
 unsigned long wc_GetErrorNodeErr(void)
 {
     int ret;
