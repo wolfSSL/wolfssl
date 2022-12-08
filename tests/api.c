@@ -55603,7 +55603,7 @@ static int test_wolfSSL_dtls_set_mtu(void)
 {
     int res = TEST_SKIPPED;
 #if (defined(WOLFSSL_DTLS_MTU) || defined(WOLFSSL_SCTP)) && \
-                                                           defined(WOLFSSL_DTLS)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_DTLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     const char* testCertFile;
