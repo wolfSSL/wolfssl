@@ -46165,7 +46165,7 @@ static int test_wolfSSL_EC_KEY_print_fp(void)
 {
     int res = TEST_SKIPPED;
 #if defined(HAVE_ECC) && ((defined(HAVE_ECC224) && defined(HAVE_ECC256)) || \
-    defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256 && \
+    defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224 && \
     defined(OPENSSL_EXTRA) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM)
     EC_KEY* key = NULL;
