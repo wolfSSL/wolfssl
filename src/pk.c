@@ -9168,12 +9168,19 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 
     if (eccEnum != -1) {
         /* search and set the corresponding internal curve idx */
-        for (x = 0; ecc_sets[x].size != 0; x++)
+        for (x = 0; ecc_sets[x].size != 0; x++) {
             if (ecc_sets[x].id == eccEnum) {
                 key->group->curve_idx = x;
                 key->group->curve_oid = ecc_sets[x].oidSum;
                 break;
             }
+        }
+
+        /* if not found, we don't support this curve. */
+        if (ecc_sets[x].size == 0) {
+            wolfSSL_EC_KEY_free(key);
+            key = NULL;
+        }
     }
 
     return key;
