@@ -1629,12 +1629,23 @@ fi
 AC_ARG_ENABLE([error-queue-per-thread],
 [AS_HELP_STRING([--enable-error-queue-per-thread],[Enable one error queue per thread. Requires thread local storage. (default: disabled)])],
 [ ENABLED_ERRORQUEUEPERTHREAD=$enableval ],
-[ ENABLED_ERRORQUEUEPERTHREAD=no ]
+[ ENABLED_ERRORQUEUEPERTHREAD=check ]
 )
+
+if test "$ENABLED_ERRORQUEUEPERTHREAD" = "check"
+then
+    AS_IF([test "$thread_ls_on" = "no"],
+        [ENABLED_ERRORQUEUEPERTHREAD=no],
+        [ENABLED_ERRORQUEUEPERTHREAD=yes])
+fi
 
 if test "$ENABLED_ERRORQUEUEPERTHREAD" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DERROR_QUEUE_PER_THREAD"
+    if test "$thread_ls_on" != "yes"
+    then
+        AC_MSG_ERROR(error-queue-per-thread needs thread-local storage.)
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DERROR_QUEUE_PER_THREAD"
 fi
 
 # High Strength Build
@@ -8831,6 +8842,7 @@ echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
+echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo ""
 echo "---"
 

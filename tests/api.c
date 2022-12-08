@@ -35237,6 +35237,13 @@ static void post_auth_version_cb(WOLFSSL* ssl)
     /* do handshake and then test version error */
     AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
     AssertStrEQ("TLSv1.2", wolfSSL_get_version(ssl));
+}
+
+static void post_auth_version_client_cb(WOLFSSL* ssl)
+{
+    /* do handshake and then test version error */
+    AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    AssertStrEQ("TLSv1.2", wolfSSL_get_version(ssl));
     AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_FAILURE);
 #if defined(OPENSSL_ALL) && !defined(NO_ERROR_QUEUE)
     /* check was added to error queue */
@@ -35302,8 +35309,9 @@ static int test_wolfSSL_Tls13_postauth(void)
     XMEMSET(&client_cbf, 0, sizeof(callback_functions));
     server_cbf.method = wolfTLSv1_2_server_method;
     server_cbf.ssl_ready = set_post_auth_cb;
-    client_cbf.ssl_ready = set_post_auth_cb;
     server_cbf.on_result = post_auth_version_cb;
+    client_cbf.ssl_ready = set_post_auth_cb;
+    client_cbf.on_result = post_auth_version_client_cb;
     server_args.callbacks = &server_cbf;
     client_args.callbacks = &client_cbf;
 
@@ -35319,6 +35327,7 @@ static int test_wolfSSL_Tls13_postauth(void)
     server_cbf.ssl_ready = set_post_auth_cb;
     client_cbf.ssl_ready = set_post_auth_cb;
     server_cbf.on_result = post_auth_cb;
+    client_cbf.on_result = NULL;
     server_args.callbacks = &server_cbf;
     client_args.callbacks = &client_cbf;
 
@@ -38734,12 +38743,22 @@ static int test_wolfSSL_PKCS8_d2i(void)
     defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
 #define LOGGING_THREADS 5
 #define ERROR_COUNT 10
+/* copied from logging.c since this is not exposed otherwise */
+#ifndef ERROR_QUEUE_MAX
+#ifdef ERROR_QUEUE_PER_THREAD
+    #define ERROR_QUEUE_MAX 16
+#else
+    /* this breaks from compat of unlimited error queue size */
+    #define ERROR_QUEUE_MAX 100
+#endif
+#endif
+
 static volatile int loggingThreadsReady;
 static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
 {
     const char* file;
     int line;
-    int err;
+    unsigned long err;
     int errorCount = 0;
     int i;
 
@@ -38756,6 +38775,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
     AssertIntEQ(errorCount, ERROR_COUNT);
 
     /* test max queue behavior, trying to add an arbitrary 3 errors over */
+    ERR_clear_error(); /* ERR_get_error_line() does not remove */
     errorCount = 0;
     for (i = 0; i < ERROR_QUEUE_MAX + 3; i++)
         ERR_put_error(ERR_LIB_PEM, SYS_F_ACCEPT, -990 - i, __FILE__, __LINE__);
