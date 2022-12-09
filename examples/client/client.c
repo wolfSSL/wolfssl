@@ -4227,7 +4227,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             SetupPkCallbackContexts(sslResume, &pkCbInfo);
         }
 #endif
-
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+        if (version >= 4) {
+            SetKeyShare(sslResume, onlyKeyShare, useX25519, useX448, usePqc,
+                        pqcAlg, 1);
+        }
+#endif
         if (dtlsUDP) {
             TEST_DELAY();
         }
