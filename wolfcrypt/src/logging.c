@@ -684,7 +684,7 @@ int wc_ERR_remove_state(void)
  * In case all entries are ignored, the ERR queue will be empty afterwards.
  * For an empty ERR queue  0 is returned.
  *
- * ìgnore_err` may be NULL, in which case this returns the HEAD values.
+ * `ignore_err` may be NULL, in which case this returns the HEAD values.
  *
  * `flags` is present for OpenSSL compatibility, but will always be
  * set to 0, since we do not keep flags at ERR entries.
