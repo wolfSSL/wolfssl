@@ -985,31 +985,32 @@ static const char* bench_desc_words[][15] = {
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.6f,\n", \
             (float)total_cycles / (count*s))
 #elif defined(WOLFSSL_ESPIDF)
-    static THREAD_LS_T unsigned long long begin_cycles;
-    static THREAD_LS_T unsigned long long total_cycles;
+    static THREAD_LS_T word64 begin_cycles;
+    static THREAD_LS_T word64 total_cycles;
 
     /* the return value */
-    static THREAD_LS_T unsigned long long _xthal_get_ccount_ex = 0;
+    static THREAD_LS_T word64 _xthal_get_ccount_ex = 0;
 
     /* the last value seen, adjusted for an overflow */
-    static THREAD_LS_T unsigned long long _xthal_get_ccount_last = 0;
+    static THREAD_LS_T word64 _xthal_get_ccount_last = 0;
 
     /* TAG for ESP_LOGx() */
     static char * TAG = "wolfssl_benchmark";
 
     #define HAVE_GET_CYCLES
     #define INIT_CYCLE_COUNTER
+    static WC_INLINE word64 get_xtensa_cycles(void);
 
     /* WARNING the hal UINT xthal_get_ccount() quietly rolls over. */
-    #define BEGIN_ESP_CYCLES begin_cycles = (xthal_get_ccount_ex());
+    #define BEGIN_ESP_CYCLES begin_cycles = (get_xtensa_cycles());
 
     /* since it rolls over, we have something that will tolerate one */
     #define END_ESP_CYCLES                                          \
         ESP_LOGV(TAG,"%llu - %llu",                                 \
-                     xthal_get_ccount_ex(),                         \
+                     get_xtensa_cycles(),                           \
                      begin_cycles                                   \
                 );                                                  \
-                total_cycles = (xthal_get_ccount_ex() - begin_cycles);
+                total_cycles = (get_xtensa_cycles() - begin_cycles);
 
     #define SHOW_ESP_CYCLES(b, n, s) \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
@@ -1025,12 +1026,12 @@ static const char* bench_desc_words[][15] = {
     ** the Espressif `unsigned xthal_get_ccount()` which is known to overflow
     ** at least once during full benchmark tests.
     */
-    unsigned long long xthal_get_ccount_ex()
+    word64 xthal_get_ccount_ex()
     {
         /* reminder: unsigned long long max = 18,446,744,073,709,551,615 */
 
         /* the currently observed clock counter value */
-        unsigned long long thisVal = xthal_get_ccount();
+        word64 thisVal = xthal_get_ccount();
 
         /* if the current value is less than the previous value,
         ** we likely overflowed at least once.
@@ -1051,7 +1052,7 @@ static const char* bench_desc_words[][15] = {
             */
             ESP_LOGV(TAG, "Alert: Detected xthal_get_ccount overflow, "
                           "adding %ull", UINT_MAX);
-            thisVal += (unsigned long long)UINT_MAX;
+            thisVal += (word64)UINT_MAX;
         }
 
         /* adjust our actual returned value that takes into account overflow */
@@ -1701,8 +1702,7 @@ static WC_INLINE const char* specified_base2_blockType(double * blocks)
     *blocks /= 1024;
     rt = "KiB";
 
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)  \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_BB) )
+#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B) )
     (void)(*blocks); /* no adjustment, just appease compiler for not used */
     rt = "bytes";
 
@@ -1749,8 +1749,7 @@ static WC_INLINE const char* specified_blockType(double * blocks)
     *blocks /= (1000UL);
     rt = "KB";
 
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)  \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_BB) )
+#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)  )
     (void)(*blocks); /* no adjustment, just appease compiler */
     rt = "bytes";
 
@@ -1809,11 +1808,21 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
         /* only print out header once */
         if (sym_header_printed == 0) {
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
+    #ifdef HAVE_GET_CYCLES
             printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,seconds_total,"
                    "MB/s,cycles_total,Cycles per byte,\n");
+    #else
+            printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,seconds_total,"
+                   "MB/s,cycles_total,\n");
+    #endif
 #else
+    #ifdef HAVE_GET_CYCLES
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,MB/s,Cycles per byte,\n");
+    #else
+            printf("\n\nSymmetric Ciphers:\n\n");
+            printf("Algorithm,MB/s,\n");
+    #endif
 #endif
             sym_header_printed = 1;
         }
@@ -1881,12 +1890,13 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     /* note this codepath brings in all the fields from the non-CSV case. */
     #ifdef WOLFSSL_ESPIDF
-        #ifndef HAVE_GET_CYCLES
+        #ifdef HAVE_GET_CYCLES
+            (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu,%f,%f,%lu,", desc,
+                            BENCH_ASYNC_GET_NAME(useDeviceID),
+                            bytes_processed, total, persec, total_cycles);
+        #else
             #warning "HAVE_GET_CYCLES should be defined for WOLFSSL_ESPIDF"
         #endif
-        ESP_LOGI(TAG,   "sym,%s,%s,%lu,%f,%f,%llu,", desc,
-                        BENCH_ASYNC_GET_NAME(useDeviceID),
-                        bytes_processed, total, persec,  total_cycles);
     #else
         #ifdef HAVE_GET_CYCLES
             (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu,%f,%f,%lu,", desc,
@@ -1914,10 +1924,11 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
-                 "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s"
-                 ", %lu cycles,",
-                 desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType,
-                 word[0], total, word[1], persec, blockType, (unsigned long) total_cycles);
+                "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s"
+                ", %lu cycles,",
+                desc, BENCH_ASYNC_GET_NAME(useDeviceID), blocks, blockType,
+                word[0], total, word[1], persec, blockType,
+                (unsigned long) total_cycles);
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                  "%-24s%s %5.0f %s %s %5.3f %s, %8.3f %s/s"
@@ -1998,8 +2009,13 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
         /* only print out header once */
         if (asym_header_printed == 0) {
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
+    #ifdef HAVE_GET_CYCLES
             printf("%s", "\"asym\",Algorithm,key size,operation,avg ms,ops/sec,"
                    "ops,secs,cycles,cycles/op\n");
+    #else
+            printf("%s", "\"asym\",Algorithm,key size,operation,avg ms,ops/sec,"
+                   "ops,secs\n");
+    #endif
 #else
             printf("\n%sAsymmetric Ciphers:\n\n", info_prefix);
             printf("%sAlgorithm,key size,operation,avg ms,ops/sec,\n",
@@ -8855,17 +8871,27 @@ void bench_sphincsKeySign(byte level, byte optim)
 
 #if defined(HAVE_GET_CYCLES)
 
-static WC_INLINE word64 get_intel_cycles(void)
-{
-    unsigned int lo_c, hi_c;
-    __asm__ __volatile__ (
-        "cpuid\n\t"
-        "rdtsc"
-            : "=a"(lo_c), "=d"(hi_c)   /* out */
-            : "a"(0)                   /* in */
-            : "%ebx", "%ecx");         /* clobber */
-    return ((word64)lo_c) | (((word64)hi_c) << 32);
-}
+    #if defined(WOLFSSL_ESPIDF)
+        static WC_INLINE word64 get_xtensa_cycles(void)
+        {
+            return xthal_get_ccount_ex();
+        }
+
+    /* implement other architectures here */
+
+    #else
+        static WC_INLINE word64 get_intel_cycles(void)
+        {
+            unsigned int lo_c, hi_c;
+            __asm__ __volatile__ (
+                "cpuid\n\t"
+                "rdtsc"
+                    : "=a"(lo_c), "=d"(hi_c)   /* out */
+                    : "a"(0)                   /* in */
+                    : "%ebx", "%ecx");         /* clobber */
+            return ((word64)lo_c) | (((word64)hi_c) << 32);
+        }
+    #endif
 
 #endif /* HAVE_GET_CYCLES */
 
@@ -9248,6 +9274,13 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
         argv++;
     }
 #endif /* MAIN_NO_ARGS */
+
+#if defined(WOLFSSL_BENCHMARK_FIXED_CSV)
+    /* when defined, we'll always output CSV regardless of params.
+    ** this is typically convenient in embedded environments.
+    */
+    csv_format = 1;
+#endif
 
 #if defined(WC_ENABLE_BENCH_THREADING) && !defined(WOLFSSL_ASYNC_CRYPT)
     if (g_threadCount > 1) {

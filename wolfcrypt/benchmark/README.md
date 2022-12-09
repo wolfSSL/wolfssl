@@ -16,6 +16,9 @@ Compile with the following options for fixed units. Otherwise the units will aut
 `-DWOLFSSL_BENCHMARK_FIXED_UNITS_KB` for KB/KiB  
 `-DWOLFSSL_BENCHMARK_FIXED_UNITS_B` for Bytes
 
+To set the output to always be CSV:
+
+`-DWOLFSSL_BENCHMARK_FIXED_CSV`
 
 ## Usage
 
