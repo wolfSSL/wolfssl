@@ -23355,6 +23355,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DTLS_TOO_MANY_FRAGMENTS_E:
         return "Received too many fragmented messages from peer error";
 
+    case DUPLICATE_TLS_EXT_E:
+        return "Duplicate TLS extension in message.";
+
     default :
         return "unknown error number";
     }
