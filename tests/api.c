@@ -25479,9 +25479,11 @@ static int test_wc_ecc_import_raw(void)
 
     ret = wc_ecc_init(&key);
 
+    /* Test good import */
     if (ret == 0) {
         ret = wc_ecc_import_raw(&key, qx, qy, d, curveName);
     }
+
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_ecc_import_raw(NULL, qx, qy, d, curveName);
@@ -25510,14 +25512,23 @@ static int test_wc_ecc_import_raw(void)
             wc_ecc_free(&key);
         #endif
             ret = wc_ecc_import_raw(&key, "0", qy, d, curveName);
+            /* Note: SP math "is point" failure returns MP_VAL */
+            if (ret == ECC_INF_E || ret == MP_VAL) {
+                ret = BAD_FUNC_ARG; /* This is expected by other tests */
+            }
         }
         if (ret == BAD_FUNC_ARG) {
         #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
             wc_ecc_free(&key);
         #endif
             ret = wc_ecc_import_raw(&key, qx, "0", d, curveName);
+            /* Note: SP math "is point" failure returns MP_VAL */
+            if (ret == ECC_INF_E || ret == MP_VAL) {
+                ret = BAD_FUNC_ARG; /* This is expected by other tests */
+            }
         }
     #endif
+
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
