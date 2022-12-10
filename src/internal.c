@@ -24357,7 +24357,10 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
-            haveStaticECC = 1;
+
+            /* having static ECC will disable all RSA use, do not set
+             * static ECC suites here
+             * haveStaticECC = 1; */
             haveStaticRSA = 1;
             haveRSAsig = 1;
             havePSK = 1;

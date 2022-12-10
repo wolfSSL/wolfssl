@@ -7018,6 +7018,73 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient(void)
     return res;
 }
 
+
+static int test_wolfSSL_CTX_set_cipher_list(void)
+{
+    int res = TEST_SKIPPED;
+
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_TIRTOS) && !defined(NO_AES) && !defined(WOLFSSL_NO_TLS12) \
+    && !defined(NO_SHA256)
+    WOLFSSL_CTX* ctx;
+    WOLFSSL_CTX* ctxClient;
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    callback_functions client_cb;
+    callback_functions server_cb;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+
+    AssertNotNull((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, "DEFAULT:!NULL"));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
+
+    AssertNotNull((ctxClient = wolfSSL_CTX_new(wolfTLSv1_2_client_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctxClient, "ECDHE-RSA-AES128-SHA256"));
+
+    client_cb.ctx = ctxClient;
+    server_cb.ctx = ctx;
+
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    wolfSSL_CTX_free(client_cb.ctx);
+    wolfSSL_CTX_free(server_cb.ctx);
+
+    AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+
+    FreeTcpReady(&ready);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_client_get_finished(void* args, cbType cb)
 {
 #if defined(WOLFSSL_HAVE_TLS_UNIQUE) && !defined(NO_WOLFSSL_CLIENT)
@@ -59297,6 +59364,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_EVP_blake2),
     TEST_DECL(test_EVP_MD_do_all),
     TEST_DECL(test_OBJ_NAME_do_all),
+    TEST_DECL(test_wolfSSL_CTX_set_cipher_list),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
