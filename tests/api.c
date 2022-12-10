@@ -59364,7 +59364,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_EVP_blake2),
     TEST_DECL(test_EVP_MD_do_all),
     TEST_DECL(test_OBJ_NAME_do_all),
-    TEST_DECL(test_wolfSSL_CTX_set_cipher_list),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
@@ -59410,6 +59409,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_read_write),
     TEST_DECL(test_wolfSSL_reuse_WOLFSSLobj),
     TEST_DECL(test_wolfSSL_CTX_verifyDepth_ServerClient),
+    TEST_DECL(test_wolfSSL_CTX_set_cipher_list),
     TEST_DECL(test_wolfSSL_dtls_export),
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
