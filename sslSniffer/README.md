@@ -122,7 +122,7 @@ The following table lists the accepted inputs in saved file mode.
 
 Synopsis:
 
-`snifftest  dumpFile pemKey [server] [port] [password]`
+`snifftest  dumpFile pemKey [server] [port] [password] [threads]`
 
 `snifftest` Options Summary:
 
@@ -133,6 +133,7 @@ pemKey      The server’s private key in PEM format      NA
 server      The server’s IP address (v4 or v6)          127.0.0.1
 port        The server port to sniff                    443
 password    Private Key Password if required            NA
+threads     The number of threads to run with           5
 ```
 
 To decode a pcap file named test.pcap with a server key file called myKey.pem that was generated on the localhost with a server at port 443 just use:
@@ -147,6 +148,9 @@ If the server was on localhost using IPv6 and on port 12345 you could instead us
 
 `./snifftest test.pcap myKey.pem ::1 12345`
 
+If you wanted to use 15 threads to decode `test.pcap` and your key does not require a password, you could use a dummy password and run:
+
+`./snifftest test.pcap myKey.pem 10.0.1.2 12345 pass 15`
 
 ## API Usage
 
