@@ -9173,7 +9173,7 @@ static int test_tls_ext_duplicate(void)
 {
     int res = TEST_SKIPPED;
 #if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC))
-    static unsigned char clientHelloDupTlsExt[] = {
+    const unsigned char clientHelloDupTlsExt[] = {
         0x16, 0x03, 0x03, 0x00, 0x6a, 0x01, 0x00, 0x00,
         0x66, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
         0x6e, 0xab, 0x66, 0xdd, 0xcf, 0xe9, 0x65, 0x55,
@@ -9192,8 +9192,6 @@ static int test_tls_ext_duplicate(void)
         /* Supported Versions extension for TLS 1.3. */
                                             0x00, 0x2b,
         0x00, 0x05, 0x04, 0x03, 0x04, 0x03, 0x03
-        
-
     };
     WOLFSSL_BUFFER_INFO msg;
     const char* testCertFile;
@@ -9225,7 +9223,7 @@ static int test_tls_ext_duplicate(void)
     ssl = wolfSSL_new(ctx);
     AssertNotNull(ssl);
 
-    msg.buffer = clientHelloDupTlsExt;
+    msg.buffer = (unsigned char*)clientHelloDupTlsExt;
     msg.length = (unsigned int)sizeof(clientHelloDupTlsExt);
     wolfSSL_SetIOReadCtx(ssl, &msg);
 
@@ -60429,10 +60427,23 @@ static const char* apitest_res_string(int res)
     return str;
 }
 
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+static double gettime_secs(void)
+{
+    struct timeval tv;
+    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+#endif
+
 void ApiTest(void)
 {
     int i;
     int ret;
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+    double timeDiff;
+#endif
 
     printf(" Begin API Tests\n");
     fflush(stdout);
@@ -60445,10 +60456,24 @@ void ApiTest(void)
 
         TestSetup();
 
-        printf("   %3d: %-60s:", i + 1, testCases[i].name);
+        printf("   %3d: %-52s:", i + 1, testCases[i].name);
         fflush(stdout);
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs();
+    #endif
         ret = testCases[i].func();
-        printf(" %s\n", apitest_res_string(ret));
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs() - timeDiff;
+    #endif
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        if (ret != TEST_SKIPPED) {
+            printf(" %s (%9.5lf)\n", apitest_res_string(ret), timeDiff);
+        }
+        else
+    #endif
+        {
+            printf(" %s\n", apitest_res_string(ret));
+        }
         fflush(stdout);
         AssertIntNE(ret, TEST_FAIL);
 
