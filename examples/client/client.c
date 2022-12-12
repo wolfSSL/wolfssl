@@ -4274,12 +4274,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif
 
-        if (wolfSSL_set_session(sslResume, session) != WOLFSSL_SUCCESS) {
-            wolfSSL_free(sslResume); sslResume = NULL;
-            wolfSSL_CTX_free(ctx); ctx = NULL;
-            err_sys("error setting the session for resumption");
-        }
-
+        wolfSSL_set_session(sslResume, session);
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
