@@ -2302,6 +2302,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
     }
 
+#ifndef HAVE_SESSION_TICKET
+    if ((version >= 4) && resume) {
+        fprintf(stderr, "Can't do TLS 1.3 resumption; need session tickets!\n");
+    }
+#endif
+
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
         err_sys_ex(runWithErrors, "can't load whitewood net random config "

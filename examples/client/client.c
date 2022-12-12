@@ -2772,6 +2772,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 
+#ifndef HAVE_SESSION_TICKET
+    if ((version >= 4) && resumeSession) {
+        fprintf(stderr, "Can't do TLS 1.3 resumption; need session tickets!\n");
+    }
+#endif
+
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
         err_sys("can't load whitewood net random config file");
@@ -4268,7 +4274,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif
 
-        wolfSSL_set_session(sslResume, session);
+        if (wolfSSL_set_session(sslResume, session) != WOLFSSL_SUCCESS) {
+            wolfSSL_free(sslResume); sslResume = NULL;
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("error setting the session for resumption");
+        }
+
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
