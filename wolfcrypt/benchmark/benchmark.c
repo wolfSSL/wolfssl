@@ -3423,6 +3423,12 @@ static void bench_aesofb_internal(const byte* key, word32 keySz, const byte* iv,
     double start;
     int    i, ret, count;
 
+    ret = wc_AesInit(&enc, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        printf("AesInit failed, ret = %d\n", ret);
+        return;
+    }
+
     ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
@@ -3441,6 +3447,8 @@ static void bench_aesofb_internal(const byte* key, word32 keySz, const byte* iv,
         count += i;
     } while (bench_stats_check(start));
     bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
+
+    wc_AesFree(&enc);
 }
 
 void bench_aesofb(void)
