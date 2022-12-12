@@ -1246,6 +1246,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
  *   When adding a new extension type that don't extrapolate the number of
  *   available semaphores, check for a possible collision with with a
  *   'remapped' extension type.
+ *
+ * Update TLSX_Parse for duplicate detection if more added above 62.
  */
 static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
 {
@@ -11918,9 +11920,13 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     int pskDone = 0;
 #endif
+    byte seenType[SEMAPHORE_SIZE];  /* Seen known extensions. */
 
     if (!ssl || !input || (isRequest && !suites))
         return BAD_FUNC_ARG;
+
+    /* No known extensions seen yet. */
+    XMEMSET(seenType, 0, sizeof(seenType));
 
     while (ret == 0 && offset < length) {
         word16 type;
@@ -11941,6 +11947,22 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
+
+        /* Check we have a bit for extension type. */
+        if ((type <= 62) || (type == TLSX_RENEGOTIATION_INFO)
+        #ifdef WOLFSSL_QUIC
+            || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
+        #endif
+            )
+        {
+            /* Detect duplicate recognized extensions. */
+            if (IS_OFF(seenType, TLSX_ToSemaphore(type))) {
+                TURN_ON(seenType, TLSX_ToSemaphore(type));
+            }
+            else {
+                return DUPLICATE_TLS_EXT_E;
+            }
+        }
 
         if (length - offset < size)
             return BUFFER_ERROR;
