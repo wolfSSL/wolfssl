@@ -2859,6 +2859,33 @@ static int test_wolfSSL_FPKI(void)
     return res;
 }
 
+/* use RID in confuncture with other names to test parsing of unknown other
+ * names */
+static int test_wolfSSL_OtherName(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    XFILE f;
+    const char* ridCert = "./certs/rid-cert.der";
+    DecodedCert cert;
+    byte buf[4096];
+    int bytes;
+
+    f = XFOPEN(ridCert, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
+    wc_FreeDecodedCert(&cert);
+
+    res = TEST_RES_CHECK(1);
+#endif
+
+    return res;
+}
+
 static int test_wolfSSL_CertRsaPss(void)
 {
     int res = TEST_SKIPPED;
@@ -59486,6 +59513,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint4),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint5),
     TEST_DECL(test_wolfSSL_FPKI),
+    TEST_DECL(test_wolfSSL_OtherName),
     TEST_DECL(test_wolfSSL_CertRsaPss),
     TEST_DECL(test_wolfSSL_CertManagerCRL),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
