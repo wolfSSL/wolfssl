@@ -1454,7 +1454,10 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
                 MatchAddr(sniffer->server, ipInfo->dst))
             break;
 
-        sniffer = sniffer->next;
+        if (sniffer->next)
+            sniffer = sniffer->next;
+        else
+           break;
     }
 #else
     (void)ipInfo;
@@ -4732,15 +4735,17 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input,
     int ret = 0;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
-    if (ret != WC_NOT_PENDING_E) {
-        /* check for still pending */
-        if (ret == WC_PENDING_E)
-            return ret;
+    if (ssl->decrypt.state != CIPHER_STATE_BEGIN) {
+        ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
+        if (ret != WC_NOT_PENDING_E) {
+            /* check for still pending */
+            if (ret == WC_PENDING_E)
+                return ret;
 
-        ssl->error = 0; /* clear async */
+            ssl->error = 0; /* clear async */
 
-        /* let failures through so CIPHER_STATE_END logic is run */
+            /* let failures through so CIPHER_STATE_END logic is run */
+        }
     }
     else
 #endif
