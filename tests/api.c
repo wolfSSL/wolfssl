@@ -60429,10 +60429,23 @@ static const char* apitest_res_string(int res)
     return str;
 }
 
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+static double gettime_secs(void)
+{
+    struct timeval tv;
+    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+#endif
+
 void ApiTest(void)
 {
     int i;
     int ret;
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+    double timeDiff;
+#endif
 
     printf(" Begin API Tests\n");
     fflush(stdout);
@@ -60445,10 +60458,24 @@ void ApiTest(void)
 
         TestSetup();
 
-        printf("   %3d: %-60s:", i + 1, testCases[i].name);
+        printf("   %3d: %-52s:", i + 1, testCases[i].name);
         fflush(stdout);
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs();
+    #endif
         ret = testCases[i].func();
-        printf(" %s\n", apitest_res_string(ret));
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs() - timeDiff;
+    #endif
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        if (ret != TEST_SKIPPED) {
+            printf(" %s (%9.5lf)\n", apitest_res_string(ret), timeDiff);
+        }
+        else
+    #endif
+        {
+            printf(" %s\n", apitest_res_string(ret));
+        }
         fflush(stdout);
         AssertIntNE(ret, TEST_FAIL);
 
