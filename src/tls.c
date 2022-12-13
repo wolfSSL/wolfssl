@@ -8064,7 +8064,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     int ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    ssl->session->namedGroup = (byte)keyShareEntry->group;
+    ssl->session->namedGroup = keyShareEntry->group;
 #endif
     /* reset the pre master secret size */
     if (ssl->arrays->preMasterSz == 0)
@@ -11135,9 +11135,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
             if (namedGroup > 0) {
 #ifdef HAVE_PQC
-                /* For KEMs, the key share has already been generated. */
-                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup))
-#endif
+                /* For KEMs, the key share has already been generated, but not
+                 * if we are resuming. */
+                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup)
+#ifdef HAVE_SESSION_TICKET
+                    || ssl->options.resuming
+#endif /* HAVE_SESSION_TICKET */
+                   )
+#endif /* HAVE_PQC */
                     ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)
                     return ret;
