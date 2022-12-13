@@ -32,6 +32,11 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+/* Build Options:
+ * WOLFSSL_SNIFFER_NO_RECOVERY: Do not track missed data count.
+ */
+
+
 /* xctime */
 #ifndef XCTIME
    #define XCTIME ctime
@@ -693,9 +698,7 @@ static int GetDevId(void)
 
 void ssl_InitSniffer(void)
 {
-    int devId;
-
-    devId = GetDevId();
+    int devId = GetDevId();
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (wolfAsync_DevOpen(&devId) < 0) {
@@ -711,16 +714,15 @@ void ssl_InitSniffer(void)
 
 void ssl_InitSniffer_ex2(int threadNum)
 {
-    int devId;
-
-    devId = GetDevId();
+    int devId = GetDevId();
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 #ifndef WC_NO_ASYNC_THREADING
-    if (wolfAsync_DevOpenThread(&devId,&threadNum) < 0) {
+    if (wolfAsync_DevOpenThread(&devId,&threadNum) < 0)
 #else
-    if (wolfAsync_DevOpen(&devId) < 0) {
+    if (wolfAsync_DevOpen(&devId) < 0)
 #endif
+    {
         fprintf(stderr, "Async device open failed\nRunning without async\n");
         devId = INVALID_DEVID;
     }
@@ -6518,6 +6520,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     SnifferSession*   session = NULL;
     void* vChain = NULL;
     word32 chainSz = 0;
+
     if (isChain) {
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
         struct iovec* chain;

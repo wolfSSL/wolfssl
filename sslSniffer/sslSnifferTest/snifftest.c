@@ -34,13 +34,21 @@
     #include <wolfssl/wolfcrypt/memory.h>
 #endif
 
+#ifdef THREADED_SNIFFTEST
+    #include <pthread.h>
+#endif
+
+
+/* Build Options:
+ * THREADED_SNIFFTEST: Enable threaded version of the sniffer test
+ */
+
+
+/* For windows tests force sniffer build option on */
 #ifdef _WIN32
     #define WOLFSSL_SNIFFER
 #endif
 
-#ifdef THREADED_SNIFFTEST
-#include <pthread.h>
-#endif
 
 #ifndef WOLFSSL_SNIFFER
 #ifndef NO_MAIN_DRIVER
@@ -497,7 +505,7 @@ static THREAD_LS_T SnifferPacket asyncQueue[WOLF_ASYNC_MAX_PENDING];
 static int SnifferAsyncQueueAdd(int lastRet, void* chain, int chainSz,
     int isChain, int packetNumber)
 {
-    int ret = MEMORY_E, i, length;
+    int ret, i, length;
     byte* packet;
 
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
@@ -516,6 +524,7 @@ static int SnifferAsyncQueueAdd(int lastRet, void* chain, int chainSz,
     }
 
     /* find first free idx */
+    ret = MEMORY_E;
     for (i=0; i<WOLF_ASYNC_MAX_PENDING; i++) {
         if (asyncQueue[i].packet == NULL) {
             if (ret == MEMORY_E) {
@@ -647,9 +656,7 @@ static int ssl_Init_SnifferWorker(SnifferWorker* worker, int port,
 
     worker->head = (SnifferPacket*)XMALLOC(sizeof(SnifferPacket), NULL,
                            DYNAMIC_TYPE_TMP_BUFFER);
-
     if (worker->head == NULL) {
-        XFREE(worker->head, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 
@@ -670,6 +677,7 @@ static void ssl_Free_SnifferWorker(SnifferWorker* worker)
 
     if (worker->head) {
         XFREE(worker->head, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        worker->head = NULL;
     }
 }
 
@@ -680,13 +688,16 @@ static int SnifferWorkerPacketAdd(SnifferWorker* worker, int lastRet,
 
     newEntry = (SnifferPacket*)XMALLOC(sizeof(SnifferPacket), NULL,
                                        DYNAMIC_TYPE_TMP_BUFFER);
-
+    if (newEntry == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(newEntry, 0, sizeof(SnifferPacket));
     newEntry->packet = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (newEntry == NULL || newEntry->packet == NULL) {
-        XFREE(newEntry->packet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (newEntry->packet == NULL) {
         XFREE(newEntry, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+
     /* Set newEntry fields to input values */
     XMEMCPY(newEntry->packet, packet, length);
     newEntry->length = length;
@@ -787,22 +798,18 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
     }
 
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
-defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+      defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
     ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
             &data, &sslInfo, err);
 #elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
     (void)sslInfo;
     ret = ssl_DecodePacketWithChain(chain, chainSz, &data, err);
-#else
-#if defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+#elif defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
     ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
             length, &data, &sslInfo, err);
 #else
     ret = ssl_DecodePacketWithSessionInfo(packet, length, &data,
                                             &sslInfo, err);
-#endif
-    (void)chain;
-    (void)chainSz;
 #endif
 
     if (ret < 0) {
@@ -823,6 +830,8 @@ defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
     }
 
     (void)isChain;
+    (void)chain;
+    (void)chainSz;
 
     return hadBadPacket;
 }
