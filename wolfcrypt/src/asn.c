@@ -17338,6 +17338,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int length = 0;
+    byte current_byte;
 
     WOLFSSL_ENTER("DecodeAltNames");
 
@@ -17362,13 +17363,20 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
     cert->weOwnAltNames = 1;
 
     while (length > 0) {
-        byte b = input[idx++];
+
+        /* Verify idx can't overflow input buffer */  
+        if (idx >= (word32)sz) {
+            WOLFSSL_MSG("\tBad Index");
+            return BUFFER_E;
+        }
+
+        current_byte = input[idx++];
 
         length--;
 
         /* Save DNS Type names in the altNames list. */
         /* Save Other Type names in the cert's OidMap */
-        if (b == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+        if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
             DNS_entry* dnsEntry;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17403,7 +17411,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             idx    += strLen;
         }
     #ifndef IGNORE_NAME_CONSTRAINTS
-        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
             DNS_entry* dirEntry;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17442,7 +17450,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
-        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
             DNS_entry* emailEntry;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17477,7 +17485,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
-        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
             DNS_entry* uriEntry;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17548,7 +17556,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             idx    += strLen;
         }
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
             DNS_entry* ipAddr;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17597,7 +17605,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
+        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
         {
             int strLen;
             word32 lenStartIdx = idx;
