@@ -600,18 +600,21 @@ typedef struct {
 } wm_Sem;
 
  /* Posix style semaphore */
-static int wm_SemInit(wm_Sem *s){
+static int wm_SemInit(wm_Sem *s)
+{
     s->lockCount = 0;
     pthread_mutex_init(&s->mutex, NULL);
     pthread_cond_init(&s->cond, NULL);
     return 0;
 }
-static int wm_SemFree(wm_Sem *s){
+static int wm_SemFree(wm_Sem *s)
+{
     pthread_mutex_destroy(&s->mutex);
     pthread_cond_destroy(&s->cond);
     return 0;
 }
-static int wm_SemLock(wm_Sem *s){
+static int wm_SemLock(wm_Sem *s)
+{
     pthread_mutex_lock(&s->mutex);
     while (s->lockCount > 0)
         pthread_cond_wait(&s->cond, &s->mutex);
@@ -619,7 +622,8 @@ static int wm_SemLock(wm_Sem *s){
     pthread_mutex_unlock(&s->mutex);
     return 0;
 }
-static int wm_SemUnlock(wm_Sem *s){
+static int wm_SemUnlock(wm_Sem *s)
+{
     pthread_mutex_lock(&s->mutex);
     s->lockCount--;
     pthread_cond_signal(&s->cond);

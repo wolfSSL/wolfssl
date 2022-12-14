@@ -718,7 +718,7 @@ void ssl_InitSniffer_ex2(int threadNum)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 #ifndef WC_NO_ASYNC_THREADING
-    if (wolfAsync_DevOpenThread(&devId,&threadNum) < 0)
+    if (wolfAsync_DevOpenThread(&devId, &threadNum) < 0)
 #else
     if (wolfAsync_DevOpen(&devId) < 0)
 #endif
