@@ -927,6 +927,50 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
     #endif
+    #ifdef HAVE_PQC
+    /* add TLSv13 pq tests */
+    XSTRLCPY(argv0[1], "tests/test-tls13-pq.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #ifdef HAVE_LIBOQS
+    /* add TLSv13 pq tests */
+    XSTRLCPY(argv0[1], "tests/test-tls13-pq-2.conf", sizeof(argv0[1]));
+    printf("starting TLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
+    #endif
+    #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13)
+    /* add DTLSv13 pq tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #ifdef HAVE_LIBOQS
+    /* add DTLSv13 pq tests */
+    XSTRLCPY(argv0[1], "tests/test-dtls13-pq-2.conf", sizeof(argv0[1]));
+    printf("starting DTLSv13 post-quantum groups tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
+    #endif
 #endif
 #if defined(WC_RSA_PSS) && (!defined(HAVE_FIPS) || \
      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \

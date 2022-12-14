@@ -8454,7 +8454,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     if (ret == 0) {
         ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
-        if (ret == 0) {
+        if (ret != 0) {
             WOLFSSL_MSG("Error creating Kyber KEM");
         }
     }
