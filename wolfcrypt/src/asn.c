@@ -17363,8 +17363,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
     cert->weOwnAltNames = 1;
 
     while (length > 0) {
-
-        /* Verify idx can't overflow input buffer */  
+        /* Verify idx can't overflow input buffer */
         if (idx >= (word32)sz) {
             WOLFSSL_MSG("\tBad Index");
             return BUFFER_E;
@@ -17411,7 +17410,8 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             idx    += strLen;
         }
     #ifndef IGNORE_NAME_CONSTRAINTS
-        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+        else if (current_byte ==
+                (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
             DNS_entry* dirEntry;
             int strLen;
             word32 lenStartIdx = idx;
@@ -17605,8 +17605,8 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-        else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
-        {
+        else if (current_byte ==
+                (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
             int strLen;
             word32 lenStartIdx = idx;
             word32 oid = 0;
