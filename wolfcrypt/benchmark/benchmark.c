@@ -5219,6 +5219,7 @@ static void bench_cmac_helper(int keySz, const char* outMsg, int useDevId)
         return;
     }
 #endif
+    (void)useDevId;
 
     bench_stats_start(&count, &start);
     do {
