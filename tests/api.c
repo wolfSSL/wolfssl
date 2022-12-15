@@ -54596,10 +54596,10 @@ static int test_wolfSSL_DH(void)
 #ifdef WOLFSSL_KEY_GEN
     AssertNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     AssertIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
-#endif
     DH_free(dh);
 #endif
-#endif
+#endif /* !HAVE_FIPS || (HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2) */
+#endif /* OPENSSL_ALL */
 
     (void)dh;
     (void)p;
@@ -54775,10 +54775,12 @@ static int test_wolfSSL_DH_dup(void)
     dhDup = wolfSSL_DH_dup(dh);
     AssertNotNull(dhDup);
     wolfSSL_DH_free(dhDup);
+#else
+    wolfSSL_BN_free(p);
+    wolfSSL_BN_free(g);
 #endif
 
     wolfSSL_DH_free(dh);
-
     res = TEST_RES_CHECK(1);
 #endif
 #endif
