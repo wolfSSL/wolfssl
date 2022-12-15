@@ -3054,7 +3054,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
-    word32 resp_length;
+    word32 resp_length = 0;
 #endif
 
     /* shut up compiler warnings */
