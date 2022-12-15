@@ -54596,6 +54596,7 @@ static int test_wolfSSL_DH(void)
 #ifdef WOLFSSL_KEY_GEN
     AssertNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     AssertIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
+    DH_free(dh);
 #endif
 #endif /* !HAVE_FIPS || (HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2) */
 #endif /* OPENSSL_ALL */
