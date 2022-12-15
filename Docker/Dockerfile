@@ -1,4 +1,5 @@
-FROM ubuntu:22.04
+ARG DOCKER_BASE_IMAGE=ubuntu:22.04
+FROM $DOCKER_BASE_IMAGE
 
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y build-essential autoconf libtool
 
