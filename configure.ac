@@ -7417,6 +7417,20 @@ if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
    fi
 fi
 
+# Library Suffix
+LIBSUFFIX=""
+AC_ARG_WITH([libsuffix],
+    [AS_HELP_STRING([--with-libsuffix=SUFFIX],[Library artifact SUFFIX, ie libwolfsslSUFFIX.so])],
+    [
+        if test "x$withval" != "xno" ; then
+            LIBSUFFIX=$withval
+        fi
+        if test "x$withval" = "xyes" ; then
+            AC_MSG_ERROR([Invalid argument to --with-libsuffix, no suffix given])
+        fi
+    ]
+)
+AC_SUBST(LIBSUFFIX)
 
 AC_ARG_ENABLE([context-extra-user-data],
     [AS_HELP_STRING([--enable-context-extra-user-data],[Enables option for storing user-defined data in TLS API contexts, with optional argument the number of slots to allocate (default: disabled)])],
@@ -8604,6 +8618,7 @@ echo "   * C++ Flags:                  $CXXFLAGS"
 echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
+echo "   * Library Suffix:             $LIBSUFFIX"
 
 test "$ENABLED_LINUXKM" = "yes" && \
 echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
