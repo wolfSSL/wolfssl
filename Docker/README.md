@@ -1,0 +1,3 @@
+Simple Docker environment for compiling and running WolfSSL. Use `run.sh` to build everything (Docker container, WolfSSL, etc.). This script takes in arguments that can be passed to `./configure`. For example: `run.sh --enable-all`
+
+When the compilation and tests succeed, you will be dropped in to a shell environment within the container. This can be useful to build other things within the environment.
