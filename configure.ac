@@ -133,6 +133,9 @@ fi
 #ifdef HAVE_TIME_H
     #include <time.h>
 #endif
+#ifdef HAVE_STDLIB_H
+    #include <stdlib.h>
+#endif
 ]])
 
 AC_PROG_INSTALL
