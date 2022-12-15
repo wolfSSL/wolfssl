@@ -33,10 +33,10 @@
 /* make the binary always use CSV format:                        */
 /* #define WOLFSSL_BENCHMARK_FIXED_CSV                           */
 /*                                                               */
-/* always use the same units in KB, regardless of scale. pick 1: */
+/* choose to use the same units, regardless of scale. pick 1:    */
 /* #define WOLFSSL_BENCHMARK_FIXED_UNITS_GB                      */
 /* #define WOLFSSL_BENCHMARK_FIXED_UNITS_MB                      */
-#define WOLFSSL_BENCHMARK_FIXED_UNITS_KB
+/* #define WOLFSSL_BENCHMARK_FIXED_UNITS_KB                      */
 /* #define WOLFSSL_BENCHMARK_FIXED_UNITS_B                       */
 /*                                                               */
 /* when the output should be in machine-parseable format:        */
