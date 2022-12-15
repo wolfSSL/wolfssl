@@ -27,6 +27,22 @@
     #include <config.h>
 #endif
 
+/* Some common, optional user settings                           */
+/* these can also be set in wolfssl/options.h or user_settings.h */
+/* ------------------------------------------------------------- */
+/* make the binary always use CSV format:                        */
+/* #define WOLFSSL_BENCHMARK_FIXED_CSV                           */
+/*                                                               */
+/* always use the same units in KB, regardless of scale. pick 1: */
+/* #define WOLFSSL_BENCHMARK_FIXED_UNITS_GB                      */
+/* #define WOLFSSL_BENCHMARK_FIXED_UNITS_MB                      */
+#define WOLFSSL_BENCHMARK_FIXED_UNITS_KB
+/* #define WOLFSSL_BENCHMARK_FIXED_UNITS_B                       */
+/*                                                               */
+/* when the output should be in machine-parseable format:        */
+/* #define GENERATE_MACHINE_PARSEABLE_REPORT                     */
+/*                                                               */
+
 /* define the max length for each string of metric reported */
 #define __BENCHMARK_MAXIMUM_LINE_LENGTH 150
 
@@ -37,6 +53,7 @@
 /* this next one gets the text value of the assigned value of #define param */
 #define __BENCHMARK_VALUE(x) __BENCHMARK_VALUE_TO_STRING(x)
 
+#define WOLFSSL_FIXED_UNITS_PER_SEC "MB/s" /* may be re-set by fixed units */
 
 #ifndef WOLFSSL_USER_SETTINGS
     #include <wolfssl/options.h>
@@ -1063,6 +1080,9 @@ static const char* bench_desc_words[][15] = {
 
         return _xthal_get_ccount_ex;
     }
+
+/* implement other architecture cycle counters here */
+
 #else
     /* if we don't know the platform, it is unlikely we can count CPU cycles */
     #undef HAVE_GET_CYCLES
@@ -1689,20 +1709,28 @@ static WC_INLINE const char* specified_base2_blockType(double * blocks)
 
 #if (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G)  \
      || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB) )
+    #undef  WOLFSSL_FIXED_UNITS_PER_SEC
+    #define WOLFSSL_FIXED_UNITS_PER_SEC "GB/s"
     *blocks /= (1000UL * 1000UL * 1000UL);
     rt = "GiB";
 
 #elif (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M)  \
        || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB) )
+    #undef  WOLFSSL_FIXED_UNITS_PER_SEC
+    #define WOLFSSL_FIXED_UNITS_PER_SEC "MB/s"
     *blocks /= (1024UL * 1024UL);
     rt = "MiB";
 
 #elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_K) \
        || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
+    #undef  WOLFSSL_FIXED_UNITS_PER_SEC
+    #define WOLFSSL_FIXED_UNITS_PER_SEC "KB/s"
     *blocks /= 1024;
     rt = "KiB";
 
 #elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B) )
+    #undef  WOLFSSL_FIXED_UNITS_PER_SEC
+    #define WOLFSSL_FIXED_UNITS_PER_SEC "bytes/s"
     (void)(*blocks); /* no adjustment, just appease compiler for not used */
     rt = "bytes";
 
@@ -1807,21 +1835,26 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     if (csv_format == 1) {
         /* only print out header once */
         if (sym_header_printed == 0) {
+
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
+    /* machine parseable CSV */
     #ifdef HAVE_GET_CYCLES
             printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,seconds_total,"
-                   "MB/s,cycles_total,Cycles per byte,\n");
+               WOLFSSL_FIXED_UNITS_PER_SEC ",cycles_total,Cycles per byte,\n");
     #else
             printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,seconds_total,"
-                   "MB/s,cycles_total,\n");
+               WOLFSSL_FIXED_UNITS_PER_SEC ",cycles_total,\n");
     #endif
 #else
+    /* normal CSV */
     #ifdef HAVE_GET_CYCLES
             printf("\n\nSymmetric Ciphers:\n\n");
-            printf("Algorithm,MB/s,Cycles per byte,\n");
+            printf("Algorithm,"
+               WOLFSSL_FIXED_UNITS_PER_SEC ",Cycles per byte,\n");
     #else
             printf("\n\nSymmetric Ciphers:\n\n");
-            printf("Algorithm,MB/s,\n");
+            printf("Algorithm,"
+               WOLFSSL_FIXED_UNITS_PER_SEC ", \n");
     #endif
 #endif
             sym_header_printed = 1;
@@ -1849,43 +1882,12 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     #ifdef WOLFSSL_ESPIDF
-        unsigned long bytes_processed;
+        unsigned long bytes_processed = (unsigned long)blocks;
     #else
-        word64 bytes_processed;
+        word64 bytes_processed = (word64)blocks;
     #endif
-        if (blockType[0] == 'K') {
-            bytes_processed =
-                (word64)(blocks * (base2 ? 1024. : 1000.));
-        }
-        else if (blockType[0] == 'M') {
-            bytes_processed =
-                (word64)(blocks * (base2 ? (1024. * 1024.) : (1000. * 1000.)));
-        }
-        else if (blockType[0] == 'G') {
-            bytes_processed =
-                (word64)(blocks * (base2 ? (1024. * 1024. * 1024.)
-                                         : (1000. * 1000. * 1000.)
-                                   )
-                        );
-        }
-        else {
-            bytes_processed =
-                (word64)blocks;
-        }
 #endif
-        if (blockType[0] == 'K') {
-            persec /= base2 ? 1024. : 1000.;
-        }
-        else if (blockType[0] == 'M') {
-            persec /= base2 ? (1024. * 1024.) : (1000. * 1000.);
-        }
-        else if (blockType[0] == 'G') {
-            persec /= base2 ? (1024. * 1024. * 1024.)
-                            : (1000. * 1000. * 1000.);
-        }
-        else {
-            /* no scale needed for bytes */
-        }
+
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     /* note this codepath brings in all the fields from the non-CSV case. */
@@ -1893,7 +1895,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
         #ifdef HAVE_GET_CYCLES
             (void)XSNPRINTF(msg, sizeof(msg), "sym,%s,%s,%lu,%f,%f,%lu,", desc,
                             BENCH_ASYNC_GET_NAME(useDeviceID),
-                            bytes_processed, total, persec, total_cycles);
+                            bytes_processed, total, persec,
+                            (long unsigned int) total_cycles);
         #else
             #warning "HAVE_GET_CYCLES should be defined for WOLFSSL_ESPIDF"
         #endif
@@ -1915,6 +1918,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     #ifdef WOLFSSL_ESPIDF
         SHOW_ESP_CYCLES_CSV(msg, sizeof(msg), countSz);
         ESP_LOGV(TAG, "finish total_cycles = %llu", total_cycles);
+    /* implement other cycle counters here */
     #else
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     #endif
@@ -1945,6 +1949,9 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
 #ifdef WOLFSSL_ESPIDF
         SHOW_ESP_CYCLES(msg, sizeof(msg), countSz);
+
+/* implement other architecture cycle counters here */
+
 #else
         SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
 #endif
@@ -1998,9 +2005,22 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #endif
 #endif
 
-    if (count > 0)
+    /* some sanity checks on the final numbers */
+    if (count > 0) {
         each  = total / count; /* per second  */
-    opsSec = count / total;    /* ops second */
+    }
+    else {
+        count = 0;
+        each = 0;
+    }
+
+    if (total > 0) {
+        opsSec = count / total;    /* ops second */
+    }
+    else {
+        opsSec = 0;
+    }
+
     milliEach = each * 1000;   /* milliseconds */
 
     SLEEP_ON_ERROR(ret);
@@ -2129,9 +2149,15 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID,
         /* only print out header once */
         if (pqasym_header_printed == 0) {
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
+    #ifdef HAVE_GET_CYCLES
             printf("%s",
                    "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs,cycles,"
                    "cycles/op\n");
+    #else
+            printf("%s",
+                   "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs\n");
+    #endif
+
 #else
             printf("\nPost Quantum Asymmetric Ciphers:\n\n");
             printf("Algorithm,avg ms,ops/sec,\n");
@@ -2139,16 +2165,25 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID,
             pqasym_header_printed = 1;
         }
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
+    #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
                         "pq_asym,%s,%.3f,%.3f,%d,%f,%lu,%.6f,\n",
                         algo, milliEach, opsSec, count, total, total_cycles,
                         (double)total_cycles / (double)count);
+    #else
+        (void)XSNPRINTF(msg, sizeof(msg),
+                        "pq_asym,%s,%.3f,%.3f,%d,%f,%lu,%.6f,\n",
+                        algo, milliEach, opsSec, count, total);
+    #endif
 #else
         (void)XSNPRINTF(msg, sizeof(msg), "%s %.3f,%.3f,\n", algo, milliEach,
                         opsSec);
 #endif
-    }
+    } /* CSV */
+
     else {
+        /* not CSV*/
+
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
          (void)XSNPRINTF(msg, sizeof(msg),
                          "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
@@ -2161,8 +2196,9 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID,
                  "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
                  " %.3f %s\n", algo, BENCH_ASYNC_GET_NAME(useDeviceID),
          count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
-#endif
-    }
+#endif /* GENERATE_MACHINE_PARSEABLE_REPORT */
+    } /* not CSV */
+
     printf("%s", msg);
 
     /* show errors */
@@ -2179,7 +2215,7 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID,
 
     TEST_SLEEP();
 }
-#endif
+#endif /* HAVE_PQC, etc... */
 #endif /* BENCH_ASYM */
 
 static WC_INLINE void bench_stats_free(void)
@@ -9165,6 +9201,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
             csv_format = 1;
         }
 #endif
+
 #ifdef WC_ENABLE_BENCH_THREADING
         else if (string_matches(argv[1], "-threads")) {
             argc--;
