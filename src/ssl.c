@@ -8207,11 +8207,15 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 
 #else
 
-/* Potential system CA certs directories on Linux distros. */
+/* Potential system CA certs directories on Linux/Unix distros. */
 static const char* systemCaDirs[] = {
+#if defined(__ANDROID__) || defined(ANDROID)
+    "/system/etc/security/cacerts"      /* Android */
+#else
     "/etc/ssl/certs",                   /* Debian, Ubuntu, Gentoo, others */
     "/etc/pki/ca-trust/source/anchors", /* Fedora, RHEL */
     "/etc/pki/tls/certs"                /* Older RHEL */
+#endif
 };
 
 const char** wolfSSL_get_system_CA_dirs(word32* num)
