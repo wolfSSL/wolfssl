@@ -157,7 +157,7 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 static void esp_aes_bk(const byte* in, byte* out)
 {
     const word32 *inwords = (const word32 *)in;
-    word32 *outwords      = (word32 *)out;
+    uint32_t *outwords      = (uint32_t *)out;
 
     ESP_LOGV(TAG, "enter esp_aes_bk");
 

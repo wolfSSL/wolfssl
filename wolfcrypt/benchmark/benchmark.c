@@ -8201,7 +8201,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 #endif
     double current_time(int reset)
     {
-        portTickType tickCount;
+        TickType_t tickCount;
 
         (void) reset;
 

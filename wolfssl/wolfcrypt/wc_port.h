@@ -202,7 +202,7 @@
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
     #if defined(FREERTOS)
-        typedef xSemaphoreHandle wolfSSL_Mutex;
+        typedef SemaphoreHandle_t wolfSSL_Mutex;
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
         #include "semphr.h"
