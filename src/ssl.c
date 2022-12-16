@@ -13358,6 +13358,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef HAVE_SESSION_TICKET
             if (ssl->options.createTicket && !ssl->options.noTicketTls12) {
                 if ( (ssl->error = SendTicket(ssl)) != 0) {
+                    WOLFSSL_MSG("Thought we need ticket but failed");
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -16774,6 +16775,12 @@ cleanup:
             return BAD_FUNC_ARG;
 
         ctx->mask = wolf_set_options(ctx->mask, opt);
+#if defined(HAVE_SESSION_TICKET) && (defined(OPENSSL_EXTRA) \
+        || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL))
+        if ((ctx->mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
+          ctx->noTicketTls12 = 1;
+        }
+#endif
 
         return ctx->mask;
     }
@@ -23555,6 +23562,14 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         ssl->options.usingCompression = 0;
     #endif
     }
+
+#if defined(HAVE_SESSION_TICKET) && (defined(OPENSSL_EXTRA) \
+        || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL))
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
+      ssl->options.noTicketTls12 = 1;
+    }
+#endif
+
 
     /* in the case of a version change the cipher suites should be reset */
 #ifndef NO_PSK

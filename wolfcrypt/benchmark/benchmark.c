@@ -3625,9 +3625,9 @@ static void bench_aesecb_internal(int useDeviceID,
     Aes    enc[BENCH_MAX_PENDING];
     double start;
 #ifdef HAVE_FIPS
-    int benchSz = AES_BLOCK_SIZE;
+    static const int benchSz = AES_BLOCK_SIZE;
 #else
-    int benchSz = BENCH_SIZE;
+    static const int benchSz = BENCH_SIZE;
 #endif
 
     /* clear for done cleanup */
@@ -3650,7 +3650,7 @@ static void bench_aesecb_internal(int useDeviceID,
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = ((bench_size / AES_BLOCK_SIZE) * 10) + 1;
+        int outer_loop_limit = ((bench_size / benchSz) * 10) + 1;
         for (times = 0;
              times < outer_loop_limit /* numBlocks */ || pending > 0;
             ) {
@@ -3692,7 +3692,7 @@ exit_aes_enc:
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = (10 * (bench_size / AES_BLOCK_SIZE)) + 1;
+        int outer_loop_limit = (10 * (bench_size / benchSz)) + 1;
         for (times = 0; times < outer_loop_limit || pending > 0; ) {
             bench_async_poll(&pending);
 
@@ -3947,7 +3947,7 @@ void bench_aesctr(void)
 
 
 #ifdef HAVE_AESCCM
-void bench_aesccm(int useDevId)
+void bench_aesccm(int useDeviceID)
 {
     Aes    enc;
     double start;
@@ -3967,7 +3967,7 @@ void bench_aesccm(int useDevId)
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
 
     if ((ret = wc_AesInit(&enc, HEAP_HINT,
-        (useDevId)? devId: INVALID_DEVID)) != 0) {
+        useDeviceID ? devId : INVALID_DEVID)) != 0) {
         printf("wc_AesInit failed, ret = %d\n", ret);
         goto exit;
     }
@@ -3986,7 +3986,7 @@ void bench_aesccm(int useDevId)
         }
         count += i;
     } while (bench_stats_check(start));
-    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-enc"), useDevId, count,
+    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-enc"), useDeviceID, count,
         bench_size, start, ret);
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
@@ -4002,7 +4002,7 @@ void bench_aesccm(int useDevId)
         }
         count += i;
     } while (bench_stats_check(start));
-    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-dec"), useDevId, count,
+    bench_stats_sym_finish(AES_AAD_STRING("AES-CCM-dec"), useDeviceID, count,
         bench_size, start, ret);
     if (ret != 0) {
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
@@ -5629,7 +5629,7 @@ void bench_blake2s(void)
 
 #ifdef WOLFSSL_CMAC
 
-static void bench_cmac_helper(int keySz, const char* outMsg, int useDevId)
+static void bench_cmac_helper(int keySz, const char* outMsg, int useDeviceID)
 {
     Cmac    cmac;
     byte    digest[AES_BLOCK_SIZE];
@@ -5647,14 +5647,14 @@ static void bench_cmac_helper(int keySz, const char* outMsg, int useDevId)
         keyType = CAAM_KEYTYPE_AES256;
     }
 
-    if (useDevId &&
+    if (useDeviceID &&
             wc_SECO_GenerateKey(CAAM_GENERATE_KEY, keyGroup, pubKey, 0, keyType,
             keyInfo, &keyID) != 0) {
         printf("Error generating key in hsm\n");
         return;
     }
 #endif
-    (void)useDevId;
+    (void)useDeviceID;
 
     bench_stats_start(&count, &start);
     do {
@@ -5662,14 +5662,14 @@ static void bench_cmac_helper(int keySz, const char* outMsg, int useDevId)
         ret = wc_InitCmac(&cmac, bench_key, keySz, WC_CMAC_AES, NULL);
     #else
         ret = wc_InitCmac_ex(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
-            HEAP_HINT, (useDevId)? devId: INVALID_DEVID);
+            HEAP_HINT, useDeviceID ? devId : INVALID_DEVID);
     #endif
         if (ret != 0) {
             printf("InitCmac failed, ret = %d\n", ret);
             return;
         }
     #ifdef WOLFSSL_SECO_CAAM
-        if (useDevId) {
+        if (useDeviceID) {
             wc_SECO_CMACSetKeyID(&cmac, keyID);
         }
     #endif
@@ -5692,13 +5692,13 @@ static void bench_cmac_helper(int keySz, const char* outMsg, int useDevId)
     bench_stats_sym_finish(outMsg, 0, count, bench_size, start, ret);
 }
 
-void bench_cmac(int useDevId)
+void bench_cmac(int useDeviceID)
 {
 #ifdef WOLFSSL_AES_128
-    bench_cmac_helper(16, "AES-128-CMAC", useDevId);
+    bench_cmac_helper(16, "AES-128-CMAC", useDeviceID);
 #endif
 #ifdef WOLFSSL_AES_256
-    bench_cmac_helper(32, "AES-256-CMAC", useDevId);
+    bench_cmac_helper(32, "AES-256-CMAC", useDeviceID);
 #endif
 
 }
@@ -7336,7 +7336,7 @@ exit:
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519
-void bench_curve25519KeyGen(int useDevId)
+void bench_curve25519KeyGen(int useDeviceID)
 {
     curve25519_key genKey;
     double start;
@@ -7347,8 +7347,8 @@ void bench_curve25519KeyGen(int useDevId)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            ret = wc_curve25519_init_ex(&genKey, HEAP_HINT, (useDevId)? devId :
-                INVALID_DEVID);
+            ret = wc_curve25519_init_ex(&genKey, HEAP_HINT,
+                                        useDeviceID ? devId : INVALID_DEVID);
             if (ret != 0) {
                 printf("wc_curve25519_init_ex failed: %d\n", ret);
                 break;
@@ -7363,12 +7363,12 @@ void bench_curve25519KeyGen(int useDevId)
         }
         count += i;
     } while (bench_stats_check(start));
-    bench_stats_asym_finish("CURVE", 25519, desc[2], useDevId, count, start,
+    bench_stats_asym_finish("CURVE", 25519, desc[2], useDeviceID, count, start,
         ret);
 }
 
 #ifdef HAVE_CURVE25519_SHARED_SECRET
-void bench_curve25519KeyAgree(int useDevId)
+void bench_curve25519KeyAgree(int useDeviceID)
 {
     curve25519_key genKey, genKey2;
     double start;
@@ -7378,9 +7378,9 @@ void bench_curve25519KeyAgree(int useDevId)
     word32 x = 0;
 
     wc_curve25519_init_ex(&genKey,  HEAP_HINT,
-        (useDevId)? devId : INVALID_DEVID);
+        useDeviceID ? devId : INVALID_DEVID);
     wc_curve25519_init_ex(&genKey2, HEAP_HINT,
-        (useDevId)? devId : INVALID_DEVID);
+        useDeviceID ? devId : INVALID_DEVID);
 
     ret = wc_curve25519_make_key(&gRng, 32, &genKey);
     if (ret != 0) {
@@ -7408,7 +7408,7 @@ void bench_curve25519KeyAgree(int useDevId)
         count += i;
     } while (bench_stats_check(start));
 exit:
-    bench_stats_asym_finish("CURVE", 25519, desc[3], useDevId, count, start,
+    bench_stats_asym_finish("CURVE", 25519, desc[3], useDeviceID, count, start,
         ret);
 
     wc_curve25519_free(&genKey2);
