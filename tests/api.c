@@ -2859,6 +2859,33 @@ static int test_wolfSSL_FPKI(void)
     return res;
 }
 
+/* use RID in confuncture with other names to test parsing of unknown other
+ * names */
+static int test_wolfSSL_OtherName(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    XFILE f;
+    const char* ridCert = "./certs/rid-cert.der";
+    DecodedCert cert;
+    byte buf[4096];
+    int bytes;
+
+    f = XFOPEN(ridCert, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    AssertIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
+    wc_FreeDecodedCert(&cert);
+
+    res = TEST_RES_CHECK(1);
+#endif
+
+    return res;
+}
+
 static int test_wolfSSL_CertRsaPss(void)
 {
     int res = TEST_SKIPPED;
@@ -7018,6 +7045,73 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient(void)
     return res;
 }
 
+
+static int test_wolfSSL_CTX_set_cipher_list(void)
+{
+    int res = TEST_SKIPPED;
+
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_TIRTOS) && !defined(NO_AES) && !defined(WOLFSSL_NO_TLS12) \
+    && !defined(NO_SHA256)
+    WOLFSSL_CTX* ctx;
+    WOLFSSL_CTX* ctxClient;
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    callback_functions client_cb;
+    callback_functions server_cb;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+
+    AssertNotNull((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, "DEFAULT:!NULL"));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
+
+    AssertNotNull((ctxClient = wolfSSL_CTX_new(wolfTLSv1_2_client_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctxClient, "ECDHE-RSA-AES128-SHA256"));
+
+    client_cb.ctx = ctxClient;
+    server_cb.ctx = ctx;
+
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    wolfSSL_CTX_free(client_cb.ctx);
+    wolfSSL_CTX_free(server_cb.ctx);
+
+    AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+
+    FreeTcpReady(&ready);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_client_get_finished(void* args, cbType cb)
 {
 #if defined(WOLFSSL_HAVE_TLS_UNIQUE) && !defined(NO_WOLFSSL_CLIENT)
@@ -9132,6 +9226,111 @@ static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
     return res;
 }
 
+#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC))
+/* Called when writing. */
+static int DummySend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)sz;
+    (void)ctx;
+
+    /* Force error return from wolfSSL_accept_TLSv13(). */
+    return WANT_WRITE;
+}
+/* Called when reading. */
+static int BufferInfoRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    WOLFSSL_BUFFER_INFO* msg = (WOLFSSL_BUFFER_INFO*)ctx;
+    int len = (int)msg->length;
+
+    (void)ssl;
+    (void)sz;
+
+    /* Pass back as much of message as will fit in buffer. */
+    if (len > sz)
+        len = sz;
+    XMEMCPY(buf, msg->buffer, len);
+    /* Move over returned data. */
+    msg->buffer += len;
+    msg->length -= len;
+
+    /* Amount actually copied. */
+    return len;
+}
+#endif
+
+/* Test the detection of duplicate known TLS extensions.
+ * Specifically in a ClientHello.
+ */
+static int test_tls_ext_duplicate(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC))
+    const unsigned char clientHelloDupTlsExt[] = {
+        0x16, 0x03, 0x03, 0x00, 0x6a, 0x01, 0x00, 0x00,
+        0x66, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
+        0x6e, 0xab, 0x66, 0xdd, 0xcf, 0xe9, 0x65, 0x55,
+        0xe8, 0xdf, 0xc3, 0x8e, 0x4b, 0x00, 0xbc, 0xf8,
+        0x23, 0x57, 0x1b, 0xa0, 0xc8, 0xa9, 0xe2, 0x8c,
+        0x91, 0x6e, 0xf9, 0x20, 0xf7, 0x5c, 0xc5, 0x5b,
+        0x75, 0x8c, 0x47, 0x0a, 0x0e, 0xc4, 0x1a, 0xda,
+        0xef, 0x75, 0xe5, 0x21, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x13, 0x01,
+        0x00, 0x9e, 0x01, 0x00,
+        /* Extensions - duplicate signature algorithms. */
+                                0x00, 0x19, 0x00, 0x0d,
+        0x00, 0x04, 0x00, 0x02, 0x04, 0x01, 0x00, 0x0d,
+        0x00, 0x04, 0x00, 0x02, 0x04, 0x01,
+        /* Supported Versions extension for TLS 1.3. */
+                                            0x00, 0x2b,
+        0x00, 0x05, 0x04, 0x03, 0x04, 0x03, 0x03
+    };
+    WOLFSSL_BUFFER_INFO msg;
+    const char* testCertFile;
+    const char* testKeyFile;
+    WOLFSSL_CTX *ctx;
+    WOLFSSL     *ssl;
+
+#ifndef NO_RSA
+    testCertFile = svrCertFile;
+    testKeyFile = svrKeyFile;
+#elif defined(HAVE_ECC)
+    testCertFile = eccCertFile;
+    testKeyFile = eccKeyFile;
+#endif
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+
+    /* Read from 'msg'. */
+    wolfSSL_SetIORecv(ctx, BufferInfoRecv);
+    /* No where to send to - dummy sender. */
+    wolfSSL_SetIOSend(ctx, DummySend);
+
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
+
+    msg.buffer = (unsigned char*)clientHelloDupTlsExt;
+    msg.length = (unsigned int)sizeof(clientHelloDupTlsExt);
+    wolfSSL_SetIOReadCtx(ssl, &msg);
+
+    AssertIntNE(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_get_error(ssl, 0), DUPLICATE_TLS_EXT_E);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
 
 /*----------------------------------------------------------------------------*
  | X509 Tests
@@ -25479,9 +25678,11 @@ static int test_wc_ecc_import_raw(void)
 
     ret = wc_ecc_init(&key);
 
+    /* Test good import */
     if (ret == 0) {
         ret = wc_ecc_import_raw(&key, qx, qy, d, curveName);
     }
+
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_ecc_import_raw(NULL, qx, qy, d, curveName);
@@ -25510,14 +25711,23 @@ static int test_wc_ecc_import_raw(void)
             wc_ecc_free(&key);
         #endif
             ret = wc_ecc_import_raw(&key, "0", qy, d, curveName);
+            /* Note: SP math "is point" failure returns MP_VAL */
+            if (ret == ECC_INF_E || ret == MP_VAL) {
+                ret = BAD_FUNC_ARG; /* This is expected by other tests */
+            }
         }
         if (ret == BAD_FUNC_ARG) {
         #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
             wc_ecc_free(&key);
         #endif
             ret = wc_ecc_import_raw(&key, qx, "0", d, curveName);
+            /* Note: SP math "is point" failure returns MP_VAL */
+            if (ret == ECC_INF_E || ret == MP_VAL) {
+                ret = BAD_FUNC_ARG; /* This is expected by other tests */
+            }
         }
     #endif
+
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -54386,10 +54596,10 @@ static int test_wolfSSL_DH(void)
 #ifdef WOLFSSL_KEY_GEN
     AssertNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     AssertIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
-#endif
     DH_free(dh);
 #endif
-#endif
+#endif /* !HAVE_FIPS || (HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2) */
+#endif /* OPENSSL_ALL */
 
     (void)dh;
     (void)p;
@@ -54565,10 +54775,12 @@ static int test_wolfSSL_DH_dup(void)
     dhDup = wolfSSL_DH_dup(dh);
     AssertNotNull(dhDup);
     wolfSSL_DH_free(dhDup);
+#else
+    wolfSSL_BN_free(p);
+    wolfSSL_BN_free(g);
 #endif
 
     wolfSSL_DH_free(dh);
-
     res = TEST_RES_CHECK(1);
 #endif
 #endif
@@ -55603,7 +55815,7 @@ static int test_wolfSSL_dtls_set_mtu(void)
 {
     int res = TEST_SKIPPED;
 #if (defined(WOLFSSL_DTLS_MTU) || defined(WOLFSSL_SCTP)) && \
-                                                           defined(WOLFSSL_DTLS)
+    !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_DTLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
     const char* testCertFile;
@@ -57088,6 +57300,93 @@ static int test_wolfSSL_CTX_get_min_proto_version(void)
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
     return res;
 }
+
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
+static int test_wolfSSL_set_SSL_CTX(void)
+{
+    int res = TEST_SKIPPED;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
+    && !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX *ctx1, *ctx2;
+    WOLFSSL *ssl;
+    const byte *session_id1 = (const byte *)"CTX1";
+    const byte *session_id2 = (const byte *)"CTX2";
+
+    AssertNotNull(ctx1 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx1, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx1, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx1, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx1), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx1), TLS1_3_VERSION);
+    AssertIntEQ(wolfSSL_CTX_set_session_id_context(ctx1, session_id1, 4),
+                WOLFSSL_SUCCESS);
+
+    AssertNotNull(ctx2 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx2, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx2, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx2, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(ctx2, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx2), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx2), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_set_session_id_context(ctx2, session_id2, 4),
+                WOLFSSL_SUCCESS);
+
+#ifdef HAVE_SESSION_TICKET
+    AssertIntEQ((wolfSSL_CTX_get_options(ctx1) & SSL_OP_NO_TICKET), 0);
+    wolfSSL_CTX_set_options(ctx2, SSL_OP_NO_TICKET);
+    AssertIntNE((wolfSSL_CTX_get_options(ctx2) & SSL_OP_NO_TICKET), 0);
+#endif
+
+    AssertNotNull(ssl = wolfSSL_new(ctx2));
+    AssertIntNE((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3), 0);
+#ifdef WOLFSSL_INT_H
+    AssertIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
+    AssertTrue(ssl->buffers.certificate == ctx2->certificate);
+    AssertTrue(ssl->buffers.certChain == ctx2->certChain);
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+    AssertIntNE((wolfSSL_get_options(ssl) & SSL_OP_NO_TICKET), 0);
+#endif
+
+    /* Set the ctx1 that has TLSv1.3 as max proto version */
+    AssertNotNull(wolfSSL_set_SSL_CTX(ssl, ctx1));
+
+    /* MUST not change proto versions of ssl */
+    AssertIntNE((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3), 0);
+#ifdef HAVE_SESSION_TICKET
+    /* MUST not change */
+    AssertIntNE((wolfSSL_get_options(ssl) & SSL_OP_NO_TICKET), 0);
+#endif
+    /* MUST change */
+#ifdef WOLFSSL_INT_H
+    AssertTrue(ssl->buffers.certificate == ctx1->certificate);
+    AssertTrue(ssl->buffers.certChain == ctx1->certChain);
+    AssertIntEQ(XMEMCMP(ssl->sessionCtx, session_id1, 4), 0);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx1);
+    wolfSSL_CTX_free(ctx2);
+
+    res = TEST_RES_CHECK(1);
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
+    return res;
+}
+#endif /* defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))) */
 
 static int test_wolfSSL_security_level(void)
 {
@@ -59303,6 +59602,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint4),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint5),
     TEST_DECL(test_wolfSSL_FPKI),
+    TEST_DECL(test_wolfSSL_OtherName),
     TEST_DECL(test_wolfSSL_CertRsaPss),
     TEST_DECL(test_wolfSSL_CertManagerCRL),
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
@@ -59331,6 +59631,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_read_write),
     TEST_DECL(test_wolfSSL_reuse_WOLFSSLobj),
     TEST_DECL(test_wolfSSL_CTX_verifyDepth_ServerClient),
+    TEST_DECL(test_wolfSSL_CTX_set_cipher_list),
     TEST_DECL(test_wolfSSL_dtls_export),
     TEST_DECL(test_wolfSSL_tls_export),
 #endif
@@ -59358,6 +59659,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
+    TEST_DECL(test_tls_ext_duplicate),
 
     /* X509 tests */
     TEST_DECL(test_wolfSSL_X509_NAME_get_entry),
@@ -59849,6 +60151,12 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_CTX_get_min_proto_version),
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
+    TEST_DECL(test_wolfSSL_set_SSL_CTX),
+#endif
 
     TEST_DECL(test_wolfSSL_security_level),
     TEST_DECL(test_wolfSSL_SSL_in_init),
@@ -60310,10 +60618,23 @@ static const char* apitest_res_string(int res)
     return str;
 }
 
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+static double gettime_secs(void)
+{
+    struct timeval tv;
+    LIBCALL_CHECK_RET(gettimeofday(&tv, 0));
+
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+#endif
+
 void ApiTest(void)
 {
     int i;
     int ret;
+#ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+    double timeDiff;
+#endif
 
     printf(" Begin API Tests\n");
     fflush(stdout);
@@ -60326,10 +60647,24 @@ void ApiTest(void)
 
         TestSetup();
 
-        printf("   %3d: %-60s:", i + 1, testCases[i].name);
+        printf("   %3d: %-52s:", i + 1, testCases[i].name);
         fflush(stdout);
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs();
+    #endif
         ret = testCases[i].func();
-        printf(" %s\n", apitest_res_string(ret));
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        timeDiff = gettime_secs() - timeDiff;
+    #endif
+    #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
+        if (ret != TEST_SKIPPED) {
+            printf(" %s (%9.5lf)\n", apitest_res_string(ret), timeDiff);
+        }
+        else
+    #endif
+        {
+            printf(" %s\n", apitest_res_string(ret));
+        }
         fflush(stdout);
         AssertIntNE(ret, TEST_FAIL);
 

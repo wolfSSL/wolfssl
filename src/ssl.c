@@ -8207,11 +8207,15 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 
 #else
 
-/* Potential system CA certs directories on Linux distros. */
+/* Potential system CA certs directories on Linux/Unix distros. */
 static const char* systemCaDirs[] = {
+#if defined(__ANDROID__) || defined(ANDROID)
+    "/system/etc/security/cacerts"      /* Android */
+#else
     "/etc/ssl/certs",                   /* Debian, Ubuntu, Gentoo, others */
     "/etc/pki/ca-trust/source/anchors", /* Fedora, RHEL */
     "/etc/pki/tls/certs"                /* Older RHEL */
+#endif
 };
 
 const char** wolfSSL_get_system_CA_dirs(word32* num)
@@ -31987,9 +31991,68 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
-    if (ssl && ctx && SetSSL_CTX(ssl, ctx, 0) == WOLFSSL_SUCCESS)
+    /* This method requires some explanation. Its sibling is
+     *   int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
+     * which re-inits the WOLFSSL* with all settings in the new CTX.
+     * That one is the right one to use *before* a handshake is started.
+     *
+     * This method was added by OpenSSL to be used *during* the handshake, e.g.
+     * when a server inspects the SNI in a ClientHello callback and
+     * decides which set of certificates to use.
+     *
+     * Since, at the time the SNI callback is run, some decisions on
+     * Extensions or the ServerHello might already have been taken, this
+     * method is very restricted in what it does:
+     * - changing the server certificate(s)
+     * - changing the server id for session handling
+     * and everything else in WOLFSSL* needs to remain untouched.
+     */
+    WOLFSSL_ENTER("wolfSSL_set_SSL_CTX");
+    if (ssl == NULL || ctx == NULL)
+        return NULL;
+    if (ssl->ctx == ctx)
         return ssl->ctx;
-    return NULL;
+
+    if (SSL_CTX_RefCount(ctx, 1) < 0) {
+        /* can only fail on serious stuff, like mutex not working
+         * or ctx refcount out of whack. */
+        return NULL;
+    }
+    if (ssl->ctx) {
+        wolfSSL_CTX_free(ssl->ctx);
+    }
+    ssl->ctx = ctx;
+
+#ifndef NO_CERTS
+    /* ctx owns certificate, certChain and key */
+    ssl->buffers.certificate = ctx->certificate;
+    ssl->buffers.certChain = ctx->certChain;
+#ifdef WOLFSSL_TLS13
+    ssl->buffers.certChainCnt = ctx->certChainCnt;
+#endif
+    ssl->buffers.key      = ctx->privateKey;
+    ssl->buffers.keyType  = ctx->privateKeyType;
+    ssl->buffers.keyId    = ctx->privateKeyId;
+    ssl->buffers.keyLabel = ctx->privateKeyLabel;
+    ssl->buffers.keySz    = ctx->privateKeySz;
+    ssl->buffers.keyDevId = ctx->privateKeyDevId;
+    /* flags indicating what certs/keys are available */
+    ssl->options.haveRSA          = ctx->haveRSA;
+    ssl->options.haveDH           = ctx->haveDH;
+    ssl->options.haveECDSAsig     = ctx->haveECDSAsig;
+    ssl->options.haveECC          = ctx->haveECC;
+    ssl->options.haveStaticECC    = ctx->haveStaticECC;
+    ssl->options.haveFalconSig    = ctx->haveFalconSig;
+    ssl->options.haveDilithiumSig = ctx->haveDilithiumSig;
+#endif
+
+#ifdef OPENSSL_EXTRA
+    /* copy over application session context ID */
+    ssl->sessionCtxSz = ctx->sessionCtxSz;
+    XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+#endif
+
+    return ssl->ctx;
 }
 
 

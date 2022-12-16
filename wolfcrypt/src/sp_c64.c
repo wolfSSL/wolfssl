@@ -3691,7 +3691,7 @@ SP_NOINLINE static void sp_2048_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint128)a[ 8]) * b[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -3950,7 +3950,7 @@ SP_NOINLINE static void sp_2048_sqr_9(sp_digit* r, const sp_digit* a)
     t0 =  ((sp_uint128)a[ 8]) * a[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -10577,7 +10577,7 @@ SP_NOINLINE static void sp_3072_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint128)a[ 8]) * b[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -10894,7 +10894,7 @@ SP_NOINLINE static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
     t0 =  ((sp_uint128)a[ 8]) * a[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -17606,7 +17606,7 @@ SP_NOINLINE static void sp_4096_mul_13(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint128)a[12]) * b[12];
     r[23] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
     r[24] = t0 & 0x1fffffffffffffL;
-    r[25] = t0 >> 53;
+    r[25] = (sp_digit)(t0 >> 53);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -17985,7 +17985,7 @@ SP_NOINLINE static void sp_4096_sqr_13(sp_digit* r, const sp_digit* a)
     t0 =  ((sp_uint128)a[12]) * a[12];
     r[23] = t1 & 0x1fffffffffffffL; t0 += t1 >> 53;
     r[24] = t0 & 0x1fffffffffffffL;
-    r[25] = t0 >> 53;
+    r[25] = (sp_digit)(t0 >> 53);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -35713,7 +35713,7 @@ SP_NOINLINE static void sp_521_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_int128)a[ 8]) * b[ 8];
     r[15] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
     r[16] = t0 & 0x3ffffffffffffffL;
-    r[17] = t0 >> 58;
+    r[17] = (sp_digit)(t0 >> 58);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -35834,7 +35834,7 @@ SP_NOINLINE static void sp_521_sqr_9(sp_digit* r, const sp_digit* a)
     t0 =  ((sp_int128)a[ 8]) * a[ 8];
     r[15] = t1 & 0x3ffffffffffffffL; t0 += t1 >> 58;
     r[16] = t0 & 0x3ffffffffffffffL;
-    r[17] = t0 >> 58;
+    r[17] = (sp_digit)(t0 >> 58);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -43035,7 +43035,7 @@ SP_NOINLINE static void sp_1024_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_int128)a[ 8]) * b[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 
@@ -43112,7 +43112,7 @@ SP_NOINLINE static void sp_1024_sqr_9(sp_digit* r, const sp_digit* a)
     t0 =  ((sp_int128)a[ 8]) * a[ 8];
     r[15] = t1 & 0x1ffffffffffffffL; t0 += t1 >> 57;
     r[16] = t0 & 0x1ffffffffffffffL;
-    r[17] = t0 >> 57;
+    r[17] = (sp_digit)(t0 >> 57);
     XMEMCPY(r, t, sizeof(t));
 }
 

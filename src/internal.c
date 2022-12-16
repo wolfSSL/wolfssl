@@ -23355,6 +23355,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DTLS_TOO_MANY_FRAGMENTS_E:
         return "Received too many fragmented messages from peer error";
 
+    case DUPLICATE_TLS_EXT_E:
+        return "Duplicate TLS extension in message.";
+
     default :
         return "unknown error number";
     }
@@ -24357,7 +24360,10 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             haveRSA = 1;
             haveDH = 1;
             haveECC = 1;
-            haveStaticECC = 1;
+
+            /* having static ECC will disable all RSA use, do not set
+             * static ECC suites here
+             * haveStaticECC = 1; */
             haveStaticRSA = 1;
             haveRSAsig = 1;
             havePSK = 1;

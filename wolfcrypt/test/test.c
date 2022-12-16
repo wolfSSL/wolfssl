@@ -42506,7 +42506,19 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void)
     wolfSSL_Mutex m;
 #endif
 #if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_USER_MUTEX)
+  #ifndef WOLFSSL_STATIC_MEMORY
     wolfSSL_Mutex *mm = wc_InitAndAllocMutex();
+  #else
+    wolfSSL_Mutex *mm = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex),
+                                                 HEAP_HINT, DYNAMIC_TYPE_MUTEX);
+    if (mm != NULL) {
+        if (wc_InitMutex(mm) != 0) {
+            WOLFSSL_MSG("Init Mutex failed");
+            XFREE(mm, HEAP_HINT, DYNAMIC_TYPE_MUTEX);
+            mm = NULL;
+        }
+    }
+  #endif
     if (mm == NULL)
         return -13700;
     wc_FreeMutex(mm);

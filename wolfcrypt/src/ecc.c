@@ -4605,6 +4605,8 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
             ecc_point* point, byte* out, word32 *outlen)
 {
     int err = 0;
+
+#if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
     DECLARE_CURVE_SPECS(3);
 
     /* load curve info */
@@ -4620,7 +4622,6 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         return err;
     }
 
-#if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
     if (private_key->dp
     #ifdef WOLFSSL_CUSTOM_CURVES
         && private_key->dp->id != ECC_CURVE_CUSTOM
@@ -4660,10 +4661,13 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
                 &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
                 private_key->dp->cofactor);
     #endif
-        wc_ecc_curve_free(curve);
-        FREE_CURVE_SPECS();
-        return err;
+
+        if (err == WC_PENDING_E) {
+            /* advance state, next call will handle return code processing */
+            private_key->state++;
+        }
     }
+    else
 #elif defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (wc_AsyncSwInit(&private_key->asyncDev, ASYNC_SW_ECC_SHARED_SEC)) {
         WC_ASYNC_SW* sw = &private_key->asyncDev.sw;
@@ -4671,46 +4675,23 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         sw->eccSharedSec.public_point = point;
         sw->eccSharedSec.out = out;
         sw->eccSharedSec.outLen = outlen;
-        wc_ecc_curve_free(curve);
-        FREE_CURVE_SPECS();
-        return WC_PENDING_E;
-    }
-#endif
-
-    /* use sync in other cases */
-    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen);
-
-    wc_ecc_curve_free(curve);
-    FREE_CURVE_SPECS();
-
-    return err;
-}
-#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
-
-int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
-                                                    byte* out, word32 *outlen)
-{
-    int err = MP_OKAY;
-
-    if (private_key == NULL || point == NULL || out == NULL ||
-                                                            outlen == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        err = wc_ecc_shared_secret_gen_async(private_key, point,
-            out, outlen);
+        err = WC_PENDING_E;
     }
     else
 #endif
     {
-        err = wc_ecc_shared_secret_gen_sync(private_key, point,
-            out, outlen);
+        /* use sync in other cases */
+        err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen);
     }
+
+#if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+#endif
 
     return err;
 }
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
 /**
@@ -4752,7 +4733,23 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         case ECC_STATE_SHARED_SEC_GEN:
             private_key->state = ECC_STATE_SHARED_SEC_GEN;
 
-            err = wc_ecc_shared_secret_gen(private_key, point, out, outlen);
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+            if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+                err = wc_ecc_shared_secret_gen_async(private_key, point,
+                    out, outlen);
+                if (err == 0) {
+                    /* advance state and exit early */
+                    private_key->state++;
+                    RESTORE_VECTOR_REGISTERS();
+                    return err;
+                }
+            }
+            else
+        #endif
+            {
+                err = wc_ecc_shared_secret_gen_sync(private_key, point,
+                    out, outlen);
+            }
             if (err < 0) {
                 break;
             }
@@ -4783,7 +4780,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 
     /* if async pending then return and skip done cleanup below */
     if (err == WC_PENDING_E) {
-        private_key->state++;
         return err;
     }
 
@@ -5029,7 +5025,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     #endif
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC_KEYGEN) && \
     defined(HAVE_INTEL_QA)
     if (err == MP_OKAY && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
         word32 keySz = key->dp->size;

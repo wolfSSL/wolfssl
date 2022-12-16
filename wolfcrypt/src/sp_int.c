@@ -4706,7 +4706,8 @@ void sp_free(sp_int* a)
     }
 }
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(NO_DH) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DH) || defined(HAVE_ECC)
 /* Grow multi-precision number to be able to hold l digits.
  * This function does nothing as the number of digits is fixed.
  *
@@ -4739,9 +4740,10 @@ int sp_grow(sp_int* a, int l)
 
     return err;
 }
-#endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
+#endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || !NO_DH || HAVE_ECC */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_ECC)
 /* Set the multi-precision number to zero.
  *
  * @param  [out]  a  SP integer to set to zero.
@@ -4753,7 +4755,7 @@ void sp_zero(sp_int* a)
         _sp_zero(a);
     }
 }
-#endif /* !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
 
 /* Clear the data from the multi-precision number, set to zero and free.
  *
@@ -5166,8 +5168,8 @@ int sp_cmp(const sp_int* a, const sp_int* b)
  * Bit check/set functions
  *************************/
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (defined(WOLFSSL_SP_MATH_ALL) && \
-    defined(HAVE_ECC))
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC))
 /* Check if a bit is set
  *
  * When a is NULL, result is 0.
@@ -5195,7 +5197,8 @@ int sp_is_bit_set(const sp_int* a, unsigned int b)
 
     return ret;
 }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) ||
+        * (WOLFSSL_SP_MATH_ALL && HAVE_ECC) */
 
 /* Count the number of bits in the multi-precision number.
  *
@@ -5424,6 +5427,8 @@ int sp_2expt(sp_int* a, int e)
  * Digit/Long functions
  **********************/
 
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA) || !defined(NO_DH) || \
+    defined(HAVE_ECC)
 /* Set the multi-precision number to be the value of the digit.
  *
  * @param  [out]  a  SP integer to become number.
@@ -5454,6 +5459,7 @@ int sp_set(sp_int* a, sp_int_digit d)
 
     return err;
 }
+#endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA) || defined(OPENSSL_EXTRA)
 /* Set a number into the multi-precision number.
@@ -5507,8 +5513,9 @@ int sp_set_int(sp_int* a, unsigned long n)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_RSA  */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || \
-    (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_DH))
+#if defined(WOLFSSL_SP_MATH_ALL) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DH) || defined(HAVE_ECC)
 /* Compare a one digit number with a multi-precision number.
  *
  * When a is NULL, MP_LT is returned.
@@ -7559,8 +7566,8 @@ int sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
  * Shifting functoins
  ********************/
 
-#if !defined(NO_DH) || defined(HAVE_ECC) || (defined(WC_RSA_BLINDING) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY))
+#if !defined(NO_DH) || defined(HAVE_ECC) || (!defined(NO_RSA) && \
+    defined(WC_RSA_BLINDING) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Left shift the multi-precision number by a number of digits.
  *
  * @param  [in,out]  a  SP integer to shift.
@@ -8264,6 +8271,9 @@ int sp_mod(const sp_int* a, const sp_int* m, sp_int* r)
 #endif /* !FREESCALE_LTC_TFM */
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC || \
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
+
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(HAVE_ECC) || !defined(NO_RSA)
 
 /* START SP_MUL implementations. */
 /* This code is generated.
@@ -11265,6 +11275,8 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     return err;
 }
 /* END SP_MUL implementations. */
+
+#endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFCRYPT_HAVE_ECCSI) || \
@@ -16014,8 +16026,9 @@ int sp_sqr(const sp_int* a, sp_int* r)
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || HAVE_ECC ||
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
 
-#if (!defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH)
+#if defined(WOLFSSL_SP_MATH_ALL) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || defined(HAVE_ECC)
 /* Square a mod m and store in r: r = (a * a) mod m
  *
  * @param  [in]   a  SP integer to square.
@@ -16739,20 +16752,21 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     #else
         /* Construct digit from required number of bytes. */
         for (i = inSz-1; i >= SP_WORD_SIZEOF - 1; i -= SP_WORD_SIZEOF) {
-            a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0);
+            a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0)
         #if SP_WORD_SIZE >= 16
-            a->dp[j] |= ((sp_int_digit)in[i - 1] <<  8);
+                      | ((sp_int_digit)in[i - 1] <<  8)
         #endif
         #if SP_WORD_SIZE >= 32
-            a->dp[j] |= ((sp_int_digit)in[i - 2] << 16) |
-                        ((sp_int_digit)in[i - 3] << 24);
+                      | ((sp_int_digit)in[i - 2] << 16) |
+                        ((sp_int_digit)in[i - 3] << 24)
         #endif
         #if SP_WORD_SIZE >= 64
-            a->dp[j] |= ((sp_int_digit)in[i - 4] << 32) |
+                      | ((sp_int_digit)in[i - 4] << 32) |
                         ((sp_int_digit)in[i - 5] << 40) |
                         ((sp_int_digit)in[i - 6] << 48) |
-                        ((sp_int_digit)in[i - 7] << 56);
+                        ((sp_int_digit)in[i - 7] << 56)
         #endif
+                                                       ;
             j++;
         }
     #endif
@@ -17536,11 +17550,6 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 #else
         ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
 #endif /* LITTLE_ENDIAN_ORDER */
-        /* Set mandatory low bits
-         *  - bottom bit to make odd.
-         *  - For BBS, second lowest too to make Blum integer (3 mod 4).
-         */
-        r->dp[0] |= low_bits;
 
 #ifdef BIG_ENDIAN_ORDER
         /* Bytes were put into wrong place when less than full digit. */
@@ -17554,6 +17563,11 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             r->dp[r->used - 1] &= ((sp_int_digit)1 << bits) - 1;
         }
 #endif /* WOLFSSL_SP_MATH_ALL */
+        /* Set mandatory low bits
+         *  - bottom bit to make odd.
+         *  - For BBS, second lowest too to make Blum integer (3 mod 4).
+         */
+        r->dp[0] |= low_bits;
 
         /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance
          * of a 1024-bit candidate being a false positive, when it is our

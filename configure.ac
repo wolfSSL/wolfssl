@@ -100,12 +100,13 @@ fi
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
+AC_C___ATOMIC
 
 # check if functions of interest are linkable, but also check if
 # they're declared by the expected headers, and if not, supersede the
 # unusable positive from AC_CHECK_FUNCS().
 AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r gmtime_s inet_ntoa memset socket strftime atexit])
-AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, gmtime_s, inet_ntoa, memset, socket, strftime], [], [
+AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, gmtime_s, inet_ntoa, memset, socket, strftime, atexit], [], [
 if test "$(eval echo \$"$(eval 'echo ac_cv_func_${as_decl_name}')")" = "yes"
 then
     AC_MSG_NOTICE([    note: earlier check for $(eval 'echo ${as_decl_name}') superseded.])
@@ -131,6 +132,9 @@ fi
 #endif
 #ifdef HAVE_TIME_H
     #include <time.h>
+#endif
+#ifdef HAVE_STDLIB_H
+    #include <stdlib.h>
 #endif
 ]])
 
@@ -3907,7 +3911,7 @@ then
 fi
 
 # No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
-if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = no && \
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = "no" && \
    test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
    test "$ENABLED_RSA" = "no"
 then
@@ -6727,6 +6731,7 @@ do
   esac
 done
 
+ENABLED_SP_LINE="$ENABLE_SP"
 ENABLED_SP=no
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
     ENABLED_SP=yes
@@ -6796,7 +6801,15 @@ fi
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
-        AC_MSG_ERROR([Must have SP enabled with SP math: --enable-sp])
+        if test "$ENABLED_RSA" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for RSA: --enable-sp])
+        fi
+        if test "$ENABLED_DH" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for DH: --enable-sp])
+        fi
+        if test "$ENABLED_ECC" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for ECC: --enable-sp])
+        fi
     fi
     if test "$ENABLED_ECCCUSTCURVES" != "no"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])

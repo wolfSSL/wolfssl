@@ -372,3 +372,18 @@ attribute = SEQUENCE:PCE_attr
 type = OID:2.16.840.1.101.3.6.9.1
 value = BOOLEAN:true
 
+[rid_ext]
+basicConstraints = CA:FALSE,pathlen:0
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+keyUsage = critical, digitalSignature
+subjectAltName = @RID_altname
+
+[RID_altname]
+otherName.1 = 1.3.6.1.4.1.311.20.2.3;UTF8:facts@wolfssl.com
+RID.1 = 1.2.3.4.5
+DNS.1 = www.example.org
+URI.1 = https://www.wolfssl.com/
+otherName.2 = 2.16.840.1.101.3.6.6;FORMAT:HEX,OCT:D1:38:10:D8:28:AF:2C:10:84:35:15:A1:68:58:28:AF:02:10:86:A2:84:E7:39:C3:EB
+
+

@@ -1246,6 +1246,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
  *   When adding a new extension type that don't extrapolate the number of
  *   available semaphores, check for a possible collision with with a
  *   'remapped' extension type.
+ *
+ * Update TLSX_Parse for duplicate detection if more added above 62.
  */
 static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
 {
@@ -3052,7 +3054,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
-    word32 resp_length;
+    word32 resp_length = 0;
 #endif
 
     /* shut up compiler warnings */
@@ -8062,7 +8064,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     int ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    ssl->session->namedGroup = (byte)keyShareEntry->group;
+    ssl->session->namedGroup = keyShareEntry->group;
 #endif
     /* reset the pre master secret size */
     if (ssl->arrays->preMasterSz == 0)
@@ -8452,7 +8454,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
 
     if (ret == 0) {
         ret = wc_KyberKey_Init(type, kem, ssl->heap, INVALID_DEVID);
-        if (ret == 0) {
+        if (ret != 0) {
             WOLFSSL_MSG("Error creating Kyber KEM");
         }
     }
@@ -11133,9 +11135,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
             if (namedGroup > 0) {
 #ifdef HAVE_PQC
-                /* For KEMs, the key share has already been generated. */
-                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup))
-#endif
+                /* For KEMs, the key share has already been generated, but not
+                 * if we are resuming. */
+                if (!WOLFSSL_NAMED_GROUP_IS_PQC(namedGroup)
+#ifdef HAVE_SESSION_TICKET
+                    || ssl->options.resuming
+#endif /* HAVE_SESSION_TICKET */
+                   )
+#endif /* HAVE_PQC */
                     ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)
                     return ret;
@@ -11918,9 +11925,13 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     int pskDone = 0;
 #endif
+    byte seenType[SEMAPHORE_SIZE];  /* Seen known extensions. */
 
     if (!ssl || !input || (isRequest && !suites))
         return BAD_FUNC_ARG;
+
+    /* No known extensions seen yet. */
+    XMEMSET(seenType, 0, sizeof(seenType));
 
     while (ret == 0 && offset < length) {
         word16 type;
@@ -11941,6 +11952,22 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
+
+        /* Check we have a bit for extension type. */
+        if ((type <= 62) || (type == TLSX_RENEGOTIATION_INFO)
+        #ifdef WOLFSSL_QUIC
+            || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
+        #endif
+            )
+        {
+            /* Detect duplicate recognized extensions. */
+            if (IS_OFF(seenType, TLSX_ToSemaphore(type))) {
+                TURN_ON(seenType, TLSX_ToSemaphore(type));
+            }
+            else {
+                return DUPLICATE_TLS_EXT_E;
+            }
+        }
 
         if (length - offset < size)
             return BUFFER_ERROR;

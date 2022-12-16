@@ -398,7 +398,10 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
 
             printf("Using Post-Quantum KEM: %s\n", pqcAlg);
-            if (wolfSSL_UseKeyShare(ssl, group) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_UseKeyShare(ssl, group) == WOLFSSL_SUCCESS) {
+                groups[count++] = group;
+            }
+            else {
                 err_sys("unable to use post-quantum KEM");
             }
         }
@@ -2771,6 +2774,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 version = -1;
         }
     }
+
+#ifndef HAVE_SESSION_TICKET
+    if ((version >= 4) && resumeSession) {
+        fprintf(stderr, "Can't do TLS 1.3 resumption; need session tickets!\n");
+    }
+#endif
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
