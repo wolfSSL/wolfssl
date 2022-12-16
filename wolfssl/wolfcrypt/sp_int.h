@@ -398,7 +398,7 @@ typedef struct sp_ecc_ctx {
                 #define SP_INT_BITS     521
             #elif !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
                 /*  wc_PKCS12_PBKDF_ex() */
-                #define SP_INT_BITS     WC_MAX_DIGEST_SIZE * 8
+                #define SP_INT_BITS     (64 * 8)
             #else
                 #define SP_INT_BITS     128
             #endif

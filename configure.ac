@@ -3907,7 +3907,7 @@ then
 fi
 
 # No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
-if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = no && \
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = "no" && \
    test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
    test "$ENABLED_RSA" = "no"
 then
@@ -6727,6 +6727,7 @@ do
   esac
 done
 
+ENABLED_SP_LINE="$ENABLE_SP"
 ENABLED_SP=no
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
     ENABLED_SP=yes
@@ -6796,7 +6797,15 @@ fi
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
-        AC_MSG_ERROR([Must have SP enabled with SP math: --enable-sp])
+        if test "$ENABLED_RSA" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for RSA: --enable-sp])
+        fi
+        if test "$ENABLED_DH" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for DH: --enable-sp])
+        fi
+        if test "$ENABLED_ECC" != "no"; then
+            AC_MSG_ERROR([Must have SP enabled with SP math for ECC: --enable-sp])
+        fi
     fi
     if test "$ENABLED_ECCCUSTCURVES" != "no"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])
