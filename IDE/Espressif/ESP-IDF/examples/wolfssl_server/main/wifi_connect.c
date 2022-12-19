@@ -78,11 +78,11 @@ static void set_time()
 static void tls_smp_server_init(void)
 {
     int ret;
-    #if ESP_IDF_VERSION_MAJOR >= 4
+#if ESP_IDF_VERSION_MAJOR >= 4
         TaskHandle_t _handle;
-    #else
+#else
         xTaskHandle _handle;
-    #endif
+#endif
     /* http://esp32.info/docs/esp_idf/html/dd/d3c/group__xTaskCreate.html */
     ret = xTaskCreate(tls_smp_server_task,
                       TLS_SMP_SERVER_TASK_NAME,

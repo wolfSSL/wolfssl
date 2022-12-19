@@ -8216,11 +8216,11 @@ void bench_sphincsKeySign(byte level, byte optim)
 #endif
     double current_time(int reset)
     {
-        #if ESP_IDF_VERSION_MAJOR >= 4
+    #if ESP_IDF_VERSION_MAJOR >= 4
         TickType_t tickCount;
-        #else
+    #else
         portTickType tickCount;
-        #endif
+    #endif
 
         (void) reset;
 

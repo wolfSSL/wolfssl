@@ -551,11 +551,11 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
      *    DPORT_SEQUENCE_REG_READ(address + i * 4);
      */
     esp_dport_access_read_buffer(
-        #if ESP_IDF_VERSION_MAJOR >= 4
+#if ESP_IDF_VERSION_MAJOR >= 4
         (uint32_t*)(hash), /* the result will be found in hash upon exit     */
-        #else
+#else
         (word32*)(hash), /* the result will be found in hash upon exit     */
-        #endif
+#endif
         SHA_TEXT_BASE,   /* there's a fixed reg addy for all SHA           */
         wc_esp_sha_digest_size(ctx->sha_type) / sizeof(word32) /* # 4-byte */
     );
