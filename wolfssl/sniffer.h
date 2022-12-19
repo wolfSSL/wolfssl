@@ -47,6 +47,22 @@
     extern "C" {
 #endif
 
+
+typedef struct IpAddrInfo {
+    int version;
+    union {
+        word32 ip4;
+        byte   ip6[16];
+    };
+} IpAddrInfo;
+
+typedef struct SnifferStreamInfo {
+    IpAddrInfo src;          /* server address in network byte order */
+    IpAddrInfo dst;          /* client address in network byte order */
+    word16            dstPort;         /* server port */
+    word16            srcPort;         /* client port */
+} SnifferStreamInfo;
+
 /* @param typeK: (formerly keyType) was shadowing a global declaration in
  *                wolfssl/wolfcrypt/asn.h line 175
  */
@@ -128,6 +144,8 @@ WOLFSSL_API
 SSL_SNIFFER_API void ssl_InitSniffer(void);
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_InitSniffer_ex(int devId);
+WOLFSSL_API
+SSL_SNIFFER_API void ssl_InitSniffer_ex2(int threadNum);
 
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_FreeSniffer(void);
@@ -278,6 +296,9 @@ SSL_SNIFFER_API int ssl_DecodePacketWithChainSessionInfoStoreData(
         char* error);
 #endif
 
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacket_GetStream(SnifferStreamInfo* info,
+        const byte* packet, int length, char* error);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 

@@ -2840,6 +2840,11 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             }
             wc_FreeRng(&rng);
 
+            if (iv)
+                XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+            else
+                XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
+
             switch (keylen) {
                 case AES_128_KEY_SIZE: keyType = CAAM_KEYTYPE_AES128; break;
                 case AES_192_KEY_SIZE: keyType = CAAM_KEYTYPE_AES192; break;

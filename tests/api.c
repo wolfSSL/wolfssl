@@ -54596,10 +54596,10 @@ static int test_wolfSSL_DH(void)
 #ifdef WOLFSSL_KEY_GEN
     AssertNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     AssertIntEQ(wolfSSL_DH_generate_parameters_ex(NULL, 2048, 2, NULL), 0);
-#endif
     DH_free(dh);
 #endif
-#endif
+#endif /* !HAVE_FIPS || (HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2) */
+#endif /* OPENSSL_ALL */
 
     (void)dh;
     (void)p;
@@ -54775,10 +54775,12 @@ static int test_wolfSSL_DH_dup(void)
     dhDup = wolfSSL_DH_dup(dh);
     AssertNotNull(dhDup);
     wolfSSL_DH_free(dhDup);
+#else
+    wolfSSL_BN_free(p);
+    wolfSSL_BN_free(g);
 #endif
 
     wolfSSL_DH_free(dh);
-
     res = TEST_RES_CHECK(1);
 #endif
 #endif
@@ -57298,6 +57300,93 @@ static int test_wolfSSL_CTX_get_min_proto_version(void)
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
     return res;
 }
+
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
+static int test_wolfSSL_set_SSL_CTX(void)
+{
+    int res = TEST_SKIPPED;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
+    && !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    WOLFSSL_CTX *ctx1, *ctx2;
+    WOLFSSL *ssl;
+    const byte *session_id1 = (const byte *)"CTX1";
+    const byte *session_id2 = (const byte *)"CTX2";
+
+    AssertNotNull(ctx1 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx1, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx1, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx1, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx1), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx1), TLS1_3_VERSION);
+    AssertIntEQ(wolfSSL_CTX_set_session_id_context(ctx1, session_id1, 4),
+                WOLFSSL_SUCCESS);
+
+    AssertNotNull(ctx2 = wolfSSL_CTX_new(wolfTLS_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx2, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx2, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx2, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(ctx2, TLS1_2_VERSION),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx2), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx2), TLS1_2_VERSION);
+    AssertIntEQ(wolfSSL_CTX_set_session_id_context(ctx2, session_id2, 4),
+                WOLFSSL_SUCCESS);
+
+#ifdef HAVE_SESSION_TICKET
+    AssertIntEQ((wolfSSL_CTX_get_options(ctx1) & SSL_OP_NO_TICKET), 0);
+    wolfSSL_CTX_set_options(ctx2, SSL_OP_NO_TICKET);
+    AssertIntNE((wolfSSL_CTX_get_options(ctx2) & SSL_OP_NO_TICKET), 0);
+#endif
+
+    AssertNotNull(ssl = wolfSSL_new(ctx2));
+    AssertIntNE((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3), 0);
+#ifdef WOLFSSL_INT_H
+    AssertIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
+    AssertTrue(ssl->buffers.certificate == ctx2->certificate);
+    AssertTrue(ssl->buffers.certChain == ctx2->certChain);
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+    AssertIntNE((wolfSSL_get_options(ssl) & SSL_OP_NO_TICKET), 0);
+#endif
+
+    /* Set the ctx1 that has TLSv1.3 as max proto version */
+    AssertNotNull(wolfSSL_set_SSL_CTX(ssl, ctx1));
+
+    /* MUST not change proto versions of ssl */
+    AssertIntNE((wolfSSL_get_options(ssl) & WOLFSSL_OP_NO_TLSv1_3), 0);
+#ifdef HAVE_SESSION_TICKET
+    /* MUST not change */
+    AssertIntNE((wolfSSL_get_options(ssl) & SSL_OP_NO_TICKET), 0);
+#endif
+    /* MUST change */
+#ifdef WOLFSSL_INT_H
+    AssertTrue(ssl->buffers.certificate == ctx1->certificate);
+    AssertTrue(ssl->buffers.certChain == ctx1->certChain);
+    AssertIntEQ(XMEMCMP(ssl->sessionCtx, session_id1, 4), 0);
+#endif
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx1);
+    wolfSSL_CTX_free(ctx2);
+
+    res = TEST_RES_CHECK(1);
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
+    return res;
+}
+#endif /* defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))) */
 
 static int test_wolfSSL_security_level(void)
 {
@@ -60062,6 +60151,12 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_CTX_get_min_proto_version),
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
+    TEST_DECL(test_wolfSSL_set_SSL_CTX),
+#endif
 
     TEST_DECL(test_wolfSSL_security_level),
     TEST_DECL(test_wolfSSL_SSL_in_init),
