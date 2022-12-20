@@ -4965,7 +4965,7 @@ AC_ARG_ENABLE([keying-material],
     [ ENABLED_KEYING_MATERIAL=no ]
     )
 
-if test "$ENABLED_CHRONY" = "yes"
+if test "$ENABLED_CHRONY" = "yes" || test "$ENABLED_SRTP" = "yes"
 then
     ENABLED_KEYING_MATERIAL=yes
 fi
