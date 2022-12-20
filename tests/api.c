@@ -20372,7 +20372,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     /* Encrypt */
     if (ret == 0) {
         ret = wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherSz, &key, &rng,
-                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA1, NULL, 0);
         if (ret >= 0) {
             idx = ret;
             ret = 0;
@@ -20397,7 +20397,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     #endif
     if (ret == 0) {
         ret = wc_RsaPrivateDecrypt_ex(cipher, (word32)idx,
-                plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
                 WC_MGF1SHA1, NULL, 0);
     }
     if (ret >= 0) {
@@ -20417,7 +20417,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
 
     if (ret == 0) {
         ret = wc_RsaPrivateDecryptInline_ex(cipher, (word32)idx,
-                &res, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                &res, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
                 WC_MGF1SHA1, NULL, 0);
 
         if (ret >= 0) {
@@ -28014,7 +28014,11 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
     pkcs7->encryptOID = RSAk;
+#ifdef NO_SHA
+    pkcs7->hashOID = SHA256h;
+#else
     pkcs7->hashOID = SHAh;
+#endif
     pkcs7->rng = &rng;
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
@@ -28078,7 +28082,11 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     word32      outputFootSz = (word32)sizeof(outputFoot);
     byte        data[FOURK_BUF];
     wc_HashAlg  hash;
+#ifdef NO_SHA
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
+#else
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+#endif
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
     word32      hashSz = wc_HashGetDigestSize(hashType);
 
@@ -28164,7 +28172,11 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
     pkcs7->encryptOID = RSAk;
+#ifdef NO_SHA
+    pkcs7->hashOID = SHA256h;
+#else
     pkcs7->hashOID = SHAh;
+#endif
     pkcs7->rng = &rng;
 
     /* calculate hash for content */
@@ -28535,7 +28547,11 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
     else {
         pkcs7->encryptOID = ECDSAk;
     }
+#ifdef NO_SHA
+    pkcs7->hashOID = SHA256h;
+#else
     pkcs7->hashOID = SHAh;
+#endif
     pkcs7->rng = &rng;
     if (withAttribs) {
         /* include a signed attribute */
@@ -28582,7 +28598,11 @@ static int test_wc_PKCS7_VerifySignedData(void)
 
     int ret;
     wc_HashAlg  hash;
+#ifdef NO_SHA
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
+#else
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+#endif
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
     word32      hashSz = wc_HashGetDigestSize(hashType);
 
@@ -28912,27 +28932,27 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
     /* RSA certs and keys. */
     #if defined(USE_CERT_BUFFERS_1024)
+        rsaCertSz = (word32)sizeof_client_cert_der_1024;
         /* Allocate buffer space. */
         AssertNotNull(rsaCert =
-                (byte*)XMALLOC(ONEK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+                (byte*)XMALLOC(rsaCertSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         /* Init buffer. */
-        rsaCertSz = (word32)sizeof_client_cert_der_1024;
         XMEMCPY(rsaCert, client_cert_der_1024, rsaCertSz);
-        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(ONEK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)sizeof_client_key_der_1024;
+        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         XMEMCPY(rsaPrivKey, client_key_der_1024, rsaPrivKeySz);
 
     #elif defined(USE_CERT_BUFFERS_2048)
+        rsaCertSz = (word32)sizeof_client_cert_der_2048;
         /* Allocate buffer */
         AssertNotNull(rsaCert =
-                (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+                (byte*)XMALLOC(rsaCertSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         /* Init buffer. */
-        rsaCertSz = (word32)sizeof_client_cert_der_2048;
         XMEMCPY(rsaCert, client_cert_der_2048, rsaCertSz);
-        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)sizeof_client_key_der_2048;
+        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(rsaPrivKeySz, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         XMEMCPY(rsaPrivKey, client_key_der_2048, rsaPrivKeySz);
 
     #else
@@ -29173,7 +29193,8 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     wc_FreeRng(&rng);
 #endif
 
-#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3) && !defined(NO_RSA)
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
     {
         byte   out[7];
         byte   *cms;
@@ -29202,7 +29223,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         AssertIntEQ(XMEMCMP(out, "test", 4), 0);
         wc_PKCS7_Free(pkcs7);
     }
-#endif /* USE_CERT_BUFFERS_2048 && !NO_DES3 */
+#endif /* USE_CERT_BUFFERS_2048 && !NO_DES3 && !NO_RSA && !NO_SHA */
 
     res = TEST_RES_CHECK(1);
 #endif /* HAVE_PKCS7 */
@@ -29431,7 +29452,7 @@ static int test_wc_PKCS7_Degenerate(void)
 } /* END test_wc_PKCS7_Degenerate() */
 
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
-    defined(ASN_BER_TO_DER) && !defined(NO_DES3)
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3) && !defined(NO_SHA)
 static byte berContent[] = {
     0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
     0xF7, 0x0D, 0x01, 0x07, 0x03, 0xA0, 0x80, 0x30,
@@ -29621,7 +29642,9 @@ static byte berContent[] = {
     0x52, 0x19, 0xB1, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00
 };
-#endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER && !NO_DES3 */
+#endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER &&
+        * !NO_DES3 && !NO_SHA
+        */
 
 /*
  * Testing wc_PKCS7_BER()
@@ -29630,7 +29653,7 @@ static int test_wc_PKCS7_BER(void)
 {
     int res = TEST_SKIPPED;
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
-    defined(ASN_BER_TO_DER)
+    !defined(NO_SHA) && defined(ASN_BER_TO_DER)
     PKCS7* pkcs7;
     char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
     XFILE  f;
@@ -30505,7 +30528,11 @@ static int test_wolfSSL_lhash(void)
                            "We were born\n"
                            "Born to be wild";
 
+#ifdef NO_SHA
+    AssertIntEQ(lh_strhash(testStr), 0xf9dc8a43);
+#else
     AssertIntEQ(lh_strhash(testStr), 0x5b7541dc);
+#endif
 
     res = TEST_RES_CHECK(1);
 #endif
@@ -34421,7 +34448,11 @@ static int test_wolfSSL_PKCS7_certs(void)
     for (i = 0; i < 2; i++) {
         AssertNotNull(p7 = PKCS7_new());
         p7->version = 1;
+#ifdef NO_SHA
+        p7->hashOID = SHA256h;
+#else
         p7->hashOID = SHAh;
+#endif
         AssertNotNull(bio = BIO_new(BIO_s_file()));
         AssertIntGT(BIO_read_filename(bio, svrCertFile), 0);
         AssertNotNull(info_sk = PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
@@ -38843,7 +38874,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     AssertIntEQ(BIO_get_mem_data(bio, &p), bytes);
     AssertIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
     BIO_free(bio);
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(NO_SHA)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write Encrypted PKCS#8 PEM to BIO. */
     bytes = 1834;
@@ -38853,7 +38884,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
                                                             (void*)"yassl123"));
     EVP_PKEY_free(evpPkey);
     BIO_free(bio);
-#endif /* !NO_DES3 */
+#endif /* !NO_DES3 && !NO_SHA */
 #endif /* !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 */
     EVP_PKEY_free(pkey);
 
@@ -45346,7 +45377,12 @@ static int test_wolfSSL_EVP_get_digestbynid(void)
 #ifndef NO_MD5
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_md5));
 #endif
+#ifndef NO_SHA
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha1));
+#endif
+#ifndef NO_SHA256
+    AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha256));
+#endif
     AssertNull(wolfSSL_EVP_get_digestbynid(0));
 
     return TEST_RES_CHECK(1);
@@ -48993,7 +49029,11 @@ static int test_wolfssl_PKCS7(void)
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
     pkcs7->encryptOID = RSAk;
+#ifdef NO_SHA
+    pkcs7->hashOID = SHA256h;
+#else
     pkcs7->hashOID = SHAh;
+#endif
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(i2d_PKCS7_bio(bio, pkcs7), 1);
     AssertIntEQ(i2d_PKCS7(pkcs7, &out), 655);
@@ -49304,7 +49344,11 @@ static int test_wolfSSL_PEM_write_bio_PKCS7(void)
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
     pkcs7->encryptOID = RSAk;
+#ifdef NO_SHA
+    pkcs7->hashOID = SHA256h;
+#else
     pkcs7->hashOID = SHAh;
+#endif
     pkcs7->signedAttribs   = NULL;
     pkcs7->signedAttribsSz = 0;
 

@@ -2998,9 +2998,12 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
+if test "$enable_dsa" = ""
 then
-    ENABLED_DSA="yes"
+    if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
+    then
+        ENABLED_DSA="yes"
+    fi
 fi
 
 if test "$ENABLED_DSA" = "no"
@@ -4113,6 +4116,11 @@ else
         AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
         ENABLED_SHA=no
     fi
+fi
+
+if test "$ENABLED_SHA" = "no" && test "$ENABLED_DSA" != "no"
+then
+    AC_MSG_ERROR([please disable DSA if disabling SHA-1.])
 fi
 
 
@@ -7732,8 +7740,9 @@ AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
       [AC_MSG_ERROR([please enable ecc or rsa if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
-       test "x$ENABLED_SHA" = "xno"],
-      [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
+       test "x$ENABLED_SHA" = "xno" && \
+       test "x$ENABLED_SHA256" = "xno"],
+      [AC_MSG_ERROR([please enable sha or sha256 if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_AES" = "xno" && \

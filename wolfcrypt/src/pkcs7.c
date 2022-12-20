@@ -10078,10 +10078,10 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
         #if !defined(NO_PWDBASED) && !defined(NO_SHA)
                 ret = wc_PKCS7_DecryptPwri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz, recipFound);
+                break;
         #else
                 return NOT_COMPILED_IN;
         #endif
-                break;
 
         case WC_PKCS7_DECRYPT_ORI:
             ret = wc_PKCS7_DecryptOri(pkcs7, in, inSz, idx,
