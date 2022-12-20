@@ -338,13 +338,12 @@ static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
+    int strLen;
 #if !defined(NO_SHA)
     wc_Sha sha;
-    int strLen;
     byte digest[WC_SHA_DIGEST_SIZE];
 #elif !defined(NO_SHA256)
     wc_Sha256 sha;
-    int strLen;
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");

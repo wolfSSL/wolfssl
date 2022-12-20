@@ -20334,7 +20334,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     int result = TEST_SKIPPED;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)\
         && !defined(WC_NO_RSA_OAEP) && !defined(HAVE_USER_RSA)\
-        && !defined(NO_SHA)
+        && !defined(NO_SHA256)
     RsaKey  key;
     WC_RNG  rng;
     int     ret;
@@ -20372,7 +20372,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     /* Encrypt */
     if (ret == 0) {
         ret = wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherSz, &key, &rng,
-                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA1, NULL, 0);
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
         if (ret >= 0) {
             idx = ret;
             ret = 0;
@@ -20398,7 +20398,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     if (ret == 0) {
         ret = wc_RsaPrivateDecrypt_ex(cipher, (word32)idx,
                 plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
-                WC_MGF1SHA1, NULL, 0);
+                WC_MGF1SHA256, NULL, 0);
     }
     if (ret >= 0) {
         if (!XMEMCMP(plain, inStr, plainSz)) {
@@ -20418,7 +20418,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex(void)
     if (ret == 0) {
         ret = wc_RsaPrivateDecryptInline_ex(cipher, (word32)idx,
                 &res, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
-                WC_MGF1SHA1, NULL, 0);
+                WC_MGF1SHA256, NULL, 0);
 
         if (ret >= 0) {
             if (!XMEMCMP(inStr, res, plainSz)) {
