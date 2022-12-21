@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.5.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.5.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -44,9 +44,9 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
 # these numbers don't always line up nicely with the library version.
 WOLFSSL_LIBRARY_VERSION_FIRST=35
-WOLFSSL_LIBRARY_VERSION_SECOND=2
-WOLFSSL_LIBRARY_VERSION_THIRD=1
-WOLFSSL_LIBRARY_VERSION=37:1:2
+WOLFSSL_LIBRARY_VERSION_SECOND=3
+WOLFSSL_LIBRARY_VERSION_THIRD=0
+WOLFSSL_LIBRARY_VERSION=38:0:3
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
