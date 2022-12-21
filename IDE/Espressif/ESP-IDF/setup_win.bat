@@ -245,8 +245,8 @@ if %errorlevel% NEQ 0 SET COPYERROR=true
 
 :: echo Creating new config file: %WOLFSSLLIB_TRG_DIR%\include\config.h (default, may be overwritten by prior file)
 :: using copy instead of copy to avoid file/directory prompt for files without extension
-echo new config                                            > %WOLFSSLLIB_TRG_DIR%\include\config.h
-copy  "%WOLFSSL_ESPIDFDIR%\dummy_config_h"                   "%WOLFSSLLIB_TRG_DIR%\include\config.h"             /Y 
+echo new config                                            > "%WOLFSSLLIB_TRG_DIR%\include\config.h"
+xcopy  "%WOLFSSL_ESPIDFDIR%\dummy_config_h"                   "%WOLFSSLLIB_TRG_DIR%\include\config.h"             /F /Y 
 if %errorlevel% NEQ 0 SET COPYERROR=true
 
 :: Check if operator wants to keep prior config.h
