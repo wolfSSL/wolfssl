@@ -558,7 +558,7 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
  * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
-static WC_INLINE int IsDtlsNotSrtpMode(WOLFSSL* ssl)
+int IsDtlsNotSrtpMode(WOLFSSL* ssl)
 {
 #ifdef WOLFSSL_SRTP
     return ssl->options.dtls && !ssl->dtlsSrtpProfiles;
@@ -15663,8 +15663,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* above checks handshake state */
     /* hello_request not hashed */
-    /* Also, skip hashing the client_hello message here for DTLS. It will be
-     * hashed later if the DTLS cookie is correct. */
     if (type != hello_request
     #ifdef WOLFSSL_ASYNC_CRYPT
             && ssl->error != WC_PENDING_E
@@ -20451,7 +20449,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif /* !NO_OLD_TLS && !WOLFSSL_AEAD_ONLY */
 
 #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
-static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
+static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
 {
     int ret;
     byte md5_result[WC_MD5_DIGEST_SIZE];
@@ -20495,7 +20493,7 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 
 #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                               defined(WOLFSSL_ALLOW_TLS_SHA1))
-static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
+static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
 {
     int ret;
     byte sha_result[WC_SHA_DIGEST_SIZE];
@@ -20537,7 +20535,7 @@ static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 }
 #endif /* !NO_SHA && (!NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1) */
 
-int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
+int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
 {
     int ret = 0;
 
@@ -22879,7 +22877,11 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     ssl->alert_history.last_tx.code = type;
     ssl->alert_history.last_tx.level = severity;
     if (severity == alert_fatal) {
-        ssl->options.isClosed = 1;  /* Don't send close_notify */
+#ifdef WOLFSSL_DTLS
+        /* Mark as closed in dtls only once we enter stateful mode. */
+        if (!ssl->options.dtls || ssl->options.dtlsStateful)
+#endif
+            ssl->options.isClosed = 1;  /* Don't send close_notify */
     }
 
     /* send encrypted alert if encryption is on - can be a rehandshake over
@@ -27040,17 +27042,13 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
 
     /* Make sure client setup is valid for this suite, true on success */
-    int VerifyClientSuite(WOLFSSL* ssl)
+    int VerifyClientSuite(word16 havePSK, byte cipherSuite0, byte cipherSuite)
     {
-    #ifndef NO_PSK
-        int  havePSK = ssl->options.havePSK;
-    #endif
-        byte first   = ssl->options.cipherSuite0;
-        byte second  = ssl->options.cipherSuite;
+        (void)havePSK;
 
         WOLFSSL_ENTER("VerifyClientSuite");
 
-        if (CipherRequires(first, second, REQUIRES_PSK)) {
+        if (CipherRequires(cipherSuite0, cipherSuite, REQUIRES_PSK)) {
             WOLFSSL_MSG("Requires PSK");
         #ifndef NO_PSK
             if (havePSK == 0)
@@ -32546,7 +32544,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      * Returns 1 for valid server suite or 0 if not found
      * For asynchronous this can return WC_PENDING_E
      */
-    static int VerifyServerSuite(WOLFSSL* ssl, const Suites* suites, word16 idx)
+    static int VerifyServerSuite(WOLFSSL* ssl, const Suites* suites, word16 idx,
+                                 CipherSuite* cs, TLSX* extensions)
     {
     #ifndef NO_PSK
         int  havePSK = ssl->options.havePSK;
@@ -32630,7 +32629,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                        defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES)
-        if (!TLSX_ValidateSupportedCurves(ssl, first, second)) {
+        if (!TLSX_ValidateSupportedCurves(ssl, first, second, cs)) {
             WOLFSSL_MSG("Don't have matching curves");
             return 0;
         }
@@ -32640,25 +32639,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (IsAtLeastTLSv1_3(ssl->version) &&
                                       ssl->options.side == WOLFSSL_SERVER_END) {
     #ifdef HAVE_SUPPORTED_CURVES
-            int doHelloRetry = 0;
-            /* Try to establish a key share. */
-            int ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
+            byte searched = 0;
+            int ret = TLSX_KeyShare_Choose(ssl, extensions, &cs->clientKSE,
+                                           &searched);
 
             if (ret == MEMORY_E) {
-                WOLFSSL_MSG("TLSX_KeyShare_Establish() failed in "
+                WOLFSSL_MSG("TLSX_KeyShare_Choose() failed in "
                             "VerifyServerSuite() with MEMORY_E");
                 return 0;
             }
-            if (doHelloRetry) {
-                ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
-            }
+            if (cs->clientKSE == NULL && searched)
+                cs->doHelloRetry = 1;
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E)
                 return ret;
         #endif
-            if (!doHelloRetry && ret != 0) {
+            if (!cs->doHelloRetry && ret != 0)
                 return 0; /* not found */
-            }
     #endif /* HAVE_SUPPORTED_CURVES */
         }
         else if (first == TLS13_BYTE || (first == ECC_BYTE &&
@@ -32672,26 +32669,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return 1;
     }
 
-    static int CompareSuites(WOLFSSL* ssl, const Suites* suites,
-            Suites* peerSuites, word16 i, word16 j)
+    static int CompareSuites(const WOLFSSL* ssl, const Suites* suites,
+                             Suites* peerSuites, word16 i, word16 j,
+                             CipherSuite* cs, TLSX* extensions)
     {
         if (suites->suites[i]   == peerSuites->suites[j] &&
             suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-            int ret = VerifyServerSuite(ssl, suites, i);
+            int ret = VerifyServerSuite(ssl, suites, i, cs, extensions);
             if (ret < 0) {
                 return ret;
             }
             if (ret) {
                 WOLFSSL_MSG("Verified suite validity");
-                ssl->options.cipherSuite0 = suites->suites[i];
-                ssl->options.cipherSuite  = suites->suites[i+1];
-                ret = SetCipherSpecs(ssl);
-                if (ret == 0) {
-                    ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                                     peerSuites->hashSigAlgoSz);
-                }
-                return ret;
+                cs->cipherSuite0 = suites->suites[i];
+                cs->cipherSuite  = suites->suites[i+1];
+                return 0;
             }
             else {
                 WOLFSSL_MSG("Could not verify suite validity, continue");
@@ -32701,7 +32694,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return MATCH_SUITE_ERROR;
     }
 
-    int MatchSuite(WOLFSSL* ssl, Suites* peerSuites)
+    int MatchSuite_ex(const WOLFSSL* ssl, Suites* peerSuites, CipherSuite* cs,
+                      TLSX* extensions)
     {
         int ret;
         word16 i, j;
@@ -32720,7 +32714,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Server order */
             for (i = 0; i < suites->suiteSz; i += 2) {
                 for (j = 0; j < peerSuites->suiteSz; j += 2) {
-                    ret = CompareSuites(ssl, suites, peerSuites, i, j);
+                    ret = CompareSuites(ssl, suites, peerSuites, i, j, cs, extensions);
                     if (ret != MATCH_SUITE_ERROR)
                         return ret;
                 }
@@ -32730,7 +32724,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Client order */
             for (j = 0; j < peerSuites->suiteSz; j += 2) {
                 for (i = 0; i < suites->suiteSz; i += 2) {
-                    ret = CompareSuites(ssl, suites, peerSuites, i, j);
+                    ret = CompareSuites(ssl, suites, peerSuites, i, j, cs, extensions);
                     if (ret != MATCH_SUITE_ERROR)
                         return ret;
                 }
@@ -32739,6 +32733,46 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
         return MATCH_SUITE_ERROR;
+
+    }
+
+    int MatchSuite(WOLFSSL* ssl, Suites* peerSuites)
+    {
+        int ret;
+        CipherSuite cs;
+
+        XMEMSET(&cs, 0, sizeof(cs));
+
+        ret = MatchSuite_ex(ssl, peerSuites, &cs, ssl->extensions);
+        if (ret != 0)
+            return ret;
+
+        ssl->options.cipherSuite0 = cs.cipherSuite0;
+        ssl->options.cipherSuite  = cs.cipherSuite;
+        ssl->ecdhCurveOID = cs.ecdhCurveOID;
+
+        ret = SetCipherSpecs(ssl);
+        if (ret != 0)
+            return ret;
+        ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
+                                         peerSuites->hashSigAlgoSz);
+        if (ret != 0)
+            return ret;
+
+        if (cs.doHelloRetry) {
+            ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
+            return TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
+        }
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+        if (IsAtLeastTLSv1_3(ssl->version) &&
+                                      ssl->options.side == WOLFSSL_SERVER_END) {
+            ret = TLSX_KeyShare_Setup(ssl, cs.clientKSE);
+            if (ret != 0)
+                return ret;
+        }
+#endif
+        return ret;
     }
 
 #ifdef OLD_HELLO_ALLOWED
@@ -33107,6 +33141,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* do not change state in the SSL object before the next region of code
          * to be able to statelessly compute a DTLS cookie */
 #ifdef WOLFSSL_DTLS
+        /* Update the ssl->options.dtlsStateful setting `if` statement in
+         * wolfSSL_accept when changing this one. */
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             byte process = 0;
             if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
@@ -33121,14 +33157,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
              * Client Hello. */
             ssl->keys.dtls_handshake_number =
                     ssl->keys.dtls_peer_handshake_number;
-            ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz,
-                &process);
-            if (ret != 0 || !process) {
+            ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
+            if (ret != 0 || !ssl->options.dtlsStateful) {
                 *inOutIdx += helloSz;
                 DtlsResetState(ssl);
                 return ret;
             }
         }
+        ssl->options.dtlsStateful = 1;
 #endif /* WOLFSSL_DTLS */
 
         /* protocol version, random and session id length check */

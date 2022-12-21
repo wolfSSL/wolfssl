@@ -2288,6 +2288,27 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
     #endif
 }
 
+static WC_INLINE void tcp_set_blocking(SOCKET_T* sockfd)
+{
+    #ifdef USE_WINDOWS_API
+        unsigned long blocking = 0;
+        int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
+        if (ret == SOCKET_ERROR)
+            err_sys_with_errno("ioctlsocket failed");
+    #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
+        || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS) \
+        || defined(WOLFSSL_ZEPHYR)
+         /* non blocking not supported, for now */
+    #else
+        int flags = fcntl(*sockfd, F_GETFL, 0);
+        if (flags < 0)
+            err_sys_with_errno("fcntl get failed");
+        flags = fcntl(*sockfd, F_SETFL, flags & (~O_NONBLOCK));
+        if (flags < 0)
+            err_sys_with_errno("fcntl set failed");
+    #endif
+}
+
 
 #ifndef NO_PSK
 

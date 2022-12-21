@@ -330,7 +330,8 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
 
 static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
 {
-    ssl->keys.dtls_expected_peer_handshake_number++;
+    if (ssl->options.dtlsStateful)
+        ssl->keys.dtls_expected_peer_handshake_number++;
 
     /* we need to send ACKs on the last message of a flight that needs explicit
        acknowledgment */
