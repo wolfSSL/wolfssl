@@ -1529,12 +1529,6 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 case phr_http_start:
                 case phr_have_length:
                 case phr_have_type:
-                    if (XSTRLEN(start) < 13) { /* 13 is the shortest of the following
-                                          next lines we're checking for. */
-                        WOLFSSL_MSG("wolfIO_HttpProcessResponse content type is too short.");
-                        return HTTP_VERSION_ERR;
-                    }
-
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
                         int i;
 
