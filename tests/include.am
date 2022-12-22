@@ -16,8 +16,8 @@ tests_unit_test_SOURCES = \
                   examples/client/client.c \
                   examples/server/server.c
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
-tests_unit_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
-tests_unit_test_DEPENDENCIES = src/libwolfssl.la
+tests_unit_test_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
+tests_unit_test_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
 EXTRA_DIST += tests/unit.h \
               tests/test.conf \
