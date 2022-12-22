@@ -4,6 +4,7 @@
 
 EXTRA_DIST += \
 	     certs/crl/hash_pem/0fdb2da4.r0 \
+	     certs/crl/hash_der/0fdb2da4.r0 \
 	     certs/crl/crl.pem \
 	     certs/crl/cliCrl.pem \
 	     certs/crl/eccSrvCRL.pem \
