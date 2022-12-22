@@ -2366,10 +2366,7 @@ struct WOLFSSL_CERT_MANAGER {
                                         /* CTX has ownership and free this   */
                                         /* with CTX free.                    */
 #endif
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex   refMutex;   /* reference count mutex */
-#endif
-    int             refCount;         /* reference count */
+    wolfSSL_Ref     ref;
 #ifdef HAVE_PQC
     short           minFalconKeySz;      /* minimum allowed Falcon key size */
     short           minDilithiumKeySz;   /* minimum allowed Dilithium key size */
@@ -3179,8 +3176,7 @@ struct WOLFSSL_CTX {
 #ifdef SINGLE_THREADED
     WC_RNG*         rng;          /* to be shared with WOLFSSL w/o locking */
 #endif
-    wolfSSL_Mutex   countMutex;   /* reference count mutex */
-    int         refCount;         /* reference count */
+    wolfSSL_Ref     ref;
     int         err;              /* error code in case of mutex not created */
 #ifndef NO_DH
     buffer      serverDH_P;
@@ -3895,10 +3891,7 @@ struct WOLFSSL_SESSION {
 #ifndef NO_SESSION_CACHE
     int                cacheRow;          /* row in session cache     */
 #endif
-    int                refCount;          /* reference count */
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex      refMutex;          /* ref count mutex */
-#endif
+    wolfSSL_Ref        ref;
     byte               altSessionID[ID_LEN];
     byte               haveAltSessionID:1;
 #ifdef HAVE_EX_DATA
@@ -4575,10 +4568,7 @@ struct WOLFSSL_X509 {
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
-#endif
-    int              refCount;                       /* reference count */
+    wolfSSL_Ref      ref;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
@@ -5466,7 +5456,6 @@ struct WOLFSSL {
 #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? (ssl)->ca_names : \
         (ssl)->ctx->ca_names)
 
-WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);

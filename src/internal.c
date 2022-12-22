@@ -2140,7 +2140,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
 
     ctx->method   = method;
-    ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
     ctx->heap     = ctx;        /* defaults to self */
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
 
@@ -2155,7 +2154,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
     }
 
-    if (wc_InitMutex(&ctx->countMutex) < 0) {
+    wolfSSL_RefInit(&ctx->ref, &ret);
+    if (ret < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
         ctx->err = CTX_INIT_MUTEX_E;
         WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
@@ -2610,7 +2610,8 @@ static void SSL_CtxResourceFreeStaticMem(void* heap)
 
 void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 {
-    int refCount;
+    int isZero;
+    int ret;
     void* heap = ctx->heap;
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->onHeapHint == 0) {
@@ -2619,7 +2620,8 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 #endif
 
     /* decrement CTX reference count */
-    if ((refCount = SSL_CTX_RefCount(ctx, -1)) < 0) {
+    wolfSSL_RefDec(&ctx->ref, &isZero, &ret);
+    if (ret < 0) {
         /* check error state, if mutex error code then mutex init failed but
          * CTX was still malloc'd */
         if (ctx->err == CTX_INIT_MUTEX_E) {
@@ -2632,7 +2634,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
         return;
     }
 
-    if (refCount == 0) {
+    if (isZero) {
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
 
         SSL_CtxResourceFree(ctx);
@@ -2640,7 +2642,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
-        wc_FreeMutex(&ctx->countMutex);
+        wolfSSL_RefFree(&ctx->ref);
         XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
     #ifdef WOLFSSL_STATIC_MEMORY
         SSL_CtxResourceFreeStaticMem(heap);
@@ -4203,10 +4205,11 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     InitX509Name(&x509->subject, 0, heap);
     x509->dynamicMemory  = (byte)dynamicFlag;
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-    x509->refCount = 1;
-#ifndef SINGLE_THREADED
-    (void)wc_InitMutex(&x509->refMutex);
-#endif
+    {
+        int ret;
+        wolfSSL_RefInit(&x509->ref, &ret);
+        (void)ret;
+    }
 #endif
 }
 
@@ -4301,9 +4304,7 @@ void FreeX509(WOLFSSL_X509* x509)
     }
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    #ifndef SINGLE_THREADED
-        wc_FreeMutex(&x509->refMutex);
-    #endif
+        wolfSSL_RefFree(&x509->ref);
     #endif
 }
 
@@ -6151,33 +6152,6 @@ int InitSSL_Suites(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
-/* returns new reference count. Arg incr positive=up or negative=down */
-int SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr)
-{
-    int refCount;
-
-    if (ctx == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (wc_LockMutex(&ctx->countMutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock CTX count mutex");
-        WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
-        return BAD_MUTEX_E;
-    }
-
-    ctx->refCount += incr;
-    /* make sure refCount is never negative */
-    if (ctx->refCount < 0) {
-        ctx->refCount = 0;
-    }
-    refCount = ctx->refCount;
-
-    wc_UnLockMutex(&ctx->countMutex);
-
-    return refCount;
-}
-
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
    wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
@@ -6213,7 +6187,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 
     /* increment CTX reference count */
-    if ((ret = SSL_CTX_RefCount(ctx, 1)) < 0) {
+    wolfSSL_RefInc(&ctx->ref, &ret);
+    if (ret < 0) {
         return ret;
     }
     ret = WOLFSSL_SUCCESS; /* set default ret */
