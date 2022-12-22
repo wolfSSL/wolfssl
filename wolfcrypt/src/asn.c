@@ -13861,7 +13861,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 
     XMEMSET(uf_time, 0, sizeof(uf_time));
     /* GetFormattedTime returns length with null terminator */
-    data_len = GetFormattedTime(currTime, uf_time, len);
+    data_len = GetFormattedTime(currTime, uf_time, (word32)sizeof(uf_time));
     if (data_len <= 0) {
         return ASN_TIME_E;
     }
