@@ -56,6 +56,7 @@ static int espaes_CryptHwMutexInit = 0;
 static int esp_aes_hw_InUse()
 {
     int ret = 0;
+  printf("esp_aes_hw_InUse\n");
 
     ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
 
@@ -84,6 +85,13 @@ static int esp_aes_hw_InUse()
 
     /* Enable AES hardware */
     periph_module_enable(PERIPH_AES_MODULE);
+  
+#if CONFIG_IDF_TARGET_ESP32S3
+    /* Select working mode. Can be typical or DMA. 
+     * 0 => typical
+     * 1 => DMA */
+    DPORT_REG_WRITE(AES_DMA_ENABLE_REG, 0); 
+#endif
 
     ESP_LOGV(TAG, "leave esp_aes_hw_InUse");
     return ret;
@@ -133,26 +141,36 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         DPORT_REG_WRITE(AES_KEY_BASE + (i*4), *(((word32*)ctx->key) + i));
     }
 
-    /* mode
-    *   0       AES-128 Encryption
-    *   1       AES-192 Encryption
-    *   2       AES-256 Encryption
-    *   4       AES-128 Decryption
-    *   5       AES-192 Decryption
-    *   6       AES-256 Decryption
+    /* 
+     * ESP32: see table 22-1 in ESP32 Technical Reference
+     * ESP32S3: see table 19-2 in ESP32S3 Technical Reference
+    * mode     Algorithm             ESP32   ESP32S3
+    *   0       AES-128 Encryption     y        y
+    *   1       AES-192 Encryption     y        n
+    *   2       AES-256 Encryption     y        y
+    *   4       AES-128 Decryption     y        y
+    *   5       AES-192 Decryption     y        n
+    *   6       AES-256 Decryption     y        y
     */
     switch(ctx->keylen){
         case 24: mode_ += 1; break;
         case 32: mode_ += 2; break;
         default: break;
     }
-
+#if CONFIG_IDF_TARGET_ESP32S3
+    if (mode_ == 1 || mode_ == 5 || mode_ == 7)
+    {
+      ESP_LOGE(TAG, "  unsupported mode");
+    }
+#endif
     DPORT_REG_WRITE(AES_MODE_REG, mode_);
     ESP_LOGV(TAG, "  leave esp_aes_hw_Setkey");
 }
 
 /*
  * Process a one block of AES
+ * in: block of 16 bytes (4 x words32) to process
+ * out: result of processing input bytes. 
  */
 static void esp_aes_bk(const byte* in, byte* out)
 {
@@ -164,7 +182,27 @@ static void esp_aes_bk(const byte* in, byte* out)
 #endif
 
     ESP_LOGV(TAG, "enter esp_aes_bk");
+#if CONFIG_IDF_TARGET_ESP32S3
+    // See esp32-s3 technical reference manual §19.4.3 Operation process
+    // using CPU working mode. The ESP32-S3 also supports a DMA mode. 
+    /* copy text for encrypting/decrypting blocks */
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE, inwords[0]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 4, inwords[1]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 8, inwords[2]);
+    DPORT_REG_WRITE(AES_TEXT_IN_BASE + 12, inwords[3]);
 
+    /* start engine */
+    DPORT_REG_WRITE(AES_TRIGGER_REG, 1);
+
+    /* wait until finishing the process */
+    while (DPORT_REG_READ(AES_STATE_REG) != 0) 
+    {
+      // wating for the hardware accelerator to complete operation. 
+    }
+
+    /* read-out blocks */
+    esp_dport_access_read_buffer(outwords, AES_TEXT_OUT_BASE, 4);
+#else
     /* copy text for encrypting/decrypting blocks */
     DPORT_REG_WRITE(AES_TEXT_BASE, inwords[0]);
     DPORT_REG_WRITE(AES_TEXT_BASE + 4, inwords[1]);
@@ -182,6 +220,8 @@ static void esp_aes_bk(const byte* in, byte* out)
 
     /* read-out blocks */
     esp_dport_access_read_buffer(outwords, AES_TEXT_BASE, 4);
+#endif
+
     ESP_LOGV(TAG, "leave esp_aes_bk");
 }
 

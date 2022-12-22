@@ -37,9 +37,11 @@
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
 
-/* TODO this may be chip type dependent: add support for others */
-#include <hal/clk_gate_ll.h> /* ESP32-WROOM */
-
+/* Espressif hardware abstraction layers:  
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/hardware-abstraction.html
+ * Espressif note their HAL API is experimental and may change between minor releases.  */
+#include <hal/clk_gate_ll.h> /* peripheral clock/reset control */
+  
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
@@ -123,12 +125,19 @@ static word32 wc_esp_sha_digest_size(enum SHA_TYPE type)
 */
 static void wc_esp_wait_until_idle()
 {
+#if CONFIG_IDF_TARGET_ESP32S3
+    while (REG_READ(SHA_BUSY_REG))
+    {
+      /* wait patiently for the SHA to be available. */
+    }
+#else
     while((DPORT_REG_READ(SHA_1_BUSY_REG)   != 0) ||
           (DPORT_REG_READ(SHA_256_BUSY_REG) != 0) ||
           (DPORT_REG_READ(SHA_384_BUSY_REG) != 0) ||
           (DPORT_REG_READ(SHA_512_BUSY_REG) != 0)) {
         /* do nothing while waiting. */
     }
+#endif
 }
 
 /*
@@ -149,18 +158,25 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
     /* if we end up here, there was a prior unexpected fail and
      * we need to unroll enables */
     int ret = 0; /* assume success unless proven otherwise */
-    uint32_t this_sha_mask; /* this is the bit-mask for our SHA CLK_EN_REG */
     int actual_unroll_count = 0;
     int max_unroll_count = 1000; /* never get stuck in a hardware wait loop */
-
-    this_sha_mask = periph_ll_get_clk_en_mask(PERIPH_SHA_MODULE);
 
     /* unwind prior calls to THIS ctx. decrement ref_counts[periph] */
     /* only when ref_counts[periph] == 0 does something actually happen */
 
+#if CONFIG_IDF_TARGET_ESP32S3
     /* once the value we read is a 0 in the DPORT_PERI_CLK_EN_REG bit
      * then we have fully unrolled the enables via ref_counts[periph]==0 */
-    while ((this_sha_mask & *(uint32_t*)DPORT_PERI_CLK_EN_REG) != 0) {
+    while (periph_ll_periph_enabled(PERIPH_SHA_MODULE))
+#else
+    /* this is the bit-mask for our SHA CLK_EN_REG */
+    uint32_t this_sha_mask = periph_ll_get_clk_en_mask(PERIPH_SHA_MODULE);
+  
+    /* once the value we read is a 0 in the DPORT_PERI_CLK_EN_REG bit
+     * then we have fully unrolled the enables via ref_counts[periph]==0 */
+    while ((this_sha_mask & *(uint32_t*)DPORT_PERI_CLK_EN_REG) != 0) 
+#endif
+    {
         periph_module_disable(PERIPH_SHA_MODULE);
         actual_unroll_count++;
         ESP_LOGI(TAG, "unroll not yet successful. try #%d",
@@ -193,8 +209,10 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
 }
 
 /*
-* lock hw engine.
+* lock hw engine, or fallback to software calculations if the hardware is busy. 
 * this should be called before using engine.
+* Note: we are assuming all users of the SHA engine will access it through 
+* the Wolf libraries. 
 */
 int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
 {
@@ -346,6 +364,59 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
 
     ESP_LOGV(TAG, "    enter esp_sha_start_process");
 
+#if CONFIG_IDF_TARGET_ESP32S3
+  
+    /* Translate from Wolf sha type to hardware algorithm. */
+    uint8_t uHardwareAlgorithm = 0; 
+    switch (sha->sha_type)
+    {
+    case SHA1:
+      uHardwareAlgorithm = 0;
+      break;
+    case SHA2_256:
+      uHardwareAlgorithm = 2;
+      break;
+#if defined(WOLFSSL_SHA384)
+    case SHA2_384:
+      uHardwareAlgorithm = 3;
+      break;
+#endif
+#if defined(WOLFSSL_SHA512)
+    case SHA2_512:
+      uHardwareAlgorithm = 4;
+      break;
+#endif
+    default:
+      /* Unsupported sha mode. */
+      sha->mode = ESP32_SHA_FAIL_NEED_UNROLL;
+      return -1;
+    }
+  
+    REG_WRITE(SHA_MODE_REG, uHardwareAlgorithm);
+
+    if (sha->isfirstblock) 
+    {
+        REG_WRITE(SHA_START_REG, 1);
+        sha->isfirstblock = 0;
+
+        ESP_LOGV(TAG, "      set sha->isfirstblock = 0");
+
+#if defined(DEBUG_WOLFSSL)
+        this_block_num = 1; /* one-based counter, just for debug info */
+#endif
+
+    }
+    else 
+    {
+        REG_WRITE(SHA_CONTINUE_REG, 1);
+
+#if defined(DEBUG_WOLFSSL)
+        this_block_num++; /* one-based counter */
+        ESP_LOGV(TAG, "      continue block #%d", this_block_num);
+#endif
+    }
+  
+#else
     if(sha->isfirstblock){
         /* start registers for first message block
          * we don't make any relational memory position assumptions.
@@ -424,6 +495,7 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
         #endif
 
    }
+#endif
 
    ESP_LOGV(TAG, "    leave esp_sha_start_process");
 
@@ -445,10 +517,23 @@ static void wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
         ESP_LOGE(TAG, "  ERROR esp_process_block len exceeds 0x31 words");
     }
 
-    /* check if there are any busy engine */
+    /* wait until the engine is available */
     wc_esp_wait_until_idle();
 
     /* load [len] words of message data into hw */
+#if CONFIG_IDF_TARGET_ESP32S3
+    uint32_t *pMessageSource = (uint32_t *)data;
+    uint32_t *pAcceleratorMessage = (uint32_t *)(SHA_TEXT_BASE);
+    while(word32_to_save--)
+    {
+        /* Must swap endiness of data loaded into harware accelerator to produce 
+         * correct result. Using DPORT_REG_WRITE doesn't avoid this for ESP32s3. */
+        DPORT_REG_WRITE(pAcceleratorMessage, __builtin_bswap32(*pMessageSource));
+        ++pAcceleratorMessage;
+        ++pMessageSource;
+    }
+
+#else
     for (i = 0; i < word32_to_save; i++) {
         /* by using DPORT_REG_WRITE, we avoid the need
          * to call __builtin_bswap32 to address endiness
@@ -461,12 +546,13 @@ static void wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
         DPORT_REG_WRITE(SHA_TEXT_BASE + (i*sizeof(word32)), *(data + i));
         /* memw confirmed auto inserted by compiler here */
     }
+#endif
 
     /* notify hw to start process
      * see ctx->sha_type
      * reg data does not change until we are ready to read */
     esp_sha_start_process(ctx);
-
+  
     ESP_LOGV(TAG, "  leave esp_process_block");
 }
 
@@ -495,6 +581,17 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
     /* wait until idle */
     wc_esp_wait_until_idle();
 
+#if CONFIG_IDF_TARGET_ESP32S3
+    /* read hash result into buffer & flip endiness */
+    uint32_t* pHashDestination = (uint32_t*)hash;
+    size_t szHashWords = wc_esp_sha_digest_size(ctx->sha_type) / sizeof(uint32_t);
+    esp_dport_access_read_buffer(pHashDestination, SHA_H_BASE, szHashWords);
+    while(szHashWords--)
+    {
+      *pHashDestination = __builtin_bswap32(*pHashDestination);
+      ++pHashDestination;
+    }
+#else
     /* each sha_type register is at a different location  */
     switch (ctx->sha_type) {
         case SHA1:
@@ -559,6 +656,8 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
         SHA_TEXT_BASE,   /* there's a fixed reg addy for all SHA           */
         wc_esp_sha_digest_size(ctx->sha_type) / sizeof(word32) /* # 4-byte */
     );
+  
+  
 
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     if (ctx->sha_type == SHA2_384 || ctx->sha_type == SHA2_512) {
@@ -571,6 +670,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
             pwrd1[i]     ^= pwrd1[i + 1];
         }
     }
+#endif
 #endif
 
     ESP_LOGV(TAG, "leave esp_digest_state");
