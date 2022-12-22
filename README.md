@@ -83,6 +83,9 @@ single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` a
 
 Release 5.5.4 of wolfSSL embedded TLS has bug fixes and new features including:
 
+Release 5.5.4 has been developed according to wolfSSL's development and QA process (see link below) and successfully passed the quality criteria.
+https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assurance
+
 ## New Feature Additions
 
 * QUIC related changes for HAProxy integration and config option
