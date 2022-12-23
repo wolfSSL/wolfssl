@@ -27,6 +27,7 @@
 #include "esp_idf_version.h"
 #include "esp_types.h"
 #include "esp_log.h"
+#include "esp_random.h"
 
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
     #undef LOG_LOCAL_LEVEL

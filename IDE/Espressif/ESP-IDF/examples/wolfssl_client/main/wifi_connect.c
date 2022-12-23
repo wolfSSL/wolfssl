@@ -29,18 +29,16 @@
 #include "nvs_flash.h"
 #if ESP_IDF_VERSION_MAJOR >= 4
 #include "protocol_examples_common.h"
-#endif
-
+#else
 const static int CONNECTED_BIT = BIT0;
 static EventGroupHandle_t wifi_event_group;
+#endif
+
 /* proto-type */
 extern void tls_smp_client_task();
 static void tls_smp_client_init();
 
 const static char *TAG = "tls_client";
-
-static EventGroupHandle_t wifi_event_group;
-extern void tls_smp_client_task();
 
 static void set_time()
 {
@@ -80,7 +78,11 @@ static void set_time()
 static void tls_smp_client_init(void)
 {
     int ret;
-    xTaskHandle _handle;
+#if ESP_IDF_VERSION_MAJOR >= 4
+        TaskHandle_t _handle;
+#else
+        xTaskHandle _handle;
+#endif
     /* http://esp32.info/docs/esp_idf/html/dd/d3c/group__xTaskCreate.html */
     ret = xTaskCreate(tls_smp_client_task,
                       TLS_SMP_CLIENT_TASK_NAME,
@@ -93,6 +95,7 @@ static void tls_smp_client_init(void)
         ESP_LOGI(TAG, "create thread %s failed", TLS_SMP_CLIENT_TASK_NAME);
     }
 }
+#if ESP_IDF_VERSION_MAJOR < 4
 /* event handler for wifi events */
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
@@ -121,6 +124,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     }
     return ESP_OK;
 }
+#endif
 /* entry point */
 void app_main(void)
 {
@@ -137,7 +141,6 @@ void app_main(void)
 
     /* */
 #if ESP_IDF_VERSION_MAJOR >= 4
-    (void) wifi_event_handler;
    ESP_ERROR_CHECK(esp_event_loop_create_default());
    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
    * Read "Establishing Wi-Fi or Ethernet Connection" section in
