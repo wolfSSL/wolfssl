@@ -1474,13 +1474,12 @@ WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)* wolfSSL_get_srtp_profiles(
 }
 #endif
 
+#define DTLS_SRTP_KEYING_MATERIAL_LABEL "EXTRACTOR-dtls_srtp"
+
 int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     unsigned char* out, size_t* olen)
 {
-    int ret = WOLFSSL_FAILURE;
-    const char* label = "EXTRACTOR-dtls_srtp";
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
-    byte seed[SEED_LEN];
 
     if (ssl == NULL || olen == NULL) {
         return BAD_FUNC_ARG;
@@ -1500,28 +1499,9 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
         return BUFFER_E;
     }
 
-#ifdef WOLFSSL_HAVE_PRF
-    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
-    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
-
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_PRF_TLS(out, profile->kdfBits,   /* out: generated keys / salt */
-        ssl->arrays->masterSecret, SECRET_LEN,  /* existing master secret */
-        (const byte*)label, (int)XSTRLEN(label),/* label */
-        seed, SEED_LEN,                         /* seed: client/server random */
-        IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
-        ssl->heap, INVALID_DEVID);
-    if (ret == 0) {
-        *olen = profile->kdfBits;
-        ret = WOLFSSL_SUCCESS;
-    }
-    PRIVATE_KEY_LOCK();
-#else
-    /* Pseudo random function must be enabled in the configuration */
-    ret = PRF_MISSING;
-#endif
-
-    return ret;
+    return wolfSSL_export_keying_material(ssl, out, profile->kdfBits,
+            DTLS_SRTP_KEYING_MATERIAL_LABEL,
+            XSTR_SIZEOF(DTLS_SRTP_KEYING_MATERIAL_LABEL), NULL, 0, 0);
 }
 
 #endif /* WOLFSSL_SRTP */
