@@ -8310,10 +8310,19 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
     }
 
     {
+#ifdef XREALLOC
         DtlsFragBucket* tmp = (DtlsFragBucket*)XREALLOC(*chosenBucket,
                 sizeof(DtlsFragBucket) + newSz, heap, DYNAMIC_TYPE_DTLS_FRAG);
+#else
+        DtlsFragBucket* tmp = (DtlsFragBucket*)XMALLOC(
+                sizeof(DtlsFragBucket) + newSz, heap, DYNAMIC_TYPE_DTLS_FRAG);
+#endif
         if (tmp == NULL)
             return NULL;
+#ifndef XREALLOC
+        XMEMCPY(tmp, *chosenBucket, sizeof(DtlsFragBucket) +
+                (*chosenBucket)->m.m.sz);
+#endif
         if (chosenBucket == &next) {
             /* Update the link */
             DtlsFragBucket* beforeNext = cur;
@@ -8321,6 +8330,9 @@ static DtlsFragBucket* DtlsMsgCombineFragBuckets(DtlsMsg* msg,
                 beforeNext = beforeNext->m.m.next;
             beforeNext->m.m.next = tmp;
         }
+#ifndef XREALLOC
+        XFREE(*chosenBucket, heap, DYNAMIC_TYPE_DTLS_FRAG);
+#endif
         newBucket = *chosenBucket = tmp;
     }
 
