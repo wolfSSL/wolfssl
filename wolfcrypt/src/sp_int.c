@@ -6095,27 +6095,41 @@ static void _sp_div_3(const sp_int* a, sp_int* r, sp_int_digit* rem)
 
     /* Check whether only mod value needed. */
     if (r == NULL) {
-        /* Divide starting at most significant word down to least. */
-        for (i = a->used - 1; i >= 0; i--) {
+        /*    2^2 mod 3 = 4 mod 3 = 1.
+         * => 2^(2*n) mod 3 = (2^2 mod 3)^n mod 3 = 1^n mod 3 = 1
+         * => (2^(2*n) * x) mod 3 = (2^(2*n) mod 3) * (x mod 3) = x mod 3
+         *
+         * Calculate mod 3 on sum of digits as SP_WORD_SIZE is a multiple of 2.
+         */
     #ifndef SQR_MUL_ASM
-            /* Combine remainder from last operation with this word. */
-            t = ((sp_int_word)tr << SP_WORD_SIZE) | a->dp[i];
-            /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
-            tt = (t * SP_DIV_3_CONST) >> SP_WORD_SIZE;
-            /* Subtract trail division. */
-            tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
-    #else
-            /* Multiply digit by (2^SP_WORD_SIZE) / 3. */
-            SP_ASM_MUL(l, tt, a->dp[i], t);
-            /* Add remainder multiplied by (2^SP_WORD_SIZE) / 3 to top digit. */
-            tt += tr * SP_DIV_3_CONST;
-            /* Subtract trail division from digit. */
-            tr = a->dp[i] - (tt * 3);
-    #endif
-            /* tr is 0..5 but need 0..2 */
-            /* Fix up remainder. */
-            tr = sp_rem6[tr];
+        t = 0;
+        /* Sum the digits. */
+        for (i = 0; i < a->used; i++) {
+            t += a->dp[i];
         }
+        /* Sum digits of sum. */
+        t = (t >> SP_WORD_SIZE) + (t & SP_MASK);
+        /* Get top digit after multipling by (2^SP_WORD_SIZE) / 3. */
+        tt = (t * SP_DIV_3_CONST) >> SP_WORD_SIZE;
+        /* Subtract trail division. */
+        tr = (sp_int_digit)(t - (sp_int_word)tt * 3);
+    #else
+        /* Sum the digits. */
+        for (i = 0; i < a->used; i++) {
+            SP_ASM_ADDC_REG(l, tr, a->dp[i]);
+        }
+        /* Sum digits of sum - can get carry. */
+        SP_ASM_ADDC_REG(l, tt, tr);
+        /* Multiply digit by (2^SP_WORD_SIZE) / 3. */
+        SP_ASM_MUL(t, tr, l, t);
+        /* Add remainder multiplied by (2^SP_WORD_SIZE) / 3 to top digit. */
+        tr += tt * SP_DIV_3_CONST;
+        /* Subtract trail division from digit. */
+        tr = l - (tr * 3);
+    #endif
+        /* tr is 0..5 but need 0..2 */
+        /* Fix up remainder. */
+        tr = sp_rem6[tr];
         *rem = tr;
     }
     /* At least result needed - remainder is calculated anyway. */

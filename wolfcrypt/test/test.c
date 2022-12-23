@@ -41295,12 +41295,13 @@ static int mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
 }
 #endif
 
-#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || \
-                            (defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN))
-static int mp_test_mod_d(mp_int* a)
+#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(WOLFSSL_KEY_GEN)
+static int mp_test_mod_d(mp_int* a, WC_RNG* rng)
 {
     int ret;
     mp_digit r;
+    mp_digit rem;
+    int i;
 
     if (mp_set(a, 1) != MP_OKAY)
         return -13130;
@@ -41318,6 +41319,20 @@ static int mp_test_mod_d(mp_int* a)
     ret = mp_mod_d(a, 5, &r);
     if (ret != MP_OKAY)
         return -13134;
+
+    for (i = MP_MAX_TEST_BYTE_LEN - 16; i <= MP_MAX_TEST_BYTE_LEN; i++) {
+        ret = randNum(a, i, rng, NULL);
+        if (ret != MP_OKAY)
+            return -13135;
+        ret = mp_mod_d(a, 3, &r);
+        if (ret != MP_OKAY)
+            return -13136;
+        ret = mp_div_d(a, 3, a, &rem);
+        if (ret != MP_OKAY)
+            return -13137;
+        if (r != rem)
+            return -13138;
+    }
 
     return 0;
 }
@@ -42006,9 +42021,8 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_mod_2d(&a, &r1, &p, &rng)) != 0)
         return ret;
 #endif
-#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || \
-                            (defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN))
-    if ((ret = mp_test_mod_d(&a)) != 0)
+#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(WOLFSSL_KEY_GEN)
+    if ((ret = mp_test_mod_d(&a, &rng)) != 0)
         return ret;
 #endif
     if ((ret = mp_test_mul_sqr(&a, &b, &r1, &r2, &rng)) != 0)
