@@ -8916,7 +8916,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
             goto error;
 
         nid = wolfSSL_EC_GROUP_get_curve_name(group);
-        if (nid == WOLFSSL_FAILURE) {
+        if (nid <= 0) {
             /* TODO: Add support for no nid case */
             WOLFSSL_MSG("nid not found");
             goto error;

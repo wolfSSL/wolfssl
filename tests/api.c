@@ -301,6 +301,7 @@
     #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/pem.h>
     #include <wolfssl/openssl/ec.h>
+    #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/engine.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/objects.h>
@@ -3849,357 +3850,7 @@ static int test_wolfSSL_SetMinVersion(void)
 } /* END test_wolfSSL_SetMinVersion */
 
 
-/*----------------------------------------------------------------------------*
- | EC
- *----------------------------------------------------------------------------*/
-
-/* Test function for EC_POINT_new, EC_POINT_mul, EC_POINT_free,
-    EC_GROUP_new_by_curve_name, EC_GROUP_order_bits
- */
 #ifdef OPENSSL_EXTRA
-static int test_wolfSSL_EC(void)
-{
-    int res = TEST_SKIPPED;
-#if !defined(WOLFSSL_SP_MATH) && \
-  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
-
-#if defined(HAVE_ECC)
-    BN_CTX *ctx;
-    EC_GROUP *group;
-    EC_GROUP *group2;
-    EC_POINT *Gxy, *new_point, *set_point;
-    BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
-    BIGNUM *X, *Y;
-    BIGNUM *set_point_bn;
-    char* hexStr;
-    int group_bits;
-
-    const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
-    /* NISTP256R1 Gx/Gy */
-    const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
-    const char* kGy   = "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
-
-#ifndef HAVE_SELFTEST
-    EC_POINT *tmp;
-    size_t bin_len;
-    unsigned char* buf = NULL;
-
-    const char* uncompG   = "046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
-    const unsigned char binUncompG[] = {
-        0x04, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
-        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
-        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
-        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
-        0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
-        0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
-    };
-
-#ifdef HAVE_COMP_KEY
-    const char* compG   = "036B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
-    const unsigned char binCompG[] = {
-        0x03, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
-        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
-        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
-    };
-#endif
-#endif
-
-    AssertNotNull(ctx = BN_CTX_new());
-    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-    AssertNotNull(group2 = EC_GROUP_dup(group));
-    AssertIntEQ((group_bits = EC_GROUP_order_bits(group)), 256);
-    AssertNotNull(Gxy = EC_POINT_new(group));
-    AssertNotNull(new_point = EC_POINT_new(group));
-    AssertNotNull(set_point = EC_POINT_new(group));
-    AssertNotNull(X = BN_new());
-    AssertNotNull(Y = BN_new());
-    AssertNotNull(set_point_bn = BN_new());
-
-    /* load test values */
-    AssertIntEQ(BN_hex2bn(&k,  kTest), WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_hex2bn(&Gx, kGx),   WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_hex2bn(&Gy, kGy),   WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_hex2bn(&Gz, "1"),   WOLFSSL_SUCCESS);
-
-    /* populate coordinates for input point */
-    Gxy->X = Gx;
-    Gxy->Y = Gy;
-    Gxy->Z = Gz;
-
-#ifndef HAVE_SELFTEST
-    /* perform point multiplication */
-    AssertIntEQ(EC_POINT_add(group, new_point, new_point, Gxy, ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, Gxy, k, ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_is_zero(new_point->X), 0);
-    AssertIntEQ(BN_is_zero(new_point->Y), 0);
-    AssertIntEQ(BN_is_zero(new_point->Z), 0);
-    AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_is_zero(new_point->X), 0);
-    AssertIntEQ(BN_is_zero(new_point->Y), 0);
-    AssertIntEQ(BN_is_zero(new_point->Z), 0);
-    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, NULL, NULL, ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_is_zero(new_point->X), 0);
-    AssertIntEQ(BN_is_zero(new_point->Y), 0);
-    AssertIntEQ(BN_is_zero(new_point->Z), 0);
-#else
-    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, Gx, Gy, ctx), WOLFSSL_SUCCESS);
-    AssertIntEQ(BN_is_zero(new_point->X), 0);
-    AssertIntEQ(BN_is_zero(new_point->Y), 0);
-    AssertIntEQ(BN_is_zero(new_point->Z), 0);
-#endif
-
-    /* check if point X coordinate is zero */
-    AssertIntEQ(BN_is_zero(new_point->X), 0);
-
-#ifdef USE_ECC_B_PARAM
-    AssertIntEQ(EC_POINT_is_on_curve(group, new_point, ctx), 1);
-#endif /* USE_ECC_B_PARAM */
-
-    /* Force non-affine coordinates */
-    AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
-                                     (WOLFSSL_BIGNUM*)BN_value_one()), 1);
-    new_point->inSet = 0;
-
-    /* extract the coordinates from point */
-    AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y, ctx), WOLFSSL_SUCCESS);
-
-    /* check if point X coordinate is zero */
-    AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
-
-    /* set the same X and Y points in another object */
-    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, set_point, X, Y, ctx), WOLFSSL_SUCCESS);
-
-    /* compare points as they should be the same */
-    AssertIntEQ(EC_POINT_cmp(group, new_point, set_point, ctx), 0);
-
-    /* Test copying */
-    AssertIntEQ(EC_POINT_copy(new_point, set_point), 1);
-
-    /* Test inverting */
-    AssertIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
-
-    AssertPtrEq(EC_POINT_point2bn(group, set_point, POINT_CONVERSION_UNCOMPRESSED,
-                                  set_point_bn, ctx), set_point_bn);
-
-    /* check bn2hex */
-    hexStr = BN_bn2hex(k);
-    AssertStrEQ(hexStr, kTest);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
-    BN_print_fp(stderr, k);
-    fprintf(stderr, "\n");
-#endif
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
-
-    hexStr = BN_bn2hex(Gx);
-    AssertStrEQ(hexStr, kGx);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
-    BN_print_fp(stderr, Gx);
-    fprintf(stderr, "\n");
-#endif
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
-
-    hexStr = BN_bn2hex(Gy);
-    AssertStrEQ(hexStr, kGy);
-#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
-    BN_print_fp(stderr, Gy);
-    fprintf(stderr, "\n");
-#endif
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
-
-#ifndef HAVE_SELFTEST
-    hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, ctx);
-    AssertStrEQ(hexStr, uncompG);
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
-
-#ifdef HAVE_COMP_KEY
-    hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
-    AssertStrEQ(hexStr, compG);
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    bin_len = EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-    AssertIntEQ(bin_len, sizeof(binUncompG));
-    AssertNotNull(buf = (unsigned char*)XMALLOC(bin_len, NULL, DYNAMIC_TYPE_ECC));
-    AssertIntEQ(EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, buf,
-                                   bin_len, ctx), bin_len);
-    AssertIntEQ(XMEMCMP(buf, binUncompG, sizeof(binUncompG)), 0);
-    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
-
-#ifdef HAVE_COMP_KEY
-    bin_len = EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
-    AssertIntEQ(bin_len, sizeof(binCompG));
-    AssertNotNull(buf = (unsigned char*)XMALLOC(bin_len, NULL, DYNAMIC_TYPE_ECC));
-    AssertIntEQ(EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_COMPRESSED, buf,
-                                   bin_len, ctx), bin_len);
-    AssertIntEQ(XMEMCMP(buf, binCompG, sizeof(binCompG)), 0);
-    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    AssertNotNull(tmp = EC_POINT_new(group));
-    AssertIntEQ(EC_POINT_oct2point(group, tmp, binUncompG, sizeof(binUncompG), ctx), 1);
-    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
-    EC_POINT_free(tmp);
-
-#ifdef HAVE_COMP_KEY
-    AssertNotNull(tmp = EC_POINT_new(group));
-    AssertIntEQ(EC_POINT_oct2point(group, tmp, binCompG, sizeof(binCompG), ctx), 1);
-    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
-    EC_POINT_free(tmp);
-#endif
-#endif
-
-    /* test BN_mod_add */
-    AssertIntEQ(BN_mod_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
-                                         (WOLFSSL_BIGNUM*)BN_value_one(),
-                                         (WOLFSSL_BIGNUM*)BN_value_one(), NULL), 1);
-    AssertIntEQ(BN_is_zero(new_point->Z), 1);
-    /* cleanup */
-    BN_free(X);
-    BN_free(Y);
-    BN_free(k);
-    BN_free(set_point_bn);
-    EC_POINT_free(new_point);
-    EC_POINT_free(set_point);
-    EC_POINT_free(Gxy);
-    EC_GROUP_free(group);
-    EC_GROUP_free(group2);
-    BN_CTX_free(ctx);
-
-    res = TEST_RES_CHECK(1);
-#endif /* HAVE_ECC */
-#endif /* OPENSSL_EXTRA && !WOLFSSL_SP_MATH && ( !HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
-    return res;
-}
-#endif /* OPENSSL_EXTRA */
-
-#ifndef NO_BIO
-static int test_wolfSSL_PEM_read_bio_ECPKParameters(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
-    EC_GROUP *group;
-    BIO* bio;
-
-    AssertNotNull(bio = BIO_new(BIO_s_file()));
-    AssertIntEQ(BIO_read_filename(bio, eccKeyFile), WOLFSSL_SUCCESS);
-    AssertNotNull(group = PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
-    AssertIntEQ(EC_GROUP_get_curve_name(group), NID_X9_62_prime256v1);
-    EC_GROUP_free(group);
-    BIO_free(bio);
-
-    res = TEST_RES_CHECK(1);
-#endif /* HAVE_ECC */
-    return res;
-}
-#endif /* !NO_BIO */
-
-# if defined(OPENSSL_EXTRA)
-static int test_wolfSSL_ECDSA_SIG(void)
-{
-    int res = TEST_SKIPPED;
-#ifdef HAVE_ECC
-    WOLFSSL_ECDSA_SIG* sig = NULL;
-    WOLFSSL_ECDSA_SIG* sig2 = NULL;
-    const unsigned char* cp;
-    unsigned char* p;
-    unsigned char outSig[8];
-    unsigned char sigData[8] =
-                             { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
-    sig = wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData));
-    AssertNull(sig);
-    cp = sigData;
-    AssertNotNull((sig = wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData))));
-    AssertIntEQ((cp == sigData + 8), 1);
-    cp = sigData;
-    AssertNull(wolfSSL_d2i_ECDSA_SIG(&sig, NULL, sizeof(sigData)));
-    AssertNotNull((sig2 = wolfSSL_d2i_ECDSA_SIG(&sig, &cp, sizeof(sigData))));
-    AssertIntEQ((sig == sig2), 1);
-    cp = outSig;
-
-    p = outSig;
-    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, &p), 0);
-    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, NULL), 0);
-    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, NULL), 8);
-    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, &p), sizeof(sigData));
-    AssertIntEQ((p == outSig + 8), 1);
-    AssertIntEQ(XMEMCMP(sigData, outSig, 8), 0);
-
-    wolfSSL_ECDSA_SIG_free(sig);
-
-    res = TEST_RES_CHECK(1);
-#endif /* HAVE_ECC */
-    return res;
-}
-
-static int test_EC_i2d(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && !defined(HAVE_FIPS)
-    EC_KEY *key;
-    EC_KEY *copy;
-    int len;
-    unsigned char *buf = NULL;
-    const unsigned char *tmp = NULL;
-
-    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
-    AssertIntEQ(EC_KEY_generate_key(key), 1);
-
-    AssertIntGT((len = i2d_EC_PUBKEY(key, NULL)), 0);
-    AssertIntEQ(i2d_EC_PUBKEY(key, &buf), len);
-
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    buf = NULL;
-
-    AssertIntGT((len = i2d_ECPrivateKey(key, NULL)), 0);
-    AssertIntEQ(i2d_ECPrivateKey(key, &buf), len);
-
-    tmp = buf;
-    AssertNotNull(d2i_ECPrivateKey(&copy, &tmp, len));
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    buf = NULL;
-
-    AssertIntGT((len = i2o_ECPublicKey(key, &buf)), 0);
-    tmp = buf;
-    AssertNotNull(o2i_ECPublicKey(&copy, &tmp, len));
-    AssertIntEQ(EC_KEY_check_key(key), 1);
-    XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
-
-    EC_KEY_free(key);
-    EC_KEY_free(copy);
-
-    res = TEST_RES_CHECK(1);
-#endif /* HAVE_ECC */
-    return res;
-}
-
-static int test_ECDSA_size_sign(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP)
-    EC_KEY *key;
-    int id;
-    byte hash[WC_MAX_DIGEST_SIZE];
-    byte sig[ECC_MAX_SIG_SIZE];
-    unsigned int sigSz = sizeof(sig);
-
-    XMEMSET(hash, 123, sizeof(hash));
-
-    id = wc_ecc_get_curve_id_from_name("SECP256R1");
-    AssertIntEQ(id, ECC_SECP256R1);
-
-    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
-    AssertIntEQ(EC_KEY_generate_key(key), 1);
-    AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
-    AssertIntGE(ECDSA_size(key), sigSz);
-    AssertIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, sigSz, key), 1);
-
-    EC_KEY_free(key);
-
-    res = TEST_RES_CHECK(1);
-#endif /* HAVE_ECC && !NO_ECC256 && !NO_ECC_SECP */
-    return res;
-}
-
 static int test_ED25519(void)
 {
     int res = TEST_SKIPPED;
@@ -7164,7 +6815,7 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
 
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_TIRTOS) && !defined(NO_AES) && !defined(WOLFSSL_NO_TLS12) \
-    && !defined(NO_SHA256)
+    && !defined(NO_SHA256) && defined(HAVE_ECC)
     WOLFSSL_CTX* ctx;
     WOLFSSL_CTX* ctxClient;
     WOLFSSL*     sslClient;
@@ -33119,34 +32770,99 @@ static int test_wolfSSL_PEM_bio_ECKey(void)
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
     defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     EC_KEY* ec = NULL;
+    EC_KEY* ec2;
     BIO* bio = NULL;
+#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
+    unsigned char* pem = NULL;
+    int pLen;
+#endif
+    static char ec_key_bad_1[] = "-----BEGIN PUBLIC KEY-----\n"
+                                 "MAA=\n"
+                                 "-----END PUBLIC KEY-----";
+    static char ec_priv_key_bad_1[] = "-----BEGIN EC PRIVATE KEY-----\n"
+                                      "MAA=\n"
+                                      "-----END EC PRIVATE KEY-----";
 
     /* PrivateKey */
     AssertNotNull(bio = BIO_new_file("./certs/ecc-key.pem", "rb"));
     AssertNull((ec = PEM_read_bio_ECPrivateKey(NULL, NULL, NULL, NULL)));
-    AssertNotNull((ec = PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL)));
+    ec2 = NULL;
+    AssertNotNull((ec = PEM_read_bio_ECPrivateKey(bio, &ec2, NULL, NULL)));
+    AssertIntEQ(ec == ec2, 1);
     AssertIntEQ(wc_ecc_size((ecc_key*)ec->internal), 32);
-    AssertIntEQ(PEM_write_bio_ECPrivateKey(NULL, NULL, NULL, NULL, 0, NULL, \
-                                           NULL),WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_bio_ECPrivateKey(NULL, NULL, NULL, NULL, 0, NULL,
+        NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_bio_ECPrivateKey(bio, NULL, NULL, NULL, 0, NULL,
+        NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_bio_ECPrivateKey(NULL, ec, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_FAILURE);
+    BIO_free(bio);
+    /* Public key data - fail. */
+    AssertNotNull(bio = BIO_new_file("./certs/ecc-client-keyPub.pem", "rb"));
+    AssertNull(PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL));
     BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_ECPrivateKey(bio, ec, NULL, NULL, 0, NULL, \
                                            NULL), WOLFSSL_SUCCESS);
     BIO_free(bio);
+
+    AssertIntEQ(PEM_write_ECPrivateKey(XBADFILE, NULL, NULL, NULL, 0, NULL,
+        NULL),WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_ECPrivateKey(stderr, NULL, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_ECPrivateKey(XBADFILE, ec, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_FAILURE);
+    AssertIntEQ(PEM_write_ECPrivateKey(stderr, ec, NULL, NULL, 0, NULL, NULL),
+        WOLFSSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(NULL, NULL, NULL, 0, NULL,
+        NULL), 0);
+#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(ec, NULL, NULL, 0, NULL,
+        NULL), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(NULL, NULL, NULL, 0, &pem,
+        NULL), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(NULL, NULL, NULL, 0, NULL,
+        &pLen), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(NULL, NULL, NULL, 0, &pem,
+        &pLen), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(ec, NULL, NULL, 0, NULL,
+        &pLen), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(ec, NULL, NULL, 0, &pem,
+        NULL), 0);
+    AssertIntEQ(wolfSSL_PEM_write_mem_ECPrivateKey(ec, NULL, NULL, 0, &pem,
+        &pLen), 1);
+    AssertIntGT(pLen, 0);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     EC_KEY_free(ec);
 
     /* PUBKEY */
     AssertNotNull(bio = BIO_new_file("./certs/ecc-client-keyPub.pem", "rb"));
     AssertNull((ec = PEM_read_bio_EC_PUBKEY(NULL, NULL, NULL, NULL)));
-    AssertNotNull((ec = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL)));
+    ec2 = NULL;
+    AssertNotNull((ec = PEM_read_bio_EC_PUBKEY(bio, &ec2, NULL, NULL)));
+    AssertIntEQ(ec == ec2, 1);
     AssertIntEQ(wc_ecc_size((ecc_key*)ec->internal), 32);
     AssertIntEQ(PEM_write_bio_EC_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
+    BIO_free(bio);
+    /* Test 0x30, 0x00 fails. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_key_bad_1,
+        sizeof(ec_key_bad_1)));
+    AssertNull(PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+
+    /* Private key data - fail. */
+    AssertNotNull(bio = BIO_new_file("./certs/ecc-key.pem", "rb"));
+    AssertNull(PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL));
     BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_EC_PUBKEY(bio, ec), WOLFSSL_SUCCESS);
     BIO_free(bio);
 
     /* Same test as above, but with a file pointer rather than a BIO. */
+    AssertIntEQ(PEM_write_EC_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(PEM_write_EC_PUBKEY(NULL, ec), WOLFSSL_FAILURE);
     AssertIntEQ(PEM_write_EC_PUBKEY(stderr, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(PEM_write_EC_PUBKEY(stderr, ec), WOLFSSL_SUCCESS);
@@ -33161,6 +32877,11 @@ static int test_wolfSSL_PEM_bio_ECKey(void)
     BIO_free(bio);
     EC_KEY_free(ec);
     #endif /* HAVE_ECC */
+    /* Test 0x30, 0x00 fails. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_priv_key_bad_1,
+        sizeof(ec_priv_key_bad_1)));
+    AssertNull(PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL));
+    BIO_free(bio);
 
     res = TEST_RES_CHECK(1);
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
@@ -44827,104 +44548,6 @@ static int test_wolfSSL_X509_PUBKEY_get(void)
     return TEST_RES_CHECK(retEvpPkey == NULL);
 }
 
-static int test_wolfSSL_EC_KEY_dup(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL))
-
-    WOLFSSL_EC_KEY* ecKey;
-    WOLFSSL_EC_KEY* dupKey;
-    ecc_key* srcKey;
-    ecc_key* destKey;
-
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-
-    /* Valid cases */
-    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    AssertIntEQ(EC_KEY_check_key(dupKey), 1);
-
-    /* Compare pubkey */
-    srcKey = (ecc_key*)ecKey->internal;
-    destKey = (ecc_key*)dupKey->internal;
-    AssertIntEQ(wc_ecc_cmp_point(&srcKey->pubkey, &destKey->pubkey), 0);
-
-    /* compare EC_GROUP */
-    AssertIntEQ(wolfSSL_EC_GROUP_cmp(ecKey->group, dupKey->group, NULL), MP_EQ);
-
-    /* compare EC_POINT */
-    AssertIntEQ(wolfSSL_EC_POINT_cmp(ecKey->group, ecKey->pub_key, \
-                dupKey->pub_key, NULL), MP_EQ);
-
-    /* compare BIGNUM */
-    AssertIntEQ(wolfSSL_BN_cmp(ecKey->priv_key, dupKey->priv_key), MP_EQ);
-    wolfSSL_EC_KEY_free(dupKey);
-
-    /* Invalid cases */
-    /* NULL key */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(NULL));
-    /* NULL ecc_key */
-    wc_ecc_free((ecc_key*)ecKey->internal);
-    XFREE(ecKey->internal, NULL, DYNAMIC_TYPE_ECC);
-    ecKey->internal = NULL; /* Set ecc_key to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    wolfSSL_EC_KEY_free(ecKey);
-    wolfSSL_EC_KEY_free(dupKey);
-
-    /* NULL Group */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-    wolfSSL_EC_GROUP_free(ecKey->group);
-    ecKey->group = NULL; /* Set group to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    wolfSSL_EC_KEY_free(ecKey);
-    wolfSSL_EC_KEY_free(dupKey);
-
-    /* NULL public key */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-    wc_ecc_del_point((ecc_point*)ecKey->pub_key->internal);
-    ecKey->pub_key->internal = NULL; /* Set ecc_point to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-
-    wolfSSL_EC_POINT_free(ecKey->pub_key);
-    ecKey->pub_key = NULL; /* Set pub_key to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    wolfSSL_EC_KEY_free(ecKey);
-    wolfSSL_EC_KEY_free(dupKey);
-
-    /* NULL private key */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-
-    wolfSSL_BN_free(ecKey->priv_key);
-    ecKey->priv_key = NULL; /* Set priv_key to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-
-    wolfSSL_EC_KEY_free(ecKey);
-    wolfSSL_EC_KEY_free(dupKey);
-
-    /* Test EC_KEY_up_ref */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_EC_KEY_up_ref(NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EC_KEY_up_ref(ecKey), WOLFSSL_SUCCESS);
-    /* reference count doesn't follow duplicate */
-    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +1 */
-    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +2 */
-    wolfSSL_EC_KEY_free(dupKey); /* 3 */
-    wolfSSL_EC_KEY_free(dupKey); /* 2 */
-    wolfSSL_EC_KEY_free(dupKey); /* 1, free */
-    wolfSSL_EC_KEY_free(ecKey);  /* 2 */
-    wolfSSL_EC_KEY_free(ecKey);  /* 1, free */
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
-}
-
 static int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 {
     int res = TEST_SKIPPED;
@@ -46881,90 +46504,6 @@ static int test_wolfSSL_NCONF(void)
 }
 #endif /* OPENSSL_ALL */
 
-static int test_wolfSSL_EC_KEY_set_group(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
-    defined(OPENSSL_EXTRA)
-    EC_KEY   *key    = NULL;
-    EC_GROUP *group  = NULL;
-    const EC_GROUP *group2 = NULL;
-
-    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-    AssertNotNull(key = EC_KEY_new());
-    AssertIntEQ(EC_KEY_set_group(key, group), WOLFSSL_SUCCESS);
-    AssertNotNull(group2 = EC_KEY_get0_group(key));
-    AssertIntEQ(EC_GROUP_cmp(group2, group, NULL), 0);
-
-    EC_GROUP_free(group);
-    EC_KEY_free(key);
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
-}
-
-static int test_wolfSSL_EC_KEY_set_conv_form(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO)
-    BIO* bio;
-    EC_KEY* key;
-
-    /* Error condition: NULL key. */
-    AssertIntLT(EC_KEY_get_conv_form(NULL), 0);
-
-    AssertNotNull(bio = BIO_new_file("./certs/ecc-keyPub.pem", "rb"));
-    AssertNotNull(key = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL));
-    /* Conversion form defaults to uncompressed. */
-    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_UNCOMPRESSED);
-#ifdef HAVE_COMP_KEY
-    /* Explicitly set to compressed. */
-    EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
-    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_COMPRESSED);
-#endif
-
-    BIO_free(bio);
-    EC_KEY_free(key);
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
-}
-
-static int test_wolfSSL_EC_KEY_print_fp(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && ((defined(HAVE_ECC224) && defined(HAVE_ECC256)) || \
-    defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224 && \
-    defined(OPENSSL_EXTRA) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_STDIO_FILESYSTEM)
-    EC_KEY* key = NULL;
-
-    /* Bad file pointer. */
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(NULL, key, 0), WOLFSSL_FAILURE);
-    /* NULL key. */
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, NULL, 0), WOLFSSL_FAILURE);
-    AssertNotNull((key = wolfSSL_EC_KEY_new_by_curve_name(NID_secp224r1)));
-    /* Negative indent. */
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, -1), WOLFSSL_FAILURE);
-
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
-    wolfSSL_EC_KEY_free(key);
-
-    AssertNotNull((key = wolfSSL_EC_KEY_new_by_curve_name(
-        NID_X9_62_prime256v1)));
-    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
-    wolfSSL_EC_KEY_free(key);
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
-}
-
 static int test_wolfSSL_X509V3_EXT_get(void) {
     int res = TEST_SKIPPED;
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
@@ -48145,35 +47684,6 @@ static int test_wolfSSL_EVP_PBE_scrypt(void)
     res = TEST_RES_CHECK(1);
 #endif /* !NO_PWDBASED && !NO_SHA256 */
 #endif /* OPENSSL_EXTRA && HAVE_SCRYPT && HAVE_PBKDF2 */
-    return res;
-}
-
-static int test_wolfSSL_EC_get_builtin_curves(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
-    EC_builtin_curve* curves = NULL;
-    size_t crv_len = 0;
-    size_t i = 0;
-
-    AssertIntGT((crv_len = EC_get_builtin_curves(NULL, 0)), 0);
-    AssertNotNull(curves = (EC_builtin_curve*)
-            XMALLOC(sizeof(EC_builtin_curve)*crv_len, NULL,
-                    DYNAMIC_TYPE_TMP_BUFFER));
-    AssertIntEQ(EC_get_builtin_curves(curves, crv_len), crv_len);
-
-    for (i = 0; i < crv_len; i++)
-    {
-        if (curves[i].comment != NULL)
-            AssertStrEQ(OBJ_nid2sn(curves[i].nid), curves[i].comment);
-    }
-
-    XFREE(curves, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    res = TEST_RES_CHECK(1);
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif /* defined(HAVE_ECC) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
     return res;
 }
 
@@ -53421,6 +52931,7 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
 
     AssertIntEQ(X509_ALGOR_set0(bootstrap->alg, OBJ_nid2obj(EVP_PKEY_EC),
                                 V_ASN1_OBJECT, OBJ_nid2obj(nid)), 1);
+    AssertIntEQ(EC_POINT_point2oct(group, point, 0, NULL, 0, NULL), 0);
 #ifdef HAVE_COMP_KEY
     AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                           NULL, 0, NULL)), 0);
@@ -53431,8 +52942,12 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
     AssertNotNull(der = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
 #ifdef HAVE_COMP_KEY
     AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
+                                   der, len-1, NULL), 0);
+    AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                    der, len, NULL), len);
 #else
+    AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
+                                   der, len-1, NULL), 0);
     AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
                                    der, len, NULL), len);
 #endif
@@ -56202,6 +55717,1338 @@ static int test_wolfSSL_i2d_DHparams(void)
     return res;
 }
 
+#if defined(HAVE_ECC) && !defined(OPENSSL_NO_PK)
+
+/*----------------------------------------------------------------------------*
+ | EC
+ *----------------------------------------------------------------------------*/
+
+static int test_wolfSSL_EC_GROUP(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef OPENSSL_EXTRA
+    EC_GROUP *group;
+    EC_GROUP *group2;
+    EC_GROUP *group3;
+#ifndef HAVE_ECC_BRAINPOOL
+    EC_GROUP *group4;
+#endif
+    WOLFSSL_BIGNUM* order;
+    int group_bits;
+    int i;
+    static const int knownEccNids[] = {
+        NID_X9_62_prime192v1,
+        NID_X9_62_prime192v2,
+        NID_X9_62_prime192v3,
+        NID_X9_62_prime239v1,
+        NID_X9_62_prime239v2,
+        NID_X9_62_prime239v3,
+        NID_X9_62_prime256v1,
+        NID_secp112r1,
+        NID_secp112r2,
+        NID_secp128r1,
+        NID_secp128r2,
+        NID_secp160r1,
+        NID_secp160r2,
+        NID_secp224r1,
+        NID_secp384r1,
+        NID_secp521r1,
+        NID_secp160k1,
+        NID_secp192k1,
+        NID_secp224k1,
+        NID_secp256k1,
+        NID_brainpoolP160r1,
+        NID_brainpoolP192r1,
+        NID_brainpoolP224r1,
+        NID_brainpoolP256r1,
+        NID_brainpoolP320r1,
+        NID_brainpoolP384r1,
+        NID_brainpoolP512r1,
+    };
+    int knowEccNidsLen = (int)(sizeof(knownEccNids) / sizeof(*knownEccNids));
+    static const int knownEccEnums[] = {
+        ECC_SECP192R1,
+        ECC_PRIME192V2,
+        ECC_PRIME192V3,
+        ECC_PRIME239V1,
+        ECC_PRIME239V2,
+        ECC_PRIME239V3,
+        ECC_SECP256R1,
+        ECC_SECP112R1,
+        ECC_SECP112R2,
+        ECC_SECP128R1,
+        ECC_SECP128R2,
+        ECC_SECP160R1,
+        ECC_SECP160R2,
+        ECC_SECP224R1,
+        ECC_SECP384R1,
+        ECC_SECP521R1,
+        ECC_SECP160K1,
+        ECC_SECP192K1,
+        ECC_SECP224K1,
+        ECC_SECP256K1,
+        ECC_BRAINPOOLP160R1,
+        ECC_BRAINPOOLP192R1,
+        ECC_BRAINPOOLP224R1,
+        ECC_BRAINPOOLP256R1,
+        ECC_BRAINPOOLP320R1,
+        ECC_BRAINPOOLP384R1,
+        ECC_BRAINPOOLP512R1,
+    };
+    int knowEccEnumsLen = (int)(sizeof(knownEccEnums) / sizeof(*knownEccEnums));
+
+    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(group2 = EC_GROUP_dup(group));
+    AssertNotNull(group3 = wolfSSL_EC_GROUP_new_by_curve_name(NID_secp384r1));
+#ifndef HAVE_ECC_BRAINPOOL
+    AssertNotNull(group4 = wolfSSL_EC_GROUP_new_by_curve_name(
+        NID_brainpoolP256r1));
+#endif
+
+    AssertNull(EC_GROUP_dup(NULL));
+
+    AssertIntEQ(wolfSSL_EC_GROUP_get_curve_name(NULL), 0);
+    AssertIntEQ(wolfSSL_EC_GROUP_get_curve_name(group), NID_X9_62_prime256v1);
+
+    AssertIntEQ((group_bits = EC_GROUP_order_bits(NULL)), 0);
+    AssertIntEQ((group_bits = EC_GROUP_order_bits(group)), 256);
+#ifndef HAVE_ECC_BRAINPOOL
+    AssertIntEQ((group_bits = EC_GROUP_order_bits(group4)), 0);
+#endif
+
+    AssertIntEQ(wolfSSL_EC_GROUP_get_degree(NULL), 0);
+    AssertIntEQ(wolfSSL_EC_GROUP_get_degree(group), 256);
+
+    AssertNotNull(order = BN_new());
+    AssertIntEQ(wolfSSL_EC_GROUP_get_order(NULL, NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_GROUP_get_order(group, NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_GROUP_get_order(NULL, order, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_GROUP_get_order(group, order, NULL), 1);
+    wolfSSL_BN_free(order);
+
+    AssertNotNull(EC_GROUP_method_of(group));
+
+    AssertIntEQ(EC_METHOD_get_field_type(NULL), 0);
+    AssertIntEQ(EC_METHOD_get_field_type(EC_GROUP_method_of(group)),
+        NID_X9_62_prime_field);
+
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(NULL, NULL, NULL), -1);
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(group, NULL, NULL), -1);
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(NULL, group, NULL), -1);
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(group, group3, NULL), 1);
+
+#ifndef NO_WOLFSSL_STUB
+    wolfSSL_EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+#endif
+
+#ifndef HAVE_ECC_BRAINPOOL
+    EC_GROUP_free(group4);
+#endif
+    EC_GROUP_free(group3);
+    EC_GROUP_free(group2);
+    EC_GROUP_free(group);
+
+    for (i = 0; i < knowEccNidsLen; i++) {
+        AssertNotNull(group = EC_GROUP_new_by_curve_name(knownEccNids[i]));
+        AssertIntGT(wolfSSL_EC_GROUP_get_degree(group), 0);
+        EC_GROUP_free(group);
+    }
+    for (i = 0; i < knowEccEnumsLen; i++) {
+        AssertNotNull(group = EC_GROUP_new_by_curve_name(knownEccEnums[i]));
+        AssertIntEQ(wolfSSL_EC_GROUP_get_curve_name(group), knownEccNids[i]);
+        EC_GROUP_free(group);
+    }
+
+    res = TEST_RES_CHECK(1);
+#endif
+   return res;
+}
+
+static int test_wolfSSL_PEM_read_bio_ECPKParameters(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    EC_GROUP *group;
+    BIO* bio;
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 384 && !defined(NO_ECC_SECP)
+    EC_GROUP *ret;
+    static char ec_nc_p384[] = "-----BEGIN EC PARAMETERS-----\n"
+                               "BgUrgQQAIg==\n"
+                               "-----END EC PARAMETERS-----";
+#endif
+    static char ec_nc_bad_1[] = "-----BEGIN EC PARAMETERS-----\n"
+                                "MAA=\n"
+                                "-----END EC PARAMETERS-----";
+    static char ec_nc_bad_2[] = "-----BEGIN EC PARAMETERS-----\n"
+                                "BgA=\n"
+                                "-----END EC PARAMETERS-----";
+    static char ec_nc_bad_3[] = "-----BEGIN EC PARAMETERS-----\n"
+                                "BgE=\n"
+                                "-----END EC PARAMETERS-----";
+    static char ec_nc_bad_4[] = "-----BEGIN EC PARAMETERS-----\n"
+                                "BgE*\n"
+                                "-----END EC PARAMETERS-----";
+
+    /* Test that first parameter, bio, being NULL fails. */
+    AssertNull(PEM_read_bio_ECPKParameters(NULL, NULL, NULL, NULL));
+
+    /* Test that reading named parameters works. */
+    AssertNotNull(bio = BIO_new(BIO_s_file()));
+    AssertIntEQ(BIO_read_filename(bio, eccKeyFile), WOLFSSL_SUCCESS);
+    AssertNotNull(group = PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    AssertIntEQ(EC_GROUP_get_curve_name(group), NID_X9_62_prime256v1);
+    BIO_free(bio);
+
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 384 && !defined(NO_ECC_SECP)
+    /* Test that reusing group works. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_p384,
+        sizeof(ec_nc_p384)));
+    AssertNotNull(group = PEM_read_bio_ECPKParameters(bio, &group, NULL, NULL));
+    AssertIntEQ(EC_GROUP_get_curve_name(group), NID_secp384r1);
+    BIO_free(bio);
+    EC_GROUP_free(group);
+    group = NULL;
+
+    /* Test that returning through group works. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_p384,
+        sizeof(ec_nc_p384)));
+    AssertNotNull(ret = PEM_read_bio_ECPKParameters(bio, &group, NULL, NULL));
+    AssertIntEQ(group == ret, 1);
+    AssertIntEQ(EC_GROUP_get_curve_name(group), NID_secp384r1);
+    BIO_free(bio);
+#endif
+    EC_GROUP_free(group);
+
+    /* Test 0x30, 0x00 (not and object id) fails. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_bad_1,
+        sizeof(ec_nc_bad_1)));
+    AssertNull(PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+
+    /* Test 0x06, 0x00 (empty object id) fails. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_bad_2,
+        sizeof(ec_nc_bad_2)));
+    AssertNull(PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+
+    /* Test 0x06, 0x01 (badly formed object id) fails. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_bad_3,
+        sizeof(ec_nc_bad_3)));
+    AssertNull(PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+
+    /* Test invalid PEM encoding - invalid character. */
+    AssertNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_bad_4,
+        sizeof(ec_nc_bad_4)));
+    AssertNull(PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    BIO_free(bio);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_POINT(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(WOLFSSL_SP_MATH) && \
+  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+
+#ifdef OPENSSL_EXTRA
+    BN_CTX* ctx;
+    EC_GROUP* group;
+#ifndef HAVE_ECC_BRAINPOOL
+    EC_GROUP* group2;
+#endif
+    EC_POINT* Gxy;
+    EC_POINT* new_point;
+    EC_POINT* set_point;
+    EC_POINT* infinity;
+    BIGNUM* k = NULL;
+    BIGNUM* Gx = NULL;
+    BIGNUM* Gy = NULL;
+    BIGNUM* Gz = NULL;
+    BIGNUM* X;
+    BIGNUM* Y;
+    BIGNUM* set_point_bn;
+    char* hexStr;
+
+    const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD"
+                        "17AF381913FF7A96314EA47055EA0FD0";
+    /* NISTP256R1 Gx/Gy */
+    const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F2"
+                        "77037D812DEB33A0F4A13945D898C296";
+    const char* kGy   = "4FE342E2FE1A7F9B8EE7EB4A7C0F9E16"
+                        "2BCE33576B315ECECBB6406837BF51F5";
+
+#ifndef HAVE_SELFTEST
+    EC_POINT *tmp;
+    size_t bin_len;
+    unsigned int blen;
+    unsigned char* buf = NULL;
+    unsigned char bufInf[1] = { 0x00 };
+
+    const char* uncompG   = "046B17D1F2E12C4247F8BCE6E563A440F2"
+                              "77037D812DEB33A0F4A13945D898C296"
+                              "4FE342E2FE1A7F9B8EE7EB4A7C0F9E16"
+                              "2BCE33576B315ECECBB6406837BF51F5";
+    const unsigned char binUncompG[] = {
+        0x04, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
+        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
+        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+        0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+        0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+    };
+    const unsigned char binUncompGBad[] = {
+        0x09, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
+        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
+        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+        0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+        0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+    };
+
+    const char* compG   = "036B17D1F2E12C4247F8BCE6E563A440F2"
+                            "77037D812DEB33A0F4A13945D898C296";
+#ifdef HAVE_COMP_KEY
+    const unsigned char binCompG[] = {
+        0x03, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
+        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
+        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+    };
+#endif
+#endif
+
+    AssertNotNull(ctx = BN_CTX_new());
+    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+#ifndef HAVE_ECC_BRAINPOOL
+    /* Used to make groups curve_idx == -1. */
+    AssertNotNull(group2 = EC_GROUP_new_by_curve_name(NID_brainpoolP256r1));
+#endif
+
+    AssertNull(EC_POINT_new(NULL));
+    AssertNotNull(Gxy = EC_POINT_new(group));
+    AssertNotNull(new_point = EC_POINT_new(group));
+    AssertNotNull(set_point = EC_POINT_new(group));
+    AssertNotNull(X = BN_new());
+    AssertNotNull(Y = BN_new());
+    AssertNotNull(set_point_bn = BN_new());
+
+    AssertNotNull(infinity = EC_POINT_new(group));
+
+    /* load test values */
+    AssertIntEQ(BN_hex2bn(&k,  kTest), WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gx, kGx),   WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gy, kGy),   WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gz, "1"),   WOLFSSL_SUCCESS);
+
+    /* populate coordinates for input point */
+    Gxy->X = Gx;
+    Gxy->Y = Gy;
+    Gxy->Z = Gz;
+
+    /* Test handling of NULL point. */
+    EC_POINT_clear_free(NULL);
+
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(NULL, NULL,
+        NULL, NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group, NULL,
+        NULL, NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(NULL, Gxy,
+        NULL, NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(NULL, NULL,
+        X, NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(NULL, NULL,
+        NULL, Y, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(NULL, Gxy,
+        X, Y, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group, NULL,
+        X, Y, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group, Gxy,
+        NULL, Y, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group, Gxy,
+        X, NULL, ctx), 0);
+    /* Getting point at infinity returns an error. */
+    AssertIntEQ(wolfSSL_EC_POINT_get_affine_coordinates_GFp(group, infinity,
+        X, Y, ctx), 0);
+
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_SP_MATH) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    AssertIntEQ(EC_POINT_add(NULL, NULL, NULL, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_add(group, NULL, NULL, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_add(NULL, new_point, NULL, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_add(NULL, NULL, new_point, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_add(NULL, NULL, NULL, Gxy, ctx), 0);
+    AssertIntEQ(EC_POINT_add(NULL, new_point, new_point, Gxy, ctx), 0);
+    AssertIntEQ(EC_POINT_add(group, NULL, new_point, Gxy, ctx), 0);
+    AssertIntEQ(EC_POINT_add(group, new_point, NULL, Gxy, ctx), 0);
+    AssertIntEQ(EC_POINT_add(group, new_point, new_point, NULL, ctx), 0);
+
+    AssertIntEQ(EC_POINT_mul(NULL, NULL, Gx, Gxy, k, ctx), 0);
+    AssertIntEQ(EC_POINT_mul(NULL, new_point, Gx, Gxy, k, ctx), 0);
+    AssertIntEQ(EC_POINT_mul(group, NULL, Gx, Gxy, k, ctx), 0);
+
+    AssertIntEQ(EC_POINT_add(group, new_point, new_point, Gxy, ctx), 1);
+    /* perform point multiplication */
+    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, Gxy, k, ctx), 1);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
+    AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), 1);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
+    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, NULL, NULL, ctx), 1);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
+    AssertIntEQ(EC_POINT_mul(group, new_point, NULL, NULL, NULL, ctx), 1);
+    AssertIntEQ(BN_is_zero(new_point->X), 1);
+    AssertIntEQ(BN_is_zero(new_point->Y), 1);
+    AssertIntEQ(BN_is_zero(new_point->Z), 1);
+    /* Set point to something. */
+    AssertIntEQ(EC_POINT_add(group, new_point, Gxy, Gxy, ctx), 1);
+#else
+    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, Gx, Gy,
+        ctx), 1);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
+#endif
+
+    /* check if point X coordinate is zero */
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+
+#ifdef USE_ECC_B_PARAM
+    AssertIntEQ(EC_POINT_is_on_curve(group, new_point, ctx), 1);
+#endif /* USE_ECC_B_PARAM */
+
+    /* Force non-affine coordinates */
+    AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
+        (WOLFSSL_BIGNUM*)BN_value_one()), 1);
+    new_point->inSet = 0;
+
+    /* extract the coordinates from point */
+    AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y,
+        ctx), WOLFSSL_SUCCESS);
+
+    /* check if point X coordinate is zero */
+    AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
+
+    /* set the same X and Y points in another object */
+    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, set_point, X, Y,
+        ctx), WOLFSSL_SUCCESS);
+
+    /* compare points as they should be the same */
+    AssertIntEQ(EC_POINT_cmp(NULL, NULL, NULL, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(group, NULL, NULL, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(NULL, new_point, NULL, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(NULL, NULL, set_point, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(NULL, new_point, set_point, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(group, NULL, set_point, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(group, new_point, NULL, ctx), -1);
+    AssertIntEQ(EC_POINT_cmp(group, new_point, set_point, ctx), 0);
+
+    /* Test copying */
+    AssertIntEQ(EC_POINT_copy(NULL, NULL), 0);
+    AssertIntEQ(EC_POINT_copy(NULL, set_point), 0);
+    AssertIntEQ(EC_POINT_copy(new_point, NULL), 0);
+    AssertIntEQ(EC_POINT_copy(new_point, set_point), 1);
+
+    /* Test inverting */
+    AssertIntEQ(EC_POINT_invert(NULL, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
+    AssertIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
+    AssertIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
+
+    /* Test check for infinity */
+#ifndef WOLF_CRYPTO_CB_ONLY_ECC
+    AssertIntEQ(EC_POINT_is_at_infinity(NULL, NULL), 0);
+    AssertIntEQ(EC_POINT_is_at_infinity(NULL, infinity), 0);
+    AssertIntEQ(EC_POINT_is_at_infinity(group, NULL), 0);
+    AssertIntEQ(EC_POINT_is_at_infinity(group, infinity), 1);
+    AssertIntEQ(EC_POINT_is_at_infinity(group, Gxy), 0);
+#else
+    AssertIntEQ(EC_POINT_is_at_infinity(group, infinity), 0);
+#endif
+
+    AssertPtrEq(EC_POINT_point2bn(group, set_point,
+        POINT_CONVERSION_UNCOMPRESSED, set_point_bn, ctx), set_point_bn);
+
+    /* check bn2hex */
+    hexStr = BN_bn2hex(k);
+    AssertStrEQ(hexStr, kTest);
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+    BN_print_fp(stderr, k);
+    fprintf(stderr, "\n");
+#endif
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gx);
+    AssertStrEQ(hexStr, kGx);
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+    BN_print_fp(stderr, Gx);
+    fprintf(stderr, "\n");
+#endif
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gy);
+    AssertStrEQ(hexStr, kGy);
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
+    BN_print_fp(stderr, Gy);
+    fprintf(stderr, "\n");
+#endif
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+#ifndef HAVE_SELFTEST
+    /* Test point to hex */
+    AssertNull(EC_POINT_point2hex(NULL, NULL, POINT_CONVERSION_UNCOMPRESSED,
+        ctx));
+    AssertNull(EC_POINT_point2hex(NULL, Gxy, POINT_CONVERSION_UNCOMPRESSED,
+        ctx));
+    AssertNull(EC_POINT_point2hex(group, NULL, POINT_CONVERSION_UNCOMPRESSED,
+        ctx));
+#ifndef HAVE_ECC_BRAINPOOL
+    /* Group not supported in wolfCrypt. */
+    AssertNull(EC_POINT_point2hex(group2, Gxy, POINT_CONVERSION_UNCOMPRESSED,
+        ctx));
+#endif
+
+    hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, ctx);
+    AssertStrEQ(hexStr, uncompG);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
+    AssertStrEQ(hexStr, compG);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    /* Test point to oct */
+    AssertIntEQ(EC_POINT_point2oct(NULL, NULL, POINT_CONVERSION_UNCOMPRESSED,
+        NULL, 0, ctx), 0);
+    AssertIntEQ(EC_POINT_point2oct(NULL, Gxy, POINT_CONVERSION_UNCOMPRESSED,
+        NULL, 0, ctx), 0);
+    AssertIntEQ(EC_POINT_point2oct(group, NULL, POINT_CONVERSION_UNCOMPRESSED,
+        NULL, 0, ctx), 0);
+    bin_len = EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_UNCOMPRESSED,
+        NULL, 0, ctx);
+    AssertIntEQ(bin_len, sizeof(binUncompG));
+    AssertNotNull(buf = (unsigned char*)XMALLOC(bin_len, NULL,
+         DYNAMIC_TYPE_ECC));
+    AssertIntEQ(EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_UNCOMPRESSED,
+        buf, bin_len, ctx), bin_len);
+    AssertIntEQ(XMEMCMP(buf, binUncompG, sizeof(binUncompG)), 0);
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+
+    /* Infinity (x=0, y=0) encodes as '0x00'. */
+    AssertIntEQ(EC_POINT_point2oct(group, infinity,
+        POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx), 1);
+    AssertIntEQ(EC_POINT_point2oct(group, infinity,
+        POINT_CONVERSION_UNCOMPRESSED, bufInf, 0, ctx), 0);
+    AssertIntEQ(EC_POINT_point2oct(group, infinity,
+        POINT_CONVERSION_UNCOMPRESSED, bufInf, 1, ctx), 1);
+    AssertIntEQ(bufInf[0], 0);
+
+    wolfSSL_EC_POINT_dump(NULL, NULL);
+    /* Test point i2d */
+    AssertIntEQ(ECPoint_i2d(NULL, NULL, NULL, &blen), 0);
+    AssertIntEQ(ECPoint_i2d(NULL, Gxy, NULL, &blen), 0);
+    AssertIntEQ(ECPoint_i2d(group, NULL, NULL, &blen), 0);
+    AssertIntEQ(ECPoint_i2d(group, Gxy, NULL, NULL), 0);
+    AssertIntEQ(ECPoint_i2d(group, Gxy, NULL, &blen), 1);
+    AssertIntEQ(blen, sizeof(binUncompG));
+    AssertNotNull(buf = (unsigned char*)XMALLOC(blen, NULL, DYNAMIC_TYPE_ECC));
+    blen -= 1;
+    AssertIntEQ(ECPoint_i2d(group, Gxy, buf, &blen), 0);
+    blen += 1;
+    AssertIntEQ(ECPoint_i2d(group, Gxy, buf, &blen), 1);
+    AssertIntEQ(XMEMCMP(buf, binUncompG, sizeof(binUncompG)), 0);
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+
+#ifdef HAVE_COMP_KEY
+    /* Test point to oct compressed */
+    bin_len = EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_COMPRESSED, NULL,
+        0, ctx);
+    AssertIntEQ(bin_len, sizeof(binCompG));
+    AssertNotNull(buf = (unsigned char*)XMALLOC(bin_len, NULL,
+        DYNAMIC_TYPE_ECC));
+    AssertIntEQ(EC_POINT_point2oct(group, Gxy, POINT_CONVERSION_COMPRESSED, buf,
+        bin_len, ctx), bin_len);
+    AssertIntEQ(XMEMCMP(buf, binCompG, sizeof(binCompG)), 0);
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    /* Test point BN */
+    AssertNull(wolfSSL_EC_POINT_point2bn(NULL, NULL,
+        POINT_CONVERSION_UNCOMPRESSED, NULL, ctx));
+    AssertNull(wolfSSL_EC_POINT_point2bn(NULL, Gxy,
+        POINT_CONVERSION_UNCOMPRESSED, NULL, ctx));
+    AssertNull(wolfSSL_EC_POINT_point2bn(group, NULL,
+        POINT_CONVERSION_UNCOMPRESSED, NULL, ctx));
+    AssertNull(wolfSSL_EC_POINT_point2bn(group, Gxy, 0, NULL, ctx));
+
+    /* Test oct to point */
+    AssertNotNull(tmp = EC_POINT_new(group));
+    AssertIntEQ(EC_POINT_oct2point(NULL, NULL, binUncompG, sizeof(binUncompG),
+        ctx), 0);
+    AssertIntEQ(EC_POINT_oct2point(NULL, tmp, binUncompG, sizeof(binUncompG),
+        ctx), 0);
+    AssertIntEQ(EC_POINT_oct2point(group, NULL, binUncompG, sizeof(binUncompG),
+        ctx), 0);
+    AssertIntEQ(EC_POINT_oct2point(group, tmp, binUncompGBad,
+        sizeof(binUncompGBad), ctx), 0);
+    AssertIntEQ(EC_POINT_oct2point(group, tmp, binUncompG, sizeof(binUncompG),
+        ctx), 1);
+    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
+    EC_POINT_free(tmp);
+
+    /* Test setting BN ordinates. */
+    AssertNotNull(tmp = EC_POINT_new(group));
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(NULL, NULL, NULL,
+        NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(group, NULL, NULL,
+        NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(NULL, tmp, NULL,
+        NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(NULL, NULL, Gx,
+        NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(NULL, NULL, NULL,
+        Gy, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(NULL, tmp, Gx, Gy,
+        ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(group, NULL, Gx, Gy,
+        ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(group, tmp, NULL,
+        Gy, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(group, tmp, Gx,
+        NULL, ctx), 0);
+    AssertIntEQ(wolfSSL_EC_POINT_set_affine_coordinates_GFp(group, tmp, Gx, Gy,
+        ctx), 1);
+    EC_POINT_free(tmp);
+
+    /* Test point d2i */
+    AssertNotNull(tmp = EC_POINT_new(group));
+    AssertIntEQ(ECPoint_d2i(NULL, sizeof(binUncompG), NULL, NULL), 0);
+    AssertIntEQ(ECPoint_d2i(binUncompG, sizeof(binUncompG), NULL, NULL), 0);
+    AssertIntEQ(ECPoint_d2i(NULL, sizeof(binUncompG), group, NULL), 0);
+    AssertIntEQ(ECPoint_d2i(NULL, sizeof(binUncompG), NULL, tmp), 0);
+    AssertIntEQ(ECPoint_d2i(NULL, sizeof(binUncompG), group, tmp), 0);
+    AssertIntEQ(ECPoint_d2i(binUncompG, sizeof(binUncompG), NULL, tmp), 0);
+    AssertIntEQ(ECPoint_d2i(binUncompG, sizeof(binUncompG), group, NULL), 0);
+    AssertIntEQ(ECPoint_d2i(binUncompGBad, sizeof(binUncompG), group, tmp), 0);
+    AssertIntEQ(ECPoint_d2i(binUncompG, sizeof(binUncompG), group, tmp), 1);
+    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
+    EC_POINT_free(tmp);
+
+#ifdef HAVE_COMP_KEY
+    /* Test oct compressed to point */
+    AssertNotNull(tmp = EC_POINT_new(group));
+    AssertIntEQ(EC_POINT_oct2point(group, tmp, binCompG, sizeof(binCompG), ctx),
+        1);
+    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
+    EC_POINT_free(tmp);
+
+    /* Test point d2i - compressed */
+    AssertNotNull(tmp = EC_POINT_new(group));
+    AssertIntEQ(ECPoint_d2i(binCompG, sizeof(binCompG), group, tmp), 1);
+    AssertIntEQ(EC_POINT_cmp(group, tmp, Gxy, ctx), 0);
+    EC_POINT_free(tmp);
+#endif
+#endif
+
+    /* test BN_mod_add */
+    AssertIntEQ(BN_mod_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
+        (WOLFSSL_BIGNUM*)BN_value_one(), (WOLFSSL_BIGNUM*)BN_value_one(), NULL),
+        1);
+    AssertIntEQ(BN_is_zero(new_point->Z), 1);
+
+    /* cleanup */
+    BN_free(X);
+    BN_free(Y);
+    BN_free(k);
+    BN_free(set_point_bn);
+    EC_POINT_free(infinity);
+    EC_POINT_free(new_point);
+    EC_POINT_free(set_point);
+    EC_POINT_clear_free(Gxy);
+#ifndef HAVE_ECC_BRAINPOOL
+    EC_GROUP_free(group2);
+#endif
+    EC_GROUP_free(group);
+    BN_CTX_free(ctx);
+
+    res = TEST_RES_CHECK(1);
+#endif
+#endif /* !WOLFSSL_SP_MATH && ( !HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_generate(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_EC_KEY* key;
+#ifndef HAVE_ECC_BRAINPOOL
+    WOLFSSL_EC_GROUP* group;
+#endif
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(NULL), 0);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), 1);
+    wolfSSL_EC_KEY_free(key);
+
+#ifndef HAVE_ECC_BRAINPOOL
+    AssertNotNull(group = wolfSSL_EC_GROUP_new_by_curve_name(
+        NID_brainpoolP256r1));
+    AssertNotNull(key = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_set_group(key, group), 1);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), 0);
+    wolfSSL_EC_KEY_free(key);
+    wolfSSL_EC_GROUP_free(group);
+#endif
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_EC_i2d(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_FIPS)
+    EC_KEY *key;
+    EC_KEY *copy = NULL;
+    int len;
+    unsigned char *buf = NULL;
+    unsigned char *p;
+    const unsigned char *tmp = NULL;
+    const unsigned char octBad[] = {
+        0x09, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
+        0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
+        0xeb, 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+        0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+        0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+        0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+    };
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(key), 1);
+    AssertIntGT((len = i2d_EC_PUBKEY(key, NULL)), 0);
+    AssertNotNull(buf = (unsigned char*)XMALLOC(len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    p = buf;
+    AssertIntEQ(i2d_EC_PUBKEY(key, &p), len);
+
+    AssertNull(o2i_ECPublicKey(NULL, NULL, -1));
+    AssertNull(o2i_ECPublicKey(&copy, NULL, -1));
+    AssertNull(o2i_ECPublicKey(&key, NULL, -1));
+    AssertNull(o2i_ECPublicKey(NULL, &tmp, -1));
+    AssertNull(o2i_ECPublicKey(NULL, NULL, 0));
+    AssertNull(o2i_ECPublicKey(&key, NULL, 0));
+    AssertNull(o2i_ECPublicKey(&key, &tmp, 0));
+    tmp = buf;
+    AssertNull(o2i_ECPublicKey(NULL, &tmp, 0));
+    AssertNull(o2i_ECPublicKey(&copy, &tmp, 0));
+    AssertNull(o2i_ECPublicKey(NULL, &tmp, -1));
+    AssertNull(o2i_ECPublicKey(&key, &tmp, -1));
+
+    AssertIntEQ(i2o_ECPublicKey(NULL, NULL), 0);
+    AssertIntEQ(i2o_ECPublicKey(NULL, &buf), 0);
+
+    tmp = buf;
+    AssertNull(d2i_ECPrivateKey(NULL, &tmp, 0));
+    AssertNull(d2i_ECPrivateKey(NULL, &tmp, 1));
+    AssertNull(d2i_ECPrivateKey(&copy, &tmp, 0));
+    AssertNull(d2i_ECPrivateKey(&copy, &tmp, 1));
+    AssertNull(d2i_ECPrivateKey(&key, &tmp, 0));
+
+    AssertIntEQ(i2d_ECPrivateKey(NULL, &p), 0);
+    AssertIntEQ(i2d_ECPrivateKey(NULL, NULL), 0);
+
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer(NULL, NULL, -1), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(NULL, NULL, -1, 0), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, NULL, -1, 0), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(NULL, buf, -1, 0), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(NULL, NULL, 0, 0), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(NULL, NULL, -1,
+        WOLFSSL_EC_KEY_LOAD_PUBLIC), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(NULL, buf, len,
+        WOLFSSL_EC_KEY_LOAD_PUBLIC), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, NULL, len,
+        WOLFSSL_EC_KEY_LOAD_PUBLIC), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, buf, -1,
+        WOLFSSL_EC_KEY_LOAD_PUBLIC), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, buf, len, 0), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, buf, len,
+        WOLFSSL_EC_KEY_LOAD_PRIVATE), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, octBad, sizeof(octBad),
+        WOLFSSL_EC_KEY_LOAD_PRIVATE), -1);
+    AssertIntEQ(wolfSSL_EC_KEY_LoadDer_ex(key, octBad, sizeof(octBad),
+        WOLFSSL_EC_KEY_LOAD_PUBLIC), -1);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    AssertIntGT((len = i2d_ECPrivateKey(key, NULL)), 0);
+    AssertNotNull(buf = (unsigned char*)XMALLOC(len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    p = buf;
+    AssertIntEQ(i2d_ECPrivateKey(key, &p), len);
+
+    p = NULL;
+    AssertIntEQ(i2d_ECPrivateKey(key, &p), len);
+    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Bad point is also an invalid private key. */
+    tmp = octBad;
+    AssertNull(d2i_ECPrivateKey(&copy, &tmp, sizeof(octBad)));
+    tmp = buf;
+    AssertNotNull(d2i_ECPrivateKey(&copy, &tmp, len));
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    AssertIntGT((len = i2o_ECPublicKey(key, NULL)), 0);
+    AssertNotNull(buf = (unsigned char*)XMALLOC(len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    p = buf;
+    AssertIntGT((len = i2o_ECPublicKey(key, &p)), 0);
+    p = NULL;
+    AssertIntGT((len = i2o_ECPublicKey(key, &p)), 0);
+    tmp = buf;
+    AssertNotNull(o2i_ECPublicKey(&copy, &tmp, len));
+    tmp = octBad;
+    AssertNull(o2i_ECPublicKey(&key, &tmp, sizeof(octBad)));
+
+    AssertIntEQ(EC_KEY_check_key(NULL), 0);
+    AssertIntEQ(EC_KEY_check_key(key), 1);
+
+    XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    EC_KEY_free(key);
+    EC_KEY_free(copy);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_curve(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA)
+    int nid = NID_secp160k1;
+    const char* nid_name;
+
+    AssertNull(EC_curve_nid2nist(NID_sha256));
+
+    AssertNotNull(nid_name = EC_curve_nid2nist(nid));
+    AssertIntEQ(XMEMCMP(nid_name, "K-160", XSTRLEN("K-160")), 0);
+
+    AssertIntEQ(EC_curve_nist2nid("INVALID"), 0);
+    AssertIntEQ(EC_curve_nist2nid(nid_name), nid);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_dup(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS)
+    WOLFSSL_EC_KEY* ecKey;
+    WOLFSSL_EC_KEY* dupKey;
+    ecc_key* srcKey;
+    ecc_key* destKey;
+
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+
+    /* Valid cases */
+    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    AssertIntEQ(EC_KEY_check_key(dupKey), 1);
+
+    /* Compare pubkey */
+    srcKey = (ecc_key*)ecKey->internal;
+    destKey = (ecc_key*)dupKey->internal;
+    AssertIntEQ(wc_ecc_cmp_point(&srcKey->pubkey, &destKey->pubkey), 0);
+
+    /* compare EC_GROUP */
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(ecKey->group, dupKey->group, NULL), MP_EQ);
+
+    /* compare EC_POINT */
+    AssertIntEQ(wolfSSL_EC_POINT_cmp(ecKey->group, ecKey->pub_key, \
+                dupKey->pub_key, NULL), MP_EQ);
+
+    /* compare BIGNUM */
+    AssertIntEQ(wolfSSL_BN_cmp(ecKey->priv_key, dupKey->priv_key), MP_EQ);
+    wolfSSL_EC_KEY_free(dupKey);
+
+    /* Invalid cases */
+    /* NULL key */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(NULL));
+    /* NULL ecc_key */
+    wc_ecc_free((ecc_key*)ecKey->internal);
+    XFREE(ecKey->internal, NULL, DYNAMIC_TYPE_ECC);
+    ecKey->internal = NULL; /* Set ecc_key to NULL */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
+
+    /* NULL Group */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    wolfSSL_EC_GROUP_free(ecKey->group);
+    ecKey->group = NULL; /* Set group to NULL */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
+
+    /* NULL public key */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    wc_ecc_del_point((ecc_point*)ecKey->pub_key->internal);
+    ecKey->pub_key->internal = NULL; /* Set ecc_point to NULL */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+
+    wolfSSL_EC_POINT_free(ecKey->pub_key);
+    ecKey->pub_key = NULL; /* Set pub_key to NULL */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
+
+    /* NULL private key */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+
+    wolfSSL_BN_free(ecKey->priv_key);
+    ecKey->priv_key = NULL; /* Set priv_key to NULL */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
+
+    /* Test EC_KEY_up_ref */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(ecKey), WOLFSSL_SUCCESS);
+    /* reference count doesn't follow duplicate */
+    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +1 */
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +2 */
+    wolfSSL_EC_KEY_free(dupKey); /* 3 */
+    wolfSSL_EC_KEY_free(dupKey); /* 2 */
+    wolfSSL_EC_KEY_free(dupKey); /* 1, free */
+    wolfSSL_EC_KEY_free(ecKey);  /* 2 */
+    wolfSSL_EC_KEY_free(ecKey);  /* 1, free */
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_set_group(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(OPENSSL_EXTRA)
+    EC_KEY   *key    = NULL;
+    EC_GROUP *group  = NULL;
+    const EC_GROUP *group2 = NULL;
+
+    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(key = EC_KEY_new());
+
+    AssertNull(EC_KEY_get0_group(NULL));
+    AssertIntEQ(EC_KEY_set_group(NULL, NULL), 0);
+    AssertIntEQ(EC_KEY_set_group(key, NULL), 0);
+    AssertIntEQ(EC_KEY_set_group(NULL, group), 0);
+
+    AssertIntEQ(EC_KEY_set_group(key, group), WOLFSSL_SUCCESS);
+    AssertNotNull(group2 = EC_KEY_get0_group(key));
+    AssertIntEQ(EC_GROUP_cmp(group2, group, NULL), 0);
+
+    EC_GROUP_free(group);
+    EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_set_conv_form(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    BIO* bio;
+    EC_KEY* key;
+
+    /* Error condition: NULL key. */
+    AssertIntLT(EC_KEY_get_conv_form(NULL), 0);
+
+    AssertNotNull(bio = BIO_new_file("./certs/ecc-keyPub.pem", "rb"));
+    AssertNotNull(key = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL));
+    /* Conversion form defaults to uncompressed. */
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_UNCOMPRESSED);
+#ifdef HAVE_COMP_KEY
+    /* Explicitly set to compressed. */
+    EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_COMPRESSED);
+#else
+    /* Will still work just won't change anything. */
+    EC_KEY_set_conv_form(key, POINT_CONVERSION_COMPRESSED);
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_UNCOMPRESSED);
+    EC_KEY_set_conv_form(key, POINT_CONVERSION_UNCOMPRESSED);
+    AssertIntEQ(EC_KEY_get_conv_form(key), POINT_CONVERSION_UNCOMPRESSED);
+#endif
+    EC_KEY_set_conv_form(NULL, POINT_CONVERSION_UNCOMPRESSED);
+
+    BIO_free(bio);
+    EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_private_key(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    WOLFSSL_EC_KEY* key;
+    WOLFSSL_BIGNUM* priv = NULL;
+    WOLFSSL_BIGNUM* priv2 = NULL;
+    WOLFSSL_BIGNUM* bn;
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(priv = wolfSSL_BN_new());
+    AssertNotNull(priv2 = wolfSSL_BN_new());
+    AssertIntNE(BN_set_word(priv, 1), 0);
+    AssertIntNE(BN_set_word(priv2, 1), 0);
+
+    AssertNull(wolfSSL_EC_KEY_get0_private_key(NULL));
+    /* No private key set. */
+    AssertNull(wolfSSL_EC_KEY_get0_private_key(key));
+
+    AssertIntEQ(wolfSSL_EC_KEY_set_private_key(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_KEY_set_private_key(key, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_KEY_set_private_key(NULL, priv), 0);
+
+    AssertIntEQ(wolfSSL_EC_KEY_set_private_key(key, priv), 1);
+    AssertNotNull(bn = wolfSSL_EC_KEY_get0_private_key(key));
+    AssertPtrNE(bn, priv);
+    AssertIntEQ(wolfSSL_EC_KEY_set_private_key(key, priv2), 1);
+    AssertNotNull(bn = wolfSSL_EC_KEY_get0_private_key(key));
+    AssertPtrNE(bn, priv2);
+
+    wolfSSL_BN_free(priv2);
+    wolfSSL_BN_free(priv);
+    wolfSSL_EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_public_key(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+    WOLFSSL_EC_KEY* key;
+    WOLFSSL_EC_POINT* pub;
+    WOLFSSL_EC_POINT* point;
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+
+    AssertNull(wolfSSL_EC_KEY_get0_public_key(NULL));
+    AssertNotNull(wolfSSL_EC_KEY_get0_public_key(key));
+
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), 1);
+
+    AssertNotNull(pub = wolfSSL_EC_KEY_get0_public_key(key));
+
+    AssertIntEQ(wolfSSL_EC_KEY_set_public_key(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_KEY_set_public_key(key, NULL), 0);
+    AssertIntEQ(wolfSSL_EC_KEY_set_public_key(NULL, pub), 0);
+
+    AssertIntEQ(wolfSSL_EC_KEY_set_public_key(key, pub), 1);
+    AssertNotNull(point = wolfSSL_EC_KEY_get0_public_key(key));
+    AssertPtrEq(point, pub);
+
+    wolfSSL_EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_KEY_print_fp(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && ((defined(HAVE_ECC224) && defined(HAVE_ECC256)) || \
+    defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224 && \
+    defined(OPENSSL_EXTRA) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_STDIO_FILESYSTEM)
+    EC_KEY* key = NULL;
+
+    /* Bad file pointer. */
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(NULL, key, 0), WOLFSSL_FAILURE);
+    /* NULL key. */
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, NULL, 0), WOLFSSL_FAILURE);
+    AssertNotNull((key = wolfSSL_EC_KEY_new_by_curve_name(NID_secp224r1)));
+    /* Negative indent. */
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, -1), WOLFSSL_FAILURE);
+
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
+    wolfSSL_EC_KEY_free(key);
+
+    AssertNotNull((key = wolfSSL_EC_KEY_new_by_curve_name(
+        NID_X9_62_prime256v1)));
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(key), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EC_KEY_print_fp(stderr, key, 4), WOLFSSL_SUCCESS);
+    wolfSSL_EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_wolfSSL_EC_get_builtin_curves(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+    EC_builtin_curve* curves = NULL;
+    size_t crv_len = 0;
+    size_t i = 0;
+
+    AssertIntGT((crv_len = EC_get_builtin_curves(NULL, 0)), 0);
+    AssertNotNull(curves = (EC_builtin_curve*)XMALLOC(
+        sizeof(EC_builtin_curve) * crv_len, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+
+    AssertIntEQ((EC_get_builtin_curves(curves, 0)), crv_len);
+    AssertIntEQ(EC_get_builtin_curves(curves, crv_len), crv_len);
+
+    for (i = 0; i < crv_len; i++) {
+        if (curves[i].comment != NULL) {
+            AssertStrEQ(OBJ_nid2sn(curves[i].nid), curves[i].comment);
+        }
+    }
+
+    if (crv_len > 1) {
+        AssertIntEQ(EC_get_builtin_curves(curves, crv_len - 1), crv_len - 1);
+    }
+
+    XFREE(curves, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    res = TEST_RES_CHECK(1);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
+    return res;
+}
+
+static int test_wolfSSL_ECDSA_SIG(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_ECDSA_SIG* sig = NULL;
+    WOLFSSL_ECDSA_SIG* sig2 = NULL;
+    WOLFSSL_BIGNUM* r;
+    WOLFSSL_BIGNUM* s;
+    const WOLFSSL_BIGNUM* r2;
+    const WOLFSSL_BIGNUM* s2;
+    const unsigned char* cp;
+    unsigned char* p;
+    unsigned char outSig[8];
+    unsigned char sigData[8] =
+                             { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
+    unsigned char sigDataBad[8] =
+                             { 0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
+
+    wolfSSL_ECDSA_SIG_free(NULL);
+
+    AssertNotNull(sig = wolfSSL_ECDSA_SIG_new());
+    AssertNotNull(r = wolfSSL_BN_new());
+    AssertNotNull(s = wolfSSL_BN_new());
+    AssertIntEQ(wolfSSL_BN_set_word(r, 1), 1);
+    AssertIntEQ(wolfSSL_BN_set_word(s, 1), 1);
+
+    wolfSSL_ECDSA_SIG_get0(NULL, NULL, NULL);
+    wolfSSL_ECDSA_SIG_get0(NULL, &r2, NULL);
+    wolfSSL_ECDSA_SIG_get0(NULL, NULL, &s2);
+    wolfSSL_ECDSA_SIG_get0(NULL, &r2, &s2);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(NULL, NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(sig, NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(NULL, r, NULL), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(NULL, NULL, s), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(NULL, r, s), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(sig, NULL, s), 0);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(sig, r, NULL), 0);
+
+    r2 = NULL;
+    s2 = NULL;
+    wolfSSL_ECDSA_SIG_get0(NULL, &r2, &s2);
+    AssertNull(r2);
+    AssertNull(s2);
+    AssertIntEQ(wolfSSL_ECDSA_SIG_set0(sig, r, s), 1);
+    wolfSSL_ECDSA_SIG_get0(sig, &r2, &s2);
+    AssertPtrEq(r2, r);
+    AssertPtrEq(s2, s);
+    r2 = NULL;
+    wolfSSL_ECDSA_SIG_get0(sig, &r2, NULL);
+    AssertPtrEq(r2, r);
+    s2 = NULL;
+    wolfSSL_ECDSA_SIG_get0(sig, NULL, &s2);
+    AssertPtrEq(s2, s);
+
+    /* r and s are freed when sig is freed. */
+    wolfSSL_ECDSA_SIG_free(sig);
+
+    AssertNull(wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData)));
+    cp = sigDataBad;
+    AssertNull(wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigDataBad)));
+    cp = sigData;
+    AssertNotNull((sig = wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData))));
+    AssertIntEQ((cp == sigData + 8), 1);
+    cp = sigData;
+    AssertNull(wolfSSL_d2i_ECDSA_SIG(&sig, NULL, sizeof(sigData)));
+    AssertNotNull((sig2 = wolfSSL_d2i_ECDSA_SIG(&sig, &cp, sizeof(sigData))));
+    AssertIntEQ((sig == sig2), 1);
+    cp = outSig;
+
+    p = outSig;
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, &p), 0);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, NULL), 8);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, &p), sizeof(sigData));
+    AssertIntEQ((p == outSig + 8), 1);
+    AssertIntEQ(XMEMCMP(sigData, outSig, 8), 0);
+
+    wolfSSL_ECDSA_SIG_free(sig);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+static int test_ECDSA_size_sign(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    EC_KEY* key;
+    ECDSA_SIG* ecdsaSig;
+    int id;
+    byte hash[WC_MAX_DIGEST_SIZE];
+    byte hash2[WC_MAX_DIGEST_SIZE];
+    byte sig[ECC_MAX_SIG_SIZE];
+    unsigned int sigSz = sizeof(sig);
+
+    XMEMSET(hash, 123, sizeof(hash));
+    XMEMSET(hash2, 234, sizeof(hash2));
+
+    id = wc_ecc_get_curve_id_from_name("SECP256R1");
+    AssertIntEQ(id, ECC_SECP256R1);
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(key), 1);
+
+    AssertIntGE(ECDSA_size(NULL), 0);
+
+    AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, NULL), 0);
+    AssertIntEQ(ECDSA_sign(0, NULL, sizeof(hash), sig, &sigSz, key), 0);
+    AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), NULL, &sigSz, key), 0);
+    AssertIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, sigSz, NULL), 0);
+    AssertIntEQ(ECDSA_verify(0, NULL, sizeof(hash), sig, sigSz, key), 0);
+    AssertIntEQ(ECDSA_verify(0, hash, sizeof(hash), NULL, sigSz, key), 0);
+
+    AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
+    AssertIntGE(ECDSA_size(key), sigSz);
+    AssertIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, sigSz, key), 1);
+    AssertIntEQ(ECDSA_verify(0, hash2, sizeof(hash2), sig, sigSz, key), 0);
+
+    AssertNull(ECDSA_do_sign(NULL, sizeof(hash), NULL));
+    AssertNull(ECDSA_do_sign(NULL, sizeof(hash), key));
+    AssertNull(ECDSA_do_sign(hash, sizeof(hash), NULL));
+    AssertNotNull(ecdsaSig = ECDSA_do_sign(hash, sizeof(hash), key));
+    AssertIntEQ(ECDSA_do_verify(NULL, sizeof(hash), NULL, NULL), -1);
+    AssertIntEQ(ECDSA_do_verify(hash, sizeof(hash), NULL, NULL), -1);
+    AssertIntEQ(ECDSA_do_verify(NULL, sizeof(hash), ecdsaSig, NULL), -1);
+    AssertIntEQ(ECDSA_do_verify(NULL, sizeof(hash), NULL, key), -1);
+    AssertIntEQ(ECDSA_do_verify(NULL, sizeof(hash), ecdsaSig, key), -1);
+    AssertIntEQ(ECDSA_do_verify(hash, sizeof(hash), NULL, key), -1);
+    AssertIntEQ(ECDSA_do_verify(hash, sizeof(hash), ecdsaSig, NULL), -1);
+    AssertIntEQ(ECDSA_do_verify(hash, sizeof(hash), ecdsaSig, key), 1);
+    AssertIntEQ(ECDSA_do_verify(hash2, sizeof(hash2), ecdsaSig, key), 0);
+    ECDSA_SIG_free(ecdsaSig);
+
+    EC_KEY_free(key);
+
+    res = TEST_RES_CHECK(1);
+#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP */
+    return res;
+}
+
+static int test_ECDH_compute_key(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+    EC_KEY* key1;
+    EC_KEY* key2;
+    EC_POINT* pub1;
+    EC_POINT* pub2;
+    byte secret1[32];
+    byte secret2[32];
+    int i;
+
+    AssertNotNull(key1 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(key1), 1);
+    AssertNotNull(pub1 = wolfSSL_EC_KEY_get0_public_key(key1));
+    AssertNotNull(key2 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(key2), 1);
+    AssertNotNull(pub2 = wolfSSL_EC_KEY_get0_public_key(key2));
+
+    AssertIntEQ(ECDH_compute_key(NULL, sizeof(secret1), NULL, NULL, NULL), 0);
+    AssertIntEQ(ECDH_compute_key(secret1, sizeof(secret1), NULL, NULL, NULL),
+        0);
+    AssertIntEQ(ECDH_compute_key(NULL, sizeof(secret1), pub2, NULL, NULL), 0);
+    AssertIntEQ(ECDH_compute_key(NULL, sizeof(secret1), NULL, key1, NULL), 0);
+    AssertIntEQ(ECDH_compute_key(NULL, sizeof(secret1), pub2, key1, NULL), 0);
+    AssertIntEQ(ECDH_compute_key(secret1, sizeof(secret1), NULL, key1, NULL),
+        0);
+    AssertIntEQ(ECDH_compute_key(secret1, sizeof(secret1), pub2, NULL, NULL),
+        0);
+
+    AssertIntEQ(ECDH_compute_key(secret1, sizeof(secret1) - 16, pub2, key1,
+        NULL), 0);
+
+    AssertIntEQ(ECDH_compute_key(secret1, sizeof(secret1), pub2, key1, NULL),
+        sizeof(secret1));
+    AssertIntEQ(ECDH_compute_key(secret2, sizeof(secret2), pub1, key2, NULL),
+        sizeof(secret2));
+
+    for (i = 0; i < (int)sizeof(secret1); i++) {
+        AssertIntEQ(secret1[i], secret2[i]);
+    }
+
+    EC_KEY_free(key2);
+    EC_KEY_free(key1);
+
+    res = TEST_RES_CHECK(1);
+#endif /* OPENSSL_EXTRA && !NO_ECC256 && !NO_ECC_SECP &&
+        * !WOLF_CRYPTO_CB_ONLY_ECC */
+    return res;
+}
+
+#endif /* HAVE_ECC && !OPENSSL_NO_PK */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
@@ -58073,7 +58920,8 @@ static int test_wolfSSL_set_SSL_CTX(void)
 {
     int res = TEST_SKIPPED;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
-    && !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    && !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_RSA)
     WOLFSSL_CTX *ctx1, *ctx2;
     WOLFSSL *ssl;
     const byte *session_id1 = (const byte *)"CTX1";
@@ -58223,23 +59071,6 @@ static int test_wolfSSL_SSL_in_init(void)
         (void)testCertFile;
         (void)testKeyFile;
     #endif
-
-    res = TEST_RES_CHECK(1);
-#endif
-    return res;
-}
-
-static int test_wolfSSL_EC_curve(void)
-{
-    int res = TEST_SKIPPED;
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
-    int nid = NID_secp160k1;
-    const char* nid_name;
-
-    AssertNotNull(nid_name = EC_curve_nid2nist(nid));
-    AssertIntEQ(XMEMCMP(nid_name, "K-160", XSTRLEN("K-160")), 0);
-
-    AssertIntEQ(EC_curve_nist2nid(nid_name), nid);
 
     res = TEST_RES_CHECK(1);
 #endif
@@ -60674,7 +61505,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_PEM_read),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_PEM_X509_INFO_read_bio),
-    TEST_DECL(test_wolfSSL_PEM_read_bio_ECPKParameters),
 #endif
     TEST_DECL(test_wolfSSL_X509_STORE_get1_certs),
     TEST_DECL(test_wolfSSL_X509_NAME_ENTRY_get_object),
@@ -60719,16 +61549,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_CRYPTO_set_dynlock_xxx),
     TEST_DECL(test_CRYPTO_THREADID_xxx),
     TEST_DECL(test_ENGINE_cleanup),
-    TEST_DECL(test_wolfSSL_EC_KEY_set_group),
-    TEST_DECL(test_wolfSSL_EC_KEY_set_conv_form),
-    TEST_DECL(test_wolfSSL_EC_KEY_print_fp),
 #ifdef OPENSSL_ALL
     TEST_DECL(test_wolfSSL_X509_PUBKEY_get),
     TEST_DECL(test_wolfSSL_sk_CIPHER_description),
     TEST_DECL(test_wolfSSL_get_ciphers_compat),
     TEST_DECL(test_wolfSSL_ASN1_STRING_to_UTF8),
     TEST_DECL(test_wolfSSL_ASN1_UNIVERSALSTRING_to_string),
-    TEST_DECL(test_wolfSSL_EC_KEY_dup),
     TEST_DECL(test_wolfSSL_EVP_PKEY_set1_get1_DSA),
     TEST_DECL(test_wolfSSL_DSA_SIG),
     TEST_DECL(test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY),
@@ -60830,6 +61656,25 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_DH_LoadDer),
     TEST_DECL(test_wolfSSL_i2d_DHparams),
 
+#if defined(HAVE_ECC) && !defined(OPENSSL_NO_PK)
+    TEST_DECL(test_wolfSSL_EC_GROUP),
+    TEST_DECL(test_wolfSSL_PEM_read_bio_ECPKParameters),
+    TEST_DECL(test_wolfSSL_EC_POINT),
+    TEST_DECL(test_wolfSSL_EC_KEY_generate),
+    TEST_DECL(test_EC_i2d),
+    TEST_DECL(test_wolfSSL_EC_curve),
+    TEST_DECL(test_wolfSSL_EC_KEY_dup),
+    TEST_DECL(test_wolfSSL_EC_KEY_set_group),
+    TEST_DECL(test_wolfSSL_EC_KEY_set_conv_form),
+    TEST_DECL(test_wolfSSL_EC_KEY_private_key),
+    TEST_DECL(test_wolfSSL_EC_KEY_public_key),
+    TEST_DECL(test_wolfSSL_EC_KEY_print_fp),
+    TEST_DECL(test_wolfSSL_EC_get_builtin_curves),
+    TEST_DECL(test_wolfSSL_ECDSA_SIG),
+    TEST_DECL(test_ECDSA_size_sign),
+    TEST_DECL(test_ECDH_compute_key),
+#endif
+
     TEST_DECL(test_wolfSSL_X509V3_EXT_get),
     TEST_DECL(test_wolfSSL_X509V3_EXT_nconf),
     TEST_DECL(test_wolfSSL_X509V3_EXT),
@@ -60849,7 +61694,6 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_ASN1_get_object),
     TEST_DECL(test_openssl_generate_key_and_cert),
-    TEST_DECL(test_wolfSSL_EC_get_builtin_curves),
     TEST_DECL(test_wolfSSL_CRYPTO_memcmp),
     TEST_DECL(test_wolfSSL_read_detect_TCP_disconnect),
     /* test the no op functions for compatibility */
@@ -60938,7 +61782,6 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_security_level),
     TEST_DECL(test_wolfSSL_SSL_in_init),
-    TEST_DECL(test_wolfSSL_EC_curve),
     TEST_DECL(test_wolfSSL_CTX_set_timeout),
     TEST_DECL(test_wolfSSL_OpenSSL_version),
     TEST_DECL(test_wolfSSL_set_psk_use_session_callback),
@@ -61133,12 +61976,8 @@ TEST_CASE testCases[] = {
 #ifdef OPENSSL_EXTRA
     TEST_DECL(test_wolfSSL_EVP_get_cipherbynid),
     TEST_DECL(test_wolfSSL_EVP_CIPHER_CTX),
-    TEST_DECL(test_wolfSSL_EC),
-    TEST_DECL(test_wolfSSL_ECDSA_SIG),
-    TEST_DECL(test_ECDSA_size_sign),
     TEST_DECL(test_ED25519),
     TEST_DECL(test_ED448),
-    TEST_DECL(test_EC_i2d),
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
     !defined(HAVE_SELFTEST) && \
