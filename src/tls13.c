@@ -3232,10 +3232,11 @@ exit_buildmsg:
 static int FindSuiteSSL(WOLFSSL* ssl, byte* suite)
 {
     word16 i;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        if (ssl->suites->suites[i+0] == suite[0] &&
-            ssl->suites->suites[i+1] == suite[1]) {
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        if (suites->suites[i+0] == suite[0] &&
+                suites->suites[i+1] == suite[1]) {
             return 1;
         }
     }
@@ -3250,7 +3251,7 @@ static int FindSuiteSSL(WOLFSSL* ssl, byte* suite)
  * @param [in] suite.
  * @return  A value from wc_MACAlgorithm enumeration.
  */
-byte SuiteMac(byte* suite)
+byte SuiteMac(const byte* suite)
 {
     byte mac = no_mac;
 
@@ -3856,6 +3857,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     Sch13Args  args[1];
 #endif
     byte major, tls12minor;
+    const Suites* suites;
 
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
@@ -3898,7 +3900,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 #endif
 
-    if (ssl->suites == NULL) {
+    suites = WOLFSSL_SUITES(ssl);
+    if (suites == NULL) {
         WOLFSSL_MSG("Bad suites pointer in SendTls13ClientHello");
         return SUITES_ERROR;
     }
@@ -3940,7 +3943,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
     /* Version | Random | Session Id | Cipher Suites | Compression */
-    args->length = VERSION_SZ + RAN_LEN + ENUM_LEN + ssl->suites->suiteSz +
+    args->length = VERSION_SZ + RAN_LEN + ENUM_LEN + suites->suiteSz +
             SUITE_LEN + COMP_LEN + ENUM_LEN;
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
@@ -4101,18 +4104,18 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
     /* Cipher suites */
-    c16toa(ssl->suites->suiteSz, args->output + args->idx);
+    c16toa(suites->suiteSz, args->output + args->idx);
     args->idx += OPAQUE16_LEN;
-    XMEMCPY(args->output + args->idx, &ssl->suites->suites,
-        ssl->suites->suiteSz);
-    args->idx += ssl->suites->suiteSz;
+    XMEMCPY(args->output + args->idx, &suites->suites,
+        suites->suiteSz);
+    args->idx += suites->suiteSz;
 #ifdef WOLFSSL_DEBUG_TLS
     {
         int ii;
         WOLFSSL_MSG("Ciphers:");
-        for (ii = 0 ; ii < ssl->suites->suiteSz; ii += 2) {
-            WOLFSSL_MSG(GetCipherNameInternal(ssl->suites->suites[ii+0],
-                                              ssl->suites->suites[ii+1]));
+        for (ii = 0 ; ii < suites->suiteSz; ii += 2) {
+            WOLFSSL_MSG(GetCipherNameInternal(suites->suites[ii+0],
+                                              suites->suites[ii+1]));
         }
     }
 #endif
@@ -4956,6 +4959,9 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
     word16 i;
     word16 j;
 
+    if (AllocateSuites(ssl) != 0)
+        return;
+
     XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
 
     if (!ssl->options.useClientOrder) {
@@ -5018,7 +5024,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
  * @return  1 when a match found - but check error code.
  * @return  0 when no match found.
  */
-static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
+static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
 {
     int         ret = 0;
     int         found = 0;
@@ -5054,9 +5060,13 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
             found = (suite[0] == cipherSuite0) && (suite[1] == cipherSuite);
         #else
             /* Check whether PSK ciphersuite is in SSL. */
-            suite[0] = cipherSuite0;
-            suite[1] = cipherSuite;
-            found = FindSuiteSSL(ssl, suite);
+            {
+                byte s[2] = {
+                    cipherSuite0,
+                    cipherSuite,
+                };
+                found = FindSuiteSSL(ssl, s);
+            }
         #endif
         }
         if ((ret == 0) && found) {
@@ -5073,8 +5083,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
         }
         if ((ret == 0) && found) {
             /* Set PSK ciphersuite into SSL. */
-            ssl->options.cipherSuite0 = suite[0];
-            ssl->options.cipherSuite  = suite[1];
+            ssl->options.cipherSuite0 = cipherSuite0;
+            ssl->options.cipherSuite  = cipherSuite;
             ret = SetCipherSpecs(ssl);
         }
         if ((ret == 0) && found) {
@@ -5104,7 +5114,7 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
  * returns 0 on success and otherwise failure.
  */
 static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
-    byte* suite, int* usingPSK, int* first)
+    const byte* suite, int* usingPSK, int* first)
 {
     int           ret = 0;
     TLSX*         ext;
@@ -5194,11 +5204,15 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 continue;
             }
         #else
-            suite[0] = ssl->session->cipherSuite0;
-            suite[1] = ssl->session->cipherSuite;
-            if (!FindSuiteSSL(ssl, suite)) {
-                current = current->next;
-                continue;
+            {
+                byte s[2] = {
+                    ssl->session->cipherSuite0,
+                    ssl->session->cipherSuite,
+                };
+                if (!FindSuiteSSL(ssl, s)) {
+                    current = current->next;
+                    continue;
+                }
             }
         #endif
 
@@ -5326,6 +5340,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     int    first = 0;
 #ifndef WOLFSSL_PSK_ONE_ID
     int    i;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 #else
     byte   suite[2];
 #endif
@@ -5370,9 +5385,9 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
     /* Server list has only common suites from refining in server or client
      * order. */
-    for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
+    for (i = 0; !(*usingPSK) && i < suites->suiteSz; i += 2) {
         ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
-            ssl->suites->suites + i, usingPSK, &first);
+                suites->suites + i, usingPSK, &first);
         if (ret != 0) {
             return ret;
         }
@@ -7727,7 +7742,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else {
                 ERROR_OUT(ALGO_ID_E, exit_scv);
             }
-            EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo, args->verify);
+            EncodeSigAlg(ssl->options.hashAlgo, args->sigAlgo, args->verify);
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 int sigLen = MAX_SIG_DATA_SZ;
@@ -7760,7 +7775,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 }
 
                 ret = CreateRSAEncodedSig(sig->buffer, args->sigData,
-                    args->sigDataSz, args->sigAlgo, ssl->suites->hashAlgo);
+                    args->sigDataSz, args->sigAlgo, ssl->options.hashAlgo);
                 if (ret < 0)
                     goto exit_scv;
                 sig->length = ret;
@@ -7775,7 +7790,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 sig->length = args->sendSz - args->idx - HASH_SIG_SIZE -
                               VERIFY_HEADER;
                 ret = CreateECCEncodedSig(args->sigData,
-                    args->sigDataSz, ssl->suites->hashAlgo);
+                    args->sigDataSz, ssl->options.hashAlgo);
                 if (ret < 0)
                     goto exit_scv;
                 args->sigDataSz = (word16)ret;
@@ -7886,7 +7901,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 ret = RsaSign(ssl, sig->buffer, (word32)sig->length,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
-                    args->sigAlgo, ssl->suites->hashAlgo,
+                    args->sigAlgo, ssl->options.hashAlgo,
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
@@ -7920,7 +7935,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->sigData, args->sigLen,
                     sig->buffer, (word32)sig->length, args->sigAlgo,
-                    ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
+                    ssl->options.hashAlgo, (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
             }
@@ -11657,6 +11672,8 @@ void wolfSSL_set_psk_client_cs_callback(WOLFSSL* ssl,
     #ifndef NO_CERTS
         keySz = ssl->buffers.keySz;
     #endif
+    if (AllocateSuites(ssl) != 0)
+        return;
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -11708,6 +11725,8 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
     #ifndef NO_CERTS
         keySz = ssl->buffers.keySz;
     #endif
+    if (AllocateSuites(ssl) != 0)
+        return;
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -11756,6 +11775,8 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
     #ifndef NO_CERTS
         keySz = ssl->buffers.keySz;
     #endif
+    if (AllocateSuites(ssl) != 0)
+        return;
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -11775,6 +11796,7 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
     const char* name = NULL;
     byte mac = no_mac;
     int i;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 
     if (XSTRCMP(hash, "SHA256") == 0) {
         mac = sha256_mac;
@@ -11783,10 +11805,10 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
         mac = sha384_mac;
     }
     if (mac != no_mac) {
-        for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-            if (SuiteMac(ssl->suites->suites + i) == mac) {
-                name = GetCipherNameInternal(ssl->suites->suites[i + 0],
-                                             ssl->suites->suites[i + 1]);
+        for (i = 0; i < suites->suiteSz; i += 2) {
+            if (SuiteMac(suites->suites + i) == mac) {
+                name = GetCipherNameInternal(suites->suites[i + 0],
+                                             suites->suites[i + 1]);
                 break;
             }
         }

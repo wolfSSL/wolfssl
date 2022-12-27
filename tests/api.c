@@ -50862,10 +50862,13 @@ static int test_tls13_cipher_suites(void)
     wolfSSL_SetIOReadCtx(ssl, &msg);
     /* Force server to have as many occurrences of same cipher suite as
      * possible. */
-    ssl->suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        ssl->suites->suites[i + 0] = TLS13_BYTE;
-        ssl->suites->suites[i + 1] = TLS_AES_128_GCM_SHA256;
+    {
+        Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
+        suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
+        for (i = 0; i < suites->suiteSz; i += 2) {
+            suites->suites[i + 0] = TLS13_BYTE;
+            suites->suites[i + 1] = TLS_AES_128_GCM_SHA256;
+        }
     }
     /* Test multiple occurrences of same cipher suite. */
     wolfSSL_accept_TLSv13(ssl);

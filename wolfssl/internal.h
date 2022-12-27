@@ -1940,7 +1940,7 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL byte SuiteMac(byte* suite);
+WOLFSSL_LOCAL byte SuiteMac(const byte* suite);
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
@@ -2118,17 +2118,14 @@ struct Suites {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
     byte   setSuites;               /* user set suites from default */
-    byte   hashAlgo;                /* selected hash algorithm */
-    byte   sigAlgo;                 /* selected sig algorithm */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    WOLF_STACK_OF(WOLFSSL_CIPHER)* stack; /* stack of available cipher suites */
-#endif
 };
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveFalconSig,
                                          int haveDilithiumSig, int haveAnon,
-                                         int tls1_2, int keySz);
+                                         int tls1_2, int keySz, word16* len);
+WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
                               word16 haveECDSAsig, word16 haveECC,
@@ -4218,9 +4215,6 @@ typedef struct Options {
         word16        dhKeyTested:1;      /* Set when key has been tested. */
     #endif
 #endif
-#ifdef SINGLE_THREADED
-    word16            ownSuites:1;        /* if suites are malloced in ssl object */
-#endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
     word16            disallowEncThenMac:1;   /* Don't do Encrypt-Then-MAC */
     word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
@@ -4245,6 +4239,8 @@ typedef struct Options {
     byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */
     byte            cipherSuite;            /* second byte, actual suite */
+    byte            hashAlgo;               /* selected hash algorithm */
+    byte            sigAlgo;                /* selected sig algorithm */
     byte            serverState;
     byte            clientState;
     byte            handShakeState;
@@ -4845,10 +4841,21 @@ typedef struct Dtls13Rtx {
 typedef struct CIDInfo CIDInfo;
 #endif /* WOLFSSL_DTLS_CID */
 
+/* The idea is to re-use the context suites object whenever possible to save
+ * space. */
+#define WOLFSSL_SUITES(ssl) \
+    ((const Suites*) (ssl->suites != NULL ? ssl->suites : ssl->ctx->suites))
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
-    Suites*         suites;             /* only need during handshake */
+    Suites*         suites; /* Only need during handshake. Can be NULL when
+                             * re-using the context's object. When WOLFSSL
+                             * object needs separate instance of suites use
+                             * AllocateSuites(). */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher suites */
+#endif
     Arrays*         arrays;
 #ifdef WOLFSSL_TLS13
     byte            clientSecret[SECRET_LEN];

@@ -3943,13 +3943,14 @@ static void TLSX_SupportedCurve_ValidateRequest(const WOLFSSL* ssl,
 static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
     word16 i;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        if (ssl->suites->suites[i] == TLS13_BYTE)
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        if (suites->suites[i] == TLS13_BYTE)
             return;
-        if ((ssl->suites->suites[i] == ECC_BYTE) ||
-            (ssl->suites->suites[i] == ECDHE_PSK_BYTE) ||
-            (ssl->suites->suites[i] == CHACHA_BYTE)) {
+        if ((suites->suites[i] == ECC_BYTE) ||
+            (suites->suites[i] == ECDHE_PSK_BYTE) ||
+            (suites->suites[i] == CHACHA_BYTE)) {
         #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
             return;
@@ -3971,24 +3972,28 @@ static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
  */
 static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
+#ifdef HAVE_FFDHE
+    (void)ssl;
+    (void)semaphore;
+#else
     word16 i;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        if (ssl->suites->suites[i] == TLS13_BYTE)
+    if (suites == NULL)
+        return;
+
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        if (suites->suites[i] == TLS13_BYTE)
             return;
-        if ((ssl->suites->suites[i] == ECC_BYTE) ||
-            (ssl->suites->suites[i] == ECDHE_PSK_BYTE) ||
-            (ssl->suites->suites[i] == CHACHA_BYTE)) {
+        if ((suites->suites[i] == ECC_BYTE) ||
+            (suites->suites[i] == ECDHE_PSK_BYTE) ||
+            (suites->suites[i] == CHACHA_BYTE)) {
         #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
             return;
         #endif
         }
     }
-#ifdef HAVE_FFDHE
-    (void)semaphore;
-    return;
-#else
    /* turns semaphore on to avoid sending this extension. */
    TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
 #endif
@@ -6370,7 +6375,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
 
-    return OPAQUE16_LEN + ssl->suites->hashSigAlgoSz;
+    return OPAQUE16_LEN + WOLFSSL_SUITES(ssl)->hashSigAlgoSz;
 }
 
 /* Creates a bit string of supported hash algorithms with RSA PSS.
@@ -6415,15 +6420,16 @@ static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, const byte* input,
 static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
+    const Suites* suites = WOLFSSL_SUITES(ssl);
 
-    c16toa(ssl->suites->hashSigAlgoSz, output);
-    XMEMCPY(output + OPAQUE16_LEN, ssl->suites->hashSigAlgo,
-            ssl->suites->hashSigAlgoSz);
+    c16toa(suites->hashSigAlgoSz, output);
+    XMEMCPY(output + OPAQUE16_LEN, suites->hashSigAlgo,
+            suites->hashSigAlgoSz);
 
     TLSX_SignatureAlgorithms_MapPss(ssl, output + OPAQUE16_LEN,
-                                    ssl->suites->hashSigAlgoSz);
+            suites->hashSigAlgoSz);
 
-    return OPAQUE16_LEN + ssl->suites->hashSigAlgoSz;
+    return OPAQUE16_LEN + suites->hashSigAlgoSz;
 }
 
 /* Parse the SignatureAlgorithms extension.
@@ -11205,9 +11211,10 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #ifndef WOLFSSL_PSK_ONE_ID
             if (ssl->options.client_psk_cs_cb != NULL) {
                 int i;
-                for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-                    byte cipherSuite0 = ssl->suites->suites[i + 0];
-                    byte cipherSuite = ssl->suites->suites[i + 1];
+                const Suites* suites = WOLFSSL_SUITES(ssl);
+                for (i = 0; i < suites->suiteSz; i += 2) {
+                    byte cipherSuite0 = suites->suites[i + 0];
+                    byte cipherSuite = suites->suites[i + 1];
                     unsigned int keySz;
                 #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
                     int cnt = 0;
@@ -11242,7 +11249,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                             ret = TLSX_PreSharedKey_Use(ssl,
                                 (byte*)ssl->arrays->client_identity,
                                 (word16)XSTRLEN(ssl->arrays->client_identity),
-                                0, SuiteMac(ssl->suites->suites + i),
+                                0, SuiteMac(WOLFSSL_SUITES(ssl)->suites + i),
                                 cipherSuite0, cipherSuite, 0, NULL);
                             if (ret != 0)
                                 return ret;
@@ -11383,7 +11390,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         PF_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-        if (ssl->suites->hashSigAlgoSz == 0)
+        if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if defined(WOLFSSL_TLS13)
@@ -11476,7 +11483,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
         PF_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-        if (ssl->suites->hashSigAlgoSz == 0)
+        if (WOLFSSL_SUITES(ssl)->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #ifdef WOLFSSL_TLS13
