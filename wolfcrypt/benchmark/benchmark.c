@@ -1888,14 +1888,12 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     #ifdef WOLFSSL_ESPIDF
-        unsigned long bytes_processed = (unsigned long)blocks;
+        unsigned long bytes_processed =
+            (unsigned long)count * (unsigned long)countSz;
     #else
-        word64 bytes_processed = (word64)blocks;
+        word64 bytes_processed = (word64)count * (word64)countSz;
     #endif
-#endif
 
-
-#ifdef GENERATE_MACHINE_PARSEABLE_REPORT
     /* note this codepath brings in all the fields from the non-CSV case. */
     #ifdef WOLFSSL_ESPIDF
         #ifdef HAVE_GET_CYCLES

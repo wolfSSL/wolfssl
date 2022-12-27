@@ -445,7 +445,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
          */
         #endif
     #endif
-    wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
 #endif
 
