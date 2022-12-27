@@ -483,9 +483,6 @@
 #define BENCH_DILITHIUM_LEVEL2_SIGN     0x04000000
 #define BENCH_DILITHIUM_LEVEL3_SIGN     0x08000000
 #define BENCH_DILITHIUM_LEVEL5_SIGN     0x10000000
-#define BENCH_DILITHIUM_AES_LEVEL2_SIGN 0x20000000
-#define BENCH_DILITHIUM_AES_LEVEL3_SIGN 0x40000000
-#define BENCH_DILITHIUM_AES_LEVEL5_SIGN 0x80000000
 
 /* Post-Quantum Asymmetric algorithms. (Part 2) */
 #define BENCH_SPHINCS_FAST_LEVEL1_SIGN  0x00000001
@@ -798,12 +795,6 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
       OQS_SIG_alg_dilithium_3 },
     { "-dilithium_level5", BENCH_DILITHIUM_LEVEL5_SIGN,
       OQS_SIG_alg_dilithium_5 },
-    { "-dilithium_aes_level2", BENCH_DILITHIUM_AES_LEVEL2_SIGN,
-      OQS_SIG_alg_dilithium_2_aes },
-    { "-dilithium_aes_level3", BENCH_DILITHIUM_AES_LEVEL3_SIGN,
-      OQS_SIG_alg_dilithium_3_aes },
-    { "-dilithium_aes_level5", BENCH_DILITHIUM_AES_LEVEL5_SIGN,
-      OQS_SIG_alg_dilithium_5_aes },
     { "-kyber_level1-kg",    BENCH_KYBER_LEVEL1_KEYGEN,
       OQS_KEM_alg_kyber_512 },
     { "-kyber_level1-ed",       BENCH_KYBER_LEVEL1_ENCAP,
@@ -2919,17 +2910,11 @@ static void* benchmarks_do(void* args)
 #endif
 #ifdef HAVE_DILITHIUM
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL2_SIGN))
-        bench_dilithiumKeySign(2, SHAKE_VARIANT);
+        bench_dilithiumKeySign(2);
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL3_SIGN))
-        bench_dilithiumKeySign(3, SHAKE_VARIANT);
+        bench_dilithiumKeySign(3);
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL5_SIGN))
-        bench_dilithiumKeySign(5, SHAKE_VARIANT);
-    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL2_SIGN))
-        bench_dilithiumKeySign(2, AES_VARIANT);
-    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL3_SIGN))
-        bench_dilithiumKeySign(3, AES_VARIANT);
-    if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_AES_LEVEL5_SIGN))
-        bench_dilithiumKeySign(5, AES_VARIANT);
+        bench_dilithiumKeySign(5);
 #endif
 
 #ifdef HAVE_SPHINCS
@@ -8393,7 +8378,7 @@ void bench_falconKeySign(byte level)
 #endif /* HAVE_FALCON */
 
 #ifdef HAVE_DILITHIUM
-void bench_dilithiumKeySign(byte level, byte sym)
+void bench_dilithiumKeySign(byte level)
 {
     int    ret = 0;
     dilithium_key key;
@@ -8410,38 +8395,23 @@ void bench_dilithiumKeySign(byte level, byte sym)
         return;
     }
 
-    ret = wc_dilithium_set_level_and_sym(&key, level, sym);
+    ret = wc_dilithium_set_level(&key, level);
     if (ret != 0) {
-        printf("wc_dilithium_set_level_and_sym() failed %d\n", ret);
+        printf("wc_dilithium_set_level() failed %d\n", ret);
     }
 
     if (ret == 0) {
         ret = -1;
-        if ((level == 2) && (sym == SHAKE_VARIANT)) {
+        if (level == 2) {
             ret = wc_dilithium_import_private_key(bench_dilithium_level2_key,
                       sizeof_bench_dilithium_level2_key, NULL, 0, &key);
         }
-        else if ((level == 3) && (sym == SHAKE_VARIANT)) {
+        else if (level == 3) {
             ret = wc_dilithium_import_private_key(bench_dilithium_level3_key,
                       sizeof_bench_dilithium_level3_key, NULL, 0, &key);
         }
-        else if ((level == 5) && (sym == SHAKE_VARIANT)) {
+        else if (level == 5) {
             ret = wc_dilithium_import_private_key(bench_dilithium_level5_key,
-                      sizeof_bench_dilithium_level5_key, NULL, 0, &key);
-        }
-        else if ((level == 2) && (sym == AES_VARIANT)) {
-            ret = wc_dilithium_import_private_key(
-                      bench_dilithium_aes_level2_key,
-                      sizeof_bench_dilithium_level2_key, NULL, 0, &key);
-        }
-        else if ((level == 3) && (sym == AES_VARIANT)) {
-            ret = wc_dilithium_import_private_key(
-                      bench_dilithium_aes_level3_key,
-                      sizeof_bench_dilithium_level3_key, NULL, 0, &key);
-        }
-        else if ((level == 5) && (sym == AES_VARIANT)) {
-            ret = wc_dilithium_import_private_key(
-                      bench_dilithium_aes_level5_key,
                       sizeof_bench_dilithium_level5_key, NULL, 0, &key);
         }
 
@@ -8479,14 +8449,8 @@ void bench_dilithiumKeySign(byte level, byte sym)
     } while (bench_stats_check(start));
 
     if (ret == 0) {
-        if (sym == SHAKE_VARIANT) {
-            bench_stats_asym_finish("DILITHIUM", level, desc[4], 0, count,
-                                    start, ret);
-        }
-        else {
-            bench_stats_asym_finish("DILITHIUM-AES", level, desc[4], 0, count,
-                                    start, ret);
-        }
+        bench_stats_asym_finish("DILITHIUM", level, desc[4], 0, count, start,
+                                ret);
     }
 
     bench_stats_start(&count, &start);
@@ -8508,14 +8472,8 @@ void bench_dilithiumKeySign(byte level, byte sym)
     } while (bench_stats_check(start));
 
     if (ret == 0) {
-        if (sym == SHAKE_VARIANT) {
-            bench_stats_asym_finish("DILITHIUM", level, desc[5], 0, count,
-                                    start, ret);
-        }
-        else {
-            bench_stats_asym_finish("DILITHIUM-AES", level, desc[5], 0, count,
-                                    start, ret);
-        }
+        bench_stats_asym_finish("DILITHIUM", level, desc[5], 0, count, start,
+                                ret);
     }
 
     wc_dilithium_free(&key);

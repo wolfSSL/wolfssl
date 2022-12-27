@@ -6771,18 +6771,6 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[0] = DILITHIUM_LEVEL5_SA_MAJOR;
             output[1] = DILITHIUM_LEVEL5_SA_MINOR;
             break;
-        case dilithium_aes_level2_sa_algo:
-            output[0] = DILITHIUM_AES_LEVEL2_SA_MAJOR;
-            output[1] = DILITHIUM_AES_LEVEL2_SA_MINOR;
-            break;
-        case dilithium_aes_level3_sa_algo:
-            output[0] = DILITHIUM_AES_LEVEL3_SA_MAJOR;
-            output[1] = DILITHIUM_AES_LEVEL3_SA_MINOR;
-            break;
-        case dilithium_aes_level5_sa_algo:
-            output[0] = DILITHIUM_AES_LEVEL5_SA_MAJOR;
-            output[1] = DILITHIUM_AES_LEVEL5_SA_MINOR;
-            break;
         #endif
 #endif
         default:
@@ -6853,18 +6841,6 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                 *hashAlgo = sha512_mac;
             } else if (input[1] == DILITHIUM_LEVEL5_SA_MINOR) {
                 *hsType = dilithium_level5_sa_algo;
-                /* Hash performed as part of sign/verify operation. */
-                *hashAlgo = sha512_mac;
-            } else if (input[1] == DILITHIUM_AES_LEVEL2_SA_MINOR) {
-                *hsType = dilithium_aes_level2_sa_algo;
-                /* Hash performed as part of sign/verify operation. */
-                *hashAlgo = sha512_mac;
-            } else if (input[1] == DILITHIUM_AES_LEVEL3_SA_MINOR) {
-                *hsType = dilithium_aes_level3_sa_algo;
-                /* Hash performed as part of sign/verify operation. */
-                *hashAlgo = sha512_mac;
-            } else if (input[1] == DILITHIUM_AES_LEVEL5_SA_MINOR) {
-                *hsType = dilithium_aes_level5_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
             }
@@ -7730,27 +7706,17 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
                 dilithium_key* fkey = (dilithium_key*)ssl->hsKey;
                 byte level = 0;
-                byte sym = 0;
-                if (wc_dilithium_get_level_and_sym(fkey, &level, &sym) != 0) {
+                if (wc_dilithium_get_level(fkey, &level) != 0) {
                     ERROR_OUT(ALGO_ID_E, exit_scv);
                 }
-                if ((level == 2) && (sym == SHAKE_VARIANT)) {
+                if (level == 2) {
                     args->sigAlgo = dilithium_level2_sa_algo;
                 }
-                else if ((level == 3) && (sym == SHAKE_VARIANT)) {
+                else if (level == 3) {
                     args->sigAlgo = dilithium_level3_sa_algo;
                 }
-                else if ((level == 5) && (sym == SHAKE_VARIANT)) {
+                else if (level == 5) {
                     args->sigAlgo = dilithium_level5_sa_algo;
-                }
-                else if ((level == 2) && (sym == AES_VARIANT)) {
-                    args->sigAlgo = dilithium_aes_level2_sa_algo;
-                }
-                else if ((level == 3) && (sym == AES_VARIANT)) {
-                    args->sigAlgo = dilithium_aes_level3_sa_algo;
-                }
-                else if ((level == 5) && (sym == AES_VARIANT)) {
-                    args->sigAlgo = dilithium_aes_level5_sa_algo;
                 }
                 else {
                     ERROR_OUT(ALGO_ID_E, exit_scv);
@@ -8319,21 +8285,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
             if (args->sigAlgo == dilithium_level5_sa_algo) {
                 WOLFSSL_MSG("Peer sent Dilithium Level 5 sig");
-                validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
-                               ssl->peerDilithiumKeyPresent;
-            }
-            if (args->sigAlgo == dilithium_aes_level2_sa_algo) {
-                WOLFSSL_MSG("Peer sent Dilithium AES Level 2 sig");
-                validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
-                               ssl->peerDilithiumKeyPresent;
-            }
-            if (args->sigAlgo == dilithium_aes_level3_sa_algo) {
-                WOLFSSL_MSG("Peer sent Dilithium AES Level 3 sig");
-                validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
-                               ssl->peerDilithiumKeyPresent;
-            }
-            if (args->sigAlgo == dilithium_aes_level5_sa_algo) {
-                WOLFSSL_MSG("Peer sent Dilithium AES Level 5 sig");
                 validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
                                ssl->peerDilithiumKeyPresent;
             }
