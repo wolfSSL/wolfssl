@@ -3875,7 +3875,7 @@ static int test_wolfSSL_EC(void)
     /* check bn2hex */
     hexStr = BN_bn2hex(k);
     AssertStrEQ(hexStr, kTest);
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
     BN_print_fp(stderr, k);
     fprintf(stderr, "\n");
 #endif
@@ -3883,7 +3883,7 @@ static int test_wolfSSL_EC(void)
 
     hexStr = BN_bn2hex(Gx);
     AssertStrEQ(hexStr, kGx);
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
     BN_print_fp(stderr, Gx);
     fprintf(stderr, "\n");
 #endif
@@ -3891,7 +3891,7 @@ static int test_wolfSSL_EC(void)
 
     hexStr = BN_bn2hex(Gy);
     AssertStrEQ(hexStr, kGy);
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
     BN_print_fp(stderr, Gy);
     fprintf(stderr, "\n");
 #endif
@@ -53327,7 +53327,7 @@ static int test_wolfSSL_RSA_print(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
    !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
-   !defined(HAVE_FAST_RSA) && !defined(NO_BIO)
+   !defined(HAVE_FAST_RSA) && !defined(NO_BIO) && defined(XFPRINTF)
     BIO *bio;
     WOLFSSL_RSA* rsa = NULL;
 

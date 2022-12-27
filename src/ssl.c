@@ -4529,7 +4529,8 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
 
 #endif /* NO_CERTS */
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) \
+    && defined(XFPRINTF)
 
 void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 {
@@ -4553,7 +4554,7 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
     wc_ERR_print_errors_cb(cb, u);
 }
 #endif
-#endif
+#endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM && XFPRINTF */
 
 /*
  * TODO This ssl parameter needs to be changed to const once our ABI checker
@@ -36937,7 +36938,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
     return buf;
 }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -36968,7 +36969,7 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 
     return ret;
 }
-#endif /* !NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && XFPRINTF */
 
 
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
