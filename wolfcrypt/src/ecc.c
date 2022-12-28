@@ -5632,7 +5632,8 @@ ecc_key* wc_ecc_key_new(void* heap)
     int devId = INVALID_DEVID;
     ecc_key* key;
 
-#ifdef WOLFSSL_QNX_CAAM
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
+    /* assume all keys are using CAAM for ECC unless explicitly set otherwise */
     devId = WOLFSSL_CAAM_DEVID;
 #endif
     key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
@@ -5772,7 +5773,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 WOLFSSL_ABI
 int wc_ecc_init(ecc_key* key)
 {
-#ifdef WOLFSSL_QNX_CAAM
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     return wc_ecc_init_ex(key, NULL, WOLFSSL_CAAM_DEVID);
 #else
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
@@ -7328,7 +7329,7 @@ int wc_ecc_free(ecc_key* key)
     wc_ecc_free_async(key);
 #endif
 
-#ifdef WOLFSSL_QNX_CAAM
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     /* free secure memory */
     if ((key->blackKey != CAAM_BLACK_KEY_CCM &&
          key->blackKey != CAAM_BLACK_KEY_ECB) && key->blackKey > 0) {
@@ -9069,7 +9070,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
-#ifdef WOLFSSL_QNX_CAAM
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     /* check if public key in secure memory */
     if (key->securePubKey > 0) {
         int keySz = wc_ecc_size(key);
@@ -9300,7 +9301,7 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
     (defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH))) && \
-    !defined(WOLFSSL_KCAPI_ECC)
+    !defined(WOLFSSL_KCAPI_ECC) || defined(WOLFSSL_CAAM)
 /* validate privkey * generator == pubkey, 0 on success */
 static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 {
@@ -9807,7 +9808,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
             err = ECC_PRIV_KEY_E;
         }
 
-    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    #if defined(WOLFSSL_VALIDATE_ECC_IMPORT) || defined(WOLFSSL_CAAM)
         /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
         /* private * base generator must equal pubkey */
         if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
@@ -10180,7 +10181,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
             return NOT_COMPILED_IN;
         }
     #endif
-    #ifdef WOLFSSL_QNX_CAAM
+    #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
         if (key->blackKey == CAAM_BLACK_KEY_CCM) {
             if (*dLen < keySz + WC_CAAM_MAC_SZ) {
                 *dLen = keySz + WC_CAAM_MAC_SZ;
@@ -10249,7 +10250,7 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_QNX_CAAM
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     /* check if black key in secure memory */
     if ((key->blackKey != CAAM_BLACK_KEY_CCM &&
          key->blackKey != CAAM_BLACK_KEY_ECB) && key->blackKey > 0) {
@@ -10355,7 +10356,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             ret = silabs_ecc_import_private(key, key->dp->size);
         }
     }
-#elif defined(WOLFSSL_QNX_CAAM)
+#elif defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
     #ifdef WOLFSSL_CAAM_BLACK_KEY_SM
         int part = caamFindUnusedPartition();
@@ -10818,7 +10819,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             if (encType == WC_TYPE_HEX_STR)
                 err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
             else {
-            #ifdef WOLFSSL_QNX_CAAM
+            #if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
                 if (key->blackKey == CAAM_BLACK_KEY_CCM) {
                     err = mp_read_unsigned_bin(&key->k, (const byte*)d,
                     key->dp->size + WC_CAAM_MAC_SZ);

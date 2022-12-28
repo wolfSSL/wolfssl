@@ -88,6 +88,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/caam/wolfcaam_rsa.c \
               wolfcrypt/src/port/caam/wolfcaam_hmac.c \
               wolfcrypt/src/port/caam/wolfcaam_aes.c \
+              wolfcrypt/src/port/caam/wolfcaam_fsl_nxp.c \
               wolfcrypt/src/port/silabs/silabs_aes.c \
               wolfcrypt/src/port/silabs/silabs_ecc.c \
               wolfcrypt/src/port/silabs/silabs_hash.c \

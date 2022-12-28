@@ -52,6 +52,11 @@
     #include "fsl_ltc.h"
 #endif
 
+#if defined(WOLFSSL_IMXRT1170_CAAM)
+    #include "fsl_device_registers.h"
+    #include "fsl_caam.h"
+#endif
+
 #ifdef WOLFSSL_IMXRT_DCP
     #include "fsl_dcp.h"
 #endif
@@ -155,6 +160,10 @@ struct wc_Sha {
     #ifdef WOLF_CRYPTO_CB
         int    devId;
         void*  devCtx; /* generic crypto callback context */
+    #endif
+    #ifdef WOLFSSL_IMXRT1170_CAAM
+        caam_hash_ctx_t ctx;
+        caam_handle_t hndl;
     #endif
     #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
         byte*  msg;

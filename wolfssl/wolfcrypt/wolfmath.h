@@ -65,7 +65,7 @@ WOLFSSL_API int mp_rand(mp_int* a, int digits, WC_RNG* rng);
 
 #define WC_TYPE_HEX_STR 1
 #define WC_TYPE_UNSIGNED_BIN 2
-#if defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     #define WC_TYPE_BLACK_KEY 3
 #endif
 

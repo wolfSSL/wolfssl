@@ -25,7 +25,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CAAM_HASH)
+#if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CAAM_HASH) \
+	&& !defined(WOLFSSL_IMXRT1170_CAAM)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -84,7 +85,7 @@ static int _InitSha(byte* ctx, word32 ctxSz, void* heap, int devId,
     arg[1] = ctxSz + WC_CAAM_CTXLEN;
     arg[2] = (word32)devId;
 
-    if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
+    if ((ret = wc_caamAddAndWait(buf, 1, arg, type)) != 0) {
         WOLFSSL_MSG("Error with CAAM SHA init");
         return ret;
     }
@@ -137,7 +138,7 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
             arg[0] = CAAM_ALG_UPDATE;
             arg[1] = digestSz + WC_CAAM_CTXLEN;
 
-            if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
+            if ((ret = wc_caamAddAndWait(buf, 2, arg, type)) != 0) {
                 WOLFSSL_MSG("Error with CAAM SHA update");
                 return ret;
             }
@@ -169,7 +170,7 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
         arg[0] = CAAM_ALG_UPDATE;
         arg[1] = digestSz + WC_CAAM_CTXLEN;
 
-        if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
+        if ((ret = wc_caamAddAndWait(buf, 2, arg, type)) != 0) {
             WOLFSSL_MSG("Error with CAAM SHA update");
             return ret;
         }
@@ -244,7 +245,7 @@ int wc_CAAM_ShaHash(wc_Sha* sha, const byte* in, word32 inSz, byte* digest)
         ret = _wc_Hash_Grow(&(sha->msg), &(sha->used), &(sha->len), in,
                         inSz, sha->heap);
     #else
-        ret = _ShaUpdate(sha, data, len, SHA_DIGEST_SIZE, CAAM_SHA);
+        ret = _ShaUpdate(sha, in, inSz, SHA_DIGEST_SIZE, CAAM_SHA);
     #endif
     }
 
@@ -319,7 +320,7 @@ int wc_CAAM_Sha256Hash(wc_Sha256* sha256, const byte* in, word32 inSz,
     #ifdef WOLFSSL_HASH_KEEP
         ret = wc_Sha256_Grow(sha256, in, inSz);
     #else
-        ret = _ShaUpdate(sha256, data, len, SHA256_DIGEST_SIZE, CAAM_SHA256);
+        ret = _ShaUpdate(sha256, in, inSz, SHA256_DIGEST_SIZE, CAAM_SHA256);
     #endif
     }
 

@@ -21,18 +21,27 @@
 
 #include <stdio.h>
 #include "board.h"
-#include "fsl_rtc.h"
-#include "fsl_trng.h"
 #include "peripherals.h"
 #include "pin_mux.h"
 #include "clock_config.h"
-#include "MIMXRT685S_cm33.h"
+
+#ifdef CPU_MIMXRT1176DVMAA_cm7
+    #include "MIMXRT1176_cm7.h"
+#else
+    #include "MIMXRT685S_cm33.h"
+#endif
+
+
 #include "fsl_debug_console.h"
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
-#include "test.h"
+#include "wolfcrypt/test/test.h"
 
+
+#if defined(FREESCALE_KSDK_2_0_TRNG) && defined(FREESCALE_RTC)
+#include "fsl_rtc.h"
+#include "fsl_trng.h"
 /* start the RTC and TRNG */
 static void setup()
 {
@@ -65,10 +74,49 @@ static void setup()
         PRINTF("Issues starting TRNG\n");
     }
 }
+#elif defined(FREESCALE_SNVS_RTC)
+#include "fsl_snvs_hp.h"
+static void setup()
+{
+    uint32_t sec;
+    uint8_t index;
+    snvs_hp_rtc_datetime_t rtcDate;
+    snvs_hp_rtc_config_t snvsRtcConfig;
+
+/* Init SNVS */
+/*
+ * snvsConfig->rtccalenable = false;
+ * snvsConfig->rtccalvalue = 0U;
+ * snvsConfig->srtccalenable = false;
+ * snvsConfig->srtccalvalue = 0U;
+ * snvsConfig->PIFreq = 0U;
+ */
+SNVS_HP_RTC_GetDefaultConfig(&snvsRtcConfig);
+SNVS_HP_RTC_Init(SNVS, &snvsRtcConfig);
+
+PRINTF("SNVS HP example:\r\n");
+
+/* Set a start date time and start RT */
+rtcDate.year   = 2014U;
+rtcDate.month  = 12U;
+rtcDate.day    = 25U;
+rtcDate.hour   = 19U;
+rtcDate.minute = 0;
+rtcDate.second = 0;
+
+/* Set RTC time to default time and date and start the RTC */
+SNVS_HP_RTC_SetDatetime(SNVS, &rtcDate);
+}
+#else
+static void setup()
+{
+	/* no clock or trng to setup */
+}
+#endif
 
 int main(void)
 {
-    volatile static int i = 0;
+    volatile int i = 0;
 	int ret;
 
     /* Init board hardware. */
@@ -93,7 +141,10 @@ int main(void)
     	PRINTF("Failied to initialize wolfCrypt\r\n");
     }
 
+#if defined(FREESCALE_KSDK_2_0_TRNG) && defined(FREESCALE_RTC)
     TRNG_Deinit(TRNG0);
+#endif
+
     while(1) {
         i++;
         __asm volatile ("nop");

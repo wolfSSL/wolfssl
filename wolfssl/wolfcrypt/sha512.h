@@ -91,6 +91,11 @@
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h>
 #endif
 
+#if defined(WOLFSSL_IMXRT1170_CAAM)
+    #include "fsl_device_registers.h"
+    #include "fsl_caam.h"
+#endif
+
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
 #elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
@@ -191,6 +196,10 @@ struct wc_Sha512 {
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
+#endif
+#ifdef WOLFSSL_IMXRT1170_CAAM
+    caam_hash_ctx_t ctx;
+    caam_handle_t hndl;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };

@@ -182,7 +182,8 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_aes.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h \
-                         wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_seco.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h
 endif
 
 if BUILD_IOTSAFE

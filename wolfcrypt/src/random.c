@@ -170,6 +170,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
+#elif defined(WOLFSSL_IMXRT1170_CAAM)
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
@@ -3321,7 +3322,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
-       defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_QNX_CAAM))
+       defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_QNX_CAAM) || \
+       defined(WOLFSSL_IMXRT1170_CAAM))
 
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
@@ -3358,7 +3360,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             if (ret != RAN_BLOCK_E && ret != 0) {
                 return ret;
             }
+#ifndef WOLFSSL_IMXRT1170_CAAM
             usleep(100);
+#endif
         }
 
         if (i == times && ret != 0) {
