@@ -6620,21 +6620,30 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    sendSz;
     word32 i;
     word16 reqSz;
-    TLSX*  ext;
+    word16 hashSigAlgoSz = 0;
+    SignatureAlgorithms* sa;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendTls13CertificateRequest");
 
     ssl->options.buildingMsg = 1;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        InitSuitesHashSigAlgo(ssl->suites, 1, 1, 1, 1,
-                              0, 1, ssl->buffers.keySz);
+    if (ssl->options.side != WOLFSSL_SERVER_END)
+        return SIDE_ERROR;
 
-    ext = TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS);
-    if (ext == NULL)
-        return EXT_MISSING;
-    ext->resp = 0;
+    /* Get the length of the hashSigAlgo buffer */
+    InitSuitesHashSigAlgo(NULL, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
+                          &hashSigAlgoSz);
+    sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
+    if (sa == NULL)
+        return MEMORY_ERROR;
+    InitSuitesHashSigAlgo(sa->hashSigAlgo, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
+                          &sa->hashSigAlgoSz);
+    ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
+    if (ret != 0) {
+        TLSX_SignatureAlgorithms_FreeAll(sa, ssl->heap);
+        return ret;
+    }
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 #ifdef WOLFSSL_DTLS13

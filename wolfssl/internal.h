@@ -2120,7 +2120,7 @@ struct Suites {
     byte   setSuites;               /* user set suites from default */
 };
 
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveECDSAsig,
                                          int haveRSAsig, int haveFalconSig,
                                          int haveDilithiumSig, int haveAnon,
                                          int tls1_2, int keySz, word16* len);
@@ -2776,6 +2776,25 @@ typedef int (*CallbackProcessPeerCert)(WOLFSSL* ssl, DecodedCert* p_cert);
 WOLFSSL_API void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
        CallbackProcessPeerCert cb);
 #endif /* DecodedCert && HAVE_PK_CALLBACKS */
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+typedef struct SignatureAlgorithms {
+    /* Not const since it is modified in TLSX_SignatureAlgorithms_MapPss */
+    WOLFSSL*    ssl;
+    word16      hashSigAlgoSz; /* SigAlgo extension length in bytes */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte        hashSigAlgo[]; /* sig/algo to offer */
+} SignatureAlgorithms;
+
+WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
+        WOLFSSL* ssl, word16 hashSigAlgoSz, void* heap);
+WOLFSSL_LOCAL void TLSX_SignatureAlgorithms_FreeAll(SignatureAlgorithms* sa,
+                                                    void* heap);
+#endif
 
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES

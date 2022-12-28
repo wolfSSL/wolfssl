@@ -6373,9 +6373,12 @@ int TLSX_Cookie_Use(WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
 
 static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 {
-    WOLFSSL* ssl = (WOLFSSL*)data;
+    SignatureAlgorithms* sa = (SignatureAlgorithms*)data;
 
-    return OPAQUE16_LEN + WOLFSSL_SUITES(ssl)->hashSigAlgoSz;
+    if (sa->hashSigAlgoSz == 0)
+        return OPAQUE16_LEN + WOLFSSL_SUITES(sa->ssl)->hashSigAlgoSz;
+    else
+        return OPAQUE16_LEN + sa->hashSigAlgoSz;
 }
 
 /* Creates a bit string of supported hash algorithms with RSA PSS.
@@ -6419,17 +6422,27 @@ static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, const byte* input,
  */
 static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
 {
-    WOLFSSL* ssl = (WOLFSSL*)data;
-    const Suites* suites = WOLFSSL_SUITES(ssl);
+    SignatureAlgorithms* sa = (SignatureAlgorithms*)data;
+    const Suites* suites = WOLFSSL_SUITES(sa->ssl);
+    word16 hashSigAlgoSz;
 
-    c16toa(suites->hashSigAlgoSz, output);
-    XMEMCPY(output + OPAQUE16_LEN, suites->hashSigAlgo,
-            suites->hashSigAlgoSz);
+    if (sa->hashSigAlgoSz == 0) {
+        c16toa(suites->hashSigAlgoSz, output);
+        XMEMCPY(output + OPAQUE16_LEN, suites->hashSigAlgo,
+                suites->hashSigAlgoSz);
+        hashSigAlgoSz = suites->hashSigAlgoSz;
+    }
+    else {
+        c16toa(sa->hashSigAlgoSz, output);
+        XMEMCPY(output + OPAQUE16_LEN, sa->hashSigAlgo,
+                sa->hashSigAlgoSz);
+        hashSigAlgoSz = sa->hashSigAlgoSz;
+    }
 
-    TLSX_SignatureAlgorithms_MapPss(ssl, output + OPAQUE16_LEN,
-            suites->hashSigAlgoSz);
+    TLSX_SignatureAlgorithms_MapPss(sa->ssl, output + OPAQUE16_LEN,
+            hashSigAlgoSz);
 
-    return OPAQUE16_LEN + suites->hashSigAlgoSz;
+    return OPAQUE16_LEN + hashSigAlgoSz;
 }
 
 /* Parse the SignatureAlgorithms extension.
@@ -6480,18 +6493,52 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, const byte* input,
  * heap        The heap used for allocation.
  * returns 0 on success, otherwise failure.
  */
-static int TLSX_SetSignatureAlgorithms(TLSX** extensions, const void* data,
+static int TLSX_SetSignatureAlgorithms(TLSX** extensions, WOLFSSL* ssl,
                                        void* heap)
 {
+    SignatureAlgorithms* sa;
+
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS, data, heap);
+    /* Already present */
+    if (TLSX_Find(*extensions, TLSX_SIGNATURE_ALGORITHMS) != NULL)
+        return 0;
+
+    sa = TLSX_SignatureAlgorithms_New(ssl, 0, heap);
+    if (sa == NULL)
+        return MEMORY_ERROR;
+
+    return TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS, sa, heap);
+}
+
+SignatureAlgorithms* TLSX_SignatureAlgorithms_New(WOLFSSL* ssl,
+        word16 hashSigAlgoSz, void* heap)
+{
+    SignatureAlgorithms* sa;
+    (void)heap;
+
+    sa = (SignatureAlgorithms*)XMALLOC(sizeof(*sa) + hashSigAlgoSz, heap,
+                                       DYNAMIC_TYPE_TLSX);
+    if (sa != NULL) {
+        XMEMSET(sa, 0, sizeof(*sa) + hashSigAlgoSz);
+        sa->ssl = ssl;
+        sa->hashSigAlgoSz = hashSigAlgoSz;
+    }
+    return sa;
+}
+
+void TLSX_SignatureAlgorithms_FreeAll(SignatureAlgorithms* sa,
+                                             void* heap)
+{
+    XFREE(sa, heap, DYNAMIC_TYPE_TLSX);
+    (void)heap;
 }
 
 #define SA_GET_SIZE  TLSX_SignatureAlgorithms_GetSize
 #define SA_WRITE     TLSX_SignatureAlgorithms_Write
 #define SA_PARSE     TLSX_SignatureAlgorithms_Parse
+#define SA_FREE_ALL  TLSX_SignatureAlgorithms_FreeAll
 #endif
 /******************************************************************************/
 /* Signature Algorithms Certificate                                           */
@@ -6571,8 +6618,8 @@ static int TLSX_SignatureAlgorithmsCert_Parse(WOLFSSL *ssl, const byte* input,
  * heap        The heap used for allocation.
  * returns 0 on success, otherwise failure.
  */
-static int TLSX_SetSignatureAlgorithmsCert(TLSX** extensions, const void* data,
-                                           void* heap)
+static int TLSX_SetSignatureAlgorithmsCert(TLSX** extensions,
+        const WOLFSSL* data, void* heap)
 {
     if (extensions == NULL)
         return BAD_FUNC_ARG;
@@ -10280,6 +10327,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
+                SA_FREE_ALL((SignatureAlgorithms*)extension->data, heap);
                 break;
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
