@@ -66,7 +66,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 Possible RSA enable options:
  * NO_RSA:                Overall control of RSA                    default: on
  *                                                                 (not defined)
- * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: off
+ * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: on
                           Note: slower by ~20%
  * WOLFSSL_KEY_GEN:       Allows Private Key Generation             default: off
  * RSA_LOW_MEM:           NON CRT Private Operations, less memory   default: off
