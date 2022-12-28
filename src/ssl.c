@@ -25200,8 +25200,8 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 /*
  * Convert time to Unix time (GMT).
  */
-static long long TimeToUnixTime(int sec, int min, int hour, int mday, int mon,
-                                int year)
+static long long TimeToUnixTime(int sec, int minute, int hour, int mday, 
+                                int mon, int year)
 {
     /* Number of cumulative days from the previous months, starting from
      * beginning of January. */
@@ -25217,8 +25217,8 @@ static long long TimeToUnixTime(int sec, int min, int hour, int mday, int mon,
                1969 / 100 - 1969 / 400;
 
     return ((((long long) (year - 1970) * 365 + leapDays +
-           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + min) * 60 +
-           sec;
+           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + minute) * 
+           60 + sec;
 }
 
 int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
@@ -29448,10 +29448,10 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 
     /* trimming spaces at the head and tail */
     dst--;
-    for (; (len > 0 && XISSPACE(*dst)); len--) {
+    for (; (len > 0 && XISSPACE((unsigned char)*dst)); len--) {
         dst--;
     }
-    for (; (len > 0 && XISSPACE(*src)); len--) {
+    for (; (len > 0 && XISSPACE((unsigned char)*src)); len--) {
         src++;
     }
 
@@ -29462,10 +29462,10 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         if (!XISASCII(*src)) {
             /* keep non-ascii code */
             *dst = *src++;
-        } else if (XISSPACE(*src)) {
+        } else if ((*src) > 0 && XISSPACE((unsigned char)*src)) {
             *dst = 0x20; /* space */
             /* remove the rest of spaces */
-            while (XISSPACE(*++src) && i++ < len);
+            while (XISSPACE((unsigned char)*++src) && i++ < len);
         } else {
             *dst = (char)XTOLOWER((unsigned char)*src++);
         }
