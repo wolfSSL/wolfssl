@@ -39305,7 +39305,7 @@ int wolfSSL_RAND_poll(void)
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
                 WOLFSSL_MSG("AES CBC");
-                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, ctx->ivSz);
                 break;
 #endif
 #ifdef HAVE_AESGCM
@@ -39313,7 +39313,7 @@ int wolfSSL_RAND_poll(void)
             case AES_192_GCM_TYPE :
             case AES_256_GCM_TYPE :
                 WOLFSSL_MSG("AES GCM");
-                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, ctx->ivSz);
                 break;
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AES_ECB
