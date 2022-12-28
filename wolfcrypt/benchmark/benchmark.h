@@ -116,8 +116,6 @@ void bench_pbkdf2(void);
 void bench_falconKeySign(byte level);
 void bench_dilithiumKeySign(byte level);
 void bench_sphincsKeySign(byte level, byte optim);
-void bench_pqcKemKeygen(word32 alg);
-void bench_pqcKemEncapDecap(word32 alg);
 
 void bench_stats_print(void);
 

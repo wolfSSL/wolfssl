@@ -258,17 +258,15 @@
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
 #endif
+#if defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+    #include <wolfssl/wolfcrypt/ext_kyber.h>
+#endif
 #endif
 #ifdef WOLFCRYPT_HAVE_ECCSI
     #include <wolfssl/wolfcrypt/eccsi.h>
 #endif
 #ifdef WOLFCRYPT_HAVE_SAKKE
     #include <wolfssl/wolfcrypt/sakke.h>
-#endif
-#ifdef HAVE_LIBOQS
-    #include <oqs/kem.h>
-    #include <oqs/sig.h>
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 
 #if defined(HAVE_PQC)
@@ -281,16 +279,6 @@
     #if defined(HAVE_SPHINCS)
         #include <wolfssl/wolfcrypt/sphincs.h>
     #endif
-#endif
-
-#ifdef HAVE_PQM4
-    #include <api_kyber.h>
-    #define PQM4_PUBLIC_KEY_LENGTH    CRYPTO_PUBLICKEYBYTES
-    #define PQM4_PRIVATE_KEY_LENGTH   CRYPTO_SECRETKEYBYTES
-    #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
-    #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
-    typedef char OQS_KEM;
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
@@ -474,12 +462,6 @@
 /* Post-Quantum Asymmetric algorithms. */
 #define BENCH_FALCON_LEVEL1_SIGN        0x00000001
 #define BENCH_FALCON_LEVEL5_SIGN        0x00000002
-#define BENCH_KYBER_LEVEL1_KEYGEN       0x00000004
-#define BENCH_KYBER_LEVEL1_ENCAP        0x00000008
-#define BENCH_KYBER_LEVEL3_KEYGEN       0x00000010
-#define BENCH_KYBER_LEVEL3_ENCAP        0x00000020
-#define BENCH_KYBER_LEVEL5_KEYGEN       0x00000040
-#define BENCH_KYBER_LEVEL5_ENCAP        0x00000080
 #define BENCH_DILITHIUM_LEVEL2_SIGN     0x04000000
 #define BENCH_DILITHIUM_LEVEL3_SIGN     0x08000000
 #define BENCH_DILITHIUM_LEVEL5_SIGN     0x10000000
@@ -765,7 +747,7 @@ static const bench_alg bench_other_opt[] = {
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
-#if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
 typedef struct bench_pq_alg {
@@ -780,10 +762,6 @@ typedef struct bench_pq_alg {
  * options. */
 static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-pq",                 0xffffffff, NULL},
-#ifdef HAVE_PQM4
-    { "-kyber_level1-kg", BENCH_KYBER_LEVEL1_KEYGEN, NULL },
-    { "-kyber_level1-ed", BENCH_KYBER_LEVEL1_ENCAP, NULL },
-#endif
 #ifdef HAVE_LIBOQS
     { "-falcon_level1", BENCH_FALCON_LEVEL1_SIGN,
       OQS_SIG_alg_falcon_512 },
@@ -795,18 +773,6 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
       OQS_SIG_alg_dilithium_3 },
     { "-dilithium_level5", BENCH_DILITHIUM_LEVEL5_SIGN,
       OQS_SIG_alg_dilithium_5 },
-    { "-kyber_level1-kg",    BENCH_KYBER_LEVEL1_KEYGEN,
-      OQS_KEM_alg_kyber_512 },
-    { "-kyber_level1-ed",       BENCH_KYBER_LEVEL1_ENCAP,
-      OQS_KEM_alg_kyber_512 },
-    { "-kyber_level3-kg",    BENCH_KYBER_LEVEL3_KEYGEN,
-      OQS_KEM_alg_kyber_768 },
-    { "-kyber_level3-ed",       BENCH_KYBER_LEVEL3_ENCAP,
-      OQS_KEM_alg_kyber_768 },
-    { "-kyber_level5-kg",    BENCH_KYBER_LEVEL5_KEYGEN,
-      OQS_KEM_alg_kyber_1024 },
-    { "-kyber_level5-ed",       BENCH_KYBER_LEVEL5_ENCAP,
-      OQS_KEM_alg_kyber_1024 },
 #endif /* HAVE_LIBOQS */
     { NULL, 0, NULL }
 };
@@ -2116,108 +2082,6 @@ static void bench_stats_asym_finish(const char* algo, int strength,
                                start, ret);
 }
 #endif
-
-#if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
-static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID,
-                                       int count, double start, int ret)
-{
-    double total, each = 0, opsSec, milliEach;
-    const char **word = bench_result_words2[lng_index];
-    const char* kOpsSec = "Ops/Sec";
-    char msg[__BENCHMARK_MAXIMUM_LINE_LENGTH] = {0};
-    static int pqasym_header_printed = 0;
-
-    total = current_time(0) - start;
-
-#ifdef LINUX_RUSAGE_UTIME
-    check_for_excessive_stime(algo, "");
-#endif
-
-#ifdef GENERATE_MACHINE_PARSEABLE_REPORT
-    #ifdef WOLFSSL_ESPIDF
-        END_ESP_CYCLES
-    #else
-        END_INTEL_CYCLES
-    #endif
-#endif
-
-    if (count > 0)
-        each  = total / count; /* per second  */
-    opsSec = count / total;    /* ops second */
-    milliEach = each * 1000;   /* milliseconds */
-
-    /* format and print to terminal */
-    if (csv_format == 1) {
-        /* only print out header once */
-        if (pqasym_header_printed == 0) {
-#ifdef GENERATE_MACHINE_PARSEABLE_REPORT
-    #ifdef HAVE_GET_CYCLES
-            printf("%s",
-                   "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs,cycles,"
-                   "cycles/op\n");
-    #else
-            printf("%s",
-                   "\"pq_asym\",Algorithm,avg ms,ops/sec,ops,secs\n");
-    #endif
-
-#else
-            printf("\nPost Quantum Asymmetric Ciphers:\n\n");
-            printf("Algorithm,avg ms,ops/sec,\n");
-#endif
-            pqasym_header_printed = 1;
-        }
-#ifdef GENERATE_MACHINE_PARSEABLE_REPORT
-    #ifdef HAVE_GET_CYCLES
-        (void)XSNPRINTF(msg, sizeof(msg),
-                        "pq_asym,%s,%.3f,%.3f,%d,%f,%lu,%.6f,\n",
-                        algo, milliEach, opsSec, count, total, total_cycles,
-                        (double)total_cycles / (double)count);
-    #else
-        (void)XSNPRINTF(msg, sizeof(msg),
-                        "pq_asym,%s,%.3f,%.3f,%d,%f,%lu,%.6f,\n",
-                        algo, milliEach, opsSec, count, total);
-    #endif
-#else
-        (void)XSNPRINTF(msg, sizeof(msg), "%s %.3f,%.3f,\n", algo, milliEach,
-                        opsSec);
-#endif
-    } /* CSV */
-
-    else {
-        /* not CSV*/
-
-#ifdef GENERATE_MACHINE_PARSEABLE_REPORT
-         (void)XSNPRINTF(msg, sizeof(msg),
-                         "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
-                         " %.3f %s, %lu cycles\n",
-                         algo, BENCH_DEVID_GET_NAME(useDeviceID),
-                         count, word[0], total, word[1], word[2], milliEach,
-                         opsSec, word[3], total_cycles);
-#else
-         (void)XSNPRINTF(msg, sizeof(msg),
-                 "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
-                 " %.3f %s\n", algo, BENCH_DEVID_GET_NAME(useDeviceID),
-         count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
-#endif /* GENERATE_MACHINE_PARSEABLE_REPORT */
-    } /* not CSV */
-
-    printf("%s", msg);
-
-    /* show errors */
-    if (ret < 0) {
-        printf("%sBenchmark %s failed: %d\n", err_prefix, algo, ret);
-    }
-
-    /* Add to thread stats */
-    bench_stats_add(BENCH_STAT_ASYM, algo, 0, "",
-                    useDeviceID, opsSec, kOpsSec, ret);
-
-    (void)useDeviceID;
-    (void)ret;
-
-    TEST_SLEEP();
-}
-#endif /* HAVE_PQC, etc... */
 #endif /* BENCH_ASYM */
 
 static WC_INLINE void bench_stats_free(void)
@@ -2887,21 +2751,7 @@ static void* benchmarks_do(void* args)
     #endif
 #endif
 
-#if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_KEYGEN))
-        bench_pqcKemKeygen(BENCH_KYBER_LEVEL1_KEYGEN);
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_ENCAP))
-        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL1_ENCAP);
-#endif
 #if defined(HAVE_LIBOQS)
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_KEYGEN))
-        bench_pqcKemKeygen(BENCH_KYBER_LEVEL3_KEYGEN);
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_ENCAP))
-        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL3_ENCAP);
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_KEYGEN))
-        bench_pqcKemKeygen(BENCH_KYBER_LEVEL5_KEYGEN);
-    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_ENCAP))
-        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL5_ENCAP);
 #ifdef HAVE_FALCON
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
@@ -2916,7 +2766,6 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_pq_asym_algs & BENCH_DILITHIUM_LEVEL5_SIGN))
         bench_dilithiumKeySign(5);
 #endif
-
 #ifdef HAVE_SPHINCS
     if (bench_all || (bench_pq_asym_algs2 & BENCH_SPHINCS_FAST_LEVEL1_SIGN))
         bench_sphincsKeySign(1, FAST_VARIANT);
@@ -8072,215 +7921,7 @@ void bench_sakke(void)
 #endif /* WOLFCRYPT_SAKKE_CLIENT */
 #endif /* WOLFCRYPT_HAVE_SAKKE */
 
-#if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
-static void bench_pqcKemInit(word32 alg, byte **priv_key, byte **pub_key,
-                   const char **wolf_name, OQS_KEM **kem)
-{
-    int i;
-    const char *pqc_name = NULL;
-
-    *pub_key = NULL;
-    *priv_key = NULL;
-
-    for (i=0; bench_pq_asym_opt[i].str != NULL; i++) {
-        if (alg ==  bench_pq_asym_opt[i].val) {
-#ifdef HAVE_LIBOQS
-            pqc_name = bench_pq_asym_opt[i].pqc_name;
-#endif
-            *wolf_name = bench_pq_asym_opt[i].str;
-            break;
-        }
-    }
-
-#ifdef HAVE_LIBOQS
-    if (pqc_name == NULL) {
-        printf("Bad OQS Alg specified\n");
-        return;
-    }
-
-    *kem = OQS_KEM_new(pqc_name);
-    if (*kem == NULL) {
-        printf("OQS_KEM_new() failed\n");
-        return;
-    }
-
-    *pub_key = (byte*)XMALLOC((*kem)->length_public_key, HEAP_HINT,
-                              DYNAMIC_TYPE_TMP_BUFFER);
-
-    *priv_key = (byte*)XMALLOC((*kem)->length_secret_key, HEAP_HINT,
-                               DYNAMIC_TYPE_TMP_BUFFER);
-
-#endif
-#ifdef HAVE_PQM4
-    *pub_key = (byte*)XMALLOC(PQM4_PUBLIC_KEY_LENGTH, HEAP_HINT,
-                              DYNAMIC_TYPE_TMP_BUFFER);
-
-    *priv_key = (byte*)XMALLOC(PQM4_PRIVATE_KEY_LENGTH, HEAP_HINT,
-                               DYNAMIC_TYPE_TMP_BUFFER);
-    (void)pqc_name;
-#endif
-}
-
-void bench_pqcKemKeygen(word32 alg)
-{
-    const char *wolf_name = NULL;
-    OQS_KEM* kem = NULL;
-    double start;
-    int i, count, ret;
-    byte *priv_key;
-    byte *pub_key;
-
-    bench_pqcKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
-
-    if (wolf_name == NULL || pub_key == NULL ||
-#ifdef HAVE_LIBOQS
-        kem == NULL ||
-#endif
-        priv_key == NULL) {
-        printf("bench_pqcKemInit() failed\n");
-        goto exit;
-    }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < genTimes; i++) {
-#ifdef HAVE_LIBOQS
-            ret = OQS_KEM_keypair(kem, pub_key, priv_key);
-            if (ret != OQS_SUCCESS) {
-                printf("OQS_KEM_keypair() failed: %d\n", ret);
-                goto exit;
-            }
-#endif
-#ifdef HAVE_PQM4
-            ret = crypto_kem_keypair(pub_key, priv_key);
-            if (ret != 0) {
-                printf("crypto_kem_keypair() failed: %d\n", ret);
-                goto exit;
-            }
-#endif
-        }
-        count += i;
-    } while (bench_stats_check(start));
-
-    /* + 1 gets rid of the leading dash (-) */
-    bench_stats_pq_asym_finish(wolf_name + 1, 0, count, start, 0);
-
-exit:
-    XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#ifdef HAVE_LIBOQS
-    OQS_KEM_free(kem);
-#endif
-}
-
-void bench_pqcKemEncapDecap(word32 alg)
-{
-    const char *wolf_name = NULL;
-    OQS_KEM* kem = NULL;
-    double start;
-    int i, count, ret;
-    byte *priv_key;
-    byte *pub_key;
-    byte *ciphertext = NULL;
-    byte *shared_secret = NULL;
-
-    bench_pqcKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
-
-    if (wolf_name == NULL || pub_key == NULL ||
-#ifdef HAVE_LIBOQS
-        kem == NULL ||
-#endif
-        priv_key == NULL) {
-        printf("bench_pqcKemInit() failed\n");
-        goto exit;
-    }
-
-#ifdef HAVE_LIBOQS
-    ret = OQS_KEM_keypair(kem, pub_key, priv_key);
-    if (ret != OQS_SUCCESS) {
-        printf("OQS_KEM_keypair() failed: %d\n", ret);
-        goto exit;
-    }
-
-    shared_secret = (byte*)XMALLOC(kem->length_shared_secret, HEAP_HINT,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-
-    ciphertext = (byte*)XMALLOC(kem->length_ciphertext, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-#ifdef HAVE_PQM4
-    ret = crypto_kem_keypair(pub_key, priv_key);
-    if (ret != 0) {
-        printf("crypto_kem_keypair() failed: %d\n", ret);
-        goto exit;
-    }
-
-    shared_secret = (byte*)XMALLOC(PQM4_SHARED_SECRET_LENGTH, HEAP_HINT,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-
-    ciphertext = (byte*)XMALLOC(PQM4_CIPHERTEXT_LENGTH, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    if (shared_secret == NULL || ciphertext == NULL) {
-        printf("XMALLOC() failed\n");
-        goto exit;
-    }
-
-#ifdef HAVE_LIBOQS
-    if (ret == OQS_SUCCESS)
-#endif
-#ifdef HAVE_PQM4
-    if (ret == 0)
-#endif
-    {
-        bench_stats_start(&count, &start);
-        do {
-            for (i = 0; i < agreeTimes; i++) {
-#ifdef HAVE_LIBOQS
-                ret = OQS_KEM_encaps(kem, ciphertext, shared_secret, pub_key);
-                if (ret != OQS_SUCCESS) {
-                    printf("OQS_KEM_encaps() failed: %d\n", ret);
-                    goto exit;
-                }
-
-                ret = OQS_KEM_decaps(kem, shared_secret, ciphertext, priv_key);
-                if (ret != OQS_SUCCESS) {
-                    printf("OQS_KEM_decaps() failed: %d\n", ret);
-                    goto exit;
-                }
-#endif
-#ifdef HAVE_PQM4
-                ret = crypto_kem_enc(ciphertext, shared_secret, pub_key);
-                if (ret != 0){
-                    printf("crypto_kem_enc() failed: %d\n", ret);
-                    goto exit;
-                }
-
-                ret = crypto_kem_dec(shared_secret, ciphertext, priv_key);
-                if (ret != 0){
-                    printf("crypto_kem_dec() failed: %d\n", ret);
-                    goto exit;
-                }
-#endif
-            }
-            count += i;
-        } while (bench_stats_check(start));
-
-        /* + 1 gets rid of the leading dash (-) */
-        bench_stats_pq_asym_finish(wolf_name + 1, 0, count, start, ret);
-    }
-
-exit:
-    XFREE(ciphertext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(shared_secret, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#ifdef HAVE_LIBOQS
-    OQS_KEM_free(kem);
-#endif
-}
-
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
 #ifdef HAVE_FALCON
 void bench_falconKeySign(byte level)
 {
@@ -9025,7 +8666,7 @@ static void Usage(void)
     for (i=0; bench_other_opt[i].str != NULL; i++)
         print_alg(bench_other_opt[i].str + 1, &line);
     printf("\n             ");
-#if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
+#if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
     line = 13;
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str + 1, &line);
@@ -9246,7 +8887,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #if defined(HAVE_PQC) && (defined(HAVE_LIBOQS) || defined(HAVE_PQM4))
+        #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {
@@ -9255,7 +8896,6 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #if defined(HAVE_LIBOQS)
             /* Both bench_pq_asym_opt and bench_pq_asym_opt2 are looking for
              * -pq, so we need to do a special case for -pq since optMatched
              * was set to 1 just above. */
@@ -9271,7 +8911,6 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #endif /* HAVE_LIBOQS*/
         #endif /* HAVE_PQC */
             /* Other known cryptographic algorithms */
             for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {
