@@ -111,9 +111,6 @@ my @fileList_dilithium = (
         ["certs/dilithium/bench_dilithium_level2_key.der", "bench_dilithium_level2_key" ],
         ["certs/dilithium/bench_dilithium_level3_key.der", "bench_dilithium_level3_key" ],
         ["certs/dilithium/bench_dilithium_level5_key.der", "bench_dilithium_level5_key" ],
-        ["certs/dilithium/bench_dilithium_aes_level2_key.der", "bench_dilithium_aes_level2_key" ],
-        ["certs/dilithium/bench_dilithium_aes_level3_key.der", "bench_dilithium_aes_level3_key" ],
-        ["certs/dilithium/bench_dilithium_aes_level5_key.der", "bench_dilithium_aes_level5_key" ],
         );
 
 #Sphincs+ Post-Quantum Keys
