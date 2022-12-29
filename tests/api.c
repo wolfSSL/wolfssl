@@ -52072,6 +52072,65 @@ static int test_wolfssl_EVP_aes_gcm(void)
     return res;
 }
 
+static int test_wolfssl_EVP_aes_ccm_zeroLen(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESCCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    /* Zero length plain text */
+
+    byte key[] = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte iv[]  = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte plaintxt[1];
+    int ivSz  = 12;
+    int plaintxtSz = 0;
+    unsigned char tag[16];
+
+    byte ciphertxt[AES_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[AES_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+
+    EVP_CIPHER_CTX *en = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *de = EVP_CIPHER_CTX_new();
+
+    AssertIntEQ(1, EVP_EncryptInit_ex(en, EVP_aes_256_ccm(), NULL, key, iv));
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    AssertIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
+                                     plaintxtSz));
+    AssertIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
+    ciphertxtSz += len;
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_GET_TAG, 16, tag));
+    AssertIntEQ(1, EVP_CIPHER_CTX_cleanup(en));
+
+    AssertIntEQ(0, ciphertxtSz);
+
+    EVP_CIPHER_CTX_init(de);
+    AssertIntEQ(1, EVP_DecryptInit_ex(de, EVP_aes_256_ccm(), NULL, key, iv));
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    AssertIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, len));
+    decryptedtxtSz = len;
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_TAG, 16, tag));
+    AssertIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
+    decryptedtxtSz += len;
+    AssertIntEQ(0, decryptedtxtSz);
+
+    EVP_CIPHER_CTX_free(en);
+    EVP_CIPHER_CTX_free(de);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_wolfssl_EVP_aes_ccm(void)
 {
     int res = TEST_SKIPPED;
@@ -60108,6 +60167,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfssl_EVP_aes_gcm),
     TEST_DECL(test_wolfssl_EVP_aes_gcm_zeroLen),
     TEST_DECL(test_wolfssl_EVP_aes_ccm),
+    TEST_DECL(test_wolfssl_EVP_aes_ccm_zeroLen),
     TEST_DECL(test_wolfssl_EVP_chacha20_poly1305),
     TEST_DECL(test_wolfssl_EVP_chacha20),
     TEST_DECL(test_wolfSSL_EVP_PKEY_hkdf),
