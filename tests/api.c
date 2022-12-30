@@ -6510,7 +6510,10 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 #if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_dtls_set_export(ctx, test_export));
+    if (callbacks->method == wolfDTLSv1_2_server_method) {
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_dtls_set_export(ctx, test_export));
+    }
 #endif
 
 
