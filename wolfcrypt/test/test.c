@@ -14833,15 +14833,19 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-7745, exit_rsa_pss);
 #elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len, 0);
+    if (ret != BAD_PADDING_E)
+        ERROR_OUT(-7745, exit_rsa_pss);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
                                     len, 0, HEAP_HINT);
-#endif
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-7745, exit_rsa_pss);
+#endif
 
     ret = 0;
 #endif /* WOLFSSL_SE050 */
