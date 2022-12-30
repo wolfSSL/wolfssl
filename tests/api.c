@@ -9374,6 +9374,57 @@ static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
     return res;
 }
 
+/* Test reconnecting with a different ciphersuite after a renegotiation. */
+static int test_wolfSSL_SCR_Reconnect(void)
+{
+    int res = TEST_SKIPPED;
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte data;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = "ECDHE-RSA-AES256-GCM-SHA384";
+    test_ctx.s_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305";
+    AssertIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_c));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_s));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_c));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_s));
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* WOLFSSL_FATAL_ERROR since it will block */
+    AssertIntEQ(wolfSSL_Rehandshake(ssl_s), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    AssertIntEQ(wolfSSL_read(ssl_c, &data, 1), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    test_ctx.c_ciphers = "ECDHE-RSA-CHACHA20-POLY1305";
+    AssertIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_SERVER) && \
     (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Called when writing. */
@@ -59519,9 +59570,9 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 static int test_wolfSSL_dtls_stateless2(void)
 {
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -59559,9 +59610,9 @@ static int test_wolfSSL_dtls_stateless2(void)
 #ifdef HAVE_MAX_FRAGMENT
 static int test_wolfSSL_dtls_stateless_maxfrag(void)
 {
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     word16 max_fragment;
     int ret;
 
@@ -59619,8 +59670,8 @@ static int buf_is_hvr(const byte *data, int len)
 static int _test_wolfSSL_dtls_stateless_resume(byte useticket, byte bad)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess;
     int ret, round_trips;
 
@@ -59721,8 +59772,8 @@ static int test_wolfSSL_dtls_stateless_resume(void)
 #if !defined(NO_OLD_TLS)
 static int test_wolfSSL_dtls_stateless_downgrade(void)
 {
-    WOLFSSL_CTX *ctx_c, *ctx_c2, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_c2 = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     int ret;
 
@@ -59778,8 +59829,8 @@ static int test_wolfSSL_dtls_stateless_downgrade(void)
 static int test_WOLFSSL_dtls_version_alert(void)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -59954,9 +60005,9 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
 static int test_ticket_nonce_malloc(void)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     byte small, medium, big;
-    WOLFSSL *ssl_c, *ssl_s;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -60133,6 +60184,7 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
+    TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_tls_ext_duplicate),
 
     /* X509 tests */
