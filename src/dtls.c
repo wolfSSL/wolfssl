@@ -557,10 +557,10 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                         ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
                     doKE = 1;
                 }
-                else {
-                    if ((modes & (1 << PSK_KE)) == 0)
+                else if ((modes & (1 << PSK_KE)) == 0) {
                         ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
                 }
+                usePSK = 1;
             }
 #endif
 
