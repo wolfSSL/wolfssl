@@ -45365,17 +45365,29 @@ static int test_wolfSSL_EVP_aes_192_gcm(void)
 
 static int test_wolfSSL_EVP_aes_256_ccm(void)
 {
-    return TEST_RES_CHECK(wolfSSL_EVP_aes_256_ccm() != NULL);
+    int res = TEST_SKIPPED;
+#ifdef HAVE_AESCCM
+    res = TEST_RES_CHECK(wolfSSL_EVP_aes_256_ccm() != NULL);
+#endif
+    return res;
 }
 
 static int test_wolfSSL_EVP_aes_192_ccm(void)
 {
-    return TEST_RES_CHECK(wolfSSL_EVP_aes_192_ccm() != NULL);
+    int res = TEST_SKIPPED;
+#ifdef HAVE_AESCCM
+    res = TEST_RES_CHECK(wolfSSL_EVP_aes_192_ccm() != NULL);
+#endif
+    return res;
 }
 
 static int test_wolfSSL_EVP_aes_128_ccm(void)
 {
-    return TEST_RES_CHECK(wolfSSL_EVP_aes_256_ccm() != NULL);
+    int res = TEST_SKIPPED;
+#ifdef HAVE_AESCCM
+    res = TEST_RES_CHECK(wolfSSL_EVP_aes_128_ccm() != NULL);
+#endif
+    return res;
 }
 
 static int test_wolfSSL_EVP_ripemd160(void)
