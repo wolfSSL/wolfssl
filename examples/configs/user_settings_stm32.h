@@ -1,6 +1,6 @@
 /* wolfSSL_conf.h (example of generated wolfSSL.I-CUBE-wolfSSL_conf.h)
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
