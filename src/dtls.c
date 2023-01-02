@@ -296,7 +296,9 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE)
         return 0;
     /* Store info for later */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     pskInfo->pv = it->pv;
+#endif
     pskInfo->cipherSuite0 = it->suite[0];
     pskInfo->cipherSuite = it->suite[1];
     ato16(it->namedGroup, &pskInfo->namedGroup);
@@ -344,7 +346,9 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
     ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow, 1);
     if (ret == 0 && sess != NULL) {
         /* Store info for later */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
         pskInfo->pv = sess->version;
+#endif
         pskInfo->cipherSuite0 = sess->cipherSuite0;
         pskInfo->cipherSuite = sess->cipherSuite;
         pskInfo->namedGroup = sess->namedGroup;
@@ -381,6 +385,8 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
     int ret;
     ProtocolVersion pv = ssl->version;
 
+    (void)pskInfo;
+
     ret = TlsxFindByType(&tlsxSupportedVersions, TLSX_SUPPORTED_VERSIONS,
                          ch->extension);
     if (ret != 0)
@@ -393,9 +399,11 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
             tlsxSupportedVersions.size, client_hello, &pv, NULL, NULL);
     if (ret != 0)
         return ret;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     if (pskInfo->isValid && (pskInfo->pv.major != pv.major ||
                              pskInfo->pv.minor != pv.minor))
         return VERSION_ERROR;
+#endif
     if (IsAtLeastTLSv1_3(pv))
         *isTls13 = 1;
     else
@@ -633,8 +641,10 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                 nonConstSSL->options.cipherSuite = cs.cipherSuite;
                 nonConstSSL->extensions = parsedExts;
 
-
                 ret = SendTls13ServerHello(nonConstSSL, hello_retry_request);
+
+                /* Can be modified inside SendTls13ServerHello */
+                parsedExts = nonConstSSL->extensions;
 
                 InitCipherSpecs(&nonConstSSL->specs);
 

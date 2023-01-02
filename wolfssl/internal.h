@@ -3928,7 +3928,10 @@ typedef struct TicketNonce {
 
 #ifdef WOLFSSL_DTLS
 typedef struct PskInfo {
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    /* Macro guard matches one for session->version */
     ProtocolVersion pv;
+#endif
     byte cipherSuite0;
     byte cipherSuite;
     word16 namedGroup;
