@@ -20,7 +20,11 @@ jobs:
         run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
       - name: WhoAmiI
         run: whoami
-      - name:
+      - name: PWD and list
+        run: echo $PWD && ls -la
+      - name: list root
+        run: ls -la /
+      - name: Initialize Espressif IDE
         run: . /esp/esp-idf/export.sh
       - name: Build Espressif
         run: IDE/Espressif/ESP-IDF/compileAllExamples.sh
