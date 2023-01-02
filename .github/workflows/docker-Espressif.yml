@@ -23,8 +23,8 @@ jobs:
       - name: PWD and list
         run: echo $PWD && ls -la
       - name: list root
-        run: ls -la /
+        run: ls -la /*
       - name: Initialize Espressif IDE
-        run: . /esp/esp-idf/export.sh
+        run: . /opt/esp/esp-idf/export.sh
       - name: Build Espressif
         run: IDE/Espressif/ESP-IDF/compileAllExamples.sh
