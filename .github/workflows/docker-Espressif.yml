@@ -11,7 +11,7 @@ jobs:
     name: Test Espressif on Docker container
     runs-on: ubuntu-latest
     container:
-        image: espressif/idf:latest
+      image: espressif/idf:latest
       volumes:
         - my_docker_volume:/volume_mount
     steps:
