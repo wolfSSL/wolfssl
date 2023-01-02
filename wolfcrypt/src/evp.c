@@ -947,7 +947,7 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     int fl;
     int ret = WOLFSSL_SUCCESS;
-#if defined(HAVE_AESGCM) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
     || FIPS_VERSION_GE(2,0))
     byte tmp = 0;
 #endif
