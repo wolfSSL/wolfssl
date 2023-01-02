@@ -25,6 +25,6 @@ jobs:
       - name: list root
         run: ls -la /opt/esp/*
       - name: Initialize Espressif IDE
-        run: . /opt/esp/esp-idf/export.sh
+        run: . /opt/esp/idf/export.sh
       - name: Build Espressif
         run: IDE/Espressif/ESP-IDF/compileAllExamples.sh
