@@ -9122,7 +9122,7 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             if (ctx->ivSz != 0) {
                 return ctx->ivSz;
             }
-            return CCM_NONCE_MAX_SZ;
+            return CCM_NONCE_MIN_SZ;
 #endif
 #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
 #ifdef WOLFSSL_AES_COUNTER
@@ -9239,15 +9239,15 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
 #ifdef HAVE_AESCCM
     #ifdef WOLFSSL_AES_128
     if (XSTRCMP(name, EVP_AES_128_CCM) == 0)
-        return CCM_NONCE_MAX_SZ;
+        return CCM_NONCE_MIN_SZ;
     #endif
     #ifdef WOLFSSL_AES_192
     if (XSTRCMP(name, EVP_AES_192_CCM) == 0)
-        return CCM_NONCE_MAX_SZ;
+        return CCM_NONCE_MIN_SZ;
     #endif
     #ifdef WOLFSSL_AES_256
     if (XSTRCMP(name, EVP_AES_256_CCM) == 0)
-        return CCM_NONCE_MAX_SZ;
+        return CCM_NONCE_MIN_SZ;
     #endif
 #endif /* HAVE_AESCCM */
 #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
