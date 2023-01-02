@@ -1,0 +1,7 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/setup_win.bat
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/dummy_test_paths.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/compileAllExamples.sh
