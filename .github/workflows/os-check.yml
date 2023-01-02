@@ -1,3 +1,4 @@
+name: Test MacOS/Ubuntu/Windows compilation
 on:
   push:
     branches: [ '*' ]
