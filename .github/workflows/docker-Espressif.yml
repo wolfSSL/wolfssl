@@ -16,5 +16,7 @@ jobs:
         - my_docker_volume:/volume_mount
     steps:
       - uses: actions/checkout@v3
+      - name: Check for dockerenv file
+        run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
       - name: Build Espressif
         run: IDE/Espressif/ESP-IDF/compileAllExamples.sh
