@@ -1,4 +1,6 @@
 name: Test Espressif examples on various official Docker containers
+concurrency:
+  group: ${{ github.ref }}
 
 on:
   push:

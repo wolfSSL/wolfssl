@@ -1,4 +1,7 @@
 name: Test MacOS/Ubuntu/Windows compilation
+concurrency:
+  group: ${{ github.ref }}
+
 on:
   push:
     branches: [ '*' ]
