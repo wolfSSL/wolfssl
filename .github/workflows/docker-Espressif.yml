@@ -16,15 +16,5 @@ jobs:
         - my_docker_volume:/volume_mount
     steps:
       - uses: actions/checkout@v3
-      - name: Check for dockerenv file
-        run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
-      - name: WhoAmiI
-        run: whoami
-      - name: PWD and list
-        run: echo $PWD && echo $IDF_PATH && ls -la
-      - name: list root
-        run: ls -la /opt/esp/*
-      - name: Initialize Espressif IDE
-        run: . /opt/esp/idf/export.sh
-      - name: Build Espressif
-        run: IDE/Espressif/ESP-IDF/compileAllExamples.sh
+      - name: Initialize Espressif IDE and build examples
+        run: . /opt/esp/idf/export.sh; IDE/Espressif/ESP-IDF/compileAllExamples.sh
