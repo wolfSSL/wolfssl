@@ -21,9 +21,9 @@ jobs:
       - name: WhoAmiI
         run: whoami
       - name: PWD and list
-        run: echo $PWD && ls -la
+        run: echo $PWD && echo $IDF_PATH && ls -la
       - name: list root
-        run: ls -la /*
+        run: ls -la /opt/esp/*
       - name: Initialize Espressif IDE
         run: . /opt/esp/esp-idf/export.sh
       - name: Build Espressif
