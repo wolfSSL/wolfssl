@@ -9,7 +9,11 @@ on:
 jobs:
   espressif_test:
     name: Test Espressif on Docker container
-    runs-on: espressif/idf:latest
+    runs-on: ubuntu-latest
+    container:
+        image: espressif/idf:latest
+      volumes:
+        - my_docker_volume:/volume_mount
     steps:
       - uses: actions/checkout@v3
       - name: Build Espressif
