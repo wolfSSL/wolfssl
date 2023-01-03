@@ -3115,11 +3115,14 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
                                                  word16* pSz);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
                                                    byte msgType, word16* pSz);
-WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity,
+WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity,
                                         word16 len, word32 age, byte hmac,
                                         byte cipherSuite0, byte cipherSuite,
                                         byte resumption,
-                                        PreSharedKey **preSharedKey);
+                                        PreSharedKey **preSharedKey,
+                                        void* heap);
+WOLFSSL_LOCAL int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions,
+                                  const byte* input, word16 length, void* heap);
 
 /* The possible Pre-Shared Key key exchange modes. */
 enum PskKeyExchangeMode {
@@ -6203,6 +6206,12 @@ WOLFSSL_LOCAL int wolfSSL_quic_keys_active(WOLFSSL* ssl, enum encrypt_side side)
 #else
 #define WOLFSSL_IS_QUIC(s) 0
 #endif /* WOLFSSL_QUIC (else) */
+
+
+#ifndef NO_PSK
+WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
+        byte* psk_key, word32* psk_keySz, byte* suite, int* found);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -9503,6 +9503,100 @@ static int TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
     return 0;
 }
 
+int TLSX_PreSharedKey_Parse_ClientHello(TLSX** extensions, const byte* input,
+                                        word16 length, void* heap)
+{
+
+    int    ret;
+    word16 len;
+    word16 idx = 0;
+    TLSX*         extension;
+    PreSharedKey* list;
+
+    TLSX_Remove(extensions, TLSX_PRE_SHARED_KEY, heap);
+
+    /* Length of identities and of binders. */
+    if ((int)(length - idx) < OPAQUE16_LEN + OPAQUE16_LEN)
+        return BUFFER_E;
+
+    /* Length of identities. */
+    ato16(input + idx, &len);
+    idx += OPAQUE16_LEN;
+    if (len < MIN_PSK_ID_LEN || length - idx < len)
+        return BUFFER_E;
+
+    /* Create a pre-shared key object for each identity. */
+    while (len > 0) {
+        const byte* identity;
+        word16      identityLen;
+        word32      age;
+
+        if (len < OPAQUE16_LEN)
+            return BUFFER_E;
+
+        /* Length of identity. */
+        ato16(input + idx, &identityLen);
+        idx += OPAQUE16_LEN;
+        if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
+                identityLen > MAX_PSK_ID_LEN)
+            return BUFFER_E;
+        /* Cache identity pointer. */
+        identity = input + idx;
+        idx += identityLen;
+        /* Ticket age. */
+        ato32(input + idx, &age);
+        idx += OPAQUE32_LEN;
+
+        ret = TLSX_PreSharedKey_Use(extensions, identity, identityLen, age, no_mac,
+                                    0, 0, 1, NULL, heap);
+        if (ret != 0)
+            return ret;
+
+        /* Done with this identity. */
+        len -= OPAQUE16_LEN + identityLen + OPAQUE32_LEN;
+    }
+
+    /* Find the list of identities sent to server. */
+    extension = TLSX_Find(*extensions, TLSX_PRE_SHARED_KEY);
+    if (extension == NULL)
+        return PSK_KEY_ERROR;
+    list = (PreSharedKey*)extension->data;
+
+    /* Length of binders. */
+    if (idx + OPAQUE16_LEN > length)
+        return BUFFER_E;
+    ato16(input + idx, &len);
+    idx += OPAQUE16_LEN;
+    if (len < MIN_PSK_BINDERS_LEN || length - idx < len)
+        return BUFFER_E;
+
+    /* Set binder for each identity. */
+    while (list != NULL && len > 0) {
+        /* Length of binder */
+        list->binderLen = input[idx++];
+        if (list->binderLen < WC_SHA256_DIGEST_SIZE ||
+                list->binderLen > WC_MAX_DIGEST_SIZE)
+            return BUFFER_E;
+        if (len < OPAQUE8_LEN + list->binderLen)
+            return BUFFER_E;
+
+        /* Copy binder into static buffer. */
+        XMEMCPY(list->binder, input + idx, list->binderLen);
+        idx += (word16)list->binderLen;
+
+        /* Done with binder entry. */
+        len -= OPAQUE8_LEN + (word16)list->binderLen;
+
+        /* Next identity. */
+        list = list->next;
+    }
+    if (list != NULL || len != 0)
+        return BUFFER_E;
+
+    return 0;
+
+}
+
 /* Parse the pre-shared key extension.
  * Different formats in different messages.
  *
@@ -9519,91 +9613,8 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
     PreSharedKey* list;
 
     if (msgType == client_hello) {
-        int    ret;
-        word16 len;
-        word16 idx = 0;
-
-        TLSX_Remove(&ssl->extensions, TLSX_PRE_SHARED_KEY, ssl->heap);
-
-        /* Length of identities and of binders. */
-        if ((int)(length - idx) < OPAQUE16_LEN + OPAQUE16_LEN)
-            return BUFFER_E;
-
-        /* Length of identities. */
-        ato16(input + idx, &len);
-        idx += OPAQUE16_LEN;
-        if (len < MIN_PSK_ID_LEN || length - idx < len)
-            return BUFFER_E;
-
-        /* Create a pre-shared key object for each identity. */
-        while (len > 0) {
-            const byte* identity;
-            word16      identityLen;
-            word32      age;
-
-            if (len < OPAQUE16_LEN)
-                return BUFFER_E;
-
-            /* Length of identity. */
-            ato16(input + idx, &identityLen);
-            idx += OPAQUE16_LEN;
-            if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
-                    identityLen > MAX_PSK_ID_LEN)
-                return BUFFER_E;
-            /* Cache identity pointer. */
-            identity = input + idx;
-            idx += identityLen;
-            /* Ticket age. */
-            ato32(input + idx, &age);
-            idx += OPAQUE32_LEN;
-
-            ret = TLSX_PreSharedKey_Use(ssl, identity, identityLen, age, no_mac,
-                                        0, 0, 1, NULL);
-            if (ret != 0)
-                return ret;
-
-            /* Done with this identity. */
-            len -= OPAQUE16_LEN + identityLen + OPAQUE32_LEN;
-        }
-
-        /* Find the list of identities sent to server. */
-        extension = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
-        if (extension == NULL)
-            return PSK_KEY_ERROR;
-        list = (PreSharedKey*)extension->data;
-
-        /* Length of binders. */
-        if (idx + OPAQUE16_LEN > length)
-            return BUFFER_E;
-        ato16(input + idx, &len);
-        idx += OPAQUE16_LEN;
-        if (len < MIN_PSK_BINDERS_LEN || length - idx < len)
-            return BUFFER_E;
-
-        /* Set binder for each identity. */
-        while (list != NULL && len > 0) {
-            /* Length of binder */
-            list->binderLen = input[idx++];
-            if (list->binderLen < WC_SHA256_DIGEST_SIZE ||
-                    list->binderLen > WC_MAX_DIGEST_SIZE)
-                return BUFFER_E;
-            if (len < OPAQUE8_LEN + list->binderLen)
-                return BUFFER_E;
-
-            /* Copy binder into static buffer. */
-            XMEMCPY(list->binder, input + idx, list->binderLen);
-            idx += (word16)list->binderLen;
-
-            /* Done with binder entry. */
-            len -= OPAQUE8_LEN + (word16)list->binderLen;
-
-            /* Next identity. */
-            list = list->next;
-        }
-        if (list != NULL || len != 0)
-            return BUFFER_E;
-
-        return 0;
+        return TLSX_PreSharedKey_Parse_ClientHello(&ssl->extensions, input,
+                                                   length, ssl->heap);
     }
 
     if (msgType == server_hello) {
@@ -9675,13 +9686,16 @@ static int TLSX_PreSharedKey_New(PreSharedKey** list, const byte* identity,
     XMEMSET(psk, 0, sizeof(*psk));
 
     /* Make a copy of the identity data. */
-    psk->identity = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TLSX);
+    psk->identity = (byte*)XMALLOC(len + NULL_TERM_LEN, heap,
+                                   DYNAMIC_TYPE_TLSX);
     if (psk->identity == NULL) {
         XFREE(psk, heap, DYNAMIC_TYPE_TLSX);
         return MEMORY_E;
     }
     XMEMCPY(psk->identity, identity, len);
     psk->identityLen = len;
+    /* Use a NULL terminator in case it is a C string */
+    psk->identity[psk->identityLen] = '\0';
 
     /* Add it to the end and maintain the links. */
     while (*list != NULL) {
@@ -9729,24 +9743,24 @@ static WC_INLINE byte GetHmacLength(int hmac)
  * preSharedKey  The new pre-shared key object.
  * returns 0 on success and other values indicate failure.
  */
-int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity, word16 len,
+int TLSX_PreSharedKey_Use(TLSX** extensions, const byte* identity, word16 len,
                           word32 age, byte hmac, byte cipherSuite0,
                           byte cipherSuite, byte resumption,
-                          PreSharedKey **preSharedKey)
+                          PreSharedKey **preSharedKey, void* heap)
 {
     int           ret = 0;
     TLSX*         extension;
     PreSharedKey* psk = NULL;
 
     /* Find the pre-shared key extension if it exists. */
-    extension = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
+    extension = TLSX_Find(*extensions, TLSX_PRE_SHARED_KEY);
     if (extension == NULL) {
         /* Push new pre-shared key extension. */
-        ret = TLSX_Push(&ssl->extensions, TLSX_PRE_SHARED_KEY, NULL, ssl->heap);
+        ret = TLSX_Push(extensions, TLSX_PRE_SHARED_KEY, NULL, heap);
         if (ret != 0)
             return ret;
 
-        extension = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
+        extension = TLSX_Find(*extensions, TLSX_PRE_SHARED_KEY);
         if (extension == NULL)
             return MEMORY_E;
     }
@@ -9764,7 +9778,7 @@ int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity, word16 len,
     /* Create a new pre-shared key object if not found. */
     if (psk == NULL) {
         ret = TLSX_PreSharedKey_New((PreSharedKey**)&extension->data, identity,
-                                    len, ssl->heap, &psk);
+                                    len, heap, &psk);
         if (ret != 0)
             return ret;
     }
@@ -12026,17 +12040,18 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 milli += sess->ticketAdd;
 
                 /* Pre-shared key is mandatory extension for resumption. */
-                ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
-                    milli, ssl->specs.mac_algorithm, ssl->options.cipherSuite0,
-                    ssl->options.cipherSuite, 1, NULL);
+                ret = TLSX_PreSharedKey_Use(&ssl->extensions, sess->ticket,
+                    sess->ticketLen, milli, ssl->specs.mac_algorithm,
+                    ssl->options.cipherSuite0, ssl->options.cipherSuite, 1,
+                    NULL, ssl->heap);
             #else
                 milli = now - sess->ticketSeen + sess->ticketAdd;
 
                 /* Pre-shared key is mandatory extension for resumption. */
-                ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
-                    (word32)milli, ssl->specs.mac_algorithm,
+                ret = TLSX_PreSharedKey_Use(&ssl->extensions, sess->ticket,
+                    sess->ticketLen, (word32)milli, ssl->specs.mac_algorithm,
                     ssl->options.cipherSuite0, ssl->options.cipherSuite, 1,
-                    NULL);
+                    NULL, ssl->heap);
             #endif
                 if (ret != 0)
                     return ret;
@@ -12083,11 +12098,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                             GetCipherNameInternal(cipherSuite0, cipherSuite));
                         if (keySz > 0) {
                             ssl->arrays->psk_keySz = keySz;
-                            ret = TLSX_PreSharedKey_Use(ssl,
+                            ret = TLSX_PreSharedKey_Use(&ssl->extensions,
                                 (byte*)ssl->arrays->client_identity,
                                 (word16)XSTRLEN(ssl->arrays->client_identity),
                                 0, SuiteMac(WOLFSSL_SUITES(ssl)->suites + i),
-                                cipherSuite0, cipherSuite, 0, NULL);
+                                cipherSuite0, cipherSuite, 0, NULL, ssl->heap);
                             if (ret != 0)
                                 return ret;
                 #ifdef WOLFSSL_PSK_MULTI_ID_PER_CS
@@ -12150,12 +12165,12 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 if (ret != 0)
                     return ret;
 
-                ret = TLSX_PreSharedKey_Use(ssl,
+                ret = TLSX_PreSharedKey_Use(&ssl->extensions,
                                   (byte*)ssl->arrays->client_identity,
                                   (word16)XSTRLEN(ssl->arrays->client_identity),
                                   0, ssl->specs.mac_algorithm,
                                   cipherSuite0, cipherSuite, 0,
-                                  NULL);
+                                  NULL, ssl->heap);
                 if (ret != 0)
                     return ret;
 

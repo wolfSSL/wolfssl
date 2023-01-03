@@ -435,6 +435,38 @@ static int CopyExtensions(TLSX* src, TLSX** dst, void* heap)
 }
 #endif
 
+#if defined(WOLFSSL_DTLS13) && !defined(NO_PSK)
+/* Very simplified version of CheckPreSharedKeys to find the current suite */
+static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
+                                PskInfo* pskInfo, Suites* suites)
+{
+    TLSX* pskExt = TLSX_Find(extensions, TLSX_PRE_SHARED_KEY);
+    int found = 0;
+    PreSharedKey* current;
+    byte psk_key[MAX_PSK_KEY_LEN];
+    word32 psk_keySz;
+    int i;
+
+    if (pskExt == NULL)
+        return;
+
+    for (i = 0; i < suites->suiteSz; i += 2) {
+        for (current = (PreSharedKey*)pskExt->data; current != NULL;
+                current = current->next) {
+            if (FindPskSuite(ssl, current, psk_key, &psk_keySz,
+                    suites->suites + i, &found) == 0) {
+                if (found) {
+                    pskInfo->cipherSuite0 = suites->suites[i];
+                    pskInfo->cipherSuite  = suites->suites[i + 1];
+                    pskInfo->isValid      = 1;
+                    return;
+                }
+            }
+        }
+    }
+}
+#endif
+
 static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                               PskInfo* pskInfo)
 {
@@ -550,39 +582,46 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                  * and if they don't match we will error out there anyway. */
                 byte modes;
 
-                ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
-                                     ch->extension);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-                if (tlsx.size == 0)
-                    ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
-                ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
-                                                  client_hello, &modes);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-                if ((modes & (1 << PSK_DHE_KE)) && !ssl->options.noPskDheKe) {
-                    if (!haveKS)
+#ifndef NO_PSK
+                /* When we didn't find a valid ticket ask the user for the
+                 * ciphersuite matching this identity */
+                if (!pskInfo->isValid) {
+                    if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
+                            tlsx.elements, tlsx.size, ssl->heap) == 0)
+                        FindPskSuiteFromExt(ssl, parsedExts, pskInfo, &suites);
+                    /* Revert to full handshake if PSK parsing failed */
+                }
+#endif
+
+                if (pskInfo->isValid) {
+                    ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
+                                         ch->extension);
+                    if (ret != 0)
+                        goto dtls13_cleanup;
+                    if (tlsx.size == 0)
                         ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
-                    doKE = 1;
+                    ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
+                                                      client_hello, &modes);
+                    if (ret != 0)
+                        goto dtls13_cleanup;
+                    if ((modes & (1 << PSK_DHE_KE)) &&
+                            !ssl->options.noPskDheKe) {
+                        if (!haveKS)
+                            ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
+                        doKE = 1;
+                    }
+                    else if ((modes & (1 << PSK_KE)) == 0) {
+                            ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
+                    }
+                    usePSK = 1;
                 }
-                else if ((modes & (1 << PSK_KE)) == 0) {
-                        ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
-                }
-                usePSK = 1;
             }
 #endif
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            if (usePSK) {
-                if (pskInfo->isValid) {
-                    cs.cipherSuite0 = pskInfo->cipherSuite0;
-                    cs.cipherSuite = pskInfo->cipherSuite;
-                }
-                else {
-                    /* Only support the default ciphersuite for PSK */
-                    cs.cipherSuite0 = TLS13_BYTE;
-                    cs.cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
-                }
+            if (usePSK && pskInfo->isValid) {
+                cs.cipherSuite0 = pskInfo->cipherSuite0;
+                cs.cipherSuite = pskInfo->cipherSuite;
 
                 if (doKE) {
                     byte searched = 0;
@@ -609,15 +648,9 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                 if (ret != 0)
                     goto dtls13_cleanup;
             }
-
-            /* Need to remove the keyshare ext if we are not doing PSK and we
-             * found a common group. */
-            if (cs.clientKSE != NULL
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-                    && !usePSK
-#endif
-                    )
-            {
+            else {
+                /* Need to remove the keyshare ext if we found a common group
+                 * and are not doing curve negotiation. */
                 TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
             }
 

@@ -5496,6 +5496,60 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 
 
 #ifndef NO_PSK
+int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
+        word32* psk_keySz, byte* suite, int* found)
+{
+    const char* cipherName = NULL;
+    byte        cipherSuite0 = TLS13_BYTE;
+    byte        cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
+    int         ret = 0;
+
+    *found = 0;
+    (void)suite;
+
+    if (ssl->options.server_psk_tls13_cb != NULL) {
+         *psk_keySz = ssl->options.server_psk_tls13_cb((WOLFSSL*)ssl,
+             (char*)psk->identity, psk_key, MAX_PSK_KEY_LEN, &cipherName);
+         if (*psk_keySz != 0) {
+             int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
+             *found = (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                 &cipherSuite, &cipherSuiteFlags) == 0);
+             (void)cipherSuiteFlags;
+         }
+    }
+    if (*found == 0 && (ssl->options.server_psk_cb != NULL)) {
+         *psk_keySz = ssl->options.server_psk_cb((WOLFSSL*)ssl,
+                             (char*)psk->identity, psk_key,
+                             MAX_PSK_KEY_LEN);
+         *found = (*psk_keySz != 0);
+    }
+    if (*found) {
+        if (*psk_keySz > MAX_PSK_KEY_LEN) {
+            WOLFSSL_MSG("Key len too long in FindPsk()");
+            ret = PSK_KEY_ERROR;
+            WOLFSSL_ERROR_VERBOSE(ret);
+        }
+        if (ret == 0) {
+        #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
+            /* Check whether PSK ciphersuite is in SSL. */
+            *found = (suite[0] == cipherSuite0) && (suite[1] == cipherSuite);
+        #else
+            (void)suite;
+            /* Check whether PSK ciphersuite is in SSL. */
+            {
+                byte s[2] = {
+                    cipherSuite0,
+                    cipherSuite,
+                };
+                *found = FindSuiteSSL(ssl, s);
+            }
+        #endif
+        }
+    }
+
+    return ret;
+}
+
 /* Attempt to find the PSK (not session ticket) that matches.
  *
  * @param [in, out] ssl    The SSL/TLS object.
@@ -5509,55 +5563,14 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
  * @return  1 when a match found - but check error code.
  * @return  0 when no match found.
  */
-static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
+static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
 {
     int         ret = 0;
     int         found = 0;
-    const char* cipherName = NULL;
-    byte        cipherSuite0 = TLS13_BYTE;
-    byte        cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
-    Arrays*     sa = ssl->arrays;
 
-    (void)suite;
-
-    if (ssl->options.server_psk_tls13_cb != NULL) {
-         sa->psk_keySz = ssl->options.server_psk_tls13_cb(ssl,
-             sa->client_identity, sa->psk_key, MAX_PSK_KEY_LEN, &cipherName);
-         if (sa->psk_keySz != 0) {
-             int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
-             found = (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                 &cipherSuite, &cipherSuiteFlags) == 0);
-             (void)cipherSuiteFlags;
-         }
-    }
-    if (!found && (ssl->options.server_psk_cb != NULL)) {
-         sa->psk_keySz = ssl->options.server_psk_cb(ssl,
-                             sa->client_identity, sa->psk_key,
-                             MAX_PSK_KEY_LEN);
-         found = (sa->psk_keySz != 0);
-    }
-    if (found) {
-        if (sa->psk_keySz > MAX_PSK_KEY_LEN) {
-            WOLFSSL_MSG("Key len too long in FindPsk");
-            ret = PSK_KEY_ERROR;
-            WOLFSSL_ERROR_VERBOSE(ret);
-        }
-        if (ret == 0) {
-        #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
-            /* Check whether PSK ciphersuite is in SSL. */
-            found = (suite[0] == cipherSuite0) && (suite[1] == cipherSuite);
-        #else
-            (void)suite;
-            /* Check whether PSK ciphersuite is in SSL. */
-            {
-                byte s[2] = {
-                    cipherSuite0,
-                    cipherSuite,
-                };
-                found = FindSuiteSSL(ssl, s);
-            }
-        #endif
-        }
+    ret = FindPskSuite(ssl, psk, ssl->arrays->psk_key, &ssl->arrays->psk_keySz,
+                       suite, &found);
+    if (ret == 0 && found) {
         if ((ret == 0) && found) {
             /* Default to ciphersuite if cb doesn't specify. */
             ssl->options.resuming = 0;
