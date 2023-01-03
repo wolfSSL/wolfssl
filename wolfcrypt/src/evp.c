@@ -7588,16 +7588,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
         if (ctx == NULL || ((src == NULL || dst == NULL) &&
             (TRUE 
-            #ifdef HAVE_AESGCM
+        #ifdef HAVE_AESGCM
             && ctx->cipherType != AES_128_GCM_TYPE &&
              ctx->cipherType != AES_192_GCM_TYPE &&
              ctx->cipherType != AES_256_GCM_TYPE
-            #endif
-            #ifdef HAVE_AESCCM
+        #endif
+        #ifdef HAVE_AESCCM
             && ctx->cipherType != AES_128_CCM_TYPE &&
              ctx->cipherType != AES_192_CCM_TYPE &&
              ctx->cipherType != AES_256_CCM_TYPE
-            #endif
+        #endif
             ))) {
             WOLFSSL_MSG("Bad argument.");
             return WOLFSSL_FATAL_ERROR;
@@ -7793,7 +7793,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
 
         if (ret < 0) {
-            if (ret == AES_GCM_AUTH_E) { // todo: check this
+            if (ret == AES_GCM_AUTH_E) {
                 WOLFSSL_MSG("wolfSSL_EVP_Cipher failure: bad AES-GCM tag.");
             }
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
