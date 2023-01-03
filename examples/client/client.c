@@ -843,7 +843,8 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRCMP(tmpBuf, starttlsCmd[0])) {
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[0], XSTRLEN(starttlsCmd[0]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[0])] == ' ')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -859,7 +860,8 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRCMP(tmpBuf, starttlsCmd[2])) {
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[2], XSTRLEN(starttlsCmd[2]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[2])] == '-')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -876,7 +878,9 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
     tmpBuf[sizeof(tmpBuf)-1] = '\0';
-    if (!XSTRCMP(tmpBuf, starttlsCmd[4])) {
+
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[4])] == ' ')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received, expected 220");
