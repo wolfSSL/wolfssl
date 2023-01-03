@@ -218,6 +218,8 @@ WOLFSSL_API
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #endif /* NO_FILESYSTEM */
 
+#define PEM_BUFSIZE WOLF_PEM_BUFSIZE
+
 #define PEM_read                        wolfSSL_PEM_read
 #define PEM_read_bio                    wolfSSL_PEM_read_bio
 #define PEM_write                       wolfSSL_PEM_write

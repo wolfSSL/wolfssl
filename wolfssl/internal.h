@@ -3651,7 +3651,7 @@ typedef struct Ciphers {
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
 #endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && !defined(NO_HMAC)
     Hmac* hmac;
 #endif
 #ifdef WOLFSSL_CIPHER_TEXT_CHECK

@@ -54,7 +54,7 @@
 #include <wolfssl/wolfcrypt/kdf.h>
 
 
-#ifdef WOLFSSL_HAVE_PRF
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 
 #ifdef WOLFSSL_SHA512
     #define P_HASH_MAX_SIZE WC_SHA512_DIGEST_SIZE
@@ -335,7 +335,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
     return ret;
 }
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
 
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)

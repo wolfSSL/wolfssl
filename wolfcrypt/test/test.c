@@ -13149,7 +13149,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
         static const char* certEccRsaDerFile = CERT_WRITE_TEMP_DIR "certeccrsa.der";
     #endif
     #if defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG) && \
-        !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+        !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(NO_ASN_CRYPT)
         static const char* eccCaKeyPemFile  = CERT_WRITE_TEMP_DIR "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_WRITE_TEMP_DIR "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_WRITE_TEMP_DIR "ecc-key.der";
@@ -22624,6 +22624,7 @@ static int ecc_test_vector_item(const eccVector* vector)
     }
 #endif
 
+#ifdef HAVE_ECC_VERIFY
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -22638,6 +22639,7 @@ static int ecc_test_vector_item(const eccVector* vector)
 
     if (verify != 1)
         ret = -9812;
+#endif
 
 done:
 
@@ -23349,7 +23351,7 @@ done:
 }
 #endif
 
-#ifdef HAVE_ECC_CDH
+#if defined(HAVE_ECC_CDH) && defined(HAVE_ECC_DHE)
 static int ecc_test_cdh_vectors(WC_RNG* rng)
 {
     int ret;
@@ -23449,7 +23451,7 @@ done:
 
     return ret;
 }
-#endif /* HAVE_ECC_CDH */
+#endif /* HAVE_ECC_CDH && HAVE_ECC_DHE */
 #endif /* HAVE_ECC_VECTOR_TEST */
 
 #ifdef HAVE_ECC_KEY_IMPORT
@@ -23933,20 +23935,17 @@ done:
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int curve_id, const ecc_set_type* dp)
 {
-#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
+#if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    word32  y;
 #endif
 #ifdef HAVE_ECC_KEY_EXPORT
     #define ECC_KEY_EXPORT_BUF_SIZE (MAX_ECC_BYTES * 2 + 32)
     WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
 #endif
     word32  x = 0;
-#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
-    word32  y;
-#endif
 #if defined(HAVE_ECC_SIGN) && !defined(WOLFSSL_KCAPI_ECC)
     WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
@@ -24108,7 +24107,6 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (XMEMCMP(sharedA, sharedB, x))
         ERROR_OUT(-9920, done);
     TEST_SLEEP();
-#endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_CDH
     /* add cofactor flag */
@@ -24149,6 +24147,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_set_flags(userA, 0);
     wc_ecc_set_flags(userB, 0);
 #endif /* HAVE_ECC_CDH */
+#endif /* HAVE_ECC_DHE */
 #endif /* !WOLFSSL_ATECC508A && WOLFSSL_ATECC608A */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -26273,7 +26272,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
         goto done;
     }
 #endif
-#ifdef HAVE_ECC_CDH
+#if defined(HAVE_ECC_CDH) && defined(HAVE_ECC_DHE)
     ret = ecc_test_cdh_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
@@ -44262,6 +44261,6 @@ WOLFSSL_TEST_SUBROUTINE int aes_siv_test(void)
 
 #else
     #ifndef NO_MAIN_DRIVER
-        int main() { return 0; }
+        int main(void) { return 0; }
     #endif
 #endif /* NO_CRYPT_TEST */

@@ -2727,8 +2727,8 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #ifdef HAVE_TRUSTED_CA
 
-WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
-            const byte* certId, word32 certIdSz)
+int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
+    const byte* certId, word32 certIdSz)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -3467,8 +3467,7 @@ int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx)
     return TLSX_UseSessionTicket(&ctx->extensions, NULL, ctx->heap);
 }
 
-WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
-                                          byte* buf, word32* bufSz)
+int wolfSSL_get_SessionTicket(WOLFSSL* ssl, byte* buf, word32* bufSz)
 {
     if (ssl == NULL || buf == NULL || bufSz == NULL || *bufSz == 0)
         return BAD_FUNC_ARG;
@@ -3483,7 +3482,7 @@ WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
     return WOLFSSL_SUCCESS;
 }
 
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
+int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                                           word32 bufSz)
 {
     if (ssl == NULL || (buf == NULL && bufSz > 0))
@@ -3523,8 +3522,8 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
 }
 
 
-WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
-                                            CallbackSessionTicket cb, void* ctx)
+int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
+                                 CallbackSessionTicket cb, void* ctx)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -7573,9 +7572,9 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
-WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
-                                                    byte *response, int responseSz, buffer *responseBuffer,
-                                                    CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
+int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
+    byte *response, int responseSz, buffer *responseBuffer,
+    CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
 {
     int ret;
 
@@ -11112,6 +11111,43 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef OPENSSL_EXTRA
+/* Get the session cache mode for CTX
+ *
+ * ctx  WOLFSSL_CTX struct to get cache mode from
+ *
+ * Returns a bit mask that has the session cache mode */
+long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
+{
+    long m = 0;
+
+    WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
+
+    if (ctx == NULL) {
+        return m;
+    }
+
+    if (ctx->sessionCacheOff != 1) {
+        m |= WOLFSSL_SESS_CACHE_SERVER;
+    }
+
+    if (ctx->sessionCacheFlushOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_AUTO_CLEAR;
+    }
+
+#ifdef HAVE_EXT_CACHE
+    if (ctx->internalCacheOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE;
+    }
+    if (ctx->internalCacheLookupOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
+    }
+#endif
+
+    return m;
+}
+#endif /* OPENSSL_EXTRA */
+
 #endif /* NO_SESSION_CACHE */
 
 
@@ -14279,7 +14315,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
     else
         return NULL;
 }
-#endif
+#endif /* !NO_CLIENT_CACHE */
 
 /**
  * For backwards compatibility, this API needs to be used in *ALL* functions
@@ -17654,7 +17690,7 @@ static int GetMinProtoVersion(int minDowngrade)
     return ret;
 }
 
-WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
 {
     int ret = 0;
 
@@ -23573,7 +23609,7 @@ const unsigned char *SSL_SESSION_get0_id_context(const WOLFSSL_SESSION *sess, un
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
+int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
 {
     (void)st;
     WOLFSSL_STUB("wolfSSL_sk_SSL_COMP_zero");
@@ -23615,7 +23651,7 @@ long wolfSSL_get_tlsext_status_type(WOLFSSL *s)
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
+long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23626,7 +23662,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
+long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23637,7 +23673,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
+long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23648,7 +23684,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
+long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23659,7 +23695,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len)
+int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid,
+    unsigned int sid_len)
 {
     (void)s;
     (void)sid;
@@ -23671,7 +23708,8 @@ WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
+int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+    const unsigned char *sid_ctx, unsigned int sid_ctx_len)
 {
     (void)s;
     (void)sid_ctx;
@@ -23782,7 +23820,7 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
+WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
     (void)ssl;
     WOLFSSL_STUB("SSL_get_privatekey");
@@ -23801,8 +23839,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
  *
  * return the string length written on success, WOLFSSL_FAILURE on failure.
  */
-WOLFSSL_API int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len,
-                                                WOLFSSL_ASN1_OBJECT *a)
+int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
 {
     WOLFSSL_ENTER("wolfSSL_i2t_ASN1_OBJECT");
     return wolfSSL_OBJ_obj2txt(buf, buf_len, a, 0);
@@ -23931,8 +23968,7 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
 
 #ifndef NO_BIO
 /* Return number of bytes written to BIO on success. 0 on failure. */
-WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp,
-                                        WOLFSSL_ASN1_OBJECT *a)
+int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 {
     int length = 0;
     word32 idx = 0;
@@ -24009,7 +24045,8 @@ int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
+void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx,
+    WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
 {
     (void)ctx;
     (void)dh;
@@ -24019,7 +24056,7 @@ WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
+WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 {
     WOLFSSL_STUB("SSL_COMP_get_compression_methods");
     return NULL;
@@ -24036,21 +24073,21 @@ int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p)
     return (int)p->num;
 }
 
-WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
+WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_value");
     return (WOLFSSL_CIPHER*)wolfSSL_sk_value(sk, i);
 }
 
 #if !defined(NETOS)
-WOLFSSL_API void ERR_load_SSL_strings(void)
+void ERR_load_SSL_strings(void)
 {
 
 }
 #endif
 
 #ifdef HAVE_OCSP
-WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
+long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
 {
     if (s == NULL || resp == NULL)
         return 0;
@@ -24059,7 +24096,8 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
     return s->ocspRespSz;
 }
 
-WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len)
+long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
+    int len)
 {
     if (s == NULL)
         return WOLFSSL_FAILURE;
@@ -24079,8 +24117,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
  * @param mode maximum fragment length mode
  * @return 1 on success, otherwise 0 or negative error code
  */
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
-                                                            unsigned char mode)
+int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
+                                               unsigned char mode)
 {
     if (c == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
         return BAD_FUNC_ARG;
@@ -24093,8 +24131,7 @@ WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
  * @param mode maximum fragment length mode
  * @return 1 on success, otherwise 0 or negative error code
  */
-WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s,
-                                                            unsigned char mode)
+int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s, unsigned char mode)
 {
     if (s == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
         return BAD_FUNC_ARG;
@@ -24107,7 +24144,7 @@ WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s,
 #endif /* OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
-WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
+size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
 
@@ -24129,7 +24166,7 @@ WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t co
     return len;
 }
 
-WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
+size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
     WOLFSSL_ENTER("SSL_get_peer_finished");
@@ -24400,44 +24437,7 @@ long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* NO_CERTS */
-
-
-/* Get the session cache mode for CTX
- *
- * ctx  WOLFSSL_CTX struct to get cache mode from
- *
- * Returns a bit mask that has the session cache mode */
-WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
-{
-    long m = 0;
-
-    WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
-
-    if (ctx == NULL) {
-        return m;
-    }
-
-    if (ctx->sessionCacheOff != 1) {
-        m |= SSL_SESS_CACHE_SERVER;
-    }
-
-    if (ctx->sessionCacheFlushOff == 1) {
-        m |= SSL_SESS_CACHE_NO_AUTO_CLEAR;
-    }
-
-#ifdef HAVE_EXT_CACHE
-    if (ctx->internalCacheOff == 1) {
-        m |= SSL_SESS_CACHE_NO_INTERNAL_STORE;
-    }
-    if (ctx->internalCacheLookupOff == 1) {
-        m |= SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
-    }
-#endif
-
-    return m;
-}
-
+#endif /* !NO_CERTS */
 
 int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
@@ -25201,7 +25201,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 /*
  * Convert time to Unix time (GMT).
  */
-static long long TimeToUnixTime(int sec, int minute, int hour, int mday, 
+static long long TimeToUnixTime(int sec, int minute, int hour, int mday,
                                 int mon, int year)
 {
     /* Number of cumulative days from the previous months, starting from
@@ -25218,7 +25218,7 @@ static long long TimeToUnixTime(int sec, int minute, int hour, int mday,
                1969 / 100 - 1969 / 400;
 
     return ((((long long) (year - 1970) * 365 + leapDays +
-           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + minute) * 
+           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + minute) *
            60 + sec;
 }
 
@@ -35612,7 +35612,7 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
-WOLFSSL_API int wolfSSL_BN_mul(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b,
+int wolfSSL_BN_mul(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b,
     WOLFSSL_BN_CTX *ctx)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -35827,7 +35827,7 @@ int wolfSSL_BN_is_negative(const WOLFSSL_BIGNUM* bn)
     return mp_isneg((mp_int*)bn->internal);
 }
 
-WOLFSSL_API void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
+void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
 {
     if (bn == NULL || bn->internal == NULL) {
         return;
@@ -35836,7 +35836,7 @@ WOLFSSL_API void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
     mp_zero((mp_int*)bn->internal);
 }
 
-WOLFSSL_API int wolfSSL_BN_one(WOLFSSL_BIGNUM* bn)
+int wolfSSL_BN_one(WOLFSSL_BIGNUM* bn)
 {
     int ret = WOLFSSL_SUCCESS;
 
@@ -36633,7 +36633,7 @@ int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
-WOLFSSL_API int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
+int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
     int ret;
 
@@ -40554,7 +40554,7 @@ error:
 * RETURNS:
 * returns pointer to a PKCS7 structure on success, otherwise returns NULL
 */
-WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
+PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
         WOLFSSL_BIO** bcont)
 {
     MimeHdr* allHdrs = NULL;
