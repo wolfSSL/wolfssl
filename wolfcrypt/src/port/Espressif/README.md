@@ -1,6 +1,9 @@
 # ESP32 Port
 
 Support for the ESP32-WROOM-32 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512 and RSA primitive including mul, mulmod and exptmod.
+Supported hardware includes:
+* ESP32
+* ESP32s3
 
 ## ESP32 Acceleration
 

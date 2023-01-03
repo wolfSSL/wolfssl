@@ -3397,6 +3397,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         /* Espressif ESP32 */
         #include <esp_system.h>
+        #include <esp_random.h>
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {

@@ -38,6 +38,18 @@
 
 /* #define DEBUG_WOLFSSL_VERBOSE */
 
+// Enable key generation:
+// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#rsa-key-generation
+#define WOLFSSL_KEY_GEN
+
+// Enable certificate generation: 
+// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-generation
+#define WOLFSSL_CERT_GEN
+
+// Enable certificate request generation: 
+// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-signing-request-csr-generation
+#define WOLFSSL_CERT_REQ
+
 #define BENCH_EMBEDDED
 #define USE_CERT_BUFFERS_2048
 
@@ -60,7 +72,13 @@
 #define HAVE_ECC
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
-#define HAVE_ED25519
+
+// ED25519 test fails on ESP32 & ESP32s3
+// #define HAVE_ED25519
+
+/* AES-192 is not supported on the ESP32s3; is available for ESP32
+ * and may be available for other devices. */
+#define NO_AES_192
 
 /* when you want to use pkcs7 */
 /* #define HAVE_PKCS7 */

@@ -391,7 +391,7 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
       sha->mode = ESP32_SHA_FAIL_NEED_UNROLL;
       return -1;
     }
-  
+
     REG_WRITE(SHA_MODE_REG, uHardwareAlgorithm);
 
     if (sha->isfirstblock) 
@@ -509,7 +509,6 @@ static void wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
                                  const word32* data,
                                  word32 len)
 {
-    int i;
     int word32_to_save = (len) / (sizeof(word32));
     ESP_LOGV(TAG, "  enter esp_process_block");
     if (word32_to_save > 0x31) {
@@ -524,16 +523,19 @@ static void wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
 #if CONFIG_IDF_TARGET_ESP32S3
     uint32_t *pMessageSource = (uint32_t *)data;
     uint32_t *pAcceleratorMessage = (uint32_t *)(SHA_TEXT_BASE);
-    while(word32_to_save--)
+    while (word32_to_save--)
     {
-        /* Must swap endiness of data loaded into harware accelerator to produce 
-         * correct result. Using DPORT_REG_WRITE doesn't avoid this for ESP32s3. */
-        DPORT_REG_WRITE(pAcceleratorMessage, __builtin_bswap32(*pMessageSource));
-        ++pAcceleratorMessage;
-        ++pMessageSource;
+      /* Must swap endiness of data loaded into harware accelerator to produce 
+       * correct result. Using DPORT_REG_WRITE doesn't avoid this for ESP32s3.
+       * Note: data sheet claims we also need to swap endian across 64 byte words 
+       * when doing SHA-512, but the SHA-512 result is not correct if you do that. */
+      DPORT_REG_WRITE(pAcceleratorMessage, __builtin_bswap32(*pMessageSource));
+      ++pAcceleratorMessage;
+      ++pMessageSource;
     }
-
+  
 #else
+    int i;
     for (i = 0; i < word32_to_save; i++) {
         /* by using DPORT_REG_WRITE, we avoid the need
          * to call __builtin_bswap32 to address endiness
@@ -578,20 +580,46 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
         return -1;
     }
 
+#if CONFIG_IDF_TARGET_ESP32S3
+    if (ctx->isfirstblock == 1) 
+    {
+      /* no hardware use yet. Nothing to do yet */
+      return 0;
+    }
+
     /* wait until idle */
     wc_esp_wait_until_idle();
 
-#if CONFIG_IDF_TARGET_ESP32S3
     /* read hash result into buffer & flip endiness */
     uint32_t* pHashDestination = (uint32_t*)hash;
     size_t szHashWords = wc_esp_sha_digest_size(ctx->sha_type) / sizeof(uint32_t);
     esp_dport_access_read_buffer(pHashDestination, SHA_H_BASE, szHashWords);
-    while(szHashWords--)
+  
+    if (ctx->sha_type == SHA2_512)
     {
-      *pHashDestination = __builtin_bswap32(*pHashDestination);
-      ++pHashDestination;
+      /* Although we don't have to swap endian on 64-bit words at the input, 
+       * we do for the output. */
+      size_t szHash64Words = szHashWords / 2;
+      uint64_t *pHash64Buffer = (uint64_t*)pHashDestination;
+      while (szHash64Words--)
+      {
+        *pHash64Buffer = __builtin_bswap64(*pHash64Buffer);
+        ++pHash64Buffer;
+      }
+    }
+    else
+    {
+      while (szHashWords--)
+      {
+        *pHashDestination = __builtin_bswap32(*pHashDestination);
+        ++pHashDestination;
+      }
     }
 #else
+
+    /* wait until idle */
+    wc_esp_wait_until_idle();
+
     /* each sha_type register is at a different location  */
     switch (ctx->sha_type) {
         case SHA1:
@@ -672,7 +700,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
     }
 #endif
 #endif
-
+  
     ESP_LOGV(TAG, "leave esp_digest_state");
     return 0;
 }

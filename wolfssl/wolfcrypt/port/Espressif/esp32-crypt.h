@@ -51,7 +51,9 @@
     #include "driver/periph_ctrl.h"
 #endif
 
-#if ESP_IDF_VERSION_MAJOR >= 4
+#if ESP_IDF_VERSION_MAJOR >= 5
+    // ets_sys.h isn't required for ESP32; breaks ESP32s3 build. 
+#elif ESP_IDF_VERSION_MAJOR >= 4
     #include <esp32/rom/ets_sys.h>
 #else
     #include <rom/ets_sys.h>
