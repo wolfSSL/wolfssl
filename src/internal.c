@@ -12781,9 +12781,17 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
         return BAD_FUNC_ARG;
     }
 
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wstrict-overflow\"")
+    /* Surrounded in gcc pragma to avoid -Werror=strict-overflow when the
+     * compiler optimizes out the check and assumes no underflow. Keeping the
+     * check in place to handle multiple build configurations and future
+     * changes. */
+
     /* check to make sure certificate index is valid */
     if (args->certIdx > args->count)
         return BUFFER_E;
+PRAGMA_GCC_DIAG_POP
 
     /* check if returning from non-blocking OCSP */
     /* skip this section because cert is already initialized and parsed */
