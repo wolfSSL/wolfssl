@@ -46081,7 +46081,7 @@ static int test_evp_cipher_aes_gcm(void)
 
             /*
              * The call to EVP_CipherInit below (with NULL key) should clear the
-             * gcmIvGenEnable flag set by EVP_CTRL_GCM_SET_IV_FIXED. As such, a
+             * gcmccmIvGenEnable flag set by EVP_CTRL_GCM_SET_IV_FIXED. As such, a
              * subsequent EVP_CTRL_GCM_IV_GEN should fail. This matches OpenSSL
              * behavior.
              */
