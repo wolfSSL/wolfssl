@@ -731,6 +731,11 @@ static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     return WOLFSSL_SUCCESS;
 #else
+    (void)ctx;
+    (void)out;
+    (void)outl;
+    (void)in;
+    (void)inl;
     return WOLFSSL_FAILURE; /* unsupported */
 #endif /* WOLFSSL_AESCCM_STREAM */
 }
