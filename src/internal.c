@@ -8243,6 +8243,7 @@ static DtlsFragBucket* DtlsMsgCreateFragBucket(word32 offset, const byte* data,
         if (data != NULL)
             XMEMCPY(bucket->buf, data, dataSz);
     }
+    (void)heap;
     return bucket;
 }
 
