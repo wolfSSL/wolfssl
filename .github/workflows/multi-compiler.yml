@@ -1,16 +1,17 @@
-name: Test builds with multiple compilers and versions
+name: Multiple compilers and versions
 concurrency:
   group: ${{ github.ref }}
 
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ '*' ]
+#    branches: [ 'master', 'main', 'release/**' ]
   pull_request:
     branches: [ '*' ]
 
 jobs:
   gcc_latest:
-    name: Use GCC-latest
+    name: GCC-latest
     runs-on: ubuntu-latest
     container:
       image: gcc:latest
@@ -19,7 +20,7 @@ jobs:
       - name: Build
         run: ./autogen.sh && ./configure && make && make dist
   gcc_12.2:
-    name: Use GCC-12.2
+    name: GCC-12.2
     runs-on: ubuntu-latest
     container:
       image: gcc:12.2
