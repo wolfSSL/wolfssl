@@ -7113,14 +7113,14 @@ static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void)
 }
 
 
-/* like load verify locations, 1 for success, < 0 for error */
-int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
-                                   const unsigned char* in, long sz, int format)
+int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
+                                       const unsigned char* in, long sz,
+                                       int format, int userChain, word32 flags)
 {
     int ret = WOLFSSL_FATAL_ERROR;
     WOLFSSL_CTX* tmp;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer");
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer_ex");
 
     if (cm == NULL) {
         WOLFSSL_MSG("No CertManager error");
@@ -7137,13 +7137,23 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
     wolfSSL_CertManagerFree(tmp->cm);
     tmp->cm = cm;
 
-    ret = wolfSSL_CTX_load_verify_buffer(tmp, in, sz, format);
+    ret = wolfSSL_CTX_load_verify_buffer_ex(tmp, in, sz, format,
+                                            userChain, flags);
 
     /* don't loose our good one */
     tmp->cm = NULL;
     wolfSSL_CTX_free(tmp);
 
     return ret;
+}
+
+/* like load verify locations, 1 for success, < 0 for error */
+int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
+                                    const unsigned char* in, long sz,
+                                    int format)
+{
+    return wolfSSL_CertManagerLoadCABuffer_ex(cm, in, sz, format, 0,
+                                             WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
 }
 
 #ifdef HAVE_CRL

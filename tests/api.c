@@ -1491,6 +1491,76 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
 
     return ret;
 }
+
+static int test_cm_load_ca_buffer_ex(const byte* cert_buf, size_t cert_sz,
+                                     int file_type, word32 flags)
+{
+    int ret;
+    WOLFSSL_CERT_MANAGER* cm;
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL) {
+        fprintf(stderr, "test_cm_load_ca failed\n");
+        return -1;
+    }
+
+    ret = wolfSSL_CertManagerLoadCABuffer_ex(cm, cert_buf, cert_sz, file_type,
+                                             0, flags);
+
+    wolfSSL_CertManagerFree(cm);
+
+    return ret;
+}
+
+static int test_cm_load_ca_file_ex(const char* ca_cert_file, word32 flags)
+{
+    int ret = 0;
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0;
+#if defined(WOLFSSL_PEM_TO_DER)
+    DerBuffer* pDer = NULL;
+#endif
+
+    ret = load_file(ca_cert_file, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        /* normal test */
+        ret = test_cm_load_ca_buffer_ex(cert_buf, cert_sz,
+                                        WOLFSSL_FILETYPE_PEM, flags);
+
+        if (ret == WOLFSSL_SUCCESS) {
+            /* test including null terminator in length */
+            byte* tmp = (byte*)realloc(cert_buf, cert_sz+1);
+            if (tmp == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                cert_buf = tmp;
+                cert_buf[cert_sz] = '\0';
+                ret = test_cm_load_ca_buffer_ex(cert_buf, cert_sz+1,
+                        WOLFSSL_FILETYPE_PEM, flags);
+            }
+
+        }
+
+    #if defined(WOLFSSL_PEM_TO_DER)
+        if (ret == WOLFSSL_SUCCESS) {
+            /* test loading DER */
+            ret = wc_PemToDer(cert_buf, cert_sz, CA_TYPE, &pDer, NULL, NULL, NULL);
+            if (ret == 0 && pDer != NULL) {
+                ret = test_cm_load_ca_buffer_ex(pDer->buffer, pDer->length,
+                    WOLFSSL_FILETYPE_ASN1, flags);
+
+                wc_FreeDer(&pDer);
+            }
+        }
+    #endif
+
+    }
+    free(cert_buf);
+
+    return ret;
+}
+
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
@@ -1890,6 +1960,41 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 
     return res;
 }
+
+static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
+    int ret;
+
+    ret = test_cm_load_ca_file_ex(ca_cert, WOLFSSL_LOAD_FLAG_NONE);
+#if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
+    AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
+#elif defined(NO_RSA)
+    AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
+#else
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+#endif
+
+    ret = test_cm_load_ca_file_ex(ca_expired_cert,
+                                  WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY);
+#if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
+    AssertIntEQ(ret, WOLFSSL_FATAL_ERROR);
+    res = TEST_RES_CHECK(ret == WOLFSSL_FATAL_ERROR);
+#elif defined(NO_RSA)
+    AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
+    res = TEST_RES_CHECK(ret == ASN_UNKNOWN_OID_E);
+#else
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+    res = TEST_RES_CHECK(ret == WOLFSSL_SUCCESS);
+#endif
+#endif
+
+    return res;
+}
+
 
 static int test_wolfSSL_CertManagerGetCerts(void)
 {
@@ -59656,6 +59761,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer),
+    TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer_ex),
     TEST_DECL(test_wolfSSL_CertManagerGetCerts),
     TEST_DECL(test_wolfSSL_CertManagerSetVerify),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint),
