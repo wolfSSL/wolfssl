@@ -155,8 +155,13 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/main/include/* ${WOLFS
 
 popd > /dev/null #
 
+if [ -f ./append_wolfssl_git_version.sh ]; then
+    ./append_wolfssl_git_version.sh "${WOLFSSLLIB_TRG_DIR}/wolfssl/version.h"
+fi
+
 if [ "${WOLFSSL_SETUP_VERBOSE}" == "true" ]; then
   echo "Copy complete!"
 fi
 
-exit 1
+# exit with success
+exit 0
