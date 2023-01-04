@@ -1559,42 +1559,77 @@ int wolfSSL_CryptHwMutexUnLock(void)
     }
 
 #elif defined(WOLFSSL_PTHREADS)
-
-    int wc_InitMutex(wolfSSL_Mutex* m)
-    {
-        if (pthread_mutex_init(m, 0) == 0)
-            return 0;
-        else
-            return BAD_MUTEX_E;
-    }
-
-
-    int wc_FreeMutex(wolfSSL_Mutex* m)
-    {
-        if (pthread_mutex_destroy(m) == 0)
-            return 0;
-        else
-            return BAD_MUTEX_E;
-    }
+    #ifdef WOLFSSL_USE_RWLOCK
+        int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_rwlock_init(m, 0) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
 
 
-    int wc_LockMutex(wolfSSL_Mutex* m)
-    {
-        if (pthread_mutex_lock(m) == 0)
-            return 0;
-        else
-            return BAD_MUTEX_E;
-    }
+        int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_rwlock_destroy(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
 
 
-    int wc_UnLockMutex(wolfSSL_Mutex* m)
-    {
-        if (pthread_mutex_unlock(m) == 0)
-            return 0;
-        else
-            return BAD_MUTEX_E;
-    }
+        int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_rwlock_wrlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
 
+
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_rwlock_unlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+    #else
+        int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_mutex_init(m, 0) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+
+        int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_mutex_destroy(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+
+        int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_mutex_lock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            if (pthread_mutex_unlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+    #endif
 #elif defined(WOLFSSL_LINUXKM)
 
     /* Linux kernel mutex routines are voids, alas. */

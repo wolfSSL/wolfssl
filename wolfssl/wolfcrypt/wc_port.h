@@ -228,7 +228,11 @@
         typedef pthread_mutex_t wolfSSL_Mutex;
         int maxq_CryptHwMutexTryLock(void);
     #elif defined(WOLFSSL_PTHREADS)
-        typedef pthread_mutex_t wolfSSL_Mutex;
+        #ifdef WOLFSSL_USE_RWLOCK
+            typedef pthread_rwlock_t wolfSSL_Mutex;
+        #else
+            typedef pthread_mutex_t wolfSSL_Mutex;
+        #endif
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
     #elif defined(WOLFSSL_DEOS)
