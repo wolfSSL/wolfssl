@@ -10,7 +10,7 @@ on:
     branches: [ '*' ]
 
 jobs:
-  gcc_latest:
+  gcc-latest:
     name: GCC-latest
     runs-on: ubuntu-latest
     container:
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build
         run: ./autogen.sh && ./configure && make && make dist
-  gcc_12.2:
+  gcc-12_2:
     name: GCC-12_2
     runs-on: ubuntu-latest
     container:
