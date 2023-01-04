@@ -26067,8 +26067,14 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #endif
         length = VERSION_SZ + RAN_LEN
                + idSz + ENUM_LEN
-               + suites->suiteSz + SUITE_LEN
+               + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
+#ifndef NO_FORCE_SCR_SAME_SUITE
+        if (IsSCR(ssl))
+            length += SUITE_LEN;
+        else
+#endif
+            length += suites->suiteSz;
 
 #ifdef HAVE_TLS_EXTENSIONS
         /* auto populate extensions supported unless user defined */
@@ -26163,11 +26169,23 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             }
         }
 #endif
-        /* then cipher suites */
-        c16toa(suites->suiteSz, output + idx);
-        idx += OPAQUE16_LEN;
-        XMEMCPY(output + idx, &suites->suites, suites->suiteSz);
-        idx += suites->suiteSz;
+
+#ifndef NO_FORCE_SCR_SAME_SUITE
+        if (IsSCR(ssl)) {
+            c16toa(SUITE_LEN, output + idx);
+            idx += OPAQUE16_LEN;
+            output[idx++] = ssl->options.cipherSuite0;
+            output[idx++] = ssl->options.cipherSuite;
+        }
+        else
+#endif
+        {
+            /* then cipher suites */
+            c16toa(suites->suiteSz, output + idx);
+            idx += OPAQUE16_LEN;
+            XMEMCPY(output + idx, &suites->suites, suites->suiteSz);
+            idx += suites->suiteSz;
+        }
 
         /* last, compression */
         output[idx++] = COMP_LEN;
@@ -26597,9 +26615,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         cs0 = input[i++];
         cs1 = input[i++];
 
-#ifdef HAVE_SECURE_RENEGOTIATION
-        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
-                                         ssl->options.handShakeDone) {
+#ifndef WOLFSSL_NO_STRICT_CIPHER_SUITE
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_FORCE_SCR_SAME_SUITE)
+        if (IsSCR(ssl)) {
             if (ssl->options.cipherSuite0 != cs0 ||
                 ssl->options.cipherSuite  != cs1) {
                 WOLFSSL_MSG("Server changed cipher suite during scr");
@@ -26607,19 +26625,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 return MATCH_SUITE_ERROR;
             }
         }
+        else
 #endif
-
-        ssl->options.cipherSuite0 = cs0;
-        ssl->options.cipherSuite  = cs1;
-    #ifdef WOLFSSL_DEBUG_TLS
-        WOLFSSL_MSG("Chosen cipher suite:");
-        WOLFSSL_MSG(GetCipherNameInternal(ssl->options.cipherSuite0,
-                                          ssl->options.cipherSuite));
-    #endif
-
-        compression = input[i++];
-
-#ifndef WOLFSSL_NO_STRICT_CIPHER_SUITE
         {
             word32 idx, found = 0;
             const Suites* suites = WOLFSSL_SUITES(ssl);
@@ -26638,6 +26645,16 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             }
         }
 #endif /* !WOLFSSL_NO_STRICT_CIPHER_SUITE */
+
+        ssl->options.cipherSuite0 = cs0;
+        ssl->options.cipherSuite  = cs1;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Chosen cipher suite:");
+        WOLFSSL_MSG(GetCipherNameInternal(ssl->options.cipherSuite0,
+                                          ssl->options.cipherSuite));
+    #endif
+
+        compression = input[i++];
 
         if (compression != NO_COMPRESSION && !ssl->options.usingCompression) {
             WOLFSSL_MSG("Server forcing compression w/o support");

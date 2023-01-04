@@ -3249,16 +3249,6 @@ static int _Rehandshake(WOLFSSL* ssl)
             }
         }
 
-#ifndef NO_FORCE_SCR_SAME_SUITE
-        /* force same suite */
-        ret = AllocateSuites(ssl);
-        if (ret != 0)
-            return ret;
-        ssl->suites->suiteSz = SUITE_LEN;
-        ssl->suites->suites[0] = ssl->options.cipherSuite0;
-        ssl->suites->suites[1] = ssl->options.cipherSuite;
-#endif
-
         /* reset handshake states */
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
