@@ -1924,6 +1924,7 @@ typedef struct Suites Suites;
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 
+WOLFSSL_LOCAL void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 

@@ -5962,6 +5962,48 @@ int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx)
 }
 #endif /* HAVE_PK_CALLBACKS */
 
+static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
+        word16 haveRSA, word16 havePSK, word16 haveDH, word16 haveECDSAsig,
+        word16 haveECC, word16 haveStaticECC,
+        word16 haveFalconSig, word16 haveDilithiumSig, word16 haveAnon,
+        int side)
+{
+    /* make sure server has DH parms, and add PSK if there */
+    if (side == WOLFSSL_SERVER_END) {
+        InitSuites(suites, pv, keySz, haveRSA, havePSK, haveDH, haveECDSAsig,
+                   haveECC, TRUE, haveStaticECC, haveFalconSig,
+                   haveDilithiumSig, haveAnon, TRUE, side);
+    }
+    else {
+        InitSuites(suites, pv, keySz, haveRSA, havePSK, TRUE, haveECDSAsig,
+                   haveECC, TRUE, haveStaticECC, haveFalconSig,
+                   haveDilithiumSig, haveAnon, TRUE, side);
+    }
+}
+
+void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
+{
+    int keySz = 0;
+    byte havePSK = 0;
+    byte haveAnon = 0;
+    byte haveRSA = 0;
+#ifndef NO_RSA
+    haveRSA = 1;
+#endif
+#ifndef NO_PSK
+    havePSK = ctx->havePSK;
+#endif /* NO_PSK */
+#ifdef HAVE_ANON
+    haveAnon = ctx->haveAnon;
+#endif /* HAVE_ANON*/
+#ifndef NO_CERTS
+    keySz = ctx->privateKeySz;
+#endif
+    InitSuites_EitherSide(ctx->suites, ctx->method->version, keySz,
+            haveRSA, havePSK, ctx->haveDH, ctx->haveECDSAsig, ctx->haveECC,
+            ctx->haveStaticECC, ctx->haveFalconSig, ctx->haveDilithiumSig,
+            haveAnon, ctx->method->side);
+}
 
 int InitSSL_Suites(WOLFSSL* ssl)
 {
@@ -6009,21 +6051,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
 #endif
 
     if (ssl->suites != NULL) {
-        /* make sure server has DH parms, and add PSK if there */
-        if (ssl->options.side == WOLFSSL_SERVER_END) {
-            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                       ssl->options.haveDH, ssl->options.haveECDSAsig,
-                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                       ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                       ssl->options.haveAnon, TRUE, ssl->options.side);
-        }
-        else {
-            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK, TRUE,
-                       ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
-                       ssl->options.haveStaticECC, ssl->options.haveFalconSig,
-                       ssl->options.haveDilithiumSig, ssl->options.haveAnon, TRUE,
-                       ssl->options.side);
-        }
+        InitSuites_EitherSide(ssl->suites, ssl->version, keySz, haveRSA,
+                havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
+                ssl->options.haveECC, ssl->options.haveStaticECC,
+                ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
+                ssl->options.haveAnon, ssl->options.side);
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -6876,9 +6908,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
         if (ctx->suites == NULL) {
             /* suites */
-            ret = AllocateSuites(ssl);
+            ret = AllocateCtxSuites(ctx);
             if (ret != 0)
                 return ret;
+            InitSSL_CTX_Suites(ctx);
         }
 #ifdef OPENSSL_ALL
         ssl->suitesStack = NULL;
