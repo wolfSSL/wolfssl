@@ -1,6 +1,6 @@
 /* ecc.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -225,7 +225,8 @@ ECC Curve Sizes:
 /* forward declarations */
 static int  wc_ecc_new_point_ex(ecc_point** point, void* heap);
 static void wc_ecc_del_point_ex(ecc_point* p, void* heap);
-#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+#if defined(HAVE_ECC_SIGN) && (defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT))
 static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key);
 #endif
 
@@ -1257,7 +1258,7 @@ const size_t ecc_sets_count = ECC_SET_COUNT - 1;
 #endif
 
 
-#ifdef HAVE_COMP_KEY
+#if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
 static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen);
 #endif
 
@@ -14373,7 +14374,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 #endif /* !WOLFSSL_SP_MATH */
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && !WOLFSSL_CRYPTOCELL */
 
-
+#ifdef HAVE_ECC_KEY_EXPORT
 /* export public ECC key in ANSI X9.63 format compressed */
 static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen)
 {
@@ -14414,7 +14415,7 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
    return ret;
 }
-
+#endif /* HAVE_ECC_KEY_EXPORT */
 #endif /* HAVE_COMP_KEY */
 
 
@@ -14479,7 +14480,7 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp)
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
-#ifdef HAVE_X963_KDF
+#if defined(HAVE_X963_KDF) && !defined(NO_HASH_WRAPPER)
 
 static WC_INLINE void IncrementX963KdfCounter(byte* inOutCtr)
 {
@@ -14581,7 +14582,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
 
     return ret;
 }
-#endif /* HAVE_X963_KDF */
+#endif /* HAVE_X963_KDF && !NO_HASH_WRAPPER */
 
 #ifdef WOLFSSL_SE050
 /* Use specified hardware key ID with ecc_key operations. Unlike devId,

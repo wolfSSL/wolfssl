@@ -1,6 +1,6 @@
 /* ssl.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1474,13 +1474,12 @@ WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)* wolfSSL_get_srtp_profiles(
 }
 #endif
 
+#define DTLS_SRTP_KEYING_MATERIAL_LABEL "EXTRACTOR-dtls_srtp"
+
 int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     unsigned char* out, size_t* olen)
 {
-    int ret = WOLFSSL_FAILURE;
-    const char* label = "EXTRACTOR-dtls_srtp";
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
-    byte seed[SEED_LEN];
 
     if (ssl == NULL || olen == NULL) {
         return BAD_FUNC_ARG;
@@ -1500,28 +1499,9 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
         return BUFFER_E;
     }
 
-#ifdef WOLFSSL_HAVE_PRF
-    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
-    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
-
-    PRIVATE_KEY_UNLOCK();
-    ret = wc_PRF_TLS(out, profile->kdfBits,   /* out: generated keys / salt */
-        ssl->arrays->masterSecret, SECRET_LEN,  /* existing master secret */
-        (const byte*)label, (int)XSTRLEN(label),/* label */
-        seed, SEED_LEN,                         /* seed: client/server random */
-        IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
-        ssl->heap, INVALID_DEVID);
-    if (ret == 0) {
-        *olen = profile->kdfBits;
-        ret = WOLFSSL_SUCCESS;
-    }
-    PRIVATE_KEY_LOCK();
-#else
-    /* Pseudo random function must be enabled in the configuration */
-    ret = PRF_MISSING;
-#endif
-
-    return ret;
+    return wolfSSL_export_keying_material(ssl, out, profile->kdfBits,
+            DTLS_SRTP_KEYING_MATERIAL_LABEL,
+            XSTR_SIZEOF(DTLS_SRTP_KEYING_MATERIAL_LABEL), NULL, 0, 0);
 }
 
 #endif /* WOLFSSL_SRTP */
@@ -2747,8 +2727,8 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #ifdef HAVE_TRUSTED_CA
 
-WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
-            const byte* certId, word32 certIdSz)
+int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
+    const byte* certId, word32 certIdSz)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -3487,8 +3467,7 @@ int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx)
     return TLSX_UseSessionTicket(&ctx->extensions, NULL, ctx->heap);
 }
 
-WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
-                                          byte* buf, word32* bufSz)
+int wolfSSL_get_SessionTicket(WOLFSSL* ssl, byte* buf, word32* bufSz)
 {
     if (ssl == NULL || buf == NULL || bufSz == NULL || *bufSz == 0)
         return BAD_FUNC_ARG;
@@ -3503,7 +3482,7 @@ WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
     return WOLFSSL_SUCCESS;
 }
 
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
+int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
                                           word32 bufSz)
 {
     if (ssl == NULL || (buf == NULL && bufSz > 0))
@@ -3543,8 +3522,8 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
 }
 
 
-WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
-                                            CallbackSessionTicket cb, void* ctx)
+int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
+                                 CallbackSessionTicket cb, void* ctx)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -4549,7 +4528,8 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
 
 #endif /* NO_CERTS */
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) \
+    && defined(XFPRINTF)
 
 void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 {
@@ -4573,7 +4553,7 @@ void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
     wc_ERR_print_errors_cb(cb, u);
 }
 #endif
-#endif
+#endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM && XFPRINTF */
 
 /*
  * TODO This ssl parameter needs to be changed to const once our ABI checker
@@ -5264,7 +5244,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             #endif /* HAVE_FALCON */
             #if defined(HAVE_DILITHIUM)
             case DILITHIUM_LEVEL2k:
-            case DILITHIUM_AES_LEVEL2k:
                 if (cm->minDilithiumKeySz < 0 ||
                     DILITHIUM_LEVEL2_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
                     ret = DILITHIUM_KEY_SIZE_E;
@@ -5272,7 +5251,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             case DILITHIUM_LEVEL3k:
-            case DILITHIUM_AES_LEVEL3k:
                 if (cm->minDilithiumKeySz < 0 ||
                     DILITHIUM_LEVEL3_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
                     ret = DILITHIUM_KEY_SIZE_E;
@@ -5280,7 +5258,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             case DILITHIUM_LEVEL5k:
-            case DILITHIUM_AES_LEVEL5k:
                 if (cm->minDilithiumKeySz < 0 ||
                     DILITHIUM_LEVEL5_KEY_SIZE < (word16)cm->minDilithiumKeySz) {
                     ret = DILITHIUM_KEY_SIZE_E;
@@ -6271,10 +6248,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     if ((*keyFormat == 0) ||
         (*keyFormat == DILITHIUM_LEVEL2k) ||
         (*keyFormat == DILITHIUM_LEVEL3k) ||
-        (*keyFormat == DILITHIUM_LEVEL5k) ||
-        (*keyFormat == DILITHIUM_AES_LEVEL2k) ||
-        (*keyFormat == DILITHIUM_AES_LEVEL3k) ||
-        (*keyFormat == DILITHIUM_AES_LEVEL5k)) {
+        (*keyFormat == DILITHIUM_LEVEL5k)) {
         /* make sure Dilithium key can be used */
         dilithium_key* key = (dilithium_key*)XMALLOC(sizeof(dilithium_key),
                                                      heap,
@@ -6285,22 +6259,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         ret = wc_dilithium_init(key);
         if (ret == 0) {
             if (*keyFormat == DILITHIUM_LEVEL2k) {
-                ret = wc_dilithium_set_level_and_sym(key, 2, SHAKE_VARIANT);
+                ret = wc_dilithium_set_level(key, 2);
             }
             else if (*keyFormat == DILITHIUM_LEVEL3k) {
-                ret = wc_dilithium_set_level_and_sym(key, 3, SHAKE_VARIANT);
+                ret = wc_dilithium_set_level(key, 3);
             }
             else if (*keyFormat == DILITHIUM_LEVEL5k) {
-                ret = wc_dilithium_set_level_and_sym(key, 5, SHAKE_VARIANT);
-            }
-            else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
-                ret = wc_dilithium_set_level_and_sym(key, 2, AES_VARIANT);
-            }
-            else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
-                ret = wc_dilithium_set_level_and_sym(key, 3, AES_VARIANT);
-            }
-            else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
-                ret = wc_dilithium_set_level_and_sym(key, 5, AES_VARIANT);
+                ret = wc_dilithium_set_level(key, 5);
             }
             else {
                 /* What if *keyformat is 0? We might want to do something more
@@ -6333,15 +6298,6 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     else if (*keyFormat == DILITHIUM_LEVEL5k) {
                         ssl->buffers.keyType = dilithium_level5_sa_algo;
                     }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
-                        ssl->buffers.keyType = dilithium_aes_level2_sa_algo;
-                    }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
-                        ssl->buffers.keyType = dilithium_aes_level3_sa_algo;
-                    }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
-                        ssl->buffers.keyType = dilithium_aes_level5_sa_algo;
-                    }
                     ssl->buffers.keySz = *keySz;
                 }
                 else {
@@ -6353,15 +6309,6 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     }
                     else if (*keyFormat == DILITHIUM_LEVEL5k) {
                         ctx->privateKeyType = dilithium_level5_sa_algo;
-                    }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL2k) {
-                        ctx->privateKeyType = dilithium_aes_level2_sa_algo;
-                    }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL3k) {
-                        ctx->privateKeyType = dilithium_aes_level3_sa_algo;
-                    }
-                    else if (*keyFormat == DILITHIUM_AES_LEVEL5k) {
-                        ctx->privateKeyType = dilithium_aes_level5_sa_algo;
                     }
                     ctx->privateKeySz = *keySz;
                 }
@@ -6741,9 +6688,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case CTC_DILITHIUM_LEVEL2:
             case CTC_DILITHIUM_LEVEL3:
             case CTC_DILITHIUM_LEVEL5:
-            case CTC_DILITHIUM_AES_LEVEL2:
-            case CTC_DILITHIUM_AES_LEVEL3:
-            case CTC_DILITHIUM_AES_LEVEL5:
                 WOLFSSL_MSG("Dilithium cert signature");
                 if (ssl)
                     ssl->options.haveDilithiumSig = 1;
@@ -6796,10 +6740,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             #ifdef HAVE_DILITHIUM
                 else if (cert->keyOID == DILITHIUM_LEVEL2k ||
                          cert->keyOID == DILITHIUM_LEVEL3k ||
-                         cert->keyOID == DILITHIUM_LEVEL5k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL2k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL3k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL5k) {
+                         cert->keyOID == DILITHIUM_LEVEL5k) {
                     ssl->options.haveDilithiumSig = 1;
                 }
             #endif /* HAVE_DILITHIUM */
@@ -6846,10 +6787,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             #ifdef HAVE_DILITHIUM
                 else if (cert->keyOID == DILITHIUM_LEVEL2k ||
                          cert->keyOID == DILITHIUM_LEVEL3k ||
-                         cert->keyOID == DILITHIUM_LEVEL5k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL2k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL3k ||
-                         cert->keyOID == DILITHIUM_AES_LEVEL5k) {
+                         cert->keyOID == DILITHIUM_LEVEL5k) {
                     ctx->haveDilithiumSig = 1;
                 }
             #endif /* HAVE_DILITHIUM */
@@ -6992,9 +6930,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
-            case DILITHIUM_AES_LEVEL2k:
-            case DILITHIUM_AES_LEVEL3k:
-            case DILITHIUM_AES_LEVEL5k:
                 /* Dilithium is fixed key size */
                 keySz = DILITHIUM_MAX_KEY_SIZE;
                 if (ssl && !ssl->options.verifyNone) {
@@ -7637,9 +7572,9 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
-WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
-                                                    byte *response, int responseSz, buffer *responseBuffer,
-                                                    CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
+int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
+    byte *response, int responseSz, buffer *responseBuffer,
+    CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
 {
     int ret;
 
@@ -9485,74 +9420,32 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #endif
 
         if (wc_dilithium_init(dilithium) == 0) {
-            /* Test if Dilithium key. Try all levels for both SHAKE and AES */
+            /* Test if Dilithium key. Try all levels. */
             if (priv) {
-                isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
-                                  SHAKE_VARIANT) == 0 &&
+                isDilithium = wc_dilithium_set_level(dilithium, 2) == 0 &&
                               wc_dilithium_import_private_only(mem,
                                   (word32)memSz, dilithium) == 0;
                 if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
-                                      SHAKE_VARIANT) == 0 &&
+                    isDilithium = wc_dilithium_set_level(dilithium, 3) == 0 &&
                                   wc_dilithium_import_private_only(mem,
                                       (word32)memSz, dilithium) == 0;
                 }
                 if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
-                                      SHAKE_VARIANT) == 0 &&
-                                  wc_dilithium_import_private_only(mem,
-                                      (word32)memSz, dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
-                                      AES_VARIANT) == 0 &&
-                                  wc_dilithium_import_private_only(mem,
-                                      (word32)memSz, dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
-                                      AES_VARIANT) == 0 &&
-                                  wc_dilithium_import_private_only(mem,
-                                      (word32)memSz, dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
-                                      AES_VARIANT) == 0 &&
+                    isDilithium = wc_dilithium_set_level(dilithium, 5) == 0 &&
                                   wc_dilithium_import_private_only(mem,
                                       (word32)memSz, dilithium) == 0;
                 }
             } else {
-                isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
-                                  SHAKE_VARIANT) == 0 &&
+                isDilithium = wc_dilithium_set_level(dilithium, 2) == 0 &&
                               wc_dilithium_import_public(mem, (word32)memSz,
                                   dilithium) == 0;
                 if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
-                                      SHAKE_VARIANT) == 0 &&
+                    isDilithium = wc_dilithium_set_level(dilithium, 3) == 0 &&
                                   wc_dilithium_import_public(mem, (word32)memSz,
                                       dilithium) == 0;
                 }
                 if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
-                                      SHAKE_VARIANT) == 0 &&
-                                  wc_dilithium_import_public(mem, (word32)memSz,
-                                      dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 2,
-                                      AES_VARIANT) == 0 &&
-                                  wc_dilithium_import_public(mem, (word32)memSz,
-                                      dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 3,
-                                      AES_VARIANT) == 0 &&
-                                  wc_dilithium_import_public(mem, (word32)memSz,
-                                      dilithium) == 0;
-                }
-                if (!isDilithium) {
-                    isDilithium = wc_dilithium_set_level_and_sym(dilithium, 5,
-                                      AES_VARIANT) == 0 &&
+                    isDilithium = wc_dilithium_set_level(dilithium, 5) == 0 &&
                                   wc_dilithium_import_public(mem, (word32)memSz,
                                       dilithium) == 0;
                 }
@@ -11217,6 +11110,43 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 
     return WOLFSSL_SUCCESS;
 }
+
+#ifdef OPENSSL_EXTRA
+/* Get the session cache mode for CTX
+ *
+ * ctx  WOLFSSL_CTX struct to get cache mode from
+ *
+ * Returns a bit mask that has the session cache mode */
+long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
+{
+    long m = 0;
+
+    WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
+
+    if (ctx == NULL) {
+        return m;
+    }
+
+    if (ctx->sessionCacheOff != 1) {
+        m |= WOLFSSL_SESS_CACHE_SERVER;
+    }
+
+    if (ctx->sessionCacheFlushOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_AUTO_CLEAR;
+    }
+
+#ifdef HAVE_EXT_CACHE
+    if (ctx->internalCacheOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE;
+    }
+    if (ctx->internalCacheLookupOff == 1) {
+        m |= WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
+    }
+#endif
+
+    return m;
+}
+#endif /* OPENSSL_EXTRA */
 
 #endif /* NO_SESSION_CACHE */
 
@@ -14385,7 +14315,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
     else
         return NULL;
 }
-#endif
+#endif /* !NO_CLIENT_CACHE */
 
 /**
  * For backwards compatibility, this API needs to be used in *ALL* functions
@@ -17760,7 +17690,7 @@ static int GetMinProtoVersion(int minDowngrade)
     return ret;
 }
 
-WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
 {
     int ret = 0;
 
@@ -23679,7 +23609,7 @@ const unsigned char *SSL_SESSION_get0_id_context(const WOLFSSL_SESSION *sess, un
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
+int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
 {
     (void)st;
     WOLFSSL_STUB("wolfSSL_sk_SSL_COMP_zero");
@@ -23721,7 +23651,7 @@ long wolfSSL_get_tlsext_status_type(WOLFSSL *s)
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
+long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23732,7 +23662,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
+long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23743,7 +23673,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
+long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23754,7 +23684,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
+long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
@@ -23765,7 +23695,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 
 /*** TBD ***/
 #ifndef NO_WOLFSSL_STUB
-WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len)
+int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid,
+    unsigned int sid_len)
 {
     (void)s;
     (void)sid;
@@ -23777,7 +23708,8 @@ WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
+int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+    const unsigned char *sid_ctx, unsigned int sid_ctx_len)
 {
     (void)s;
     (void)sid_ctx;
@@ -23888,7 +23820,7 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
+WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
     (void)ssl;
     WOLFSSL_STUB("SSL_get_privatekey");
@@ -23907,8 +23839,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
  *
  * return the string length written on success, WOLFSSL_FAILURE on failure.
  */
-WOLFSSL_API int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len,
-                                                WOLFSSL_ASN1_OBJECT *a)
+int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
 {
     WOLFSSL_ENTER("wolfSSL_i2t_ASN1_OBJECT");
     return wolfSSL_OBJ_obj2txt(buf, buf_len, a, 0);
@@ -24037,8 +23968,7 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
 
 #ifndef NO_BIO
 /* Return number of bytes written to BIO on success. 0 on failure. */
-WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp,
-                                        WOLFSSL_ASN1_OBJECT *a)
+int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 {
     int length = 0;
     word32 idx = 0;
@@ -24115,7 +24045,8 @@ int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
+void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx,
+    WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
 {
     (void)ctx;
     (void)dh;
@@ -24125,7 +24056,7 @@ WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh)
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
+WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 {
     WOLFSSL_STUB("SSL_COMP_get_compression_methods");
     return NULL;
@@ -24142,21 +24073,21 @@ int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p)
     return (int)p->num;
 }
 
-WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
+WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_value");
     return (WOLFSSL_CIPHER*)wolfSSL_sk_value(sk, i);
 }
 
 #if !defined(NETOS)
-WOLFSSL_API void ERR_load_SSL_strings(void)
+void ERR_load_SSL_strings(void)
 {
 
 }
 #endif
 
 #ifdef HAVE_OCSP
-WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
+long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
 {
     if (s == NULL || resp == NULL)
         return 0;
@@ -24165,7 +24096,8 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
     return s->ocspRespSz;
 }
 
-WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len)
+long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
+    int len)
 {
     if (s == NULL)
         return WOLFSSL_FAILURE;
@@ -24185,8 +24117,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
  * @param mode maximum fragment length mode
  * @return 1 on success, otherwise 0 or negative error code
  */
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
-                                                            unsigned char mode)
+int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
+                                               unsigned char mode)
 {
     if (c == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
         return BAD_FUNC_ARG;
@@ -24199,8 +24131,7 @@ WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c,
  * @param mode maximum fragment length mode
  * @return 1 on success, otherwise 0 or negative error code
  */
-WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s,
-                                                            unsigned char mode)
+int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s, unsigned char mode)
 {
     if (s == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
         return BAD_FUNC_ARG;
@@ -24213,7 +24144,7 @@ WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s,
 #endif /* OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
-WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
+size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
 
@@ -24235,7 +24166,7 @@ WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t co
     return len;
 }
 
-WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
+size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
     byte len = 0;
     WOLFSSL_ENTER("SSL_get_peer_finished");
@@ -24506,44 +24437,7 @@ long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* NO_CERTS */
-
-
-/* Get the session cache mode for CTX
- *
- * ctx  WOLFSSL_CTX struct to get cache mode from
- *
- * Returns a bit mask that has the session cache mode */
-WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
-{
-    long m = 0;
-
-    WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
-
-    if (ctx == NULL) {
-        return m;
-    }
-
-    if (ctx->sessionCacheOff != 1) {
-        m |= SSL_SESS_CACHE_SERVER;
-    }
-
-    if (ctx->sessionCacheFlushOff == 1) {
-        m |= SSL_SESS_CACHE_NO_AUTO_CLEAR;
-    }
-
-#ifdef HAVE_EXT_CACHE
-    if (ctx->internalCacheOff == 1) {
-        m |= SSL_SESS_CACHE_NO_INTERNAL_STORE;
-    }
-    if (ctx->internalCacheLookupOff == 1) {
-        m |= SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
-    }
-#endif
-
-    return m;
-}
-
+#endif /* !NO_CERTS */
 
 int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
@@ -25307,8 +25201,8 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 /*
  * Convert time to Unix time (GMT).
  */
-static long long TimeToUnixTime(int sec, int min, int hour, int mday, int mon,
-                                int year)
+static long long TimeToUnixTime(int sec, int minute, int hour, int mday,
+                                int mon, int year)
 {
     /* Number of cumulative days from the previous months, starting from
      * beginning of January. */
@@ -25324,8 +25218,8 @@ static long long TimeToUnixTime(int sec, int min, int hour, int mday, int mon,
                1969 / 100 - 1969 / 400;
 
     return ((((long long) (year - 1970) * 365 + leapDays +
-           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + min) * 60 +
-           sec;
+           monthDaysCumulative[mon] + mday - 1) * 24 + hour) * 60 + minute) *
+           60 + sec;
 }
 
 int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
@@ -26802,12 +26696,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
           "Dilithium Level 3", "Dilithium Level 3"},
         { CTC_DILITHIUM_LEVEL5, DILITHIUM_LEVEL5k,  oidKeyType,
           "Dilithium Level 5", "Dilithium Level 5"},
-        { CTC_DILITHIUM_AES_LEVEL2, DILITHIUM_AES_LEVEL2k,  oidKeyType,
-          "Dilithium AES Level 2", "Dilithium AES Level 2"},
-        { CTC_DILITHIUM_AES_LEVEL3, DILITHIUM_AES_LEVEL3k,  oidKeyType,
-          "Dilithium AES Level 3", "Dilithium AES Level 3"},
-        { CTC_DILITHIUM_AES_LEVEL5, DILITHIUM_AES_LEVEL5k,  oidKeyType,
-          "Dilithium AES Level 5", "Dilithium AES Level 5"},
     #endif /* HAVE_DILITHIUM */
     #endif /* HAVE_PQC */
 
@@ -28455,9 +28343,6 @@ struct WOLFSSL_HashSigInfo {
     { no_mac, dilithium_level2_sa_algo, CTC_DILITHIUM_LEVEL2 },
     { no_mac, dilithium_level3_sa_algo, CTC_DILITHIUM_LEVEL3 },
     { no_mac, dilithium_level5_sa_algo, CTC_DILITHIUM_LEVEL5 },
-    { no_mac, dilithium_aes_level2_sa_algo, CTC_DILITHIUM_AES_LEVEL2 },
-    { no_mac, dilithium_aes_level3_sa_algo, CTC_DILITHIUM_AES_LEVEL3 },
-    { no_mac, dilithium_aes_level5_sa_algo, CTC_DILITHIUM_AES_LEVEL5 },
 #endif /* HAVE_DILITHIUM */
 #endif /* HAVE_PQC */
 #ifndef NO_DSA
@@ -29564,10 +29449,10 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 
     /* trimming spaces at the head and tail */
     dst--;
-    for (; (len > 0 && XISSPACE(*dst)); len--) {
+    for (; (len > 0 && XISSPACE((unsigned char)*dst)); len--) {
         dst--;
     }
-    for (; (len > 0 && XISSPACE(*src)); len--) {
+    for (; (len > 0 && XISSPACE((unsigned char)*src)); len--) {
         src++;
     }
 
@@ -29578,10 +29463,10 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         if (!XISASCII(*src)) {
             /* keep non-ascii code */
             *dst = *src++;
-        } else if (XISSPACE(*src)) {
+        } else if ((*src) > 0 && XISSPACE((unsigned char)*src)) {
             *dst = 0x20; /* space */
             /* remove the rest of spaces */
-            while (XISSPACE(*++src) && i++ < len);
+            while (XISSPACE((unsigned char)*++src) && i++ < len);
         } else {
             *dst = (char)XTOLOWER((unsigned char)*src++);
         }
@@ -35727,7 +35612,7 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
-WOLFSSL_API int wolfSSL_BN_mul(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b,
+int wolfSSL_BN_mul(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b,
     WOLFSSL_BN_CTX *ctx)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -35942,7 +35827,7 @@ int wolfSSL_BN_is_negative(const WOLFSSL_BIGNUM* bn)
     return mp_isneg((mp_int*)bn->internal);
 }
 
-WOLFSSL_API void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
+void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
 {
     if (bn == NULL || bn->internal == NULL) {
         return;
@@ -35951,7 +35836,7 @@ WOLFSSL_API void wolfSSL_BN_zero(WOLFSSL_BIGNUM* bn)
     mp_zero((mp_int*)bn->internal);
 }
 
-WOLFSSL_API int wolfSSL_BN_one(WOLFSSL_BIGNUM* bn)
+int wolfSSL_BN_one(WOLFSSL_BIGNUM* bn)
 {
     int ret = WOLFSSL_SUCCESS;
 
@@ -36748,7 +36633,7 @@ int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
-WOLFSSL_API int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
+int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
     int ret;
 
@@ -37053,7 +36938,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
     return buf;
 }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(XFPRINTF)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -37084,7 +36969,7 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 
     return ret;
 }
-#endif /* !NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && XFPRINTF */
 
 
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
@@ -40669,7 +40554,7 @@ error:
 * RETURNS:
 * returns pointer to a PKCS7 structure on success, otherwise returns NULL
 */
-WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
+PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
         WOLFSSL_BIO** bcont)
 {
     MimeHdr* allHdrs = NULL;

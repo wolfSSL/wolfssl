@@ -11,8 +11,8 @@ noinst_PROGRAMS += \
 examples_sctp_sctp_server_SOURCES      = examples/sctp/sctp-server.c
 examples_sctp_sctp_server_LDADD        = $(LIB_STATIC_ADD)
 examples_sctp_sctp_server_dtls_SOURCES      = examples/sctp/sctp-server-dtls.c
-examples_sctp_sctp_server_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
-examples_sctp_sctp_server_dtls_DEPENDENCIES = src/libwolfssl.la
+examples_sctp_sctp_server_dtls_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_sctp_sctp_server_dtls_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
 if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += \
@@ -21,8 +21,8 @@ noinst_PROGRAMS += \
 examples_sctp_sctp_client_SOURCES      = examples/sctp/sctp-client.c
 examples_sctp_sctp_client_LDADD        = $(LIB_STATIC_ADD)
 examples_sctp_sctp_client_dtls_SOURCES      = examples/sctp/sctp-client-dtls.c
-examples_sctp_sctp_client_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
-examples_sctp_sctp_client_dtls_DEPENDENCIES = src/libwolfssl.la
+examples_sctp_sctp_client_dtls_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_sctp_sctp_client_dtls_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 endif
 endif
 

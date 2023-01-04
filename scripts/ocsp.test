@@ -77,8 +77,8 @@ if test -n "$WOLFSSL_OCSP_TEST"; then
         printf '%s\n' "Test Passed!"
         exit 0
     elif [ $GL_UNREACHABLE -eq 1 ] && [ $GR_RESULT -eq 0 ]; then
-         printf '%s\n' "Global Sign is currently unreachable. Logging it but if"
-         printf '%s\n' "this continues to occur should be investigated"
+        printf '%s\n' "Global Sign is currently unreachable. Logging it but if"
+        printf '%s\n' "this continues to occur should be investigated"
         exit 0
     else
         # Unlike other environment variables the intent of WOLFSSL_OCSP_TEST
@@ -96,7 +96,7 @@ else
     if [ $GL_RESULT -ne 0 ] && [ $GR_RESULT -ne 0 ]; then
         printf '\n\n%s\n' "Both OCSP connection to globalsign and google failed"
         printf '%s\n' "Test Failed!"
-        exit 1
+        exit 77
     else
         printf '\n\n%s\n' "WOLFSSL_OCSP_TEST NOT set, and 1 of the tests passed"
         printf '%s\n' "Test Passed!"

@@ -1,6 +1,6 @@
 /* srp.c SRP unit tests
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,9 +35,6 @@
 static byte username[] = "user";
 static word32 usernameSz = 4;
 
-static byte password[] = "password";
-static word32 passwordSz = 8;
-
 static byte srp_N[] = {
     0xD4, 0xC7, 0xF8, 0xA2, 0xB3, 0x2C, 0x11, 0xB8, 0xFB, 0xA9, 0x58, 0x1E,
     0xC4, 0xBA, 0x4F, 0x1B, 0x04, 0x21, 0x56, 0x42, 0xEF, 0x73, 0x55, 0xE3,
@@ -54,6 +51,17 @@ static byte srp_g[] = {
 static byte srp_salt[] = {
     0x80, 0x66, 0x61, 0x5B, 0x7D, 0x33, 0xA2, 0x2E, 0x79, 0x18
 };
+
+#ifdef NO_SHA
+
+#define SRP_TYPE_TEST_DEFAULT SRP_TYPE_SHA256
+
+#else /* SHA-1 */
+
+#define SRP_TYPE_TEST_DEFAULT SRP_TYPE_SHA
+
+static byte password[] = "password";
+static word32 passwordSz = 8;
 
 static byte srp_verifier[] = {
     0x24, 0x5F, 0xA5, 0x1B, 0x2A, 0x28, 0xF8, 0xFF, 0xE2, 0xA0, 0xF8, 0x61,
@@ -111,17 +119,21 @@ static byte srp_server_proof[] = {
     0xD0, 0xAF, 0xC5, 0xBC, 0xAE, 0x12, 0xFC, 0x75
 };
 
+#endif /* SHA-1 */
+
 static void test_SrpInit(void)
 {
     Srp srp;
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(NULL, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(NULL, SRP_TYPE_TEST_DEFAULT,
+                                         SRP_CLIENT_SIDE));
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, (SrpType)255, SRP_CLIENT_SIDE));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_SHA, (SrpSide)255));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT,
+                                         (SrpSide)255));
 
     /* success */
-    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));
 
     wc_SrpTerm(&srp);
 }
@@ -130,7 +142,7 @@ static void test_SrpSetUsername(void)
 {
     Srp srp;
 
-    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));
 
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(NULL, username, usernameSz));
@@ -148,7 +160,7 @@ static void test_SrpSetParams(void)
 {
     Srp srp;
 
-    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));
 
     /* invalid call order */
     AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpSetParams(&srp,
@@ -187,6 +199,8 @@ static void test_SrpSetParams(void)
 
     wc_SrpTerm(&srp);
 }
+
+#ifndef NO_SHA
 
 static void test_SrpSetPassword(void)
 {
@@ -434,6 +448,8 @@ static void test_SrpGetProofAndVerify(void)
     wc_SrpTerm(&cli);
     wc_SrpTerm(&srv);
 }
+
+#endif /* !NO_SHA */
 
 static int sha512_key_gen(Srp* srp, byte* secret, word32 size)
 {
@@ -829,10 +845,12 @@ void SrpTest(void)
     test_SrpInit();
     test_SrpSetUsername();
     test_SrpSetParams();
+#ifndef NO_SHA
     test_SrpSetPassword();
     test_SrpGetPublic();
     test_SrpComputeKey();
     test_SrpGetProofAndVerify();
+#endif /* !NO_SHA */
     test_SrpKeyGenFunc_cb();
     wolfCrypt_Cleanup();
 #endif

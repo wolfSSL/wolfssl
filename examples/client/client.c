@@ -1,6 +1,6 @@
 /* client.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -843,7 +843,8 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRCMP(tmpBuf, starttlsCmd[0])) {
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[0], XSTRLEN(starttlsCmd[0]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[0])] == ' ')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -859,7 +860,8 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
-    if (!XSTRCMP(tmpBuf, starttlsCmd[2])) {
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[2], XSTRLEN(starttlsCmd[2]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[2])] == '-')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received");
@@ -876,7 +878,9 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
     tmpBuf[sizeof(tmpBuf)-1] = '\0';
-    if (!XSTRCMP(tmpBuf, starttlsCmd[4])) {
+
+    if ((!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) &&
+        (tmpBuf[XSTRLEN(starttlsCmd[4])] == ' ')) {
         printf("%s\n", tmpBuf);
     } else {
         err_sys("incorrect STARTTLS command received, expected 220");
@@ -3658,7 +3662,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     if (disableCRL == 0 && !useVerifyCb) {
     #if defined(HAVE_IO_TIMEOUT) && defined(HAVE_HTTP_CLIENT)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
@@ -4269,7 +4273,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
         if (flatSession) {
             const byte* constFlatSession = flatSession;
             session = wolfSSL_d2i_SSL_SESSION(NULL,
@@ -4279,7 +4284,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         wolfSSL_set_session(sslResume, session);
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
         if (flatSession) {
             XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }

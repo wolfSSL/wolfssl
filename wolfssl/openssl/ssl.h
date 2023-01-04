@@ -1,6 +1,6 @@
 /* ssl.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -361,6 +361,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_free                wolfSSL_SESSION_free
 #define SSL_SESSION_set_cipher          wolfSSL_SESSION_set_cipher
 #define SSL_is_init_finished            wolfSSL_is_init_finished
+
+#define SSL_SESSION_set1_id             wolfSSL_SESSION_set1_id
+#define SSL_SESSION_set1_id_context     wolfSSL_SESSION_set1_id_context
 
 #define SSL_get_version                 wolfSSL_get_version
 #define SSL_get_current_cipher          wolfSSL_get_current_cipher

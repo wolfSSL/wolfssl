@@ -1,6 +1,6 @@
 /* linuxkm_wc_port.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -322,7 +322,11 @@
              */
             #endif
         #endif
-        typeof(cpu_number) *cpu_number;
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+            typeof(cpu_number) *cpu_number;
+        #else
+            typeof(pcpu_hot) *pcpu_hot;
+        #endif
         typeof(nr_cpu_ids) *nr_cpu_ids;
 
         #endif /* WOLFSSL_LINUXKM_SIMD_X86 */
@@ -459,7 +463,11 @@
              */
             #endif
         #endif
-        #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+            #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
+        #else
+            #define pcpu_hot (*(wolfssl_linuxkm_get_pie_redirect_table()->pcpu_hot))
+        #endif
         #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
     #endif
 

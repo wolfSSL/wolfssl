@@ -1,6 +1,6 @@
 /* wolfcrypt/benchmark/benchmark.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -114,10 +114,8 @@ void bench_blake2b(void);
 void bench_blake2s(void);
 void bench_pbkdf2(void);
 void bench_falconKeySign(byte level);
-void bench_dilithiumKeySign(byte level, byte sym);
+void bench_dilithiumKeySign(byte level);
 void bench_sphincsKeySign(byte level, byte optim);
-void bench_pqcKemKeygen(word32 alg);
-void bench_pqcKemEncapDecap(word32 alg);
 
 void bench_stats_print(void);
 

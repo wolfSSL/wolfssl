@@ -1,6 +1,6 @@
 /* evp.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -733,12 +733,12 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            int keylen, unsigned char *out);
 
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
-                                                    !defined(NO_SHA)
+                                                    !defined(NO_SHA256)
 WOLFSSL_API int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
                             const unsigned char *salt, size_t saltlen,
                             word64 N, word64 r, word64 p,
                             word64 maxmem, unsigned char *key, size_t keylen);
-#endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA */
+#endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA256 */
 
 WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
                                            int* pHash, int* pHashSz);
