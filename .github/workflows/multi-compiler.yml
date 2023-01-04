@@ -20,7 +20,7 @@ jobs:
       - name: Build
         run: ./autogen.sh && ./configure && make && make dist
   gcc_12.2:
-    name: GCC-12.2
+    name: GCC-12_2
     runs-on: ubuntu-latest
     container:
       image: gcc:12.2
