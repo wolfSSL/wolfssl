@@ -6162,8 +6162,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #if defined(TITAN_SESSION_CACHE)
         #define SESSIONS_PER_ROW 31
         #define SESSION_ROWS 64937
-        #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
-        #define ENABLE_SESSION_CACHE_ROW_LOCK
+        #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+            #define ENABLE_SESSION_CACHE_ROW_LOCK
         #endif
     #elif defined(HUGE_SESSION_CACHE)
         #define SESSIONS_PER_ROW 11
