@@ -59283,7 +59283,7 @@ static int _test_wolfSSL_dtls_stateless_resume(byte useticket, byte bad)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    return TEST_SUCCESS;
+    return 0;
 }
 
 static int test_wolfSSL_dtls_stateless_resume(void)
@@ -59292,18 +59292,18 @@ static int test_wolfSSL_dtls_stateless_resume(void)
 #ifdef HAVE_SESSION_TICKET
     ret = _test_wolfSSL_dtls_stateless_resume(1, 0);
     if (ret != 0)
-        return ret;
+        return TEST_RES_CHECK(ret);
     ret = _test_wolfSSL_dtls_stateless_resume(1, 1);
     if (ret != 0)
-        return ret - 100;
+        return TEST_RES_CHECK(ret - 100);
 #endif /* HAVE_SESION_TICKET */
     ret = _test_wolfSSL_dtls_stateless_resume(0, 0);
     if (ret != 0)
-        return ret - 200;
+        return TEST_RES_CHECK(ret - 200);
     ret = _test_wolfSSL_dtls_stateless_resume(0, 1);
     if (ret != 0)
-        return ret - 300;
-    return TEST_SUCCESS;
+        return TEST_RES_CHECK(ret - 300);
+    return TEST_RES_CHECK(TEST_SUCCESS);
 }
 #endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
 
@@ -60733,6 +60733,7 @@ void ApiTest(void)
         Assert((ret > 0 || ret == TEST_SKIPPED),
             ("Test failed\n"),
             ("ret %d", ret));
+
 
         TestCleanup();
     }
