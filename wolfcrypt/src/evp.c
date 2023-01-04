@@ -674,7 +674,6 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
 #endif /* HAVE_AESGCM */
 
 #if defined(HAVE_AESCCM)
-#ifndef WOLFSSL_AESCCM_STREAM
 static int wolfSSL_EVP_CipherUpdate_CCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl) {
     if (in && inl > 0) {
@@ -692,13 +691,11 @@ static int wolfSSL_EVP_CipherUpdate_CCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
     return 0;
 }
-#endif /* WOLFSSL_AESCCM_STREAM */
 
 static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
 {
-#ifndef WOLFSSL_AESCCM_STREAM
     int ret = 0;
 
     *outl = inl;
@@ -730,14 +727,6 @@ static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     return WOLFSSL_SUCCESS;
-#else
-    (void)ctx;
-    (void)out;
-    (void)outl;
-    (void)in;
-    (void)inl;
-    return WOLFSSL_FAILURE; /* unsupported */
-#endif /* WOLFSSL_AESCCM_STREAM */
 }
 #endif /* HAVE_AESCCM */
 
@@ -1053,7 +1042,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         case AES_128_CCM_TYPE:
         case AES_192_CCM_TYPE:
         case AES_256_CCM_TYPE:
-#ifndef WOLFSSL_AESCCM_STREAM
             if ((ctx->gcmccmBuffer && ctx->gcmccmBufferLen > 0)
              || (ctx->gcmccmBufferLen == 0)) {
                 if (ctx->enc)
@@ -1089,9 +1077,6 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
             else {
                 *outl = 0;
             }
-#else
-            ret = WOLFSSL_FAILURE; /* not supported */
-#endif /* WOLFSSL_AESCCM_STREAM */
             if (ret == WOLFSSL_SUCCESS) {
                 if (ctx->gcmccmIncIv) {
                     ctx->gcmccmIncIv = 0;
@@ -6392,32 +6377,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
     #endif
 
-    #ifndef WOLFSSL_AESCCM_STREAM
         if (ret == WOLFSSL_SUCCESS && key &&
             wc_AesCcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
             WOLFSSL_MSG("wc_AesCcmSetKey() failed");
             ret = WOLFSSL_FAILURE;
         }
-    #endif /* !WOLFSSL_AESCCM_STREAM */
         if (ret == WOLFSSL_SUCCESS && iv &&
             wc_AesCcmSetNonce(&ctx->cipher.aes, iv, ctx->ivSz)) {
             WOLFSSL_MSG("wc_AesCcmSetNonce() failed");
             ret = WOLFSSL_FAILURE;
         }
-    #ifdef WOLFSSL_AESCCM_STREAM
-        /*
-         * Initialize with key and IV if available. wc_AesCcmInit will fail
-         * if called with IV only and no key has been set.
-         */
-        if (ret == WOLFSSL_SUCCESS &&
-            (key || (iv && ctx->cipher.aes.gcmKeySet)) &&
-            wc_AesCcmInit(&ctx->cipher.aes, key,
-                          (key == NULL) ? 0 : ctx->keyLen, iv,
-                          (iv == NULL) ? 0 : ctx->ivSz) != 0) {
-            WOLFSSL_MSG("wc_AesCcmInit() failed");
-            ret = WOLFSSL_FAILURE;
-        }
-    #endif /* WOLFSSL_AESCCM_STREAM */
 
         /*
          * OpenSSL clears this flag, which permits subsequent use of
@@ -6436,7 +6405,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         int ret = WOLFSSL_FAILURE;
 
-    #ifndef WOLFSSL_AESCCM_STREAM
         /* No destination means only AAD. */
         if (src != NULL && dst == NULL) {
             ret = wolfSSL_EVP_CipherUpdate_CCM_AAD(ctx, src, len);
@@ -6460,67 +6428,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 ctx->gcmccmIncIv = 0;
             }
         }
-    #else
-        /*
-         * No need to call wc_AesCcmInit. Should have been called by
-         * wolfSSL_EVP_CipherInit.
-         */
-        /* NULL dst and non-NULL src means only AAD. */
-        if (src != NULL && dst == NULL) {
-            if (ctx->enc) {
-                ret = wc_AesCcmEncryptUpdate(&ctx->cipher.aes, NULL,
-                    NULL, 0, src, len);
-            }
-            else {
-                ret = wc_AesCcmDecryptUpdate(&ctx->cipher.aes, NULL,
-                    NULL, 0, src, len);
-            }
-        }
-        /* Only plain/cipher text. */
-        else if (src != NULL && dst != NULL) {
-            if (ctx->enc) {
-                ret = wc_AesCcmEncryptUpdate(&ctx->cipher.aes, dst, src,
-                    len, NULL, 0);
-            }
-            else {
-                ret = wc_AesCcmDecryptUpdate(&ctx->cipher.aes, dst, src,
-                    len, NULL, 0);
-            }
-        }
-        /*
-         * src == NULL is analogous to other "final"-type functions
-         * (e.g. EVP_CipherFinal). Calculates tag on encrypt
-         * and checks tag on decrypt.
-         */
-        else {
-            if (ctx->enc) {
-                /* Calculate authentication tag. */
-                ret = wc_AesCcmEncryptFinal(&ctx->cipher.aes,
-                    ctx->authTag, ctx->authTagSz);
-                /*
-                 * wc_AesCcmEncryptFinal increments the IV in
-                 * ctx->cipher.aes.reg, so we don't call IncCtr here.
-                 */
-            }
-            else {
-                /* Calculate authentication tag and compare. */
-                ret = wc_AesCcmDecryptFinal(&ctx->cipher.aes,
-                    ctx->authTag, ctx->authTagSz);
-                if (ctx->gcmccmIncIv) {
-                    IncCtr((byte*)ctx->cipher.aes.reg,
-                           ctx->cipher.aes.nonceSz);
-                }
-            }
-            /* Reinitialize for subsequent wolfSSL_EVP_Cipher calls. */
-            if (wc_AesCcmInit(&ctx->cipher.aes, NULL, 0,
-                              (byte*)ctx->cipher.aes.reg,
-                              ctx->ivSz) != 0) {
-                WOLFSSL_MSG("wc_AesCcmInit failed");
-                return WOLFSSL_FATAL_ERROR;
-            }
-            ctx->gcmccmIncIv = 0;
-        }
-    #endif /* WOLFSSL_AESCCM_STREAM */
         if (src == NULL) {
             /*
              * Clear any leftover AAD on final (final is when src is
