@@ -1,4 +1,4 @@
-name: Test MacOS/Ubuntu/Windows compilation
+name: GitHub Action Tests
 concurrency:
   group: ${{ github.ref }}
 
@@ -13,35 +13,122 @@ jobs:
     name: macOS Build Test
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+
     - name: brew
       run: brew install automake libtool
+
     - name: autogen
       run: ./autogen.sh
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+
+    - name: configure make check
+      run: |
+        ./configure
+        make
+        make check
+        make distcheck
+
+    - name: configure all make check
+      run: |
+        ./configure --enable-all
+        make
+        make check
+        make distcheck
+
+    - name: configure all ASN template
+      run: |
+        ./configure --enable-all --enable-asn=template
+        make
+        make check
+        make distcheck
+
+    - name: make user_settings_all.h
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_all.h with compatibility layer
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        sed -i -e "s/if 0/if 1/" user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_min_ecc.h
+      run: |
+        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+    - name: user_settings_wolfboot_keytools.h
+      run: |
+        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
 
   ubuntu_build:
     name: Ubuntu Build Test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+
     - name: autogen
       run: ./autogen.sh
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+
+    - name: configure make check
+      run: |
+        ./configure
+        make
+        make check
+        make distcheck
+
+    - name: configure all make check
+      run: |
+        ./configure --enable-all
+        make
+        make check
+        make distcheck
+
+    - name: configure all ASN template
+      run: |
+        ./configure --enable-all --enable-asn=template
+        make
+        make check
+        make distcheck
+
+    - name: make user_settings_all.h
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_all.h with compatibility layer
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        sed -i -e "s/if 0/if 1/" user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_min_ecc.h
+      run: |
+        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+    - name: user_settings_wolfboot_keytools.h
+      run: |
+        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
 
   windows_build:
     name: Windows Build Test
@@ -56,7 +143,7 @@ jobs:
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x64
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1

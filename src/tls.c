@@ -10058,7 +10058,7 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz, int is_response)
 
     extension->resp = is_response;
     /* In QUIC, earlydata size is either 0 or 0xffffffff.
-     * Override any size between, possibly left from our intial value */
+     * Override any size between, possibly left from our initial value */
     extension->val  = (WOLFSSL_IS_QUIC(ssl) && is_response && maxSz > 0) ?
                        WOLFSSL_MAX_32BIT : maxSz;
 
@@ -11407,7 +11407,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #endif
         }
     #endif
-#endif
+#endif /* WOLFSSL_TLS13 */
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         if (!SSL_CM(ssl)->ocspStaplingEnabled) {
@@ -11480,8 +11480,9 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #ifdef WOLFSSL_TLS13
-        if (!IsAtLeastTLSv1_2(ssl))
+        if (!IsAtLeastTLSv1_2(ssl)) {
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
+        }
     #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
@@ -11506,7 +11507,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
          */
         TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
-#endif
+#endif /* WOLFSSL_TLS13 */
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
          /* mark already sent, so it won't send it */
@@ -11591,33 +11592,34 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifndef NO_WOLFSSL_SERVER
         case server_hello:
             PF_VALIDATE_RESPONSE(ssl, semaphore);
-    #ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                     TURN_OFF(semaphore,
                                      TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-            #ifdef HAVE_SUPPORTED_CURVES
-                    if (!ssl->options.noPskDheKe)
+                #ifdef HAVE_SUPPORTED_CURVES
+                    if (!ssl->options.noPskDheKe) {
                         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-            #endif
-        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                    }
+                #endif
+                #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-        #endif
-        #ifdef WOLFSSL_DTLS_CID
+                #endif
+                #ifdef WOLFSSL_DTLS_CID
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
-        #endif /* WOLFSSL_DTLS_CID */
+                #endif
                 }
-        #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+            #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
                 else {
-            #ifdef HAVE_SUPPORTED_CURVES
+                #ifdef HAVE_SUPPORTED_CURVES
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-            #endif
-            #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                #endif
+                #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-            #endif
+                #endif
                 }
-        #endif
-    #endif
+            #endif
+        #endif /* WOLFSSL_TLS13 */
             break;
 
     #ifdef WOLFSSL_TLS13

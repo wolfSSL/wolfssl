@@ -402,7 +402,7 @@ typedef struct testVector {
 /* Test failed. */
 #define TEST_FAIL       (0)
 /* Test skipped - not run. */
-#define TEST_SKIPPED    (-1)
+#define TEST_SKIPPED    (-7777)
 
 /* Returns the result based on whether check is true.
  *
@@ -2897,8 +2897,11 @@ static int test_wolfSSL_CertRsaPss(void)
     XFILE f;
     const char* rsaPssSha256Cert = "./certs/rsapss/ca-rsapss.der";
     const char* rsaPssRootSha256Cert = "./certs/rsapss/root-rsapss.pem";
-#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_PSS_LONG_SALT) && \
+    RSA_MAX_SIZE >= 3072
     const char* rsaPssSha384Cert = "./certs/rsapss/ca-3072-rsapss.der";
+#endif
+#if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072
     const char* rsaPssRootSha384Cert = "./certs/rsapss/root-3072-rsapss.pem";
 #endif
     DecodedCert cert;
@@ -3290,7 +3293,7 @@ static int test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 static int test_wolfSSL_CTX_der_load_verify_locations(void)
 {
     int res = TEST_SKIPPED;
-#if defined(WOLFSSL_DER_LOAD) && \
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_DER_LOAD) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX* ctx = NULL;
     const char* derCert = "./certs/server-cert.der";
@@ -7326,9 +7329,11 @@ static void test_wolfSSL_CTX_add_session_ctx_ready(WOLFSSL_CTX* ctx)
     /* Don't store sessions. Lookup is still enabled. */
     AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
             WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
+#endif
     /* Require both peers to provide certs */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
 }
@@ -7391,9 +7396,11 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
         AssertNotNull(peer);
         wolfSSL_X509_free(peer);
         AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
-        AssertNotNull(wolfSSL_SESSION_get0_peer(*sess));
+    #ifdef OPENSSL_EXTRA
+        AssertNotNull(SSL_SESSION_get0_peer(*sess));
+    #endif
     }
-#endif
+#endif /* SESSION_CERTS */
 }
 
 static void test_wolfSSL_CTX_add_session_ssl_ready(WOLFSSL* ssl)
@@ -9229,7 +9236,8 @@ static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
     return res;
 }
 
-#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC))
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_SERVER) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Called when writing. */
 static int DummySend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -9269,7 +9277,8 @@ static int BufferInfoRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 static int test_tls_ext_duplicate(void)
 {
     int res = TEST_SKIPPED;
-#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC))
+#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    !defined(NO_FILESYSTEM)
     const unsigned char clientHelloDupTlsExt[] = {
         0x16, 0x03, 0x03, 0x00, 0x6a, 0x01, 0x00, 0x00,
         0x66, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
@@ -27326,7 +27335,7 @@ static int test_wc_Ed448PrivateKeyToDer(void)
 static int test_wc_SetSubjectBuffer(void)
 {
     int res = TEST_SKIPPED;
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     Cert    cert;
     FILE*   file;
     byte*   der;
@@ -28291,7 +28300,7 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
 } /* END test_wc_PKCS7_EncodeSignedData_ex */
 
 
-#if defined(HAVE_PKCS7)
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
 
 /**
  * Loads certs/keys from files or buffers into the argument buffers,
@@ -28590,7 +28599,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
 static int test_wc_PKCS7_VerifySignedData(void)
 {
     int res = TEST_SKIPPED;
-#if defined(HAVE_PKCS7)
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
     PKCS7* pkcs7;
     byte   output[6000]; /* Large size needed for bundles with int CA certs */
     word32 outputSz = sizeof(output);
@@ -29009,9 +29018,11 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     #endif /* USE_CERT_BUFFERS_256 */
 #endif /* END HAVE_ECC */
 
+#ifndef NO_FILESYSTEM
     /* Silence. */
     (void)keyFile;
     (void)certFile;
+#endif
 
     {
     const pkcs7EnvelopedVector testVectors[] = {
@@ -31310,12 +31321,12 @@ static int test_wc_GetPubKeyDerFromCert(void)
     byte keyDer[TWOK_BUF];  /* large enough for up to RSA 2048 */
     word32 keyDerSz = (word32)sizeof(keyDer);
     DecodedCert decoded;
-#if !defined(NO_RSA) && defined(WOLFSSL_CERT_REQ)
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_REQ) && !defined(NO_FILESYSTEM)
     byte certBuf[6000]; /* for PEM and CSR, client-cert.pem is 5-6kB */
     word32 certBufSz = sizeof(certBuf);
 #endif
 #if ((!defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024)) || \
-     defined(WOLFSSL_CERT_REQ)) && !defined(NO_RSA)
+     defined(WOLFSSL_CERT_REQ)) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     XFILE fp;
 #endif
 #ifndef NO_RSA
@@ -31390,7 +31401,7 @@ static int test_wc_GetPubKeyDerFromCert(void)
     wc_FreeDecodedCert(&decoded);
 
     /* Certificate Request Tests */
-    #ifdef WOLFSSL_CERT_REQ
+    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_FILESYSTEM)
     {
         XMEMSET(certBuf, 0, sizeof(certBuf));
         fp = XFOPEN("./certs/csr.signed.der", "rb");
@@ -37597,9 +37608,10 @@ static int test_wolfSSL_X509_get_ext_count(void)
 static int test_wolfSSL_X509_sign2(void)
 {
     int res = TEST_SKIPPED;
+    /* test requires WOLFSSL_AKID_NAME to match expected output */
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
-    defined(WOLFSSL_CERT_EXT) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_AKID_NAME) && \
     (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
     WOLFSSL_X509 *x509, *ca;
     const unsigned char *der;
@@ -55731,7 +55743,7 @@ static int test_ENGINE_cleanup(void)
 static int test_wolfSSL_CTX_LoadCRL(void)
 {
     int res = TEST_SKIPPED;
-#if defined(HAVE_CRL) && !defined(NO_RSA)
+#if defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* badPath = "dummypath";
@@ -59088,7 +59100,10 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 }
 
 #endif
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
+
+
+#if !defined(NO_FILESYSTEM) && \
+     defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 
 static int test_wolfSSL_dtls_stateless2(void)
@@ -59268,7 +59283,7 @@ static int _test_wolfSSL_dtls_stateless_resume(byte useticket, byte bad)
     wolfSSL_free(ssl_s);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    return TEST_SUCCESS;
+    return 0;
 }
 
 static int test_wolfSSL_dtls_stateless_resume(void)
@@ -59277,18 +59292,18 @@ static int test_wolfSSL_dtls_stateless_resume(void)
 #ifdef HAVE_SESSION_TICKET
     ret = _test_wolfSSL_dtls_stateless_resume(1, 0);
     if (ret != 0)
-        return ret;
+        return TEST_RES_CHECK(ret);
     ret = _test_wolfSSL_dtls_stateless_resume(1, 1);
     if (ret != 0)
-        return ret - 100;
+        return TEST_RES_CHECK(ret - 100);
 #endif /* HAVE_SESION_TICKET */
     ret = _test_wolfSSL_dtls_stateless_resume(0, 0);
     if (ret != 0)
-        return ret - 200;
+        return TEST_RES_CHECK(ret - 200);
     ret = _test_wolfSSL_dtls_stateless_resume(0, 1);
     if (ret != 0)
-        return ret - 300;
-    return TEST_SUCCESS;
+        return TEST_RES_CHECK(ret - 300);
+    return TEST_RES_CHECK(TEST_SUCCESS);
 }
 #endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
 
@@ -60537,7 +60552,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_DtlsUpdateWindow),
     TEST_DECL(test_wolfSSL_DTLS_fragment_buckets),
 #endif
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                     \
+#if !defined(NO_FILESYSTEM) &&                                                 \
+     defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
     TEST_DECL(test_wolfSSL_dtls_stateless_resume),
@@ -60713,7 +60729,11 @@ void ApiTest(void)
             printf(" %s\n", apitest_res_string(ret));
         }
         fflush(stdout);
-        AssertIntNE(ret, TEST_FAIL);
+        /* if return code is < 0 and not skipped then assert error */
+        Assert((ret > 0 || ret == TEST_SKIPPED),
+            ("Test failed\n"),
+            ("ret %d", ret));
+
 
         TestCleanup();
     }

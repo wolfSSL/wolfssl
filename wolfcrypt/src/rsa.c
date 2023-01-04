@@ -1611,7 +1611,7 @@ int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
 
 /* UnPadding */
-#ifndef WC_NO_RSA_OAEP
+#if !defined(WC_NO_RSA_OAEP) && !defined(NO_HASH_WRAPPER)
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
@@ -1724,7 +1724,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     *output = (byte*)(pkcsBlock + idx);
     return pkcsBlockLen - idx;
 }
-#endif /* WC_NO_RSA_OAEP */
+#endif /* !WC_NO_RSA_OAEP */
 
 #ifdef WC_RSA_PSS
 /* 0x00 .. 0x00 0x01 | Salt | Gen Hash | 0xbc
