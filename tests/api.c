@@ -7113,6 +7113,12 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
     AssertIntEQ(server_args.return_code, TEST_SUCCESS);
 
     FreeTcpReady(&ready);
+
+    /* check with cipher string that has '+' */
+    AssertNotNull((ctxClient = wolfSSL_CTX_new(wolfTLSv1_2_client_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctxClient, "ECDHE+AESGCM"));
+    wolfSSL_CTX_free(ctxClient);
+
     res = TEST_RES_CHECK(1);
 #endif
     return res;

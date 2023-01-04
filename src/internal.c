@@ -24280,12 +24280,32 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             }
         }
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         if (length > 1) {
+            const char* substr = NULL;
+
             if (*current == '!') {
                 allowing = 0;
                 current++;
                 length--;
+            }
+
+            /* extract public key types from a string like ECDHE+AESGCM */
+            substr = XSTRSTR(current, "+");
+            if (substr != NULL) {
+                word32 currLen = (word32)(substr - current);
+                if (length > currLen) {
+                    length = currLen;
+                }
+
+                /* checking for the DH substring includes ECDH / ECDHE suites */
+                if (XSTRSTR(substr, "DH") || XSTRSTR(substr, "RSA")) {
+                    substr += 1; /* +1 to skip over '+' */
+                    current = substr;
+                }
+                else {
+                    length  = (word32)(substr - current);
+                }
             }
         }
     #endif
@@ -24374,6 +24394,16 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
         if (XSTRCMP(name, "kDH") == 0) {
             haveStaticECC = allowing;
+            if (allowing) {
+                haveECC = 1;
+                haveECDSAsig = 1;
+                callInitSuites = 1;
+                ret = 1;
+            }
+            continue;
+        }
+
+        if (XSTRCMP(name, "ECDHE") == 0) {
             if (allowing) {
                 haveECC = 1;
                 haveECDSAsig = 1;
