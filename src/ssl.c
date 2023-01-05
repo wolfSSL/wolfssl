@@ -11765,6 +11765,28 @@ static int CheckcipherList(const char* list)
                 break;
             }
         }
+
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        /* check if mixed due to names like RSA:ECDHE+AESGCM etc. */
+        if (ret != 0) {
+            char* subStr = name;
+            char* subStrNext;
+
+            do {
+                subStrNext = XSTRSTR(subStr, "+");
+
+                if ((XSTRCMP(subStr, "ECDHE") == 0) ||
+                        (XSTRCMP(subStr, "RSA") == 0)) {
+                    return 0;
+                }
+
+                if (subStrNext && (XSTRLEN(subStrNext) > 0)) {
+                    subStr = subStrNext + 1; /* +1 to skip past '+' */
+                }
+            } while (subStrNext != NULL);
+        }
+    #endif
+
         if (findTLSv13Suites == 1 && findbeforeSuites == 1) {
             /* list has mixed suites */
             return 0;
