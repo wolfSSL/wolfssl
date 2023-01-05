@@ -436,10 +436,10 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-    byte*   gcmccmBuffer;
-    int     gcmccmBufferLen;
-    byte*   gcmccmAuthIn;
-    int     gcmccmAuthInSz;
+    byte*   buffer;
+    int     bufferLen;
+    byte*   authIn;
+    int     authInSz;
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     byte*   key;                 /* used in partial Init()s */
@@ -453,8 +453,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int     authTagSz;
 #endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-    byte    gcmccmIvGenEnable:1;
-    byte    gcmccmIncIv:1;
+    byte    ivGenEnable:1;
+    byte    incIv:1;
 #endif
 #endif
 };
