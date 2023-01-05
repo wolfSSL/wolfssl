@@ -176,6 +176,9 @@
             #else
                 #define WOLFSSL_PTHREADS
                 #include <pthread.h>
+                #ifndef WOLFSSL_NO_RWLOCK
+                    #define WOLFSSL_USE_RWLOCK
+                #endif
             #endif
         #endif
     #endif
@@ -385,6 +388,7 @@ WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
 WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
 WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
+WOLFSSL_API int wc_RD_Lock(wolfSSL_Mutex* m);
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 /* dynamically set which mutex to use. unlock / lock is controlled by flag */
 typedef void (mutex_cb)(int flag, int type, const char* file, int line);

@@ -3999,7 +3999,7 @@ WOLFSSL_LOCAL
 WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void TlsSessionCacheUnlockRow(word32 row);
 WOLFSSL_LOCAL int TlsSessionCacheGetAndLock(const byte *id,
-    WOLFSSL_SESSION **sess, word32 *lockedRow);
+    WOLFSSL_SESSION **sess, word32 *lockedRow, byte readOnly);
 /* WOLFSSL_API to test it in tests/api.c */
 WOLFSSL_API int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);

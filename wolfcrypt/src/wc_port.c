@@ -1586,6 +1586,13 @@ int wolfSSL_CryptHwMutexUnLock(void)
                 return BAD_MUTEX_E;
         }
 
+        int wc_RD_Lock(wolfSSL_Mutex* m)
+        {
+            if (pthread_rwlock_rdlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
 
         int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
@@ -2580,6 +2587,12 @@ int wolfSSL_CryptHwMutexUnLock(void)
 #else
     #warning No mutex handling defined
 
+#endif
+#ifndef WOLFSSL_USE_RWLOCK
+    int wc_RD_Lock(wolfSSL_Mutex* m)
+    {
+        return wc_LockMutex(m);
+    }
 #endif
 
 #ifndef NO_ASN_TIME

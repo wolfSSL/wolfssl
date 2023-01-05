@@ -288,7 +288,7 @@ static int TlsSessionIdIsValid(WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
             return 0;
     }
 #endif
-    ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow);
+    ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow, 1);
     if (ret == 0 && sess != NULL) {
         *isValid = 1;
         TlsSessionCacheUnlockRow(sessRow);
