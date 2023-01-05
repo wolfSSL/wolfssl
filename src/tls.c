@@ -6497,6 +6497,7 @@ static int TLSX_SetSignatureAlgorithms(TLSX** extensions, WOLFSSL* ssl,
                                        void* heap)
 {
     SignatureAlgorithms* sa;
+    int ret;
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
@@ -6509,7 +6510,10 @@ static int TLSX_SetSignatureAlgorithms(TLSX** extensions, WOLFSSL* ssl,
     if (sa == NULL)
         return MEMORY_ERROR;
 
-    return TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS, sa, heap);
+    ret = TLSX_Push(extensions, TLSX_SIGNATURE_ALGORITHMS, sa, heap);
+    if (ret != 0)
+        TLSX_SignatureAlgorithms_FreeAll(sa, heap);
+    return ret;
 }
 
 SignatureAlgorithms* TLSX_SignatureAlgorithms_New(WOLFSSL* ssl,
