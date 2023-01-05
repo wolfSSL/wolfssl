@@ -756,14 +756,14 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            /* if out == NULL, in/inl contains the additional authenticated data             * for GCM */
+            /* if out == NULL, in/inl contains the additional auth data */
             return wolfSSL_EVP_CipherUpdate_GCM(ctx, out, outl, in, inl);
 #endif /* !defined(NO_AES) && defined(HAVE_AESGCM) */
 #if !defined(NO_AES) && defined(HAVE_AESCCM)
         case AES_128_CCM_TYPE:
         case AES_192_CCM_TYPE:
         case AES_256_CCM_TYPE:
-            /* if out == NULL, in/inl contains the additional authenticated data             * for CCM */
+            /* if out == NULL, in/inl contains the additional auth data */
             return wolfSSL_EVP_CipherUpdate_CCM(ctx, out, outl, in, inl);
 #endif /* !defined(NO_AES) && defined(HAVE_AESCCM) */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
