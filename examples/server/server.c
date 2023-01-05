@@ -499,19 +499,18 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
+#ifdef __MINGW32__
+#define SIZE_FMT "%d"
+#define SIZE_TYPE int
+#else
+#define SIZE_FMT "%zu"
+#define SIZE_TYPE size_t
+#endif
         printf(
-        #if !defined(__MINGW32__)
-            "wolfSSL Server Benchmark %zu bytes\n"
-        #else
-            "wolfSSL Server Benchmark %d bytes\n"
-        #endif
+            "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
-    #if !defined(__MINGW32__)
-            throughput,
-    #else
-            (int)throughput,
-    #endif
+            (SIZE_TYPE)throughput,
             rx_time * 1000, throughput / rx_time / 1024 / 1024,
             tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
@@ -3715,7 +3714,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    wolfsentry_ret =
+        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX(&wolfsentry));
     if (wolfsentry_ret < 0) {
         fprintf(stderr,
                 "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",

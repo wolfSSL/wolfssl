@@ -1293,7 +1293,7 @@ static const char* bench_result_words2[][5] = {
 
 /* maximum runtime for each benchmark */
 #ifndef BENCH_MIN_RUNTIME_SEC
-    #define BENCH_MIN_RUNTIME_SEC   1.0f
+    #define BENCH_MIN_RUNTIME_SEC   1.0F
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
