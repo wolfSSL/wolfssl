@@ -3715,7 +3715,7 @@ exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_ret =
-        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX(&wolfsentry));
+        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
     if (wolfsentry_ret < 0) {
         fprintf(stderr,
                 "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",
