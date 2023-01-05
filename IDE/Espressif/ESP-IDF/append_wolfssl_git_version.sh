@@ -43,18 +43,18 @@ fi
 # we plan to add lines like these:
 #
 #undef  LIBWOLFSSL_VERSION_GIT_HASH
-#define LIBWOLFSSL_VERSION_GIT_HASH adb406e1eebf05e452afca98fa9bf3ccd7abcfca
+#define LIBWOLFSSL_VERSION_GIT_HASH "adb406e1eebf05e452afca98fa9bf3ccd7abcfca"
 #undef  LIBWOLFSSL_VERSION_GIT_SHORT_HASH
-#define LIBWOLFSSL_VERSION_GIT_SHORT_HASH adb406e1e
+#define LIBWOLFSSL_VERSION_GIT_SHORT_HASH "adb406e1e"
 #undef  LIBWOLFSSL_VERSION_GIT_HASH_DATE
 #define LIBWOLFSSL_VERSION_GIT_HASH_DATE "Sat Jan 5 09:00:00 2013 +0100"
 #
-NEW_VERSION_LINES="{ print;                                                                             \
-                     print \"#undef  LIBWOLFSSL_VERSION_GIT_HASH\";                                     \
-                     print \"#define LIBWOLFSSL_VERSION_GIT_HASH $(git rev-parse HEAD)\";               \
-                     print \"#undef  LIBWOLFSSL_VERSION_GIT_SHORT_HASH\";                               \
-                     print \"#define LIBWOLFSSL_VERSION_GIT_SHORT_HASH $(git rev-parse --short HEAD)\"; \
-                     print \"#undef  LIBWOLFSSL_VERSION_GIT_HASH_DATE\";                                \
+NEW_VERSION_LINES="{ print;                                                                                     \
+                     print \"#undef  LIBWOLFSSL_VERSION_GIT_HASH\";                                             \
+                     print \"#define LIBWOLFSSL_VERSION_GIT_HASH \x22$(git rev-parse HEAD)\x22\";               \
+                     print \"#undef  LIBWOLFSSL_VERSION_GIT_SHORT_HASH\";                                       \
+                     print \"#define LIBWOLFSSL_VERSION_GIT_SHORT_HASH \x22$(git rev-parse --short HEAD)\x22\"; \
+                     print \"#undef  LIBWOLFSSL_VERSION_GIT_HASH_DATE\";                                        \
                      print \"#define LIBWOLFSSL_VERSION_GIT_HASH_DATE \x22$(git show --no-patch --no-notes --pretty='%cd'  $(git rev-parse HEAD))\x22\"; \
                      next }1"
 
