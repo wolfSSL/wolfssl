@@ -13830,11 +13830,13 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
                 return BUFFER_E;
             }
             ret = XSPRINTF((char*)buf,
-        #else
-            ret = XSNPRINTF((char*)buf, len,
-        #endif
                         "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
+        #else
+            ret = XSNPRINTF((char*)buf, len,
+                        "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
+                        hour, mini, sec);
+        #endif
     }
     else {
         /* GeneralizedTime */
@@ -13850,11 +13852,13 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
                 return BUFFER_E;
             }
             ret = XSPRINTF((char*)buf,
-        #else
-            ret = XSNPRINTF((char*)buf, len,
-        #endif
                         "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
+        #else
+            ret = XSNPRINTF((char*)buf, len,
+                        "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
+                        hour, mini, sec);
+        #endif
     }
 
     return ret;
