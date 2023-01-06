@@ -1422,6 +1422,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 
 #ifndef HAVE_WOLFSENTRY_API_0v8
 #define WOLFSENTRY_CONTEXT_ARGS_OUT_EX(x) (x)
+#define WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(x, y) (x)
 #endif
 
 struct wolfsentry_data {
