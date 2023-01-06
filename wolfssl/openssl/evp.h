@@ -126,6 +126,11 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_gcm(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_gcm(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_gcm(void);
 #endif
+#if !defined(NO_AES) && defined(HAVE_AESCCM)
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ccm(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ccm(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ccm(void);
+#endif
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void);
@@ -228,6 +233,7 @@ typedef union {
 #define NID_aes_192_cbc                 423
 #define NID_aes_256_cbc                 427
 #define NID_aes_128_ccm                 896
+#define NID_aes_192_ccm                 899
 #define NID_aes_256_ccm                 902
 #define NID_aes_128_gcm                 895
 #define NID_aes_192_gcm                 898
@@ -395,7 +401,10 @@ enum {
     AES_128_XTS_TYPE = 36,
     AES_256_XTS_TYPE = 37,
     CHACHA20_POLY1305_TYPE = 38,
-    CHACHA20_TYPE    = 39
+    CHACHA20_TYPE    = 39,
+    AES_128_CCM_TYPE  = 40,
+    AES_192_CCM_TYPE  = 41,
+    AES_256_CCM_TYPE  = 42
 };
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -423,29 +432,30 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 #if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_AESGCM) || \
     defined (WOLFSSL_AES_XTS) || (defined(HAVE_CHACHA) || \
-    defined(HAVE_POLY1305))
+    defined(HAVE_POLY1305) || defined(HAVE_AESCCM))
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
-#ifdef HAVE_AESGCM
-    byte*   gcmBuffer;
-    int     gcmBufferLen;
-    byte*   gcmAuthIn;
-    int     gcmAuthInSz;
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    byte*   authBuffer;
+    int     authBufferLen;
+    byte*   authIn;
+    int     authInSz;
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     byte*   key;                 /* used in partial Init()s */
 #endif
-#if defined(HAVE_AESGCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
-#ifdef HAVE_AESGCM
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+        (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
 #else
     ALIGN16 unsigned char authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
 #endif
     int     authTagSz;
 #endif
-#ifdef HAVE_AESGCM
-    byte    gcmIvGenEnable:1;
-    byte    gcmIncIv:1;
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    byte    authIvGenEnable:1;
+    byte    authIncIv:1;
 #endif
 #endif
 };
@@ -896,6 +906,9 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_aes_128_gcm       wolfSSL_EVP_aes_128_gcm
 #define EVP_aes_192_gcm       wolfSSL_EVP_aes_192_gcm
 #define EVP_aes_256_gcm       wolfSSL_EVP_aes_256_gcm
+#define EVP_aes_128_ccm       wolfSSL_EVP_aes_128_ccm
+#define EVP_aes_192_ccm       wolfSSL_EVP_aes_192_ccm
+#define EVP_aes_256_ccm       wolfSSL_EVP_aes_256_ccm
 #define EVP_aes_128_ecb       wolfSSL_EVP_aes_128_ecb
 #define EVP_aes_192_ecb       wolfSSL_EVP_aes_192_ecb
 #define EVP_aes_256_ecb       wolfSSL_EVP_aes_256_ecb
@@ -1103,6 +1116,11 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CTRL_GCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
 #define EVP_CTRL_GCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
 #define EVP_CTRL_GCM_SET_IV_FIXED      EVP_CTRL_AEAD_SET_IV_FIXED
+#define EVP_CTRL_CCM_SET_IVLEN         EVP_CTRL_AEAD_SET_IVLEN
+#define EVP_CTRL_CCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
+#define EVP_CTRL_CCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
+#define EVP_CTRL_CCM_SET_L             0x14
+#define EVP_CTRL_CCM_SET_MSGLEN        0x15
 
 #define EVP_PKEY_print_public           wolfSSL_EVP_PKEY_print_public
 #define EVP_PKEY_print_private(arg1, arg2, arg3, arg4)
