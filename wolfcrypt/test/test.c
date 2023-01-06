@@ -34980,6 +34980,7 @@ WOLFSSL_TEST_SUBROUTINE int siphash_test(void)
     int i;
 #if WOLFSSL_SIPHASH_CROUNDS == 2 && WOLFSSL_SIPHASH_DROUNDS == 4
     unsigned char res[SIPHASH_MAC_SIZE_16];
+    unsigned char tmp[SIPHASH_MAC_SIZE_8];
     SipHash siphash;
 
     for (i = 0; i < 64; i++) {
@@ -35070,6 +35071,31 @@ WOLFSSL_TEST_SUBROUTINE int siphash_test(void)
     ret = wc_SipHash(siphash_key, NULL, 1, res, SIPHASH_MAC_SIZE_16);
     if (ret != BAD_FUNC_ARG)
         return -13315;
+
+    /* Test cache with multiple non blocksize bytes */
+    ret = wc_InitSipHash(&siphash, siphash_key, SIPHASH_MAC_SIZE_8);
+    if (ret != 0)
+        return -13316;
+    ret = wc_SipHashUpdate(&siphash, siphash_msg, 5);
+    if (ret != 0)
+        return -13317;
+    ret = wc_SipHashUpdate(&siphash, siphash_msg + 5, 4);
+    if (ret != 0)
+        return -13318;
+    ret = wc_SipHashFinal(&siphash, res, SIPHASH_MAC_SIZE_8);
+    if (ret != 0)
+        return -13319;
+    ret = wc_InitSipHash(&siphash, siphash_key, SIPHASH_MAC_SIZE_8);
+    if (ret != 0)
+        return -13320;
+    ret = wc_SipHashUpdate(&siphash, siphash_msg, 9);
+    if (ret != 0)
+        return -13321;
+    ret = wc_SipHashFinal(&siphash, tmp, SIPHASH_MAC_SIZE_8);
+    if (ret != 0)
+        return -13322;
+    if (XMEMCMP(res, tmp, SIPHASH_MAC_SIZE_8) != 0)
+        return -13323;
 
     return 0;
 }
