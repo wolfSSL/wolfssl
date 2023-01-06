@@ -444,7 +444,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     byte*   key;                 /* used in partial Init()s */
 #endif
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+        (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
 #else

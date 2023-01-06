@@ -52186,62 +52186,82 @@ static int test_wolfssl_EVP_aes_ccm(void)
         if (i == 0) {
             /* Default uses 96-bits IV length */
 #ifdef WOLFSSL_AES_128
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_128_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_128_ccm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_192)
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_192_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_192_ccm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_256)
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_256_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_256_ccm(), NULL, key, iv));
 #endif
         }
         else {
 #ifdef WOLFSSL_AES_128
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_128_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_128_ccm(), NULL, NULL, NULL));
 #elif defined(WOLFSSL_AES_192)
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_192_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_192_ccm(), NULL, NULL, NULL));
 #elif defined(WOLFSSL_AES_256)
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_aes_256_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        EVP_aes_256_ccm(), NULL, NULL, NULL));
 #endif
              /* non-default must to set the IV length first */
-            AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
-            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i], NULL, NULL, key, iv));
+            AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i],
+                        EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+            AssertIntEQ(1, EVP_EncryptInit_ex(&en[i],
+                        NULL, NULL, key, iv));
         }
         AssertIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, aad, aadSz));
-        AssertIntEQ(1, EVP_EncryptUpdate(&en[i], ciphertxt, &len, plaintxt, plaintxtSz));
+        AssertIntEQ(1, EVP_EncryptUpdate(&en[i],
+                    ciphertxt, &len, plaintxt, plaintxtSz));
         ciphertxtSz = len;
         AssertIntEQ(1, EVP_EncryptFinal_ex(&en[i], ciphertxt, &len));
         ciphertxtSz += len;
-        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_GET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i],
+                    EVP_CTRL_CCM_GET_TAG, AES_BLOCK_SIZE, tag));
         AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
             /* Default uses 96-bits IV length */
 #ifdef WOLFSSL_AES_128
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_128_ccm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_192)
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_192_ccm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_256)
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_ccm(), NULL, key, iv));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_256_ccm(), NULL, key, iv));
 #endif
         }
         else {
 #ifdef WOLFSSL_AES_128
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_128_ccm(), NULL, NULL, NULL));
 #elif defined(WOLFSSL_AES_192)
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_192_ccm(), NULL, NULL, NULL));
 #elif defined(WOLFSSL_AES_256)
-            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_ccm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i],
+                        EVP_aes_256_ccm(), NULL, NULL, NULL));
 #endif
             /* non-default must to set the IV length first */
-            AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+            AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i],
+                        EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
             AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
 
         }
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
-        AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
+        AssertIntEQ(1, EVP_DecryptUpdate(&de[i],
+                    decryptedtxt, &len, ciphertxt, ciphertxtSz));
         decryptedtxtSz = len;
-        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG, AES_BLOCK_SIZE, tag));
-        AssertIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i],
+                    EVP_CTRL_CCM_SET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(1, EVP_DecryptFinal_ex(&de[i],
+                    decryptedtxt, &len));
         decryptedtxtSz += len;
         AssertIntEQ(ciphertxtSz, decryptedtxtSz);
         AssertIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
@@ -52249,9 +52269,11 @@ static int test_wolfssl_EVP_aes_ccm(void)
         /* modify tag*/
         tag[AES_BLOCK_SIZE-1]+=0xBB;
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
-        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i],
+                    EVP_CTRL_CCM_SET_TAG, AES_BLOCK_SIZE, tag));
         /* fail due to wrong tag */
-        AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
+        AssertIntEQ(1, EVP_DecryptUpdate(&de[i],
+                    decryptedtxt, &len, ciphertxt, ciphertxtSz));
         AssertIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         AssertIntEQ(0, len);
         AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);

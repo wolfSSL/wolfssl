@@ -763,7 +763,8 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_CCM_TYPE:
         case AES_192_CCM_TYPE:
         case AES_256_CCM_TYPE:
-            /* if out == NULL, in/inl contains the additional auth data */
+            /* if out == NULL, in/inl contains the
+             * additional auth data */
             return wolfSSL_EVP_CipherUpdate_CCM(ctx, out, outl, in, inl);
 #endif /* !defined(NO_AES) && defined(HAVE_AESCCM) */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -923,8 +924,9 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
     return ctx->block_size - n;
 }
 
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
-    || FIPS_VERSION_GE(2,0))
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && \
+        ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+            || FIPS_VERSION_GE(2,0))
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
@@ -941,8 +943,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     int fl;
     int ret = WOLFSSL_SUCCESS;
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
-    || FIPS_VERSION_GE(2,0))
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && \
+        ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+            || FIPS_VERSION_GE(2,0))
     byte tmp = 0;
 #endif
 
@@ -1082,7 +1085,8 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
                     ctx->authIncIv = 0;
                 }
                 else {
-                    /* Clear IV, since IV reuse is not recommended for AES CCM. */
+                    /* Clear IV, since IV reuse is not recommended
+                     * for AES CCM. */
                     XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
                 }
                 if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
@@ -1165,8 +1169,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
-    || FIPS_VERSION_GE(2,0))
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && \
+        ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+            || FIPS_VERSION_GE(2,0))
         /*
          * This flag needs to retain its value between wolfSSL_EVP_CipherFinal
          * calls. wolfSSL_EVP_CipherInit will clear it, so we save and restore
@@ -1191,8 +1196,9 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,
         /* reset cipher state after final */
         ret = wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
 
-#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
-    || FIPS_VERSION_GE(2,0))
+#if (defined(HAVE_AESGCM) || defined(HAVE_AESCCM)) && \
+        ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+            || FIPS_VERSION_GE(2,0))
         if (FALSE
         #ifdef HAVE_AESGCM
             || ctx->cipherType == AES_128_GCM_TYPE ||
@@ -5801,7 +5807,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case EVP_CTRL_SET_KEY_LENGTH:
                 ret = wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, arg);
                 break;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+        (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
             case EVP_CTRL_AEAD_SET_IVLEN:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
@@ -6587,8 +6594,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
     #endif /* HAVE_AESGCM && ((!HAVE_FIPS && !HAVE_SELFTEST) ||
             * HAVE_FIPS_VERSION >= 2 */
-    #if defined(HAVE_AESCCM) && ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
-        || FIPS_VERSION_GE(2,0))
+    #if defined(HAVE_AESCCM) && \
+        ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) \
+            || FIPS_VERSION_GE(2,0))
         if (FALSE
         #ifdef WOLFSSL_AES_128
             || ctx->cipherType == AES_128_CCM_TYPE ||
@@ -7441,7 +7449,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 #endif
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                              int ivLen)
