@@ -17270,7 +17270,36 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
 
         #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
-                "The name MUST NOT be a relative URI" */
+                "The name MUST NOT be a relative URI"
+
+               RFC 3986
+                 * section 4.3. absolute-URI = scheme ":" heir-part ["?"query]
+                 * section 3:
+                    hier-part     = "//" authority path-abempty
+                                 / path-absolute
+                                 / path-rootless
+                                 / path-empty
+                 * section 3.3 --- Path:
+                    path-abempty  = *( "/" segment )
+                    path-absolute = "/" [ segment-nz *( "/" segment ) ]
+                    path-rootless = segment-nz *( "/" segment )
+                    path-empty    = 0<pchar>
+                    segment       = *pchar
+                    segment-nz    = 1*pchar
+                    segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
+                                  ; non-zero-length segment without any colon ":"
+                    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+
+                Because an empty-path is a valid 'heir-part' a URI that contains a scheme
+                must be an absolute path. 
+                
+                However, RFC 5280 §4.2.16:
+                  When the subjectAltName extension contains a URI the name:
+                    * MUST NOT be a relative URI
+                    * MUST follow the URI syntax in RFC 3986
+                    * MUST include both a scheme and a scheme-specific-part (this _might_ mean
+                      that path-empty is not valid). 
+             */
 
             {
                 int i;
@@ -17287,10 +17316,8 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                     }
                 }
 
-                /* test if no ':' char was found and test that the next two
-                 * chars are "//" to match the pattern "://" */
-                if (i >= strLen - 2 || (input[idx + i + 1] != '/' ||
-                                        input[idx + i + 2] != '/')) {
+                /* test if scheme is missing or heir-part is empty */
+                if (input[idx + i] != ':' || i == 0 || i == strLen) {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
                     WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                     return ASN_ALT_NAME_E;
