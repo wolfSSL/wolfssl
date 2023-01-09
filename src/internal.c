@@ -24267,7 +24267,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         char   name[MAX_SUITE_NAME + 1];
         int    i;
         word32 length;
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         int    allowing = 1;
     #endif
 
@@ -24280,7 +24280,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             }
         }
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         if (length > 1) {
             if (*current == '!') {
                 allowing = 0;
@@ -24293,7 +24293,42 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         XSTRNCPY(name, current, length);
         name[(length == sizeof(name)) ? length - 1 : length] = 0;
 
-    #ifdef OPENSSL_EXTRA
+
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        if (length > 1) {
+            char* substr = NULL;
+            char* substrCurrent = name;
+
+            /* extract first public key type from a string like ECDHE+AESGCM */
+            substr = XSTRSTR(substrCurrent, "+");
+            if (substr != NULL) {
+                do {
+                    if (substr) {
+                        length = (word32)(substr - substrCurrent);
+                        substrCurrent[length] = '\0';
+                    }
+                    else {
+                        length = (int)XSTRLEN(substrCurrent);
+                    }
+
+                    /* check if is a public key type */
+                    if (XSTRCMP(substrCurrent, "ECDHE") == 0 ||
+                        XSTRCMP(substrCurrent, "RSA")   == 0 ||
+                        XSTRCMP(substrCurrent, "DHE")   == 0) {
+                        XMEMCPY(name, substrCurrent, length);
+                        name[length] = '\0';
+                        break;
+                    }
+
+                    substrCurrent = substr;
+                    if (substr) {
+                        substrCurrent = substrCurrent + 1; /* +1 to skip over '+' */
+                        substr  = XSTRSTR(substrCurrent, "+");
+                    }
+                } while (substrCurrent != NULL);
+            }
+        }
+
         if (XSTRCMP(name, "DEFAULT") == 0 || XSTRCMP(name, "ALL") == 0) {
             if (XSTRCMP(name, "ALL") == 0)
                 haveAnon = 1;
@@ -24374,6 +24409,16 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
         if (XSTRCMP(name, "kDH") == 0) {
             haveStaticECC = allowing;
+            if (allowing) {
+                haveECC = 1;
+                haveECDSAsig = 1;
+                callInitSuites = 1;
+                ret = 1;
+            }
+            continue;
+        }
+
+        if (XSTRCMP(name, "ECDHE") == 0) {
             if (allowing) {
                 haveECC = 1;
                 haveECDSAsig = 1;

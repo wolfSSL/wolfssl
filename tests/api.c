@@ -7166,6 +7166,7 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
     && !defined(NO_SHA256)
     WOLFSSL_CTX* ctx;
     WOLFSSL_CTX* ctxClient;
+    WOLFSSL*     sslClient;
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
@@ -7218,6 +7219,38 @@ static int test_wolfSSL_CTX_set_cipher_list(void)
     AssertIntEQ(server_args.return_code, TEST_SUCCESS);
 
     FreeTcpReady(&ready);
+
+    /* check with cipher string that has '+' */
+    AssertNotNull((ctxClient = wolfSSL_CTX_new(wolfTLSv1_2_client_method())));
+    AssertTrue(wolfSSL_CTX_set_cipher_list(ctxClient, "ECDHE+AESGCM"));
+    AssertNotNull((sslClient = wolfSSL_new(ctxClient)));
+
+    /* check for the existance of an ECDHE ECDSA cipher suite */
+    {
+        int i = 0;
+        int found = 0;
+        const char* suite;
+
+        WOLF_STACK_OF(WOLFSSL_CIPHER)* sk;
+        WOLFSSL_CIPHER* current;
+
+        AssertNotNull((sk = wolfSSL_get_ciphers_compat(sslClient)));
+        do {
+            current = wolfSSL_sk_SSL_CIPHER_value(sk, i++);
+            if (current) {
+                suite = wolfSSL_CIPHER_get_name(current);
+                if (suite && XSTRSTR(suite, "ECDSA")) {
+                    found = 1;
+                    break;
+                }
+            }
+        } while (current);
+        AssertIntEQ(found, 1);
+    }
+
+    wolfSSL_free(sslClient);
+    wolfSSL_CTX_free(ctxClient);
+
     res = TEST_RES_CHECK(1);
 #endif
     return res;
