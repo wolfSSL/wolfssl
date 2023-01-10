@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -255,6 +255,13 @@
 
 /* Uncomment next line if building for Dolphin Emulator */
 /* #define DOLPHIN_EMULATOR */
+
+/* Uncomment next line if using MAXQ1065 */
+/* #define WOLFSSL_MAXQ1065 */
+
+/* Uncomment next line if using MAXQ108x */
+/* #define WOLFSSL_MAXQ108X */
+
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -1318,6 +1325,40 @@ extern void uITRON4_free(void *p) ;
     #define GCM_TABLE
 #endif
 
+#if defined(WOLFSSL_MAXQ1065) || defined(WOLFSSL_MAXQ108X)
+
+    #define MAXQ10XX_MODULE_INIT
+
+    #define HAVE_PK_CALLBACKS
+    #define WOLFSSL_STATIC_PSK
+    /* Server side support to be added at a later date. */
+    #define NO_WOLFSSL_SERVER
+    /* Need WOLFSSL_PUBLIC_ASN to use ProcessPeerCert callback. */
+    #define WOLFSSL_PUBLIC_ASN
+
+    #ifdef HAVE_PTHREAD
+        #define WOLFSSL_CRYPT_HW_MUTEX 1
+        #define MAXQ10XX_MUTEX
+    #endif
+
+    #define WOLFSSL_MAXQ10XX_CRYPTO
+    #define WOLFSSL_MAXQ10XX_TLS
+
+
+    #if defined(WOLFSSL_MAXQ1065)
+        #define MAXQ_DEVICE_ID 1065
+    #elif defined(WOLFSSL_MAXQ108X)
+        #define MAXQ_DEVICE_ID 1080
+    #else
+        #error "There is only support for MAXQ1065 or MAXQ1080"
+    #endif
+
+    #if defined(WOLFSSL_TICKET_NONCE_MALLOC)
+        #error "WOLFSSL_TICKET_NONCE_MALLOC disables the HKDF expand callbacks."
+    #endif
+
+#endif /* WOLFSSL_MAXQ1065 || WOLFSSL_MAXQ108X */
+
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
@@ -1926,7 +1967,9 @@ extern void uITRON4_free(void *p) ;
     #if !defined(USE_INTEGER_HEAP_MATH)
         #undef  USE_FAST_MATH
         #define USE_FAST_MATH
-        #define FP_MAX_BITS 8192
+        #ifndef FP_MAX_BITS
+            #define FP_MAX_BITS 8192
+        #endif
     #endif
 #endif
 /*----------------------------------------------------------------------------*/
@@ -2289,7 +2332,7 @@ extern void uITRON4_free(void *p) ;
          #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
     #endif
     #if !defined(WOLFSSL_SP_MATH_ALL) && !defined(USE_FAST_MATH) && \
-        !defined(NO_BIG_INT)
+        !defined(WOLFSSL_SP_MATH) && !defined(NO_BIG_INT)
          #error The static memory option is only supported for fast math or SP Math
     #endif
     #ifdef WOLFSSL_SMALL_STACK
@@ -2742,12 +2785,16 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_FALCON
 #define HAVE_DILITHIUM
 #define HAVE_SPHINCS
-#define HAVE_KYBER
+#define WOLFSSL_HAVE_KYBER
+#define WOLFSSL_KYBER512
+#define WOLFSSL_KYBER768
+#define WOLFSSL_KYBER1024
 #endif
 
 #ifdef HAVE_PQM4
 #define HAVE_PQC
 #define HAVE_KYBER
+#define WOLFSSL_KYBER512
 #endif
 
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
@@ -2860,11 +2907,17 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_SYS_CA_CERTS
     #ifdef NO_FILESYSTEM
-        #warning "Turning off WOLFSSL_SYS_CA_CERTS b/c NO_FILESYSTEM is defined."
+        /* Turning off WOLFSSL_SYS_CA_CERTS b/c NO_FILESYSTEM is defined */
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
+
     #ifdef NO_CERTS
-        #warning "Turning off WOLFSSL_SYS_CA_CERTS b/c NO_CERTS is defined."
+        /* Turning off WOLFSSL_SYS_CA_CERTS b/c NO_CERTS is defined */
+        #undef WOLFSSL_SYS_CA_CERTS
+    #endif
+
+    #if defined(__APPLE__) && !defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
+        /* Turning off WOLFSSL_SYS_CA_CERTS b/c no Security/SecTrustSettings.h header */
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */

@@ -134,10 +134,3 @@ int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
 */
 int  wc_MakeSelfCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* key,
                              WC_RNG* rng);
-
-/*!
-    \ingroup ASN 
-    \brief  この関数は、提供されたPEM ISSUERFILE内の証明書の発行者を発行者に設定します。また、証明書の自己署名属性をfalseに変更します。ISSUERFILEで指定された発行者は、CERT発行者を設定する前に確認されます。このメソッドは、署名の前にフィールドを設定するために使用されます。
-    \return 0  証明書の発行者を正常に設定した
-    \return MEMORY_E  xmallocでメモリを割り当てるエラーがある場合
-    \return ASN_PARSE_E  CERTヘッダーファイルの解析中にエラーがある場合は返されます。

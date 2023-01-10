@@ -1,6 +1,6 @@
 /* curve25519.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -91,7 +91,8 @@ struct curve25519_key {
 #endif
 
 #ifdef WOLFSSL_SE050
-    int keyId;
+    word32 keyId;
+    byte   keyIdSet;
 #endif
 
     /* bit fields */

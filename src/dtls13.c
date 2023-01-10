@@ -1,6 +1,6 @@
 /* dtls13.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -117,6 +117,7 @@ typedef struct Dtls13RecordPlaintextHeader {
 #define DTLS13_MIN_CIPHERTEXT 16
 #define DTLS13_MIN_RTX_INTERVAL 1
 
+#ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
 {
     WOLFSSL_METHOD* method;
@@ -131,6 +132,14 @@ WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
     return method;
 }
 
+WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
+{
+    return wolfDTLSv1_3_client_method_ex(NULL);
+}
+#endif /* !NO_WOLFSSL_CLIENT */
+
+
+#ifndef NO_WOLFSSL_SERVER
 WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
 {
     WOLFSSL_METHOD* method;
@@ -147,15 +156,11 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
     return method;
 }
 
-WOLFSSL_METHOD* wolfDTLSv1_3_client_method(void)
-{
-    return wolfDTLSv1_3_client_method_ex(NULL);
-}
-
 WOLFSSL_METHOD* wolfDTLSv1_3_server_method(void)
 {
     return wolfDTLSv1_3_server_method_ex(NULL);
 }
+#endif /* !NO_WOLFSSL_SERVER */
 
 int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
     enum ContentType content_type, word16 length)
@@ -250,7 +255,12 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
 
         if (c->aes == NULL)
             return BAD_STATE_E;
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
+#else
+        wc_AesEncryptDirect(c->aes, mask, ciphertext);
+#endif
     }
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
@@ -1772,7 +1782,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         WOLFSSL_MSG("Derive SN Client key");
         ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
             ssl->clientSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
-            0);
+            0, WOLFSSL_CLIENT_END);
         if (ret != 0)
             goto end;
 
@@ -1783,7 +1793,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         WOLFSSL_MSG("Derive SN Server key");
         ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
             ssl->serverSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
-            0);
+            0, WOLFSSL_SERVER_END);
         if (ret != 0)
             goto end;
 

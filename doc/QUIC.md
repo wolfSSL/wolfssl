@@ -117,7 +117,3 @@ and for key generation `wolfSSL_quic_hkdf_extract()`, `wolfSSL_quic_hkdf_expand(
 Tests have been added in `tests/quic.c` to run as part of `unit.tests`. Those go from basic checks on providing data and receiving secrets to complete handshakes between SSL client and server instances. These handshakes are done plain, with session resumption and with early data.
 
 These tests exchange the handshake messages between the SSL instances unencrypted, verifying their sequence and contents. They also verify that client and sever did indeed generate identical secrets for the different encryption levels.
-
-
-
-

@@ -1,6 +1,6 @@
 /* wolfcrypt/test/test.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,8 +33,13 @@ THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else
 int wolfcrypt_test(void* args);
 #endif
+
 #ifndef NO_MAIN_DRIVER
 int wolfcrypt_test_main(int argc, char** argv);
+#endif
+
+#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
+int wolf_test_task(void);
 #endif
 
 #ifdef __cplusplus

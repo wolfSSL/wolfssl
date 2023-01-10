@@ -1,6 +1,6 @@
 /* dtls.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,11 +19,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
+ * WOLFSSL_DTLS_NO_HVR_ON_RESUME
+ *     If defined, a DTLS server will not do a cookie exchange on successful
+ *     client resumption: the resumption will be faster (one RTT less) and
+ *     will consume less bandwidth (one ClientHello and one HelloVerifyRequest
+ *     less). On the other hand, if a valid SessionID is collected, forged
+ *     clientHello messages will consume resources on the server.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifndef WOLFCRYPT_ONLY
+
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
@@ -36,7 +48,7 @@
 
 #ifdef WOLFSSL_DTLS
 
-void DtlsResetState(WOLFSSL *ssl)
+void DtlsResetState(WOLFSSL* ssl)
 {
     /* Reset the state so that we can statelessly await the
      * ClientHello that contains the cookie. Don't gate on IsAtLeastTLSv1_3
@@ -52,7 +64,7 @@ void DtlsResetState(WOLFSSL *ssl)
     w64Zero(&ssl->dtls13Epochs[0].nextSeqNumber);
     w64Zero(&ssl->dtls13Epochs[0].nextPeerSeqNumber);
     XMEMSET(ssl->dtls13Epochs[0].window, 0,
-            sizeof(ssl->dtls13Epochs[0].window));
+        sizeof(ssl->dtls13Epochs[0].window));
     Dtls13FreeFsmResources(ssl);
 #endif
     ssl->keys.dtls_expected_peer_handshake_number = 0;
@@ -62,13 +74,281 @@ void DtlsResetState(WOLFSSL *ssl)
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
     ssl->options.connectState = CONNECT_BEGIN;
-    ssl->options.acceptState  = ACCEPT_BEGIN;
-    ssl->options.handShakeState  = NULL_STATE;
+    ssl->options.acceptState = ACCEPT_BEGIN;
+    ssl->options.handShakeState = NULL_STATE;
     ssl->msgsReceived.got_client_hello = 0;
     ssl->keys.dtls_handshake_number = 0;
     ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->options.clientState = 0;
+    XMEMSET(ssl->keys.peerSeq->window, 0, sizeof(ssl->keys.peerSeq->window));
+    XMEMSET(ssl->keys.peerSeq->prevWindow, 0,
+        sizeof(ssl->keys.peerSeq->prevWindow));
 }
+
+#if !defined(NO_WOLFSSL_SERVER)
+
+#if defined(NO_SHA) && defined(NO_SHA256)
+#error "DTLS needs either SHA or SHA-256"
+#endif /* NO_SHA && NO_SHA256 */
+
+#if !defined(NO_SHA) && defined(NO_SHA256)
+#define DTLS_COOKIE_TYPE WC_SHA
+#define DTLS_COOKIE_SZ WC_SHA_DIGEST_SIZE
+#endif /* !NO_SHA && NO_SHA256 */
+
+#ifndef NO_SHA256
+#define DTLS_COOKIE_TYPE WC_SHA256
+#define DTLS_COOKIE_SZ WC_SHA256_DIGEST_SIZE
+#endif /* !NO_SHA256 */
+
+typedef struct WolfSSL_ConstVector {
+    word32 size;
+    const byte* elements;
+} WolfSSL_ConstVector;
+
+typedef struct WolfSSL_CH {
+    ProtocolVersion* pv;
+    const byte* random;
+    WolfSSL_ConstVector sessionId;
+    WolfSSL_ConstVector cookie;
+    WolfSSL_ConstVector cipherSuite;
+    WolfSSL_ConstVector compression;
+    WolfSSL_ConstVector extension;
+    word32 length;
+} WolfSSL_CH;
+
+static int ReadVector8(const byte* input, WolfSSL_ConstVector* v)
+{
+    v->size = *input;
+    v->elements = input + OPAQUE8_LEN;
+    return v->size + OPAQUE8_LEN;
+}
+
+static int ReadVector16(const byte* input, WolfSSL_ConstVector* v)
+{
+    word16 size16;
+    ato16(input, &size16);
+    v->size = (word32)size16;
+    v->elements = input + OPAQUE16_LEN;
+    return v->size + OPAQUE16_LEN;
+}
+
+static int CreateDtlsCookie(WOLFSSL* ssl, const WolfSSL_CH* ch, byte* cookie)
+{
+    Hmac cookieHmac;
+    int ret;
+
+    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacSetKey(&cookieHmac, DTLS_COOKIE_TYPE,
+        ssl->buffers.dtlsCookieSecret.buffer,
+        ssl->buffers.dtlsCookieSecret.length);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (const byte*)ssl->buffers.dtlsCtx.peer.sa,
+        ssl->buffers.dtlsCtx.peer.sz);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->pv, OPAQUE16_LEN);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->random, RAN_LEN);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->sessionId.elements,
+        ch->sessionId.size);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->cipherSuite.elements,
+        ch->cipherSuite.size);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacUpdate(&cookieHmac, (byte*)ch->compression.elements,
+        ch->compression.size);
+    if (ret != 0)
+        goto out;
+    ret = wc_HmacFinal(&cookieHmac, cookie);
+
+out:
+    wc_HmacFree(&cookieHmac);
+    return ret;
+}
+
+static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
+{
+    word32 idx = 0;
+
+    /* protocol version, random and session id length check */
+    if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
+        return BUFFER_ERROR;
+
+    ch->pv = (ProtocolVersion*)(input + idx);
+    idx += OPAQUE16_LEN;
+    ch->random = (byte*)(input + idx);
+    idx += RAN_LEN;
+    idx += ReadVector8(input + idx, &ch->sessionId);
+    if (idx > helloSz - OPAQUE8_LEN)
+        return BUFFER_ERROR;
+    idx += ReadVector8(input + idx, &ch->cookie);
+    if (idx > helloSz - OPAQUE16_LEN)
+        return BUFFER_ERROR;
+    idx += ReadVector16(input + idx, &ch->cipherSuite);
+    if (idx > helloSz - OPAQUE8_LEN)
+        return BUFFER_ERROR;
+    idx += ReadVector8(input + idx, &ch->compression);
+    if (idx > helloSz - OPAQUE16_LEN)
+        return BUFFER_ERROR;
+    idx += ReadVector16(input + idx, &ch->extension);
+    if (idx > helloSz)
+        return BUFFER_ERROR;
+    ch->length = idx;
+    return 0;
+}
+
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+#ifdef HAVE_SESSION_TICKET
+static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
+    WolfSSL_ConstVector exts)
+{
+    word32 len, idx = 0;
+    word16 type;
+    WolfSSL_ConstVector ext;
+
+    XMEMSET(ret, 0, sizeof(*ret));
+    len = exts.size;
+    /* type + len */
+    while (len >= OPAQUE16_LEN + OPAQUE16_LEN) {
+        ato16(exts.elements + idx, &type);
+        idx += OPAQUE16_LEN;
+        idx += ReadVector16(exts.elements + idx, &ext);
+        if (idx > exts.size)
+            return BUFFER_ERROR;
+        if (type == extType) {
+            XMEMCPY(ret, &ext, sizeof(ext));
+            return 0;
+        }
+        len = exts.size - idx;
+    }
+    return 0;
+}
+
+static int TlsTicketIsValid(WOLFSSL* ssl, WolfSSL_ConstVector exts,
+    byte* isValid)
+{
+    WolfSSL_ConstVector tlsxSessionTicket;
+    byte tempTicket[SESSION_TICKET_LEN];
+    InternalTicket* it;
+    int ret;
+
+    *isValid = 0;
+    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
+    if (ret != 0)
+        return ret;
+    if (tlsxSessionTicket.size == 0)
+        return 0;
+    if (tlsxSessionTicket.size > SESSION_TICKET_LEN)
+        return 0;
+    XMEMCPY(tempTicket, tlsxSessionTicket.elements, tlsxSessionTicket.size);
+    ret = DoDecryptTicket(ssl, tempTicket, (word32)tlsxSessionTicket.size, &it);
+    if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE)
+        return 0;
+    ForceZero(it, sizeof(InternalTicket));
+    *isValid = 1;
+    return 0;
+}
+#endif /* HAVE_SESSION_TICKET */
+
+static int TlsSessionIdIsValid(WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
+    byte* isValid)
+{
+    WOLFSSL_SESSION* sess;
+    word32 sessRow;
+    int ret;
+
+    *isValid = 0;
+    if (ssl->options.sessionCacheOff)
+        return 0;
+    if (sessionID.size != ID_LEN)
+        return 0;
+#ifdef HAVE_EXT_CACHE
+    {
+
+        if (ssl->ctx->get_sess_cb != NULL) {
+            int unused;
+            sess =
+                ssl->ctx->get_sess_cb(ssl, sessionID.elements, ID_LEN, &unused);
+            if (sess != NULL) {
+                *isValid = 1;
+                wolfSSL_FreeSession(ssl->ctx, sess);
+                return 0;
+            }
+        }
+        if (ssl->ctx->internalCacheLookupOff)
+            return 0;
+    }
+#endif
+    ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow);
+    if (ret == 0 && sess != NULL) {
+        *isValid = 1;
+        TlsSessionCacheUnlockRow(sessRow);
+    }
+
+    return 0;
+}
+
+static int TlsResumptionIsValid(WOLFSSL* ssl, WolfSSL_CH* ch, byte* isValid)
+{
+    int ret;
+
+    *isValid = 0;
+#ifdef HAVE_SESSION_TICKET
+    ret = TlsTicketIsValid(ssl, ch->extension, isValid);
+    if (ret != 0)
+        return ret;
+    if (*isValid)
+        return 0;
+#endif /* HAVE_SESSION_TICKET */
+    ret = TlsSessionIdIsValid(ssl, ch->sessionId, isValid);
+    return ret;
+}
+#endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
+
+int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+    word32 helloSz, byte* process)
+{
+    byte cookie[DTLS_COOKIE_SZ];
+    int ret;
+    WolfSSL_CH ch;
+
+    *process = 1;
+    ret = ParseClientHello(input + *inOutIdx, helloSz, &ch);
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+    {
+        byte isValid = 0;
+        ret = TlsResumptionIsValid(ssl, &ch, &isValid);
+        if (ret != 0)
+            return ret;
+        if (isValid)
+            return 0;
+    }
+#endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
+
+    ret = CreateDtlsCookie(ssl, &ch, cookie);
+    if (ret != 0)
+        return ret;
+    if (ch.cookie.size != DTLS_COOKIE_SZ ||
+        XMEMCMP(ch.cookie.elements, cookie, DTLS_COOKIE_SZ) != 0) {
+        *process = 0;
+        ret = SendHelloVerifyRequest(ssl, cookie, DTLS_COOKIE_SZ);
+    }
+
+    return ret;
+}
+#endif /* !defined(NO_WOLFSSL_SERVER) */
 
 #if defined(WOLFSSL_DTLS_CID)
 
@@ -423,5 +703,6 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buf,
 }
 
 #endif /* WOLFSSL_DTLS_CID */
-
 #endif /* WOLFSSL_DTLS */
+
+#endif /* WOLFCRYPT_ONLY */

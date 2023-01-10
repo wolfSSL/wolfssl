@@ -1,0 +1,160 @@
+name: GitHub Action Tests
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  macos_build:
+    name: macOS Build Test
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: brew
+      run: brew install automake libtool
+
+    - name: autogen
+      run: ./autogen.sh
+
+    - name: configure make check
+      run: |
+        ./configure
+        make
+        make check
+        make distcheck
+
+    - name: configure all make check
+      run: |
+        ./configure --enable-all
+        make
+        make check
+        make distcheck
+
+    - name: configure all ASN template
+      run: |
+        ./configure --enable-all --enable-asn=template
+        make
+        make check
+        make distcheck
+
+    - name: make user_settings_all.h
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_all.h with compatibility layer
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        sed -i -e "s/if 0/if 1/" user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_min_ecc.h
+      run: |
+        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+    - name: user_settings_wolfboot_keytools.h
+      run: |
+        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+  ubuntu_build:
+    name: Ubuntu Build Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: autogen
+      run: ./autogen.sh
+
+    - name: configure make check
+      run: |
+        ./configure
+        make
+        make check
+        make distcheck
+
+    - name: configure all make check
+      run: |
+        ./configure --enable-all
+        make
+        make check
+        make distcheck
+
+    - name: configure all ASN template
+      run: |
+        ./configure --enable-all --enable-asn=template
+        make
+        make check
+        make distcheck
+
+    - name: make user_settings_all.h
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_all.h with compatibility layer
+      run: |
+        cp ./examples/configs/user_settings_all.h user_settings.h
+        sed -i -e "s/if 0/if 1/" user_settings.h
+        ./configure --enable-usersettings
+        make
+        make check
+
+    - name: user_settings_min_ecc.h
+      run: |
+        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+    - name: user_settings_wolfboot_keytools.h
+      run: |
+        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+  windows_build:
+    name: Windows Build Test
+    runs-on: windows-latest
+    env:
+      # Path to the solution file relative to the root of the project.
+      SOLUTION_FILE_PATH: wolfssl64.sln
+
+      # Configuration type to build.
+      # You can convert this to a build matrix if you need coverage of multiple configuration types.
+      # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+      BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x64
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1
+
+    - name: Restore NuGet packages
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: nuget restore ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+

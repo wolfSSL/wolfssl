@@ -1,6 +1,6 @@
 /* mem_track.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -558,8 +558,6 @@ int StackSizeHWMReset(void)
     fprintf(stderr, "%ld\t%s\n", (long int)HWM, msg); \
     StackSizeHWMReset();                              \
     })
- \
-
 
 #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
     ssize_t HWM = StackSizeHWM_OffsetCorrected();    \

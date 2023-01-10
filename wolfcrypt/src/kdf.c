@@ -1,6 +1,6 @@
 /* kdf.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -54,7 +54,7 @@
 #include <wolfssl/wolfcrypt/kdf.h>
 
 
-#ifdef WOLFSSL_HAVE_PRF
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 
 #ifdef WOLFSSL_SHA512
     #define P_HASH_MAX_SIZE WC_SHA512_DIGEST_SIZE
@@ -84,26 +84,6 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     byte   previous[P_HASH_MAX_SIZE];  /* max size */
     byte   current[P_HASH_MAX_SIZE];   /* max size */
     Hmac   hmac[1];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
-
-    if (previous == NULL || current == NULL || hmac == NULL) {
-        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
-        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
-
-        return MEMORY_E;
-    }
-#endif
-
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("wc_PRF previous", previous, P_HASH_MAX_SIZE);
-    wc_MemZero_Add("wc_PRF current", current, P_HASH_MAX_SIZE);
-    wc_MemZero_Add("wc_PRF hmac", hmac, sizeof(Hmac));
 #endif
 
     switch (hash) {
@@ -142,11 +122,6 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         break;
     #endif
         default:
-        #ifdef WOLFSSL_SMALL_STACK
-            if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-            if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
-            if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
-        #endif
             return HASH_TYPE_E;
     }
 
@@ -162,6 +137,24 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         return BAD_FUNC_ARG;
 
     lastTime = times - 1;
+
+#ifdef WOLFSSL_SMALL_STACK
+    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
+    if (previous == NULL || current == NULL || hmac == NULL) {
+        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+        return MEMORY_E;
+    }
+#endif
+
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("wc_PRF previous", previous, P_HASH_MAX_SIZE);
+    wc_MemZero_Add("wc_PRF current", current, P_HASH_MAX_SIZE);
+    wc_MemZero_Add("wc_PRF hmac", hmac, sizeof(Hmac));
+#endif
 
     ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
@@ -204,14 +197,16 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     ForceZero(current,   P_HASH_MAX_SIZE);
     ForceZero(hmac,      sizeof(Hmac));
 
+#if defined(WOLFSSL_CHECK_MEM_ZERO)
+    wc_MemZero_Check(previous, P_HASH_MAX_SIZE);
+    wc_MemZero_Check(current,  P_HASH_MAX_SIZE);
+    wc_MemZero_Check(hmac,     sizeof(Hmac));
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
     XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(previous, P_HASH_MAX_SIZE);
-    wc_MemZero_Check(current,  P_HASH_MAX_SIZE);
-    wc_MemZero_Check(hmac,     sizeof(Hmac));
 #endif
 
     return ret;
@@ -225,39 +220,30 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
 {
     int         ret  = 0;
     word32      half = (secLen + 1) / 2;
-
     const byte* md5_half;
     const byte* sha_half;
     byte*      md5_result;
 #ifdef WOLFSSL_SMALL_STACK
     byte*      sha_result;
+    byte*      labelSeed;
 #else
     byte       sha_result[MAX_PRF_DIG];    /* digLen is real size */
-#endif
-#if !defined(WOLFSSL_ASYNC_CRYPT) || defined(WC_ASYNC_NO_HASH)
     byte       labelSeed[MAX_PRF_LABSEED];
-#else
-    WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
-    if (labelSeed == NULL)
-        return MEMORY_E;
 #endif
 
     if (half > MAX_PRF_HALF ||
         labLen + seedLen > MAX_PRF_LABSEED ||
         digLen > MAX_PRF_DIG)
     {
-    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        WC_FREE_VAR(labelSeed, heap);
-    #endif
         return BUFFER_E;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
     sha_result = (byte*)XMALLOC(MAX_PRF_DIG, heap, DYNAMIC_TYPE_DIGEST);
-    if (sha_result == NULL) {
-    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        WC_FREE_VAR(labelSeed, heap);
-    #endif
+    labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
+    if (sha_result == NULL || labelSeed == NULL) {
+        XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
         return MEMORY_E;
     }
 #endif
@@ -283,14 +269,13 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
+#if defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(labelSeed, heap);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return ret;
@@ -305,30 +290,37 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
-    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
-        if (labelSeed == NULL)
-            return MEMORY_E;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* labelSeed;
     #else
-        byte labelSeed[MAX_PRF_LABSEED];
+        byte  labelSeed[MAX_PRF_LABSEED];
     #endif
 
-        if (labLen + seedLen > MAX_PRF_LABSEED)
+        if (labLen + seedLen > MAX_PRF_LABSEED) {
             return BUFFER_E;
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
+        if (labelSeed == NULL) {
+            return MEMORY_E;
+        }
+    #endif
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
 
         /* If a cipher suite wants an algorithm better than sha256, it
          * should use better. */
-        if (hash_type < sha256_mac || hash_type == blake2b_mac)
+        if (hash_type < sha256_mac || hash_type == blake2b_mac) {
             hash_type = sha256_mac;
+        }
         /* compute PRF for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1.2 PRF */
         ret = wc_PRF(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
-    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        WC_FREE_VAR(labelSeed, heap);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
     #endif
     }
     else {
@@ -341,10 +333,9 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif
     }
 
-
     return ret;
 }
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
 
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)

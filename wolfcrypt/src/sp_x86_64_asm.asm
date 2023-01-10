@@ -1,6 +1,6 @@
 ; /* sp_x86_64_asm
 ;  *
-;  * Copyright (C) 2006-2022 wolfSSL Inc.
+;  * Copyright (C) 2006-2023 wolfSSL Inc.
 ;  *
 ;  * This file is part of wolfSSL.
 ;  *
@@ -54831,7 +54831,7 @@ sp_256_mont_mul_4 PROC
         ;    - a[0] << 32 << 192
         ;   a[0]-a[3] + (a[0] * 2) << 192
         mov	rax, r11
-        lea	rdx, QWORD PTR [r14+r11]
+        lea	rdx, QWORD PTR [r14+2*r11]
         mov	r10, r12
         mov	r8, r13
         mov	r9, r13
@@ -55007,7 +55007,7 @@ sp_256_mont_sqr_4 PROC
         ;    - a[0] << 32 << 192
         ;   a[0]-a[3] + (a[0] * 2) << 192
         mov	rax, r10
-        lea	rdx, QWORD PTR [r13+r10]
+        lea	rdx, QWORD PTR [r13+2*r10]
         mov	r8, r11
         mov	rbx, r12
         mov	r9, r12
@@ -55210,7 +55210,7 @@ sp_256_mont_reduce_4 PROC
         ;    - a[0] << 32 << 192
         ;   a[0]-a[3] + (a[0] * 2) << 192
         mov	rax, r9
-        lea	rdx, QWORD PTR [r12+r9]
+        lea	rdx, QWORD PTR [r12+2*r9]
         mov	rbx, r10
         mov	rcx, r11
         mov	rsi, r11
@@ -56080,7 +56080,7 @@ sp_256_mont_mul_avx2_4 PROC
         ;    - a[0] << 32 << 192
         ;   a[0]-a[3] + (a[0] * 2) << 192
         mov	rdi, r8
-        lea	rdx, QWORD PTR [r11+r8]
+        lea	rdx, QWORD PTR [r11+2*r8]
         mov	rax, r9
         mov	rbp, r10
         mov	rsi, r10
@@ -56239,7 +56239,7 @@ sp_256_mont_sqr_avx2_4 PROC
         ;    - a[0] << 32 << 192
         ;   a[0]-a[3] + (a[0] * 2) << 192
         mov	rdi, r8
-        lea	rdx, QWORD PTR [r11+r8]
+        lea	rdx, QWORD PTR [r11+2*r8]
         mov	rax, r9
         mov	rsi, r10
         mov	rbx, r10

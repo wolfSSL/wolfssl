@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -92,5 +92,7 @@
 #define WOLFIO_DEBUG
 
 #define NO_MAIN_DRIVER
+#define WOLFSSL_IGNORE_FILE_WARN /* Added per peer review as a guard against
+                                  * future warnings, PR #5778 */
 
 #endif /* _USER_SETTINGS_H_ */

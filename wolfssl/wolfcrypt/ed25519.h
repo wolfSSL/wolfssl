@@ -1,6 +1,6 @@
 /* ed25519.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -93,8 +93,9 @@ struct ed25519_key {
     byte pointY[ED25519_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
 #endif
 #ifdef WOLFSSL_SE050
-    int keyId;
+    word32 keyId;
     word32 flags;
+    byte   keyIdSet;
 #endif
     word16 privKeySet:1;
     word16 pubKeySet:1;

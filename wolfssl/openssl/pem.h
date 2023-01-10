@@ -1,6 +1,6 @@
 /* pem.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -217,6 +217,8 @@ int wolfSSL_PEM_write_X509(XFILE fp, WOLFSSL_X509 *x);
 WOLFSSL_API
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #endif /* NO_FILESYSTEM */
+
+#define PEM_BUFSIZE WOLF_PEM_BUFSIZE
 
 #define PEM_read                        wolfSSL_PEM_read
 #define PEM_read_bio                    wolfSSL_PEM_read_bio

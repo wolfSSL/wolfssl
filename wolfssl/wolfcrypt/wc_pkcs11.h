@@ -1,6 +1,6 @@
 /* wc_pkcs11.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -52,6 +52,7 @@ typedef struct Pkcs11Token {
     CK_SESSION_HANDLE handle;           /* Handle to active session           */
     CK_UTF8CHAR_PTR   userPin;          /* User's PIN to login with           */
     CK_ULONG          userPinSz;        /* Size of user's PIN in bytes        */
+    byte              userPinLogin:1;   /* Login with User's PIN              */
 } Pkcs11Token;
 
 typedef struct Pkcs11Session {
@@ -71,14 +72,20 @@ enum Pkcs11KeyType {
 
 WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library,
                                      void* heap);
+WOLFSSL_API int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library,
+                                        void* heap, CK_RV* rvp);
 WOLFSSL_API void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 
 WOLFSSL_API int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,
     int slotId, const char* tokenName, const unsigned char *userPin,
     int userPinSz);
+WOLFSSL_API int wc_Pkcs11Token_Init_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev,
+    int slotId, const char* tokenName);
 WOLFSSL_API int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
     const char* tokenName, int tokenSz,
     const unsigned char* userPin, int userPinSz);
+WOLFSSL_API int wc_Pkcs11Token_InitName_NoLogin(Pkcs11Token* token,
+    Pkcs11Dev* dev, const char* tokenName, int tokenSz);
 
 WOLFSSL_API void wc_Pkcs11Token_Final(Pkcs11Token* token);
 WOLFSSL_API int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);

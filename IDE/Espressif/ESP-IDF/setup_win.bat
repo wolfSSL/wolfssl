@@ -308,11 +308,6 @@ if %errorlevel% NEQ 0 GOTO :COPYERR
 echo;
 echo Copying %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
 mkdir %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
-xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.h              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h  /F /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
-
-xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c  /F /Y
-if %errorlevel% NEQ 0 GOTO :COPYERR
 
 xcopy %BASEDIR%\wolfcrypt\benchmark\benchmark.c              %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\                                 /F /Y
 if %errorlevel% NEQ 0 GOTO :COPYERR

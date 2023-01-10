@@ -1,6 +1,6 @@
-/* helper.c
+/* main.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,24 +18,47 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfcrypt/benchmark/benchmark.h>
-
+/* ESP-IDF */
+#include <esp_log.h>
 #include "sdkconfig.h"
-#include "esp_log.h"
 
-#define WOLFSSL_BENCH_ARGV                 CONFIG_BENCH_ARGV
+/* wolfSSL */
+#include <user_settings.h>
+#ifndef WOLFSSL_ESPIDF
+#warning "problem with wolfSSL user settings. Check components/wolfssl/include"
+#endif
 
-/* proto-type */
-extern void wolf_benchmark_task();
+#include <wolfcrypt/test/test.h>
+
+/*
+** the wolfssl component can be installed in either:
+**
+**   - the ESP-IDF component directory
+**
+**       ** OR **
+**
+**   - the local project component directory
+**
+** it is not recommended to install in both.
+**
+*/
+
+/*
+** although the wolfcrypt/test includes a default time setting,
+** see the enclosed optional time helper for adding NNTP.
+** be sure to add "time_helper.c" in main/CMakeLists.txt
+*/
+#undef WOLFSSL_USE_TIME_HELPER
+#if defined(WOLFSSL_USE_TIME_HELPER)
+    #include "time_helper.h" */
+#endif
+
+/* see wolfssl/wolfcrypt/test/test.h */
 extern void wolf_crypt_task();
-static const char* const TAG = "wolfbenchmark";
-char* __argv[22];
+
+
+static const char* const TAG = "wolfssl_test";
 
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
@@ -52,7 +75,7 @@ static byte mSlotList[ATECC_MAX_SLOT];
 void my_atmel_slotInit()
 {
     int i;
-    for(i = 0;i < ATECC_MAX_SLOT;i++) {
+    for (i = 0; i < ATECC_MAX_SLOT; i++) {
         mSlotList[i] = ATECC_INVALID_SLOT;
     }
 }
@@ -60,9 +83,9 @@ void my_atmel_slotInit()
 /* allocate slot depending on slotType */
 int my_atmel_alloc(int slotType)
 {
-    int i, slot = -1;
+    int i, slot = ATECC_INVALID_SLOT;
 
-    switch(slotType){
+    switch (slotType) {
         case ATMEL_SLOT_ENCKEY:
             slot = 4;
             break;
@@ -76,13 +99,13 @@ int my_atmel_alloc(int slotType)
             slot = 4;
             break;
         case ATMEL_SLOT_ANY:
-            for(i = 0;i < ATECC_MAX_SLOT;i++){
-                if(mSlotList[i] == ATECC_INVALID_SLOT){
+            for (i = 0; i < ATECC_MAX_SLOT; i++) {
+                if (mSlotList[i] == ATECC_INVALID_SLOT) {
                     slot = i;
                     break;
-                }
-            }
-    }
+                } /* if */
+            } /* for */
+    } /* switch */
 
     return slot;
 }
@@ -90,69 +113,23 @@ int my_atmel_alloc(int slotType)
 /* free slot array       */
 void my_atmel_free(int slotId)
 {
-    if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
+    if (slotId >= 0 && slotId < ATECC_MAX_SLOT) {
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
 }
 
-#endif /* CUSTOM_SLOT_ALLOCATION                                       */
+#endif /* CUSTOM_SLOT_ALLOCATION                                        */
 #endif /* WOLFSSL_ESPWROOM32SE && HAVE_PK_CALLBACK && WOLFSSL_ATECC508A */
 
-int construct_argv()
-{
-    int cnt = 0;
-    int i = 0;
-    int len = 0;
-    char *_argv;            /* buffer for copying the string    */
-    char *ch;               /* char pointer to trace the string */
-    char buff[16] = { 0 };  /* buffer for a argument copy       */
-
-    printf("arg:%s\n", CONFIG_BENCH_ARGV);
-    len = strlen(CONFIG_BENCH_ARGV);
-    _argv = (char*)malloc(len + 1);
-    if (!_argv) {
-        return -1;
-    }
-    memset(_argv, 0, len+1);
-    memcpy(_argv, CONFIG_BENCH_ARGV, len);
-    _argv[len] = '\0';
-    ch = _argv;
-
-    __argv[cnt] = malloc(10);
-    sprintf(__argv[cnt], "benchmark");
-    __argv[cnt][9] = '\0';
-    cnt = 1;
-
-    while (*ch != '\0')
-    {
-        /* skip white-space */
-        while (*ch == ' ') { ++ch; }
-
-        memset(buff, 0, sizeof(buff));
-        /* copy each args into buffer */
-        i = 0;
-        while ((*ch != ' ') && (*ch != '\0') && (i < 16)) {
-            buff[i] = *ch;
-            ++i;
-            ++ch;
-        }
-        /* copy the string into argv */
-        __argv[cnt] = (char*)malloc(i + 1);
-        memset(__argv[cnt], 0, i + 1);
-        memcpy(__argv[cnt], buff, i + 1);
-        /* next args */
-        ++cnt;
-    }
-
-    free(_argv);
-
-    return (cnt);
-}
 
 /* entry point */
 void app_main(void)
 {
-    (void) TAG;
+    int rc = 0;
+
+#if defined (WOLFSSL_USE_TIME_HELPER)
+    set_time();
+#endif
 
 /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
@@ -161,17 +138,35 @@ void app_main(void)
     my_atmel_slotInit();
     /* to register the callback, it needs to be initialized. */
     if ((wolfCrypt_Init()) != 0) {
-       ESP_LOGE(TAG, "wolfCrypt_Init failed");
-       return;
+        ESP_LOGE(TAG, "wolfCrypt_Init failed");
+        return;
     }
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
 
-#ifndef NO_CRYPT_TEST
-    wolf_crypt_task();
-#endif
-#ifndef NO_CRYPT_BENCHMARK
-    wolf_benchmark_task();
+#ifdef NO_CRYPT_TEST
+    ESP_LOGI(TAG, "NO_CRYPT_TEST defined, skipping wolf_test_task");
+#else
+    /* Although wolfCrypt_Init() may be explicitly called above,
+    ** Note it is still always called in wolf_test_task.
+    */
+    rc = wolf_test_task();
+    /* note wolfCrypt_Cleanup() should always be called when finished.
+    ** This is called at the end of wolf_test_task();
+    */
+
+    if (rc == 0) {
+        ESP_LOGI(TAG, "wolf_test_task complete success result code = %d", rc);
+    }
+    else {
+        ESP_LOGE(TAG, "wolf_test_task FAIL result code = %d", rc);
+        /* see wolfssl/wolfcrypt/error-crypt.h */
+    }
+
+    /* after the test, we'll just wait */
+    while (1) {
+        /* nothing */
+    }
 #endif
 }

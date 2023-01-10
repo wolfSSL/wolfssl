@@ -1,6 +1,6 @@
 /* ocsp.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -327,6 +327,8 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         goto end;
     }
     if (ocspRequest != NULL) {
+        /* Has the chance to bubble up response changing ocspResponse->single to
+           no longer be pointing at newSingle */
         ret = CompareOcspReqResp(ocspRequest, ocspResponse);
         if (ret != 0) {
             goto end;
@@ -360,15 +362,15 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         }
 
         /* Replace existing certificate entry with updated */
-        newSingle->status->next = status->next;
-        XMEMCPY(status, newSingle->status, sizeof(CertStatus));
+        ocspResponse->single->status->next = status->next;
+        XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
     }
     else {
         /* Save new certificate entry */
         status = (CertStatus*)XMALLOC(sizeof(CertStatus),
                                       ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
         if (status != NULL) {
-            XMEMCPY(status, newSingle->status, sizeof(CertStatus));
+            XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
             status->next  = entry->status;
             entry->status = status;
             entry->ownStatus = 1;
@@ -397,6 +399,7 @@ end:
         ret = OCSP_LOOKUP_FAIL;
     }
 
+    FreeOcspResponse(ocspResponse);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_OCSP_STATUS);
     XFREE(newSingle,    NULL, DYNAMIC_TYPE_OCSP_ENTRY);
@@ -1066,6 +1069,51 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
     }
 
     return id->rawCertIdSize;
+}
+
+WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
+                                             const unsigned char** derIn,
+                                             int length)
+{
+    WOLFSSL_OCSP_CERTID *cid = NULL;
+
+    if ((cidOut != NULL) && (derIn != NULL) && (*derIn != NULL) &&
+        (length > 0)) {
+
+        cid = *cidOut;
+
+        /* If a NULL is passed we allocate the memory for the caller. */
+        if (cid == NULL) {
+            cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*cid), NULL,
+                                                DYNAMIC_TYPE_OPENSSL);
+        }
+        else if (cid->rawCertId != NULL) {
+            XFREE(cid->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
+            cid->rawCertId = NULL;
+            cid->rawCertIdSize = 0;
+        }
+
+        if (cid != NULL) {
+            cid->rawCertId = (byte*)XMALLOC(length + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (cid->rawCertId != NULL) {
+                XMEMCPY(cid->rawCertId, *derIn, length);
+                cid->rawCertIdSize = length;
+
+                /* Per spec. advance past the data that is being returned
+                 * to the caller. */
+                *cidOut = cid;
+                *derIn = *derIn + length;
+
+                return cid;
+            }
+        }
+    }
+
+    if (cid && (!cidOut || cid != *cidOut)) {
+        XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    return NULL;
 }
 
 const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(const WOLFSSL_OCSP_SINGLERESP *single)

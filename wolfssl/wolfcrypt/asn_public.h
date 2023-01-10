@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -148,9 +148,6 @@ enum CertType {
     DILITHIUM_LEVEL2_TYPE,
     DILITHIUM_LEVEL3_TYPE,
     DILITHIUM_LEVEL5_TYPE,
-    DILITHIUM_AES_LEVEL2_TYPE,
-    DILITHIUM_AES_LEVEL3_TYPE,
-    DILITHIUM_AES_LEVEL5_TYPE,
     SPHINCS_FAST_LEVEL1_TYPE,
     SPHINCS_FAST_LEVEL3_TYPE,
     SPHINCS_FAST_LEVEL5_TYPE,
@@ -199,9 +196,6 @@ enum Ctc_SigType {
     CTC_DILITHIUM_LEVEL2     = 213,
     CTC_DILITHIUM_LEVEL3     = 216,
     CTC_DILITHIUM_LEVEL5     = 220,
-    CTC_DILITHIUM_AES_LEVEL2 = 217,
-    CTC_DILITHIUM_AES_LEVEL3 = 221,
-    CTC_DILITHIUM_AES_LEVEL5 = 224,
 
     CTC_SPHINCS_FAST_LEVEL1  = 281,
     CTC_SPHINCS_FAST_LEVEL3  = 283,
@@ -222,6 +216,11 @@ enum Ctc_Encoding {
 #ifndef WC_CTC_MAX_ALT_SIZE
     #define WC_CTC_MAX_ALT_SIZE 16384
 #endif
+#ifdef WOLFSSL_CERT_EXT
+    #ifndef WC_CTC_MAX_CRLINFO_SZ
+        #define WC_CTC_MAX_CRLINFO_SZ 200
+    #endif
+#endif
 
 enum Ctc_Misc {
     CTC_COUNTRY_SIZE  =     2,
@@ -238,10 +237,11 @@ enum Ctc_Misc {
      * We support only hash */
     CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
-    CTC_MAX_CERTPOL_SZ = 64,
+    CTC_MAX_CERTPOL_SZ = 200, /* RFC 5280 Section 4.2.1.4 */
     CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
-    CTC_MAX_CRLINFO_SZ = 200, /* Arbitrary size that should be enough for at
-                               * least two distribution points. */
+    CTC_MAX_CRLINFO_SZ = WC_CTC_MAX_CRLINFO_SZ, /* Arbitrary size that should be
+                                                 * enough for at least two
+                                                 * distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
 };
 

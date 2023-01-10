@@ -1,6 +1,6 @@
 /* esp32_aes.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -157,7 +157,11 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 static void esp_aes_bk(const byte* in, byte* out)
 {
     const word32 *inwords = (const word32 *)in;
+#if ESP_IDF_VERSION_MAJOR >= 4
+    uint32_t *outwords      = (uint32_t *)out;
+#else
     word32 *outwords      = (word32 *)out;
+#endif
 
     ESP_LOGV(TAG, "enter esp_aes_bk");
 

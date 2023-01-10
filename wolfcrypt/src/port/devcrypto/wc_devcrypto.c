@@ -1,6 +1,6 @@
 /* wc_devcrypto.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -122,7 +122,7 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
         case CRYPTO_SHA2_512_HMAC:
             ctx->sess.cipher = 0;
             ctx->sess.mac    = type;
-            ctx->sess.mackey    = (u_int8_t*)key;
+            ctx->sess.mackey    = (byte*)key;
             ctx->sess.mackeylen = keySz;
             break;
 

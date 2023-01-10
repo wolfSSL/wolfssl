@@ -1,6 +1,6 @@
 /* pk.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,6 +50,265 @@ static int pem_write_bio_pubkey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key);
  ******************************************************************************/
 
 #if defined(OPENSSL_EXTRA)
+
+#if (!defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_ALL))) || (!defined(NO_BIO) && defined(OPENSSL_EXTRA))
+/* Convert the PEM encoding in the buffer to DER.
+ *
+ * @param [in]  pem        Buffer containing PEM encoded data.
+ * @param [in]  pemSz      Size of data in buffer in bytes.
+ * @param [in]  cb         Password callback when PEM encrypted.
+ * @param [in]  pass       NUL terminated string for passphrase when PEM
+ *                         encrypted.
+ * @param [in]  keyType    Type of key to match against PEM header/footer.
+ * @param [out] keyFormat  Format of key.
+ * @param [out] der        Buffer holding DER encoding.
+ * @return  Negative on failure.
+ * @return  Number of bytes consumed on success.
+ */
+static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
+    void* pass, int keyType, int* keyFormat, DerBuffer** der)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    EncryptedInfo* info = NULL;
+#else
+    EncryptedInfo info[1];
+#endif /* WOLFSSL_SMALL_STACK */
+    wc_pem_password_cb* localCb = NULL;
+    int ret = 0;
+
+    if (cb != NULL) {
+        localCb = cb;
+    }
+    else if (pass != NULL) {
+        localCb = wolfSSL_PEM_def_callback;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+        DYNAMIC_TYPE_ENCRYPTEDINFO);
+    if (info == NULL) {
+        WOLFSSL_ERROR_MSG("Error getting memory for EncryptedInfo structure");
+        ret = MEMORY_E;
+    }
+#endif /* WOLFSSL_SMALL_STACK */
+
+    if (ret == 0) {
+        XMEMSET(info, 0, sizeof(EncryptedInfo));
+        info->passwd_cb       = localCb;
+        info->passwd_userdata = pass;
+
+        /* Do not strip PKCS8 header */
+        ret = PemToDer((const unsigned char *)pem, pemSz, keyType, der, NULL,
+            info, keyFormat);
+        if (ret < 0) {
+            WOLFSSL_ERROR_MSG("Bad PEM To DER");
+        }
+    }
+    if (ret >= 0) {
+        ret = (int)info->consumed;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
+#endif
+
+    return ret;
+}
+#endif
+
+#if !defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)
+#ifndef NO_BIO
+/* Read PEM data from a BIO and decode to DER in a new buffer.
+ *
+ * @param [in, out] bio        BIO object to read with.
+ * @param [in]      cb         Password callback when PEM encrypted.
+ * @param [in]      pass       NUL terminated string for passphrase when PEM
+ *                             encrypted.
+ * @param [in]      keyType    Type of key to match against PEM header/footer.
+ * @param [out]     keyFormat  Format of key.
+ * @param [out]     der        Buffer holding DER encoding.
+ * @return  Negative on failure.
+ * @return  Number of bytes consumed on success.
+ */
+static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
+    void* pass, int keyType, int* keyFormat, DerBuffer** der)
+{
+    int ret;
+    char* mem = NULL;
+    int memSz;
+    int alloced = 0;
+
+    ret = wolfssl_read_bio(bio, &mem, &memSz, &alloced);
+    if (ret == 0) {
+        ret = pem_mem_to_der(mem, memSz, cb, pass, keyType, keyFormat, der);
+        /* Write left over data back to BIO if not a file BIO */
+        if ((ret > 0) && ((memSz - ret) > 0) &&
+                 (bio->type != WOLFSSL_BIO_FILE)) {
+            int res;
+            res = wolfSSL_BIO_write(bio, mem + ret, memSz - ret);
+            if (res != memSz - ret) {
+                WOLFSSL_ERROR_MSG("Unable to write back excess data");
+                if (res < 0) {
+                    ret = res;
+                }
+                else {
+                    ret = MEMORY_E;
+                }
+            }
+        }
+        if (alloced) {
+            XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+    }
+
+    return ret;
+}
+#endif /* !NO_BIO */
+
+#if !defined(NO_FILESYSTEM)
+/* Read PEM data from a file and decode to DER in a new buffer.
+ *
+ * @param [in]  fp         File pointer to read with.
+ * @param [in]  cb         Password callback when PEM encrypted.
+ * @param [in]  pass       NUL terminated string for passphrase when PEM
+ *                         encrypted.
+ * @param [in]  keyType    Type of key to match against PEM header/footer.
+ * @param [out] keyFormat  Format of key.
+ * @param [out] der        Buffer holding DER encoding.
+ * @return  Negative on failure.
+ * @return  Number of bytes consumed on success.
+ */
+static int pem_read_file_key(XFILE fp, wc_pem_password_cb* cb, void* pass,
+    int keyType, int* keyFormat, DerBuffer** der)
+{
+    int ret;
+    char* mem = NULL;
+    int memSz;
+
+    ret = wolfssl_read_file(fp, &mem, &memSz);
+    if (ret == 0) {
+        ret = pem_mem_to_der(mem, memSz, cb, pass, keyType, keyFormat, der);
+        XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    return ret;
+}
+#endif /* !NO_FILESYSTEM */
+#endif
+
+#if defined(OPENSSL_EXTRA) && ((!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) \
+    && !defined(HAVE_USER_RSA)) || !defined(WOLFCRYPT_ONLY))
+/* Convert DER data to PEM in an allocated buffer.
+ *
+ * @param [in]  der    Buffer containing DER data.
+ * @param [in]  derSz  Size of DER data in bytes.
+ * @param [in]  type   Type of key being encoded.
+ * @param [in]  heap   Heap hint for dynamic memory allocation.
+ * @param [out] out    Allocated buffer containing PEM.
+ * @param [out] outSz  Size of PEM encoding.
+ * @return  WOLFSSL_FAILURE on error.
+ * @return  WOLFSSL_SUCCESS on success.
+ */
+static int der_to_pem_alloc(const unsigned char* der, int derSz, int type,
+    void* heap, byte** out, int* outSz)
+{
+    int ret = WOLFSSL_SUCCESS;
+    int pemSz;
+    byte* pem = NULL;
+
+    (void)heap;
+
+    pemSz = wc_DerToPem(der, derSz, NULL, 0, type);
+    if (pemSz < 0) {
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        pem = (byte*)XMALLOC(pemSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pem == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if ((ret == WOLFSSL_SUCCESS) && (wc_DerToPem(der, derSz, pem, pemSz,
+            type) < 0)) {
+        ret = WOLFSSL_FAILURE;
+        XFREE(pem, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = NULL;
+    }
+
+    *out = pem;
+    *outSz = pemSz;
+    return ret;
+}
+
+#ifndef NO_BIO
+/* Write the DER data as PEM into BIO.
+ *
+ * @param [in]      der    Buffer containing DER data.
+ * @param [in]      derSz  Size of DER data in bytes.
+ * @param [in, out] bio    BIO object to write with.
+ * @param [in]      type   Type of key being encoded.
+ * @return  WOLFSSL_FAILURE on error.
+ * @return  WOLFSSL_SUCCESS on success.
+ */
+static int der_write_to_bio_as_pem(const unsigned char* der, int derSz,
+    WOLFSSL_BIO* bio, int type)
+{
+    int ret;
+    int pemSz;
+    byte* pem = NULL;
+
+    ret = der_to_pem_alloc(der, derSz, type, bio->heap, &pem, &pemSz);
+    if (ret == WOLFSSL_SUCCESS) {
+        int len = wolfSSL_BIO_write(bio, pem, pemSz);
+        if (len != pemSz) {
+            WOLFSSL_ERROR_MSG("Unable to write full PEM to BIO");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+#endif
+
+#if (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+     !defined(HAVE_USER_RSA)) || (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA))
+#if !defined(NO_FILESYSTEM)
+/* Write the DER data as PEM into file pointer.
+ *
+ * @param [in] der    Buffer containing DER data.
+ * @param [in] derSz  Size of DER data in bytes.
+ * @param [in] fp     File pointer to write with.
+ * @param [in] type   Type of key being encoded.
+ * @param [in] heap   Heap hint for dynamic memory allocation.
+ * @return  WOLFSSL_FAILURE on error.
+ * @return  WOLFSSL_SUCCESS on success.
+ */
+static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
+    XFILE fp, int type, void* heap)
+{
+    int ret;
+    int pemSz;
+    byte* pem = NULL;
+
+    ret = der_to_pem_alloc(der, derSz, type, heap, &pem, &pemSz);
+    if (ret == WOLFSSL_SUCCESS) {
+        int len = (int)XFWRITE(pem, 1, pemSz, fp);
+        if (len != pemSz) {
+            WOLFSSL_ERROR_MSG("Unable to write full PEM to BIO");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif
+#endif
 
 #if !defined(NO_CERTS) && defined(XFPRINTF) && !defined(NO_FILESYSTEM) && \
     !defined(NO_STDIO_FILESYSTEM) && (!defined(NO_RSA) || !defined(NO_DSA) || \
@@ -198,7 +457,7 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
         /* Print indent spaces. */
         int len_wanted = XSNPRINTF(line, lineLen, "%*s", indent, " ");
         if (len_wanted >= lineLen) {
-            WOLFSSL_MSG("Buffer overflow formatting indentation");
+            WOLFSSL_ERROR_MSG("Buffer overflow formatting indentation");
             ret = 0;
         }
         else {
@@ -233,7 +492,7 @@ static int wolfssl_print_value(WOLFSSL_BIO* bio, mp_int* value,
     len = mp_unsigned_bin_size(value);
     /* Value must no more than 32-bits - 4 bytes. */
     if ((len < 0) || (len > 4)) {
-        WOLFSSL_MSG("Error getting exponent size");
+        WOLFSSL_ERROR_MSG("Error getting exponent size");
         ret = 0;
     }
     if (ret == 1) {
@@ -247,7 +506,7 @@ static int wolfssl_print_value(WOLFSSL_BIO* bio, mp_int* value,
         len = (int)XSNPRINTF(line, sizeof(line), "%s %u (0x%x)\n", name, v,
             v);
         if (len >= (int)sizeof(line)) {
-            WOLFSSL_MSG("Buffer overflow while formatting value");
+            WOLFSSL_ERROR_MSG("Buffer overflow while formatting value");
             ret = 0;
         } else {
             /* Write string to BIO */
@@ -282,13 +541,13 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
     /* Allocate a buffer to hold binary encoded data. */
     rawLen = mp_unsigned_bin_size(num);
     if (rawLen == 0) {
-        WOLFSSL_MSG("Invalid number");
+        WOLFSSL_ERROR_MSG("Invalid number");
         ret = 0;
     }
     if (ret == 1) {
         rawKey = (byte*)XMALLOC(rawLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rawKey == NULL) {
-            WOLFSSL_MSG("Memory error");
+            WOLFSSL_ERROR_MSG("Memory allocation error");
             ret = 0;
         }
     }
@@ -305,7 +564,7 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
         /* Print header string line to string. */
         li = XSNPRINTF(line, sizeof(line), "%s\n", name);
         if (li >= (int)sizeof(line)) {
-            WOLFSSL_MSG("Buffer overflow formatting name");
+            WOLFSSL_ERROR_MSG("Buffer overflow formatting name");
             ret = 0;
         }
         else {
@@ -324,7 +583,7 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
         li = XSNPRINTF(line, sizeof(line), PRINT_NUM_INDENT "%s",
             mp_leading_bit(num) ?  "00:" : "");
         if (li >= (int)sizeof(line)) {
-            WOLFSSL_MSG("Buffer overflow formatting spaces");
+            WOLFSSL_ERROR_MSG("Buffer overflow formatting spaces");
             ret = 0;
         }
     }
@@ -374,7 +633,8 @@ static int wolfssl_print_number(WOLFSSL_BIO* bio, mp_int* num, const char* name,
 
 #endif /* XSNPRINTF && !NO_BIO && !NO_RSA && !HAVE_FAST_RSA */
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) || (!defined(NO_DH) && !defined(NO_CERTS) && \
+    defined(HAVE_FIPS) && !FIPS_VERSION_GT(2,0))
 
 /* Uses the DER SEQUENCE to determine size of DER data.
  *
@@ -402,9 +662,64 @@ static int wolfssl_der_length(const unsigned char* seq, int len)
     return ret;
 }
 
-#endif /* NO_RSA */
+#endif /* !NO_RSA */
 
 #endif /* OPENSSL_EXTRA */
+
+#if !defined(NO_RSA) || !defined(NO_DH)
+/* Too many defines to check explicitly - prototype it and always include
+ * for RSA and DH. */
+WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local);
+
+/* Make a random number generator or get global if possible.
+ *
+ * Global may not be available and NULL will be returned.
+ *
+ * @param [in, out] rng    Local random number generator.
+ * @param [out]     local  Local random number generator returned.
+ * @return  NULL on failure.
+ * @return  A random number generator object.
+ */
+WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
+{
+    WC_RNG* ret = NULL;
+
+    /* Assume not local until one created. */
+    *local = 0;
+
+#ifdef WOLFSSL_SMALL_STACK
+    /* Allocate RNG object . */
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+#endif
+    /* Check we have a local RNG object and initialize. */
+    if ((rng != NULL) && (wc_InitRng(rng) == 0)) {
+        ret = rng;
+        *local = 1;
+    }
+    if (ret == NULL) {
+    #ifdef HAVE_GLOBAL_RNG
+        WOLFSSL_MSG("Bad RNG Init, trying global");
+        /* Get the global random number generator instead. */
+        ret = wolfssl_get_global_rng();
+        if (ret == NULL) {
+            /* Create a global random if possible. */
+            (void)wolfSSL_RAND_Init();
+            ret = wolfssl_get_global_rng();
+        }
+    #else
+        WOLFSSL_ERROR_MSG("Bad RNG Init");
+    #endif
+    }
+
+    if (ret != rng) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+#endif
+    }
+
+    return ret;
+}
+#endif
 
 /*******************************************************************************
  * START OF RSA API
@@ -623,7 +938,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
     /* Allocate memory for new wolfCrypt RSA key. */
     key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
     if (key == NULL) {
-        WOLFSSL_MSG("wolfSSL_RSA_new malloc RsaKey failure");
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_new malloc RsaKey failure");
         err = 1;
     }
     if (!err) {
@@ -631,7 +946,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
         rsa = (WOLFSSL_RSA*)XMALLOC(sizeof(WOLFSSL_RSA), heap,
             DYNAMIC_TYPE_RSA);
         if (rsa == NULL) {
-            WOLFSSL_MSG("wolfSSL_RSA_new malloc WOLFSSL_RSA failure");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_new malloc WOLFSSL_RSA failure");
             err = 1;
         }
     }
@@ -651,7 +966,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
     if (!err) {
         /* Initialize wolfCrypt RSA key. */
         if (wc_InitRsaKey_ex(key, heap, devId) != 0) {
-            WOLFSSL_MSG("InitRsaKey WOLFSSL_RSA failure");
+            WOLFSSL_ERROR_MSG("InitRsaKey WOLFSSL_RSA failure");
             err = 1;
         }
         else {
@@ -679,7 +994,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
         }
         if (rng == NULL) {
             /* Couldn't create global either. */
-            WOLFSSL_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
             err = 1;
         }
         else {
@@ -765,14 +1080,14 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
         /* Create a new RSA key to return. */
         ret = wolfSSL_RSA_new();
         if (ret == NULL) {
-            WOLFSSL_MSG("Error creating a new WOLFSSL_RSA structure");
+            WOLFSSL_ERROR_MSG("Error creating a new WOLFSSL_RSA structure");
             err = 1;
         }
     }
     if (!err) {
         /* Encode RSA public key to copy to DER - allocates DER buffer. */
         if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, rsa->heap)) < 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
             err = 1;
         }
     }
@@ -780,7 +1095,7 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
         /* Decode DER of the RSA public key into new key. */
         if (wolfSSL_RSA_LoadDer_ex(ret, derBuf, derSz,
                 WOLFSSL_RSA_LOAD_PUBLIC) != 1) {
-            WOLFSSL_MSG("wolfSSL_RSA_LoadDer_ex failed");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_LoadDer_ex failed");
             err = 1;
         }
     }
@@ -814,7 +1129,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
  *
  * @param [out]     out      Pointer to RSA key to return through. May be NULL.
  * @param [in, out] derBuf   Pointer to start of DER encoded data.
- * @parma [in]      derSz    Length of the data in the DER buffer.
+ * @param [in]      derSz    Length of the data in the DER buffer.
  * @return  RSA key on success.
  * @return  NULL on failure.
  */
@@ -828,18 +1143,18 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **out,
 
     /* Validate parameters. */
     if (derBuf == NULL) {
-        WOLFSSL_MSG("Bad argument");
+        WOLFSSL_ERROR_MSG("Bad argument");
         err = 1;
     }
     /* Create a new RSA key to return. */
     if ((!err) && ((rsa = wolfSSL_RSA_new()) == NULL)) {
-        WOLFSSL_MSG("RSA_new failed");
+        WOLFSSL_ERROR_MSG("RSA_new failed");
         err = 1;
     }
     /* Decode RSA key from DER. */
     if ((!err) && (wolfSSL_RSA_LoadDer_ex(rsa, *derBuf, (int)derSz,
             WOLFSSL_RSA_LOAD_PUBLIC) != 1)) {
-        WOLFSSL_MSG("RSA_LoadDer failed");
+        WOLFSSL_ERROR_MSG("RSA_LoadDer failed");
         err = 1;
     }
     if ((!err) && (out != NULL)) {
@@ -863,7 +1178,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **out,
  *
  * @param [out]     out      Pointer to RSA key to return through. May be NULL.
  * @param [in, out] derBuf   Pointer to start of DER encoded data.
- * @parma [in]      derSz    Length of the data in the DER buffer.
+ * @param [in]      derSz    Length of the data in the DER buffer.
  * @return  RSA key on success.
  * @return  NULL on failure.
  */
@@ -877,18 +1192,18 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **out,
 
     /* Validate parameters. */
     if (derBuf == NULL) {
-        WOLFSSL_MSG("Bad argument");
+        WOLFSSL_ERROR_MSG("Bad argument");
         err = 1;
     }
     /* Create a new RSA key to return. */
     if ((!err) && ((rsa = wolfSSL_RSA_new()) == NULL)) {
-        WOLFSSL_MSG("RSA_new failed");
+        WOLFSSL_ERROR_MSG("RSA_new failed");
         err = 1;
     }
     /* Decode RSA key from DER. */
     if ((!err) && (wolfSSL_RSA_LoadDer_ex(rsa, *derBuf, (int)derSz,
             WOLFSSL_RSA_LOAD_PRIVATE) != 1)) {
-        WOLFSSL_MSG("RSA_LoadDer failed");
+        WOLFSSL_ERROR_MSG("RSA_LoadDer failed");
         err = 1;
     }
     if ((!err) && (out != NULL)) {
@@ -932,13 +1247,13 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 
     /* Validate parameters. */
     if (rsa == NULL) {
-        WOLFSSL_MSG("Bad Function Arguments");
+        WOLFSSL_ERROR_MSG("Bad Function Arguments");
         ret = BAD_FUNC_ARG;
     }
     /* Encode the RSA key as a DER. Call allocates buffer into pp.
      * No heap hint as this gets returned to the user */
     else if ((ret = wolfSSL_RSA_To_Der_ex(rsa, pp, 0, NULL)) < 0) {
-        WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
         ret = 0;
     }
 
@@ -969,13 +1284,13 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 
     /* check for bad functions arguments */
     if (rsa == NULL) {
-        WOLFSSL_MSG("Bad Function Arguments");
+        WOLFSSL_ERROR_MSG("Bad Function Arguments");
         ret = BAD_FUNC_ARG;
     }
     /* Encode the RSA key as a DER. Call allocates buffer into pp.
      * No heap hint as this gets returned to the user */
     else if ((ret = wolfSSL_RSA_To_Der_ex(rsa, pp, 1, NULL)) < 0) {
-        WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
         ret = 0;
     }
 
@@ -1017,18 +1332,18 @@ static int wolfssl_read_der_bio(WOLFSSL_BIO* bio, unsigned char** out)
 
     /* Read in a minimal amount to get a SEQUENCE header of any size. */
     if (wolfSSL_BIO_read(bio, seq, sizeof(seq)) != sizeof(seq)) {
-        WOLFSSL_MSG("wolfSSL_BIO_read() of sequence failure");
+        WOLFSSL_ERROR_MSG("wolfSSL_BIO_read() of sequence failure");
         err = 1;
     }
     /* Calculate complete DER encoding length. */
     if ((!err) && ((derLen = wolfssl_der_length(seq, sizeof(seq))) <= 0)) {
-        WOLFSSL_MSG("DER SEQUENCE decode failed");
+        WOLFSSL_ERROR_MSG("DER SEQUENCE decode failed");
         err = 1;
     }
     /* Allocate a buffer to read DER data into. */
     if ((!err) && ((der = (unsigned char*)XMALLOC(derLen, bio->heap,
             DYNAMIC_TYPE_TMP_BUFFER)) == NULL)) {
-        WOLFSSL_MSG("Malloc failure");
+        WOLFSSL_ERROR_MSG("Malloc failure");
         err = 1;
     }
     if (!err) {
@@ -1038,7 +1353,7 @@ static int wolfssl_read_der_bio(WOLFSSL_BIO* bio, unsigned char** out)
         XMEMCPY(der, seq, sizeof(seq));
         /* Read rest of DER data from BIO. */
         if (wolfSSL_BIO_read(bio, der + sizeof(seq), len) != len) {
-            WOLFSSL_MSG("wolfSSL_BIO_read() failure");
+            WOLFSSL_ERROR_MSG("wolfSSL_BIO_read() failure");
             err = 1;
         }
     }
@@ -1120,8 +1435,9 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
  * @param [out] outBuf     Allocated buffer containing DER encoding.
  *                         May be NULL.
  * @param [in]  publicKey  Whether to encode as public key.
+ * @param [in]  heap       Heap hint.
  * @return  Encoding size on success.
- * @return  -ve on failure.
+ * @return  Negative on failure.
  */
 int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     void* heap)
@@ -1150,7 +1466,7 @@ int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
  *                             after encoding in passed in buffer.
  * @param [in]      publicKey  Whether to encode as public key.
  * @return  Encoding size on success.
- * @return  -ve on failure.
+ * @return  Negative on failure.
  */
 static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     void* heap)
@@ -1184,7 +1500,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
             /* Calculate length of DER encoded RSA public key. */
             derSz = wc_RsaPublicKeyDerSize((RsaKey*)rsa->internal, 1);
             if (derSz < 0) {
-                WOLFSSL_MSG("wc_RsaPublicKeyDerSize failed");
+                WOLFSSL_ERROR_MSG("wc_RsaPublicKeyDerSize failed");
                 ret = derSz;
             }
         }
@@ -1192,7 +1508,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
             /* Calculate length of DER encoded RSA private key. */
             derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, NULL, 0);
             if (derSz < 0) {
-                WOLFSSL_MSG("wc_RsaKeyToDer failed");
+                WOLFSSL_ERROR_MSG("wc_RsaKeyToDer failed");
                 ret = derSz;
             }
         }
@@ -1204,7 +1520,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
             /* Allocate buffer to hold DER encoded RSA key. */
             derBuf = (byte*)XMALLOC(derSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf == NULL) {
-                WOLFSSL_MSG("malloc failed");
+                WOLFSSL_ERROR_MSG("Memory allocation failed");
                 ret = MEMORY_ERROR;
             }
         }
@@ -1219,7 +1535,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
             derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, derBuf, derSz);
         }
         if (derSz < 0) {
-            WOLFSSL_MSG("RSA key encoding failed");
+            WOLFSSL_ERROR_MSG("RSA key encoding failed");
             ret = derSz;
         }
         else if ((*outBuf) != NULL) {
@@ -1248,7 +1564,6 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-
 /* Load the DER encoded private RSA key.
  *
  * wolfSSL API.
@@ -1291,7 +1606,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     /* Validate parameters. */
     if ((rsa == NULL) || (rsa->internal == NULL) || (derBuf == NULL) ||
             (derSz <= 0)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
 
@@ -1309,7 +1624,8 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         /* When decoding and not PKCS#8, return will be ASN_PARSE_E. */
         else if (res != ASN_PARSE_E) {
             /* Something went wrong while decoding. */
-            WOLFSSL_MSG("Unexpected error with trying to remove PKCS#8 header");
+            WOLFSSL_ERROR_MSG("Unexpected error with trying to remove PKCS#8 "
+                              "header");
             ret = -1;
         }
     }
@@ -1326,10 +1642,10 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         /* Check for error. */
         if (res < 0) {
             if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
-                 WOLFSSL_MSG("RsaPrivateKeyDecode failed");
+                 WOLFSSL_ERROR_MSG("RsaPrivateKeyDecode failed");
             }
             else {
-                 WOLFSSL_MSG("RsaPublicKeyDecode failed");
+                 WOLFSSL_ERROR_MSG("RsaPublicKeyDecode failed");
             }
             WOLFSSL_ERROR_VERBOSE(res);
             ret = -1;
@@ -1350,6 +1666,52 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef OPENSSL_EXTRA
+
+#if !defined(NO_BIO) || !defined(NO_FILESYSTEM)
+/* Load DER encoded data into WOLFSSL_RSA object.
+ *
+ * Creates a new WOLFSSL_RSA object if one is not passed in.
+ *
+ * @param [in, out] rsa   WOLFSSL_RSA object to load into.
+ *                        When rsa or *rsa is NULL a new object is created.
+ *                        When not NULL and *rsa is NULL then new object
+ *                        returned through pointer.
+ * @param [in]      in    DER encoded RSA key data.
+ * @param [in]      inSz  Size of DER encoded data in bytes.
+ * @param [in]      opt   Public or private key encoded in data. Valid values:
+ *                        WOLFSSL_RSA_LOAD_PRIVATE, WOLFSSL_RSA_LOAD_PUBLIC.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_RSA object on success.
+ */
+static WOLFSSL_RSA* wolfssl_rsa_d2i(WOLFSSL_RSA** rsa, const unsigned char* in,
+    long inSz, int opt)
+{
+    WOLFSSL_RSA* ret = NULL;
+
+    if ((rsa != NULL) && (*rsa != NULL)) {
+        ret = *rsa;
+    }
+    else {
+        ret = wolfSSL_RSA_new();
+    }
+    if ((ret != NULL) && (wolfSSL_RSA_LoadDer_ex(ret, in, (int)inSz, opt)
+            != 1)) {
+        if ((rsa == NULL) || (ret != *rsa)) {
+            wolfSSL_RSA_free(ret);
+        }
+        ret = NULL;
+    }
+
+    if ((rsa != NULL) && (*rsa == NULL)) {
+        *rsa = ret;
+    }
+    return ret;
+}
+#endif
+
+#endif /* OPENSSL_EXTRA */
+
 /*
  * RSA PEM APIs
  */
@@ -1357,88 +1719,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 #ifdef OPENSSL_EXTRA
 
 #ifndef NO_BIO
-
-/* Writes PEM encoding of an RSA private key to a BIO.
- *
- * @param [in] bio     BIO object to write to.
- * @param [in] rsa     RSA key to write.
- * @param [in] cipher  Cipher to use when PEM encrypted.
- * @param [in] passwd  Password string when PEM encrypted.
- * @param [in] len     Length of password string when PEM encrypted.
- * @param [in] cb      Password callback to use when PEM encrypted.
- * @param [in] arg     NUL terminated string for passphrase when PEM encrypted.
- * @return  1 on success.
- * @return  0 on failure.
- */
-int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
-    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int len,
-    wc_pem_password_cb* cb, void* arg)
-{
-    int ret = 1;
-    WOLFSSL_EVP_PKEY* pkey = NULL;
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
-    int derSz = 0;
-    byte* derBuf = NULL;
-#endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
-
-
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_RSAPrivateKey");
-
-    /* Validate parameters. */
-    if ((bio == NULL) || (rsa == NULL)) {
-        WOLFSSL_MSG("Bad Function Arguments");
-        ret = 0;
-    }
-
-    if (ret == 1) {
-        /* Create a new EVP PKEY to hold data. */
-        pkey = wolfSSL_EVP_PKEY_new_ex(bio->heap);
-        if (pkey == NULL) {
-            WOLFSSL_MSG("wolfSSL_EVP_PKEY_new_ex failed");
-            ret = 0;
-        }
-    }
-    if (ret == 1) {
-        /* Setup EVP_PKEY. */
-        pkey->type   = EVP_PKEY_RSA;
-        pkey->rsa    = rsa;
-        pkey->ownRsa = 0;
-    #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
-        /* Encode key as DER - buffer allocated in call. */
-        if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 0, bio->heap)) < 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
-            ret = 0;
-        }
-        if (derBuf == NULL) {
-            WOLFSSL_MSG("wolfSSL_RSA_To_Der failed to get buffer");
-            ret = 0;
-        }
-    }
-    if (ret == 1) {
-        /* Store that buffer and length into EVP_PKEY. */
-        pkey->pkey.ptr = (char*)derBuf;
-        pkey->pkey_sz = derSz;
-    #endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
-
-        /* Use EVP_PKEY API to create PEM encoding and write to BIO. */
-        ret = wolfSSL_PEM_write_bio_PrivateKey(bio, pkey, cipher, passwd, len,
-            cb, arg);
-    }
-
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
-    /* Dispose of DER buffer. */
-    XFREE(derBuf, bio ? bio->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pkey != NULL) {
-        pkey->pkey.ptr = NULL;
-        pkey->pkey_sz = 0;
-    }
-#endif
-    /* Dispose of EVP_PEY - no longer needed. */
-    wolfSSL_EVP_PKEY_free(pkey);
-
-    return ret;
-}
-
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
 /* Writes PEM encoding of an RSA public key to a BIO.
  *
@@ -1450,89 +1730,116 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
 int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
 {
     int ret = 1;
-    WOLFSSL_EVP_PKEY* pkey = NULL;
+    int derSz = 0;
+    byte* derBuf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_bio_RSA_PUBKEY");
 
     /* Validate parameters. */
     if ((bio == NULL) || (rsa == NULL)) {
-        WOLFSSL_MSG("Bad Function Arguments");
+        WOLFSSL_ERROR_MSG("Bad Function Arguments");
         ret = 0;
     }
 
     if (ret == 1) {
-        /* Create a new EVP PKEY to hold data. */
-        pkey = wolfSSL_EVP_PKEY_new_ex(bio->heap);
-        if (pkey == NULL) {
-            WOLFSSL_MSG("wolfSSL_EVP_PKEY_new_ex failed");
+        if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, bio->heap)) < 0) {
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
+            ret = 0;
+        }
+        if (derBuf == NULL) {
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
             ret = 0;
         }
     }
-    if (ret == 1) {
-        /* Setup EVP_PKEY */
-        pkey->type   = EVP_PKEY_RSA;
-        pkey->rsa    = rsa;
-        pkey->ownRsa = 0;
-
-        /* Use internal EVP_PKEY API to create PEM encoding and write to BIO. */
-        ret = pem_write_bio_pubkey(bio, pkey);
+    if ((ret == 1) && (der_write_to_bio_as_pem(derBuf, derSz, bio,
+            PUBLICKEY_TYPE) != WOLFSSL_SUCCESS)) {
+        ret = 0;
     }
 
-    /* Dispose of EVP_PEY - no longer needed. */
-    wolfSSL_EVP_PKEY_free(pkey);
+    /* Dispose of DER buffer. */
+    XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+#endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
+#endif /* !NO_BIO */
+
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+#ifndef NO_FILESYSTEM
+
+/* Writes PEM encoding of an RSA public key to a file pointer.
+ *
+ * @param [in] fp    File pointer to write to.
+ * @param [in] rsa   RSA key to write.
+ * @param [in] type  PEM type to write out.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+static int wolfssl_pem_write_rsa_public_key(XFILE fp, WOLFSSL_RSA* rsa,
+    int type)
+{
+    int ret = 1;
+    int derSz;
+    byte* derBuf = NULL;
+
+    /* Validate parameters. */
+    if ((fp == XBADFILE) || (rsa == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad Function Arguments");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, rsa->heap)) < 0) {
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
+            ret = 0;
+        }
+        if (derBuf == NULL) {
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
+            ret = 0;
+        }
+    }
+    if ((ret == 1) && (der_write_to_file_as_pem(derBuf, derSz, fp, type,
+            rsa->heap) != WOLFSSL_SUCCESS)) {
+        ret = 0;
+    }
+
+    /* Dispose of DER buffer. */
+    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
 
-#ifndef NO_FILESYSTEM
 /* Writes PEM encoding of an RSA public key to a file pointer.
  *
- * TODO: Make API available even without BIOs.
+ * Header/footer will contain: PUBLIC KEY
  *
  * @param [in] fp   File pointer to write to.
  * @param [in] rsa  RSA key to write.
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_PEM_write_RSAPublicKey(XFILE fp, WOLFSSL_RSA* key)
+int wolfSSL_PEM_write_RSA_PUBKEY(XFILE fp, WOLFSSL_RSA* rsa)
 {
-    int ret = 1;
-    WOLFSSL_BIO* bio = NULL;
+    return wolfssl_pem_write_rsa_public_key(fp, rsa, PUBLICKEY_TYPE);
+}
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_RSAPublicKey");
-
-    /* Validate parameters. */
-    if ((fp == XBADFILE) || (key == NULL)) {
-        WOLFSSL_MSG("Bad argument.");
-        ret = 0;
-    }
-
-    if (ret == 1) {
-        /* Create a file BIO to write into with file pointer. */
-        bio = wolfSSL_BIO_new_fp(fp, BIO_NOCLOSE);
-        if (bio == NULL) {
-            WOLFSSL_MSG("wolfSSL_BIO_new failed.");
-            ret = 0;
-        }
-    }
-    if (ret == 1) {
-        /* Call BIO version of API to do work. */
-        ret = wolfSSL_PEM_write_bio_RSA_PUBKEY(bio, key);
-        if (ret != 1) {
-            WOLFSSL_MSG("wolfSSL_PEM_write_bio_RSA_PUBKEY failed.");
-        }
-    }
-
-    /* Dispose of BIO - no longer needed. */
-    wolfSSL_BIO_free(bio);
-
-    WOLFSSL_LEAVE("wolfSSL_PEM_write_RSAPublicKey", ret);
-
-    return ret;
+/* Writes PEM encoding of an RSA public key to a file pointer.
+ *
+ * Header/footer will contain: RSA PUBLIC KEY
+ *
+ * @param [in] fp   File pointer to write to.
+ * @param [in] rsa  RSA key to write.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_PEM_write_RSAPublicKey(XFILE fp, WOLFSSL_RSA* rsa)
+{
+    return wolfssl_pem_write_rsa_public_key(fp, rsa, RSA_PUBLICKEY_TYPE);
 }
 #endif /* !NO_FILESYSTEM */
 #endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
 
+#ifndef NO_BIO
 /* Create an RSA public key by reading the PEM encoded data from the BIO.
  *
  * @param [in]  bio   BIO object to read from.
@@ -1545,31 +1852,34 @@ int wolfSSL_PEM_write_RSAPublicKey(XFILE fp, WOLFSSL_RSA* key)
 WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,
     WOLFSSL_RSA** out, wc_pem_password_cb* cb, void *pass)
 {
-    WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* rsa = NULL;
+    DerBuffer*   der = NULL;
+    int          keyFormat = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_RSA_PUBKEY");
 
-    /* Read into a new EVP_PKEY. */
-    pkey = wolfSSL_PEM_read_bio_PUBKEY(bio, NULL, cb, pass);
-    if (pkey != NULL) {
-        /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PKEY
-         * the flag indicating that the WOLFSSL_RSA structure is owned should be
-         * FALSE to avoid having it free'd. */
-        pkey->ownRsa = 0;
-        rsa = pkey->rsa;
-        if (out != NULL) {
-            *out = rsa;
+    if ((bio != NULL) && (pem_read_bio_key(bio, cb, pass, PUBLICKEY_TYPE,
+            &keyFormat, &der) >= 0)) {
+        rsa = wolfssl_rsa_d2i(out, der->buffer, der->length,
+            WOLFSSL_RSA_LOAD_PUBLIC);
+        if (rsa == NULL) {
+            WOLFSSL_ERROR_MSG("Error loading DER buffer into WOLFSSL_RSA");
         }
-
-        wolfSSL_EVP_PKEY_free(pkey);
     }
 
+    FreeDer(&der);
+    if ((out != NULL) && (rsa != NULL)) {
+        *out = rsa;
+    }
     return rsa;
 }
+#endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
 /* Create an RSA public key by reading the PEM encoded data from the BIO.
+ *
+ * Header/footer should contain: PUBLIC KEY
+ * PEM decoder supports either 'RSA PUBLIC KEY' or 'PUBLIC KEY'.
  *
  * @param [in]  fp    File pointer to read from.
  * @param [out] out   RSA key created.
@@ -1581,41 +1891,48 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,
 WOLFSSL_RSA *wolfSSL_PEM_read_RSA_PUBKEY(XFILE fp,
     WOLFSSL_RSA** out, wc_pem_password_cb* cb, void *pass)
 {
-    WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* rsa = NULL;
+    DerBuffer*   der = NULL;
+    int          keyFormat = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_RSA_PUBKEY");
 
-    /* Validate parameters. */
-    if (fp == NULL) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_read_RSA_PUBKEY", BAD_FUNC_ARG);
-        return NULL;
-    }
-
-    /* Read into a new EVP_PKEY. */
-    pkey = wolfSSL_PEM_read_PUBKEY(fp, NULL, cb, pass);
-    if (pkey != NULL) {
-        /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PKEY
-         * the flag indicating that the WOLFSSL_RSA structure is owned should be
-         * FALSE to avoid having it free'd. */
-        pkey->ownRsa = 0;
-        rsa = pkey->rsa;
-        if (out != NULL) {
-            *out = rsa;
+    if ((fp != XBADFILE) && (pem_read_file_key(fp, cb, pass, PUBLICKEY_TYPE,
+            &keyFormat, &der) >= 0)) {
+        rsa = wolfssl_rsa_d2i(out, der->buffer, der->length,
+            WOLFSSL_RSA_LOAD_PUBLIC);
+        if (rsa == NULL) {
+            WOLFSSL_ERROR_MSG("Error loading DER buffer into WOLFSSL_RSA");
         }
-
-        wolfSSL_EVP_PKEY_free(pkey);
-    }
-    else {
-        WOLFSSL_MSG("wolfSSL_PEM_read_PUBKEY failed");
     }
 
-    WOLFSSL_LEAVE("wolfSSL_PEM_read_RSA_PUBKEY", 0);
-
+    FreeDer(&der);
+    if ((out != NULL) && (rsa != NULL)) {
+        *out = rsa;
+    }
     return rsa;
 }
+
+/* Create an RSA public key by reading the PEM encoded data from the BIO.
+ *
+ * Header/footer should contain: RSA PUBLIC KEY
+ * PEM decoder supports either 'RSA PUBLIC KEY' or 'PUBLIC KEY'.
+ *
+ * @param [in]  fp    File pointer to read from.
+ * @param [out] rsa   RSA key created.
+ * @param [in]  cb    Password callback when PEM encrypted. May be NULL.
+ * @param [in]  pass  NUL terminated string for passphrase when PEM encrypted.
+ *                    May be NULL.
+ * @return  RSA key on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_RSA* wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA** rsa,
+    wc_pem_password_cb* cb, void* pass)
+{
+    return wolfSSL_PEM_read_RSA_PUBKEY(fp, rsa, cb, pass);
+}
+
 #endif /* NO_FILESYSTEM */
-#endif /* !NO_BIO */
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
@@ -1643,20 +1960,13 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     int  derSz = 0;
     int  pemSz = 0;
     const int type = PRIVATEKEY_TYPE;
-    const char* header = NULL;
-    const char* footer = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_mem_RSAPrivateKey");
 
     /* Validate parameters. */
     if ((pem == NULL) || (plen == NULL) || (rsa == NULL) ||
             (rsa->internal == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
-        ret = 0;
-    }
-
-    /* Get PEM header and footer strings. */
-    if ((ret == 1) && (wc_PemGetHeaderFooter(type, &header, &footer) != 0)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = 0;
     }
 
@@ -1668,7 +1978,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     /* Encode wolfCrypt RSA key to DER - derBuf allocated in call. */
     if ((ret == 1) && ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 0,
             rsa->heap)) < 0)) {
-        WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
         ret = 0;
     }
 
@@ -1681,7 +1991,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         tmpBuf = (byte*)XREALLOC(derBuf, derSz + blockSz, rsa->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpBuf == NULL) {
-            WOLFSSL_MSG("Extending DER buffer failed");
+            WOLFSSL_ERROR_MSG("Extending DER buffer failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             ret = 0;
         }
@@ -1692,7 +2002,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
             ret = EncryptDerKey(derBuf, &derSz, cipher, passwd, passwdSz,
                 &cipherInfo, derSz + blockSz);
             if (ret != 1) {
-                WOLFSSL_MSG("EncryptDerKey failed");
+                WOLFSSL_ERROR_MSG("EncryptDerKey failed");
             }
         }
     }
@@ -1701,7 +2011,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         /* Calculate PEM encoding size. */
         pemSz = wc_DerToPemEx(derBuf, derSz, NULL, 0, cipherInfo, type);
         if (pemSz <= 0) {
-            WOLFSSL_MSG("wc_DerToPemEx failed");
+            WOLFSSL_ERROR_MSG("wc_DerToPemEx failed");
             ret = 0;
         }
     }
@@ -1709,7 +2019,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         /* Allocate space for PEM encoding plus a NUL terminator. */
         tmp = (byte*)XMALLOC(pemSz + 1, NULL, DYNAMIC_TYPE_KEY);
         if (tmp == NULL) {
-            WOLFSSL_MSG("malloc failed");
+            WOLFSSL_ERROR_MSG("malloc failed");
             ret = 0;
         }
     }
@@ -1717,7 +2027,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         /* DER to PEM */
         pemSz = wc_DerToPemEx(derBuf, derSz, tmp, pemSz, cipherInfo, type);
         if (pemSz <= 0) {
-            WOLFSSL_MSG("wc_DerToPemEx failed");
+            WOLFSSL_ERROR_MSG("wc_DerToPemEx failed");
             ret = 0;
         }
     }
@@ -1736,6 +2046,58 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     XFREE(derBuf, rsa ? rsa->heap : NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+
+#ifndef NO_BIO
+/* Writes PEM encoding of an RSA private key to a BIO.
+ *
+ * @param [in] bio     BIO object to write to.
+ * @param [in] rsa     RSA key to write.
+ * @param [in] cipher  Cipher to use when PEM encrypted.
+ * @param [in] passwd  Password string when PEM encrypted.
+ * @param [in] len     Length of password string when PEM encrypted.
+ * @param [in] cb      Password callback to use when PEM encrypted.
+ * @param [in] arg     NUL terminated string for passphrase when PEM encrypted.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int len,
+    wc_pem_password_cb* cb, void* arg)
+{
+    int ret = 1;
+    byte* pem = NULL;
+    int plen;
+
+    (void)cb;
+    (void)arg;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_RSAPrivateKey");
+
+    /* Validate parameters. */
+    if ((bio == NULL) || (rsa == NULL) || (rsa->internal == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        /* Write PEM to buffer that is allocated in the call. */
+        ret = wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, cipher, passwd, len,
+            &pem, &plen);
+        if (ret != 1) {
+            WOLFSSL_ERROR_MSG("wolfSSL_PEM_write_mem_RSAPrivateKey failed");
+        }
+    }
+    /* Write PEM to BIO. */
+    if ((ret == 1) && (wolfSSL_BIO_write(bio, pem, plen) <= 0)) {
+        WOLFSSL_ERROR_MSG("RSA private key BIO write failed");
+        ret = 0;
+    }
+
+    /* Dispose of any allocated PEM buffer. */
+    XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
+    return ret;
+}
+#endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
 /* Writes PEM encoding of an RSA private key to a file pointer.
@@ -1768,7 +2130,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
 
     /* Validate parameters. */
     if ((fp == XBADFILE) || (rsa == NULL) || (rsa->internal == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = 0;
     }
 
@@ -1777,12 +2139,12 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
         ret = wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, cipher, passwd, passwdSz,
             &pem, &plen);
         if (ret != 1) {
-            WOLFSSL_MSG("wolfSSL_PEM_write_mem_RSAPrivateKey failed");
+            WOLFSSL_ERROR_MSG("wolfSSL_PEM_write_mem_RSAPrivateKey failed");
         }
     }
     /* Write PEM to file pointer. */
     if ((ret == 1) && ((int)XFWRITE(pem, plen, 1, fp) != 1)) {
-        WOLFSSL_MSG("RSA private key file write failed");
+        WOLFSSL_ERROR_MSG("RSA private key file write failed");
         ret = 0;
     }
 
@@ -1794,7 +2156,6 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
 #endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA && WOLFSSL_PEM_TO_DER */
 
 #ifndef NO_BIO
-
 /* Create an RSA private key by reading the PEM encoded data from the BIO.
  *
  * @param [in]  bio   BIO object to read from.
@@ -1807,30 +2168,28 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
 WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_RSA** out, wc_pem_password_cb* cb, void* pass)
 {
-    WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* rsa = NULL;
+    DerBuffer*   der = NULL;
+    int          keyFormat = 0;
 
-    WOLFSSL_ENTER("PEM_read_bio_RSAPrivateKey");
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_RSAPrivateKey");
 
-    /* Read PEM encoded RSA private key from a BIO. using generic EVP function.
-     */
-    pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
-    if (pkey != NULL) {
-        /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PKEY
-         * the flag indicating that the WOLFSSL_RSA structure is owned should be
-         * FALSE to avoid having it free'd. */
-        pkey->ownRsa = 0;
-        rsa = pkey->rsa;
-        if (out != NULL) {
-            /* Return WOLFSSL_RSA object through parameter too. */
-            *out = rsa;
+    if ((bio != NULL) && (pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE,
+            &keyFormat, &der) >= 0)) {
+        rsa = wolfssl_rsa_d2i(out, der->buffer, der->length,
+            WOLFSSL_RSA_LOAD_PRIVATE);
+        if (rsa == NULL) {
+            WOLFSSL_ERROR_MSG("Error loading DER buffer into WOLFSSL_RSA");
         }
     }
 
-    /* Dispose of EVP_PKEY wrapper. */
-    wolfSSL_EVP_PKEY_free(pkey);
+    FreeDer(&der);
+    if ((out != NULL) && (rsa != NULL)) {
+        *out = rsa;
+    }
     return rsa;
 }
+#endif /* !NO_BIO */
 
 /* Create an RSA private key by reading the PEM encoded data from the file
  * pointer.
@@ -1846,87 +2205,28 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
 WOLFSSL_RSA* wolfSSL_PEM_read_RSAPrivateKey(XFILE fp, WOLFSSL_RSA** out,
     wc_pem_password_cb* cb, void* pass)
 {
-    WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* rsa = NULL;
+    DerBuffer*   der = NULL;
+    int          keyFormat = 0;
 
-    WOLFSSL_ENTER("PEM_read_RSAPrivateKey");
+    WOLFSSL_ENTER("wolfSSL_PEM_read_RSAPrivateKey");
 
-    /* Read PEM encoded RSA private key from a file pointer. using generic EVP
-     * function.
-     */
-    pkey = wolfSSL_PEM_read_PrivateKey(fp, NULL, cb, pass);
-    if (pkey != NULL) {
-        /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PKEY
-         * the flag indicating that the WOLFSSL_RSA structure is owned should be
-         * FALSE to avoid having it free'd. */
-        pkey->ownRsa = 0;
-        rsa = pkey->rsa;
-        if (out != NULL) {
-            /* Return WOLFSSL_RSA object through parameter too. */
-            *out = rsa;
+    if ((fp != XBADFILE) && (pem_read_file_key(fp, cb, pass, PRIVATEKEY_TYPE,
+            &keyFormat, &der) >= 0)) {
+        rsa = wolfssl_rsa_d2i(out, der->buffer, der->length,
+            WOLFSSL_RSA_LOAD_PRIVATE);
+        if (rsa == NULL) {
+            WOLFSSL_ERROR_MSG("Error loading DER buffer into WOLFSSL_RSA");
         }
     }
 
-    /* Dispose of EVP_PKEY wrapper. */
-    wolfSSL_EVP_PKEY_free(pkey);
+    FreeDer(&der);
+    if ((out != NULL) && (rsa != NULL)) {
+        *out = rsa;
+    }
     return rsa;
 }
 #endif /* !NO_FILESYSTEM */
-
-#endif /* NO_BIO */
-
-#if !defined(NO_FILESYSTEM)
-#ifndef NO_WOLFSSL_STUB
-/* Create an RSA public key by reading the PEM encoded data from the BIO.
- *
- * TODO: implement
- *
- * @param [in]  bio   BIO object to read from.
- * @param [out] out   RSA key created.
- * @param [in]  cb    Password callback when PEM encrypted. May be NULL.
- * @param [in]  pass  NUL terminated string for passphrase when PEM encrypted.
- *                    May be NULL.
- * @return  RSA key on success.
- * @return  NULL on failure.
- */
-WOLFSSL_RSA* wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA** rsa,
-    wc_pem_password_cb* cb, void* pass)
-{
-    WOLFSSL_STUB("PEM_read_RSAPublicKey");
-    WOLFSSL_MSG("wolfSSL_PEM_read_RSAPublicKey not implemented");
-
-    (void)fp;
-    (void)rsa;
-    (void)cb;
-    (void)pass;
-
-    return NULL;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-/* Writes PEM encoding of an RSA public key to a file pointer.
- *
- * TODO: implement by calling wolfSSL_PEM_write_RSAPublicKey()?
- *
- * @param [in] fp   File pointer to write to.
- * @param [in] rsa  RSA key to write.
- * @return  1 on success.
- * @return  0 on failure.
- */
-int wolfSSL_PEM_write_RSA_PUBKEY(XFILE fp, WOLFSSL_RSA *rsa)
-{
-    WOLFSSL_STUB("PEM_write_RSA_PUBKEY");
-    WOLFSSL_MSG("wolfSSL_PEM_write_RSA_PUBKEY not implemented");
-
-    (void)fp;
-    (void)rsa;
-
-    return 0;
-}
-#endif
-
-#endif /* NO_FILESYSTEM */
 
 /*
  * RSA print APIs
@@ -2043,7 +2343,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
         /* Get size in bits of key for printing out. */
         sz = wolfSSL_RSA_bits(rsa);
         if (sz <= 0) {
-            WOLFSSL_MSG("Error getting RSA key size");
+            WOLFSSL_ERROR_MSG("Error getting RSA key size");
             ret = 0;
         }
     }
@@ -2056,7 +2356,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
         len = XSNPRINTF(line, sizeof(line), "\nRSA %s: (%d bit)\n",
             (!mp_iszero(&key->d)) ? "Private-Key" : "Public-Key", sz);
         if (len >= (int)sizeof(line)) {
-            WOLFSSL_MSG("Buffer overflow while formatting key preamble");
+            WOLFSSL_ERROR_MSG("Buffer overflow while formatting key preamble");
             ret = 0;
         }
         else {
@@ -2095,7 +2395,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int indent)
                 num = &key->u;
                 break;
             default:
-                WOLFSSL_MSG("Bad index value");
+                WOLFSSL_ERROR_MSG("Bad index value");
         }
 
         if (i == 1) {
@@ -2134,7 +2434,7 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
 
     /* Validate parameters. */
     if ((rsa == NULL) || (rsa->internal == NULL)) {
-        WOLFSSL_MSG("rsa key NULL error");
+        WOLFSSL_ERROR_MSG("rsa key NULL error");
         ret = -1;
     }
 
@@ -2144,13 +2444,13 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
         /* Copy modulus. */
         ret = SetIndividualExternal(&rsa->n, &key->n);
         if (ret != 1) {
-            WOLFSSL_MSG("rsa n error");
+            WOLFSSL_ERROR_MSG("rsa n error");
         }
         if (ret == 1) {
             /* Copy public exponent. */
             ret = SetIndividualExternal(&rsa->e, &key->e);
             if (ret != 1) {
-                WOLFSSL_MSG("rsa e error");
+                WOLFSSL_ERROR_MSG("rsa e error");
             }
         }
 
@@ -2159,21 +2459,21 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
                 /* Copy private exponent. */
                 ret = SetIndividualExternal(&rsa->d, &key->d);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa d error");
+                    WOLFSSL_ERROR_MSG("rsa d error");
                 }
             }
             if (ret == 1) {
                 /* Copy first prime. */
                 ret = SetIndividualExternal(&rsa->p, &key->p);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa p error");
+                    WOLFSSL_ERROR_MSG("rsa p error");
                 }
             }
             if (ret == 1) {
                 /* Copy second prime. */
                 ret = SetIndividualExternal(&rsa->q, &key->q);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa q error");
+                    WOLFSSL_ERROR_MSG("rsa q error");
                 }
             }
         #ifndef RSA_LOW_MEM
@@ -2181,21 +2481,21 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
                 /* Copy d mod p-1. */
                 ret = SetIndividualExternal(&rsa->dmp1, &key->dP);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa dP error");
+                    WOLFSSL_ERROR_MSG("rsa dP error");
                 }
             }
             if (ret == 1) {
                 /* Copy d mod q-1. */
                 ret = SetIndividualExternal(&rsa->dmq1, &key->dQ);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa dq error");
+                    WOLFSSL_ERROR_MSG("rsa dq error");
                 }
             }
             if (ret == 1) {
                 /* Copy 1/q mod p. */
                 ret = SetIndividualExternal(&rsa->iqmp, &key->u);
                 if (ret != 1) {
-                    WOLFSSL_MSG("rsa u error");
+                    WOLFSSL_ERROR_MSG("rsa u error");
                 }
             }
         #endif /* !RSA_LOW_MEM */
@@ -2232,7 +2532,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 
     /* Validate parameters. */
     if ((rsa == NULL) || (rsa->internal == NULL)) {
-        WOLFSSL_MSG("rsa key NULL error");
+        WOLFSSL_ERROR_MSG("rsa key NULL error");
         ret = -1;
     }
 
@@ -2241,14 +2541,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 
         /* Copy down modulus if available. */
         if ((rsa->n != NULL) && (SetIndividualInternal(rsa->n, &key->n) != 1)) {
-            WOLFSSL_MSG("rsa n key error");
+            WOLFSSL_ERROR_MSG("rsa n key error");
             ret = -1;
         }
 
         /* Copy down public exponent if available. */
         if ((ret == 1) && (rsa->e != NULL) &&
                 (SetIndividualInternal(rsa->e, &key->e) != 1)) {
-            WOLFSSL_MSG("rsa e key error");
+            WOLFSSL_ERROR_MSG("rsa e key error");
             ret = -1;
         }
 
@@ -2258,7 +2558,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         /* Copy down private exponent if available. */
         if ((ret == 1) && (rsa->d != NULL)) {
             if (SetIndividualInternal(rsa->d, &key->d) != 1) {
-                WOLFSSL_MSG("rsa d key error");
+                WOLFSSL_ERROR_MSG("rsa d key error");
                 ret = -1;
             }
             else {
@@ -2270,14 +2570,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         /* Copy down first prime if available. */
         if ((ret == 1) && (rsa->p != NULL) &&
                 (SetIndividualInternal(rsa->p, &key->p) != 1)) {
-            WOLFSSL_MSG("rsa p key error");
+            WOLFSSL_ERROR_MSG("rsa p key error");
             ret = -1;
         }
 
         /* Copy down second prime if available. */
         if ((ret == 1) && (rsa->q != NULL) &&
                 (SetIndividualInternal(rsa->q, &key->q) != 1)) {
-            WOLFSSL_MSG("rsa q key error");
+            WOLFSSL_ERROR_MSG("rsa q key error");
             ret = -1;
         }
 
@@ -2285,21 +2585,21 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         /* Copy down d mod p-1 if available. */
         if ((ret == 1) && (rsa->dmp1 != NULL) &&
                 (SetIndividualInternal(rsa->dmp1, &key->dP) != 1)) {
-            WOLFSSL_MSG("rsa dP key error");
+            WOLFSSL_ERROR_MSG("rsa dP key error");
             ret = -1;
         }
 
         /* Copy down d mod q-1 if available. */
         if ((ret == 1) && (rsa->dmp1 != NULL) &&
                 (SetIndividualInternal(rsa->dmq1, &key->dQ) != 1)) {
-            WOLFSSL_MSG("rsa dQ key error");
+            WOLFSSL_ERROR_MSG("rsa dQ key error");
             ret = -1;
         }
 
         /* Copy down 1/q mod p if available. */
         if ((ret == 1) && (rsa->iqmp != NULL) &&
                 (SetIndividualInternal(rsa->iqmp, &key->u) != 1)) {
-            WOLFSSL_MSG("rsa u key error");
+            WOLFSSL_ERROR_MSG("rsa u key error");
             ret = -1;
         }
     #endif /* !RSA_LOW_MEM */
@@ -2444,7 +2744,7 @@ int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *dmp1,
     if ((rsa == NULL) || ((rsa->dmp1 == NULL) && (dmp1 == NULL)) ||
             ((rsa->dmq1 == NULL) && (dmq1 == NULL)) ||
             ((rsa->iqmp == NULL) && (iqmp == NULL))) {
-        WOLFSSL_MSG("Bad parameters");
+        WOLFSSL_ERROR_MSG("Bad parameters");
         ret = 0;
     }
     if (ret == 1) {
@@ -2512,7 +2812,7 @@ int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *rsa, WOLFSSL_BIGNUM *p,
      * corresponding user input. */
     if (rsa == NULL || ((rsa->p == NULL) && (p == NULL)) ||
             ((rsa->q == NULL) && (q == NULL))) {
-        WOLFSSL_MSG("Bad parameters");
+        WOLFSSL_ERROR_MSG("Bad parameters");
         ret = 0;
     }
     if (ret == 1) {
@@ -2810,29 +3110,10 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA* rsa, WC_RNG** tmpRng, int* initTmpRng)
     #endif
     }
     if ((!err) && (rng == NULL) && (tmpRng != NULL)) {
-    #ifdef WOLFSSL_SMALL_STACK
-        /* Allocate RNG object . */
-        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #else
-        /* Use object in *tmpRng. */
-        rng = *tmpRng;
-    #endif
-        /* Initialize RNG object passed in or allocated. */
-        if ((rng != NULL) && (wc_InitRng(rng) == 0)) {
-        #ifdef WOLFSSL_SMALL_STACK
-            /* Return RNG through tmpRng as well. */
+        /* Make an RNG with tmpRng or get global. */
+        rng = wolfssl_make_rng(*tmpRng, initTmpRng);
+        if ((rng != NULL) && *initTmpRng) {
             *tmpRng = rng;
-        #endif
-            /* Indicate RNG object must be finalized before freeing. */
-            *initTmpRng = 1;
-        }
-        if (*tmpRng == NULL) {
-            WOLFSSL_MSG("Couldn't use local RNG, trying global");
-        #ifdef WOLFSSL_SMALL_STACK
-            /* Dispose of allocated RNG and *tmpRng stays NULL. */
-            XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            rng = wolfssl_get_global_rng();
         }
     }
 
@@ -2880,7 +3161,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
         ret = wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
             (long)wolfSSL_BN_get_word(e), rng);
         if (ret != MP_OKAY) {
-            WOLFSSL_MSG("wc_MakeRsaKey failed");
+            WOLFSSL_ERROR_MSG("wc_MakeRsaKey failed");
         }
     }
     if (ret == 0) {
@@ -2904,12 +3185,12 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
     }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;
 #else
-    WOLFSSL_MSG("No Key Gen built in");
+    WOLFSSL_ERROR_MSG("No Key Gen built in");
 
     (void)rsa;
     (void)e;
@@ -2946,24 +3227,24 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int bits, unsigned long e,
 
     /* Validate bits. */
     if (bits < 0) {
-        WOLFSSL_MSG("Bad argument: bits was less than 0");
+        WOLFSSL_ERROR_MSG("Bad argument: bits was less than 0");
         err = 1;
     }
     /* Create a new BN to hold public exponent - for when wolfCrypt supports
      * longer values. */
     if ((!err) && ((bn = wolfSSL_BN_new()) == NULL)) {
-        WOLFSSL_MSG("Error creating big number");
+        WOLFSSL_ERROR_MSG("Error creating big number");
         err = 1;
     }
     /* Set public exponent. */
     if ((!err) && (wolfSSL_BN_set_word(bn, e) != 1)) {
-        WOLFSSL_MSG("Error using e value");
+        WOLFSSL_ERROR_MSG("Error using e value");
         err = 1;
     }
 
     /* Create an RSA key object to hold generated key. */
     if ((!err) && ((rsa = wolfSSL_RSA_new()) == NULL)) {
-        WOLFSSL_MSG("memory error");
+        WOLFSSL_ERROR_MSG("memory error");
         err = 1;
     }
     while (!err) {
@@ -3015,7 +3296,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* e,
 
     /* Validate parameters. */
     if ((rsa == NULL) || (rsa->internal == NULL)) {
-        WOLFSSL_MSG("bad arguments");
+        WOLFSSL_ERROR_MSG("bad arguments");
         ret = 0;
     }
     else {
@@ -3114,7 +3395,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         /* Get/create an RNG. */
         rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
         if (rng == NULL) {
-            WOLFSSL_MSG("WOLFSSL_RSA_GetRNG error");
+            WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
             ret = 0;
         }
     }
@@ -3129,7 +3410,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         /* Get the wolfCrypt hash algorithm type. */
         hashType = EvpMd2MacType(hashAlg);
         if (hashType > WC_HASH_TYPE_MAX) {
-            WOLFSSL_MSG("EvpMd2MacType error");
+            WOLFSSL_ERROR_MSG("EvpMd2MacType error");
             ret = 0;
         }
     }
@@ -3137,7 +3418,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         /* Get the wolfCrypt MGF algorithm from hash algorithm. */
         mgf = wc_hash2mgf(hashType);
         if (mgf == WC_MGF1NONE) {
-            WOLFSSL_MSG("wc_hash2mgf error");
+            WOLFSSL_ERROR_MSG("wc_hash2mgf error");
             ret = 0;
         }
     }
@@ -3145,7 +3426,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         /* Get the length of the hash output. */
         hashLen = wolfSSL_EVP_MD_size(hashAlg);
         if (hashLen < 0) {
-            WOLFSSL_MSG("wolfSSL_EVP_MD_size error");
+            WOLFSSL_ERROR_MSG("wolfSSL_EVP_MD_size error");
             ret = 0;
         }
     }
@@ -3154,7 +3435,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         /* Get length of RSA key - encrypted message length. */
         emLen = wolfSSL_RSA_size(rsa);
         if (ret <= 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_size error");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_size error");
             ret = 0;
         }
     }
@@ -3178,7 +3459,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         default:
             if (saltLen < 0) {
                 /* No other negative values implemented. */
-                WOLFSSL_MSG("invalid saltLen");
+                WOLFSSL_ERROR_MSG("invalid saltLen");
                 ret = 0;
             }
         }
@@ -3189,7 +3470,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
         if (wc_RsaPad_ex(mHash, hashLen, em, emLen, RSA_BLOCK_TYPE_1, rng,
                 WC_RSA_PSS_PAD, hashType, mgf, NULL, 0, saltLen,
                 wolfSSL_BN_num_bits(rsa->n), NULL) != MP_OKAY) {
-            WOLFSSL_MSG("wc_RsaPad_ex error");
+            WOLFSSL_ERROR_MSG("wc_RsaPad_ex error");
             ret = 0;
         }
     }
@@ -3200,7 +3481,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
     }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;
@@ -3256,7 +3537,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         /* Get length of RSA key - encrypted message length. */
         emLen = wolfSSL_RSA_size(rsa);
         if (emLen <= 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_size error");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_size error");
             ret = 0;
         }
     }
@@ -3280,7 +3561,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         default:
             if (saltLen < 0) {
                 /* No other negative values implemented. */
-                WOLFSSL_MSG("invalid saltLen");
+                WOLFSSL_ERROR_MSG("invalid saltLen");
                 ret = 0;
             }
         }
@@ -3290,7 +3571,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         /* Get the wolfCrypt hash algorithm type. */
         hashType = EvpMd2MacType(hashAlg);
         if (hashType > WC_HASH_TYPE_MAX) {
-            WOLFSSL_MSG("EvpMd2MacType error");
+            WOLFSSL_ERROR_MSG("EvpMd2MacType error");
             ret = 0;
         }
     }
@@ -3298,7 +3579,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     if (ret == 1) {
         /* Get the wolfCrypt MGF algorithm from hash algorithm. */
         if ((mgf = wc_hash2mgf(hashType)) == WC_MGF1NONE) {
-            WOLFSSL_MSG("wc_hash2mgf error");
+            WOLFSSL_ERROR_MSG("wc_hash2mgf error");
             ret = 0;
         }
     }
@@ -3307,7 +3588,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         /* Allocate buffer to unpad inline with. */
         buf = (byte*)XMALLOC(emLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL) {
-            WOLFSSL_MSG("malloc error");
+            WOLFSSL_ERROR_MSG("malloc error");
             ret = 0;
         }
     }
@@ -3321,7 +3602,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
             WC_RSA_PSS_PAD, hashType, mgf, NULL, 0, saltLen,
             wolfSSL_BN_num_bits(rsa->n), NULL);
         if (mPrimeLen < 0) {
-            WOLFSSL_MSG("wc_RsaPad_ex error");
+            WOLFSSL_ERROR_MSG("wc_RsaPad_ex error");
             ret = 0;
         }
     }
@@ -3330,7 +3611,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         /* Verify the hash is correct. */
         if (wc_RsaPSS_CheckPadding_ex(mHash, hashLen, mPrime, mPrimeLen,
                 hashType, saltLen, wolfSSL_BN_num_bits(rsa->n)) != MP_OKAY) {
-            WOLFSSL_MSG("wc_RsaPSS_CheckPadding_ex error");
+            WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
             ret = 0;
         }
     }
@@ -3393,7 +3674,7 @@ static int wolfssl_rsa_sig_encode(int hashAlg, const unsigned char* hash,
         /* PKCS#1.5 encoding. */
         word32 encSz = wc_EncodeSignature(enc, hash, hLen, hType);
         if (encSz == 0) {
-            WOLFSSL_MSG("Bad Encode Signature");
+            WOLFSSL_ERROR_MSG("Bad Encode Signature");
             ret = 0;
         }
         else  {
@@ -3515,7 +3796,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
 
     /* Validate parameters. */
     if ((hash == NULL) || (sigRet == NULL) || sigLen == NULL || rsa == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = 0;
     }
 
@@ -3529,12 +3810,12 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         outLen = (word32)wolfSSL_BN_num_bytes(rsa->n);
         /* Check not an error return. */
         if (outLen == 0) {
-            WOLFSSL_MSG("Bad RSA size");
+            WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = 0;
         }
         /* Check signature buffer is big enough. */
         else if (outLen > *sigLen) {
-            WOLFSSL_MSG("Output buffer too small");
+            WOLFSSL_ERROR_MSG("Output buffer too small");
             ret = 0;
         }
     }
@@ -3554,7 +3835,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         /* Get/create an RNG. */
         rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRng, &initTmpRng);
         if (rng == NULL) {
-            WOLFSSL_MSG("WOLFSSL_RSA_GetRNG error");
+            WOLFSSL_ERROR_MSG("WOLFSSL_RSA_GetRNG error");
             ret = 0;
         }
     }
@@ -3562,7 +3843,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     /* Either encodes with PKCS#1.5 or copies hash into encodedSig. */
     if ((ret == 1) && (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig,
             &encSz, padding) == 0)) {
-        WOLFSSL_MSG("Bad Encode Signature");
+        WOLFSSL_ERROR_MSG("Bad Encode Signature");
         ret = 0;
     }
 
@@ -3572,7 +3853,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         case RSA_NO_PADDING:
             if ((signSz = wc_RsaDirect(encodedSig, encSz, sigRet, &outLen,
                 (RsaKey*)rsa->internal, RSA_PRIVATE_ENCRYPT, rng)) <= 0) {
-                WOLFSSL_MSG("Bad Rsa Sign no pad");
+                WOLFSSL_ERROR_MSG("Bad Rsa Sign no pad");
                 ret = 0;
             }
             break;
@@ -3591,7 +3872,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
             if ((signSz = wc_RsaPSS_Sign_ex(encodedSig, encSz, sigRet, outLen,
                     hType, wc_hash2mgf(hType), DEF_PSS_SALT_LEN,
                     (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_MSG("Bad Rsa Sign");
+                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
                 ret = 0;
             }
             break;
@@ -3600,7 +3881,8 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     #ifndef WC_NO_RSA_OAEP
         case RSA_PKCS1_OAEP_PADDING:
             /* Not a signature padding scheme. */
-            WOLFSSL_MSG("RSA_PKCS1_OAEP_PADDING not supported for signing");
+            WOLFSSL_ERROR_MSG("RSA_PKCS1_OAEP_PADDING not supported for "
+                              "signing");
             ret = 0;
             break;
     #endif
@@ -3609,13 +3891,13 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
             /* Sign (private encrypt) PKCS#1 encoded signature. */
             if ((signSz = wc_RsaSSL_Sign(encodedSig, encSz, sigRet, outLen,
                     (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_MSG("Bad Rsa Sign");
+                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
                 ret = 0;
             }
             break;
         }
         default:
-            WOLFSSL_MSG("Unsupported padding");
+            WOLFSSL_ERROR_MSG("Unsupported padding");
             ret = 0;
             break;
         }
@@ -3632,7 +3914,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of any allocated RNG and encoded signature. */
-    XFREE(tmpRng,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRng,     NULL, DYNAMIC_TYPE_RNG);
     XFREE(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
 #endif
 
@@ -3698,7 +3980,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
 
     /* Validate parameters. */
     if ((hash == NULL) || (sig == NULL) || (rsa == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = 0;
     }
 
@@ -3707,7 +3989,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         sigDec = (unsigned char *)XMALLOC(sigLen, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (sigDec == NULL) {
-            WOLFSSL_MSG("Memory failure");
+            WOLFSSL_ERROR_MSG("Memory allocation failure");
             ret = 0;
         }
     }
@@ -3717,7 +3999,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         encodedSig = (unsigned char *)XMALLOC(len, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (encodedSig == NULL) {
-            WOLFSSL_MSG("Memory failure");
+            WOLFSSL_ERROR_MSG("Memory allocation failure");
             ret = 0;
         }
     }
@@ -3726,7 +4008,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         /* Make encoded signature to compare with decrypted signature. */
         if (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig, &len,
                 padding) <= 0) {
-            WOLFSSL_MSG("Message Digest Error");
+            WOLFSSL_ERROR_MSG("Message Digest Error");
             ret = 0;
         }
     }
@@ -3737,7 +4019,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         hType = wc_OidGetHash(nid2oid(hashAlg, oidHashType));
         if ((verLen = wc_RsaSSL_Verify_ex2(sig, sigLen, (unsigned char *)sigDec,
                 sigLen, (RsaKey*)rsa->internal, padding, hType)) <= 0) {
-            WOLFSSL_MSG("RSA Decrypt error");
+            WOLFSSL_ERROR_MSG("RSA Decrypt error");
             ret = 0;
         }
     #else
@@ -3756,7 +4038,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
             if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, verLen,
                     hType, DEF_PSS_SALT_LEN,
                     mp_count_bits(&((RsaKey*)rsa->internal)->n)) != 0) {
-                WOLFSSL_MSG("wc_RsaPSS_CheckPadding_ex error");
+                WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
                 ret = 0;
             }
         }
@@ -3765,7 +4047,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
             * FIPS_VERSION >= 5.1) */
         /* Compare decrypted signature to encoded signature. */
         if ((int)len != verLen || XMEMCMP(encodedSig, sigDec, verLen) != 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_verify_ex failed");
+            WOLFSSL_ERROR_MSG("wolfSSL_RSA_verify_ex failed");
             ret = 0;
         }
     }
@@ -3820,7 +4102,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
             (from == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
 
@@ -3840,14 +4122,16 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
             pad_type = WC_RSA_NO_PAD;
             break;
         default:
-            WOLFSSL_MSG("RSA_public_encrypt doesn't support padding scheme");
+            WOLFSSL_ERROR_MSG("RSA_public_encrypt doesn't support padding "
+                              "scheme");
             ret = -1;
         }
     #else
         /* Check for supported padding schemes in FIPS. */
         /* TODO: Do we support more schemes in later versions of FIPS? */
         if (padding != RSA_PKCS1_PADDING) {
-            WOLFSSL_MSG("RSA_public_encrypt pad type not supported in FIPS");
+            WOLFSSL_ERROR_MSG("RSA_public_encrypt pad type not supported in "
+                              "FIPS");
             ret = -1;
         }
     #endif
@@ -3862,7 +4146,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
         /* Calculate maximum length of encrypted data. */
         outLen = wolfSSL_RSA_size(rsa);
         if (outLen == 0) {
-            WOLFSSL_MSG("Bad RSA size");
+            WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = -1;
         }
     }
@@ -3892,7 +4176,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     /* wolfCrypt error means return -1. */
@@ -3931,7 +4215,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
             (from == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
 
@@ -3950,14 +4234,15 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
             pad_type = WC_RSA_NO_PAD;
             break;
         default:
-            WOLFSSL_MSG("RSA_private_decrypt unsupported padding");
+            WOLFSSL_ERROR_MSG("RSA_private_decrypt unsupported padding");
             ret = -1;
         }
     #else
         /* Check for supported padding schemes in FIPS. */
         /* TODO: Do we support more schemes in later versions of FIPS? */
         if (padding != RSA_PKCS1_PADDING) {
-            WOLFSSL_MSG("RSA_public_encrypt pad type not supported in FIPS");
+            WOLFSSL_ERROR_MSG("RSA_public_encrypt pad type not supported in "
+                              "FIPS");
             ret = -1;
         }
     #endif
@@ -3972,7 +4257,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
         /* Calculate maximum length of decrypted data. */
         outLen = wolfSSL_RSA_size(rsa);
         if (outLen == 0) {
-            WOLFSSL_MSG("Bad RSA size");
+            WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = -1;
         }
     }
@@ -4021,7 +4306,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
             (from == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
 
@@ -4036,12 +4321,13 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
             break;
         /* TODO: RSA_X931_PADDING not supported */
         default:
-            WOLFSSL_MSG("RSA_public_decrypt unsupported padding");
+            WOLFSSL_ERROR_MSG("RSA_public_decrypt unsupported padding");
             ret = -1;
         }
     #else
         if (padding != RSA_PKCS1_PADDING) {
-            WOLFSSL_MSG("RSA_public_decrypt pad type not supported in FIPS");
+            WOLFSSL_ERROR_MSG("RSA_public_decrypt pad type not supported in "
+                              "FIPS");
             ret = -1;
         }
     #endif
@@ -4056,7 +4342,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
         /* Calculate maximum length of encrypted data. */
         outLen = wolfSSL_RSA_size(rsa);
         if (outLen == 0) {
-            WOLFSSL_MSG("Bad RSA size");
+            WOLFSSL_ERROR_MSG("Bad RSA size");
             ret = -1;
         }
     }
@@ -4106,12 +4392,12 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     WC_RNG* tmpRng = _tmpRng;
 #endif
 
-    WOLFSSL_MSG("wolfSSL_RSA_private_encrypt");
+    WOLFSSL_ENTER("wolfSSL_RSA_private_encrypt");
 
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
             (from == NULL)) {
-        WOLFSSL_MSG("Bad function arguments");
+        WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
 
@@ -4124,7 +4410,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
             break;
         /* TODO: RSA_X931_PADDING not supported */
         default:
-            WOLFSSL_MSG("RSA_private_encrypt unsupported padding");
+            WOLFSSL_ERROR_MSG("RSA_private_encrypt unsupported padding");
             ret = -1;
         }
     }
@@ -4166,7 +4452,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     /* wolfCrypt error means return -1. */
@@ -4199,7 +4485,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     mp_int  *tmp = (mp_int *)XMALLOC(sizeof(*tmp), rsa->heap,
                                      DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
-        WOLFSSL_MSG("out of memory");
+        WOLFSSL_ERROR_MSG("Memory allocation failure");
         return -1;
     }
 #else
@@ -4211,14 +4497,14 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     /* Validate parameters. */
     if ((rsa == NULL) || (rsa->p == NULL) || (rsa->q == NULL) ||
             (rsa->d == NULL) || (rsa->dmp1 == NULL) || (rsa->dmq1 == NULL)) {
-        WOLFSSL_MSG("rsa no init error");
+        WOLFSSL_ERROR_MSG("rsa no init error");
         ret = -1;
     }
 
     if (ret == 1) {
         /* Initialize temp MP integer. */
         if (mp_init(tmp) != MP_OKAY) {
-            WOLFSSL_MSG("mp_init error");
+            WOLFSSL_ERROR_MSG("mp_init error");
             ret = -1;
         }
     }
@@ -4229,7 +4515,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         /* Sub 1 from p into temp. */
         err = mp_sub_d((mp_int*)rsa->p->internal, 1, tmp);
         if (err != MP_OKAY) {
-            WOLFSSL_MSG("mp_sub_d error");
+            WOLFSSL_ERROR_MSG("mp_sub_d error");
             ret = -1;
         }
     }
@@ -4238,7 +4524,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         err = mp_mod((mp_int*)rsa->d->internal, tmp,
             (mp_int*)rsa->dmp1->internal);
         if (err != MP_OKAY) {
-            WOLFSSL_MSG("mp_mod error");
+            WOLFSSL_ERROR_MSG("mp_mod error");
             ret = -1;
         }
     }
@@ -4246,7 +4532,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         /* Sub 1 from q into temp. */
         err = mp_sub_d((mp_int*)rsa->q->internal, 1, tmp);
         if (err != MP_OKAY) {
-            WOLFSSL_MSG("mp_sub_d error");
+            WOLFSSL_ERROR_MSG("mp_sub_d error");
             ret = -1;
         }
     }
@@ -4255,7 +4541,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         err = mp_mod((mp_int*)rsa->d->internal, tmp,
             (mp_int*)rsa->dmq1->internal);
         if (err != MP_OKAY) {
-            WOLFSSL_MSG("mp_mod error");
+            WOLFSSL_ERROR_MSG("mp_mod error");
             ret = -1;
         }
     }
@@ -4283,7 +4569,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bnCtx)
 {
     WOLFSSL_STUB("RSA_blinding_on");
-    WOLFSSL_MSG("wolfSSL_RSA_blinding_on");
+    WOLFSSL_ENTER("wolfSSL_RSA_blinding_on");
 
     (void)rsa;
     (void)bnCtx;
@@ -5883,280 +6169,78 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 
 #ifdef OPENSSL_EXTRA
 
-#ifndef NO_CERTS
-
-#ifdef OPENSSL_ALL
-
-int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
-{
-    int isPrime = MP_NO, codeTmp = 0;
-    WC_RNG rng;
-
-    WOLFSSL_ENTER("wolfSSL_DH_check");
-    if (dh == NULL) {
-        return 0;
-    }
-
-    if (dh->g == NULL || dh->g->internal == NULL) {
-        codeTmp = DH_NOT_SUITABLE_GENERATOR;
-    }
-
-    if (dh->p == NULL || dh->p->internal == NULL) {
-        codeTmp = DH_CHECK_P_NOT_PRIME;
-    }
-    else
-    {
-        /* test if dh->p has prime */
-        if (wc_InitRng(&rng) == 0) {
-            mp_prime_is_prime_ex((mp_int*)dh->p->internal,8,&isPrime,&rng);
-        }
-        else {
-            WOLFSSL_MSG("Error initializing rng");
-            return 0;
-        }
-        wc_FreeRng(&rng);
-        if (isPrime != MP_YES) {
-            codeTmp = DH_CHECK_P_NOT_PRIME;
-        }
-    }
-    /* User may choose to enter NULL for codes if they don't want to check it*/
-    if (codes != NULL) {
-        *codes = codeTmp;
-    }
-
-    /* if codeTmp was set,some check was flagged invalid */
-    if (codeTmp) {
-        return 0;
-    }
-
-    return 1;
-}
-
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
-/* Converts DER encoded DH parameters to a WOLFSSL_DH structure.
- *
- * dh   : structure to copy DH parameters into.
- * pp   : DER encoded DH parameters
- * length   : length to copy
- *
- * Returns pointer to WOLFSSL_DH structure on success, or NULL on failure
+/*
+ * DH constructor/deconstructor APIs
  */
-WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
-                                                                    long length)
-{
-    WOLFSSL_DH *newDH = NULL;
-    int ret;
-    word32 idx = 0;
 
-    WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
-
-    if (pp == NULL || length <= 0) {
-        WOLFSSL_MSG("bad argument");
-        return NULL;
-    }
-
-    if ((newDH = wolfSSL_DH_new()) == NULL) {
-        WOLFSSL_MSG("wolfSSL_DH_new() failed");
-        return NULL;
-    }
-
-    ret = wc_DhKeyDecode(*pp, &idx, (DhKey*)newDH->internal, (word32)length);
-    if (ret != 0) {
-        WOLFSSL_MSG("DhKeyDecode() failed");
-        wolfSSL_DH_free(newDH);
-        return NULL;
-    }
-    newDH->inSet = 1;
-
-    if (SetDhExternal(newDH) != 1) {
-        WOLFSSL_MSG("SetDhExternal failed");
-        wolfSSL_DH_free(newDH);
-        return NULL;
-    }
-
-    *pp += length;
-    if (dh != NULL) {
-        *dh = newDH;
-    }
-
-    return newDH;
-}
-#endif /* !(FIPS_VERSION == 1) */
-
-#define ASN_LEN_SIZE(l)             \
-    (((l) < 128) ? 1 : (((l) < 256) ? 2 : 3))
-
-/* Converts internal WOLFSSL_DH structure to DER encoded DH.
+/* Allocate and initialize a new DH key.
  *
- * dh   : structure to copy DH parameters from.
- * out  : DER buffer for DH parameters
- *
- * Returns size of DER on success and 0 if error
+ * @return  DH key on success.
+ * @return  NULL on failure.
  */
-int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
-{
-    word32 len;
-    int ret = 0;
-    int pSz;
-    int gSz;
-
-    WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
-
-    if (dh == NULL) {
-        WOLFSSL_MSG("Bad parameters");
-        return 0;
-    }
-
-    /* Get total length */
-    pSz = mp_unsigned_bin_size((mp_int*)dh->p->internal);
-    gSz = mp_unsigned_bin_size((mp_int*)dh->g->internal);
-    len = 1 + ASN_LEN_SIZE(pSz) + mp_leading_bit((mp_int*)dh->p->internal) +
-          pSz +
-          1 + ASN_LEN_SIZE(gSz) + mp_leading_bit((mp_int*)dh->g->internal) +
-          gSz;
-
-    /* Two bytes required for length if ASN.1 SEQ data greater than 127 bytes
-     * and less than 256 bytes.
-     */
-    len += 1 + ASN_LEN_SIZE(len);
-
-    if (out != NULL && *out != NULL) {
-        ret = StoreDHparams(*out, &len, (mp_int*)dh->p->internal,
-                                        (mp_int*)dh->g->internal);
-        if (ret != MP_OKAY) {
-            WOLFSSL_MSG("StoreDHparams error");
-            len = 0;
-        }
-        else{
-            *out += len;
-        }
-    }
-    return (int)len;
-}
-
-#endif /* OPENSSL_ALL */
-
-#endif /* !NO_CERTS */
-
-long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
-{
-    int pSz, gSz;
-    byte *p, *g;
-    int ret = 0;
-
-    WOLFSSL_ENTER("wolfSSL_set_tmp_dh");
-
-    if (!ssl || !dh)
-        return BAD_FUNC_ARG;
-
-    /* Get needed size for p and g */
-    pSz = wolfSSL_BN_bn2bin(dh->p, NULL);
-    gSz = wolfSSL_BN_bn2bin(dh->g, NULL);
-
-    if (pSz <= 0 || gSz <= 0)
-        return -1;
-
-    p = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (!p)
-        return MEMORY_E;
-
-    g = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (!g) {
-        XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        return MEMORY_E;
-    }
-
-    pSz = wolfSSL_BN_bn2bin(dh->p, p);
-    gSz = wolfSSL_BN_bn2bin(dh->g, g);
-
-    if (pSz >= 0 && gSz >= 0) /* Conversion successful */
-        ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
-
-    XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-
-    return pSz > 0 && gSz > 0 ? ret : -1;
-}
-
-
-static void InitwolfSSL_DH(WOLFSSL_DH* dh)
-{
-    if (dh) {
-        XMEMSET(dh, 0, sizeof(WOLFSSL_DH));
-    }
-}
-
-
 WOLFSSL_DH* wolfSSL_DH_new(void)
 {
-    WOLFSSL_DH* external;
-    DhKey*     key;
+    int err = 0;
+    WOLFSSL_DH* dh = NULL;
+    DhKey* key = NULL;
 
     WOLFSSL_ENTER("wolfSSL_DH_new");
 
-    key = (DhKey*) XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
-    if (key == NULL) {
-        WOLFSSL_MSG("wolfSSL_DH_new malloc DhKey failure");
-        return NULL;
+    /* Allocate OpenSSL DH key. */
+    dh = (WOLFSSL_DH*)XMALLOC(sizeof(WOLFSSL_DH), NULL, DYNAMIC_TYPE_DH);
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_DH_new malloc WOLFSSL_DH failure");
+        err = 1;
     }
 
-    external = (WOLFSSL_DH*) XMALLOC(sizeof(WOLFSSL_DH), NULL,
-                                    DYNAMIC_TYPE_DH);
-    if (external == NULL) {
-        WOLFSSL_MSG("wolfSSL_DH_new malloc WOLFSSL_DH failure");
+    if (!err) {
+        /* Clear key data. */
+        XMEMSET(dh, 0, sizeof(WOLFSSL_DH));
+        /* Initialize reference counting. */
+        wolfSSL_RefInit(&dh->ref, &err);
+    }
+    if (!err) {
+        /* Allocate wolfSSL DH key. */
+        key = (DhKey*)XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
+        if (key == NULL) {
+            WOLFSSL_ERROR_MSG("wolfSSL_DH_new malloc DhKey failure");
+            err = 1;
+        }
+    }
+    if (!err) {
+        /* Set and initialize wolfSSL DH key. */
+        dh->internal = key;
+        if (wc_InitDhKey(key) != 0) {
+            WOLFSSL_ERROR_MSG("wolfSSL_DH_new InitDhKey failure");
+            err = 1;
+        }
+    }
+
+    if (err && (dh != NULL)) {
+        /* Dispose of the allocated memory. */
         XFREE(key, NULL, DYNAMIC_TYPE_DH);
-        return NULL;
+        wolfSSL_RefFree(&dh->ref);
+        XFREE(dh, NULL, DYNAMIC_TYPE_DH);
+        dh = NULL;
     }
-
-    InitwolfSSL_DH(external);
-
-    external->refCount = 1;
-#ifndef SINGLE_THREADED
-    if (wc_InitMutex(&external->refMutex) != 0) {
-        WOLFSSL_MSG("wc_InitMutex WOLFSSL_DH failure");
-        XFREE(key, NULL, DYNAMIC_TYPE_DH);
-        XFREE(external, NULL, DYNAMIC_TYPE_DH);
-        return NULL;
-    }
-#endif
-
-    if (wc_InitDhKey(key) != 0) {
-        WOLFSSL_MSG("wolfSSL_DH_new InitDhKey failure");
-        XFREE(key, NULL, DYNAMIC_TYPE_DH);
-        XFREE(external, NULL, DYNAMIC_TYPE_DH);
-        return NULL;
-    }
-    external->internal = key;
-    external->priv_key = wolfSSL_BN_new();
-    external->pub_key = wolfSSL_BN_new();
-
-    return external;
+    return dh;
 }
 
-WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
+#if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
+/* Set the DH parameters based on the NID.
+ *
+ * @param [in, out] dh   DH key to set.
+ * @param [in]      nid  Numeric ID of predefined DH parameters.
+ * @return  0 on success.
+ * @return  1 on failure.
+ */
+static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
 {
-    WOLFSSL_DH* dh = NULL;
     int err = 0;
-#if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
     const DhParams* params = NULL;
-    WOLFSSL_BIGNUM* pBn = NULL;
-    WOLFSSL_BIGNUM* gBn = NULL;
-    WOLFSSL_BIGNUM* qBn = NULL;
-#elif !defined(HAVE_PUBLIC_FFDHE) && (!defined(HAVE_FIPS) || \
-      FIPS_VERSION_GT(2,0))
-    int name = 0;
-#ifdef HAVE_FFDHE_Q
-    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q;
-#else
-    int elements = ELEMENT_P | ELEMENT_G;
-#endif /* HAVE_FFDHE_Q */
-#endif /* HAVE_PUBLIC_FFDHE || (HAVE_FIPS && HAVE_FIPS_VERSION == 2) */
 
-    WOLFSSL_ENTER("wolfSSL_DH_new_by_nid");
-
-/* HAVE_PUBLIC_FFDHE not required to expose wc_Dh_ffdhe* functions in FIPS v2
- * module */
-#if defined(HAVE_PUBLIC_FFDHE) || (defined(HAVE_FIPS) && FIPS_VERSION_EQ(2,0))
+    /* HAVE_PUBLIC_FFDHE not required to expose wc_Dh_ffdhe* functions in
+     * FIPS v2 module */
     switch (nid) {
 #ifdef HAVE_FFDHE_2048
     case NID_ffdhe2048:
@@ -6177,69 +6261,86 @@ WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
         break;
     }
     if (params == NULL) {
-        WOLFSSL_MSG("Unable to find DH params for nid.");
+        WOLFSSL_ERROR_MSG("Unable to find DH params for nid.");
         err = 1;
     }
-    if (err == 0) {
-        dh = wolfSSL_DH_new();
-        if (dh == NULL) {
-            WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
+
+    if (!err) {
+        /* Set prime from data retrieved. */
+        dh->p = wolfSSL_BN_bin2bn(params->p, params->p_len, NULL);
+        if (dh->p == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
             err = 1;
         }
     }
-    if (err == 0) {
-        pBn = wolfSSL_BN_bin2bn(params->p, params->p_len, NULL);
-        if (pBn == NULL) {
-            WOLFSSL_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
-            err = 1;
-        }
-    }
-    if (err == 0) {
-        gBn = wolfSSL_BN_bin2bn(params->g, params->g_len, NULL);
-        if (gBn == NULL) {
-            WOLFSSL_MSG("Error converting g hex to WOLFSSL_BIGNUM.");
+    if (!err) {
+        /* Set generator from data retrieved. */
+        dh->g = wolfSSL_BN_bin2bn(params->g, params->g_len, NULL);
+        if (dh->g == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting g hex to WOLFSSL_BIGNUM.");
             err = 1;
         }
     }
 #ifdef HAVE_FFDHE_Q
-    if (err == 0) {
-        qBn = wolfSSL_BN_bin2bn(params->q, params->q_len, NULL);
-        if (qBn == NULL) {
-            WOLFSSL_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
+    if (!err) {
+        /* Set order from data retrieved. */
+        dh->q = wolfSSL_BN_bin2bn(params->q, params->q_len, NULL);
+        if (dh->q == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
             err = 1;
         }
     }
 #endif
-#if defined(OPENSSL_ALL) || defined(OPENSSL_VERSION_NUMBER) && \
-    OPENSSL_VERSION_NUMBER >= 0x10100000L
-    if (err == 0 && wolfSSL_DH_set0_pqg(dh, pBn, qBn, gBn) != 1) {
-        WOLFSSL_MSG("Failed to set DH params.");
+
+    /* Synchronize the external into internal DH key's parameters. */
+    if ((!err) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Failed to set internal DH params.");
         err = 1;
     }
-#else
-    if (err == 0) {
-        dh->p = pBn;
-        dh->q = qBn;
-        dh->g = gBn;
-        if (SetDhInternal(dh) != 1) {
-            WOLFSSL_MSG("Failed to set internal DH params.");
-            err = 1;
-        }
+    if (!err) {
+        /* External DH key parameters were set. */
+        dh->exSet = 1;
     }
-#endif /* OPENSSL_ALL || OPENSSL_VERSION_NUMBER >= 0x10100000L */
 
     if (err == 1) {
-        wolfSSL_BN_free(pBn);
-        wolfSSL_BN_free(gBn);
-        wolfSSL_BN_free(qBn);
+        /* Dispose of any external parameters. */
+    #ifdef HAVE_FFDHE_Q
+        wolfSSL_BN_free(dh->q);
+        dh->q = NULL;
+    #endif
+        wolfSSL_BN_free(dh->p);
+        dh->p = NULL;
+        wolfSSL_BN_free(dh->g);
+        dh->g = NULL;
     }
-/* FIPS v2 and lower doesn't support wc_DhSetNamedKey. */
+
+    return err;
+}
 #elif !defined(HAVE_PUBLIC_FFDHE) && (!defined(HAVE_FIPS) || \
       FIPS_VERSION_GT(2,0))
+/* Set the DH parameters based on the NID.
+ *
+ * FIPS v2 and lower doesn't support wc_DhSetNamedKey.
+ *
+ * @param [in, out] dh   DH key to set.
+ * @param [in]      nid  Numeric ID of predefined DH parameters.
+ * @return  0 on success.
+ * @return  1 on failure.
+ */
+static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
+{
+    int err = 0;
+    int name = 0;
+#ifdef HAVE_FFDHE_Q
+    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q;
+#else
+    int elements = ELEMENT_P | ELEMENT_G;
+#endif /* HAVE_FFDHE_Q */
+
     switch (nid) {
 #ifdef HAVE_FFDHE_2048
     case NID_ffdhe2048:
-       name = WC_FFDHE_2048;
+        name = WC_FFDHE_2048;
         break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
@@ -6254,30 +6355,64 @@ WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
 #endif /* HAVE_FFDHE_4096 */
     default:
         err = 1;
-        WOLFSSL_MSG("Unable to find DH params for nid.");
+        WOLFSSL_ERROR_MSG("Unable to find DH params for nid.");
         break;
     }
-    if (err == 0) {
-        dh = wolfSSL_DH_new();
-        if (dh == NULL) {
-            WOLFSSL_MSG("Failed to create WOLFSSL_DH.");
-            err = 1;
-        }
-    }
-    if (err == 0 && wc_DhSetNamedKey((DhKey*)dh->internal, name) != 0) {
-        WOLFSSL_MSG("wc_DhSetNamedKey failed.");
+    /* Set the internal DH key's parameters based on name. */
+    if ((!err) && (wc_DhSetNamedKey((DhKey*)dh->internal, name) != 0)) {
+        WOLFSSL_ERROR_MSG("wc_DhSetNamedKey failed.");
         err = 1;
     }
-    if (err == 0 && SetDhExternal_ex(dh, elements) != 1) {
-        WOLFSSL_MSG("Failed to set external DH params.");
+    /* Synchronize the internal into external DH key's parameters. */
+    if (!err && (SetDhExternal_ex(dh, elements) != 1)) {
+        WOLFSSL_ERROR_MSG("Failed to set external DH params.");
         err = 1;
     }
-#else
-    /* Unsupported configuration. */
-    err = 1;
-#endif /* HAVE_PUBLIC_FFDHE || FIPS_VERSION_GT(2,0) */
 
-    if (err == 1 && dh != NULL) {
+    return err;
+}
+#else
+/* Set the DH parameters based on the NID.
+ *
+ * Pre-defined DH parameters not available.
+ *
+ * @param [in, out] dh   DH key to set.
+ * @param [in]      nid  Numeric ID of predefined DH parameters.
+ * @return  1 for failure.
+ */
+static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
+{
+    return 1;
+}
+#endif
+
+/* Allocate and initialize a new DH key with the parameters based on the NID.
+ *
+ * @param [in] nid  Numeric ID of DH parameters.
+ *
+ * @return  DH key on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
+{
+    WOLFSSL_DH* dh = NULL;
+    int err = 0;
+
+    WOLFSSL_ENTER("wolfSSL_DH_new_by_nid");
+
+    /* Allocate a new DH key. */
+    dh = wolfSSL_DH_new();
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Failed to create WOLFSSL_DH.");
+        err = 1;
+    }
+    if (!err) {
+        /* Set the parameters based on NID. */
+        err = wolfssl_dh_set_nid(dh, nid);
+    }
+
+    if (err && (dh != NULL)) {
+        /* Dispose of the key on failure to set. */
         wolfSSL_DH_free(dh);
         dh = NULL;
     }
@@ -6287,308 +6422,259 @@ WOLFSSL_DH* wolfSSL_DH_new_by_nid(int nid)
     return dh;
 }
 
+/* Dispose of DH key and allocated data.
+ *
+ * Cannot use dh after this call.
+ *
+ * @param [in] dh  DH key to free.
+ */
 void wolfSSL_DH_free(WOLFSSL_DH* dh)
 {
     int doFree = 0;
 
     WOLFSSL_ENTER("wolfSSL_DH_free");
 
-    if (dh) {
+    if (dh != NULL) {
+        int err;
 
-    #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&dh->refMutex) != 0) {
-            WOLFSSL_MSG("Could not lock DH mutex");
-        }
-    #endif
-        /* only free if all references to it are done */
-        dh->refCount--;
-        if (dh->refCount == 0) {
-            doFree = 1;
-        }
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&dh->refMutex);
-    #endif
+        /* Only free if all references to it are done */
+        wolfSSL_RefDec(&dh->ref, &doFree, &err);
+        /* Ignore errors - doFree will be 0 on error. */
+        (void)err;
+    }
+    if (doFree) {
+        /* Dispose of allocated reference counting data. */
+        wolfSSL_RefFree(&dh->ref);
 
-        if (doFree == 0) {
-            return;
-        }
-
-    #ifndef SINGLE_THREADED
-        wc_FreeMutex(&dh->refMutex);
-    #endif
-
+        /* Dispose of wolfSSL DH key. */
         if (dh->internal) {
             wc_FreeDhKey((DhKey*)dh->internal);
             XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
             dh->internal = NULL;
         }
+
+        /* Dispose of any allocated BNs. */
         wolfSSL_BN_free(dh->priv_key);
         wolfSSL_BN_free(dh->pub_key);
         wolfSSL_BN_free(dh->g);
         wolfSSL_BN_free(dh->p);
         wolfSSL_BN_free(dh->q);
-        InitwolfSSL_DH(dh);  /* set back to NULLs for safety */
+        /* Set back to NULLs for safety. */
+        XMEMSET(dh, 0, sizeof(WOLFSSL_DH));
 
         XFREE(dh, NULL, DYNAMIC_TYPE_DH);
     }
 }
 
+/* Increments ref count of DH key.
+ *
+ * @param [in, out] dh  DH key.
+ * @return  1 on success
+ * @return  0 on error
+ */
 int wolfSSL_DH_up_ref(WOLFSSL_DH* dh)
 {
+    int err = 1;
+
     WOLFSSL_ENTER("wolfSSL_DH_up_ref");
 
-    if (dh) {
-    #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&dh->refMutex) != 0) {
-            WOLFSSL_MSG("Failed to lock DH mutex");
-        }
-    #endif
-        dh->refCount++;
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&dh->refMutex);
-    #endif
-        return 1;
+    if (dh != NULL) {
+        wolfSSL_RefInc(&dh->ref, &err);
     }
 
-    return 0;
+    return !err;
 }
 
-int SetDhInternal(WOLFSSL_DH* dh)
-{
-    int            ret = -1;
-    int            pSz = 1024;
-    int            gSz = 1024;
-#ifdef WOLFSSL_DH_EXTRA
-    int            privSz = 256; /* Up to 2048-bit */
-    int            pubSz  = 256;
-#endif
-#ifdef WOLFSSL_SMALL_STACK
-    unsigned char* p   = NULL;
-    unsigned char* g   = NULL;
-    #ifdef WOLFSSL_DH_EXTRA
-        unsigned char* priv_key = NULL;
-        unsigned char* pub_key = NULL;
-    #endif
-#else
-    unsigned char  p[1024];
-    unsigned char  g[1024];
-    #ifdef WOLFSSL_DH_EXTRA
-        unsigned char priv_key[256];
-        unsigned char pub_key[256];
-    #endif
-#endif
-
-    WOLFSSL_ENTER("SetDhInternal");
-
-    if (dh == NULL || dh->p == NULL || dh->g == NULL)
-        WOLFSSL_MSG("Bad function arguments");
-    else if (wolfSSL_BN_bn2bin(dh->p, NULL) > pSz)
-        WOLFSSL_MSG("Bad p internal size");
-    else if (wolfSSL_BN_bn2bin(dh->g, NULL) > gSz)
-        WOLFSSL_MSG("Bad g internal size");
-#ifdef WOLFSSL_DH_EXTRA
-    else if (wolfSSL_BN_bn2bin(dh->priv_key, NULL) > privSz)
-        WOLFSSL_MSG("Bad private key internal size");
-    else if (wolfSSL_BN_bn2bin(dh->pub_key, NULL) > privSz)
-        WOLFSSL_MSG("Bad public key internal size");
-#endif
-    else {
-    #ifdef WOLFSSL_SMALL_STACK
-        p = (unsigned char*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        g = (unsigned char*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        #ifdef WOLFSSL_DH_EXTRA
-            priv_key = (unsigned char*)XMALLOC(privSz, NULL,
-                DYNAMIC_TYPE_PRIVATE_KEY);
-            pub_key  = (unsigned char*)XMALLOC(pubSz, NULL,
-                DYNAMIC_TYPE_PUBLIC_KEY);
-        #endif
-
-        if (p == NULL || g == NULL) {
-            XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-            XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-            return ret;
-        }
-    #endif /* WOLFSSL_SMALL_STACK */
-
-        /* Free so that mp_init's don't leak */
-        wc_FreeDhKey((DhKey*)dh->internal);
-
-    #ifdef WOLFSSL_DH_EXTRA
-        privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv_key);
-        pubSz  = wolfSSL_BN_bn2bin(dh->pub_key,  pub_key);
-        if (privSz <= 0) {
-           WOLFSSL_MSG("No private key size.");
-        }
-        if (pubSz <= 0) {
-            WOLFSSL_MSG("No public key size.");
-        }
-        if (privSz > 0 || pubSz > 0) {
-            ret = wc_DhImportKeyPair((DhKey*)dh->internal, priv_key, privSz,
-                                     pub_key, pubSz);
-            if (ret == 0) {
-                ret = 1;
-            }
-            else {
-                WOLFSSL_MSG("Failed setting private or public key.");
-                ret = 0;
-            }
-        }
-    #endif /* WOLFSSL_DH_EXTRA */
-
-        pSz = wolfSSL_BN_bn2bin(dh->p, p);
-        gSz = wolfSSL_BN_bn2bin(dh->g, g);
-
-        if (pSz <= 0 || gSz <= 0)
-            WOLFSSL_MSG("Bad BN2bin set");
-        else if (wc_DhSetKey((DhKey*)dh->internal, p, pSz, g, gSz) < 0)
-            WOLFSSL_MSG("Bad DH SetKey");
-        else {
-            dh->inSet = 1;
-            ret = 1;
-        }
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        #ifdef WOLFSSL_DH_EXTRA
-            XFREE(priv_key, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-            XFREE(pub_key,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        #endif
-    #endif
-    }
-
-    return ret;
-}
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) \
-    || defined(WOLFSSL_OPENSSH) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
+    defined(OPENSSL_EXTRA)
 
 #ifdef WOLFSSL_DH_EXTRA
+/* Duplicate the DH key.
+ *
+ * Internal DH key in 'dh' is updated if necessary.
+ *
+ * @param [in, out] dh  DH key to duplicate.
+ * @return  NULL on failure.
+ * @return  DH key on success.
+ */
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 {
     WOLFSSL_DH* ret = NULL;
+    int err = 0;
 
     WOLFSSL_ENTER("wolfSSL_DH_dup");
 
-    if (!dh) {
-        WOLFSSL_MSG("Bad parameter");
-        return NULL;
+    /* Validate parameters. */
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Bad parameter");
+        err = 1;
     }
 
-    if (dh->inSet == 0 && SetDhInternal(dh) != 1) {
-        WOLFSSL_MSG("Bad DH set internal");
-        return NULL;
+    /* Ensure internal DH key is set. */
+    if ((!err) && (dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Bad DH set internal");
+        err = 1;
     }
 
-    if (!(ret = wolfSSL_DH_new())) {
-        WOLFSSL_MSG("wolfSSL_DH_new error");
-        return NULL;
+    /* Create a new DH key object. */
+    if ((!err) && (!(ret = wolfSSL_DH_new()))) {
+        WOLFSSL_ERROR_MSG("wolfSSL_DH_new error");
+        err = 1;
+    }
+    /* Copy internal DH key from original to new. */
+    if ((!err) && (wc_DhKeyCopy((DhKey*)dh->internal, (DhKey*)ret->internal) !=
+            MP_OKAY)) {
+        WOLFSSL_ERROR_MSG("wc_DhKeyCopy error");
+        err = 1;
+    }
+    if (!err) {
+        ret->inSet = 1;
+
+         /* Synchronize the internal into external DH key's parameters. */
+        if (SetDhExternal(ret) != 1) {
+            WOLFSSL_ERROR_MSG("SetDhExternal error");
+            err = 1;
+        }
     }
 
-    if (wc_DhKeyCopy((DhKey*)dh->internal, (DhKey*)ret->internal) != MP_OKAY) {
-        WOLFSSL_MSG("wc_DhKeyCopy error");
+    /* Dispose of any allocated DH key on error. */
+    if (err && (ret != NULL)) {
         wolfSSL_DH_free(ret);
-        return NULL;
+        ret = NULL;
     }
-    ret->inSet = 1;
-
-    if (SetDhExternal(ret) != 1) {
-        WOLFSSL_MSG("SetDhExternal error");
-        wolfSSL_DH_free(ret);
-        return NULL;
-    }
-
     return ret;
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
-/* Set the members of DhKey into WOLFSSL_DH
- * Specify elements to set via the 2nd parameter
- */
-int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
-{
-    DhKey *key;
-    WOLFSSL_MSG("Entering SetDhExternal_ex");
+#endif
 
-    if (dh == NULL || dh->internal == NULL) {
-        WOLFSSL_MSG("dh key NULL error");
-        return -1;
-    }
-
-    key = (DhKey*)dh->internal;
-
-    if (elm & ELEMENT_P) {
-        if (SetIndividualExternal(&dh->p, &key->p) != 1) {
-            WOLFSSL_MSG("dh param p error");
-            return -1;
-        }
-    }
-    if (elm & ELEMENT_Q) {
-        if (SetIndividualExternal(&dh->q, &key->q) != 1) {
-            WOLFSSL_MSG("dh param q error");
-            return -1;
-        }
-    }
-    if (elm & ELEMENT_G) {
-        if (SetIndividualExternal(&dh->g, &key->g) != 1) {
-            WOLFSSL_MSG("dh param g error");
-            return -1;
-        }
-    }
-#ifdef WOLFSSL_DH_EXTRA
-    if (elm & ELEMENT_PRV) {
-        if (SetIndividualExternal(&dh->priv_key, &key->priv) !=
-                                                      1) {
-            WOLFSSL_MSG("No DH Private Key");
-            return -1;
-        }
-    }
-    if (elm & ELEMENT_PUB) {
-        if (SetIndividualExternal(&dh->pub_key, &key->pub) != 1) {
-            WOLFSSL_MSG("No DH Public Key");
-            return -1;
-        }
-    }
-#endif /* WOLFSSL_DH_EXTRA */
-
-    dh->exSet = 1;
-
-    return 1;
-}
-/* Set the members of DhKey into WOLFSSL_DH
- * DhKey was populated from wc_DhKeyDecode
- * p, g, pub_key and pri_key are set.
- */
-int SetDhExternal(WOLFSSL_DH *dh)
-{
-    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
-    WOLFSSL_MSG("Entering SetDhExternal");
-    return SetDhExternal_ex(dh, elements);
-}
-#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH || OPENSSL_EXTRA */
-
-/* return code compliant with OpenSSL :
- *   DH prime size in bytes if success, 0 if error
- */
-int wolfSSL_DH_size(WOLFSSL_DH* dh)
-{
-    WOLFSSL_MSG("wolfSSL_DH_size");
-
-    if (dh == NULL)
-        return -1;
-
-    return wolfSSL_BN_num_bytes(dh->p);
-}
-
-/* This sets a big number with the 768-bit prime from RFC 2409.
+/* Allocate and initialize a new DH key with 2048-bit parameters.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * See RFC 5114 section 2.3, "2048-bit MODP Group with 256-bit Prime Order
+ * Subgroup."
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  DH Key on success.
+ */
+WOLFSSL_DH* wolfSSL_DH_get_2048_256(void)
+{
+    WOLFSSL_DH* dh;
+    int err = 0;
+    static const byte pHex[] = {
+        0x87, 0xA8, 0xE6, 0x1D, 0xB4, 0xB6, 0x66, 0x3C, 0xFF, 0xBB, 0xD1, 0x9C,
+        0x65, 0x19, 0x59, 0x99, 0x8C, 0xEE, 0xF6, 0x08, 0x66, 0x0D, 0xD0, 0xF2,
+        0x5D, 0x2C, 0xEE, 0xD4, 0x43, 0x5E, 0x3B, 0x00, 0xE0, 0x0D, 0xF8, 0xF1,
+        0xD6, 0x19, 0x57, 0xD4, 0xFA, 0xF7, 0xDF, 0x45, 0x61, 0xB2, 0xAA, 0x30,
+        0x16, 0xC3, 0xD9, 0x11, 0x34, 0x09, 0x6F, 0xAA, 0x3B, 0xF4, 0x29, 0x6D,
+        0x83, 0x0E, 0x9A, 0x7C, 0x20, 0x9E, 0x0C, 0x64, 0x97, 0x51, 0x7A, 0xBD,
+        0x5A, 0x8A, 0x9D, 0x30, 0x6B, 0xCF, 0x67, 0xED, 0x91, 0xF9, 0xE6, 0x72,
+        0x5B, 0x47, 0x58, 0xC0, 0x22, 0xE0, 0xB1, 0xEF, 0x42, 0x75, 0xBF, 0x7B,
+        0x6C, 0x5B, 0xFC, 0x11, 0xD4, 0x5F, 0x90, 0x88, 0xB9, 0x41, 0xF5, 0x4E,
+        0xB1, 0xE5, 0x9B, 0xB8, 0xBC, 0x39, 0xA0, 0xBF, 0x12, 0x30, 0x7F, 0x5C,
+        0x4F, 0xDB, 0x70, 0xC5, 0x81, 0xB2, 0x3F, 0x76, 0xB6, 0x3A, 0xCA, 0xE1,
+        0xCA, 0xA6, 0xB7, 0x90, 0x2D, 0x52, 0x52, 0x67, 0x35, 0x48, 0x8A, 0x0E,
+        0xF1, 0x3C, 0x6D, 0x9A, 0x51, 0xBF, 0xA4, 0xAB, 0x3A, 0xD8, 0x34, 0x77,
+        0x96, 0x52, 0x4D, 0x8E, 0xF6, 0xA1, 0x67, 0xB5, 0xA4, 0x18, 0x25, 0xD9,
+        0x67, 0xE1, 0x44, 0xE5, 0x14, 0x05, 0x64, 0x25, 0x1C, 0xCA, 0xCB, 0x83,
+        0xE6, 0xB4, 0x86, 0xF6, 0xB3, 0xCA, 0x3F, 0x79, 0x71, 0x50, 0x60, 0x26,
+        0xC0, 0xB8, 0x57, 0xF6, 0x89, 0x96, 0x28, 0x56, 0xDE, 0xD4, 0x01, 0x0A,
+        0xBD, 0x0B, 0xE6, 0x21, 0xC3, 0xA3, 0x96, 0x0A, 0x54, 0xE7, 0x10, 0xC3,
+        0x75, 0xF2, 0x63, 0x75, 0xD7, 0x01, 0x41, 0x03, 0xA4, 0xB5, 0x43, 0x30,
+        0xC1, 0x98, 0xAF, 0x12, 0x61, 0x16, 0xD2, 0x27, 0x6E, 0x11, 0x71, 0x5F,
+        0x69, 0x38, 0x77, 0xFA, 0xD7, 0xEF, 0x09, 0xCA, 0xDB, 0x09, 0x4A, 0xE9,
+        0x1E, 0x1A, 0x15, 0x97
+    };
+    static const byte gHex[] = {
+        0x3F, 0xB3, 0x2C, 0x9B, 0x73, 0x13, 0x4D, 0x0B, 0x2E, 0x77, 0x50, 0x66,
+        0x60, 0xED, 0xBD, 0x48, 0x4C, 0xA7, 0xB1, 0x8F, 0x21, 0xEF, 0x20, 0x54,
+        0x07, 0xF4, 0x79, 0x3A, 0x1A, 0x0B, 0xA1, 0x25, 0x10, 0xDB, 0xC1, 0x50,
+        0x77, 0xBE, 0x46, 0x3F, 0xFF, 0x4F, 0xED, 0x4A, 0xAC, 0x0B, 0xB5, 0x55,
+        0xBE, 0x3A, 0x6C, 0x1B, 0x0C, 0x6B, 0x47, 0xB1, 0xBC, 0x37, 0x73, 0xBF,
+        0x7E, 0x8C, 0x6F, 0x62, 0x90, 0x12, 0x28, 0xF8, 0xC2, 0x8C, 0xBB, 0x18,
+        0xA5, 0x5A, 0xE3, 0x13, 0x41, 0x00, 0x0A, 0x65, 0x01, 0x96, 0xF9, 0x31,
+        0xC7, 0x7A, 0x57, 0xF2, 0xDD, 0xF4, 0x63, 0xE5, 0xE9, 0xEC, 0x14, 0x4B,
+        0x77, 0x7D, 0xE6, 0x2A, 0xAA, 0xB8, 0xA8, 0x62, 0x8A, 0xC3, 0x76, 0xD2,
+        0x82, 0xD6, 0xED, 0x38, 0x64, 0xE6, 0x79, 0x82, 0x42, 0x8E, 0xBC, 0x83,
+        0x1D, 0x14, 0x34, 0x8F, 0x6F, 0x2F, 0x91, 0x93, 0xB5, 0x04, 0x5A, 0xF2,
+        0x76, 0x71, 0x64, 0xE1, 0xDF, 0xC9, 0x67, 0xC1, 0xFB, 0x3F, 0x2E, 0x55,
+        0xA4, 0xBD, 0x1B, 0xFF, 0xE8, 0x3B, 0x9C, 0x80, 0xD0, 0x52, 0xB9, 0x85,
+        0xD1, 0x82, 0xEA, 0x0A, 0xDB, 0x2A, 0x3B, 0x73, 0x13, 0xD3, 0xFE, 0x14,
+        0xC8, 0x48, 0x4B, 0x1E, 0x05, 0x25, 0x88, 0xB9, 0xB7, 0xD2, 0xBB, 0xD2,
+        0xDF, 0x01, 0x61, 0x99, 0xEC, 0xD0, 0x6E, 0x15, 0x57, 0xCD, 0x09, 0x15,
+        0xB3, 0x35, 0x3B, 0xBB, 0x64, 0xE0, 0xEC, 0x37, 0x7F, 0xD0, 0x28, 0x37,
+        0x0D, 0xF9, 0x2B, 0x52, 0xC7, 0x89, 0x14, 0x28, 0xCD, 0xC6, 0x7E, 0xB6,
+        0x18, 0x4B, 0x52, 0x3D, 0x1D, 0xB2, 0x46, 0xC3, 0x2F, 0x63, 0x07, 0x84,
+        0x90, 0xF0, 0x0E, 0xF8, 0xD6, 0x47, 0xD1, 0x48, 0xD4, 0x79, 0x54, 0x51,
+        0x5E, 0x23, 0x27, 0xCF, 0xEF, 0x98, 0xC5, 0x82, 0x66, 0x4B, 0x4C, 0x0F,
+        0x6C, 0xC4, 0x16, 0x59
+    };
+    static const byte qHex[] = {
+        0x8C, 0xF8, 0x36, 0x42, 0xA7, 0x09, 0xA0, 0x97, 0xB4, 0x47, 0x99, 0x76,
+        0x40, 0x12, 0x9D, 0xA2, 0x99, 0xB1, 0xA4, 0x7D, 0x1E, 0xB3, 0x75, 0x0B,
+        0xA3, 0x08, 0xB0, 0xFE, 0x64, 0xF5, 0xFB, 0xD3
+    };
+
+    /* Create a new DH key to return. */
+    dh = wolfSSL_DH_new();
+    if (dh == NULL) {
+        err = 1;
+    }
+    if (!err) {
+        /* Set prime. */
+        dh->p = wolfSSL_BN_bin2bn(pHex, (int)sizeof(pHex), NULL);
+        if (dh->p == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+    if (!err) {
+        /* Set generator. */
+        dh->g = wolfSSL_BN_bin2bn(gHex, (int)sizeof(gHex), NULL);
+        if (dh->g == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting g hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+    if (!err) {
+        /* Set order. */
+        dh->q = wolfSSL_BN_bin2bn(qHex, (int)sizeof(qHex), NULL);
+        if (dh->q == NULL) {
+            WOLFSSL_ERROR_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
+            err = 1;
+        }
+    }
+    /* Set values into wolfSSL DH key. */
+    if ((!err) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Error setting DH parameters.");
+        err = 1;
+    }
+    if (!err) {
+        /* External DH key parameters were set. */
+        dh->exSet = 1;
+    }
+
+    /* Dispose of any allocated DH key on error. */
+    if (err && (dh != NULL)) {
+        wolfSSL_DH_free(dh);
+        dh = NULL;
+    }
+
+    return dh;
+}
+
+/* TODO: consider changing strings to byte arrays. */
+
+/* Returns a big number with the 768-bit prime from RFC 2409.
+ *
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
+ *
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 768-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 768
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6600,23 +6686,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_768_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 768 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 768 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 1024-bit prime from RFC 2409.
+/* Returns a big number with the 1024-bit prime from RFC 2409.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 1024-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 1024
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6630,23 +6723,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_1024_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 1024 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 1024 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 1536-bit prime from RFC 3526.
+/* Returns a big number with the 1536-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 1536-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 1536
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6664,23 +6764,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_1536_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 1536 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 1536 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 2048-bit prime from RFC 3526.
+/* Returns a big number with the 2048-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 2048-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_2048_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 2048
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6702,23 +6809,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_2048_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_2048_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 2048 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 2048 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 3072-bit prime from RFC 3526.
+/* Returns a big number with the 3072-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 3072-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_3072_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 3072
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6748,23 +6862,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_3072_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_3072_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 3072 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 3072 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 4096-bit prime from RFC 3526.
+/* Returns a big number with the 4096-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 4096-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_4096_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 4096
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6802,23 +6923,30 @@ WOLFSSL_BIGNUM* wolfSSL_DH_4096_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_4096_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 4096 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 4096 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
-/* This sets a big number with the 6144-bit prime from RFC 3526.
+/* Returns a big number with the 6144-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 6144-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_6144_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 6144
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6872,24 +7000,31 @@ WOLFSSL_BIGNUM* wolfSSL_DH_6144_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_6144_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 6144 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 6144 prime to big number");
+        bn = NULL;
     }
 
     return bn;
+#else
+    (void)bn;
+    return NULL;
+#endif
 }
 
 
-/* This sets a big number with the 8192-bit prime from RFC 3526.
+/* Returns a big number with the 8192-bit prime from RFC 3526.
  *
- * bn  if not NULL then the big number structure is used. If NULL then a new
- *     big number structure is created.
+ * @param [in, out] bn  If not NULL then this BN is set and returned.
+ *                      If NULL then a new BN is created, set and returned.
  *
- * Returns a WOLFSSL_BIGNUM structure on success and NULL with failure.
+ * @return  NULL on failure.
+ * @return  WOLFSSL_BIGNUM with value set to 8192-bit prime on success.
  */
 WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
 {
+#if WOLFSSL_MAX_BN_BITS >= 8192
     static const char prm[] = {
         "FFFFFFFFFFFFFFFFC90FDAA22168C234"
         "C4C6628B80DC1CD129024E088A67CC74"
@@ -6959,717 +7094,1130 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
 
     WOLFSSL_ENTER("wolfSSL_DH_8192_prime");
 
+    /* Set prime into BN. Creates a new BN when bn is NULL. */
     if (wolfSSL_BN_hex2bn(&bn, prm) != 1) {
-        WOLFSSL_MSG("Error converting DH 8192 prime to big number");
-        return NULL;
+        WOLFSSL_ERROR_MSG("Error converting DH 8192 prime to big number");
+        bn = NULL;
     }
 
     return bn;
-}
-
-/* The functions inside the macro guard below are fine to use with FIPS provided
- * WOLFSSL_DH_EXTRA isn't defined. That define will cause SetDhInternal to have
- * a call to wc_DhImportKeyPair, which isn't defined in the FIPS v2 module. */
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && !defined(WOLFSSL_DH_EXTRA)) \
- || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
-/* return code compliant with OpenSSL :
- *   1 if success, 0 if error
- */
-int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
-{
-    int     ret    = 0;
-    word32  pubSz  = 0;
-    word32  privSz = 0;
-    int     initTmpRng = 0;
-    WC_RNG* rng    = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng;
 #else
-    WC_RNG  tmpRng[1];
-#endif
-    unsigned char* pub    = NULL;
-    unsigned char* priv   = NULL;
-
-    WOLFSSL_MSG("wolfSSL_DH_generate_key");
-
-#ifdef WOLFSSL_SMALL_STACK
-    tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (tmpRng == NULL) {
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-        return ret;
-    }
-#endif
-
-    if (dh == NULL || dh->p == NULL || dh->g == NULL)
-        WOLFSSL_MSG("Bad function arguments");
-    else if (dh->inSet == 0 && SetDhInternal(dh) != 1)
-            WOLFSSL_MSG("Bad DH set internal");
-    else if (wc_InitRng(tmpRng) == 0) {
-        rng = tmpRng;
-        initTmpRng = 1;
-    }
-    else {
-        WOLFSSL_MSG("Bad RNG Init, trying global");
-        rng = wolfssl_get_global_rng();
-    }
-
-    if (rng) {
-        pubSz = wolfSSL_BN_num_bytes(dh->p);
-        if (dh->length) {
-            privSz = dh->length/8; /* to bytes */
-        } else {
-            privSz = pubSz;
-        }
-        if (pubSz > 0) {
-            pub = (unsigned char*)XMALLOC(pubSz,
-                    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
-        if (privSz > 0) {
-            priv = (unsigned char*)XMALLOC(privSz,
-                    NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        }
-        PRIVATE_KEY_UNLOCK();
-        if (pub == NULL || priv == NULL) {
-            WOLFSSL_MSG("Unable to malloc memory");
-        }
-        else if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
-                                                               pub, &pubSz) < 0)
-            WOLFSSL_MSG("Bad wc_DhGenerateKeyPair");
-        else {
-            if (dh->pub_key)
-                wolfSSL_BN_free(dh->pub_key);
-
-            dh->pub_key = wolfSSL_BN_new();
-            if (dh->pub_key == NULL) {
-                WOLFSSL_MSG("Bad DH new pub");
-            }
-            if (dh->priv_key)
-                wolfSSL_BN_free(dh->priv_key);
-
-            dh->priv_key = wolfSSL_BN_new();
-
-            if (dh->priv_key == NULL) {
-                WOLFSSL_MSG("Bad DH new priv");
-            }
-
-            if (dh->pub_key && dh->priv_key) {
-               if (wolfSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL)
-                   WOLFSSL_MSG("Bad DH bn2bin error pub");
-               else if (wolfSSL_BN_bin2bn(priv, privSz, dh->priv_key) == NULL)
-                   WOLFSSL_MSG("Bad DH bn2bin error priv");
-               else
-                   ret = 1;
-            }
-        }
-        PRIVATE_KEY_LOCK();
-    }
-
-    if (initTmpRng)
-        wc_FreeRng(tmpRng);
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
-    XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-
-    return ret;
-}
-
-
-/* return code compliant with OpenSSL :
- *   size of shared secret if success, -1 if error
- */
-int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
-                          WOLFSSL_DH* dh)
-{
-    int            ret    = -1;
-    word32         keySz  = 0;
-    int            pubSz  = 1024;
-    int            privSz = 1024;
-#ifdef WOLFSSL_SMALL_STACK
-    unsigned char* pub;
-    unsigned char* priv   = NULL;
-#else
-    unsigned char  pub [1024];
-    unsigned char  priv[1024];
-#endif
-
-    WOLFSSL_MSG("wolfSSL_DH_compute_key");
-
-#ifdef WOLFSSL_SMALL_STACK
-    pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (pub == NULL)
-        return ret;
-
-    priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-    if (priv == NULL) {
-        XFREE(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        return ret;
-    }
-#endif
-
-    if (dh == NULL || dh->priv_key == NULL || otherPub == NULL)
-        WOLFSSL_MSG("Bad function arguments");
-    else if ((keySz = (word32)DH_size(dh)) == 0)
-        WOLFSSL_MSG("Bad DH_size");
-    else if (wolfSSL_BN_bn2bin(dh->priv_key, NULL) > (int)privSz)
-        WOLFSSL_MSG("Bad priv internal size");
-    else if (wolfSSL_BN_bn2bin(otherPub, NULL) > (int)pubSz)
-        WOLFSSL_MSG("Bad otherPub size");
-    else {
-        privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv);
-        pubSz  = wolfSSL_BN_bn2bin(otherPub, pub);
-        if (dh->inSet == 0 && SetDhInternal(dh) != 1) {
-            WOLFSSL_MSG("Bad DH set internal");
-        }
-        PRIVATE_KEY_UNLOCK();
-        if (privSz <= 0 || pubSz <= 0)
-            WOLFSSL_MSG("Bad BN2bin set");
-        else if (wc_DhAgree((DhKey*)dh->internal, key, &keySz,
-                            priv, privSz, pub, pubSz) < 0)
-            WOLFSSL_MSG("wc_DhAgree failed");
-        else
-            ret = (int)keySz;
-        PRIVATE_KEY_LOCK();
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-#endif
-
-    WOLFSSL_LEAVE("wolfSSL_DH_compute_key", ret);
-
-    return ret;
-}
-
-
-#if defined(OPENSSL_ALL) || \
-    defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-int wolfSSL_DH_set_length(WOLFSSL_DH *dh, long len)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_set_length");
-
-    /* len is checked at generation */
-    if (dh == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    dh->length = (int)len;
-    return 1;
-}
-
-/* ownership of p,q,and g get taken over by "dh" on success and should be free'd
- * with a call to wolfSSL_DH_free -- not individually.
- *
- * returns 1 on success
- */
-int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
-    WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
-{
-    int ret;
-    WOLFSSL_ENTER("wolfSSL_DH_set0_pqg");
-
-    /* q can be NULL */
-    if (dh == NULL || p == NULL || g == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    /* free existing internal DH structure and recreate with new p / g */
-    if (dh->inSet) {
-#ifndef HAVE_SELFTEST
-        ret = wc_FreeDhKey((DhKey*)dh->internal);
-        if (ret != 0) {
-            WOLFSSL_MSG("Unable to free internal DH key");
-            return 0;
-        }
-#else
-        /* Selftest code has this API with a void return type */
-        wc_FreeDhKey((DhKey*)dh->internal);
-#endif
-    }
-
-    wolfSSL_BN_free(dh->p);
-    wolfSSL_BN_free(dh->q);
-    wolfSSL_BN_free(dh->g);
-
-    dh->p = p;
-    dh->q = q;
-    dh->g = g;
-
-    ret = SetDhInternal(dh);
-    if (ret != 1) {
-        WOLFSSL_MSG("Unable to set internal DH key");
-        dh->p = NULL;
-        dh->q = NULL;
-        dh->g = NULL;
-        dh->inSet = 0;
-        return 0;
-    }
-
-    return 1;
-}
-#endif /* OPENSSL_ALL || (v1.1.0 or later) */
-#endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) ||
-        * HAVE_FIPS_VERSION > 2 */
-
-void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
-        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_get0_key");
-
-    if (dh != NULL) {
-        if (pub_key != NULL && dh->pub_key != NULL &&
-                wolfSSL_BN_is_zero(dh->pub_key) != 1)
-            *pub_key = dh->pub_key;
-        if (priv_key != NULL && dh->priv_key != NULL &&
-                wolfSSL_BN_is_zero(dh->priv_key) != 1)
-            *priv_key = dh->priv_key;
-    }
-}
-
-int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
-        WOLFSSL_BIGNUM *priv_key)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_set0_key");
-
-    if (dh == NULL)
-        return 0;
-
-    if (pub_key != NULL) {
-        wolfSSL_BN_free(dh->pub_key);
-        dh->pub_key = pub_key;
-    }
-
-    if (priv_key != NULL) {
-        wolfSSL_BN_free(dh->priv_key);
-        dh->priv_key = priv_key;
-    }
-
-    if (dh->p == NULL || dh->g == NULL)
-        return 1; /* Allow loading parameters afterwards */
-    else
-        return SetDhInternal(dh);
-}
-
-/* See RFC 5114 section 2.3, "2048-bit MODP Group with 256-bit Prime Order
- * Subgroup." */
-WOLFSSL_DH* wolfSSL_DH_get_2048_256(void)
-{
-    WOLFSSL_DH* ret;
-    int err = 0;
-    const byte pHex[] = {
-        0x87, 0xA8, 0xE6, 0x1D, 0xB4, 0xB6, 0x66, 0x3C, 0xFF, 0xBB, 0xD1, 0x9C,
-        0x65, 0x19, 0x59, 0x99, 0x8C, 0xEE, 0xF6, 0x08, 0x66, 0x0D, 0xD0, 0xF2,
-        0x5D, 0x2C, 0xEE, 0xD4, 0x43, 0x5E, 0x3B, 0x00, 0xE0, 0x0D, 0xF8, 0xF1,
-        0xD6, 0x19, 0x57, 0xD4, 0xFA, 0xF7, 0xDF, 0x45, 0x61, 0xB2, 0xAA, 0x30,
-        0x16, 0xC3, 0xD9, 0x11, 0x34, 0x09, 0x6F, 0xAA, 0x3B, 0xF4, 0x29, 0x6D,
-        0x83, 0x0E, 0x9A, 0x7C, 0x20, 0x9E, 0x0C, 0x64, 0x97, 0x51, 0x7A, 0xBD,
-        0x5A, 0x8A, 0x9D, 0x30, 0x6B, 0xCF, 0x67, 0xED, 0x91, 0xF9, 0xE6, 0x72,
-        0x5B, 0x47, 0x58, 0xC0, 0x22, 0xE0, 0xB1, 0xEF, 0x42, 0x75, 0xBF, 0x7B,
-        0x6C, 0x5B, 0xFC, 0x11, 0xD4, 0x5F, 0x90, 0x88, 0xB9, 0x41, 0xF5, 0x4E,
-        0xB1, 0xE5, 0x9B, 0xB8, 0xBC, 0x39, 0xA0, 0xBF, 0x12, 0x30, 0x7F, 0x5C,
-        0x4F, 0xDB, 0x70, 0xC5, 0x81, 0xB2, 0x3F, 0x76, 0xB6, 0x3A, 0xCA, 0xE1,
-        0xCA, 0xA6, 0xB7, 0x90, 0x2D, 0x52, 0x52, 0x67, 0x35, 0x48, 0x8A, 0x0E,
-        0xF1, 0x3C, 0x6D, 0x9A, 0x51, 0xBF, 0xA4, 0xAB, 0x3A, 0xD8, 0x34, 0x77,
-        0x96, 0x52, 0x4D, 0x8E, 0xF6, 0xA1, 0x67, 0xB5, 0xA4, 0x18, 0x25, 0xD9,
-        0x67, 0xE1, 0x44, 0xE5, 0x14, 0x05, 0x64, 0x25, 0x1C, 0xCA, 0xCB, 0x83,
-        0xE6, 0xB4, 0x86, 0xF6, 0xB3, 0xCA, 0x3F, 0x79, 0x71, 0x50, 0x60, 0x26,
-        0xC0, 0xB8, 0x57, 0xF6, 0x89, 0x96, 0x28, 0x56, 0xDE, 0xD4, 0x01, 0x0A,
-        0xBD, 0x0B, 0xE6, 0x21, 0xC3, 0xA3, 0x96, 0x0A, 0x54, 0xE7, 0x10, 0xC3,
-        0x75, 0xF2, 0x63, 0x75, 0xD7, 0x01, 0x41, 0x03, 0xA4, 0xB5, 0x43, 0x30,
-        0xC1, 0x98, 0xAF, 0x12, 0x61, 0x16, 0xD2, 0x27, 0x6E, 0x11, 0x71, 0x5F,
-        0x69, 0x38, 0x77, 0xFA, 0xD7, 0xEF, 0x09, 0xCA, 0xDB, 0x09, 0x4A, 0xE9,
-        0x1E, 0x1A, 0x15, 0x97
-   };
-    const byte gHex[] = {
-        0x3F, 0xB3, 0x2C, 0x9B, 0x73, 0x13, 0x4D, 0x0B, 0x2E, 0x77, 0x50, 0x66,
-        0x60, 0xED, 0xBD, 0x48, 0x4C, 0xA7, 0xB1, 0x8F, 0x21, 0xEF, 0x20, 0x54,
-        0x07, 0xF4, 0x79, 0x3A, 0x1A, 0x0B, 0xA1, 0x25, 0x10, 0xDB, 0xC1, 0x50,
-        0x77, 0xBE, 0x46, 0x3F, 0xFF, 0x4F, 0xED, 0x4A, 0xAC, 0x0B, 0xB5, 0x55,
-        0xBE, 0x3A, 0x6C, 0x1B, 0x0C, 0x6B, 0x47, 0xB1, 0xBC, 0x37, 0x73, 0xBF,
-        0x7E, 0x8C, 0x6F, 0x62, 0x90, 0x12, 0x28, 0xF8, 0xC2, 0x8C, 0xBB, 0x18,
-        0xA5, 0x5A, 0xE3, 0x13, 0x41, 0x00, 0x0A, 0x65, 0x01, 0x96, 0xF9, 0x31,
-        0xC7, 0x7A, 0x57, 0xF2, 0xDD, 0xF4, 0x63, 0xE5, 0xE9, 0xEC, 0x14, 0x4B,
-        0x77, 0x7D, 0xE6, 0x2A, 0xAA, 0xB8, 0xA8, 0x62, 0x8A, 0xC3, 0x76, 0xD2,
-        0x82, 0xD6, 0xED, 0x38, 0x64, 0xE6, 0x79, 0x82, 0x42, 0x8E, 0xBC, 0x83,
-        0x1D, 0x14, 0x34, 0x8F, 0x6F, 0x2F, 0x91, 0x93, 0xB5, 0x04, 0x5A, 0xF2,
-        0x76, 0x71, 0x64, 0xE1, 0xDF, 0xC9, 0x67, 0xC1, 0xFB, 0x3F, 0x2E, 0x55,
-        0xA4, 0xBD, 0x1B, 0xFF, 0xE8, 0x3B, 0x9C, 0x80, 0xD0, 0x52, 0xB9, 0x85,
-        0xD1, 0x82, 0xEA, 0x0A, 0xDB, 0x2A, 0x3B, 0x73, 0x13, 0xD3, 0xFE, 0x14,
-        0xC8, 0x48, 0x4B, 0x1E, 0x05, 0x25, 0x88, 0xB9, 0xB7, 0xD2, 0xBB, 0xD2,
-        0xDF, 0x01, 0x61, 0x99, 0xEC, 0xD0, 0x6E, 0x15, 0x57, 0xCD, 0x09, 0x15,
-        0xB3, 0x35, 0x3B, 0xBB, 0x64, 0xE0, 0xEC, 0x37, 0x7F, 0xD0, 0x28, 0x37,
-        0x0D, 0xF9, 0x2B, 0x52, 0xC7, 0x89, 0x14, 0x28, 0xCD, 0xC6, 0x7E, 0xB6,
-        0x18, 0x4B, 0x52, 0x3D, 0x1D, 0xB2, 0x46, 0xC3, 0x2F, 0x63, 0x07, 0x84,
-        0x90, 0xF0, 0x0E, 0xF8, 0xD6, 0x47, 0xD1, 0x48, 0xD4, 0x79, 0x54, 0x51,
-        0x5E, 0x23, 0x27, 0xCF, 0xEF, 0x98, 0xC5, 0x82, 0x66, 0x4B, 0x4C, 0x0F,
-        0x6C, 0xC4, 0x16, 0x59
-    };
-    const byte qHex[] = {
-        0x8C, 0xF8, 0x36, 0x42, 0xA7, 0x09, 0xA0, 0x97, 0xB4, 0x47, 0x99, 0x76,
-        0x40, 0x12, 0x9D, 0xA2, 0x99, 0xB1, 0xA4, 0x7D, 0x1E, 0xB3, 0x75, 0x0B,
-        0xA3, 0x08, 0xB0, 0xFE, 0x64, 0xF5, 0xFB, 0xD3
-    };
-    WOLFSSL_BIGNUM* pBn = NULL;
-    WOLFSSL_BIGNUM* gBn = NULL;
-    WOLFSSL_BIGNUM* qBn = NULL;
-
-    ret = wolfSSL_DH_new();
-    if (ret == NULL) {
-        err = 1;
-    }
-    if (err == 0) {
-        pBn = wolfSSL_BN_bin2bn(pHex, (int)sizeof(pHex), NULL);
-        if (pBn == NULL) {
-            WOLFSSL_MSG("Error converting p hex to WOLFSSL_BIGNUM.");
-            err = 1;
-        }
-    }
-    if (err == 0) {
-        gBn = wolfSSL_BN_bin2bn(gHex, (int)sizeof(gHex), NULL);
-        if (gBn == NULL) {
-            WOLFSSL_MSG("Error converting g hex to WOLFSSL_BIGNUM.");
-            err = 1;
-        }
-    }
-    if (err == 0) {
-        qBn = wolfSSL_BN_bin2bn(qHex, (int)sizeof(qHex), NULL);
-        if (qBn == NULL) {
-            WOLFSSL_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
-            err = 1;
-        }
-    }
-    if (err == 0) {
-    #if defined(OPENSSL_ALL) || \
-        defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-        if (wolfSSL_DH_set0_pqg(ret, pBn, qBn, gBn) != 1) {
-            WOLFSSL_MSG("Error setting DH parameters.");
-            err = 1;
-        }
-    #else
-        ret->p = pBn;
-        ret->q = qBn;
-        ret->g = gBn;
-
-        if (SetDhInternal(ret) != 1) {
-            WOLFSSL_MSG("Error setting DH parameters.");
-            err = 1;
-        }
-    #endif
-    }
-
-    if (err == 1) {
-        wolfSSL_BN_free(pBn);
-        wolfSSL_BN_free(gBn);
-        wolfSSL_BN_free(qBn);
-        wolfSSL_DH_free(ret);
-        ret = NULL;
-    }
-
-    return ret;
-}
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_OPENSSH) || defined(OPENSSL_EXTRA)
-/* return 1 if success, -1 if error */
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
-int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
-{
-    word32 idx = 0;
-    int    ret;
-
-    if (dh == NULL || dh->internal == NULL || derBuf == NULL || derSz <= 0) {
-        WOLFSSL_MSG("Bad function arguments");
-        return -1;
-    }
-
-    ret = wc_DhKeyDecode(derBuf, &idx, (DhKey*)dh->internal, (word32)derSz);
-    if (ret < 0) {
-        WOLFSSL_MSG("wc_DhKeyDecode failed");
-        return -1;
-    }
-    dh->inSet = 1;
-
-    if (SetDhExternal(dh) != 1) {
-        WOLFSSL_MSG("SetDhExternal failed");
-        return -1;
-    }
-
-    return 1;
-}
-#endif /* !HAVE_FIPS || FIPS_VERION > 2 */
-#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH || OPENSSL_EXTRA */
-
-#endif /* OPENSSL_EXTRA */
-
-#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
-    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
-
-#ifndef NO_BIO
-WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
-        wc_pem_password_cb *cb, void *u)
-{
-#ifndef NO_FILESYSTEM
-    WOLFSSL_DH* localDh = NULL;
-    unsigned char* mem  = NULL;
-    word32 size;
-    long   sz;
-    int    ret;
-    DerBuffer *der = NULL;
-    byte*  p = NULL;
-    byte*  g = NULL;
-    word32 pSz = MAX_DH_SIZE;
-    word32 gSz = MAX_DH_SIZE;
-    int    memAlloced = 0;
-
-    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DHparams");
-    (void)cb;
-    (void)u;
-
-    if (bio == NULL) {
-        WOLFSSL_MSG("Bad Function Argument bio is NULL");
-        return NULL;
-    }
-
-    if (bio->type == WOLFSSL_BIO_MEMORY) {
-        /* Use the buffer directly. */
-        ret = wolfSSL_BIO_get_mem_data(bio, &mem);
-        if (mem == NULL || ret <= 0) {
-            WOLFSSL_MSG("Failed to get data from bio struct");
-            goto end;
-        }
-        size = ret;
-    }
-    else if (bio->type == WOLFSSL_BIO_FILE) {
-        /* Read whole file into a new buffer. */
-        if (XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
-            goto end;
-        sz = XFTELL((XFILE)bio->ptr);
-        if (XFSEEK((XFILE)bio->ptr, 0, SEEK_SET) != 0)
-            goto end;
-        if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0L) {
-            WOLFSSL_MSG("PEM_read_bio_DHparams file size error");
-            goto end;
-        }
-        mem = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_PEM);
-        if (mem == NULL)
-            goto end;
-        memAlloced = 1;
-
-        if (wolfSSL_BIO_read(bio, (char *)mem, (int)sz) <= 0)
-            goto end;
-        size = (word32)sz;
-    }
-    else {
-        WOLFSSL_MSG("BIO type not supported for reading DH parameters");
-        goto end;
-    }
-
-    ret = PemToDer(mem, size, DH_PARAM_TYPE, &der, NULL, NULL, NULL);
-    if (ret < 0) {
-        /* Also try X9.42 format */
-        ret = PemToDer(mem, size, X942_PARAM_TYPE, &der, NULL, NULL, NULL);
-    }
-    if (ret != 0)
-        goto end;
-
-    /* Use the object passed in, otherwise allocate a new object */
-    if (x != NULL)
-        localDh = *x;
-    if (localDh == NULL) {
-        localDh = wolfSSL_DH_new();
-        if (localDh == NULL)
-            goto end;
-    }
-
-    /* Load data in manually */
-    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (p == NULL || g == NULL)
-        goto end;
-    /* Extract the p and g as data from the DER encoded DH parameters. */
-    ret = wc_DhParamsLoad(der->buffer, der->length, p, &pSz, g, &gSz);
-    if (ret != 0) {
-        if (x != NULL && localDh != *x)
-            XFREE(localDh, NULL, DYNAMIC_TYPE_OPENSSL);
-        localDh = NULL;
-        goto end;
-    }
-
-    if (x != NULL)
-        *x = localDh;
-
-    /* Put p and g in as big numbers. */
-    if (localDh->p != NULL) {
-        wolfSSL_BN_free(localDh->p);
-        localDh->p = NULL;
-    }
-    if (localDh->g != NULL) {
-        wolfSSL_BN_free(localDh->g);
-        localDh->g = NULL;
-    }
-    localDh->p = wolfSSL_BN_bin2bn(p, pSz, NULL);
-    localDh->g = wolfSSL_BN_bin2bn(g, gSz, NULL);
-    if (localDh->p == NULL || localDh->g == NULL) {
-        if (x != NULL && localDh != *x)
-            wolfSSL_DH_free(localDh);
-        localDh = NULL;
-    }
-
-    if (localDh != NULL && localDh->inSet == 0) {
-        if (SetDhInternal(localDh) != 1) {
-            WOLFSSL_MSG("Unable to set internal DH structure");
-            wolfSSL_DH_free(localDh);
-            localDh = NULL;
-        }
-    }
-
-end:
-    if (memAlloced) XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
-    if (der != NULL) FreeDer(&der);
-    XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    return localDh;
-#else
-    (void)bio;
-    (void)x;
-    (void)cb;
-    (void)u;
+    (void)bn;
     return NULL;
 #endif
 }
 
-#ifndef NO_FILESYSTEM
-/* Reads DH parameters from a file pointer into WOLFSSL_DH structure.
+/*
+ * DH to/from bin APIs
+ */
+
+#ifndef NO_CERTS
+
+/* Load the DER encoded DH parameters/key into DH key.
  *
- * fp  file pointer to read DH parameter file from
- * x   output WOLFSSL_DH to be created and populated from fp
- * cb  password callback, to be used to decrypt encrypted DH parameters PEM
- * u   context pointer to user-defined data to be received back in password cb
+ * @param [in, out] dh      DH key to load parameters into.
+ * @param [in]      der     Buffer holding DER encoded parameters data.
+ * @param [in, out] idx     On in, index at which DH key DER data starts.
+ *                          On out, index after DH key DER data.
+ * @param [in]      derSz   Size of DER buffer in bytes.
  *
- * Returns new WOLFSSL_DH structure pointer on success, NULL on failure. */
-WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
-        wc_pem_password_cb *cb, void *u)
+ * @return  0 on success.
+ * @return  1 when decoding DER or setting the external key fails.
+ */
+static int wolfssl_dh_load_key(WOLFSSL_DH* dh, const unsigned char* der,
+    word32* idx, word32 derSz)
 {
-    WOLFSSL_BIO* fbio = NULL;
-    WOLFSSL_DH* dh = NULL;
+    int err = 0;
 
-    if (fp == NULL) {
-        WOLFSSL_MSG("DH parameter file cannot be NULL");
-        return NULL;
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
+    int ret;
+
+    /* Decode DH parameters/key from DER. */
+    ret = wc_DhKeyDecode(der, idx, (DhKey*)dh->internal, derSz);
+    if (ret != 0) {
+        WOLFSSL_ERROR_MSG("DhKeyDecode() failed");
+        err = 1;
+    }
+    if (!err) {
+        /* wolfSSL DH key set. */
+        dh->inSet = 1;
+
+        /* Set the external DH key based on wolfSSL DH key. */
+        if (SetDhExternal(dh) != 1) {
+            WOLFSSL_ERROR_MSG("SetDhExternal failed");
+            err = 1;
+        }
+    }
+#else
+    byte* p;
+    byte* g;
+    word32 pSz = MAX_DH_SIZE;
+    word32 gSz = MAX_DH_SIZE;
+
+    /* Only DH parameters supported. */
+    /* Load external and set internal. */
+    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    if ((p == NULL) || (g == NULL)) {
+        err = 1;
+    }
+    /* Extract the p and g as data from the DER encoded DH parameters. */
+    if ((!err) && (wc_DhParamsLoad(der + *idx, derSz - *idx, p, &pSz, g,
+            &gSz) < 0)) {
+        err = 1;
+    }
+    if (!err) {
+        /* Put p and g in as big numbers - free existing BNs. */
+        if (dh->p != NULL) {
+            wolfSSL_BN_free(dh->p);
+            dh->p = NULL;
+        }
+        if (dh->g != NULL) {
+            wolfSSL_BN_free(dh->g);
+            dh->g = NULL;
+        }
+        dh->p = wolfSSL_BN_bin2bn(p, (int)pSz, NULL);
+        dh->g = wolfSSL_BN_bin2bn(g, (int)gSz, NULL);
+        if (dh->p == NULL || dh->g == NULL) {
+            err = 1;
+        }
+        else {
+            /* External DH key parameters were set. */
+            dh->exSet = 1;
+        }
     }
 
-    fbio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
-    if (fbio == NULL) {
-        WOLFSSL_MSG("Unable to create file BIO to process DH PEM");
-        return NULL;
+    /* Set internal as the outside has been updated. */
+    if ((!err) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Unable to set internal DH structure");
+        err = 1;
     }
 
-    if (wolfSSL_BIO_set_fp(fbio, fp, BIO_NOCLOSE) != 1) {
-        wolfSSL_BIO_free(fbio);
-        WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
-        return NULL;
+    if (!err) {
+        *idx += wolfssl_der_length(der + *idx, derSz - *idx);
     }
 
-    /* wolfSSL_PEM_read_bio_DHparams() sanitizes x, cb, u args */
-    dh = wolfSSL_PEM_read_bio_DHparams(fbio, x, cb, u);
-    wolfSSL_BIO_free(fbio);
-    return dh;
+    XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+#endif
+
+    return err;
 }
-#endif /* !NO_FILESYSTEM */
+
+#ifdef OPENSSL_ALL
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
+/* Convert DER encoded DH parameters to a WOLFSSL_DH structure.
+ *
+ * @param [out]     dh      DH key to put parameters into. May be NULL.
+ * @param [in, out] pp      Pointer to DER encoded DH parameters.
+ *                          Value updated to end of data when dh is not NULL.
+ * @param [in]      length  Length of data available in bytes.
+ *
+ * @return  DH key on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH** dh, const unsigned char** pp,
+    long length)
+{
+    WOLFSSL_DH *newDh = NULL;
+    word32 idx = 0;
+    int err = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
+
+    /* Validate parameters. */
+    if ((pp == NULL) || (length <= 0)) {
+        WOLFSSL_ERROR_MSG("bad argument");
+        err = 1;
+    }
+
+    /* Create new DH key to return. */
+    if ((!err) && ((newDh = wolfSSL_DH_new()) == NULL)) {
+        WOLFSSL_ERROR_MSG("wolfSSL_DH_new() failed");
+        err = 1;
+    }
+    if ((!err) && (wolfssl_dh_load_key(newDh, *pp, &idx,
+            (word32)length) != 0)) {
+        WOLFSSL_ERROR_MSG("Loading DH parameters failed");
+        err = 1;
+    }
+
+    if ((!err) && (dh != NULL)) {
+        /* Return through parameter too. */
+        *dh = newDh;
+        /* Move buffer on by the used amount. */
+        *pp += idx;
+    }
+
+    if (err && (newDh != NULL)) {
+        /* Dispose of any created DH key. */
+        wolfSSL_DH_free(newDh);
+        newDh = NULL;
+    }
+    return newDh;
+}
+#endif /* !HAVE_FIPS || FIPS_VERSION_GT(2,0) */
+
+/* Calculate the number of bytes require to represent a length value in ASN.
+ *
+ * @param [in] l  Length value to use.
+ * @return  Number of bytes required to represent length value.
+ */
+#define ASN_LEN_SIZE(l)             \
+    (((l) < 128) ? 1 : (((l) < 256) ? 2 : 3))
+
+/* Converts internal WOLFSSL_DH structure to DER encoded DH parameters.
+ *
+ * @params [in]      dh   DH key with parameters to encode.
+ * @params [in, out] out  Pointer to buffer to encode into.
+ *                        When NULL or pointer to NULL, only length returned.
+ * @return  0 on error.
+ * @return  Size of DER encoding in bytes on success.
+ */
+int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
+{
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(5,0)) && defined(WOLFSSL_DH_EXTRA)
+    /* Set length to an arbitrarily large value for wc_DhParamsToDer(). */
+    word32 len = (word32)-1;
+    int err = 0;
+
+    /* Validate parameters. */
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Bad parameters");
+        err = 1;
+    }
+
+    /* Push external DH data into internal DH key if not set. */
+    if ((!err) && (!dh->inSet) && (SetDhInternal((WOLFSSL_DH*)dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Bad DH set internal");
+        err = 1;
+    }
+    if (!err) {
+        int ret;
+        unsigned char* der = NULL;
+
+        /* Use *out when available otherwise NULL. */
+        if (out != NULL) {
+            der = *out;
+        }
+        /* Get length and/or encode. */
+        ret = wc_DhParamsToDer((DhKey*)dh->internal, der, &len);
+        /* Length of encoded data is returned on success. */
+        if (ret > 0) {
+            *out += len;
+        }
+        /* An error occurred unless only length returned. */
+        else if (ret != LENGTH_ONLY_E) {
+            err = 1;
+        }
+    }
+
+    /* Set return to 0 on error. */
+    if (err) {
+        len = 0;
+    }
+    return (int)len;
+#else
+    word32 len;
+    int ret = 0;
+    int pSz;
+    int gSz;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
+
+    /* Validate parameters. */
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Bad parameters");
+        len = 0;
+    }
+    else {
+        /* SEQ <len>
+         *   INT <len> [0x00] <prime>
+         *   INT <len> [0x00] <generator>
+         * Integers have 0x00 prepended if the top bit of positive number is
+         * set.
+         */
+        /* Get total length of prime including any prepended zeros. */
+        pSz = mp_unsigned_bin_size((mp_int*)dh->p->internal) +
+              mp_leading_bit((mp_int*)dh->p->internal);
+        /* Get total length of generator including any prepended zeros. */
+        gSz = mp_unsigned_bin_size((mp_int*)dh->g->internal) +
+              mp_leading_bit((mp_int*)dh->g->internal);
+        /* Calculate length of data in sequence. */
+        len = 1 + ASN_LEN_SIZE(pSz) + pSz +
+              1 + ASN_LEN_SIZE(gSz) + gSz;
+        /* Add in the length of the SEQUENCE. */
+        len += 1 + ASN_LEN_SIZE(len);
+
+        if ((out != NULL) && (*out != NULL)) {
+            /* Encode parameters. */
+            ret = StoreDHparams(*out, &len, (mp_int*)dh->p->internal,
+                (mp_int*)dh->g->internal);
+            if (ret != MP_OKAY) {
+                WOLFSSL_ERROR_MSG("StoreDHparams error");
+                len = 0;
+            }
+            else {
+                /* Move pointer on if encoded. */
+                *out += len;
+            }
+        }
+    }
+
+    return (int)len;
+#endif
+}
+
+#endif /* OPENSSL_ALL */
+
+#endif /* !NO_CERTS */
+
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) ||  \
+ ((!defined(NO_BIO) || !defined(NO_FILESYSTEM)) && \
+  defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) || \
+  defined(WOLFSSL_MYSQL_COMPATIBLE))
+
+/* Load the DER encoded DH parameters into DH key.
+ *
+ * @param [in, out] dh      DH key to load parameters into.
+ * @param [in]      derBuf  Buffer holding DER encoded parameters data.
+ * @param [in]      derSz   Size of DER data in buffer in bytes.
+ *
+ * @return  1 on success.
+ * @return  -1 when DH or derBuf is NULL,
+ *                  internal DH key in DH is NULL,
+ *                  derSz is 0 or less,
+ *                  error decoding DER data or
+ *                  setting external parameter values fails.
+ */
+int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
+{
+    int    ret = 1;
+    word32 idx = 0;
+
+    /* Validate parameters. */
+    if ((dh == NULL) || (dh->internal == NULL) || (derBuf == NULL) ||
+            (derSz <= 0)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = -1;
+    }
+
+    if ((ret == 1) && (wolfssl_dh_load_key(dh, derBuf, &idx,
+            (word32)derSz) != 0)) {
+        WOLFSSL_ERROR_MSG("DH key decode failed");
+        ret = -1;
+    }
+
+    return ret;
+}
+
+#endif
+
+/*
+ * DH PEM APIs
+ */
+
+#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
+
+#if !defined(NO_BIO) || !defined(NO_FILESYSTEM)
+/* Create a DH key by reading the PEM encoded data from the BIO.
+ *
+ * @param [in]      bio         BIO object to read from.
+ * @param [in, out] dh          DH key to use. May be NULL.
+ * @param [in]      pem         PEM data to decode.
+ * @param [in]      pemSz       Size of PEM data in bytes.
+ * @param [in]      memAlloced  Indicates that pem was allocated and is to be
+ *                              freed after use.
+ * @return  DH key on success.
+ * @return  NULL on failure.
+ */
+static WOLFSSL_DH *wolfssl_dhparams_read_pem(WOLFSSL_DH **dh,
+    unsigned char* pem, int pemSz, int memAlloced)
+{
+    WOLFSSL_DH* localDh = NULL;
+    DerBuffer *der = NULL;
+    int err = 0;
+
+    /* Convert PEM to DER assuming DH Parameter format. */
+    if ((!err) && (PemToDer(pem, pemSz, DH_PARAM_TYPE, &der, NULL, NULL,
+            NULL) < 0)) {
+        /* Convert PEM to DER assuming X9.42 DH Parameter format. */
+        if (PemToDer(pem, pemSz, X942_PARAM_TYPE, &der, NULL, NULL, NULL)
+                != 0) {
+            err = 1;
+        }
+    }
+    if (memAlloced) {
+        /* PEM data no longer needed.  */
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+    }
+
+    if (!err) {
+        /* Use the DH key passed in or allocate a new one. */
+        if (dh != NULL) {
+            localDh = *dh;
+        }
+        if (localDh == NULL) {
+            localDh = wolfSSL_DH_new();
+            if (localDh == NULL) {
+                err = 1;
+            }
+        }
+    }
+    /* Load the DER encoded DH parameters from buffer into a DH key. */
+    if ((!err) && (wolfSSL_DH_LoadDer(localDh, der->buffer, der->length)
+            != 1)) {
+        /* Free an allocated DH key. */
+        if ((dh == NULL) || (localDh != *dh)) {
+            wolfSSL_DH_free(localDh);
+        }
+        localDh = NULL;
+        err = 1;
+    }
+    /* Return the DH key on success. */
+    if ((!err) && (dh != NULL)) {
+        *dh = localDh;
+    }
+
+    /* Dispose of DER data. */
+    if (der != NULL) {
+        FreeDer(&der);
+    }
+    return localDh;
+}
+#endif /* !NO_BIO || !NO_FILESYSTEM */
+
+#ifndef NO_BIO
+/* Create a DH key by reading the PEM encoded data from the BIO.
+ *
+ * DH parameters are public data and are not expected to be encrypted.
+ *
+ * @param [in]      bio   BIO object to read from.
+ * @param [in, out] dh    DH key to   When pointer to
+ *                        NULL, a new DH key is created.
+ * @param [in]      cb    Password callback when PEM encrypted. Not used.
+ * @param [in]      pass  NUL terminated string for passphrase when PEM
+ *                        encrypted. Not used.
+ * @return  DH key on success.
+ * @return  NULL on failure.
+ */
+WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **dh,
+    wc_pem_password_cb *cb, void *pass)
+{
+    WOLFSSL_DH* localDh = NULL;
+    int err = 0;
+    unsigned char* mem = NULL;
+    int size = 0;
+    int memAlloced = 0;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DHparams");
+
+    (void)cb;
+    (void)pass;
+
+    /* Validate parameters. */
+    if (bio == NULL) {
+        WOLFSSL_ERROR_MSG("Bad Function Argument bio is NULL");
+        err = 1;
+    }
+
+    /* Get buffer of data from BIO or read data from the BIO into a new buffer.
+     */
+    if ((!err) && (wolfssl_read_bio(bio, (char**)&mem, &size, &memAlloced)
+            != 0)) {
+        err = 1;
+    }
+    if (!err) {
+        /* Create a DH key from the PEM - try two different headers. */
+        localDh = wolfssl_dhparams_read_pem(dh, mem, size, memAlloced);
+    }
+
+    return localDh;
+}
 
 #endif /* !NO_BIO */
 
+#ifndef NO_FILESYSTEM
+/* Read DH parameters from a file pointer into DH key.
+ *
+ * DH parameters are public data and are not expected to be encrypted.
+ *
+ * @param [in]      fp    File pointer to read DH parameter file from.
+ * @param [in, out] dh    DH key with parameters if not NULL. When pointer to
+ *                        NULL, a new DH key is created.
+ * @param [in]      cb    Password callback when PEM encrypted. Not used.
+ * @param [in]      pass  NUL terminated string for passphrase when PEM
+ *                        encrypted. Not used.
+ *
+ * @return  NULL on failure.
+ * @return  DH key with parameters set on success.
+ */
+WOLFSSL_DH* wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH** dh,
+    wc_pem_password_cb* cb, void* pass)
+{
+    WOLFSSL_DH* localDh = NULL;
+    int err = 0;
+    unsigned char* mem = NULL;
+    int size = 0;
+
+    (void)cb;
+    (void)pass;
+
+    /* Read data from file pointer. */
+    if (wolfssl_read_file(fp, (char**)&mem, &size) != 0) {
+        err = 1;
+    }
+    if (!err) {
+        localDh = wolfssl_dhparams_read_pem(dh, mem, size, 1);
+    }
+
+    return localDh;
+}
+#endif /* !NO_FILESYSTEM */
+
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+/* Encoded parameter data in DH key as DER.
+ *
+ * @param [in, out] dh    DH key object to encode.
+ * @param [out]     out   Buffer containing DER encoding.
+ * @param [in]      heap  Heap hint.
+ * @return  <0 on error.
+ * @return  Length of DER encoded DH parameters in bytes.
+ */
+static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
+    void* heap)
+{
+    int ret = -1;
+    int err = 0;
+    byte* der = NULL;
+    word32 derSz;
+    DhKey* key;
+
+    /* Set internal parameters based on external parameters. */
+    if ((dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Unable to set internal DH structure");
+        err = 1;
+    }
+    if (!err) {
+        /* Use wolfSSL API to get length of DER encode DH parameters. */
+        key = (DhKey*)dh->internal;
+        ret = wc_DhParamsToDer(key, NULL, &derSz);
+        if (ret != LENGTH_ONLY_E) {
+            WOLFSSL_ERROR_MSG("Failed to get size of DH params");
+            err = 1;
+        }
+    }
+
+    if (!err) {
+        /* Allocate memory for DER encoding. */
+        der = (byte*)XMALLOC(derSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (der == NULL) {
+            WOLFSSL_LEAVE("wolfssl_dhparams_to_der", MEMORY_E);
+            err = 1;
+        }
+    }
+    if (!err) {
+        /* Encode DH parameters into DER buffer. */
+        ret = wc_DhParamsToDer(key, der, &derSz);
+        if (ret < 0) {
+            WOLFSSL_ERROR_MSG("Failed to export DH params");
+            err = 1;
+        }
+    }
+
+    if (!err) {
+        *out = der;
+        der = NULL;
+    }
+    if (der != NULL) {
+        XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+
 /* Writes the DH parameters in PEM format from "dh" out to the file pointer
  * passed in.
  *
- * returns 1 on success
+ * @param [in]  fp  File pointer to write to.
+ * @param [in]  dh  DH key to write.
+ * @return  1 on success.
+ * @return  0 on failure.
  */
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
 {
-    int ret;
-    word32 derSz = 0, pemSz = 0;
-    byte *der, *pem;
-    DhKey* key;
+    int ret = 1;
+    int derSz;
+    byte* derBuf = NULL;
+    void* heap = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_DHparams");
 
-    if (dh == NULL) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", BAD_FUNC_ARG);
-        return 0;
+    /* Validate parameters. */
+    if ((fp == XBADFILE) || (dh == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad Function Arguments");
+        ret = 0;
     }
 
-    if (dh->inSet == 0) {
-        if (SetDhInternal(dh) != 1) {
-            WOLFSSL_MSG("Unable to set internal DH structure");
-            return 0;
+    if (ret == 1) {
+        DhKey* key = (DhKey*)dh->internal;
+        if (key)
+            heap = key->heap;
+        if ((derSz = wolfssl_dhparams_to_der(dh, &derBuf, heap)) < 0) {
+            WOLFSSL_ERROR_MSG("DER encoding failed");
+            ret = 0;
+        }
+        if (derBuf == NULL) {
+            WOLFSSL_ERROR_MSG("DER encoding failed to get buffer");
+            ret = 0;
         }
     }
-    key = (DhKey*)dh->internal;
-    ret = wc_DhParamsToDer(key, NULL, &derSz);
-    if (ret != LENGTH_ONLY_E) {
-        WOLFSSL_MSG("Failed to get size of DH params");
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
-        return 0;
+    if ((ret == 1) && (der_write_to_file_as_pem(derBuf, derSz, fp,
+            DH_PARAM_TYPE, NULL) != WOLFSSL_SUCCESS)) {
+        ret = 0;
     }
 
-    der = (byte*)XMALLOC(derSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (der == NULL) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
-        return 0;
-    }
-    ret = wc_DhParamsToDer(key, der, &derSz);
-    if (ret <= 0) {
-        WOLFSSL_MSG("Failed to export DH params");
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
-        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return 0;
-    }
+    /* Dispose of DER buffer. */
+    XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* convert to PEM */
-    ret = wc_DerToPem(der, derSz, NULL, 0, DH_PARAM_TYPE);
-    if (ret < 0) {
-        WOLFSSL_MSG("Failed to convert DH params to PEM");
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
-        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
-    pemSz = (word32)ret;
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
 
-    pem = (byte*)XMALLOC(pemSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pem == NULL) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
-        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
-    ret = wc_DerToPem(der, derSz, pem, pemSz, DH_PARAM_TYPE);
-    XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ret < 0) {
-        WOLFSSL_MSG("Failed to convert DH params to PEM");
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
-        XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
-
-    ret = (int)XFWRITE(pem, 1, pemSz, fp);
-    XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ret <= 0) {
-        WOLFSSL_MSG("Failed to write to file");
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
-        return 0;
-    }
-    WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", 1);
-    return 1;
+    return ret;
 }
 #endif /* WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
 
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE ||
         * OPENSSL_EXTRA */
+
+/*
+ * DH get/set APIs
+ */
+
+#ifdef OPENSSL_EXTRA
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) \
+    || defined(WOLFSSL_OPENSSH) || defined(OPENSSL_EXTRA)
+
+/* Set the members of DhKey into WOLFSSL_DH
+ * Specify elements to set via the 2nd parameter
+ *
+ * @param [in, out] dh   DH key to synchronize.
+ * @param [in]      elm  Elements to synchronize.
+ * @return  1 on success.
+ * @return  -1 on failure.
+ */
+int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
+{
+    int ret = 1;
+    DhKey *key = NULL;
+
+    WOLFSSL_ENTER("SetDhExternal_ex");
+
+    /* Validate parameters. */
+    if ((dh == NULL) || (dh->internal == NULL)) {
+        WOLFSSL_ERROR_MSG("dh key NULL error");
+        ret = -1;
+    }
+
+    if (ret == 1) {
+        /* Get the wolfSSL DH key. */
+        key = (DhKey*)dh->internal;
+    }
+
+    if ((ret == 1) && (elm & ELEMENT_P)) {
+        /* Set the prime. */
+        if (SetIndividualExternal(&dh->p, &key->p) != 1) {
+            WOLFSSL_ERROR_MSG("dh param p error");
+            ret = -1;
+        }
+    }
+    if ((ret == 1) && (elm & ELEMENT_G)) {
+        /* Set the generator. */
+        if (SetIndividualExternal(&dh->g, &key->g) != 1) {
+            WOLFSSL_ERROR_MSG("dh param g error");
+            ret = -1;
+        }
+    }
+    if ((ret == 1) && (elm & ELEMENT_Q)) {
+        /* Set the order. */
+        if (SetIndividualExternal(&dh->q, &key->q) != 1) {
+            WOLFSSL_ERROR_MSG("dh param q error");
+            ret = -1;
+        }
+    }
+#ifdef WOLFSSL_DH_EXTRA
+    if ((ret == 1) && (elm & ELEMENT_PRV)) {
+        /* Set the private key. */
+        if (SetIndividualExternal(&dh->priv_key, &key->priv) != 1) {
+            WOLFSSL_ERROR_MSG("No DH Private Key");
+            ret = -1;
+        }
+    }
+    if ((ret == 1) && (elm & ELEMENT_PUB)) {
+        /* Set the public key. */
+        if (SetIndividualExternal(&dh->pub_key, &key->pub) != 1) {
+            WOLFSSL_ERROR_MSG("No DH Public Key");
+            ret = -1;
+        }
+    }
+#endif /* WOLFSSL_DH_EXTRA */
+
+    if (ret == 1) {
+        /* On success record that the external values have been set. */
+        dh->exSet = 1;
+    }
+
+    return ret;
+}
+/* Set the members of DhKey into WOLFSSL_DH
+ * DhKey was populated from wc_DhKeyDecode
+ * p, g, pub_key and priv_key are set.
+ *
+ * @param [in, out] dh   DH key to synchronize.
+ * @return  1 on success.
+ * @return  -1 on failure.
+ */
+int SetDhExternal(WOLFSSL_DH *dh)
+{
+    /* Assuming Q not required when using this API. */
+    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
+    WOLFSSL_ENTER("SetDhExternal");
+    return SetDhExternal_ex(dh, elements);
+}
+#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_OPENSSH || OPENSSL_EXTRA */
+
+/* Set the internal/wolfSSL DH key with data from the external parts.
+ *
+ * @param [in, out] dh   DH key to synchronize.
+ * @return  1 on success.
+ * @return  -1 on failure.
+ */
+int SetDhInternal(WOLFSSL_DH* dh)
+{
+    int ret = 1;
+    DhKey *key = NULL;
+
+    WOLFSSL_ENTER("SetDhInternal");
+
+    /* Validate parameters. */
+    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = -1;
+    }
+    if (ret == 1) {
+        /* Get the wolfSSL DH key. */
+        key = (DhKey*)dh->internal;
+
+        /* Clear out key and initialize. */
+        wc_FreeDhKey(key);
+        if (wc_InitDhKey(key) != 0) {
+            ret = -1;
+        }
+    }
+    if (ret == 1) {
+        /* Transfer prime. */
+        if (SetIndividualInternal(dh->p, &key->p) != 1) {
+            ret = -1;
+        }
+    }
+    if (ret == 1) {
+        /* Transfer generator. */
+        if (SetIndividualInternal(dh->g, &key->g) != 1) {
+            ret = -1;
+        }
+    }
+#ifdef HAVE_FFDHE_Q
+    /* Transfer order if available. */
+    if ((ret == 1) && (dh->q != NULL)) {
+        if (SetIndividualInternal(dh->q, &key->q) != 1) {
+            ret = -1;
+        }
+    }
+#endif
+#ifdef WOLFSSL_DH_EXTRA
+    /* Transfer private key if available. */
+    if ((ret == 1) && (dh->priv_key != NULL) &&
+            (!wolfSSL_BN_is_zero(dh->priv_key))) {
+        if (SetIndividualInternal(dh->priv_key, &key->priv) != 1) {
+            ret = -1;
+        }
+    }
+    /* Transfer public key if available. */
+    if ((ret == 1) && (dh->pub_key != NULL) &&
+            (!wolfSSL_BN_is_zero(dh->pub_key))) {
+        if (SetIndividualInternal(dh->pub_key, &key->pub) != 1) {
+            ret = -1;
+        }
+    }
+#endif /* WOLFSSL_DH_EXTRA */
+
+    if (ret == 1) {
+        /* On success record that the internal values have been set. */
+        dh->inSet = 1;
+    }
+
+    return ret;
+}
+
+/* Get the size, in bytes, of the DH key.
+ *
+ * Return code compliant with OpenSSL.
+ *
+ * @param [in] dh  DH key.
+ * @return  -1 on error.
+ * @return  Size of DH key in bytes on success.
+ */
+int wolfSSL_DH_size(WOLFSSL_DH* dh)
+{
+    int ret = -1;
+
+    WOLFSSL_ENTER("wolfSSL_DH_size");
+
+    /* Validate paramater. */
+    if (dh != NULL) {
+        /* Size of key is size of prime in bytes. */
+        ret = wolfSSL_BN_num_bytes(dh->p);
+    }
+
+    return ret;
+}
+
+/**
+ * Return parameters p, q and/or g of the DH key.
+ *
+ * @param [in]  dh  DH key to retrieve parameters from.
+ * @param [out] p   Pointer to return prime in. May be NULL.
+ * @param [out] q   Pointer to return order in. May be NULL.
+ * @param [out] g   Pointer to return generator in. May be NULL.
+ */
+void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
+    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
+
+    if (dh != NULL) {
+        /* Return prime if required. */
+        if (p != NULL) {
+            *p = dh->p;
+        }
+        /* Return order if required. */
+        if (q != NULL) {
+            *q = dh->q;
+        }
+        /* Return generator if required. */
+        if (g != NULL) {
+            *g = dh->g;
+        }
+    }
+}
+
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && !defined(WOLFSSL_DH_EXTRA)) \
+ || (defined(HAVE_FIPS_VERSION) && FIPS_VERSION_GT(2,0))
+#if defined(OPENSSL_ALL) || \
+    defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+/* Sets the parameters p, g and optionally q into the DH key.
+ *
+ * Ownership of p, q and g get taken over by "dh" on success and should be
+ * free'd with a call to wolfSSL_DH_free -- not individually.
+ *
+ * @param [in, out] dh   DH key to set.
+ * @parma [in]      p    Prime value to set. May be NULL when value already
+ *                       present.
+ * @parma [in]      q    Order value to set. May be NULL.
+ * @parma [in]      g    Generator value to set. May be NULL when value already
+ *                       present.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
+    WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
+{
+    int ret = 1;
+
+    WOLFSSL_ENTER("wolfSSL_DH_set0_pqg");
+
+    /* Validate parameters - q is optional. */
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+    /* p can be NULL if we already have one set. */
+    if ((ret == 1) && (p == NULL) && (dh->p == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+    /* g can be NULL if we already have one set. */
+    if ((ret == 1) && (g == NULL) && (dh->g == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        /* Invalidate internal key. */
+        dh->inSet = 0;
+
+        /* Free external representation of parameters and set with those passed
+         * in. */
+        if (p != NULL) {
+            wolfSSL_BN_free(dh->p);
+            dh->p = p;
+        }
+        if (q != NULL) {
+            wolfSSL_BN_free(dh->q);
+            dh->q = q;
+        }
+        if (g != NULL) {
+            wolfSSL_BN_free(dh->g);
+            dh->g = g;
+        }
+        /* External DH key parameters were set. */
+        dh->exSet = 1;
+
+        /* Set internal/wolfSSL DH key as well. */
+        if (SetDhInternal(dh) != 1) {
+            WOLFSSL_ERROR_MSG("Unable to set internal DH key");
+            /* Don't keep parameters on failure. */
+            dh->p = NULL;
+            dh->q = NULL;
+            dh->g = NULL;
+            /* Internal and external DH key not set. */
+            dh->inSet = 0;
+            dh->exSet = 0;
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+
+/* Set the length of the DH private key in bits.
+ *
+ * Length field is checked at generation.
+ *
+ * @param [in, out] dh   DH key to set.
+ * @param [in]      len  Length of DH private key in bytes.
+ * @return  0 on failure.
+ * @return  1 on success.
+ */
+int wolfSSL_DH_set_length(WOLFSSL_DH *dh, long len)
+{
+    int ret = 1;
+
+    WOLFSSL_ENTER("wolfSSL_DH_set_length");
+
+    /* Validate parameter. */
+    if (dh == NULL) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+    else {
+        /* Store length. */
+        dh->length = (int)len;
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_ALL || (v1.1.0 or later) */
+#endif
+
+/* Get the public and private keys requested.
+ *
+ * @param [in]  dh         DH key to get keys from.
+ * @param [out] pub_key    Pointer to return public key in. May be NULL.
+ * @param [out] priv_key   Pointer to return private key in. May be NULL.
+ */
+void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **pub_key,
+    const WOLFSSL_BIGNUM **priv_key)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_key");
+
+    /* Get only when valid DH passed in. */
+    if (dh != NULL) {
+        /* Return public key if required and available. */
+        if ((pub_key != NULL) && (dh->pub_key != NULL)) {
+            *pub_key = dh->pub_key;
+        }
+        /* Return private key if required and available. */
+        if ((priv_key != NULL) && (dh->priv_key != NULL)) {
+            *priv_key = dh->priv_key;
+        }
+    }
+}
+
+/* Set the public and/or private key.
+ *
+ * @param [in, out] dh        DH key to have keys set into.
+ * @param [in]      pub_key   Public key to set. May be NULL.
+ * @param [in]      priv_key  Private key to set. May be NULL.
+ * @return  0 on failure.
+ * @return  1 on success.
+ */
+int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
+    WOLFSSL_BIGNUM *priv_key)
+{
+    int ret = 1;
+#ifdef WOLFSSL_DH_EXTRA
+    DhKey *key = NULL;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_DH_set0_key");
+
+    /* Validate parameters. */
+    if (dh == NULL) {
+        ret = 0;
+    }
+#ifdef WOLFSSL_DH_EXTRA
+    else {
+        key = (DhKey*)dh->internal;
+    }
+#endif
+
+    /* Replace public key when one passed in. */
+    if ((ret == 1) && (pub_key != NULL)) {
+        wolfSSL_BN_free(dh->pub_key);
+        dh->pub_key = pub_key;
+    #ifdef WOLFSSL_DH_EXTRA
+        if (SetIndividualInternal(dh->pub_key, &key->pub) != 1) {
+            ret = 0;
+        }
+    #endif
+    }
+
+    /* Replace private key when one passed in. */
+    if ((ret == 1) && (priv_key != NULL)) {
+        wolfSSL_BN_clear_free(dh->priv_key);
+        dh->priv_key = priv_key;
+    #ifdef WOLFSSL_DH_EXTRA
+        if (SetIndividualInternal(dh->priv_key, &key->priv) != 1) {
+            ret = 0;
+        }
+    #endif
+    }
+
+    return ret;
+}
+
+#endif /* OPENSSL_EXTRA */
+
+/*
+ * DH check APIs
+ */
+
+#ifdef OPENSSL_EXTRA
+
+#ifndef NO_CERTS
+
+#ifdef OPENSSL_ALL
+/* Check whether BN number is a prime.
+ *
+ * @param [in]  n        Number to check.
+ * @param [out] isPrime  MP_YES when prime and MP_NO when not.
+ * @return  1 on success.
+ * @return  0 on error.
+ */
+static int wolfssl_dh_check_prime(WOLFSSL_BIGNUM* n, int* isPrime)
+{
+    int ret = 1;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRng = NULL;
+#else
+    WC_RNG  tmpRng[1];
+#endif
+    WC_RNG* rng;
+    int localRng;
+
+    /* Make an RNG with tmpRng or get global. */
+    rng = wolfssl_make_rng(tmpRng, &localRng);
+    if (rng == NULL) {
+        ret = 0;
+    }
+    if (ret == 1) {
+        mp_int* prime = (mp_int*)n->internal;
+
+        if (mp_prime_is_prime_ex(prime, 8, isPrime, rng) != 0) {
+            ret = 0;
+        }
+        /* Free local random number generator if created. */
+        if (localRng) {
+            wc_FreeRng(rng);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        }
+    }
+
+    return ret;
+}
+
+/* Checks the Diffie-Hellman parameters.
+ *
+ * Checks that the generator and prime are available.
+ * Checks that the prime is prime.
+ * OpenSSL expects codes to be non-NULL.
+ *
+ * @param [in]  dh     DH key to check.
+ * @param [out] codes  Codes of checks that failed.
+ * @return  1 on success.
+ * @return  0 when DH is NULL, there were errors or failed to create a random
+ *          number generator.
+ */
+int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
+{
+    int ret = 1;
+    int errors = 0;
+
+    WOLFSSL_ENTER("wolfSSL_DH_check");
+
+    /* Validate parameters. */
+    if (dh == NULL) {
+        ret = 0;
+    }
+
+    /* Check generator available. */
+    if ((ret == 1) && ((dh->g == NULL) || (dh->g->internal == NULL))) {
+        errors |= DH_NOT_SUITABLE_GENERATOR;
+    }
+
+    if (ret == 1) {
+        /* Check prime available. */
+        if ((dh->p == NULL) || (dh->p->internal == NULL)) {
+            errors |= DH_CHECK_P_NOT_PRIME;
+        }
+        else {
+            /* Test if dh->p is prime. */
+            int isPrime = MP_NO;
+            ret = wolfssl_dh_check_prime(dh->p, &isPrime);
+            /* Set error code if parameter p is not prime. */
+            if ((ret == 1) && (isPrime != MP_YES)) {
+                errors |= DH_CHECK_P_NOT_PRIME;
+            }
+        }
+    }
+
+    /* Return errors when user wants exact issues. */
+    if (codes != NULL) {
+        *codes = errors;
+    }
+    else if (errors) {
+        ret = 0;
+    }
+
+    return ret;
+}
+
+#endif /* OPENSSL_ALL */
+
+#endif /* !NO_CERTS */
+
+#endif /* OPENSSL_EXTRA */
+
+/*
+ * DH generate APIs
+ */
 
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
     (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
@@ -7677,75 +8225,124 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST)
+/* Generate DH parameters.
+ *
+ * @param [in] prime_len  Length of prime in bits.
+ * @param [in] generator  Gnerator value to use.
+ * @param [in] callback   Called with progress information. Unused.
+ * @param [in] cb_arg     User callback argument. Unused.
+ * @return  NULL on failure.
+ * @return  DH key on success.
+ */
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
-    WOLFSSL_DH* dh;
+    WOLFSSL_DH* dh = NULL;
 
     WOLFSSL_ENTER("wolfSSL_DH_generate_parameters");
+    /* Not supported by wolfSSl APIs. */
     (void)callback;
     (void)cb_arg;
 
+    /* Create an empty DH key. */
     if ((dh = wolfSSL_DH_new()) == NULL) {
-        WOLFSSL_MSG("wolfSSL_DH_new error");
-        return NULL;
+        WOLFSSL_ERROR_MSG("wolfSSL_DH_new error");
     }
-
-    if (wolfSSL_DH_generate_parameters_ex(dh, prime_len, generator, NULL)
+    /* Generate parameters into DH key. */
+    else if (wolfSSL_DH_generate_parameters_ex(dh, prime_len, generator, NULL)
             != 1) {
-        WOLFSSL_MSG("wolfSSL_DH_generate_parameters_ex error");
+        WOLFSSL_ERROR_MSG("wolfSSL_DH_generate_parameters_ex error");
         wolfSSL_DH_free(dh);
-        return NULL;
+        dh = NULL;
     }
 
     return dh;
 }
 
+/* Generate DH parameters.
+ *
+ * @param [in] dh         DH key to generate parameters into.
+ * @param [in] prime_len  Length of prime in bits.
+ * @param [in] generator  Gnerator value to use.
+ * @param [in] callback   Called with progress information. Unused.
+ * @param [in] cb_arg     User callback argument. Unused.
+ * @return  0 on failure.
+ * @return  1 on success.
+ */
 int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
     int generator, void (*callback) (int, int, void *))
 {
+    int ret = 1;
     DhKey* key;
-    WC_RNG* rng;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRng = NULL;
+#else
+    WC_RNG  tmpRng[1];
+#endif
+    WC_RNG* rng = NULL;
+    int localRng = 0;
 
     WOLFSSL_ENTER("wolfSSL_DH_generate_parameters_ex");
+    /* Not supported by wolfSSL APIs. */
     (void)callback;
     (void)generator;
 
+    /* Validate parameters. */
     if (dh == NULL) {
-        WOLFSSL_MSG("Bad parameter");
-        return 0;
+        WOLFSSL_ERROR_MSG("Bad parameter");
+        ret = 0;
     }
 
-    if ((rng = wolfssl_get_global_rng()) == NULL) {
-        if (wolfSSL_RAND_Init() != 1) {
-            WOLFSSL_MSG("No RNG to use");
-            return 0;
+    if (ret == 1) {
+        /* Make an RNG with tmpRng or get global. */
+        rng = wolfssl_make_rng(tmpRng, &localRng);
+        if (rng == NULL) {
+            WOLFSSL_ERROR_MSG("No RNG to use");
+            ret = 0;
         }
-        rng = wolfssl_get_global_rng();
     }
 
-    /* Don't need SetDhInternal call since we are generating
-     * parameters ourselves */
+    if (ret == 1) {
+        /* Get internal/wolfSSL DH key. */
+        key = (DhKey*)dh->internal;
 
-    key = (DhKey*)dh->internal;
-
-    /* Free so that mp_init's don't leak */
-    wc_FreeDhKey(key);
-
-    if (wc_DhGenerateParams(rng, prime_len, key) != 0) {
-        WOLFSSL_MSG("wc_DhGenerateParams error");
-        return 0;
+        /* Clear out data from internal DH key. */
+        wc_FreeDhKey(key);
+        /* Re-initialize internal DH key. */
+        if (wc_InitDhKey(key) != 0) {
+            ret = 0;
+        }
     }
-    dh->inSet = 1;
-
-    WOLFSSL_MSG("wolfSSL does not support using a custom generator.");
-
-    if (SetDhExternal(dh) != 1) {
-        WOLFSSL_MSG("SetDhExternal error");
-        return 0;
+    if (ret == 1) {
+        /* Generate parameters into internal DH key. */
+        if (wc_DhGenerateParams(rng, prime_len, key) != 0) {
+            WOLFSSL_ERROR_MSG("wc_DhGenerateParams error");
+            ret = 0;
+        }
     }
 
-    return 1;
+    /* Free local random number generator if created. */
+    if (localRng) {
+        wc_FreeRng(rng);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    }
+
+    if (ret == 1) {
+        /* Internal parameters set by generation. */
+        dh->inSet = 1;
+
+        WOLFSSL_MSG("wolfSSL does not support using a custom generator.");
+
+        /* Synchronize the external to the internal parameters. */
+        if (SetDhExternal(dh) != 1) {
+            WOLFSSL_ERROR_MSG("SetDhExternal error");
+            ret = 0;
+        }
+    }
+
+    return ret;
 }
 #endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
 
@@ -7755,27 +8352,256 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
 
 #ifdef OPENSSL_EXTRA
 
-/**
- * Return DH p, q and g parameters
- * @param dh a pointer to WOLFSSL_DH
- * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param g  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && !defined(WOLFSSL_DH_EXTRA)) \
+ || (defined(HAVE_FIPS_VERSION) && FIPS_VERSION_GT(2,0))
+/* Generate a public/private key pair base on parameters.
+ *
+ * @param [in, out] dh  DH key to generate keys into.
+ * @return  1 on success.
+ * @return  0 on error.
  */
-void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
-                    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
+int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 {
-    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
-    if (dh == NULL)
-        return;
+    int     ret    = 1;
+    word32  pubSz  = 0;
+    word32  privSz = 0;
+    int     localRng = 0;
+    WC_RNG* rng    = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRng = NULL;
+#else
+    WC_RNG  tmpRng[1];
+#endif
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
 
-    if (p != NULL)
-        *p = dh->p;
-    if (q != NULL)
-        *q = dh->q;
-    if (g != NULL)
-        *g = dh->g;
+    WOLFSSL_ENTER("wolfSSL_DH_generate_key");
+
+    /* Validate parameters. */
+    if ((dh == NULL) || (dh->p == NULL) || (dh->g == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = 0;
+    }
+
+    /* Synchronize the external and internal parameters. */
+    if ((ret == 1) && (dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
+        WOLFSSL_ERROR_MSG("Bad DH set internal");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        /* Make a new RNG or use global. */
+        rng = wolfssl_make_rng(tmpRng, &localRng);
+        /* Check we have a random number generator. */
+        if (rng == NULL) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 1) {
+        /* Get the size of the prime in bytes. */
+        pubSz = wolfSSL_BN_num_bytes(dh->p);
+        if (pubSz == 0) {
+            WOLFSSL_ERROR_MSG("Prime parameter invalid");
+            ret = 0;
+        }
+    }
+    if (ret == 1) {
+        /* Private key size can be as much as the size of the prime. */
+        if (dh->length) {
+            privSz = dh->length / 8; /* to bytes */
+        }
+        else {
+            privSz = pubSz;
+        }
+        /* Allocate public and private key arrays. */
+        pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (pub == NULL || priv == NULL) {
+            WOLFSSL_ERROR_MSG("Unable to malloc memory");
+            ret = 0;
+        }
+    }
+    if (ret == 1) {
+        /* Dispose of old public and private keys. */
+        wolfSSL_BN_free(dh->pub_key);
+        wolfSSL_BN_free(dh->priv_key);
+
+        /* Allocate new public and private keys. */
+        dh->pub_key = wolfSSL_BN_new();
+        dh->priv_key = wolfSSL_BN_new();
+        if (dh->pub_key == NULL) {
+            WOLFSSL_ERROR_MSG("Bad DH new pub");
+            ret = 0;
+        }
+        if (dh->priv_key == NULL) {
+            WOLFSSL_ERROR_MSG("Bad DH new priv");
+            ret = 0;
+        }
+    }
+
+    PRIVATE_KEY_UNLOCK();
+    /* Generate public and private keys into arrays. */
+    if ((ret == 1) && (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv,
+            &privSz, pub, &pubSz) < 0)) {
+        WOLFSSL_ERROR_MSG("Bad wc_DhGenerateKeyPair");
+        ret = 0;
+    }
+    /* Set public key from array. */
+    if ((ret == 1) && (wolfSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad DH bn2bin error pub");
+        ret = 0;
+    }
+    /* Set private key from array. */
+    if ((ret == 1) && (wolfSSL_BN_bin2bn(priv, privSz, dh->priv_key) == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad DH bn2bin error priv");
+        ret = 0;
+    }
+    PRIVATE_KEY_LOCK();
+
+    if (localRng) {
+        /* Free an initialized local random number generator. */
+        wc_FreeRng(rng);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+    #endif
+    }
+    /* Dispose of allocated data. */
+    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+
+    return ret;
 }
+
+
+/* Compute the shared key from the private key and peer's public key.
+ *
+ * Return code compliant with OpenSSL.
+ * OpenSSL returns 0 when number of bits in p are smaller than minimum
+ * supported.
+ *
+ * @param [out] key       Buffer to place shared key.
+ * @param [in]  otherPub  Peer's public key.
+ * @param [in]  dh        DH key containing private key.
+ * @return  -1 on error.
+ * @return  Size of shared secret in bytes on success.
+ */
+int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
+    WOLFSSL_DH* dh)
+{
+    int            ret    = 0;
+    word32         keySz  = 0;
+    int            pubSz  = MAX_DHKEY_SZ;
+    int            privSz = MAX_DHKEY_SZ;
+    int            sz;
+#ifdef WOLFSSL_SMALL_STACK
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
+#else
+    unsigned char  pub [MAX_DHKEY_SZ];
+    unsigned char  priv[MAX_DHKEY_SZ];
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_DH_compute_key");
+
+    /* Validate parameters. */
+    if ((dh == NULL) || (dh->priv_key == NULL) || (otherPub == NULL)) {
+        WOLFSSL_ERROR_MSG("Bad function arguments");
+        ret = -1;
+    }
+    /* Get the maximum size of computed DH key. */
+    if ((ret == 0) && ((keySz = (word32)DH_size(dh)) == 0)) {
+        WOLFSSL_ERROR_MSG("Bad DH_size");
+        ret = -1;
+    }
+    if (ret == 0) {
+        /* Validate the size of the private key. */
+        sz = wolfSSL_BN_num_bytes(dh->priv_key);
+        if (sz > (int)privSz) {
+            WOLFSSL_ERROR_MSG("Bad priv internal size");
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        /* Keep real private key size to minimize amount allocated. */
+        privSz = sz;
+    #endif
+
+        /* Validate the size of the public key. */
+        sz = wolfSSL_BN_num_bytes(otherPub);
+        if (sz > (int)pubSz) {
+            WOLFSSL_ERROR_MSG("Bad otherPub size");
+            ret = -1;
+        }
+    }
+
+    if (ret == 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        /* Allocate memory for the public key array. */
+        pub = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pub == NULL)
+            ret = -1;
+    }
+    if (ret == 0) {
+        /* Allocate memory for the private key array. */
+        priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (priv == NULL) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+    #endif
+        /* Get the private key into the array. */
+        privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv);
+        if (privSz <= 0) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        /* Get the public key into the array. */
+        pubSz  = wolfSSL_BN_bn2bin(otherPub, pub);
+        if (privSz <= 0) {
+            ret = -1;
+        }
+    }
+    /* Synchronize the external into the internal parameters. */
+    if ((ret == 0) && ((dh->inSet == 0) && (SetDhInternal(dh) != 1))) {
+        WOLFSSL_ERROR_MSG("Bad DH set internal");
+        ret = -1;
+    }
+
+    PRIVATE_KEY_UNLOCK();
+    /* Calculate shared secret from private and public keys. */
+    if ((ret == 0) && (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
+            privSz, pub, pubSz) < 0)) {
+        WOLFSSL_ERROR_MSG("wc_DhAgree failed");
+        ret = -1;
+    }
+    if (ret == 0) {
+        /* Return actual length. */
+        ret = (int)keySz;
+    }
+    PRIVATE_KEY_LOCK();
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (priv != NULL)
+#endif
+    {
+        /* Zeroize sensitive data. */
+        ForceZero(priv, privSz);
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+#endif
+
+    WOLFSSL_LEAVE("wolfSSL_DH_compute_key", ret);
+
+    return ret;
+}
+#endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) ||
+        * HAVE_FIPS_VERSION > 2 */
 
 #endif /* OPENSSL_EXTRA */
 
@@ -8342,12 +9168,19 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 
     if (eccEnum != -1) {
         /* search and set the corresponding internal curve idx */
-        for (x = 0; ecc_sets[x].size != 0; x++)
+        for (x = 0; ecc_sets[x].size != 0; x++) {
             if (ecc_sets[x].id == eccEnum) {
                 key->group->curve_idx = x;
                 key->group->curve_oid = ecc_sets[x].oidSum;
                 break;
             }
+        }
+
+        /* if not found, we don't support this curve. */
+        if (ecc_sets[x].size == 0) {
+            wolfSSL_EC_KEY_free(key);
+            key = NULL;
+        }
     }
 
     return key;
@@ -10801,13 +11634,9 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY* key)
     }
 
     if (ret == 1) {
-        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        bio = wolfSSL_BIO_new_fp(fp, BIO_NOCLOSE);
         if (bio == NULL) {
             WOLFSSL_MSG("wolfSSL_BIO_new failed.");
-            ret = 0;
-        }
-        else if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != 1) {
-            WOLFSSL_MSG("wolfSSL_BIO_set_fp failed.");
             ret = 0;
         }
     }

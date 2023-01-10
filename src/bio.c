@@ -1,6 +1,6 @@
 /* bio.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1612,7 +1612,7 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
 {
     int len;
 #ifndef NO_FILESYSTEM
-    long memSz = 0, curr = 0;
+    long memSz = 0;
     XFILE file;
 #endif
 
@@ -1628,26 +1628,11 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
     else if (bio->type == WOLFSSL_BIO_FILE) {
         if (wolfSSL_BIO_get_fp(bio, &file) != WOLFSSL_SUCCESS)
             len = BAD_FUNC_ARG;
-        if (file == NULL)
-            len = WOLFSSL_BAD_FILE;
         if (len == 0) {
-            curr = XFTELL(file);
-            if (curr < 0) {
-                len = WOLFSSL_BAD_FILE;
-            }
-            if (XFSEEK(file, 0, XSEEK_END) != 0)
-                len = WOLFSSL_BAD_FILE;
+            len = wolfssl_file_len(file, &memSz);
         }
         if (len == 0) {
-            memSz = XFTELL(file);
-            if (memSz > MAX_WOLFSSL_FILE_SIZE || memSz < 0)
-                len = WOLFSSL_BAD_FILE;
-        }
-        if (len == 0) {
-            memSz -= curr;
             len = (int)memSz;
-            if (XFSEEK(file, curr, SEEK_SET) != 0)
-                len = WOLFSSL_BAD_FILE;
         }
     }
 #endif
@@ -2159,7 +2144,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             return WOLFSSL_FAILURE;
         }
 
-        b->num = sfd;
+        b->num = (int)sfd;
         b->shutdown = BIO_CLOSE;
         return WOLFSSL_SUCCESS;
     }
@@ -2188,7 +2173,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
             }
-            b->num = sfd;
+            b->num = (int)sfd;
             b->shutdown = BIO_CLOSE;
         }
         else {

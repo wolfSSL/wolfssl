@@ -1,6 +1,6 @@
 /* wc_pkcs11.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -409,6 +409,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
  *
  * @param  [in]  dev      Device object.
  * @param  [in]  library  Library name including path.
+ * @param  [in]  heap     Heap hint.
  * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
  * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
  * @return  WC_INIT_E when the initialization PKCS#11 fails.
@@ -417,8 +418,28 @@ static void pkcs11_val(const char* op, CK_ULONG val)
  */
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
+    return wc_Pkcs11_Initialize_ex(dev, library, heap, NULL);
+}
+
+/**
+ * Load library, get function list and initialize PKCS#11.
+ *
+ * @param  [in]   dev      Device object.
+ * @param  [in]   library  Library name including path.
+ * @param  [in]   heap     Heap hint.
+ * @param  [out]  rvp      PKCS#11 return value. Last return value seen.
+ *                         May be NULL.
+ * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
+ * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
+ * @return  WC_INIT_E when the initialization PKCS#11 fails.
+ * @return  WC_HW_E when unable to get PKCS#11 function list.
+ * @return  0 on success.
+ */
+int wc_Pkcs11_Initialize_ex(Pkcs11Dev* dev, const char* library, void* heap,
+                            CK_RV* rvp)
+{
     int                  ret = 0;
-    CK_RV                rv;
+    CK_RV                rv = CKR_OK;
 #ifndef HAVE_PKCS11_STATIC
     void*                func;
 #endif
@@ -466,8 +487,13 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
         }
     }
 
-    if (ret != 0)
+    if (rvp != NULL) {
+        *rvp = rv;
+    }
+
+    if (ret != 0) {
         wc_Pkcs11_Finalize(dev);
+    }
 
     return ret;
 }
@@ -519,8 +545,7 @@ static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
 
 /* lookup by slotId or tokenName */
 static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
-    const char* tokenName, size_t tokenNameSz,
-    const unsigned char* userPin, size_t userPinSz)
+    const char* tokenName, size_t tokenNameSz)
 {
     int         ret = 0;
     CK_RV       rv;
@@ -577,8 +602,9 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->func = dev->func;
         token->slotId = (CK_SLOT_ID)slotId;
         token->handle = NULL_PTR;
-        token->userPin = (CK_UTF8CHAR_PTR)userPin;
-        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPin = NULL_PTR;
+        token->userPinSz = 0;
+        token->userPinLogin = 0;
     }
 
     if (slot != NULL) {
@@ -589,7 +615,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
 }
 
 /**
- * Set up a token for use. Lookup by slotId or tokenName
+ * Set up a token for use. Lookup by slotId or tokenName. Set User PIN.
  *
  * @param  [in]  token      Token object.
  * @param  [in]  dev        PKCS#11 device object.
@@ -606,16 +632,47 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
 int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     const char* tokenName, const unsigned char* userPin, int userPinSz)
 {
+    int ret;
+    size_t tokenNameSz = 0;
+
+    if (tokenName != NULL) {
+        tokenNameSz = XSTRLEN(tokenName);
+    }
+    ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
+    if (ret == 0) {
+        token->userPin = (CK_UTF8CHAR_PTR)userPin;
+        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPinLogin = 1;
+    }
+
+    return ret;
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName.
+ *
+ * @param  [in]  token      Token object.
+ * @param  [in]  dev        PKCS#11 device object.
+ * @param  [in]  slotId     Slot number of the token.<br>
+ *                          Passing -1 uses the first available slot.
+ * @param  [in]  tokenName  Name of token to initialize (optional)
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_Init_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
+    const char* tokenName)
+{
     size_t tokenNameSz = 0;
     if (tokenName != NULL) {
         tokenNameSz = XSTRLEN(tokenName);
     }
-    return Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz,
-        userPin, (size_t)userPinSz);
+    return Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
 }
 
 /**
- * Set up a token for use. Lookup by slotId or tokenName/size
+ * Set up a token for use. Lookup by slotId or tokenName/size. Set User PIN.
  *
  * @param  [in]  token       Token object.
  * @param  [in]  dev         PKCS#11 device object.
@@ -629,11 +686,37 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
  * @return  0 on success.
  */
 int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
-                             const char* tokenName, int tokenNameSz,
-                             const unsigned char* userPin, int userPinSz)
+    const char* tokenName, int tokenNameSz,
+    const unsigned char* userPin, int userPinSz)
 {
-    return Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz,
-        userPin, (size_t)userPinSz);
+    int ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
+    if (ret == 0) {
+        token->userPin = (CK_UTF8CHAR_PTR)userPin;
+        token->userPinSz = (CK_ULONG)userPinSz;
+        token->userPinLogin = 1;
+    }
+
+    return ret;
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName/size.
+ *
+ * @param  [in]  token       Token object.
+ * @param  [in]  dev         PKCS#11 device object.
+ * @param  [in]  tokenName   Name of token to initialize.
+ * @param  [in]  tokenNameSz Name size for token
+ * @param  [in]  userPin     PIN to use to login as user.
+ * @param  [in]  userPinSz   Number of bytes in PIN.
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_InitName_NoLogin(Pkcs11Token* token, Pkcs11Dev* dev,
+    const char* tokenName, int tokenNameSz)
+{
+    return Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
 }
 
 /**
@@ -687,7 +770,7 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
             if (rv != CKR_OK) {
                 ret = WC_HW_E;
             }
-            if (ret == 0 && token->userPin != NULL) {
+            if (ret == 0 && token->userPinLogin) {
                 rv = token->func->C_Login(session->handle, CKU_USER,
                                               token->userPin, token->userPinSz);
                 PKCS11_RV("C_Login", rv);
@@ -1464,8 +1547,10 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     int             ret = 0;
     CK_ULONG        count;
     CK_ATTRIBUTE    keyTemplate[] = {
+#ifndef WC_PKCS11_FIND_WITH_ID_ONLY
         { CKA_CLASS,           &keyClass, sizeof(keyClass) },
         { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
+#endif
         { CKA_ID,              id,        (CK_ULONG)idLen  }
     };
     CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);

@@ -1,6 +1,6 @@
 /* ssl.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -243,6 +243,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define TLSv1_3_client_method           wolfTLSv1_3_client_method
 #define TLS_method                      wolfSSLv23_method
 
+#define X509_FILETYPE_PEM               WOLFSSL_FILETYPE_PEM
 #define X509_FILETYPE_ASN1              WOLFSSL_FILETYPE_ASN1
 #define X509_FILETYPE_DEFAULT           WOLFSSL_FILETYPE_DEFAULT
 
@@ -306,8 +307,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
 #define SSL_SESSION_get0_peer           wolfSSL_SESSION_get0_peer
 #define SSL_flush_sessions              wolfSSL_flush_sessions
-/* assume unlimited temporarily */
-#define SSL_CTX_get_session_cache_mode(ctx) 0
+#define SSL_CTX_get_session_cache_mode(ctx) \
+                                       wolfSSL_CTX_get_session_cache_mode((ctx))
 
 #define SSL_CTX_set_verify              wolfSSL_CTX_set_verify
 #define SSL_CTX_set_cert_verify_callback wolfSSL_CTX_set_cert_verify_callback
@@ -360,6 +361,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_free                wolfSSL_SESSION_free
 #define SSL_SESSION_set_cipher          wolfSSL_SESSION_set_cipher
 #define SSL_is_init_finished            wolfSSL_is_init_finished
+
+#define SSL_SESSION_set1_id             wolfSSL_SESSION_set1_id
+#define SSL_SESSION_set1_id_context     wolfSSL_SESSION_set1_id_context
 
 #define SSL_get_version                 wolfSSL_get_version
 #define SSL_get_current_cipher          wolfSSL_get_current_cipher
@@ -682,6 +686,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
 #define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
+#define SSL_set1_host                   wolfSSL_set1_host
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
 #define X509_VERIFY_PARAM_set1_ip       wolfSSL_X509_VERIFY_PARAM_set1_ip
@@ -700,9 +705,14 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define X509_CRL_free                   wolfSSL_X509_CRL_free
 #define X509_CRL_get_lastUpdate         wolfSSL_X509_CRL_get_lastUpdate
+#define X509_CRL_get0_lastUpdate        wolfSSL_X509_CRL_get_lastUpdate
 #define X509_CRL_get_nextUpdate         wolfSSL_X509_CRL_get_nextUpdate
+#define X509_CRL_get0_nextUpdate        wolfSSL_X509_CRL_get_nextUpdate
 #define X509_CRL_verify                 wolfSSL_X509_CRL_verify
 #define X509_CRL_get_REVOKED            wolfSSL_X509_CRL_get_REVOKED
+#define X509_CRL_get_issuer             wolfSSL_X509_CRL_get_issuer_name
+#define X509_CRL_get_signature_nid      wolfSSL_X509_CRL_get_signature_nid
+#define X509_CRL_get_version            wolfSSL_X509_CRL_version
 #define X509_load_crl_file              wolfSSL_X509_load_crl_file
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
@@ -726,6 +736,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define X509_OBJECT_get0_X509           wolfSSL_X509_OBJECT_get0_X509
 #define X509_OBJECT_get0_X509_CRL       wolfSSL_X509_OBJECT_get0_X509_CRL
+
+#define X509_REVOKED_get0_serialNumber   wolfSSL_X509_REVOKED_get0_serial_number
+#define X509_REVOKED_get0_revocationDate wolfSSL_X509_REVOKED_get0_revocation_date
 
 #define X509_check_purpose(...)         0
 
@@ -1296,8 +1309,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CONF_TYPE_FILE               WOLFSSL_CONF_TYPE_FILE
 #define SSL_CONF_TYPE_DIR                WOLFSSL_CONF_TYPE_DIR
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
-                                                         || defined(OPENSSL_ALL)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 #define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
 #define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)
@@ -1307,6 +1320,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
 #define SSL_AD_NO_RENEGOTIATION          no_renegotiation
 #define SSL_AD_INTERNAL_ERROR            80
+#define SSL_AD_NO_APPLICATION_PROTOCOL   no_application_protocol
+#define SSL_AD_MISSING_EXTENSION         missing_extension
 
 #define ASN1_STRFLGS_ESC_MSB             4
 
@@ -1628,6 +1643,68 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+
+#ifdef WOLFSSL_QUIC
+
+#include <wolfssl/quic.h>
+
+/* Used by Chromium/QUIC - according to quictls/openssl fork */
+#define X25519_PRIVATE_KEY_LEN          32
+#define X25519_PUBLIC_VALUE_LEN         32
+
+/* TLSv1.3 cipher ids as defined in RFC 8446, returned by
+ * SSL_CIPHER_get_id(cipher)
+ * used by QUIC implementations, such as HAProxy
+ */
+#define TLS1_3_CK_AES_128_GCM_SHA256       0x1301
+#define TLS1_3_CK_AES_256_GCM_SHA384       0x1302
+#define TLS1_3_CK_CHACHA20_POLY1305_SHA256 0x1303
+#define TLS1_3_CK_AES_128_CCM_SHA256       0x1304
+#define TLS1_3_CK_AES_128_CCM_8_SHA256     0x1305
+
+#define SSL_R_MISSING_QUIC_TRANSPORT_PARAMETERS_EXTENSION   QUIC_TP_MISSING_E
+#define SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED               QUIC_WRONG_ENC_LEVEL
+
+#define ssl_quic_method_st              wolfssl_quic_method_t
+typedef WOLFSSL_QUIC_METHOD             SSL_QUIC_METHOD;
+
+#define ssl_encryption_level_t          wolfssl_encryption_level_t
+typedef WOLFSSL_ENCRYPTION_LEVEL        OSSL_ENCRYPTION_LEVEL;
+#define ssl_encryption_initial          wolfssl_encryption_initial
+#define ssl_encryption_early_data       wolfssl_encryption_early_data
+#define ssl_encryption_handshake        wolfssl_encryption_handshake
+#define ssl_encryption_application      wolfssl_encryption_application
+
+#define SSL_CTX_set_quic_method         wolfSSL_CTX_set_quic_method
+#define SSL_set_quic_method             wolfSSL_set_quic_method
+
+#define SSL_set_quic_transport_params   wolfSSL_set_quic_transport_params
+#define SSL_get_peer_quic_transport_params  wolfSSL_get_peer_quic_transport_params
+
+#define SSL_quic_max_handshake_flight_len   wolfSSL_quic_max_handshake_flight_len
+#define SSL_quic_read_level             wolfSSL_quic_read_level
+#define SSL_quic_write_level            wolfSSL_quic_write_level
+#define SSL_provide_quic_data           wolfSSL_provide_quic_data
+#define SSL_process_quic_post_handshake     wolfSSL_process_quic_post_handshake
+
+#define SSL_is_quic                     wolfSSL_is_quic
+
+#define SSL_set_quic_transport_version      wolfSSL_set_quic_transport_version
+#define SSL_get_quic_transport_version      wolfSSL_get_quic_transport_version
+#define SSL_get_peer_quic_transport_version wolfSSL_get_peer_quic_transport_version
+
+#define SSL_set_quic_early_data_enabled     wolfSSL_set_quic_early_data_enabled
+
+/* BoringSSL API - according to quictls/openssl fork */
+#define SSL_set_quic_use_legacy_codepoint   wolfSSL_set_quic_use_legacy_codepoint
+
+/* TODO: we do not have this in our QUIC api and HAProxy does not use it
+int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
+*/
+
+#endif /* WOLFSSL_QUIC */
+
 
 #ifdef __cplusplus
     } /* extern "C" */

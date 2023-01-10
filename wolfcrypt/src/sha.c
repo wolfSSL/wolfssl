@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -929,6 +929,9 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
+#endif
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    ret = se050_hash_copy(&src->se050Ctx, &dst->se050Ctx);
 #endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)

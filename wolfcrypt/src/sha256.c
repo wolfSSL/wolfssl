@@ -1,6 +1,6 @@
 /* sha256.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -245,6 +245,10 @@ static int InitSha256(wc_Sha256* sha256)
 
 #ifdef WOLF_CRYPTO_CB
     sha256->devId = wc_CryptoCb_DefaultDevID();
+#endif
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    XMEMSET(&sha256->maxq_ctx, 0, sizeof(sha256->maxq_ctx));
 #endif
 
     return ret;
@@ -1741,6 +1745,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #ifdef WOLFSSL_IMXRT_DCP
     DCPSha256Free(sha256);
 #endif
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_Sha256Free(sha256);
+#endif
+
 /* Espressif embedded hardware acceleration specific: */
 #if defined(WOLFSSL_USE_ESP32WROOM32_CRYPT_HASH_HW)
     if (sha256->ctx.lockDepth > 0) {
@@ -1752,10 +1760,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
          * should have already been released (lockDepth = 0)
          */
         InitSha256(sha256); /* unlock mutex, set mode to ESP32_SHA_INIT */
-        ESP_LOGE("sha256", "ERROR: hardware unlock needed in wc_Sha256Free");
+        ESP_LOGV("sha256", "Alert: hardware unlock needed in wc_Sha256Free.");
     }
     else {
-        ESP_LOGV("sha256", "hardware unlock not needed in wc_Sha256Free");
+        ESP_LOGV("sha256", "Hardware unlock not needed in wc_Sha256Free.");
     }
 #endif
 }
@@ -1974,6 +1982,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+
+#ifdef WOLFSSL_MAXQ10XX_CRYPTO
+    wc_MAXQ10XX_Sha256Copy(src);
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
 #endif

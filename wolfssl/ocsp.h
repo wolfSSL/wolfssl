@@ -1,6 +1,6 @@
 /* ocsp.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -112,6 +112,10 @@ WOLFSSL_API int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
 
 WOLFSSL_API int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id,
                                         unsigned char** data);
+WOLFSSL_API
+WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
+                                             const unsigned char** derIn,
+                                             int length);
 WOLFSSL_API const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(
     const WOLFSSL_OCSP_SINGLERESP *single);
 WOLFSSL_API int wolfSSL_OCSP_id_cmp(WOLFSSL_OCSP_CERTID *a, WOLFSSL_OCSP_CERTID *b);

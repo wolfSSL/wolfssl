@@ -22,7 +22,7 @@ modprobe cryptodev
 For default build with all supported features use:
 
 ```
-./configure --enable-cryptodev
+./configure --enable-devcrypto
 ```
 
 Or for more control over features used:

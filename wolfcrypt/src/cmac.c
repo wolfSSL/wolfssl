@@ -1,6 +1,6 @@
 /* cmac.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -97,6 +97,9 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
                 int type, void* unused, void* heap, int devId)
 {
     int ret;
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
+    byte useSW = 0;
+#endif
 
     (void)unused;
     (void)heap;
@@ -105,6 +108,10 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
+    /* save if we should use SW crypt, restore after memset */
+    useSW = cmac->useSWCrypt;
+#endif
     XMEMSET(cmac, 0, sizeof(Cmac));
 
 #ifdef WOLF_CRYPTO_CB
@@ -125,6 +132,13 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
     if (key == NULL || keySz == 0) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
+    cmac->useSWCrypt = useSW;
+    if (cmac->useSWCrypt == 1) {
+        cmac->aes.useSWCrypt = 1;
+    }
+#endif
 
     ret = wc_AesSetKey(&cmac->aes, key, keySz, NULL, AES_ENCRYPTION);
     if (ret == 0) {
@@ -327,6 +341,5 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
 
     return ret;
 }
-
 
 #endif /* WOLFSSL_CMAC && NO_AES && WOLFSSL_AES_DIRECT */

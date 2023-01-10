@@ -1,6 +1,6 @@
 /* armv8-32-sha256-asm
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,6 +24,9 @@
  *   ruby ./sha2/sha256.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
@@ -33,7 +36,7 @@
 	.text
 	.type	L_SHA256_transform_len_k, %object
 	.size	L_SHA256_transform_len_k, 256
-	.align	3
+	.align	4
 L_SHA256_transform_len_k:
 	.word	0x428a2f98
 	.word	0x71374491
@@ -100,1568 +103,1568 @@ L_SHA256_transform_len_k:
 	.word	0xbef9a3f7
 	.word	0xc67178f2
 	.text
-	.align	2
+	.align	4
 	.globl	Transform_Sha256_Len
 	.type	Transform_Sha256_Len, %function
 Transform_Sha256_Len:
-	push	{r4, r5, r6, r7, r8, r9, r10, lr}
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xc0
 	adr	r3, L_SHA256_transform_len_k
 	# Copy digest to add in at end
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0]
-	ldr	lr, [r0, #4]
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 #else
-	ldrd  r12, lr, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r0, #16]
-	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #16]
+	ldr	r9, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r8, r9, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r0, #24]
-	ldr	r9, [r0, #28]
+	ldr	r10, [r0, #24]
+	ldr	r11, [r0, #28]
 #else
-	ldrd  r8, r9, [r0, #24]
+	ldrd	r10, r11, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [sp, #64]
-	str	lr, [sp, #68]
+	str	r4, [sp, #64]
+	str	r5, [sp, #68]
 #else
-	strd  r12, lr, [sp, #64]
+	strd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [sp, #72]
-	str	r5, [sp, #76]
+	str	r6, [sp, #72]
+	str	r7, [sp, #76]
 #else
-	strd  r4, r5, [sp, #72]
+	strd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [sp, #80]
-	str	r7, [sp, #84]
+	str	r8, [sp, #80]
+	str	r9, [sp, #84]
 #else
-	strd  r6, r7, [sp, #80]
+	strd	r8, r9, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [sp, #88]
-	str	r9, [sp, #92]
+	str	r10, [sp, #88]
+	str	r11, [sp, #92]
 #else
-	strd  r8, r9, [sp, #88]
+	strd	r10, r11, [sp, #88]
 #endif
 	# Start of loop processing a block
 L_SHA256_transform_len_begin:
 	# Load, Reverse and Store W - 64 bytes
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1]
-	ldr	lr, [r1, #4]
+	ldr	r4, [r1]
+	ldr	r5, [r1, #4]
 #else
-	ldrd  r12, lr, [r1]
+	ldrd	r4, r5, [r1]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #8]
-	ldr	r5, [r1, #12]
+	ldr	r6, [r1, #8]
+	ldr	r7, [r1, #12]
 #else
-	ldrd  r4, r5, [r1, #8]
+	ldrd	r6, r7, [r1, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r1, #16]
-	ldr	r7, [r1, #20]
+	ldr	r8, [r1, #16]
+	ldr	r9, [r1, #20]
 #else
-	ldrd  r6, r7, [r1, #16]
+	ldrd	r8, r9, [r1, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #24]
-	ldr	r9, [r1, #28]
+	ldr	r10, [r1, #24]
+	ldr	r11, [r1, #28]
 #else
-	ldrd  r8, r9, [r1, #24]
+	ldrd	r10, r11, [r1, #24]
 #endif
-	rev	r12, r12
-	rev	lr, lr
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
 	rev	r8, r8
 	rev	r9, r9
+	rev	r10, r10
+	rev	r11, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [sp]
-	str	lr, [sp, #4]
+	str	r4, [sp]
+	str	r5, [sp, #4]
 #else
-	strd  r12, lr, [sp]
+	strd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [sp, #8]
-	str	r5, [sp, #12]
+	str	r6, [sp, #8]
+	str	r7, [sp, #12]
 #else
-	strd  r4, r5, [sp, #8]
+	strd	r6, r7, [sp, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [sp, #16]
-	str	r7, [sp, #20]
+	str	r8, [sp, #16]
+	str	r9, [sp, #20]
 #else
-	strd  r6, r7, [sp, #16]
+	strd	r8, r9, [sp, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [sp, #24]
-	str	r9, [sp, #28]
+	str	r10, [sp, #24]
+	str	r11, [sp, #28]
 #else
-	strd  r8, r9, [sp, #24]
+	strd	r10, r11, [sp, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r1, #32]
-	ldr	lr, [r1, #36]
+	ldr	r4, [r1, #32]
+	ldr	r5, [r1, #36]
 #else
-	ldrd  r12, lr, [r1, #32]
+	ldrd	r4, r5, [r1, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r1, #40]
-	ldr	r5, [r1, #44]
+	ldr	r6, [r1, #40]
+	ldr	r7, [r1, #44]
 #else
-	ldrd  r4, r5, [r1, #40]
+	ldrd	r6, r7, [r1, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [r1, #48]
-	ldr	r7, [r1, #52]
+	ldr	r8, [r1, #48]
+	ldr	r9, [r1, #52]
 #else
-	ldrd  r6, r7, [r1, #48]
+	ldrd	r8, r9, [r1, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [r1, #56]
-	ldr	r9, [r1, #60]
+	ldr	r10, [r1, #56]
+	ldr	r11, [r1, #60]
 #else
-	ldrd  r8, r9, [r1, #56]
+	ldrd	r10, r11, [r1, #56]
 #endif
-	rev	r12, r12
-	rev	lr, lr
 	rev	r4, r4
 	rev	r5, r5
 	rev	r6, r6
 	rev	r7, r7
 	rev	r8, r8
 	rev	r9, r9
+	rev	r10, r10
+	rev	r11, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [sp, #32]
-	str	lr, [sp, #36]
+	str	r4, [sp, #32]
+	str	r5, [sp, #36]
 #else
-	strd  r12, lr, [sp, #32]
+	strd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [sp, #40]
-	str	r5, [sp, #44]
+	str	r6, [sp, #40]
+	str	r7, [sp, #44]
 #else
-	strd  r4, r5, [sp, #40]
+	strd	r6, r7, [sp, #40]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r6, [sp, #48]
-	str	r7, [sp, #52]
+	str	r8, [sp, #48]
+	str	r9, [sp, #52]
 #else
-	strd  r6, r7, [sp, #48]
+	strd	r8, r9, [sp, #48]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r8, [sp, #56]
-	str	r9, [sp, #60]
+	str	r10, [sp, #56]
+	str	r11, [sp, #60]
 #else
-	strd  r8, r9, [sp, #56]
+	strd	r10, r11, [sp, #56]
 #endif
-	ldr	r9, [r0, #4]
-	ldr	r12, [r0, #8]
-	eor	r9, r9, r12
-	mov	r10, #3
+	ldr	r11, [r0, #4]
+	ldr	r4, [r0, #8]
+	eor	r11, r11, r4
+	mov	r12, #3
 	# Start of 16 rounds
 L_SHA256_transform_len_start:
 	# Round 0
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r7, [r0, #28]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp]
-	ldr	r4, [r3]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #12]
-	str	r7, [r0, #28]
-	# Calc new W[0]
-	ldr	r4, [sp, #56]
-	ldr	r5, [sp, #36]
-	ldr	r6, [sp, #4]
-	ldr	r7, [sp]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp]
-	# Round 1
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r7, [r0, #24]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #4]
-	ldr	r4, [r3, #4]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r6, [r0, #8]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #8]
-	str	r7, [r0, #24]
-	# Calc new W[1]
-	ldr	r4, [sp, #60]
-	ldr	r5, [sp, #40]
-	ldr	r6, [sp, #8]
-	ldr	r7, [sp, #4]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #4]
-	# Round 2
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r7, [r0, #20]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #8]
-	ldr	r4, [r3, #8]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #4]
-	str	r7, [r0, #20]
-	# Calc new W[2]
-	ldr	r4, [sp]
-	ldr	r5, [sp, #44]
-	ldr	r6, [sp, #12]
-	ldr	r7, [sp, #8]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #8]
-	# Round 3
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
-	ldr	r7, [r0, #16]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #12]
-	ldr	r4, [r3, #12]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r6, [r0]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0]
-	str	r7, [r0, #16]
-	# Calc new W[3]
-	ldr	r4, [sp, #4]
-	ldr	r5, [sp, #48]
-	ldr	r6, [sp, #16]
-	ldr	r7, [sp, #12]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #12]
-	# Round 4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r7, [r0, #12]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #16]
-	ldr	r4, [r3, #16]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #28]
-	str	r7, [r0, #12]
-	# Calc new W[4]
-	ldr	r4, [sp, #8]
-	ldr	r5, [sp, #52]
-	ldr	r6, [sp, #20]
-	ldr	r7, [sp, #16]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #16]
-	# Round 5
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r7, [r0, #8]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #20]
-	ldr	r4, [r3, #20]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r6, [r0, #24]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #24]
-	str	r7, [r0, #8]
-	# Calc new W[5]
-	ldr	r4, [sp, #12]
-	ldr	r5, [sp, #56]
-	ldr	r6, [sp, #24]
-	ldr	r7, [sp, #20]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #20]
-	# Round 6
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r7, [r0, #4]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #24]
-	ldr	r4, [r3, #24]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
 	ldr	r5, [r0, #16]
 	ldr	r6, [r0, #20]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #20]
-	str	r7, [r0, #4]
-	# Calc new W[6]
-	ldr	r4, [sp, #16]
-	ldr	r5, [sp, #60]
-	ldr	r6, [sp, #28]
-	ldr	r7, [sp, #24]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #24]
-	# Round 7
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r7, [r0]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #28]
-	ldr	r4, [r3, #28]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
-	ldr	r6, [r0, #16]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #16]
-	str	r7, [r0]
-	# Calc new W[7]
-	ldr	r4, [sp, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
 	ldr	r5, [sp]
-	ldr	r6, [sp, #32]
-	ldr	r7, [sp, #28]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #28]
-	# Round 8
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r7, [r0, #28]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #32]
-	ldr	r4, [r3, #32]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #12]
-	str	r7, [r0, #28]
-	# Calc new W[8]
-	ldr	r4, [sp, #24]
-	ldr	r5, [sp, #4]
-	ldr	r6, [sp, #36]
-	ldr	r7, [sp, #32]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #32]
-	# Round 9
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r7, [r0, #24]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #36]
-	ldr	r4, [r3, #36]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r6, [r0, #8]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #8]
-	str	r7, [r0, #24]
-	# Calc new W[9]
-	ldr	r4, [sp, #28]
-	ldr	r5, [sp, #8]
-	ldr	r6, [sp, #40]
-	ldr	r7, [sp, #36]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #36]
-	# Round 10
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r7, [r0, #20]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #40]
-	ldr	r4, [r3, #40]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
+	ldr	r6, [r3]
+	add	r9, r9, r5
+	add	r9, r9, r6
 	ldr	r5, [r0]
 	ldr	r6, [r0, #4]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #4]
-	str	r7, [r0, #20]
-	# Calc new W[10]
-	ldr	r4, [sp, #32]
-	ldr	r5, [sp, #12]
-	ldr	r6, [sp, #44]
-	ldr	r7, [sp, #40]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #40]
-	# Round 11
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
-	ldr	r7, [r0, #16]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #44]
-	ldr	r4, [r3, #44]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r6, [r0]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0]
-	str	r7, [r0, #16]
-	# Calc new W[11]
-	ldr	r4, [sp, #36]
-	ldr	r5, [sp, #16]
-	ldr	r6, [sp, #48]
-	ldr	r7, [sp, #44]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #44]
-	# Round 12
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r7, [r0, #12]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #48]
-	ldr	r4, [r3, #48]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #28]
-	str	r7, [r0, #12]
-	# Calc new W[12]
-	ldr	r4, [sp, #40]
-	ldr	r5, [sp, #20]
-	ldr	r6, [sp, #52]
-	ldr	r7, [sp, #48]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #48]
-	# Round 13
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
 	ldr	r7, [r0, #8]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #52]
-	ldr	r4, [r3, #52]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r6, [r0, #24]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #24]
-	str	r7, [r0, #8]
-	# Calc new W[13]
-	ldr	r4, [sp, #44]
-	ldr	r5, [sp, #24]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
+	# Calc new W[0]
 	ldr	r6, [sp, #56]
-	ldr	r7, [sp, #52]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #52]
-	# Round 14
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r7, [r0, #4]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #56]
-	ldr	r4, [r3, #56]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #20]
-	str	r7, [r0, #4]
-	# Calc new W[14]
-	ldr	r4, [sp, #48]
-	ldr	r5, [sp, #28]
-	ldr	r6, [sp, #60]
-	ldr	r7, [sp, #56]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #56]
-	# Round 15
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r7, [r0]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #60]
-	ldr	r4, [r3, #60]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
+	ldr	r7, [sp, #36]
+	ldr	r8, [sp, #4]
+	ldr	r9, [sp]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp]
+	# Round 1
 	ldr	r5, [r0, #12]
 	ldr	r6, [r0, #16]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #16]
-	str	r7, [r0]
-	# Calc new W[15]
-	ldr	r4, [sp, #52]
-	ldr	r5, [sp, #32]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #4]
+	ldr	r6, [r3, #4]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	# Calc new W[1]
+	ldr	r6, [sp, #60]
+	ldr	r7, [sp, #40]
+	ldr	r8, [sp, #8]
+	ldr	r9, [sp, #4]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #4]
+	# Round 2
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #8]
+	ldr	r6, [r3, #8]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	# Calc new W[2]
 	ldr	r6, [sp]
+	ldr	r7, [sp, #44]
+	ldr	r8, [sp, #12]
+	ldr	r9, [sp, #8]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #8]
+	# Round 3
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #12]
+	ldr	r6, [r3, #12]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	# Calc new W[3]
+	ldr	r6, [sp, #4]
+	ldr	r7, [sp, #48]
+	ldr	r8, [sp, #16]
+	ldr	r9, [sp, #12]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #12]
+	# Round 4
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #16]
+	ldr	r6, [r3, #16]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	# Calc new W[4]
+	ldr	r6, [sp, #8]
+	ldr	r7, [sp, #52]
+	ldr	r8, [sp, #20]
+	ldr	r9, [sp, #16]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #16]
+	# Round 5
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #20]
+	ldr	r6, [r3, #20]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	# Calc new W[5]
+	ldr	r6, [sp, #12]
+	ldr	r7, [sp, #56]
+	ldr	r8, [sp, #24]
+	ldr	r9, [sp, #20]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #20]
+	# Round 6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #24]
+	ldr	r6, [r3, #24]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	# Calc new W[6]
+	ldr	r6, [sp, #16]
 	ldr	r7, [sp, #60]
-	ror	r12, r4, #17
-	ror	lr, r6, #7
-	eor	r12, r12, r4, ror #19
-	eor	lr, lr, r6, ror #18
-	eor	r12, r12, r4, lsr #10
-	eor	lr, lr, r6, lsr #3
-	add	r7, r7, r5
-	add	r12, r12, lr
-	add	r7, r7, r12
-	str	r7, [sp, #60]
+	ldr	r8, [sp, #28]
+	ldr	r9, [sp, #24]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #24]
+	# Round 7
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #28]
+	ldr	r6, [r3, #28]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
+	# Calc new W[7]
+	ldr	r6, [sp, #20]
+	ldr	r7, [sp]
+	ldr	r8, [sp, #32]
+	ldr	r9, [sp, #28]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #28]
+	# Round 8
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #32]
+	ldr	r6, [r3, #32]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
+	# Calc new W[8]
+	ldr	r6, [sp, #24]
+	ldr	r7, [sp, #4]
+	ldr	r8, [sp, #36]
+	ldr	r9, [sp, #32]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #32]
+	# Round 9
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #36]
+	ldr	r6, [r3, #36]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	# Calc new W[9]
+	ldr	r6, [sp, #28]
+	ldr	r7, [sp, #8]
+	ldr	r8, [sp, #40]
+	ldr	r9, [sp, #36]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #36]
+	# Round 10
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #40]
+	ldr	r6, [r3, #40]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	# Calc new W[10]
+	ldr	r6, [sp, #32]
+	ldr	r7, [sp, #12]
+	ldr	r8, [sp, #44]
+	ldr	r9, [sp, #40]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #40]
+	# Round 11
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #44]
+	ldr	r6, [r3, #44]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	# Calc new W[11]
+	ldr	r6, [sp, #36]
+	ldr	r7, [sp, #16]
+	ldr	r8, [sp, #48]
+	ldr	r9, [sp, #44]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #44]
+	# Round 12
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #48]
+	ldr	r6, [r3, #48]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	# Calc new W[12]
+	ldr	r6, [sp, #40]
+	ldr	r7, [sp, #20]
+	ldr	r8, [sp, #52]
+	ldr	r9, [sp, #48]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #48]
+	# Round 13
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #52]
+	ldr	r6, [r3, #52]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	# Calc new W[13]
+	ldr	r6, [sp, #44]
+	ldr	r7, [sp, #24]
+	ldr	r8, [sp, #56]
+	ldr	r9, [sp, #52]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #52]
+	# Round 14
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #56]
+	ldr	r6, [r3, #56]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	# Calc new W[14]
+	ldr	r6, [sp, #48]
+	ldr	r7, [sp, #28]
+	ldr	r8, [sp, #60]
+	ldr	r9, [sp, #56]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #56]
+	# Round 15
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #60]
+	ldr	r6, [r3, #60]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
+	# Calc new W[15]
+	ldr	r6, [sp, #52]
+	ldr	r7, [sp, #32]
+	ldr	r8, [sp]
+	ldr	r9, [sp, #60]
+	ror	r4, r6, #17
+	ror	r5, r8, #7
+	eor	r4, r4, r6, ror #19
+	eor	r5, r5, r8, ror #18
+	eor	r4, r4, r6, lsr #10
+	eor	r5, r5, r8, lsr #3
+	add	r9, r9, r7
+	add	r4, r4, r5
+	add	r9, r9, r4
+	str	r9, [sp, #60]
 	add	r3, r3, #0x40
-	subs	r10, r10, #1
+	subs	r12, r12, #1
 	bne	L_SHA256_transform_len_start
 	# Round 0
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r7, [r0, #28]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp]
-	ldr	r4, [r3]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r6, [r0, #12]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #12]
-	str	r7, [r0, #28]
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp]
+	ldr	r6, [r3]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
 	# Round 1
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r7, [r0, #24]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #4]
-	ldr	r4, [r3, #4]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r6, [r0, #8]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #8]
-	str	r7, [r0, #24]
-	# Round 2
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r7, [r0, #20]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #8]
-	ldr	r4, [r3, #8]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #4]
-	str	r7, [r0, #20]
-	# Round 3
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
-	ldr	r7, [r0, #16]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #12]
-	ldr	r4, [r3, #12]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r6, [r0]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0]
-	str	r7, [r0, #16]
-	# Round 4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r7, [r0, #12]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #16]
-	ldr	r4, [r3, #16]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r6, [r0, #28]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #28]
-	str	r7, [r0, #12]
-	# Round 5
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r7, [r0, #8]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #20]
-	ldr	r4, [r3, #20]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r6, [r0, #24]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #24]
-	str	r7, [r0, #8]
-	# Round 6
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r7, [r0, #4]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #24]
-	ldr	r4, [r3, #24]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r6, [r0, #20]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #20]
-	str	r7, [r0, #4]
-	# Round 7
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r7, [r0]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #28]
-	ldr	r4, [r3, #28]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 	ldr	r6, [r0, #16]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #16]
-	str	r7, [r0]
-	# Round 8
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
-	ldr	r5, [r0, #24]
-	ldr	r7, [r0, #28]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #32]
-	ldr	r4, [r3, #32]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #4]
+	ldr	r6, [r3, #4]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	# Round 2
 	ldr	r5, [r0, #8]
 	ldr	r6, [r0, #12]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #12]
-	str	r7, [r0, #28]
-	# Round 9
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #20]
-	ldr	r7, [r0, #24]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #36]
-	ldr	r4, [r3, #36]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
-	ldr	r6, [r0, #8]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #8]
-	str	r7, [r0, #24]
-	# Round 10
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
-	ldr	r5, [r0, #16]
-	ldr	r7, [r0, #20]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #40]
-	ldr	r4, [r3, #40]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
-	ldr	r5, [r0]
-	ldr	r6, [r0, #4]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #4]
-	str	r7, [r0, #20]
-	# Round 11
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
 	ldr	r7, [r0, #16]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #44]
-	ldr	r4, [r3, #44]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
-	ldr	r6, [r0]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0]
-	str	r7, [r0, #16]
-	# Round 12
-	ldr	lr, [r0]
-	ldr	r4, [r0, #4]
-	ldr	r5, [r0, #8]
-	ldr	r7, [r0, #12]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #48]
-	ldr	r4, [r3, #48]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #16]
-	ldr	r4, [r0, #20]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #8]
+	ldr	r6, [r3, #8]
+	add	r9, r9, r5
+	add	r9, r9, r6
 	ldr	r5, [r0, #24]
 	ldr	r6, [r0, #28]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #28]
-	str	r7, [r0, #12]
-	# Round 13
-	ldr	lr, [r0, #28]
-	ldr	r4, [r0]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	# Round 3
 	ldr	r5, [r0, #4]
-	ldr	r7, [r0, #8]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #52]
-	ldr	r4, [r3, #52]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #12]
-	ldr	r4, [r0, #16]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #12]
+	ldr	r6, [r3, #12]
+	add	r9, r9, r5
+	add	r9, r9, r6
 	ldr	r5, [r0, #20]
 	ldr	r6, [r0, #24]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #24]
-	str	r7, [r0, #8]
-	# Round 14
-	ldr	lr, [r0, #24]
-	ldr	r4, [r0, #28]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	# Round 4
 	ldr	r5, [r0]
-	ldr	r7, [r0, #4]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #56]
-	ldr	r4, [r3, #56]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #8]
-	ldr	r4, [r0, #12]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #16]
+	ldr	r6, [r3, #16]
+	add	r9, r9, r5
+	add	r9, r9, r6
 	ldr	r5, [r0, #16]
 	ldr	r6, [r0, #20]
-	ror	r12, lr, #2
-	eor	r8, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r9, r9, r8
-	eor	r12, r12, lr, ror #22
-	eor	r9, r9, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r9
-	str	r6, [r0, #20]
-	str	r7, [r0, #4]
-	# Round 15
-	ldr	lr, [r0, #20]
-	ldr	r4, [r0, #24]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	# Round 5
 	ldr	r5, [r0, #28]
-	ldr	r7, [r0]
-	ror	r12, lr, #6
-	eor	r4, r4, r5
-	eor	r12, r12, lr, ror #11
-	and	r4, r4, lr
-	eor	r12, r12, lr, ror #25
-	eor	r4, r4, r5
-	add	r7, r7, r12
-	add	r7, r7, r4
-	ldr	lr, [sp, #60]
-	ldr	r4, [r3, #60]
-	add	r7, r7, lr
-	add	r7, r7, r4
-	ldr	lr, [r0, #4]
-	ldr	r4, [r0, #8]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #20]
+	ldr	r6, [r3, #20]
+	add	r9, r9, r5
+	add	r9, r9, r6
 	ldr	r5, [r0, #12]
 	ldr	r6, [r0, #16]
-	ror	r12, lr, #2
-	eor	r9, lr, r4
-	eor	r12, r12, lr, ror #13
-	and	r8, r8, r9
-	eor	r12, r12, lr, ror #22
-	eor	r8, r8, r4
-	add	r6, r6, r7
-	add	r7, r7, r12
-	add	r7, r7, r8
-	str	r6, [r0, #16]
-	str	r7, [r0]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	# Round 6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #24]
+	ldr	r6, [r3, #24]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	# Round 7
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #28]
+	ldr	r6, [r3, #28]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
+	# Round 8
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r9, [r0, #28]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #32]
+	ldr	r6, [r3, #32]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r8, [r0, #12]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #12]
+	str	r9, [r0, #28]
+	# Round 9
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r9, [r0, #24]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #36]
+	ldr	r6, [r3, #36]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r8, [r0, #8]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #8]
+	str	r9, [r0, #24]
+	# Round 10
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r9, [r0, #20]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #40]
+	ldr	r6, [r3, #40]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r8, [r0, #4]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #4]
+	str	r9, [r0, #20]
+	# Round 11
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r9, [r0, #16]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #44]
+	ldr	r6, [r3, #44]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r8, [r0]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0]
+	str	r9, [r0, #16]
+	# Round 12
+	ldr	r5, [r0]
+	ldr	r6, [r0, #4]
+	ldr	r7, [r0, #8]
+	ldr	r9, [r0, #12]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #48]
+	ldr	r6, [r3, #48]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #16]
+	ldr	r6, [r0, #20]
+	ldr	r7, [r0, #24]
+	ldr	r8, [r0, #28]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #28]
+	str	r9, [r0, #12]
+	# Round 13
+	ldr	r5, [r0, #28]
+	ldr	r6, [r0]
+	ldr	r7, [r0, #4]
+	ldr	r9, [r0, #8]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #52]
+	ldr	r6, [r3, #52]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #16]
+	ldr	r7, [r0, #20]
+	ldr	r8, [r0, #24]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #24]
+	str	r9, [r0, #8]
+	# Round 14
+	ldr	r5, [r0, #24]
+	ldr	r6, [r0, #28]
+	ldr	r7, [r0]
+	ldr	r9, [r0, #4]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #56]
+	ldr	r6, [r3, #56]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #8]
+	ldr	r6, [r0, #12]
+	ldr	r7, [r0, #16]
+	ldr	r8, [r0, #20]
+	ror	r4, r5, #2
+	eor	r10, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r11, r11, r10
+	eor	r4, r4, r5, ror #22
+	eor	r11, r11, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r11
+	str	r8, [r0, #20]
+	str	r9, [r0, #4]
+	# Round 15
+	ldr	r5, [r0, #20]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
+	ldr	r9, [r0]
+	ror	r4, r5, #6
+	eor	r6, r6, r7
+	eor	r4, r4, r5, ror #11
+	and	r6, r6, r5
+	eor	r4, r4, r5, ror #25
+	eor	r6, r6, r7
+	add	r9, r9, r4
+	add	r9, r9, r6
+	ldr	r5, [sp, #60]
+	ldr	r6, [r3, #60]
+	add	r9, r9, r5
+	add	r9, r9, r6
+	ldr	r5, [r0, #4]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
+	ldr	r8, [r0, #16]
+	ror	r4, r5, #2
+	eor	r11, r5, r6
+	eor	r4, r4, r5, ror #13
+	and	r10, r10, r11
+	eor	r4, r4, r5, ror #22
+	eor	r10, r10, r6
+	add	r8, r8, r9
+	add	r9, r9, r4
+	add	r9, r9, r10
+	str	r8, [r0, #16]
+	str	r9, [r0]
 	# Add in digest from start
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0]
-	ldr	lr, [r0, #4]
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 #else
-	ldrd  r12, lr, [r0]
+	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #12]
+	ldr	r6, [r0, #8]
+	ldr	r7, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [sp, #64]
-	ldr	r7, [sp, #68]
+	ldr	r8, [sp, #64]
+	ldr	r9, [sp, #68]
 #else
-	ldrd  r6, r7, [sp, #64]
+	ldrd	r8, r9, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [sp, #72]
-	ldr	r9, [sp, #76]
+	ldr	r10, [sp, #72]
+	ldr	r11, [sp, #76]
 #else
-	ldrd  r8, r9, [sp, #72]
+	ldrd	r10, r11, [sp, #72]
 #endif
-	add	r12, r12, r6
-	add	lr, lr, r7
 	add	r4, r4, r8
 	add	r5, r5, r9
+	add	r6, r6, r10
+	add	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0]
-	str	lr, [r0, #4]
+	str	r4, [r0]
+	str	r5, [r0, #4]
 #else
-	strd  r12, lr, [r0]
+	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [r0, #8]
-	str	r5, [r0, #12]
+	str	r6, [r0, #8]
+	str	r7, [r0, #12]
 #else
-	strd  r4, r5, [r0, #8]
+	strd	r6, r7, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [sp, #64]
-	str	lr, [sp, #68]
+	str	r4, [sp, #64]
+	str	r5, [sp, #68]
 #else
-	strd  r12, lr, [sp, #64]
+	strd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [sp, #72]
-	str	r5, [sp, #76]
+	str	r6, [sp, #72]
+	str	r7, [sp, #76]
 #else
-	strd  r4, r5, [sp, #72]
+	strd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r12, [r0, #16]
-	ldr	lr, [r0, #20]
+	ldr	r4, [r0, #16]
+	ldr	r5, [r0, #20]
 #else
-	ldrd  r12, lr, [r0, #16]
+	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #28]
+	ldr	r6, [r0, #24]
+	ldr	r7, [r0, #28]
 #else
-	ldrd  r4, r5, [r0, #24]
+	ldrd	r6, r7, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r6, [sp, #80]
-	ldr	r7, [sp, #84]
+	ldr	r8, [sp, #80]
+	ldr	r9, [sp, #84]
 #else
-	ldrd  r6, r7, [sp, #80]
+	ldrd	r8, r9, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	ldr	r8, [sp, #88]
-	ldr	r9, [sp, #92]
+	ldr	r10, [sp, #88]
+	ldr	r11, [sp, #92]
 #else
-	ldrd  r8, r9, [sp, #88]
+	ldrd	r10, r11, [sp, #88]
 #endif
-	add	r12, r12, r6
-	add	lr, lr, r7
 	add	r4, r4, r8
 	add	r5, r5, r9
+	add	r6, r6, r10
+	add	r7, r7, r11
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [r0, #16]
-	str	lr, [r0, #20]
+	str	r4, [r0, #16]
+	str	r5, [r0, #20]
 #else
-	strd  r12, lr, [r0, #16]
+	strd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [r0, #24]
-	str	r5, [r0, #28]
+	str	r6, [r0, #24]
+	str	r7, [r0, #28]
 #else
-	strd  r4, r5, [r0, #24]
+	strd	r6, r7, [r0, #24]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r12, [sp, #80]
-	str	lr, [sp, #84]
+	str	r4, [sp, #80]
+	str	r5, [sp, #84]
 #else
-	strd  r12, lr, [sp, #80]
+	strd	r4, r5, [sp, #80]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
-	str	r4, [sp, #88]
-	str	r5, [sp, #92]
+	str	r6, [sp, #88]
+	str	r7, [sp, #92]
 #else
-	strd  r4, r5, [sp, #88]
+	strd	r6, r7, [sp, #88]
 #endif
 	subs	r2, r2, #0x40
 	sub	r3, r3, #0xc0
 	add	r1, r1, #0x40
 	bne	L_SHA256_transform_len_begin
 	add	sp, sp, #0xc0
-	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
 	.size	L_SHA256_transform_neon_len_k, 256
-	.align	3
+	.align	4
 L_SHA256_transform_neon_len_k:
 	.word	0x428a2f98
 	.word	0x71374491
@@ -1728,7 +1731,7 @@ L_SHA256_transform_neon_len_k:
 	.word	0xbef9a3f7
 	.word	0xc67178f2
 	.text
-	.align	2
+	.align	4
 	.fpu	neon
 	.globl	Transform_Sha256_Len
 	.type	Transform_Sha256_Len, %function
@@ -1740,7 +1743,7 @@ Transform_Sha256_Len:
 	str	r0, [sp]
 	str	r1, [sp, #4]
 #else
-	strd  r0, r1, [sp]
+	strd	r0, r1, [sp]
 #endif
 	str	r2, [sp, #8]
 	adr	r12, L_SHA256_transform_neon_len_k
@@ -1749,25 +1752,25 @@ Transform_Sha256_Len:
 	ldr	r2, [r0]
 	ldr	r3, [r0, #4]
 #else
-	ldrd  r2, r3, [r0]
+	ldrd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
 	ldr	r5, [r0, #12]
 #else
-	ldrd  r4, r5, [r0, #8]
+	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r6, [r0, #16]
 	ldr	r7, [r0, #20]
 #else
-	ldrd  r6, r7, [r0, #16]
+	ldrd	r6, r7, [r0, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r8, [r0, #24]
 	ldr	r9, [r0, #28]
 #else
-	ldrd  r8, r9, [r0, #24]
+	ldrd	r8, r9, [r0, #24]
 #endif
 	# Start of loop processing a block
 L_SHA256_transform_neon_len_begin:
@@ -2698,7 +2701,7 @@ L_SHA256_transform_neon_len_start:
 	ldr	r0, [r10]
 	ldr	r1, [r10, #4]
 #else
-	ldrd  r0, r1, [r10]
+	ldrd	r0, r1, [r10]
 #endif
 	add	r2, r2, r0
 	add	r3, r3, r1
@@ -2706,13 +2709,13 @@ L_SHA256_transform_neon_len_start:
 	str	r2, [r10]
 	str	r3, [r10, #4]
 #else
-	strd  r2, r3, [r10]
+	strd	r2, r3, [r10]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r0, [r10, #8]
 	ldr	r1, [r10, #12]
 #else
-	ldrd  r0, r1, [r10, #8]
+	ldrd	r0, r1, [r10, #8]
 #endif
 	add	r4, r4, r0
 	add	r5, r5, r1
@@ -2720,13 +2723,13 @@ L_SHA256_transform_neon_len_start:
 	str	r4, [r10, #8]
 	str	r5, [r10, #12]
 #else
-	strd  r4, r5, [r10, #8]
+	strd	r4, r5, [r10, #8]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r0, [r10, #16]
 	ldr	r1, [r10, #20]
 #else
-	ldrd  r0, r1, [r10, #16]
+	ldrd	r0, r1, [r10, #16]
 #endif
 	add	r6, r6, r0
 	add	r7, r7, r1
@@ -2734,13 +2737,13 @@ L_SHA256_transform_neon_len_start:
 	str	r6, [r10, #16]
 	str	r7, [r10, #20]
 #else
-	strd  r6, r7, [r10, #16]
+	strd	r6, r7, [r10, #16]
 #endif
 #if defined(WOLFSSL_SP_ARM_ARCH) && (WOLFSSL_SP_ARM_ARCH < 7)
 	ldr	r0, [r10, #24]
 	ldr	r1, [r10, #28]
 #else
-	ldrd  r0, r1, [r10, #24]
+	ldrd	r0, r1, [r10, #24]
 #endif
 	add	r8, r8, r0
 	add	r9, r9, r1
@@ -2748,7 +2751,7 @@ L_SHA256_transform_neon_len_start:
 	str	r8, [r10, #24]
 	str	r9, [r10, #28]
 #else
-	strd  r8, r9, [r10, #24]
+	strd	r8, r9, [r10, #24]
 #endif
 	ldr	r10, [sp, #8]
 	ldr	r1, [sp, #4]

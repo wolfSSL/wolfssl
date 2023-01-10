@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2022 wolfSSL Inc.
+# Copyright (C) 2006-2023 wolfSSL Inc.
 #
 # This file is part of wolfSSL.
 #
@@ -29,6 +29,8 @@ COMPONENT_ADD_INCLUDEDIRS += "$ENV{IDF_PATH}/components/freertos/include/freerto
 COMPONENT_SRCDIRS := src wolfcrypt/src
 COMPONENT_SRCDIRS += wolfcrypt/src/port/Espressif
 COMPONENT_SRCDIRS += wolfcrypt/src/port/atmel
+COMPONENT_SRCDIRS += wolfcrypt/benchmark
+COMPONENT_SRCDIRS += wolfcrypt/test
 
 CFLAGS +=-DWOLFSSL_USER_SETTINGS
 
