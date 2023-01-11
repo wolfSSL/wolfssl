@@ -8576,16 +8576,22 @@ void benchmark_configure(int block_size)
  * str   Algorithm string to print.
  * line  Length of line used so far.
  */
+#ifndef BENCH_MAX_LINE
+#define BENCH_MAX_LINE 80
+#endif
 static void print_alg(const char* str, int* line)
 {
-    int optLen;
-
-    optLen = (int)XSTRLEN(str) + 1;
-    if (optLen + *line > 80) {
-        printf("\n             ");
-        *line = 13;
+    const char* const ident = "             ";
+    if (*line == 0) {
+        printf(ident);
+        *line = (int)XSTRLEN(ident);
     }
-    *line += optLen;
+    printf(" %s", str);
+    *line += (int)XSTRLEN(str) + 1;
+    if (*line > BENCH_MAX_LINE) {
+        printf("\n");
+        *line = 0;
+    }
 }
 #endif /* WOLFSSL_BENCHMARK_ALL */
 
@@ -8645,37 +8651,26 @@ static void Usage(void)
     e++;
 #ifndef WOLFSSL_BENCHMARK_ALL
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -<alg> */
-    printf("             ");
-    line = 13;
+    line = 0;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
-        print_alg(bench_cipher_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_cipher_opt[i].str, &line);
     for (i=0; bench_digest_opt[i].str != NULL; i++)
-        print_alg(bench_digest_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_digest_opt[i].str, &line);
     for (i=0; bench_mac_opt[i].str != NULL; i++)
-        print_alg(bench_mac_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_mac_opt[i].str, &line);
     for (i=0; bench_asym_opt[i].str != NULL; i++)
-        print_alg(bench_asym_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_asym_opt[i].str, &line);
     for (i=0; bench_other_opt[i].str != NULL; i++)
-        print_alg(bench_other_opt[i].str + 1, &line);
-    printf("\n             ");
+        print_alg(bench_other_opt[i].str, &line);
 #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
-    line = 13;
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
-        print_alg(bench_pq_asym_opt[i].str + 1, &line);
+        print_alg(bench_pq_asym_opt[i].str, &line);
 #if defined(HAVE_LIBOQS)
     for (i=0; bench_pq_asym_opt2[i].str != NULL; i++)
-        print_alg(bench_pq_asym_opt2[i].str + 1, &line);
-    printf("\n");
+        print_alg(bench_pq_asym_opt2[i].str, &line);
 #endif /* HAVE_LIBOQS */
 #endif /* HAVE_PQC */
+    printf("\n");
 #endif /* !WOLFSSL_BENCHMARK_ALL */
     e++;
     printf("%s", bench_Usage_msg1[lng_index][e++]); /* option -lng */
