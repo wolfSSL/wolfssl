@@ -1666,43 +1666,36 @@ static WC_INLINE int bench_stats_check(double start)
 }
 
 /* return text for units and scale the value of blocks as needed for base2 */
-static WC_INLINE const char* specified_base2_blockType(double * blocks)
+static const char* get_blocktype_base10(double* blocks)
 {
     const char* rt;
 
-#if (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G)  \
-     || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB) )
+#if (  defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "GB/s"
     *blocks /= (1000UL * 1000UL * 1000UL);
     rt = "GiB";
-
-#elif (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M)  \
-       || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "MB/s"
     *blocks /= (1024UL * 1024UL);
     rt = "MiB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_K) \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "KB/s"
     *blocks /= 1024;
     rt = "KiB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B) )
+#elif  defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "bytes/s"
     (void)(*blocks); /* no adjustment, just appease compiler for not used */
     rt = "bytes";
-
 #else
-
-    /* if no user-specified, auto-scale each metric (results vary)
-    **
-    ** determine if we should show as KB or MB or bytes. No GiB here.
-    */
+    /* If no user-specified, auto-scale each metric (results vary).
+     * Determine if we should show as KB or MB or bytes. No GiB here. */
     if (*blocks > (1024UL * 1024UL)) {
         *blocks /= (1024UL * 1024UL);
         rt = "MiB";
@@ -1714,56 +1707,49 @@ static WC_INLINE const char* specified_base2_blockType(double * blocks)
     else {
         rt = "bytes";
     }
-
 #endif
 
     return rt;
-} /* specified_base2_blockType() */
+}
 
 /* return text for units and scale the value of blocks as needed */
-static WC_INLINE const char* specified_blockType(double * blocks)
+static const char* get_blocktype(double* blocks)
 {
     const char* rt;
 
-#if (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G)  \
-     || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB) )
+#if (  defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     *blocks /= (1000UL * 1000UL * 1000UL);
     rt = "GB";
-
-#elif (    defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) \
-       || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
     *blocks /= (1000UL * 1000UL);
     rt = "MB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_K)  \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_KB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
     *blocks /= (1000UL);
     rt = "KB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)  )
+#elif     defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     (void)(*blocks); /* no adjustment, just appease compiler */
     rt = "bytes";
-
 #else
-        /* if not user-specified, auto-scale each metric (results vary)
-        **
-        ** determine if we should show as KB or MB or bytes
-        */
-        if (*blocks > (1000UL * 1000UL)) {
-            *blocks /= (1000UL * 1000UL);
-            rt = "MB";
-        }
-        else if (*blocks > 1000) {
-            *blocks /= 1000; /* make KB */
-            rt = "KB";
-        }
-        else {
-            rt = "bytes";
-        } /* rt auto-assigned */
-#endif /* WOLFSSL_BENCHMARK UNITS */
+    /* If not user-specified, auto-scale each metric (results vary).
+     * Determine if we should show as KB or MB or bytes */
+    if (*blocks > (1000UL * 1000UL)) {
+        *blocks /= (1000UL * 1000UL);
+        rt = "MB";
+    }
+    else if (*blocks > 1000) {
+        *blocks /= 1000; /* make KB */
+        rt = "KB";
+    }
+    else {
+        rt = "bytes";
+    }
+#endif
 
     return rt;
-} /* specified_blockType */
+}
 
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
  * except for AES direct that operates on AES_BLOCK_SIZE blocks */
@@ -1825,14 +1811,14 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     }
 
     /* determine if we have fixed units, or auto-scale bits or bytes for units.
-    ** note that the blockType text is assigned AND the blocks param is scaled.
-    */
+     * note that the blockType text is assigned AND the blocks param is scaled.
+     */
     if (base2) {
-        blockType = specified_base2_blockType(&blocks);
-    } /* is base2 bit counter */
+        blockType = get_blocktype(&blocks);
+    }
     else {
-        blockType = specified_blockType(&blocks);
-    } /* not base2, is byte counter */
+        blockType = get_blocktype_base10(&blocks);
+    }
 
     /* calculate blocks per second */
     if (total > 0) {
@@ -8583,7 +8569,7 @@ static void print_alg(const char* str, int* line)
 {
     const char* const ident = "             ";
     if (*line == 0) {
-        printf(ident);
+        fputs(ident, stdout);
         *line = (int)XSTRLEN(ident);
     }
     printf(" %s", str);
