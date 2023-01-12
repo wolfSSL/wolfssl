@@ -16878,11 +16878,16 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
             /* Put each digit in. */
             for (i = 0; (j >= 0) && (i < a->used); i++) {
                 int b;
+                sp_int_digit d = a->dp[i];
                 /* Place each byte of a digit into the buffer. */
                 for (b = 0; b < SP_WORD_SIZE; b += 8) {
-                    out[j--] = (byte)(a->dp[i] >> b);
+                    out[j--] = (byte)d;
+                    d >>= 8;
                     /* Stop if the output buffer is filled. */
                     if (j < 0) {
+                        if ((i < a->used - 1) || (d > 0)) {
+                            err = BUFFER_E;
+                        }
                         break;
                     }
                 }
