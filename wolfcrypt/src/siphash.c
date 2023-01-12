@@ -1,6 +1,6 @@
 /* siphash.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -268,6 +268,7 @@ int wc_SipHashUpdate(SipHash* sipHash, const unsigned char* in, word32 inSz)
             if (sipHash->cacheCnt == SIPHASH_BLOCK_SIZE) {
                 /* Compress the block from the cache. */
                 SipHashCompress(sipHash, sipHash->cache);
+                sipHash->inCnt += SIPHASH_BLOCK_SIZE;
                 sipHash->cacheCnt = 0;
             }
         }
@@ -329,7 +330,7 @@ int wc_SipHashFinal(SipHash* sipHash, unsigned char* out, unsigned char outSz)
     }
 
     if (ret == 0) {
-        /* Put int remaining cached message bytes. */
+        /* Put in remaining cached message bytes. */
         XMEMSET(sipHash->cache + sipHash->cacheCnt, 0, 7 - sipHash->cacheCnt);
         sipHash->cache[7] = (byte)(sipHash->inCnt + sipHash->cacheCnt);
 

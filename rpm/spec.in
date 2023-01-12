@@ -50,7 +50,7 @@ fi
 %{__rm} -rf %{buildroot}
 %{__make} install  DESTDIR="%{buildroot}" AM_INSTALL_PROGRAM_FLAGS=""
 mkdir -p $RPM_BUILD_ROOT/
-%{__rm} -f %{buildroot}/%{_libdir}/libwolfssl.la
+%{__rm} -f %{buildroot}/%{_libdir}/libwolfssl@LIBSUFFIX@.la
 
 %check
 
@@ -78,9 +78,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_docdir}/wolfssl/QUIC.md
 
-%{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.@WOLFSSL_LIBRARY_VERSION_FIRST@
-%{_libdir}/libwolfssl.so.@WOLFSSL_LIBRARY_VERSION_FIRST@.@WOLFSSL_LIBRARY_VERSION_SECOND@.@WOLFSSL_LIBRARY_VERSION_THIRD@
+%{_libdir}/libwolfssl@LIBSUFFIX@.so
+%{_libdir}/libwolfssl@LIBSUFFIX@.so.@WOLFSSL_LIBRARY_VERSION_FIRST@
+%{_libdir}/libwolfssl@LIBSUFFIX@.so.@WOLFSSL_LIBRARY_VERSION_FIRST@.@WOLFSSL_LIBRARY_VERSION_SECOND@.@WOLFSSL_LIBRARY_VERSION_THIRD@
 
 %files devel
 %defattr(-,root,root,-)

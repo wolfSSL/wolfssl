@@ -1,6 +1,6 @@
 /* wc_port.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -202,7 +202,11 @@
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
     #if defined(FREERTOS)
-        typedef xSemaphoreHandle wolfSSL_Mutex;
+        #if ESP_IDF_VERSION_MAJOR >= 4
+            typedef SemaphoreHandle_t wolfSSL_Mutex;
+        #else
+            typedef xSemaphoreHandle wolfSSL_Mutex;
+        #endif
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
         #include "semphr.h"

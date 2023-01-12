@@ -1,6 +1,6 @@
 /* server.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -499,19 +499,18 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
+#ifdef __MINGW32__
+#define SIZE_FMT "%d"
+#define SIZE_TYPE int
+#else
+#define SIZE_FMT "%zu"
+#define SIZE_TYPE size_t
+#endif
         printf(
-        #if !defined(__MINGW32__)
-            "wolfSSL Server Benchmark %zu bytes\n"
-        #else
-            "wolfSSL Server Benchmark %d bytes\n"
-        #endif
+            "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
-    #if !defined(__MINGW32__)
-            throughput,
-    #else
-            (int)throughput,
-    #endif
+            (SIZE_TYPE)throughput,
             rx_time * 1000, throughput / rx_time / 1024 / 1024,
             tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
@@ -2995,7 +2994,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     if (!disableCRL) {
 #ifdef HAVE_CRL_MONITOR
         crlFlags = WOLFSSL_CRL_MONITOR | WOLFSSL_CRL_START_MON;
@@ -3021,8 +3020,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #ifndef NO_RSA
     /* All the OCSP Stapling test certs are RSA. */
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if !defined(NO_FILESYSTEM) && (\
+       defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
         { /* scope start */
             const char* ca1 = "certs/ocsp/intermediate1-ca-cert.pem";
             const char* ca2 = "certs/ocsp/intermediate2-ca-cert.pem";
@@ -3714,7 +3714,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    wolfsentry_ret =
+        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
     if (wolfsentry_ret < 0) {
         fprintf(stderr,
                 "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",

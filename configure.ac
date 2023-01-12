@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.5.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.5.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -44,9 +44,9 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
 # these numbers don't always line up nicely with the library version.
 WOLFSSL_LIBRARY_VERSION_FIRST=35
-WOLFSSL_LIBRARY_VERSION_SECOND=2
-WOLFSSL_LIBRARY_VERSION_THIRD=1
-WOLFSSL_LIBRARY_VERSION=37:1:2
+WOLFSSL_LIBRARY_VERSION_SECOND=3
+WOLFSSL_LIBRARY_VERSION_THIRD=0
+WOLFSSL_LIBRARY_VERSION=38:0:3
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -2998,9 +2998,12 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
+if test "$enable_dsa" = ""
 then
-    ENABLED_DSA="yes"
+    if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
+    then
+        ENABLED_DSA="yes"
+    fi
 fi
 
 if test "$ENABLED_DSA" = "no"
@@ -4115,6 +4118,11 @@ else
     fi
 fi
 
+if test "$ENABLED_SHA" = "no" && test "$ENABLED_DSA" != "no"
+then
+    AC_MSG_ERROR([please disable DSA if disabling SHA-1.])
+fi
+
 
 # SipHash
 AC_ARG_ENABLE([siphash],
@@ -4965,7 +4973,7 @@ AC_ARG_ENABLE([keying-material],
     [ ENABLED_KEYING_MATERIAL=no ]
     )
 
-if test "$ENABLED_CHRONY" = "yes"
+if test "$ENABLED_CHRONY" = "yes" || test "$ENABLED_SRTP" = "yes"
 then
     ENABLED_KEYING_MATERIAL=yes
 fi
@@ -7429,6 +7437,20 @@ if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
    fi
 fi
 
+# Library Suffix
+LIBSUFFIX=""
+AC_ARG_WITH([libsuffix],
+    [AS_HELP_STRING([--with-libsuffix=SUFFIX],[Library artifact SUFFIX, ie libwolfsslSUFFIX.so])],
+    [
+        if test "x$withval" != "xno" ; then
+            LIBSUFFIX=$withval
+        fi
+        if test "x$withval" = "xyes" ; then
+            AC_MSG_ERROR([Invalid argument to --with-libsuffix, no suffix given])
+        fi
+    ]
+)
+AC_SUBST(LIBSUFFIX)
 
 AC_ARG_ENABLE([context-extra-user-data],
     [AS_HELP_STRING([--enable-context-extra-user-data],[Enables option for storing user-defined data in TLS API contexts, with optional argument the number of slots to allocate (default: disabled)])],
@@ -7732,8 +7754,9 @@ AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
       [AC_MSG_ERROR([please enable ecc or rsa if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
-       test "x$ENABLED_SHA" = "xno"],
-      [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
+       test "x$ENABLED_SHA" = "xno" && \
+       test "x$ENABLED_SHA256" = "xno"],
+      [AC_MSG_ERROR([please enable sha or sha256 if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_AES" = "xno" && \
@@ -8424,10 +8447,10 @@ AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
 AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
-AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes"])
+AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
-AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes"])
+AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
@@ -8616,6 +8639,7 @@ echo "   * C++ Flags:                  $CXXFLAGS"
 echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
+echo "   * Library Suffix:             $LIBSUFFIX"
 
 test "$ENABLED_LINUXKM" = "yes" && \
 echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \

@@ -1,6 +1,6 @@
 /* rsa.c
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -66,7 +66,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 Possible RSA enable options:
  * NO_RSA:                Overall control of RSA                    default: on
  *                                                                 (not defined)
- * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: off
+ * WC_RSA_BLINDING:       Uses Blinding w/ Private Ops              default: on
                           Note: slower by ~20%
  * WOLFSSL_KEY_GEN:       Allows Private Key Generation             default: off
  * RSA_LOW_MEM:           NON CRT Private Operations, less memory   default: off
@@ -1611,7 +1611,7 @@ int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
 
 /* UnPadding */
-#ifndef WC_NO_RSA_OAEP
+#if !defined(WC_NO_RSA_OAEP) && !defined(NO_HASH_WRAPPER)
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
@@ -1724,7 +1724,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     *output = (byte*)(pkcsBlock + idx);
     return pkcsBlockLen - idx;
 }
-#endif /* WC_NO_RSA_OAEP */
+#endif /* !WC_NO_RSA_OAEP */
 
 #ifdef WC_RSA_PSS
 /* 0x00 .. 0x00 0x01 | Salt | Gen Hash | 0xbc

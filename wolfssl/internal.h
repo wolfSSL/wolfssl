@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1609,13 +1609,6 @@ enum Misc {
     DILITHIUM_LEVEL3_SA_MINOR = 0xA3,
     DILITHIUM_LEVEL5_SA_MAJOR = 0xFE,
     DILITHIUM_LEVEL5_SA_MINOR = 0xA5,
-
-    DILITHIUM_AES_LEVEL2_SA_MAJOR = 0xFE,
-    DILITHIUM_AES_LEVEL2_SA_MINOR = 0xA7,
-    DILITHIUM_AES_LEVEL3_SA_MAJOR = 0xFE,
-    DILITHIUM_AES_LEVEL3_SA_MINOR = 0xAA,
-    DILITHIUM_AES_LEVEL5_SA_MAJOR = 0xFE,
-    DILITHIUM_AES_LEVEL5_SA_MINOR = 0xAC,
 
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
@@ -3568,9 +3561,6 @@ enum SignatureAlgorithm {
     dilithium_level2_sa_algo     = 14,
     dilithium_level3_sa_algo     = 15,
     dilithium_level5_sa_algo     = 16,
-    dilithium_aes_level2_sa_algo = 17,
-    dilithium_aes_level3_sa_algo = 18,
-    dilithium_aes_level5_sa_algo = 19,
     invalid_sa_algo              = 255
 };
 
@@ -3661,7 +3651,7 @@ typedef struct Ciphers {
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
 #endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && !defined(NO_HMAC)
     Hmac* hmac;
 #endif
 #ifdef WOLFSSL_CIPHER_TEXT_CHECK
