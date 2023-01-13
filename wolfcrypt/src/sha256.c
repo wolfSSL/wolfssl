@@ -1399,9 +1399,7 @@ static int InitSha256(wc_Sha256* sha256)
         return InitSha256(sha256);  /* reset state */
     }
 
-#endif /* !WOLFSSL_KCAPI_HASH */
-
-    #if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
 /* Apply SHA256 transformation to the data                */
 /* @param sha  a pointer to wc_Sha256 structure           */
 /* @param data data to be applied SHA256 transformation   */
@@ -1414,7 +1412,10 @@ static int InitSha256(wc_Sha256* sha256)
         return (Transform_Sha256(sha, data));
     }
     #endif
-#endif /* XTRANSFORM */
+#endif /* OPENSSL_EXTRA */
+
+#endif /* !WOLFSSL_KCAPI_HASH */
+
 
 #ifdef WOLFSSL_SHA224
 

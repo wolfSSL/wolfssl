@@ -185,7 +185,7 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #ifdef WOLFSSL_SHA384
 typedef struct WOLFSSL_SHA384_CTX {
     /* big enough to hold wolfCrypt Sha384, but check on init */
-    void* holder[(268 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    void* holder[(288 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA384_CTX;
 
 WOLFSSL_API int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha);
