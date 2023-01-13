@@ -740,7 +740,8 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherUpdate");
     if (inl == 0 && in == NULL ) {
-        /* Nothing to do in this case. Just return. */
+        /* Nothing to do in this case. Just set outl to zero and return. */
+        if (outl != NULL) { *outl = 0; }
         return WOLFSSL_SUCCESS;
     }
 
