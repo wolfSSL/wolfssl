@@ -16868,6 +16868,7 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
         err = MP_VAL;
     }
 
+#if SP_WORD_SIZE > 8
     if (err == MP_OKAY) {
         /* Start at the end of the buffer - least significant byte. */
         int j = outSz - 1;
@@ -16898,6 +16899,21 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
             out[j] = 0;
         }
     }
+#else
+    if ((err == MP_OKAY) && (outSz < a->used)) {
+        err = BUFFER_E;
+    }
+    if (err == MP_OKAY) {
+        int i;
+        int j;
+
+        XMEMSET(out, 0, outSz - a->used);
+
+        for (i = 0, j = outSz - 1; i < a->used; i++, j--) {
+            out[j] = a->dp[i];
+        }
+    }
+#endif
 
     return err;
 }
