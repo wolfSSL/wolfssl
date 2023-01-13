@@ -137,6 +137,24 @@ jobs:
         make
         ./wolfcrypt/test/testwolfcrypt
 
+  make_user_wolftpm:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_wolftpm on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
+    - name: user_settings_wolftpm.h
+      run: |
+        cp ./examples/configs/user_settings_wolftpm.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
   windows_build:
     name: Windows Build Test
     runs-on: windows-latest

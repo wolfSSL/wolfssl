@@ -10076,7 +10076,8 @@ static int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
 static int test_wolfSSL_PKCS8(void)
 {
     int res = TEST_SKIPPED;
-#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8)
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    !defined(WOLFCRYPT_ONLY)
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
     byte buff[FOURK_BUF];
     byte der[FOURK_BUF];
