@@ -1049,7 +1049,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
         : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
         :
-        : "x3", "x4", "x5", "x6"
+        : "x3", "x4", "x5", "x6", "cc"
     );
 
     return hi;
@@ -1292,7 +1292,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         :
 #endif
-        : "r4", "r5", "r6", "r8", "r9"
+        : "r4", "r5", "r6", "r8", "r9", "cc"
     );
 
     return r;
@@ -1362,7 +1362,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
         : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
         :
-        : "r3", "r4", "r5", "r6"
+        : "r3", "r4", "r5", "r6", "cc"
     );
 
     return hi;
@@ -3222,7 +3222,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "movs   %[hi], r3\n\t"
         : [hi] "+l" (hi), [lo] "+l" (lo), [d] "+l" (d)
         :
-        : "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+        : "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
     return (uint32_t)(size_t)hi;
 }
