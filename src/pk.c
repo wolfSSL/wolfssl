@@ -10918,7 +10918,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     if (n && q && m) {
         /* r = generator * n + q * m */
-#ifdef ECC_SHAMIR
+#if defined(ECC_SHAMIR) && !defined(WOLFSSL_KCAPI_ECC)
         if (ecc_mul2add(result, (mp_int*)n->internal,
                         (ecc_point*)q->internal, (mp_int*)m->internal,
                         result, a, prime, NULL)
