@@ -2789,7 +2789,7 @@ static int GetMacDigestSize(byte macAlgo)
             out[*inOutIdx + 1] = minor;                 \
         }                                               \
         *inOutIdx += 2;                                 \
-    } while(0)
+    } while (0)
 
 static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     byte sigAlgo, int keySz, word16* inOutIdx)
@@ -2864,9 +2864,19 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     }
 }
 
-void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsig,
-                           int haveFalconSig, int haveDilithiumSig,
-                           int haveAnon, int tls1_2, int keySz, word16* len)
+void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
+                           int haveRSAsig, int haveFalconSig,
+                           int haveDilithiumSig, int haveAnon,
+                           int tls1_2, int keySz)
+{
+    InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
+            haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
+            &suites->hashSigAlgoSz);
+}
+
+void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsig,
+                              int haveFalconSig, int haveDilithiumSig,
+                              int haveAnon, int tls1_2, int keySz, word16* len)
 {
     word16 idx = 0;
 
@@ -2986,7 +2996,7 @@ int AllocateSuites(WOLFSSL* ssl)
                                        DYNAMIC_TYPE_SUITES);
         if (ssl->suites == NULL) {
             WOLFSSL_MSG("Suites Memory error");
-            return MEMORY_E;
+            return MEMORY_ERROR;
         }
         if (ssl->ctx != NULL && ssl->ctx->suites != NULL)
             XMEMCPY(ssl->suites, ssl->ctx->suites, sizeof(Suites));
@@ -3959,10 +3969,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     suites->suiteSz = idx;
 
     if (suites->hashSigAlgoSz == 0) {
-        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveECDSAsig | haveECC,
+        InitSuitesHashSigAlgo(suites, haveECDSAsig | haveECC,
                               haveRSAsig | haveRSA, haveFalconSig,
-                              haveDilithiumSig, 0, tls1_2, keySz,
-                              &suites->hashSigAlgoSz);
+                              haveDilithiumSig, 0, tls1_2, keySz);
     }
 }
 
@@ -24624,9 +24633,9 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     #endif
         {
             suites->suiteSz   = (word16)idx;
-            InitSuitesHashSigAlgo(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
+            InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig,
                                   haveFalconSig, haveDilithiumSig, haveAnon,
-                                  1, keySz, &suites->hashSigAlgoSz);
+                                  1, keySz);
         }
         suites->setSuites = 1;
     }
@@ -24750,9 +24759,9 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         keySz = ctx->privateKeySz;
     #endif
         suites->suiteSz = (word16)idx;
-        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig,
                               haveFalconSig, haveDilithiumSig, haveAnon, 1,
-                              keySz, &suites->hashSigAlgoSz);
+                              keySz);
         suites->setSuites = 1;
     }
 

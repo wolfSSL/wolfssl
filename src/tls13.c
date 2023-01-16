@@ -6632,13 +6632,13 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         return SIDE_ERROR;
 
     /* Get the length of the hashSigAlgo buffer */
-    InitSuitesHashSigAlgo(NULL, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
-                          &hashSigAlgoSz);
+    InitSuitesHashSigAlgo_ex(NULL, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
+                             &hashSigAlgoSz);
     sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
     if (sa == NULL)
         return MEMORY_ERROR;
-    InitSuitesHashSigAlgo(sa->hashSigAlgo, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
-                          &sa->hashSigAlgoSz);
+    InitSuitesHashSigAlgo_ex(sa->hashSigAlgo, 1, 1, 1, 1, 0, 1, ssl->buffers.keySz,
+                             &sa->hashSigAlgoSz);
     ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
     if (ret != 0) {
         TLSX_SignatureAlgorithms_FreeAll(sa, ssl->heap);

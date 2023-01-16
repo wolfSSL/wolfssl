@@ -6998,15 +6998,15 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         word16 havePSK = 0;
         word16 haveRSA = 0;
 
-        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         if (ssl->options.havePSK) {
             havePSK = 1;
         }
-        #endif
-        #ifndef NO_RSA
-            haveRSA = 1;
-        #endif
-            keySz = ssl->buffers.keySz;
+    #endif
+    #ifndef NO_RSA
+        haveRSA = 1;
+    #endif
+        keySz = ssl->buffers.keySz;
 
         if (AllocateSuites(ssl) != 0)
             return WOLFSSL_FAILURE;
@@ -7021,15 +7021,15 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         word16 havePSK = 0;
         word16 haveRSA = 0;
 
-        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         if (ctx->havePSK) {
             havePSK = 1;
         }
-        #endif
-        #ifndef NO_RSA
-            haveRSA = 1;
-        #endif
-            keySz = ctx->privateKeySz;
+    #endif
+    #ifndef NO_RSA
+        haveRSA = 1;
+    #endif
+        keySz = ctx->privateKeySz;
 
         if (AllocateCtxSuites(ctx) != 0)
             return WOLFSSL_FAILURE;

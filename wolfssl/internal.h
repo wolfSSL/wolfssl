@@ -2121,10 +2121,14 @@ struct Suites {
     byte   setSuites;               /* user set suites from default */
 };
 
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveECDSAsig,
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveFalconSig,
                                          int haveDilithiumSig, int haveAnon,
-                                         int tls1_2, int keySz, word16* len);
+                                         int tls1_2, int keySz);
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
+                                            int haveRSAsig, int haveFalconSig,
+                                            int haveDilithiumSig, int haveAnon,
+                                            int tls1_2, int keySz, word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
