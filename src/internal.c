@@ -32884,6 +32884,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
             byte process = 0;
+            if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
+                  ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
+                 (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {
+                /* We should continue with the same sequence number as the
+                 * Client Hello if available. */
+                ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+                ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+            }
+            /* We should continue with the same handshake number as the
+             * Client Hello. */
+            ssl->keys.dtls_handshake_number =
+                    ssl->keys.dtls_peer_handshake_number;
             ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz,
                 &process);
             if (ret != 0 || !process) {
@@ -32901,22 +32913,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* protocol version */
         XMEMCPY(&pv, input + i, OPAQUE16_LEN);
         ssl->chVersion = pv;   /* store */
-#ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-            if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
-                  ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
-                 (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {
-                /* We should continue with the same sequence number as the
-                 * Client Hello if available. */
-                ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-                ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
-            }
-            /* We should continue with the same handshake number as the
-             * Client Hello. */
-            ssl->keys.dtls_handshake_number =
-                    ssl->keys.dtls_peer_handshake_number;
-        }
-#endif /* WOLFSSL_DTLS */
         i += OPAQUE16_LEN;
 
         /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
