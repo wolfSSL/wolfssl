@@ -1,0 +1,30 @@
+name: OpenWRT test
+concurrency:
+    group: ${{ github.ref }}
+
+on:
+    push:
+        branches: [ '*' ]
+#    branches: [ 'master', 'main', 'release/**' ]
+    pull_request:
+        branches: [ '*' ]
+
+jobs:
+    compile_container:
+        name: Build OpenWRT test container
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: docker/setup-buildx-action@v2
+            -
+              name: Build but dont push
+              uses: docker/build-push-action@v3
+              with:
+                  context: .
+                  file: Docker/OpenWRT/Dockerfile
+                  push: false
+                  tags: openwrt-test:latest
+#                  cache-from: type=registry,ref=openwrt-test:latest
+#                  cache-to: type=inline
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
