@@ -7,7 +7,7 @@ RUN apk add argp-standalone asciidoc bash bc binutils bzip2 cdrkit coreutils \
   ncurses-dev openssl-dev patch perl python3-dev rsync tar \
   unzip util-linux wget zlib-dev
 COPY . /workspace
-RUN cd /workspace && ./configure --enable-all && make
+RUN cd /workspace && ./autogen.sh && ./configure --enable-all && make
 
 FROM openwrt/rootfs:x86-64-22.03.0
 
