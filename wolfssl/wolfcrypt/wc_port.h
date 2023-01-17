@@ -176,7 +176,11 @@
             #else
                 #define WOLFSSL_PTHREADS
                 #include <pthread.h>
-                #ifndef WOLFSSL_NO_RWLOCK
+                /* Use PTHREAD_RWLOCK_INITIALIZER to detect if rwlocks are
+                 * supported in this pthreads lib. */
+                #if !defined(WOLFSSL_NO_RWLOCK) && \
+                    defined(PTHREAD_RWLOCK_INITIALIZER)
+                    #undef WOLFSSL_USE_RWLOCK
                     #define WOLFSSL_USE_RWLOCK
                 #endif
             #endif
