@@ -21,7 +21,7 @@ jobs:
       run: ./autogen.sh
 
   macos_test1:
-    uses: macos_base
+    needs: macos_base
     steps:
     - name: configure make check
       run: |
@@ -31,7 +31,7 @@ jobs:
         make distcheck
 
   macos_test2:
-    uses: macos_base
+    needs: macos_base
     - name: configure all make check
       run: |
         ./configure --enable-all
@@ -40,7 +40,7 @@ jobs:
         make distcheck
 
   macos_test3:
-    uses: macos_base
+    needs: macos_base
     - name: configure all ASN template
       run: |
         ./configure --enable-all --enable-asn=template
@@ -49,7 +49,7 @@ jobs:
         make distcheck
 
   macos_test4:
-    uses: macos_base
+    needs: macos_base
     - name: make user_settings_all.h
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -58,7 +58,7 @@ jobs:
         make check
 
   macos_test5:
-    uses: macos_base
+    needs: macos_base
     - name: user_settings_all.h with compatibility layer
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -68,7 +68,7 @@ jobs:
         make check
 
   macos_test6:
-    uses: macos_base
+    needs: macos_base
     - name: user_settings_min_ecc.h
       run: |
         cp ./examples/configs/user_settings_min_ecc.h user_settings.h
@@ -77,7 +77,7 @@ jobs:
         ./wolfcrypt/test/testwolfcrypt
 
   macos_test7:
-    uses: macos_base
+    needs: macos_base
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
