@@ -4,30 +4,33 @@ concurrency:
 
 on:
   push:
-    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ '*' ]
+#    branches: [ 'master', 'main', 'release/**' ]
   pull_request:
     branches: [ '*' ]
 
 jobs:
-  macos_build:
+  macos_base:
     name: macOS Build Test
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-
     - name: brew
       run: brew install automake libtool
-
     - name: autogen
       run: ./autogen.sh
 
+  macos_test1:
+    uses: macos_base
+    steps:
     - name: configure make check
       run: |
         ./configure
         make
         make check
         make distcheck
-
+  macos_test2:
+    uses: macos_base
     - name: configure all make check
       run: |
         ./configure --enable-all
@@ -35,6 +38,8 @@ jobs:
         make check
         make distcheck
 
+  macos_test3:
+    uses: macos_base
     - name: configure all ASN template
       run: |
         ./configure --enable-all --enable-asn=template
@@ -42,6 +47,8 @@ jobs:
         make check
         make distcheck
 
+  macos_test4:
+    uses: macos_base
     - name: make user_settings_all.h
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -49,6 +56,8 @@ jobs:
         make
         make check
 
+  macos_test5:
+    uses: macos_base
     - name: user_settings_all.h with compatibility layer
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -57,6 +66,8 @@ jobs:
         make
         make check
 
+  macos_test6:
+    uses: macos_base
     - name: user_settings_min_ecc.h
       run: |
         cp ./examples/configs/user_settings_min_ecc.h user_settings.h
@@ -64,6 +75,8 @@ jobs:
         make
         ./wolfcrypt/test/testwolfcrypt
 
+  macos_test7:
+    uses: macos_base
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
