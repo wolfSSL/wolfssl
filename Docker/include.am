@@ -6,5 +6,5 @@ EXTRA_DIST+= Docker/Dockerfile
 EXTRA_DIST+= Docker/run.sh
 EXTRA_DIST+= Docker/README.md
 
-dist_noinst_SCRIPTS+=Docker/OpenWRT/Dockerfile
-dist_noinst_SCRIPTS+=Docker/OpenWRT/runTests.sh
+ignore_files+=Docker/OpenWRT/Dockerfile
+ignore_files+=Docker/OpenWRT/runTests.sh

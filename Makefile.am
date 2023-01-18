@@ -21,6 +21,7 @@ dist_noinst_SCRIPTS =
 noinst_SCRIPTS =
 check_SCRIPTS =
 noinst_DATA =
+ignore_files =
 SUBDIRS_OPT =
 DIST_SUBDIRS_OPT =
 
