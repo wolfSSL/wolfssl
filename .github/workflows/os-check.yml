@@ -1,4 +1,4 @@
-name: GitHub Action Tests
+name: multi-OS Tests
 concurrency:
   group: ${{ github.ref }}
 
