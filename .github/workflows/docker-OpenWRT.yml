@@ -4,8 +4,7 @@ concurrency:
 
 on:
     push:
-        branches: [ '*' ]
-#    branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'master', 'main', 'release/**' ]
     pull_request:
         branches: [ '*' ]
 
@@ -22,7 +21,7 @@ jobs:
               uses: docker/build-push-action@v3
               with:
                   context: .
-                  platforms: linux/amd64,linux/arm64
+                  platforms: linux/amd64
                   file: Docker/OpenWRT/Dockerfile
                   push: false
                   tags: openwrt-test:latest
