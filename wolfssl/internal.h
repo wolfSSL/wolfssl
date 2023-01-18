@@ -4868,7 +4868,9 @@ typedef struct CIDInfo CIDInfo;
 /* The idea is to re-use the context suites object whenever possible to save
  * space. */
 #define WOLFSSL_SUITES(ssl) \
-    ((const Suites*) (ssl->suites != NULL ? ssl->suites : ssl->ctx->suites))
+    ((const Suites*) ((ssl)->suites != NULL ? \
+        (ssl)->suites : \
+        (ssl)->ctx->suites))
 
 /* wolfSSL ssl type */
 struct WOLFSSL {
@@ -4878,7 +4880,8 @@ struct WOLFSSL {
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher suites */
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
+                                                 * suites */
 #endif
     Arrays*         arrays;
 #ifdef WOLFSSL_TLS13
@@ -4898,7 +4901,8 @@ struct WOLFSSL {
     byte            dupSide;            /* write side or read side */
 #endif
 #ifdef OPENSSL_EXTRA
-    byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
+    byte              cbioFlag;         /* WOLFSSL_CBIO_RECV/SEND:
+                                         * CBIORecv/Send is set */
 #endif
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
@@ -4928,7 +4932,8 @@ struct WOLFSSL {
      * to encounter encryption blocking or fragment the message. */
     struct WOLFSSL_ASYNC* async;
 #endif
-    void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
+    void*           hsKey;              /* Handshake key (RsaKey or ecc_key)
+                                         * allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
     WOLFSSL_CIPHER  cipher;
 #ifndef WOLFSSL_AEAD_ONLY

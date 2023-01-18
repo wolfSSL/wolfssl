@@ -9389,7 +9389,8 @@ static int test_wolfSSL_SCR_Reconnect(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     test_ctx.c_ciphers = "ECDHE-RSA-AES256-GCM-SHA384";
-    test_ctx.s_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305";
+    test_ctx.s_ciphers =
+        "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305";
     AssertIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_c));

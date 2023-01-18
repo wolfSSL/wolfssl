@@ -5208,18 +5208,19 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
 
 #define DTLS_CID_BUFFER_SIZE 256
 
-#if !defined(NO_FILESYSTEM) && (                                                   \
-    defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)           \
-    && defined(WOLFSSL_TLS13) &&                                                   \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))    \
-    ||                                                                             \
-    (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                        \
-     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER))                   \
-    ||                                                                             \
-        (defined(HAVE_SECURE_RENEGOTIATION) &&                                     \
-            !defined(NO_RSA) && defined(HAVE_CHACHA) && defined(HAVE_POLY1305) &&  \
-            defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) &&                 \
-            defined(HAVE_AESGCM))                                                  \
+#if !defined(NO_FILESYSTEM) && (                                               \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
+    && defined(WOLFSSL_TLS13) &&                                               \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
+    ||                                                                         \
+    (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
+     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER))               \
+    ||                                                                         \
+        (defined(HAVE_SECURE_RENEGOTIATION) &&                                 \
+            !defined(NO_RSA) &&                                                \
+            defined(HAVE_CHACHA) && defined(HAVE_POLY1305) &&                  \
+            defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) &&             \
+            defined(HAVE_AESGCM))                                              \
     )
 
 #define TEST_MEMIO_BUF_SZ (64 * 1024)

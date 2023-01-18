@@ -2784,11 +2784,11 @@ static int GetMacDigestSize(byte macAlgo)
 
 #define ADD_HASH_SIG_ALGO(out, inOutIdx, major, minor)  \
     do {                                                \
-        if (out != NULL) {                              \
-            out[*inOutIdx    ] = major;                 \
-            out[*inOutIdx + 1] = minor;                 \
+        if ((out) != NULL) {                            \
+            (out)[*(inOutIdx)    ] = (major);           \
+            (out)[*(inOutIdx) + 1] = (minor);           \
         }                                               \
-        *inOutIdx += 2;                                 \
+        *(inOutIdx) += 2;                               \
     } while (0)
 
 static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
@@ -2811,38 +2811,45 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     if (addSigAlgo) {
     #ifdef HAVE_ED25519
         if (sigAlgo == ed25519_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, ED25519_SA_MAJOR, ED25519_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                ED25519_SA_MAJOR, ED25519_SA_MINOR);
         }
         else
     #endif
     #ifdef HAVE_ED448
         if (sigAlgo == ed448_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, ED448_SA_MAJOR, ED448_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                ED448_SA_MAJOR, ED448_SA_MINOR);
         }
         else
     #endif
     #ifdef HAVE_PQC
     #ifdef HAVE_FALCON
         if (sigAlgo == falcon_level1_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, FALCON_LEVEL1_SA_MAJOR, FALCON_LEVEL1_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                FALCON_LEVEL1_SA_MAJOR, FALCON_LEVEL1_SA_MINOR);
         }
         else
         if (sigAlgo == falcon_level5_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, FALCON_LEVEL5_SA_MAJOR, FALCON_LEVEL5_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                FALCON_LEVEL5_SA_MAJOR, FALCON_LEVEL5_SA_MINOR);
         }
         else
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
         if (sigAlgo == dilithium_level2_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, DILITHIUM_LEVEL2_SA_MAJOR, DILITHIUM_LEVEL2_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                DILITHIUM_LEVEL2_SA_MAJOR, DILITHIUM_LEVEL2_SA_MINOR);
         }
         else
         if (sigAlgo == dilithium_level3_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, DILITHIUM_LEVEL3_SA_MAJOR, DILITHIUM_LEVEL3_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                DILITHIUM_LEVEL3_SA_MAJOR, DILITHIUM_LEVEL3_SA_MINOR);
         }
         else
         if (sigAlgo == dilithium_level5_sa_algo) {
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, DILITHIUM_LEVEL5_SA_MAJOR, DILITHIUM_LEVEL5_SA_MINOR);
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx,
+                DILITHIUM_LEVEL5_SA_MAJOR, DILITHIUM_LEVEL5_SA_MINOR);
         }
         else
     #endif /* HAVE_DILITHIUM */
@@ -2853,7 +2860,8 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
             ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo, macAlgo);
     #ifdef WOLFSSL_TLS13
             /* Add the certificate algorithm as well */
-            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo, PSS_RSAE_TO_PSS_PSS(macAlgo));
+            ADD_HASH_SIG_ALGO(hashSigAlgo, inOutIdx, sigAlgo,
+                PSS_RSAE_TO_PSS_PSS(macAlgo));
     #endif
         }
         else
@@ -2864,19 +2872,18 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     }
 }
 
-void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                           int haveRSAsig, int haveFalconSig,
-                           int haveDilithiumSig, int haveAnon,
-                           int tls1_2, int keySz)
+void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
+    int haveFalconSig, int haveDilithiumSig, int haveAnon, int tls1_2,
+    int keySz)
 {
     InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
             haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
             &suites->hashSigAlgoSz);
 }
 
-void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsig,
-                              int haveFalconSig, int haveDilithiumSig,
-                              int haveAnon, int tls1_2, int keySz, word16* len)
+void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
+    int haveRSAsig, int haveFalconSig, int haveDilithiumSig, int haveAnon,
+    int tls1_2, int keySz, word16* len)
 {
     word16 idx = 0;
 
@@ -2887,13 +2894,16 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsi
     if (haveECDSAsig) {
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_SHA512
-        AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, ecc_dsa_sa_algo, keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, ecc_dsa_sa_algo, keySz,
+            &idx);
     #endif
     #ifdef WOLFSSL_SHA384
-        AddSuiteHashSigAlgo(hashSigAlgo, sha384_mac, ecc_dsa_sa_algo, keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, sha384_mac, ecc_dsa_sa_algo, keySz,
+            &idx);
     #endif
     #ifndef NO_SHA256
-        AddSuiteHashSigAlgo(hashSigAlgo, sha256_mac, ecc_dsa_sa_algo, keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, sha256_mac, ecc_dsa_sa_algo, keySz,
+            &idx);
     #endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                             defined(WOLFSSL_ALLOW_TLS_SHA1))
@@ -2911,20 +2921,22 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsi
     if (haveFalconSig) {
 #if defined(HAVE_PQC)
 #ifdef HAVE_FALCON
-        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level1_sa_algo, keySz, &idx);
-        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level5_sa_algo, keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level1_sa_algo, keySz,
+            &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, falcon_level5_sa_algo, keySz,
+            &idx);
 #endif /* HAVE_FALCON */
 #endif /* HAVE_PQC */
     }
     if (haveDilithiumSig) {
 #if defined(HAVE_PQC)
 #ifdef HAVE_DILITHIUM
-        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level2_sa_algo, keySz,
-                            &idx);
-        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level3_sa_algo, keySz,
-                            &idx);
-        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level5_sa_algo, keySz,
-                            &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level2_sa_algo,
+            keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level3_sa_algo,
+            keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, no_mac, dilithium_level5_sa_algo,
+            keySz, &idx);
 #endif /* HAVE_DILITHIUM */
 #endif /* HAVE_PQC */
     }
@@ -2933,15 +2945,15 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsi
         if (tls1_2) {
         #ifdef WOLFSSL_SHA512
             AddSuiteHashSigAlgo(hashSigAlgo, sha512_mac, rsa_pss_sa_algo, keySz,
-                                                                          &idx);
+                &idx);
         #endif
         #ifdef WOLFSSL_SHA384
             AddSuiteHashSigAlgo(hashSigAlgo, sha384_mac, rsa_pss_sa_algo, keySz,
-                                                                          &idx);
+                &idx);
         #endif
         #ifndef NO_SHA256
             AddSuiteHashSigAlgo(hashSigAlgo, sha256_mac, rsa_pss_sa_algo, keySz,
-                                                                          &idx);
+                &idx);
         #endif
         }
     #endif
@@ -2965,7 +2977,8 @@ void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig, int haveRSAsi
 
 #ifdef HAVE_ANON
     if (haveAnon) {
-        AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, anonymous_sa_algo, keySz, &idx);
+        AddSuiteHashSigAlgo(hashSigAlgo, sha_mac, anonymous_sa_algo, keySz,
+            &idx);
     }
 #endif
 
