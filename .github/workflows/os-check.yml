@@ -32,6 +32,7 @@ jobs:
 
   macos_test2:
     needs: macos_base
+    steps:
     - name: configure all make check
       run: |
         ./configure --enable-all
@@ -41,6 +42,7 @@ jobs:
 
   macos_test3:
     needs: macos_base
+    steps:
     - name: configure all ASN template
       run: |
         ./configure --enable-all --enable-asn=template
@@ -59,6 +61,7 @@ jobs:
 
   macos_test5:
     needs: macos_base
+    steps:
     - name: user_settings_all.h with compatibility layer
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -69,6 +72,7 @@ jobs:
 
   macos_test6:
     needs: macos_base
+    steps:
     - name: user_settings_min_ecc.h
       run: |
         cp ./examples/configs/user_settings_min_ecc.h user_settings.h
@@ -78,6 +82,7 @@ jobs:
 
   macos_test7:
     needs: macos_base
+    steps:
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
