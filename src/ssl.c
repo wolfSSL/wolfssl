@@ -2221,6 +2221,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         word16 havePSK;
         word16 haveRSA;
         int    keySz   = 0;
+        int    ret;
 
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
@@ -2235,6 +2236,9 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     #ifndef NO_CERTS
         keySz = ssl->buffers.keySz;
     #endif
+        ret = AllocateSuites(ssl);
+        if (ret != 0)
+            return ret;
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -3244,15 +3248,6 @@ static int _Rehandshake(WOLFSSL* ssl)
                 return ret;
             }
         }
-
-#ifndef NO_FORCE_SCR_SAME_SUITE
-        /* force same suite */
-        if (ssl->suites) {
-            ssl->suites->suiteSz = SUITE_LEN;
-            ssl->suites->suites[0] = ssl->options.cipherSuite0;
-            ssl->suites->suites[1] = ssl->options.cipherSuite;
-        }
-#endif
 
         /* reset handshake states */
         ssl->options.sendVerify = 0;
@@ -4799,6 +4794,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
         keySz = ssl->buffers.keySz;
     #endif
 
+    if (AllocateSuites(ssl) != 0)
+        return WOLFSSL_FAILURE;
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -6656,7 +6653,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return WOLFSSL_BAD_FILE;
         }
 
-        if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl) {
+            if (ssl->options.side == WOLFSSL_SERVER_END)
+                resetSuites = 1;
+        }
+        else if (ctx && ctx->method->side == WOLFSSL_SERVER_END) {
             resetSuites = 1;
         }
         if (ssl && ssl->ctx->haveECDSAsig) {
@@ -6997,22 +6998,52 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         word16 havePSK = 0;
         word16 haveRSA = 0;
 
-        #ifndef NO_PSK
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         if (ssl->options.havePSK) {
             havePSK = 1;
         }
-        #endif
-        #ifndef NO_RSA
-            haveRSA = 1;
-        #endif
-            keySz = ssl->buffers.keySz;
+    #endif
+    #ifndef NO_RSA
+        haveRSA = 1;
+    #endif
+        keySz = ssl->buffers.keySz;
 
+        if (AllocateSuites(ssl) != 0)
+            return WOLFSSL_FAILURE;
         /* let's reset suites */
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
                    ssl->options.haveAnon, TRUE, ssl->options.side);
+    }
+    else if (ctx && resetSuites) {
+        word16 havePSK = 0;
+        word16 haveRSA = 0;
+
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        if (ctx->havePSK) {
+            havePSK = 1;
+        }
+    #endif
+    #ifndef NO_RSA
+        haveRSA = 1;
+    #endif
+        keySz = ctx->privateKeySz;
+
+        if (AllocateCtxSuites(ctx) != 0)
+            return WOLFSSL_FAILURE;
+        /* let's reset suites */
+        InitSuites(ctx->suites, ctx->method->version, keySz, haveRSA,
+                   havePSK, ctx->haveDH, ctx->haveECDSAsig,
+                   ctx->haveECC, TRUE, ctx->haveStaticECC,
+                   ctx->haveFalconSig, ctx->haveDilithiumSig,
+#ifdef HAVE_ANON
+                   ctx->haveAnon,
+#else
+                   FALSE,
+#endif
+                   TRUE, ctx->method->side);
     }
 
     return WOLFSSL_SUCCESS;
@@ -11877,16 +11908,8 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
-    /* alloc/init on demand only */
-    if (ctx->suites == NULL) {
-        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ctx->suites == NULL) {
-            WOLFSSL_MSG("Memory alloc for Suites failed");
-            return WOLFSSL_FAILURE;
-        }
-        XMEMSET(ctx->suites, 0, sizeof(Suites));
-    }
+    if (AllocateCtxSuites(ctx) != 0)
+        return WOLFSSL_FAILURE;
 
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ctx, ctx->suites, list);
@@ -11905,16 +11928,8 @@ int wolfSSL_CTX_set_cipher_list_bytes(WOLFSSL_CTX* ctx, const byte* list,
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
-    /* alloc/init on demand only */
-    if (ctx->suites == NULL) {
-        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ctx->suites == NULL) {
-            WOLFSSL_MSG("Memory alloc for Suites failed");
-            return WOLFSSL_FAILURE;
-        }
-        XMEMSET(ctx->suites, 0, sizeof(Suites));
-    }
+    if (AllocateCtxSuites(ctx) != 0)
+        return WOLFSSL_FAILURE;
 
     return (SetCipherListFromBytes(ctx, ctx->suites, list, listSz)) ?
         WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -11929,18 +11944,8 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
         return WOLFSSL_FAILURE;
     }
 
-#ifdef SINGLE_THREADED
-    if (ssl->ctx->suites == ssl->suites) {
-        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ssl->suites == NULL) {
-            WOLFSSL_MSG("Suites Memory error");
-            return MEMORY_E;
-        }
-        *ssl->suites = *ssl->ctx->suites;
-        ssl->options.ownSuites = 1;
-    }
-#endif
+    if (AllocateSuites(ssl) != 0)
+        return WOLFSSL_FAILURE;
 
 #ifdef OPENSSL_EXTRA
     return wolfSSL_parse_cipher_list(ssl->ctx, ssl->suites, list);
@@ -11961,18 +11966,8 @@ int wolfSSL_set_cipher_list_bytes(WOLFSSL* ssl, const byte* list,
         return WOLFSSL_FAILURE;
     }
 
-#ifdef SINGLE_THREADED
-    if (ssl->ctx->suites == ssl->suites) {
-        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ssl->suites == NULL) {
-            WOLFSSL_MSG("Suites Memory error");
-            return MEMORY_E;
-        }
-        *ssl->suites = *ssl->ctx->suites;
-        ssl->options.ownSuites = 1;
-    }
-#endif
+    if (AllocateSuites(ssl) != 0)
+        return WOLFSSL_FAILURE;
 
     return (SetCipherListFromBytes(ssl->ctx, ssl->suites, list, listSz))
            ? WOLFSSL_SUCCESS
@@ -15435,6 +15430,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifndef NO_CERTS
             keySz = ssl->buffers.keySz;
         #endif
+        if (AllocateSuites(ssl) != 0)
+            return;
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -15488,6 +15485,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifndef NO_CERTS
             keySz = ssl->buffers.keySz;
         #endif
+        if (AllocateSuites(ssl) != 0)
+            return;
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
@@ -23476,12 +23475,15 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     keySz = ssl->buffers.keySz;
 #endif
 
-    if (ssl->suites != NULL && ssl->options.side != WOLFSSL_NEITHER_END)
+    if (ssl->options.side != WOLFSSL_NEITHER_END) {
+        if (AllocateSuites(ssl) != 0)
+            return 0;
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                    ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
                    ssl->options.haveAnon, TRUE, ssl->options.side);
+    }
 
     return ssl->options.mask;
 }
@@ -28192,16 +28194,8 @@ int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list)
         return WOLFSSL_FAILURE;
     }
 
-    /* alloc/init on demand only */
-    if (ctx->suites == NULL) {
-        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ctx->suites == NULL) {
-            WOLFSSL_MSG("Memory alloc for Suites failed");
-            return WOLFSSL_FAILURE;
-        }
-        XMEMSET(ctx->suites, 0, sizeof(Suites));
-    }
+    if (AllocateCtxSuites(ctx) != 0)
+        return WOLFSSL_FAILURE;
 
     return SetSuitesHashSigAlgo(ctx->suites, list);
 }
@@ -28213,27 +28207,13 @@ int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_MSG("wolfSSL_set1_sigalg_list");
 
-    if (ssl == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return WOLFSSL_FAILURE;
-    }
-
-#ifdef SINGLE_THREADED
-    if (ssl->ctx->suites == ssl->suites) {
-        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                       DYNAMIC_TYPE_SUITES);
-        if (ssl->suites == NULL) {
-            WOLFSSL_MSG("Suites Memory error");
-            return MEMORY_E;
-        }
-        *ssl->suites = *ssl->ctx->suites;
-        ssl->options.ownSuites = 1;
-    }
-#endif
     if (ssl == NULL || list == NULL) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FAILURE;
     }
+
+    if (AllocateSuites(ssl) != 0)
+        return WOLFSSL_FAILURE;
 
     return SetSuitesHashSigAlgo(ssl->suites, list);
 }
@@ -28331,8 +28311,8 @@ int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
     }
 
     for (i = 0; i < WOLFSSL_HASH_SIG_INFO_SZ; i++) {
-        if (ssl->suites->hashAlgo == wolfssl_hash_sig_info[i].hashAlgo &&
-                     ssl->suites->sigAlgo == wolfssl_hash_sig_info[i].sigAlgo) {
+        if (ssl->options.hashAlgo == wolfssl_hash_sig_info[i].hashAlgo &&
+                     ssl->options.sigAlgo == wolfssl_hash_sig_info[i].sigAlgo) {
             *nid = wolfssl_hash_sig_info[i].nid;
             ret = WOLFSSL_SUCCESS;
             break;
@@ -33244,31 +33224,22 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
-    Suites* suites;
+    const Suites* suites;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     const CipherSuiteInfo* cipher_names = GetCipherNames();
     int cipherSz = GetCipherNamesSize();
 #endif
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
-    if (ssl == NULL || (ssl->suites == NULL && ssl->ctx->suites == NULL)) {
+    if (ssl == NULL)
         return NULL;
-    }
 
-    if (ssl->suites != NULL) {
-        if (ssl->suites->suiteSz == 0 &&
-                InitSSL_Suites((WOLFSSL*)ssl) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Suite initialization failure");
-            return NULL;
-        }
-        suites = ssl->suites;
-    }
-    else {
-        suites = ssl->ctx->suites;
-    }
+    suites = WOLFSSL_SUITES(ssl);
+    if (suites == NULL)
+        return NULL;
 
     /* check if stack needs populated */
-    if (suites->stack == NULL) {
+    if (ssl->suitesStack == NULL) {
         int i;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         int j;
@@ -33320,9 +33291,9 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
                 ret = add;
             }
         }
-        suites->stack = ret;
+        ((WOLFSSL*)ssl)->suitesStack = ret;
     }
-    return suites->stack;
+    return ssl->suitesStack;
 }
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
