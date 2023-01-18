@@ -1049,7 +1049,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
         : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
         :
-        : "x3", "x4", "x5", "x6"
+        : "x3", "x4", "x5", "x6", "cc"
     );
 
     return hi;
@@ -1292,7 +1292,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         :
 #endif
-        : "r4", "r5", "r6", "r8", "r9"
+        : "r4", "r5", "r6", "r8", "r9", "cc"
     );
 
     return r;
@@ -1362,7 +1362,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
         : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
         :
-        : "r3", "r4", "r5", "r6"
+        : "r3", "r4", "r5", "r6", "cc"
     );
 
     return hi;
@@ -3222,7 +3222,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "movs   %[hi], r3\n\t"
         : [hi] "+l" (hi), [lo] "+l" (lo), [d] "+l" (d)
         :
-        : "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+        : "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
     return (uint32_t)(size_t)hi;
 }
@@ -16868,6 +16868,7 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
         err = MP_VAL;
     }
 
+#if SP_WORD_SIZE > 8
     if (err == MP_OKAY) {
         /* Start at the end of the buffer - least significant byte. */
         int j = outSz - 1;
@@ -16878,11 +16879,16 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
             /* Put each digit in. */
             for (i = 0; (j >= 0) && (i < a->used); i++) {
                 int b;
+                sp_int_digit d = a->dp[i];
                 /* Place each byte of a digit into the buffer. */
                 for (b = 0; b < SP_WORD_SIZE; b += 8) {
-                    out[j--] = (byte)(a->dp[i] >> b);
+                    out[j--] = (byte)d;
+                    d >>= 8;
                     /* Stop if the output buffer is filled. */
                     if (j < 0) {
+                        if ((i < a->used - 1) || (d > 0)) {
+                            err = BUFFER_E;
+                        }
                         break;
                     }
                 }
@@ -16893,6 +16899,21 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
             out[j] = 0;
         }
     }
+#else
+    if ((err == MP_OKAY) && (outSz < a->used)) {
+        err = BUFFER_E;
+    }
+    if (err == MP_OKAY) {
+        int i;
+        int j;
+
+        XMEMSET(out, 0, outSz - a->used);
+
+        for (i = 0, j = outSz - 1; i < a->used; i++, j--) {
+            out[j] = a->dp[i];
+        }
+    }
+#endif
 
     return err;
 }

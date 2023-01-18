@@ -12345,15 +12345,6 @@ static WARN_UNUSED_RESULT int AesSivCipher(
         ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
-        if (aes == NULL) {
-            ret = MEMORY_E;
-        }
-    }
-#endif
-
     if (ret == 0) {
         if (enc == 1) {
             ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, data,
@@ -12369,6 +12360,15 @@ static WARN_UNUSED_RESULT int AesSivCipher(
             XMEMCPY(sivTmp, siv, AES_BLOCK_SIZE);
         }
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+        if (aes == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
 
     if (ret == 0) {
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);

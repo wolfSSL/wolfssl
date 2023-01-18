@@ -739,17 +739,22 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     int fill;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherUpdate");
-    if (inl == 0 && in == NULL ) {
-        /* Nothing to do in this case. Just return. */
-        return WOLFSSL_SUCCESS;
-    }
-
-    if ((ctx == NULL) || (inl < 0) || (outl == NULL) || (in == NULL)) {
+    if ((ctx == NULL) || (outl == NULL)) {
         WOLFSSL_MSG("Bad argument");
         return WOLFSSL_FAILURE;
     }
 
     *outl = 0;
+
+    if ((inl == 0) && (in == NULL)) {
+        /* Nothing to do in this case. Just return. */
+        return WOLFSSL_SUCCESS;
+    }
+
+    if ((inl < 0) || (in == NULL)) {
+        WOLFSSL_MSG("Bad argument");
+        return WOLFSSL_FAILURE;
+    }
 
     switch (ctx->cipherType) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)

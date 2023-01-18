@@ -42856,6 +42856,32 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
         AssertTrue(ret);
     }
 
+
+    EVP_CIPHER_CTX_free(evp);
+
+    /* Do an extra test to verify correct behavior with empty input. */
+
+    AssertNotNull(evp = EVP_CIPHER_CTX_new());
+    AssertIntNE((ret = EVP_CipherInit(evp, type, NULL, iv, 0)), 0);
+
+    AssertIntEQ(EVP_CIPHER_CTX_nid(evp), NID_aes_128_cbc);
+
+    klen = EVP_CIPHER_CTX_key_length(evp);
+    if (klen > 0 && keylen != klen) {
+        AssertIntNE(EVP_CIPHER_CTX_set_key_length(evp, keylen), 0);
+    }
+    ilen = EVP_CIPHER_CTX_iv_length(evp);
+    if (ilen > 0 && ivlen != ilen) {
+        AssertIntNE(EVP_CIPHER_CTX_set_iv_length(evp, ivlen), 0);
+    }
+
+    AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);
+
+    /* outl should be set to 0 after passing NULL, 0 for input args. */
+    outl = -1;
+    AssertIntNE((ret = EVP_CipherUpdate(evp, outb, &outl, NULL, 0)), 0);
+    AssertIntEQ(outl, 0);
+
     EVP_CIPHER_CTX_free(evp);
 
     res = TEST_RES_CHECK(1);
@@ -43227,7 +43253,8 @@ static int test_wolfSSL_SHA256_Transform(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
-        !defined(WOLFSSL_DEVCRYPTO_HASH) && !defined(WOLFSSL_AFALG_HASH)
+        !defined(WOLFSSL_DEVCRYPTO_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
+        !defined(WOLFSSL_KCAPI_HASH)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA256_BLOCK_SIZE];
@@ -43319,7 +43346,8 @@ static int test_wolfSSL_SHA512_Transform(void)
     int res = TEST_SKIPPED;
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512)
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_KCAPI_HASH)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA512_BLOCK_SIZE];
