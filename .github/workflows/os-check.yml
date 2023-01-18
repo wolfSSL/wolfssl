@@ -29,6 +29,7 @@ jobs:
         make
         make check
         make distcheck
+
   macos_test2:
     uses: macos_base
     - name: configure all make check
