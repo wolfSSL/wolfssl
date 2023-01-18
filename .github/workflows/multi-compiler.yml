@@ -10,14 +10,43 @@ on:
     branches: [ '*' ]
 
 jobs:
-  gcc-latest:
-    name: GCC-latest
-    runs-on: ubuntu-latest
-    container:
-      image: gcc:latest
+  my_matrix:
+    name: Test matrix
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        CC: [ gcc, clang ]
+        include:
+          - gcc:
+            CXX: g++
+          - clang:
+            CXX: clang++
     steps:
       - uses: actions/checkout@v3
       - name: Build
+        env:
+            CC: ${{ matrix.CC }}
+            CXX: ${{ matrix.CXX }}
+        run: ./autogen.sh && ./configure && make && make dist
+  clang-latest:
+    name: Clang
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        env:
+            CC: clang
+            CXX: clang++
+        run: ./autogen.sh && ./configure && make && make dist
+  gcc-latest:
+    name: GCC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        env:
+            CC: gcc
+            CXX: g++
         run: ./autogen.sh && ./configure && make && make dist
   gcc-12_2:
     name: GCC-12_2
