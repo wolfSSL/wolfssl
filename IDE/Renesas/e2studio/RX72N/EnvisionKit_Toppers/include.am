@@ -1,0 +1,35 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/setting.sh
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/Toppers_app
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/Toppers_app/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/Toppers_app/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/wolflib
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/wolflib/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/wolflib/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/bsp.patch
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/linker_script.ld
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/kernel.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/kernel_id.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/kernel_ram.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/kernel_rom.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/ri_cmt.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/strings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/unistd.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/user_settings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolfssl_dummy.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_client.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_console.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_demo.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_main.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_main.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/src/wolfDemo/wolf_server.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo/WolfSSLDemo.scfg
