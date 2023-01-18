@@ -52,6 +52,7 @@ jobs:
 
   macos_test4:
     needs: macos_base
+    steps:
     - name: make user_settings_all.h
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
