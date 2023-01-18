@@ -2398,6 +2398,36 @@ void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
+#if defined(HAVE_ECH)
+/* free all ech configs in the list */
+static void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
+{
+    WOLFSSL_EchConfig* working_config = configs;
+    WOLFSSL_EchConfig* next_config;
+
+    while (working_config != NULL) {
+        next_config = working_config->next;
+
+        XFREE(working_config->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(working_config->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (working_config->raw != NULL)
+            XFREE(working_config->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (working_config->receiverPrivkey != NULL) {
+            wc_HpkeFreeKey(NULL, working_config->kemId,
+                working_config->receiverPrivkey, heap);
+        }
+
+        XFREE(working_config, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        working_config = next_config;
+    }
+
+    (void)heap;
+}
+#endif
+
 /* In case contexts are held in array and don't want to free actual ctx. */
 
 /* The allocations done in InitSSL_Ctx must be free'd with ctx->onHeapHint
@@ -2554,6 +2584,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         ctx->staticKELockInit = 0;
     }
     #endif
+#endif
+#if defined(HAVE_ECH)
+    FreeEchConfigs(ctx->echConfigs, ctx->heap);
+    ctx->echConfigs = NULL;
 #endif
     (void)heapAtCTXInit;
 }
@@ -6479,6 +6513,71 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     }
 }
 
+/* copy the hashes from source to a newly made destination return status */
+int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
+  HS_Hashes** destination)
+{
+    int ret = 0;
+    HS_Hashes* tmpHashes;
+
+    if (source == NULL)
+        return BAD_FUNC_ARG;
+
+    /* save the original so we can put it back afterward */
+    tmpHashes = ssl->hsHashes;
+    ssl->hsHashes = NULL;
+
+    InitHandshakeHashes(ssl);
+
+    *destination = ssl->hsHashes;
+    ssl->hsHashes = tmpHashes;
+
+  /* now copy the source contents to the destination */
+#ifndef NO_OLD_TLS
+    #ifndef NO_SHA
+        ret = wc_ShaCopy(&source->hashSha, &(*destination)->hashSha);
+    #endif
+    #ifndef NO_MD5
+        if (ret == 0)
+            ret = wc_Md5Copy(&source->hashMd5, &(*destination)->hashMd5);
+    #endif
+    #endif /* !NO_OLD_TLS */
+    #ifndef NO_SHA256
+        if (ret == 0)
+            ret = wc_Sha256Copy(&source->hashSha256,
+                &(*destination)->hashSha256);
+    #endif
+    #ifdef WOLFSSL_SHA384
+        if (ret == 0)
+            ret = wc_Sha384Copy(&source->hashSha384,
+                &(*destination)->hashSha384);
+    #endif
+    #ifdef WOLFSSL_SHA512
+        if (ret == 0)
+            ret = wc_Sha512Copy(&source->hashSha512,
+                &(*destination)->hashSha512);
+    #endif
+    #if (defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
+                                              !defined(WOLFSSL_NO_CLIENT_AUTH)
+        if (ret == 0 && source->messages != NULL) {
+            (*destination)->messages = (byte*)XMALLOC(source->length, ssl->heap,
+                DYNAMIC_TYPE_HASHES);
+            (*destination)->length = source->length;
+            (*destination)->prevLen = source->prevLen;
+
+            if ((*destination)->messages == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                XMEMCPY((*destination)->messages, source->messages,
+                    source->length);
+            }
+        }
+    #endif
+
+    return ret;
+}
+
 /* called if user attempts to re-use WOLFSSL object for a new session.
  * For example wolfSSL_clear() is called then wolfSSL_connect or accept */
 int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
@@ -7463,6 +7562,17 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ForceZero(&ssl->clientSecret, sizeof(ssl->clientSecret));
         ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
     }
+
+#if defined(HAVE_ECH)
+    if (ssl->options.useEch == 1) {
+        FreeEchConfigs(ssl->echConfigs, ssl->heap);
+        ssl->echConfigs = NULL;
+        /* free the ech specific hashes */
+        ssl->hsHashes = ssl->hsHashesEch;
+        FreeHandshakeHashes(ssl);
+        ssl->options.useEch = 0;
+    }
+#endif
 #endif
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     ForceZero(&ssl->clientFinished, TLS_FINISHED_SZ_MAX);

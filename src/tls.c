@@ -61,6 +61,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hpke.h>
+
 #ifndef NO_TLS
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
@@ -1259,6 +1261,10 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
         case TLSX_KEY_QUIC_TP_PARAMS_DRAFT: /* 0xffa5 */
             return 64;
 #endif
+#if defined(HAVE_ECH)
+        case TLSX_ECH: /* 0xfe0d */
+            return 65;
+#endif
         default:
             if (type > 62) {
                 /* This message SHOULD only happens during the adding of
@@ -2020,8 +2026,12 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte type;
     int matchStat;
     byte matched;
+#if defined(HAVE_ECH)
+    WOLFSSL_ECH* ech = NULL;
+    WOLFSSL_EchConfig* workingConfig;
+    TLSX* echX;
 #endif
-
+#endif /* !NO_WOLFSSL_SERVER */
     TLSX *extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
 
     if (!extension)
@@ -2109,6 +2119,27 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
          XSTRNCMP(sni->data.host_name, (const char*)input + offset, size) == 0);
 
+#if defined(HAVE_ECH)
+    echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+    if (echX != NULL)
+        ech = (WOLFSSL_ECH*)(echX->data);
+
+    if (!matched && ech != NULL) {
+        workingConfig = ech->echConfig;
+
+        while (workingConfig != NULL) {
+            matched = XSTRLEN(workingConfig->publicName) == size &&
+                XSTRNCMP(workingConfig->publicName,
+                (const char*)input + offset, size) == 0;
+
+            if (matched)
+                break;
+
+            workingConfig = workingConfig->next;
+        }
+    }
+#endif
+
     if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
         int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
                                                                      ssl->heap);
@@ -2140,7 +2171,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     }
 #else
     (void)input;
-#endif
+#endif /* !NO_WOLFSSL_SERVER */
 
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     (void)length;
@@ -10200,8 +10231,14 @@ TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 /** Remove an extension. */
 void TLSX_Remove(TLSX** list, TLSX_Type type, void* heap)
 {
-    TLSX* extension = *list;
-    TLSX** next = list;
+    TLSX* extension;
+    TLSX** next;
+
+    if (list == NULL)
+        return;
+
+    extension = *list;
+    next = list;
 
     while (extension && extension->type != type) {
         next = &extension->next;
@@ -10214,6 +10251,694 @@ void TLSX_Remove(TLSX** list, TLSX_Type type, void* heap)
         TLSX_FreeAll(extension, heap);
     }
 }
+
+#if defined(HAVE_ECH)
+#define GREASE_ECH_SIZE 160
+#define MAX_PUBLIC_NAME_SZ 256
+#define TLS_INFO_CONST_STRING "tls ech"
+#define TLS_INFO_CONST_STRING_SZ 7
+
+/* return status after setting up ech to write a grease ech */
+static int TLSX_GreaseECH_Use(TLSX** extensions, void* heap, WC_RNG* rng)
+{
+    int ret = 0;
+    WOLFSSL_ECH* ech;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ech == NULL)
+        return MEMORY_E;
+
+    ForceZero(ech, sizeof(WOLFSSL_ECH));
+
+    ech->state = ECH_WRITE_GREASE;
+
+    /* 0 for outer */
+    ech->type = ECH_TYPE_OUTER;
+    /* kemId */
+    ech->kemId = DHKEM_X25519_HKDF_SHA256;
+    /* cipherSuite kdf */
+    ech->cipherSuite.kdfId = HKDF_SHA256;
+    /* cipherSuite aead */
+    ech->cipherSuite.aeadId = HPKE_AES_128_GCM;
+
+    /* random configId */
+    ret = wc_RNG_GenerateByte(rng, &(ech->configId));
+
+    /* curve25519 encLen */
+    ech->encLen = DHKEM_X25519_ENC_LEN;
+
+    if (ret == 0)
+        ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
+
+    if (ret != 0) {
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+
+/* return status after setting up ech to write real ech */
+static int TLSX_ECH_Use(WOLFSSL_EchConfig* echConfig, TLSX** extensions,
+    void* heap, WC_RNG* rng)
+{
+    int ret = 0;
+    int suiteIndex;
+    WOLFSSL_ECH* ech;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    /* find a supported cipher suite */
+    suiteIndex = EchConfigGetSupportedCipherSuite(echConfig);
+
+    if (suiteIndex < 0)
+        return suiteIndex;
+
+    ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ech == NULL)
+        return MEMORY_E;
+
+    ForceZero(ech, sizeof(WOLFSSL_ECH));
+
+    ech->state = ECH_WRITE_REAL;
+
+    ech->echConfig = echConfig;
+
+    /* 0 for outer */
+    ech->type = ECH_TYPE_OUTER;
+    /* kemId */
+    ech->kemId = echConfig->kemId;
+
+    /* cipherSuite kdf */
+    ech->cipherSuite.kdfId = echConfig->cipherSuites[suiteIndex].kdfId;
+    /* cipherSuite aead */
+    ech->cipherSuite.aeadId = echConfig->cipherSuites[suiteIndex].aeadId;
+    /* configId */
+    ech->configId = echConfig->configId;
+
+    /* encLen */
+    switch (echConfig->kemId)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+            ech->encLen = DHKEM_P256_ENC_LEN;
+            break;
+        case DHKEM_P384_HKDF_SHA384:
+            ech->encLen = DHKEM_P384_ENC_LEN;
+            break;
+        case DHKEM_P521_HKDF_SHA512:
+            ech->encLen = DHKEM_P521_ENC_LEN;
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            ech->encLen = DHKEM_X25519_ENC_LEN;
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+            ech->encLen = DHKEM_X448_ENC_LEN;
+            break;
+    }
+
+    /* setup hpke */
+    ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ech->hpke == NULL) {
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+
+    ret = wc_HpkeInit(ech->hpke, ech->kemId, ech->cipherSuite.kdfId,
+        ech->cipherSuite.aeadId, heap);
+
+    /* setup the ephemeralKey */
+    if (ret == 0)
+        ret = wc_HpkeGenerateKeyPair(ech->hpke, &ech->ephemeralKey, rng);
+
+    if (ret == 0)
+        ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
+
+    if (ret != 0) {
+        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+
+/* return status after setting up ech to read and decrypt */
+static int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
+    WOLFSSL_EchConfig* configs)
+{
+    int ret;
+    WOLFSSL_ECH* ech;
+    TLSX* echX;
+
+    /* if we already have ech don't override it */
+    echX = TLSX_Find(*extensions, TLSX_ECH);
+    if (echX != NULL)
+        return 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ech == NULL)
+        return MEMORY_E;
+
+    ForceZero(ech, sizeof(WOLFSSL_ECH));
+
+    ech->state = ECH_WRITE_NONE;
+
+    /* 0 for outer */
+    ech->type = ECH_TYPE_OUTER;
+
+    ech->echConfig = configs;
+
+    /* setup the rest of the settings when we receive ech from the client */
+    ret = TLSX_Push(extensions, TLSX_ECH, ech, heap);
+
+    if (ret != 0)
+        XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* return length after writing the ech */
+static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
+{
+    int ret = 0;
+    int rngRet = -1;
+    word32 configsLen = 0;
+    void* ephemeralKey = NULL;
+    byte* writeBuf_p = writeBuf;
+#ifdef WOLFSSL_SMALL_STACK
+    Hpke* hpke = NULL;
+    WC_RNG* rng = NULL;
+#else
+    Hpke hpke[1];
+    WC_RNG rng[1];
+#endif
+
+    WOLFSSL_MSG("TLSX_ECH_Write");
+
+    if (ech->state == ECH_WRITE_NONE || ech->state == ECH_PARSED_INTERNAL)
+        return 0;
+
+    if (ech->state == ECH_WRITE_RETRY_CONFIGS) {
+        /* get size then write */
+        ret = GetEchConfigsEx(ech->echConfig, NULL, &configsLen);
+
+        if (ret != LENGTH_ONLY_E)
+            return ret;
+
+        ret = GetEchConfigsEx(ech->echConfig, writeBuf, &configsLen);
+
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+
+        return configsLen;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    hpke = (Hpke*)XMALLOC(sizeof(Hpke), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (hpke == NULL)
+        return MEMORY_E;
+
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+
+    if (rng == NULL) {
+        XFREE(hpke, NULL, DYNAMIC_TYPE_RNG);
+        return MEMORY_E;
+    }
+#endif
+
+    /* type */
+    *writeBuf_p = ech->type;
+    writeBuf_p += sizeof(ech->type);
+
+    /* outer has body, inner does not */
+    if (ech->type == ECH_TYPE_OUTER) {
+        /* kdfId */
+        c16toa(ech->cipherSuite.kdfId, writeBuf_p);
+        writeBuf_p += sizeof(ech->cipherSuite.kdfId);
+
+        /* aeadId */
+        c16toa(ech->cipherSuite.aeadId, writeBuf_p);
+        writeBuf_p += sizeof(ech->cipherSuite.aeadId);
+
+        /* configId */
+        *writeBuf_p = ech->configId;
+        writeBuf_p += sizeof(ech->configId);
+
+        /* encLen */
+        c16toa(ech->encLen, writeBuf_p);
+        writeBuf_p += 2;
+
+        if (ech->state == ECH_WRITE_GREASE) {
+            /* hpke init */
+            ret = wc_HpkeInit(hpke, ech->kemId, ech->cipherSuite.kdfId,
+                ech->cipherSuite.aeadId, NULL);
+
+            if (ret == 0)
+                rngRet = ret = wc_InitRng(rng);
+
+            /* create the ephemeralKey */
+            if (ret == 0)
+                ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey, rng);
+
+            /* enc */
+            if (ret == 0) {
+                ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, writeBuf_p,
+                    &ech->encLen);
+                writeBuf_p += ech->encLen;
+            }
+
+            if (ret == 0) {
+                /* innerClientHelloLen */
+                c16toa(GREASE_ECH_SIZE + ((writeBuf_p + 2 - writeBuf) % 32),
+                    writeBuf_p);
+                writeBuf_p += 2;
+
+                /* innerClientHello */
+                ret = wc_RNG_GenerateBlock(rng, writeBuf_p, GREASE_ECH_SIZE +
+                    ((writeBuf_p - writeBuf) % 32));
+                writeBuf_p += GREASE_ECH_SIZE + ((writeBuf_p - writeBuf) % 32);
+            }
+
+            if (rngRet == 0)
+                wc_FreeRng(rng);
+
+            if (ephemeralKey != NULL)
+                wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
+        }
+        else {
+            /* write enc to writeBuf_p */
+            ret = wc_HpkeSerializePublicKey(ech->hpke, ech->ephemeralKey,
+                writeBuf_p, &ech->encLen);
+            writeBuf_p += ech->encLen;
+
+            /* innerClientHelloLen */
+            c16toa(ech->innerClientHelloLen, writeBuf_p);
+            writeBuf_p += 2;
+
+            /* set payload offset for when we finalize */
+            ech->outerClientPayload = writeBuf_p;
+
+            /* write zeros for payload */
+            XMEMSET(writeBuf_p, 0, ech->innerClientHelloLen);
+            writeBuf_p += ech->innerClientHelloLen;
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(hpke, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
+    if (ret == 0)
+        *offset += (writeBuf_p - writeBuf);
+
+    return ret;
+}
+
+/* return the size needed for the ech extension */
+static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech)
+{
+    int ret;
+    word32 size;
+
+    if (ech->state == ECH_WRITE_GREASE) {
+        size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
+            sizeof(ech->configId) + sizeof(word16) + ech->encLen +
+            sizeof(word16);
+
+        size += GREASE_ECH_SIZE + (size % 32);
+    }
+    else if (ech->state == ECH_WRITE_NONE ||
+        ech->state == ECH_PARSED_INTERNAL) {
+        size = 0;
+    }
+    else if (ech->state == ECH_WRITE_RETRY_CONFIGS) {
+        /* get the size of the raw configs */
+        ret = GetEchConfigsEx(ech->echConfig, NULL, &size);
+
+        if (ret != LENGTH_ONLY_E)
+            return ret;
+    }
+    else if (ech->type == ECH_TYPE_INNER)
+    {
+        size = sizeof(ech->type);
+    }
+    else
+    {
+        size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
+            sizeof(ech->configId) + sizeof(word16) + ech->encLen +
+            sizeof(word16) + ech->innerClientHelloLen;
+    }
+
+    return (int)size;
+}
+
+/* return status after attempting to open the hpke encrypted ech extension, if
+ * successful the inner client hello will be stored in
+ * ech->innerClientHelloLen */
+static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
+    byte* aad, word32 aadLen, void* heap)
+{
+    int ret = 0;
+    int expectedEncLen;
+    int i;
+    word32 rawConfigLen = 0;
+    byte* info = NULL;
+    word32 infoLen = 0;
+
+    if (ech == NULL || echConfig == NULL || aad == NULL)
+        return BAD_FUNC_ARG;
+
+    /* verify the kem and key len */
+    switch (echConfig->kemId)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+            expectedEncLen = DHKEM_P256_ENC_LEN;
+            break;
+        case DHKEM_P384_HKDF_SHA384:
+            expectedEncLen = DHKEM_P384_ENC_LEN;
+            break;
+        case DHKEM_P521_HKDF_SHA512:
+            expectedEncLen = DHKEM_P521_ENC_LEN;
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            expectedEncLen = DHKEM_X25519_ENC_LEN;
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+            expectedEncLen = DHKEM_X448_ENC_LEN;
+            break;
+        default:
+            expectedEncLen = 0;
+            break;
+    }
+
+    if (expectedEncLen != ech->encLen)
+        return BAD_FUNC_ARG;
+
+    /* verify the cipher suite */
+    for (i = 0; i < echConfig->numCipherSuites; i++) {
+        if (echConfig->cipherSuites[i].kdfId == ech->cipherSuite.kdfId &&
+            echConfig->cipherSuites[i].aeadId == ech->cipherSuite.aeadId) {
+            break;
+        }
+    }
+
+    if (i >= echConfig->numCipherSuites) {
+        return BAD_FUNC_ARG;
+    }
+
+    ech->hpke = (Hpke*)XMALLOC(sizeof(Hpke), heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ech->hpke == NULL)
+        return MEMORY_E;
+
+    ret = wc_HpkeInit(ech->hpke, echConfig->kemId, ech->cipherSuite.kdfId,
+        ech->cipherSuite.aeadId, heap);
+
+    /* get the rawConfigLen */
+    if (ret == 0)
+        ret = GetEchConfig(echConfig, NULL, &rawConfigLen);
+
+    if (ret == LENGTH_ONLY_E)
+        ret = 0;
+
+    /* create info */
+    if (ret == 0) {
+        infoLen = TLS_INFO_CONST_STRING_SZ + 1 + rawConfigLen;
+        info = (byte*)XMALLOC(infoLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (info == NULL)
+            ret = MEMORY_E;
+        else {
+            XMEMCPY(info, (byte*)TLS_INFO_CONST_STRING,
+                TLS_INFO_CONST_STRING_SZ + 1);
+            ret = GetEchConfig(echConfig, info +
+                TLS_INFO_CONST_STRING_SZ + 1, &rawConfigLen);
+        }
+    }
+
+    /* decrypt the ech payload */
+    if (ret == 0)
+        ret = wc_HpkeOpenBase(ech->hpke, echConfig->receiverPrivkey, ech->enc,
+            ech->encLen, info, infoLen, aad, aadLen, ech->outerClientPayload,
+            ech->innerClientHelloLen,
+            ech->innerClientHello + HANDSHAKE_HEADER_SZ);
+
+    if (ret != 0) {
+        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ech->hpke = NULL;
+    }
+
+    if (info != NULL)
+        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+/* parse the ech extension, if internal update ech->state and return, if
+ * external attempt to extract the inner client_hello, return the status */
+static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
+    byte msgType)
+{
+    int ret = 0;
+    int i;
+    TLSX* echX;
+    WOLFSSL_ECH* ech;
+    WOLFSSL_EchConfig* echConfig;
+    byte* aadCopy;
+    byte* readBuf_p = (byte*)readBuf;
+
+    WOLFSSL_MSG("TLSX_ECH_Parse");
+
+    if (size == 0)
+        return BAD_FUNC_ARG;
+
+    if (msgType == encrypted_extensions) {
+        ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
+
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+    }
+    else if (msgType == client_hello && ssl->ctx->echConfigs != NULL) {
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+
+        if (echX == NULL)
+            return BAD_FUNC_ARG;
+
+        ech = (WOLFSSL_ECH*)echX->data;
+
+        /* read the ech parameters before the payload */
+        ech->type = *readBuf_p;
+        readBuf_p++;
+
+        if (ech->type == ECH_TYPE_INNER) {
+            ech->state = ECH_PARSED_INTERNAL;
+            return 0;
+        }
+
+        /* technically the payload would only be 1 byte at this length */
+        if (size < 11 + ech->encLen)
+            return BAD_FUNC_ARG;
+
+        ato16(readBuf_p, &ech->cipherSuite.kdfId);
+        readBuf_p += 2;
+
+        ato16(readBuf_p, &ech->cipherSuite.aeadId);
+        readBuf_p += 2;
+
+        ech->configId = *readBuf_p;
+        readBuf_p++;
+
+        ato16(readBuf_p, &ech->encLen);
+        readBuf_p += 2;
+
+        if (ech->encLen > HPKE_Npk_MAX)
+            return BAD_FUNC_ARG;
+
+        XMEMCPY(ech->enc, readBuf_p, ech->encLen);
+        readBuf_p += ech->encLen;
+
+        ato16(readBuf_p, &ech->innerClientHelloLen);
+        ech->innerClientHelloLen -= AES_BLOCK_SIZE;
+        readBuf_p += 2;
+
+        ech->outerClientPayload = readBuf_p;
+
+        /* make a copy of the aad */
+        aadCopy = (byte*)XMALLOC(ech->aadLen, ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (aadCopy == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(aadCopy, ech->aad, ech->aadLen);
+
+        /* set the ech payload of the copy to zeros */
+        XMEMSET(aadCopy + (readBuf_p - ech->aad), 0,
+            ech->innerClientHelloLen + AES_BLOCK_SIZE);
+
+        /* allocate the inner payload buffer */
+        ech->innerClientHello =
+            (byte*)XMALLOC(ech->innerClientHelloLen + HANDSHAKE_HEADER_SZ,
+            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (ech->innerClientHello == NULL) {
+            XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+
+        /* first check if the config id matches */
+        echConfig = ssl->ctx->echConfigs;
+
+        while (echConfig != NULL) {
+            /* decrypt with this config */
+            if (echConfig->configId == ech->configId) {
+                ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
+                    ssl->heap);
+                break;
+            }
+
+            echConfig = echConfig->next;
+        }
+
+        /* try to decrypt with all configs */
+        if (echConfig == NULL || ret != 0) {
+            echConfig = ssl->ctx->echConfigs;
+
+            while (echConfig != NULL) {
+                ret = TLSX_ExtractEch(ech, echConfig, aadCopy, ech->aadLen,
+                    ssl->heap);
+
+                if (ret== 0)
+                    break;
+
+                echConfig = echConfig->next;
+            }
+        }
+
+        /* if we failed to extract */
+        if (ret != 0) {
+            XFREE(ech->innerClientHello, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            ech->innerClientHello = NULL;
+            ech->state = ECH_WRITE_RETRY_CONFIGS;
+        }
+        else {
+            i = 0;
+
+            /* decrement until before the padding */
+            while (ech->innerClientHello[ech->innerClientHelloLen +
+                HANDSHAKE_HEADER_SZ - i - 1] != ECH_TYPE_INNER) {
+                i++;
+            }
+
+            /* subtract the length of the padding from the length */
+            ech->innerClientHelloLen -= i;
+        }
+
+        XFREE(aadCopy, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        return 0;
+    }
+
+    return ret;
+}
+
+/* free the ech struct and the dynamic buffer it uses */
+static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
+{
+    if (ech->innerClientHello != NULL)
+        XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ech->ephemeralKey != NULL)
+        wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
+            ech->hpke->heap);
+    if (ech->hpke != NULL)
+        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    (void)heap;
+}
+
+/* encrypt the client hello and store it in ech->outerClientPayload, return
+ * status */
+int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
+{
+    int ret;
+    void* receiverPubkey = NULL;
+    byte* info;
+    int infoLen;
+    byte* aadCopy;
+
+    /* import the server public key */
+    ret = wc_HpkeDeserializePublicKey(ech->hpke, &receiverPubkey,
+        ech->echConfig->receiverPubkey, ech->encLen);
+
+    if (ret == 0) {
+        /* create info */
+        infoLen = TLS_INFO_CONST_STRING_SZ + 1 + ech->echConfig->rawLen;
+        info = (byte*)XMALLOC(infoLen, ech->hpke->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL)
+            ret = MEMORY_E;
+
+        if (ret == 0) {
+            /* puts the null byte in for me */
+            XMEMCPY(info, (byte*)TLS_INFO_CONST_STRING, TLS_INFO_CONST_STRING_SZ
+                + 1);
+            XMEMCPY(info + TLS_INFO_CONST_STRING_SZ + 1, ech->echConfig->raw,
+                ech->echConfig->rawLen);
+
+            /* make a copy of the aad since we overwrite it */
+            aadCopy = (byte*)XMALLOC(aadLen, ech->hpke->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (aadCopy == NULL) {
+                XFREE(info, ech->hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                ret = MEMORY_E;
+            }
+        }
+
+        if (ret == 0) {
+            XMEMCPY(aadCopy, aad, aadLen);
+
+            /* seal the payload */
+            ret = wc_HpkeSealBase(ech->hpke, ech->ephemeralKey, receiverPubkey,
+                info, infoLen, aadCopy, aadLen, ech->innerClientHello,
+                ech->innerClientHelloLen - ech->hpke->Nt,
+                ech->outerClientPayload);
+
+            XFREE(info, ech->hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aadCopy, ech->hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+
+    if (receiverPubkey != NULL)
+        wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, receiverPubkey,
+            ech->hpke->heap);
+
+    return ret;
+}
+
+#define GREASE_ECH_USE TLSX_GreaseECH_Use
+#define ECH_USE TLSX_ECH_Use
+#define SERVER_ECH_USE TLSX_ServerECH_Use
+#define ECH_WRITE TLSX_ECH_Write
+#define ECH_GET_SIZE TLSX_ECH_GetSize
+#define ECH_PARSE TLSX_ECH_Parse
+#define ECH_FREE TLSX_ECH_Free
+
+#endif
 
 /** Releases all extensions in the provided list. */
 void TLSX_FreeAll(TLSX* list, void* heap)
@@ -10337,7 +11062,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
             CID_FREE((byte*)extension->data, heap);
             break;
 #endif /* WOLFSSL_DTLS_CID */
-
+#if defined(HAVE_ECH)
+        case TLSX_ECH:
+            ECH_FREE((WOLFSSL_ECH*)extension->data, heap);
+            break;
+#endif
             default:
                 break;
         }
@@ -10506,6 +11235,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 length += CID_GET_SIZE((byte*)extension->data);
                 break;
 #endif /* WOLFSSL_DTLS_CID */
+#if defined(HAVE_ECH)
+            case TLSX_ECH:
+                length += ECH_GET_SIZE((WOLFSSL_ECH*)extension->data);
+                break;
+#endif
             default:
                 break;
         }
@@ -10709,6 +11443,12 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
 #endif /* WOLFSSL_DTLS_CID */
+#if defined(HAVE_ECH)
+            case TLSX_ECH:
+                ret = ECH_WRITE((WOLFSSL_ECH*)extension->data,
+                    output + offset, &offset);
+                break;
+#endif
             default:
                 break;
         }
@@ -10719,6 +11459,10 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
+
+        /* if we encountered an error propigate it */
+        if (ret != 0)
+            break;
     }
 
     *pOffset += offset;
@@ -11354,7 +12098,28 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
             }
         #endif
+#if defined(HAVE_ECH)
+            /* GREASE ECH */
+            if (ssl->echConfigs == NULL) {
+                ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap, ssl->rng);
+            }
+            else if (ssl->echConfigs != NULL) {
+                ret = ECH_USE(ssl->echConfigs, &(ssl->extensions), ssl->heap,
+                    ssl->rng);
+            }
+#endif
         }
+#if defined(HAVE_ECH)
+        else if (IsAtLeastTLSv1_3(ssl->version)) {
+            if (ssl->ctx->echConfigs != NULL) {
+                ret = SERVER_ECH_USE(&(ssl->extensions), ssl->heap,
+                    ssl->ctx->echConfigs);
+
+                if (ret == 0)
+                    TLSX_SetResponse(ssl, TLSX_ECH);
+            }
+        }
+#endif
 
 #endif
 
@@ -11368,6 +12133,101 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
+
+#if defined(HAVE_ECH)
+/* because the size of ech depends on the size of other extensions we need to
+ * get the size with ech special and process ech last, return status */
+static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
+    word16* pLength)
+{
+    int ret = 0;
+    TLSX* echX = NULL;
+    TLSX* serverNameX = NULL;
+    TLSX** extensions = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    char* tmpServerName = NULL;
+#else
+    char tmpServerName[MAX_PUBLIC_NAME_SZ];
+#endif
+
+    /* calculate the rest of the extensions length with inner ech */
+    if (ssl->extensions)
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+
+    if (echX == NULL && ssl->ctx && ssl->ctx->extensions)
+        echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
+
+    /* if type is outer change sni to public name */
+    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
+        if (ssl->extensions) {
+            serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
+
+            if (serverNameX != NULL)
+                extensions = &ssl->extensions;
+        }
+
+        if (serverNameX == NULL && ssl->ctx && ssl->ctx->extensions) {
+            serverNameX = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
+            extensions = &ssl->ctx->extensions;
+        }
+
+        /* store the inner server name */
+        if (serverNameX != NULL) {
+            char* hostName = ((SNI*)serverNameX->data)->data.host_name;
+            word32 hostNameSz = (word32)XSTRLEN(hostName) + 1;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            tmpServerName = (char*)XMALLOC(hostNameSz, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmpServerName == NULL)
+                return MEMORY_E;
+        #else
+            /* truncate if too long */
+            if (hostNameSz > MAX_PUBLIC_NAME_SZ)
+                hostNameSz = MAX_PUBLIC_NAME_SZ;
+        #endif
+
+            XMEMCPY(tmpServerName, hostName, hostNameSz);
+        }
+
+        /* remove the inner server name */
+        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+
+        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
+            ((WOLFSSL_ECH*)echX->data)->echConfig->publicName,
+            XSTRLEN(((WOLFSSL_ECH*)echX->data)->echConfig->publicName),
+            ssl->heap);
+
+        /* set the public name as the server name */
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+    }
+
+    if (ret == 0 && ssl->extensions)
+        ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, pLength);
+
+    if (ret == 0 && ssl->ctx && ssl->ctx->extensions)
+        ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType, pLength);
+
+    if (serverNameX != NULL) {
+        /* remove the public name SNI */
+        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+
+        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
+            tmpServerName, XSTRLEN(tmpServerName), ssl->heap);
+
+        /* restore the inner server name */
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+#endif
 
 /** Tells the buffered size of extensions to be sent into the client hello. */
 int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
@@ -11433,15 +12293,26 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     }
     #endif
 #endif
-    if (ssl->extensions) {
-        ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, &length);
+#if defined(HAVE_ECH)
+    if (ssl->options.useEch == 1 && msgType == client_hello) {
+        ret = TLSX_GetSizeWithEch(ssl, semaphore, msgType, &length);
         if (ret != 0)
             return ret;
     }
-    if (ssl->ctx && ssl->ctx->extensions) {
-        ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType, &length);
-        if (ret != 0)
-            return ret;
+    else
+#endif
+    {
+        if (ssl->extensions) {
+            ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, &length);
+            if (ret != 0)
+                return ret;
+        }
+        if (ssl->ctx && ssl->ctx->extensions) {
+            ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType,
+                &length);
+            if (ret != 0)
+                return ret;
+        }
     }
 
 #ifdef HAVE_EXTENDED_MASTER
@@ -11458,6 +12329,127 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 
     return ret;
 }
+
+#if defined(HAVE_ECH)
+/* return status after writing the extensions with ech written last */
+static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
+    byte msgType, word16* pOffset)
+{
+    int ret = 0;
+    TLSX* echX = NULL;
+    TLSX* serverNameX = NULL;
+    TLSX** extensions = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    char* tmpServerName = NULL;
+#else
+    char tmpServerName[MAX_PUBLIC_NAME_SZ];
+#endif
+
+    /* get the echX from either extensions or ctx */
+    if (ssl->extensions)
+        echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+
+    if (echX == NULL && ssl->ctx && ssl->ctx->extensions) {
+        /* if not NULL the semaphore will stop it from being counted */
+        if (echX == NULL)
+            echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
+    }
+
+    /* if type is outer change sni to public name */
+    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
+        if (ssl->extensions) {
+            serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
+
+            if (serverNameX != NULL)
+                extensions = &ssl->extensions;
+        }
+
+        if (serverNameX == NULL && ssl->ctx && ssl->ctx->extensions) {
+            serverNameX = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
+            extensions = &ssl->ctx->extensions;
+        }
+
+        /* store the inner server name */
+        if (serverNameX != NULL) {
+            char* hostName = ((SNI*)serverNameX->data)->data.host_name;
+            word32 hostNameSz = (word32)XSTRLEN(hostName) + 1;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            tmpServerName = (char*)XMALLOC(hostNameSz, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmpServerName == NULL)
+                return MEMORY_E;
+        #else
+            /* truncate if too long */
+            if (hostNameSz > MAX_PUBLIC_NAME_SZ)
+                hostNameSz = MAX_PUBLIC_NAME_SZ;
+        #endif
+
+            XMEMCPY(tmpServerName, hostName, hostNameSz);
+        }
+
+        /* remove the inner server name */
+        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+
+        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME,
+            ((WOLFSSL_ECH*)echX->data)->echConfig->publicName,
+            XSTRLEN(((WOLFSSL_ECH*)echX->data)->echConfig->publicName),
+            ssl->heap);
+
+        /* set the public name as the server name */
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+    }
+
+    if (echX != NULL) {
+        /* turn ech on so it doesn't write, then write it last */
+        TURN_ON(semaphore, TLSX_ToSemaphore(echX->type));
+    }
+
+    if (ret == 0 && ssl->extensions) {
+        ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
+            msgType, pOffset);
+    }
+
+    if (ret == 0 && ssl->ctx && ssl->ctx->extensions) {
+        ret = TLSX_Write(ssl->ctx->extensions, output + *pOffset, semaphore,
+            msgType, pOffset);
+    }
+
+    if (echX != NULL) {
+        /* turn off and write it last */
+        TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
+    }
+
+    if (ret == 0 && ssl->extensions) {
+        ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
+            msgType, pOffset);
+    }
+
+    if (ret == 0 && ssl->ctx && ssl->ctx->extensions) {
+        ret = TLSX_Write(ssl->ctx->extensions, output + *pOffset, semaphore,
+            msgType, pOffset);
+    }
+
+    if (serverNameX != NULL) {
+        /* remove the public name SNI */
+        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+
+        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME, tmpServerName,
+            XSTRLEN(tmpServerName), ssl->heap);
+
+        /* restore the inner server name */
+        if (ret == WOLFSSL_SUCCESS)
+            ret = 0;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+#endif
 
 /** Writes the extensions to be sent into the client hello. */
 int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
@@ -11532,17 +12524,28 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
     }
     #endif
 #endif
-    if (ssl->extensions) {
-        ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
+#if defined(HAVE_ECH)
+    if (ssl->options.useEch == 1 && msgType == client_hello) {
+        ret = TLSX_WriteWithEch(ssl, output, semaphore,
                          msgType, &offset);
         if (ret != 0)
             return ret;
     }
-    if (ssl->ctx && ssl->ctx->extensions) {
-        ret = TLSX_Write(ssl->ctx->extensions, output + offset, semaphore,
-                         msgType, &offset);
-        if (ret != 0)
-            return ret;
+    else
+#endif
+    {
+        if (ssl->extensions) {
+            ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
+                             msgType, &offset);
+            if (ret != 0)
+                return ret;
+        }
+        if (ssl->ctx && ssl->ctx->extensions) {
+            ret = TLSX_Write(ssl->ctx->extensions, output + offset, semaphore,
+                             msgType, &offset);
+            if (ret != 0)
+                return ret;
+        }
     }
 
 #ifdef HAVE_EXTENDED_MASTER
@@ -12471,6 +13474,11 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 break;
 
 #endif /* defined(WOLFSSL_DTLS_CID) */
+#if defined(HAVE_ECH)
+            case TLSX_ECH:
+                ret = ECH_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif
             default:
                 WOLFSSL_MSG("Unknown TLS extension type");
         }
