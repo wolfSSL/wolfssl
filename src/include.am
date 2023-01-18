@@ -721,6 +721,10 @@ if BUILD_AFALG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/af_alg/wc_afalg.c
 endif
 
+if BUILD_PK_WRAP
+src_libwolfssl_la_SOURCES += wolfcrypt/src/pkwrap.c
+endif
+
 if !BUILD_CRYPTONLY
 # ssl files
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += \

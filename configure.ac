@@ -742,6 +742,7 @@ then
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
+    test "$enable_pkwrap" = "" && enable_pkwrap=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -2039,6 +2040,19 @@ AC_ARG_WITH([se050],
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SE050 -DSSS_USE_FTR_FILE"
     ]
 )
+
+# Public Key Wrapper
+AC_ARG_ENABLE([pkwrap],
+    [AS_HELP_STRING([--enable-pkwrap],[Enable Public Key Wrapper (default: enabled)])],
+    [ ENABLED_PKWRAP=$enableval ],
+    [ ENABLED_PKWRAP=yes ]
+    )
+
+if test "x$ENABLED_PKWRAP" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PK_WRAPPER"
+fi
+AM_CONDITIONAL([BUILD_PK_WRAP],   [ test "x$ENABLED_PKWRAP" = "xyes" ])
 
 ENABLED_SNIFFTEST=no
 AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
