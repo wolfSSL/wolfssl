@@ -5,3 +5,6 @@
 EXTRA_DIST+= Docker/Dockerfile
 EXTRA_DIST+= Docker/run.sh
 EXTRA_DIST+= Docker/README.md
+
+ignore_list+=Docker/OpenWRT/Dockerfile
+ignore_list+=Docker/OpenWRT/runTests.sh
