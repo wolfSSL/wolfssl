@@ -1342,14 +1342,12 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
         return BAD_MUTEX_E;
     }
 
-#ifndef WOLFSSL_USE_RWLOCK
         while (crl->setup == 0) {
             if (pthread_cond_wait(&crl->cond, &crl->crlLock) != 0) {
                 ret = BAD_COND_E;
                 break;
             }
         }
-#endif
         if (crl->setup < 0)
             ret = crl->setup;  /* store setup error */
 

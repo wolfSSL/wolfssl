@@ -2295,6 +2295,10 @@ struct WOLFSSL_CRL {
     wolfSSL_Mutex         crlLock;       /* CRL list lock */
     CRL_Monitor           monitors[2];   /* PEM and DER possible */
 #ifdef HAVE_CRL_MONITOR
+#ifdef WOLFSSL_USE_RWLOCK
+    pthread_mutex_t       condLock;      /* Has to be a mutex for not rwlock
+                                          * pthread_cond_wait API */
+#endif
     pthread_cond_t        cond;          /* condition to signal setup */
     pthread_t             tid;           /* monitoring thread */
     int                   mfd;           /* monitor fd, -1 if no init yet */

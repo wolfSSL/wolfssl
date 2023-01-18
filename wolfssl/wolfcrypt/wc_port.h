@@ -236,10 +236,9 @@
         int maxq_CryptHwMutexTryLock(void);
     #elif defined(WOLFSSL_PTHREADS)
         #ifdef WOLFSSL_USE_RWLOCK
-            typedef pthread_rwlock_t wolfSSL_Mutex;
-        #else
-            typedef pthread_mutex_t wolfSSL_Mutex;
+            typedef pthread_rwlock_t wolfSSL_RwLock;
         #endif
+        typedef pthread_mutex_t wolfSSL_Mutex;
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
     #elif defined(WOLFSSL_DEOS)
@@ -295,7 +294,11 @@
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
+
 #endif /* SINGLE_THREADED */
+#ifndef WOLFSSL_USE_RWLOCK
+    typedef wolfSSL_Mutex wolfSSL_RwLock;
+#endif
 
 /* Reference counting. */
 typedef struct wolfSSL_Ref {
@@ -392,7 +395,12 @@ WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
 WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
 WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
-WOLFSSL_API int wc_RD_Lock(wolfSSL_Mutex* m);
+/* RwLock functions. Fallback to Mutex when not implemented explicitly. */
+WOLFSSL_API int wc_InitRwLock(wolfSSL_RwLock* m);
+WOLFSSL_API int wc_FreeRwLock(wolfSSL_RwLock* m);
+WOLFSSL_API int wc_LockRwLock_Wr(wolfSSL_RwLock* m);
+WOLFSSL_API int wc_LockRwLock_Rd(wolfSSL_RwLock* m);
+WOLFSSL_API int wc_UnLockRwLock(wolfSSL_RwLock* m);
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 /* dynamically set which mutex to use. unlock / lock is controlled by flag */
 typedef void (mutex_cb)(int flag, int type, const char* file, int line);
