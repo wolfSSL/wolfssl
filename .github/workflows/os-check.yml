@@ -10,20 +10,12 @@ on:
     branches: [ '*' ]
 
 jobs:
-  macos_base:
-    name: macOS Build Test
+  macos_test1:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - name: brew
-      run: brew install automake libtool
-    - name: autogen
-      run: ./autogen.sh
-
-  macos_test1:
-    needs: macos_base
-    runs-on: macos-latest
-    steps:
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: configure make check
       run: |
         ./configure
@@ -32,9 +24,11 @@ jobs:
         make distcheck
 
   macos_test2:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: configure all make check
       run: |
         ./configure --enable-all
@@ -43,9 +37,11 @@ jobs:
         make distcheck
 
   macos_test3:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: configure all ASN template
       run: |
         ./configure --enable-all --enable-asn=template
@@ -54,9 +50,11 @@ jobs:
         make distcheck
 
   macos_test4:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: make user_settings_all.h
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -65,9 +63,11 @@ jobs:
         make check
 
   macos_test5:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_all.h with compatibility layer
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -77,9 +77,11 @@ jobs:
         make check
 
   macos_test6:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_min_ecc.h
       run: |
         cp ./examples/configs/user_settings_min_ecc.h user_settings.h
@@ -88,9 +90,11 @@ jobs:
         ./wolfcrypt/test/testwolfcrypt
 
   macos_test7:
-    needs: macos_base
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+    - run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
