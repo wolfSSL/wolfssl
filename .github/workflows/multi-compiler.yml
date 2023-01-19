@@ -1,6 +1,7 @@
 name: Multiple compilers and versions
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -11,7 +12,7 @@ on:
 
 jobs:
   my_matrix:
-    name: Test matrix
+    name: Compiler test
     strategy:
       matrix:
         include:
