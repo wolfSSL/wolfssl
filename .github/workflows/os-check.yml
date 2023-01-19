@@ -14,7 +14,7 @@ jobs:
   make_check:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_check on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -32,7 +32,7 @@ jobs:
   make_check_enable_all:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_check_enable_all on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -50,7 +50,7 @@ jobs:
   make_check_enable_all_asn:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_check_enable_all_asn on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -68,7 +68,7 @@ jobs:
   make_user:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_user on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -86,7 +86,7 @@ jobs:
   make_user_all:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_user_all on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -105,7 +105,7 @@ jobs:
   make_user_minecc:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_user_minecc on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -123,7 +123,7 @@ jobs:
   make_user_wolfboot:
     strategy:
       matrix:
-        os: [ ubunut-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     name: make_user_wolfboot on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
