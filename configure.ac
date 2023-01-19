@@ -2567,6 +2567,11 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
     fi
+
+    if test "$ENABLED_AESGCM_STREAM" = "yes"
+    then
+        AC_MSG_ERROR([--enable-aesgcm-stream is incompatible with --enable-kcapi.])
+    fi
 fi
 
 if test "$ENABLED_KCAPI_RSA" = "yes"
