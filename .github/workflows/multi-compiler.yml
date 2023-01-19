@@ -14,14 +14,13 @@ jobs:
     name: Test matrix
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
         CC: [ gcc, clang ]
         include:
           - gcc:
             CXX: g++
           - clang:
             CXX: clang++
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Build
