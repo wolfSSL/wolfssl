@@ -10,11 +10,16 @@ on:
     branches: [ '*' ]
 
 jobs:
-  macos_test1:
-    runs-on: macos-latest
+  make_check:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_check on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: configure make check
       run: |
@@ -23,11 +28,16 @@ jobs:
         make check
         make distcheck
 
-  macos_test2:
-    runs-on: macos-latest
+  make_check_enable_all:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_check_enable_all on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: configure all make check
       run: |
@@ -36,11 +46,16 @@ jobs:
         make check
         make distcheck
 
-  macos_test3:
-    runs-on: macos-latest
+  make_check_enable_all_asn:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_check_enable_all_asn on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: configure all ASN template
       run: |
@@ -49,11 +64,16 @@ jobs:
         make check
         make distcheck
 
-  macos_test4:
-    runs-on: macos-latest
+  make_user:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_user on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: make user_settings_all.h
       run: |
@@ -62,11 +82,16 @@ jobs:
         make
         make check
 
-  macos_test5:
-    runs-on: macos-latest
+  make_user_all:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_user_all on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: user_settings_all.h with compatibility layer
       run: |
@@ -76,11 +101,16 @@ jobs:
         make
         make check
 
-  macos_test6:
-    runs-on: macos-latest
+  make_user_minecc:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_user_minecc on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
     - name: user_settings_min_ecc.h
       run: |
@@ -89,71 +119,17 @@ jobs:
         make
         ./wolfcrypt/test/testwolfcrypt
 
-  macos_test7:
-    runs-on: macos-latest
+  make_user_wolfboot:
+    strategy:
+      matrix:
+        os: [ ubunut-latest, macos-latest ]
+    name: make_user_wolfboot on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - run: brew install automake libtool
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
     - run: ./autogen.sh
-    - name: user_settings_wolfboot_keytools.h
-      run: |
-        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
-  ubuntu_build:
-    name: Ubuntu Build Test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: autogen
-      run: ./autogen.sh
-
-    - name: configure make check
-      run: |
-        ./configure
-        make
-        make check
-        make distcheck
-
-    - name: configure all make check
-      run: |
-        ./configure --enable-all
-        make
-        make check
-        make distcheck
-
-    - name: configure all ASN template
-      run: |
-        ./configure --enable-all --enable-asn=template
-        make
-        make check
-        make distcheck
-
-    - name: make user_settings_all.h
-      run: |
-        cp ./examples/configs/user_settings_all.h user_settings.h
-        ./configure --enable-usersettings
-        make
-        make check
-
-    - name: user_settings_all.h with compatibility layer
-      run: |
-        cp ./examples/configs/user_settings_all.h user_settings.h
-        sed -i -e "s/if 0/if 1/" user_settings.h
-        ./configure --enable-usersettings
-        make
-        make check
-
-    - name: user_settings_min_ecc.h
-      run: |
-        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
@@ -188,4 +164,3 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
-
