@@ -5214,15 +5214,24 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
     ||                                                                         \
     (defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&                    \
-     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)))
+     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER))               \
+    ||                                                                         \
+        (defined(HAVE_SECURE_RENEGOTIATION) &&                                 \
+            !defined(NO_RSA) &&                                                \
+            defined(HAVE_CHACHA) && defined(HAVE_POLY1305) &&                  \
+            defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) &&             \
+            defined(HAVE_AESGCM))                                              \
+    )
 
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 struct test_memio_ctx
 {
     byte c_buff[TEST_MEMIO_BUF_SZ];
     int c_len;
+    const char* c_ciphers;
     byte s_buff[TEST_MEMIO_BUF_SZ];
     int s_len;
+    const char* s_ciphers;
 };
 
 static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
@@ -5311,7 +5320,7 @@ static WC_INLINE int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
                 hs_s = 1;
             }
             else {
-                err = wolfSSL_get_error(ssl_c, ret);
+                err = wolfSSL_get_error(ssl_s, ret);
                 if (err != WOLFSSL_ERROR_WANT_READ &&
                     err != WOLFSSL_ERROR_WANT_WRITE)
                     return -1;
@@ -5335,37 +5344,58 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
 {
     int ret;
 
-    *ctx_c = wolfSSL_CTX_new(method_c());
-    *ctx_s = wolfSSL_CTX_new(method_s());
-    if (*ctx_c == NULL || *ctx_s == NULL)
-        return -1;
+    if (*ctx_c == NULL) {
+        *ctx_c = wolfSSL_CTX_new(method_c());
+        if (*ctx_c == NULL)
+            return -1;
+        ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
+        if (ret != WOLFSSL_SUCCESS)
+            return -1;
+        wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
+        wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
+        if (ctx->c_ciphers != NULL) {
+            ret = wolfSSL_CTX_set_cipher_list(*ctx_c, ctx->c_ciphers);
+            if (ret != WOLFSSL_SUCCESS)
+                return -1;
+        }
+    }
 
-    ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
-        WOLFSSL_FILETYPE_PEM);
-    if (ret != WOLFSSL_SUCCESS)
-        return- -1;
+    if (*ctx_s == NULL) {
+        *ctx_s = wolfSSL_CTX_new(method_s());
+        if (*ctx_s == NULL)
+            return -1;
+        ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
+            WOLFSSL_FILETYPE_PEM);
+        if (ret != WOLFSSL_SUCCESS)
+            return- -1;
+        ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
+                                               WOLFSSL_FILETYPE_PEM);
+        if (ret != WOLFSSL_SUCCESS)
+            return -1;
+        wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
+        wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
+        if (ctx->s_ciphers != NULL) {
+            ret = wolfSSL_CTX_set_cipher_list(*ctx_s, ctx->s_ciphers);
+            if (ret != WOLFSSL_SUCCESS)
+                return -1;
+        }
+    }
 
-    ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
-                                           WOLFSSL_FILETYPE_PEM);
-    if (ret != WOLFSSL_SUCCESS)
-        return -1;
-    ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
-    if (ret != WOLFSSL_SUCCESS)
-        return -1;
-    wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
-    wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
-    wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
-    wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
+    if (ssl_c != NULL) {
+        *ssl_c = wolfSSL_new(*ctx_c);
+        if (*ssl_c == NULL)
+            return -1;
+        wolfSSL_SetIOWriteCtx(*ssl_c, ctx);
+        wolfSSL_SetIOReadCtx(*ssl_c, ctx);
+    }
+    if (ssl_s != NULL) {
+        *ssl_s = wolfSSL_new(*ctx_s);
+        if (*ssl_s == NULL)
+            return -1;
+        wolfSSL_SetIOWriteCtx(*ssl_s, ctx);
+        wolfSSL_SetIOReadCtx(*ssl_s, ctx);
+    }
 
-    *ssl_c = wolfSSL_new(*ctx_c);
-    *ssl_s = wolfSSL_new(*ctx_s);
-    if (*ssl_c == NULL || *ssl_s == NULL)
-        return -1;
-
-    wolfSSL_SetIOWriteCtx(*ssl_c, ctx);
-    wolfSSL_SetIOReadCtx(*ssl_c, ctx);
-    wolfSSL_SetIOWriteCtx(*ssl_s, ctx);
-    wolfSSL_SetIOReadCtx(*ssl_s, ctx);
     return 0;
 }
 #endif

@@ -122,7 +122,7 @@ public class wolfSSL_TLS_Client
         wolfssl.CTX_SetMinDhKey_Sz(ctx, minDhKey);
 
         /* Setup Verify Callback */
-        if (wolfssl.CTX_set_verify(ctx, wolfssl.SSL_VERIFY_PEER, myVerify) 
+        if (wolfssl.CTX_set_verify(ctx, wolfssl.SSL_VERIFY_PEER, myVerify)
             != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting verify callback!");

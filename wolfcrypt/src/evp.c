@@ -7513,7 +7513,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         WOLFSSL_ENTER("wolfSSL_EVP_Cipher");
 
         if (ctx == NULL || ((src == NULL || dst == NULL) &&
-            (TRUE 
+            (TRUE
         #ifdef HAVE_AESGCM
             && ctx->cipherType != AES_128_GCM_TYPE &&
              ctx->cipherType != AES_192_GCM_TYPE &&

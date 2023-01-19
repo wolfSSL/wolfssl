@@ -340,7 +340,8 @@
 #if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
-    defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS)
+    defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
+    defined(HAVE_ECH)
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
      * number tracking */
@@ -8542,51 +8543,61 @@ static int test_wolfSSL_UseSNI_connection(void)
     server_cb.devId = testDevId;
 
     /* success case at ctx */
+    printf("success case at ctx\n");
     client_cb.ctx_ready = use_SNI_at_ctx; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
     server_cb.ctx_ready = use_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* success case at ssl */
+    printf("success case at ssl\n");
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_SNI_at_ssl; client_cb.on_result = verify_SNI_real_matching;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_real_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* default mismatch behavior */
+    printf("default mismatch behavior\n");
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = verify_FATAL_ERROR_on_client;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl;       server_cb.on_result = verify_UNKNOWN_SNI_on_server;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* continue on mismatch */
+    printf("continue on mismatch\n");
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;         client_cb.on_result = NULL;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl; server_cb.on_result = verify_SNI_no_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* fake answer on mismatch */
+    printf("fake answer on mismatch\n");
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;            client_cb.on_result = NULL;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl; server_cb.on_result = verify_SNI_fake_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - success */
+    printf("sni abort - success\n");
     client_cb.ctx_ready = use_SNI_at_ctx;           client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
     server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - abort when absent (ctx) */
+    printf("sni abort - abort when absent (ctx)\n");
     client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL; client_cb.on_result = verify_FATAL_ERROR_on_client;
     server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_ABSENT_on_server;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - abort when absent (ssl) */
+    printf("sni abort - abort when absent (ssl)\n");
     client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;                     client_cb.on_result = verify_FATAL_ERROR_on_client;
     server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_MANDATORY_SNI_at_ssl; server_cb.on_result = verify_SNI_ABSENT_on_server;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - success when overwritten */
+    printf("sni abort - success when overwritten\n");
     client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL;           client_cb.on_result = NULL;
     server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_no_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* sni abort - success when allowing mismatches */
+    printf("sni abort - success when allowing mismatches\n");
     client_cb.ctx_ready = NULL;                            client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = NULL;
     server_cb.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL;                 server_cb.on_result = verify_SNI_fake_matching;
     test_wolfSSL_client_server(&client_cb, &server_cb);
@@ -9368,6 +9379,58 @@ static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+/* Test reconnecting with a different ciphersuite after a renegotiation. */
+static int test_wolfSSL_SCR_Reconnect(void)
+{
+    int res = TEST_SKIPPED;
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) && \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte data;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    test_ctx.c_ciphers = "ECDHE-RSA-AES256-GCM-SHA384";
+    test_ctx.s_ciphers =
+        "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305";
+    AssertIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_c));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx_s));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_c));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl_s));
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    /* WOLFSSL_FATAL_ERROR since it will block */
+    AssertIntEQ(wolfSSL_Rehandshake(ssl_s), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    AssertIntEQ(wolfSSL_read(ssl_c, &data, 1), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR),
+                WOLFSSL_ERROR_WANT_READ);
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_c);
+    ssl_c = NULL;
+    wolfSSL_free(ssl_s);
+    ssl_s = NULL;
+    wolfSSL_CTX_free(ctx_c);
+    ctx_c = NULL;
+    test_ctx.c_ciphers = "ECDHE-RSA-CHACHA20-POLY1305";
+    AssertIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    AssertIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
 
     res = TEST_RES_CHECK(1);
 #endif
@@ -35256,6 +35319,89 @@ static int test_wolfSSL_CTX_add_client_CA(void)
 #endif /* OPENSSL_EXTRA  && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT */
     return res;
 }
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+    WOLFSSL_CTX* ctx       = callbacks->ctx;
+    WOLFSSL*  ssl   = NULL;
+    SOCKET_T  sfd   = 0;
+    SOCKET_T  cfd   = 0;
+    word16    port;
+    char      input[1024];
+    int       idx;
+    int       ret, err = 0;
+    const char* privateName = "ech-private-name.com";
+    int         privateNameLen = (int)XSTRLEN(privateName);
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    port = ((func_args*)args)->signal->port;
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                 WOLFSSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    ssl = wolfSSL_new(ctx);
+
+    /* set the sni for the server */
+    wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, privateName, privateNameLen);
+
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, NULL, NULL);
+    CloseSocket(sfd);
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    do {
+        err = 0; /* Reset error */
+        ret = wolfSSL_accept(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+    }
+    else {
+        if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Client message: %s\n", input);
+        }
+
+        AssertIntEQ(privateNameLen, wolfSSL_write(ssl, privateName,
+            privateNameLen));
+        ((func_args*)args)->return_code = TEST_SUCCESS;
+    }
+
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    CloseSocket(cfd);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    return 0;
+}
+#endif /* HAVE_ECH && WOLFSSL_TLS13 */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
 static THREAD_RETURN WOLFSSL_THREAD server_task(void* args)
 {
@@ -35621,6 +35767,154 @@ static int test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
     return res;
 }
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+static int test_wolfSSL_Tls13_ECH_params(void)
+{
+#if !defined(NO_WOLFSSL_CLIENT)
+    word32 outputLen = 0;
+    byte testBuf[72];
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* invalid ctx */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(NULL,
+        "ech-public-name.com", 0, 0, 0));
+    /* invalid public name */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx, NULL, 0,
+        0, 0));
+    /* invalid algorithms */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(ctx,
+        "ech-public-name.com", 1000, 1000, 1000));
+
+    /* invalid ctx */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(NULL, NULL,
+        &outputLen));
+    /* invalid output len */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(ctx, NULL, NULL));
+
+    /* invalid ssl */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(NULL,
+        (char*)testBuf, sizeof(testBuf)));
+    /* invalid configs64 */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl, NULL,
+        sizeof(testBuf)));
+    /* invalid size */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigsBase64(ssl,
+        (char*)testBuf, 0));
+
+    /* invalid ssl */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(NULL, testBuf,
+        sizeof(testBuf)));
+    /* invalid configs */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, NULL,
+        sizeof(testBuf)));
+    /* invalid size */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, testBuf, 0));
+
+    /* invalid ssl */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(NULL, NULL, &outputLen));
+    /* invalid size */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_GetEchConfigs(ssl, NULL, NULL));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* !NO_WOLFSSL_CLIENT */
+
+    return TEST_SUCCESS;
+}
+
+static int test_wolfSSL_Tls13_ECH(void)
+{
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions server_cbf;
+    callback_functions client_cbf;
+    SOCKET_T sockfd = 0;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL*     ssl;
+    const char* publicName = "ech-public-name.com";
+    const char* privateName = "ech-private-name.com";
+    int privateNameLen = 20;
+    char reply[1024];
+    int replyLen = 0;
+    byte rawEchConfig[128];
+    word32 rawEchConfigLen = sizeof(rawEchConfig);
+
+    InitTcpReady(&ready);
+    ready.port = 22222;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    server_cbf.method     = wolfTLSv1_3_server_method;  /* TLS1.3 */
+
+    /* create the server context here so we can get the ech config */
+    AssertNotNull(server_cbf.ctx =
+        wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+
+    /* generate ech config */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_GenerateEchConfig(server_cbf.ctx,
+        publicName, 0, 0, 0));
+
+    /* get the config for the client to use */
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_GetEchConfigs(server_cbf.ctx, rawEchConfig,
+        &rawEchConfigLen));
+
+    server_args.callbacks = &server_cbf;
+    server_args.signal    = &ready;
+
+    /* start server task */
+    start_thread(server_task_ech, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* run as a TLS1.3 client */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+
+    /* get connected the server task */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    /* set the ech configs for the client */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetEchConfigs(ssl, rawEchConfig,
+        rawEchConfigLen));
+
+    /* set the sni for the client */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+        privateName, privateNameLen));
+
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
+        privateNameLen);
+    AssertIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
+    /* add th null terminator for string compare */
+    reply[replyLen] = 0;
+    /* check that the server replied with the private name */
+    AssertStrEQ(privateName, reply);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
+    return TEST_SUCCESS;
+}
+#endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
 defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -50862,10 +51156,13 @@ static int test_tls13_cipher_suites(void)
     wolfSSL_SetIOReadCtx(ssl, &msg);
     /* Force server to have as many occurrences of same cipher suite as
      * possible. */
-    ssl->suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        ssl->suites->suites[i + 0] = TLS13_BYTE;
-        ssl->suites->suites[i + 1] = TLS_AES_128_GCM_SHA256;
+    {
+        Suites* suites = (Suites*)WOLFSSL_SUITES(ssl);
+        suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
+        for (i = 0; i < suites->suiteSz; i += 2) {
+            suites->suites[i + 0] = TLS13_BYTE;
+            suites->suites[i + 1] = TLS_AES_128_GCM_SHA256;
+        }
     }
     /* Test multiple occurrences of same cipher suite. */
     wolfSSL_accept_TLSv13(ssl);
@@ -59516,9 +59813,9 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
 
 static int test_wolfSSL_dtls_stateless2(void)
 {
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -59556,9 +59853,9 @@ static int test_wolfSSL_dtls_stateless2(void)
 #ifdef HAVE_MAX_FRAGMENT
 static int test_wolfSSL_dtls_stateless_maxfrag(void)
 {
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     word16 max_fragment;
     int ret;
 
@@ -59616,8 +59913,8 @@ static int buf_is_hvr(const byte *data, int len)
 static int _test_wolfSSL_dtls_stateless_resume(byte useticket, byte bad)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     WOLFSSL_SESSION *sess;
     int ret, round_trips;
 
@@ -59718,8 +60015,8 @@ static int test_wolfSSL_dtls_stateless_resume(void)
 #if !defined(NO_OLD_TLS)
 static int test_wolfSSL_dtls_stateless_downgrade(void)
 {
-    WOLFSSL_CTX *ctx_c, *ctx_c2, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_c2, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_c2 = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_c2 = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     int ret;
 
@@ -59775,8 +60072,8 @@ static int test_wolfSSL_dtls_stateless_downgrade(void)
 static int test_WOLFSSL_dtls_version_alert(void)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL *ssl_c, *ssl_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -59951,9 +60248,9 @@ static int test_ticket_nonce_cache(WOLFSSL *ssl_s, WOLFSSL *ssl_c, byte len)
 static int test_ticket_nonce_malloc(void)
 {
     struct test_memio_ctx test_ctx;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     byte small, medium, big;
-    WOLFSSL *ssl_c, *ssl_s;
     int ret;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -60130,7 +60427,12 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
+    TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_tls_ext_duplicate),
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    TEST_DECL(test_wolfSSL_Tls13_ECH_params),
+    TEST_DECL(test_wolfSSL_Tls13_ECH),
+#endif
 
     /* X509 tests */
     TEST_DECL(test_wolfSSL_X509_NAME_get_entry),

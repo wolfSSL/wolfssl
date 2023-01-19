@@ -2879,6 +2879,10 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_SHAKE256
 #endif
 
+/* Encrypted Client Hello - requires HPKE */
+#if defined(HAVE_ECH) && !defined(HAVE_HPKE)
+    #define HAVE_HPKE
+#endif
 
 
 

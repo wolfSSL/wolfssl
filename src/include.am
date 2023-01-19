@@ -509,6 +509,10 @@ if BUILD_ASN
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/asn.c
 endif
 
+if BUILD_HPKE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/hpke.c
+endif
+
 endif !BUILD_FIPS_RAND
 
 if BUILD_CODING
