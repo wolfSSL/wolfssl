@@ -265,6 +265,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hpke.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -2594,7 +2596,73 @@ typedef enum {
 #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
 #endif
+#if defined(HAVE_ECH)
+    TLSX_ECH                        = 0xfe0d, /* from draft-ietf-tls-esni-13 */
+#endif
 } TLSX_Type;
+
+#if defined(HAVE_ECH)
+
+typedef enum {
+    ECH_TYPE_OUTER = 0,
+    ECH_TYPE_INNER = 1
+} EchType;
+
+typedef enum {
+    ECH_WRITE_GREASE,
+    ECH_WRITE_REAL,
+    ECH_WRITE_RETRY_CONFIGS,
+    ECH_WRITE_NONE,
+    ECH_PARSED_INTERNAL,
+} EchState;
+
+typedef struct EchCipherSuite {
+    word16 kdfId;
+    word16 aeadId;
+} EchCipherSuite;
+
+typedef struct WOLFSSL_EchConfig {
+    byte* raw;
+    char* publicName;
+    void* receiverPrivkey;
+    struct WOLFSSL_EchConfig* next;
+    EchCipherSuite* cipherSuites;
+    word32 rawLen;
+    word16 kemId;
+    byte configId;
+    byte numCipherSuites;
+    byte receiverPubkey[HPKE_Npk_MAX];
+} WOLFSSL_EchConfig;
+
+typedef struct WOLFSSL_ECH {
+    Hpke* hpke;
+    const byte* aad;
+    void* ephemeralKey;
+    WOLFSSL_EchConfig* echConfig;
+    byte* innerClientHello;
+    byte* outerClientPayload;
+    EchCipherSuite cipherSuite;
+    word16 aadLen;
+    word16 paddingLen;
+    word16 innerClientHelloLen;
+    word16 kemId;
+    word16 encLen;
+    EchState state;
+    byte type;
+    byte configId;
+    byte enc[HPKE_Npk_MAX];
+} WOLFSSL_ECH;
+
+WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
+
+WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen);
+
+WOLFSSL_LOCAL int GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
+    word32* outputLen);
+
+WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
+    byte* output, word32* outputLen);
+#endif
 
 typedef struct TLSX {
     TLSX_Type    type; /* Extension Type  */
@@ -3498,6 +3566,9 @@ struct WOLFSSL_CTX {
         const WOLFSSL_QUIC_METHOD *method;
     } quic;
 #endif
+#if defined(HAVE_ECH)
+    WOLFSSL_EchConfig* echConfigs;
+#endif
 };
 
 WOLFSSL_LOCAL
@@ -4258,6 +4329,12 @@ typedef struct Options {
 #ifdef WOLFSSL_TLS13
     word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
 #endif
+#ifdef WOLFSSL_DTLS_CID
+    byte              useDtlsCID:1;
+#endif /* WOLFSSL_DTLS_CID */
+#if defined(HAVE_ECH)
+    byte              useEch:1;
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -4303,9 +4380,6 @@ typedef struct Options {
 #ifdef WOLFSSL_TLS13
     byte            oldMinor;          /* client preferred version < TLS 1.3 */
 #endif
-#ifdef WOLFSSL_DTLS_CID
-    byte            useDtlsCID:1;
-#endif /* WOLFSSL_DTLS_CID */
 } Options;
 
 typedef struct Arrays {
@@ -4321,6 +4395,9 @@ typedef struct Arrays {
     byte            psk_key[MAX_PSK_KEY_LEN];
 #endif
     byte            clientRandom[RAN_LEN];
+#if defined(HAVE_ECH)
+    byte            clientRandomInner[RAN_LEN];
+#endif
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
     byte            sessionIDSz;
@@ -4889,6 +4966,9 @@ struct WOLFSSL {
     byte            serverSecret[SECRET_LEN];
 #endif
     HS_Hashes*      hsHashes;
+#if defined(HAVE_ECH)
+    HS_Hashes*      hsHashesEch;
+#endif
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     WC_RNG*         rng;
@@ -5348,6 +5428,9 @@ struct WOLFSSL {
                                           * content have not been handled yet by quic */
     } quic;
 #endif /* WOLFSSL_QUIC */
+#if defined(HAVE_ECH)
+    WOLFSSL_EchConfig* echConfigs;
+#endif
 };
 
 /*
@@ -5853,6 +5936,8 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
+WOLFSSL_LOCAL int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
+    HS_Hashes** destination);
 
 
 #ifndef WOLFSSL_NO_TLS12

@@ -992,6 +992,23 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 
 #endif /* WOLFSSL_DTLS */
 
+#if defined(HAVE_ECH)
+WOLFSSL_API int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx,
+    const char* publicName, word16 kemId, word16 kdfId, word16 aeadId);
+
+WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
+    word32* outputLen);
+
+WOLFSSL_API int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
+    word32 echConfigs64Len);
+
+WOLFSSL_API int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
+    word32 echConfigsLen);
+
+WOLFSSL_API int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* echConfigs,
+    word32* echConfigsLen);
+#endif /* HAVE_ECH */
+
 #ifdef HAVE_POLY1305
     WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
 #endif
@@ -3702,7 +3719,8 @@ WOLFSSL_API void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 
 /* SNI types */
 enum {
-    WOLFSSL_SNI_HOST_NAME = 0
+    WOLFSSL_SNI_HOST_NAME = 0,
+    WOLFSSL_SNI_HOST_NAME_OUTER = 0,
 };
 
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
