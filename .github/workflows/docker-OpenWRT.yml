@@ -1,3 +1,5 @@
+# This workflow tests out new libraries with existing OpenWRT builds to check
+# there aren't any compatibility issues. Take a look at Docker/OpenWRT/README.md
 name: OpenWRT test
 concurrency:
     group: ${{ github.ref }}
