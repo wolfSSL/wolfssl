@@ -1,6 +1,7 @@
 name: GitHub Action Tests
 concurrency:
   group: ${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
