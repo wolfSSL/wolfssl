@@ -265,6 +265,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hpke.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -1924,6 +1926,7 @@ typedef struct Suites Suites;
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 
+WOLFSSL_LOCAL void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
@@ -1940,7 +1943,7 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL byte SuiteMac(byte* suite);
+WOLFSSL_LOCAL byte SuiteMac(const byte* suite);
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz);
@@ -2118,17 +2121,18 @@ struct Suites {
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
     byte   setSuites;               /* user set suites from default */
-    byte   hashAlgo;                /* selected hash algorithm */
-    byte   sigAlgo;                 /* selected sig algorithm */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    WOLF_STACK_OF(WOLFSSL_CIPHER)* stack; /* stack of available cipher suites */
-#endif
 };
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveFalconSig,
                                          int haveDilithiumSig, int haveAnon,
                                          int tls1_2, int keySz);
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
+                                            int haveRSAsig, int haveFalconSig,
+                                            int haveDilithiumSig, int haveAnon,
+                                            int tls1_2, int keySz, word16* len);
+WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
                               word16 haveECDSAsig, word16 haveECC,
@@ -2592,7 +2596,73 @@ typedef enum {
 #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
 #endif
+#if defined(HAVE_ECH)
+    TLSX_ECH                        = 0xfe0d, /* from draft-ietf-tls-esni-13 */
+#endif
 } TLSX_Type;
+
+#if defined(HAVE_ECH)
+
+typedef enum {
+    ECH_TYPE_OUTER = 0,
+    ECH_TYPE_INNER = 1
+} EchType;
+
+typedef enum {
+    ECH_WRITE_GREASE,
+    ECH_WRITE_REAL,
+    ECH_WRITE_RETRY_CONFIGS,
+    ECH_WRITE_NONE,
+    ECH_PARSED_INTERNAL,
+} EchState;
+
+typedef struct EchCipherSuite {
+    word16 kdfId;
+    word16 aeadId;
+} EchCipherSuite;
+
+typedef struct WOLFSSL_EchConfig {
+    byte* raw;
+    char* publicName;
+    void* receiverPrivkey;
+    struct WOLFSSL_EchConfig* next;
+    EchCipherSuite* cipherSuites;
+    word32 rawLen;
+    word16 kemId;
+    byte configId;
+    byte numCipherSuites;
+    byte receiverPubkey[HPKE_Npk_MAX];
+} WOLFSSL_EchConfig;
+
+typedef struct WOLFSSL_ECH {
+    Hpke* hpke;
+    const byte* aad;
+    void* ephemeralKey;
+    WOLFSSL_EchConfig* echConfig;
+    byte* innerClientHello;
+    byte* outerClientPayload;
+    EchCipherSuite cipherSuite;
+    word16 aadLen;
+    word16 paddingLen;
+    word16 innerClientHelloLen;
+    word16 kemId;
+    word16 encLen;
+    EchState state;
+    byte type;
+    byte configId;
+    byte enc[HPKE_Npk_MAX];
+} WOLFSSL_ECH;
+
+WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
+
+WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen);
+
+WOLFSSL_LOCAL int GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
+    word32* outputLen);
+
+WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
+    byte* output, word32* outputLen);
+#endif
 
 typedef struct TLSX {
     TLSX_Type    type; /* Extension Type  */
@@ -2779,6 +2849,25 @@ typedef int (*CallbackProcessPeerCert)(WOLFSSL* ssl, DecodedCert* p_cert);
 WOLFSSL_API void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
        CallbackProcessPeerCert cb);
 #endif /* DecodedCert && HAVE_PK_CALLBACKS */
+
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+typedef struct SignatureAlgorithms {
+    /* Not const since it is modified in TLSX_SignatureAlgorithms_MapPss */
+    WOLFSSL*    ssl;
+    word16      hashSigAlgoSz; /* SigAlgo extension length in bytes */
+    /* Ignore "nonstandard extension used : zero-sized array in struct/union"
+     * MSVC warning */
+    #ifdef _MSC_VER
+    #pragma warning(disable: 4200)
+    #endif
+    byte        hashSigAlgo[]; /* sig/algo to offer */
+} SignatureAlgorithms;
+
+WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
+        WOLFSSL* ssl, word16 hashSigAlgoSz, void* heap);
+WOLFSSL_LOCAL void TLSX_SignatureAlgorithms_FreeAll(SignatureAlgorithms* sa,
+                                                    void* heap);
+#endif
 
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
@@ -3476,6 +3565,9 @@ struct WOLFSSL_CTX {
     struct {
         const WOLFSSL_QUIC_METHOD *method;
     } quic;
+#endif
+#if defined(HAVE_ECH)
+    WOLFSSL_EchConfig* echConfigs;
 #endif
 };
 
@@ -4218,9 +4310,6 @@ typedef struct Options {
         word16        dhKeyTested:1;      /* Set when key has been tested. */
     #endif
 #endif
-#ifdef SINGLE_THREADED
-    word16            ownSuites:1;        /* if suites are malloced in ssl object */
-#endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
     word16            disallowEncThenMac:1;   /* Don't do Encrypt-Then-MAC */
     word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
@@ -4240,11 +4329,19 @@ typedef struct Options {
 #ifdef WOLFSSL_TLS13
     word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
 #endif
+#ifdef WOLFSSL_DTLS_CID
+    byte              useDtlsCID:1;
+#endif /* WOLFSSL_DTLS_CID */
+#if defined(HAVE_ECH)
+    byte              useEch:1;
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */
     byte            cipherSuite;            /* second byte, actual suite */
+    byte            hashAlgo;               /* selected hash algorithm */
+    byte            sigAlgo;                /* selected sig algorithm */
     byte            serverState;
     byte            clientState;
     byte            handShakeState;
@@ -4283,9 +4380,6 @@ typedef struct Options {
 #ifdef WOLFSSL_TLS13
     byte            oldMinor;          /* client preferred version < TLS 1.3 */
 #endif
-#ifdef WOLFSSL_DTLS_CID
-    byte            useDtlsCID:1;
-#endif /* WOLFSSL_DTLS_CID */
 } Options;
 
 typedef struct Arrays {
@@ -4301,6 +4395,9 @@ typedef struct Arrays {
     byte            psk_key[MAX_PSK_KEY_LEN];
 #endif
     byte            clientRandom[RAN_LEN];
+#if defined(HAVE_ECH)
+    byte            clientRandomInner[RAN_LEN];
+#endif
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
     byte            sessionIDSz;
@@ -4845,16 +4942,33 @@ typedef struct Dtls13Rtx {
 typedef struct CIDInfo CIDInfo;
 #endif /* WOLFSSL_DTLS_CID */
 
+/* The idea is to re-use the context suites object whenever possible to save
+ * space. */
+#define WOLFSSL_SUITES(ssl) \
+    ((const Suites*) ((ssl)->suites != NULL ? \
+        (ssl)->suites : \
+        (ssl)->ctx->suites))
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
-    Suites*         suites;             /* only need during handshake */
+    Suites*         suites; /* Only need during handshake. Can be NULL when
+                             * re-using the context's object. When WOLFSSL
+                             * object needs separate instance of suites use
+                             * AllocateSuites(). */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
+                                                 * suites */
+#endif
     Arrays*         arrays;
 #ifdef WOLFSSL_TLS13
     byte            clientSecret[SECRET_LEN];
     byte            serverSecret[SECRET_LEN];
 #endif
     HS_Hashes*      hsHashes;
+#if defined(HAVE_ECH)
+    HS_Hashes*      hsHashesEch;
+#endif
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     WC_RNG*         rng;
@@ -4867,7 +4981,8 @@ struct WOLFSSL {
     byte            dupSide;            /* write side or read side */
 #endif
 #ifdef OPENSSL_EXTRA
-    byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
+    byte              cbioFlag;         /* WOLFSSL_CBIO_RECV/SEND:
+                                         * CBIORecv/Send is set */
 #endif
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
@@ -4897,7 +5012,8 @@ struct WOLFSSL {
      * to encounter encryption blocking or fragment the message. */
     struct WOLFSSL_ASYNC* async;
 #endif
-    void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
+    void*           hsKey;              /* Handshake key (RsaKey or ecc_key)
+                                         * allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
     WOLFSSL_CIPHER  cipher;
 #ifndef WOLFSSL_AEAD_ONLY
@@ -5312,6 +5428,9 @@ struct WOLFSSL {
                                           * content have not been handled yet by quic */
     } quic;
 #endif /* WOLFSSL_QUIC */
+#if defined(HAVE_ECH)
+    WOLFSSL_EchConfig* echConfigs;
+#endif
 };
 
 /*
@@ -5817,6 +5936,8 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
+WOLFSSL_LOCAL int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
+    HS_Hashes** destination);
 
 
 #ifndef WOLFSSL_NO_TLS12

@@ -742,6 +742,7 @@ then
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
+    test "$enable_ech" = "" && enable_ech=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -1119,6 +1120,25 @@ AC_ARG_ENABLE([cryptonly],
     [ENABLED_CRYPTONLY=no])
 
 AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
+
+# ECH
+AC_ARG_ENABLE([ech],
+    [AS_HELP_STRING([--enable-ech],[Enable ECH (default: disabled)])],
+    [ ENABLED_ECH=$enableval ],
+    [ ENABLED_ECH=no ]
+    )
+if test "$ENABLED_ECH" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECH"
+
+    test "$enable_hpke" = "" && enable_hpke=yes
+    test "$enable_ecc" = "" && enable_ecc=yes
+    test "$enable_curve25519" = "" && enable_curve25519=yes
+    test "$enable_sha256" = "" && enable_sha256=yes
+    test "$enable_tlsx" = "" && enable_tlsx=yes
+    test "$enable_sni" = "" && enable_sni=yes
+    test "$enable_tls13" = "" && enable_tls13=yes
+fi
 
 # DTLS
 # DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
@@ -2567,6 +2587,11 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
     fi
+
+    if test "$ENABLED_AESGCM_STREAM" = "yes"
+    then
+        AC_MSG_ERROR([--enable-aesgcm-stream is incompatible with --enable-kcapi.])
+    fi
 fi
 
 if test "$ENABLED_KCAPI_RSA" = "yes"
@@ -2978,6 +3003,20 @@ fi
 if test "$ENABLED_HKDF" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
+fi
+
+
+# HPKE
+AC_ARG_ENABLE([hpke],
+    [AS_HELP_STRING([--enable-hpke],[Enable HKPE support (default: disabled)])],
+    [ ENABLED_HPKE=$enableval ],
+    [ ENABLED_HPKE=no ]
+    )
+if test "$ENABLED_HPKE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_HPKE"
+
+    test "$enable_hkdf" = "" && enable_hkdf=yes
 fi
 
 # X9.63 KDF
@@ -8450,6 +8489,7 @@ AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
+AM_CONDITIONAL([BUILD_HPKE],[test "x$ENABLED_HPKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 
@@ -8740,6 +8780,7 @@ echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
+echo "   * HPKE:                       $ENABLED_HPKE"
 echo "   * X9.63 KDF:                  $ENABLED_X963KDF"
 echo "   * MD4:                        $ENABLED_MD4"
 echo "   * PSK:                        $ENABLED_PSK"

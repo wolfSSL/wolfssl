@@ -234,6 +234,9 @@ extern "C" {
 #define HAVE_KEYING_MATERIAL
 #define WOLFSSL_HAVE_PRF
 
+/* Encrypted Client Hello */
+#define HAVE_HPKE
+#define HAVE_ECH
 
 /* Non-Standard Algorithms (DG disabled) */
 //#define HAVE_CAMELLIA
