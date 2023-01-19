@@ -175,11 +175,15 @@
                 /* definitions are in linuxkm/linuxkm_wc_port.h */
             #else
                 #define WOLFSSL_PTHREADS
+                #ifdef HAVE_CONFIG_H
+                    /* Need to pull in config.h to get access to
+                     * HAVE_PTHREAD_RWLOCK_DESTROY */
+                    #include <config.h>
+                    #undef HAVE_CONFIG_H
+                #endif
                 #include <pthread.h>
-                /* Use PTHREAD_RWLOCK_INITIALIZER to detect if rwlocks are
-                 * supported in this pthreads lib. */
                 #if !defined(WOLFSSL_NO_RWLOCK) && \
-                    defined(PTHREAD_RWLOCK_INITIALIZER)
+                    defined(HAVE_PTHREAD_RWLOCK_DESTROY)
                     #undef WOLFSSL_USE_RWLOCK
                     #define WOLFSSL_USE_RWLOCK
                 #endif
