@@ -123,6 +123,7 @@ WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
     WOLFSSL_METHOD* method;
 
     WOLFSSL_ENTER("DTLSv1_3_client_method_ex");
+    (void)heap;
 
     method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
         DYNAMIC_TYPE_METHOD);
@@ -145,6 +146,7 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
     WOLFSSL_METHOD* method;
 
     WOLFSSL_ENTER("DTLSv1_3_server_method_ex");
+    (void)heap;
 
     method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
         DYNAMIC_TYPE_METHOD);
@@ -613,12 +615,14 @@ static void Dtls13RtxFlushBuffered(WOLFSSL* ssl, byte keepNewSessionTicket)
     ssl->dtls13Rtx.rtxRecordTailPtr = prevNext;
 }
 
-static Dtls13RecordNumber* Dtls13NewRecordNumber(WOLFSSL* ssl, w64wrapper epoch,
-    w64wrapper seq)
+static Dtls13RecordNumber* Dtls13NewRecordNumber(w64wrapper epoch,
+    w64wrapper seq, void* heap)
 {
     Dtls13RecordNumber* rn;
 
-    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), ssl->heap,
+    (void)heap;
+
+    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), heap,
         DYNAMIC_TYPE_DTLS_MSG);
     if (rn == NULL)
         return NULL;
@@ -636,7 +640,7 @@ static int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
 
     WOLFSSL_ENTER("Dtls13RtxAddAck");
 
-    rn = Dtls13NewRecordNumber(ssl, epoch, seq);
+    rn = Dtls13NewRecordNumber(epoch, seq, ssl->heap);
     if (rn == NULL)
         return MEMORY_E;
 

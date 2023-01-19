@@ -3337,7 +3337,7 @@ byte SuiteMac(const byte* suite)
  * hashSz  The size of the hash data in bytes.
  * returns 0 on success, otherwise failure.
  */
-static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, byte hashSz,
+static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
                            TLSX** exts)
 {
     int  ret;
@@ -3429,7 +3429,7 @@ static int CreateCookieHash(const WOLFSSL* ssl, byte** hash, byte* hashSz,
     if (ssl->options.sendCookie && ssl->options.side == WOLFSSL_SERVER_END) {
         byte   cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
         TLSX*  ext;
-        word32 idx = 0;
+        word16 idx = 0;
 
         /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
         cookie[idx++] = *hashSz;
@@ -5497,7 +5497,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 
 #ifndef NO_PSK
 int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
-        word32* psk_keySz, byte* suite, int* found)
+        word32* psk_keySz, const byte* suite, int* found, byte* foundSuite)
 {
     const char* cipherName = NULL;
     byte        cipherSuite0 = TLS13_BYTE;
@@ -5528,6 +5528,7 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
             WOLFSSL_MSG("Key len too long in FindPsk()");
             ret = PSK_KEY_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
+            *found = 0;
         }
         if (ret == 0) {
         #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
@@ -5546,6 +5547,10 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
         #endif
         }
     }
+    if (*found && foundSuite != NULL) {
+        foundSuite[0] = cipherSuite0;
+        foundSuite[1] = cipherSuite;
+    }
 
     return ret;
 }
@@ -5563,13 +5568,14 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
  * @return  1 when a match found - but check error code.
  * @return  0 when no match found.
  */
-static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
+static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
 {
     int         ret = 0;
     int         found = 0;
+    byte        foundSuite[SUITE_LEN];
 
     ret = FindPskSuite(ssl, psk, ssl->arrays->psk_key, &ssl->arrays->psk_keySz,
-                       suite, &found);
+                       suite, &found, foundSuite);
     if (ret == 0 && found) {
         if ((ret == 0) && found) {
             /* Default to ciphersuite if cb doesn't specify. */
@@ -5585,8 +5591,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
         }
         if ((ret == 0) && found) {
             /* Set PSK ciphersuite into SSL. */
-            ssl->options.cipherSuite0 = cipherSuite0;
-            ssl->options.cipherSuite  = cipherSuite;
+            ssl->options.cipherSuite0 = foundSuite[0];
+            ssl->options.cipherSuite  = foundSuite[1];
             ret = SetCipherSpecs(ssl);
         }
         if ((ret == 0) && found) {
@@ -6012,7 +6018,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
  * cookieSz  The length of the cookie data in bytes.
  * returns Length of the hash on success, otherwise failure.
  */
-int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, byte cookieSz)
+int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 {
     int  ret;
     byte mac[WC_MAX_DIGEST_SIZE] = {0};
@@ -6096,14 +6102,15 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     word32 idx;
     byte   hashSz;
     byte*  cookieData;
-    byte   cookieDataSz;
+    word16 cookieDataSz;
     word16 length;
     int    keyShareExt = 0;
     int    ret;
 
-    cookieDataSz = ret = TlsCheckCookie(ssl, cookie->data, cookie->len);
+    ret = TlsCheckCookie(ssl, cookie->data, (byte)cookie->len);
     if (ret < 0)
         return ret;
+    cookieDataSz = (word16)ret;
     hashSz = cookie->data[0];
     cookieData = cookie->data;
     idx = OPAQUE8_LEN;
@@ -6206,7 +6213,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
-        ret = Dtls13HashHandshake(ssl, hrr, hrrIdx);
+        ret = Dtls13HashHandshake(ssl, hrr, (word16)hrrIdx);
     }
     else
 #endif /* WOLFSSL_DTLS13 */
@@ -12544,8 +12551,6 @@ static int DtlsAcceptStateless(WOLFSSL *ssl)
     default:
         return 0;
     }
-
-    return 0;
 }
 #endif /* WOLFSSL_DTLS13 */
 

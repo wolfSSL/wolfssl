@@ -59346,6 +59346,7 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(WOLFSSL* ssl)
     sslCopy.buffers.inputBuffer.buffer = NULL;
     sslCopy.buffers.inputBuffer.bufferSize = 0;
     sslCopy.buffers.inputBuffer.dynamicFlag = 0;
+    sslCopy.buffers.inputBuffer.offset = 0;
     sslCopy.error = 0;
     sslCopy.curSize = 0;
     sslCopy.keys.curSeq_lo = 0;
@@ -59379,6 +59380,20 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(WOLFSSL* ssl)
     return MakeWordFromHash(hashBuf);
 }
 
+static CallbackIORecv test_wolfSSL_dtls_compare_stateless_cb;
+static int test_wolfSSL_dtls_compare_stateless_cb_call_once;
+static int test_wolfSSL_dtls_compare_stateless_read_cb_once(WOLFSSL *ssl,
+        char *buf, int sz, void *ctx)
+{
+    if (test_wolfSSL_dtls_compare_stateless_cb_call_once) {
+        test_wolfSSL_dtls_compare_stateless_cb_call_once = 0;
+        return test_wolfSSL_dtls_compare_stateless_cb(ssl, buf, sz, ctx);
+    }
+    else {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+}
+
 static void test_wolfSSL_dtls_compare_stateless(WOLFSSL* ssl)
 {
     /* Compare the ssl object before and after one ClientHello msg */
@@ -59387,8 +59402,10 @@ static void test_wolfSSL_dtls_compare_stateless(WOLFSSL* ssl)
     int err;
     word32 initHash;
 
+    test_wolfSSL_dtls_compare_stateless_cb = ssl->CBIORecv;
+    test_wolfSSL_dtls_compare_stateless_cb_call_once = 1;
     wolfSSL_dtls_set_using_nonblock(ssl, 1);
-    tcp_set_nonblocking(&fd);
+    ssl->CBIORecv = test_wolfSSL_dtls_compare_stateless_read_cb_once;
 
     initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl);
     (void)initHash;
@@ -59405,7 +59422,7 @@ static void test_wolfSSL_dtls_compare_stateless(WOLFSSL* ssl)
     AssertIntEQ(initHash, test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl));
 
     wolfSSL_dtls_set_using_nonblock(ssl, 0);
-    tcp_set_blocking(&fd);
+    ssl->CBIORecv = test_wolfSSL_dtls_compare_stateless_cb;
 
 }
 

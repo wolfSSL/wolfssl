@@ -32544,14 +32544,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      * Returns 1 for valid server suite or 0 if not found
      * For asynchronous this can return WC_PENDING_E
      */
-    static int VerifyServerSuite(WOLFSSL* ssl, const Suites* suites, word16 idx,
-                                 CipherSuite* cs, TLSX* extensions)
+    static int VerifyServerSuite(const WOLFSSL* ssl, const Suites* suites,
+                                 word16 idx, CipherSuite* cs, TLSX* extensions)
     {
     #ifndef NO_PSK
         int  havePSK = ssl->options.havePSK;
     #endif
         byte first;
         byte second;
+
+        (void)cs;
+        (void)extensions;
 
         WOLFSSL_ENTER("VerifyServerSuite");
 
@@ -32743,13 +32746,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMSET(&cs, 0, sizeof(cs));
 
-        ret = MatchSuite_ex(ssl, peerSuites, &cs, ssl->extensions);
+        ret = MatchSuite_ex(ssl, peerSuites, &cs,
+#ifdef HAVE_TLS_EXTENSIONS
+                ssl->extensions
+#else
+                NULL
+#endif
+                );
         if (ret != 0)
             return ret;
 
         ssl->options.cipherSuite0 = cs.cipherSuite0;
         ssl->options.cipherSuite  = cs.cipherSuite;
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_ED448) || defined(HAVE_CURVE448)
         ssl->ecdhCurveOID = cs.ecdhCurveOID;
+#endif
 
         ret = SetCipherSpecs(ssl);
         if (ret != 0)
@@ -32759,10 +32771,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret != 0)
             return ret;
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (cs.doHelloRetry) {
             ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             return TLSX_KeyShare_SetSupported(ssl, &ssl->extensions);
         }
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -33144,7 +33158,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* Update the ssl->options.dtlsStateful setting `if` statement in
          * wolfSSL_accept when changing this one. */
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-            byte process = 0;
             if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
                   ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
                  (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {

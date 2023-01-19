@@ -2128,7 +2128,9 @@ typedef struct CipherSuite {
     byte   cipherSuite;
     word32 ecdhCurveOID;
     struct KeyShareEntry* clientKSE;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     int    doHelloRetry;
+#endif
 } CipherSuite;
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
@@ -3054,7 +3056,7 @@ typedef struct Cookie {
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
         word16 len, byte* mac, byte macSz, int resp, TLSX** exts);
 WOLFSSL_LOCAL int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie,
-                                 byte cookieSz);
+                                 word16 cookieSz);
 
 
 /* Key Share - TLS v1.3 Specification */
@@ -6208,9 +6210,10 @@ WOLFSSL_LOCAL int wolfSSL_quic_keys_active(WOLFSSL* ssl, enum encrypt_side side)
 #endif /* WOLFSSL_QUIC (else) */
 
 
-#ifndef NO_PSK
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
 WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
-        byte* psk_key, word32* psk_keySz, byte* suite, int* found);
+        byte* psk_key, word32* psk_keySz, const byte* suite, int* found,
+        byte* foundSuite);
 #endif
 
 #ifdef __cplusplus

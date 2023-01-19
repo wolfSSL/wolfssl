@@ -190,7 +190,7 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
         if (ch->cookie.size - OPAQUE16_LEN != len)
             return BUFFER_E;
         ret = TlsCheckCookie(ssl, ch->cookie.elements + OPAQUE16_LEN,
-                ch->cookie.size - OPAQUE16_LEN);
+                (word16)(ch->cookie.size - OPAQUE16_LEN));
         if (ret < 0 && ret != HRR_COOKIE_ERROR)
             return ret;
         *cookieGood = ret > 0;
@@ -329,7 +329,9 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
                                       &unused);
             if (sess != NULL) {
                 /* Store info for later */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
                 pskInfo->pv = sess->version;
+#endif
                 pskInfo->cipherSuite0 = sess->cipherSuite0;
                 pskInfo->cipherSuite = sess->cipherSuite;
                 pskInfo->namedGroup = sess->namedGroup;
@@ -396,7 +398,7 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
         return 0;
     }
     ret = TLSX_SupportedVersions_Parse(ssl, tlsxSupportedVersions.elements,
-            tlsxSupportedVersions.size, client_hello, &pv, NULL, NULL);
+            (word16)tlsxSupportedVersions.size, client_hello, &pv, NULL, NULL);
     if (ret != 0)
         return ret;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
@@ -446,6 +448,7 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
     byte psk_key[MAX_PSK_KEY_LEN];
     word32 psk_keySz;
     int i;
+    byte foundSuite[SUITE_LEN];
 
     if (pskExt == NULL)
         return;
@@ -454,10 +457,10 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
         for (current = (PreSharedKey*)pskExt->data; current != NULL;
                 current = current->next) {
             if (FindPskSuite(ssl, current, psk_key, &psk_keySz,
-                    suites->suites + i, &found) == 0) {
+                    suites->suites + i, &found, foundSuite) == 0) {
                 if (found) {
-                    pskInfo->cipherSuite0 = suites->suites[i];
-                    pskInfo->cipherSuite  = suites->suites[i + 1];
+                    pskInfo->cipherSuite0 = foundSuite[0];
+                    pskInfo->cipherSuite  = foundSuite[1];
                     pskInfo->isValid      = 1;
                     return;
                 }
@@ -499,13 +502,14 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
             }
 
             /* Hashes are reset in SendTls13ServerHello when sending a HRR */
-            ret = Dtls13HashHandshake((WOLFSSL*)ssl, ch->msg, ch->length);
+            ret = Dtls13HashHandshake((WOLFSSL*)ssl, ch->msg,
+                                      (word16)ch->length);
             if (ret != 0)
                 goto dtls13_cleanup;
 
             /* Populate the suites struct to find a common ciphersuite */
             XMEMSET(&suites, 0, sizeof(suites));
-            suites.suiteSz = ch->cipherSuite.size;
+            suites.suiteSz = (word16)ch->cipherSuite.size;
             if ((suites.suiteSz % 2) != 0)
                 ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
             if (suites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
@@ -551,7 +555,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                 goto dtls13_cleanup;
             if (tlsx.size != 0) {
                 ret = TLSX_SupportedCurve_Parse(ssl, tlsx.elements,
-                                                tlsx.size, 1, &parsedExts);
+                                             (word16)tlsx.size, 1, &parsedExts);
                 if (ret != 0)
                     goto dtls13_cleanup;
             }
@@ -563,7 +567,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                 goto dtls13_cleanup;
             if (tlsx.size != 0) {
                 ret = TLSX_KeyShare_Parse_ClientHello(ssl, tlsx.elements,
-                                          tlsx.size, &parsedExts);
+                                                (word16)tlsx.size, &parsedExts);
                 if (ret != 0)
                     goto dtls13_cleanup;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -669,7 +673,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
 
                 XMEMCPY(nonConstSSL->session->sessionID, ch->sessionId.elements,
                         ch->sessionId.size);
-                nonConstSSL->session->sessionIDSz = ch->sessionId.size;
+                nonConstSSL->session->sessionIDSz = (byte)ch->sessionId.size;
                 nonConstSSL->options.cipherSuite0 = cs.cipherSuite0;
                 nonConstSSL->options.cipherSuite = cs.cipherSuite;
                 nonConstSSL->extensions = parsedExts;
