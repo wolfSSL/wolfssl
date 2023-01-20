@@ -12757,23 +12757,23 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
     WOLFSSL_X509_NAME *subjectName = wolfSSL_X509_get_subject_name(issuer);
 
     if (issuerName == NULL || subjectName == NULL)
-        return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+        return WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
 
     /* Literal matching of encoded names and key ids. */
     if (issuerName->sz != subjectName->sz ||
            XMEMCMP(issuerName->name, subjectName->name, subjectName->sz) != 0) {
-        return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+        return WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
     }
 
     if (subject->authKeyId != NULL && issuer->subjKeyId != NULL) {
         if (subject->authKeyIdSz != issuer->subjKeyIdSz ||
                 XMEMCMP(subject->authKeyId, issuer->subjKeyId,
                         issuer->subjKeyIdSz) != 0) {
-            return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+            return WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
         }
     }
 
-    return X509_V_OK;
+    return WOLFSSL_X509_V_OK;
 }
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */

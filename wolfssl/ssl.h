@@ -2339,64 +2339,7 @@ enum {
 #define SSL_NOTHING 1
 #define SSL_WRITING 2
 #define SSL_READING 3
-
-/* Not all of these are actually used in wolfSSL. Some are included to
- * satisfy OpenSSL compatibility consumers to prevent compilation errors. */
-#define X509_V_OK                                      0
-#define X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT           2
-#define X509_V_ERR_UNABLE_TO_GET_CRL                   3
-#define X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE    4
-#define X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE     5
-#define X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY  6
-#define X509_V_ERR_CERT_SIGNATURE_FAILURE              7
-#define X509_V_ERR_CRL_SIGNATURE_FAILURE               8
-#define X509_V_ERR_CERT_NOT_YET_VALID                  9
-#define X509_V_ERR_CERT_HAS_EXPIRED                    10
-#define X509_V_ERR_CRL_NOT_YET_VALID                   11
-#define X509_V_ERR_CRL_HAS_EXPIRED                     12
-#define X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD      13
-#define X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD       14
-#define X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD      15
-#define X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD      16
-#define X509_V_ERR_OUT_OF_MEM                          17
-#define X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT         18
-#define X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN           19
-#define X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY   20
-#define X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE     21
-#define X509_V_ERR_CERT_CHAIN_TOO_LONG                 22
-#define X509_V_ERR_CERT_REVOKED                        23
-#define X509_V_ERR_INVALID_CA                          24
-#define X509_V_ERR_PATH_LENGTH_EXCEEDED                25
-#define X509_V_ERR_INVALID_PURPOSE                     26
-#define X509_V_ERR_CERT_UNTRUSTED                      27
-#define X509_V_ERR_CERT_REJECTED                       28
-#define X509_V_ERR_SUBJECT_ISSUER_MISMATCH             29
-#define X509_V_ERR_AKID_SKID_MISMATCH                  30
-#define X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH         31
-#define X509_V_ERR_KEYUSAGE_NO_CERTSIGN                32
-#define X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER            33
-#define X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION        34
-#define X509_V_ERR_KEYUSAGE_NO_CRL_SIGN                35
-#define X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION    36
-#define X509_V_ERR_INVALID_NON_CA                      37
-#define X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED          38
-#define X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE       39
-#define X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED      40
-#define X509_V_ERR_INVALID_EXTENSION                   41
-#define X509_V_ERR_INVALID_POLICY_EXTENSION            42
-#define X509_V_ERR_NO_EXPLICIT_POLICY                  43
-#define X509_V_ERR_DIFFERENT_CRL_SCOPE                 44
-#define X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE       45
-#define X509_V_ERR_UNNESTED_RESOURCE                   46
-#define X509_V_ERR_PERMITTED_VIOLATION                 47
-#define X509_V_ERR_EXCLUDED_VIOLATION                  48
-#define X509_V_ERR_SUBTREE_MINMAX                      49
-#define X509_V_ERR_APPLICATION_VERIFICATION            50
-#define X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE         51
-#define X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX       52
-#define X509_V_ERR_UNSUPPORTED_NAME_SYNTAX             53
-#define X509_V_ERR_CRL_PATH_VALIDATION_ERROR           54
-#define X509_R_CERT_ALREADY_IN_HASH_TABLE              101
+#define SSL_MAX_SSL_SESSION_ID_LENGTH 32  /* = ID_LEN */
 
 enum {
 #ifdef HAVE_OCSP
@@ -2420,8 +2363,6 @@ enum {
     OCSP_RESPONSE = 8,
     OCSP_BASICRESP = 16,
 #endif
-
-    SSL_MAX_SSL_SESSION_ID_LENGTH = 32,
 
     SSL_ST_CONNECT = 0x1000,
     SSL_ST_ACCEPT  = 0x2000,
@@ -2451,6 +2392,24 @@ enum {
                               * limit the possibility of an infinite retry loop
                               */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
+    /* Errors used in wolfSSL.
+     * Should map the defines in wolfssl/openssl/x509.h
+     */
+    WOLFSSL_X509_V_OK                                    = 0,
+    WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE            = 7,
+    WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID                = 9,
+    WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED                  = 10,
+    WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD    = 13,
+    WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD     = 14,
+    WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT       = 18,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY = 20,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE   = 21,
+    WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG               = 22,
+    WOLFSSL_X509_V_ERR_CERT_REVOKED                      = 23,
+    WOLFSSL_X509_V_ERR_INVALID_CA                        = 24,
+    WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED              = 25,
+    WOLFSSL_X509_V_ERR_CERT_REJECTED                     = 28,
+    WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
 
     CRYPTO_LOCK = 1,
     CRYPTO_NUM_LOCKS = 10,
@@ -5022,14 +4981,16 @@ WOLFSSL_API int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-WOLFSSL_API const unsigned char *SSL_SESSION_get0_id_context(
-        const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
+WOLFSSL_API const unsigned char *wolfSSL_SESSION_get0_id_context(
+                      const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
 #endif
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-WOLFSSL_API int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len);
-WOLFSSL_API int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+WOLFSSL_API int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
+                                 const unsigned char *sid, unsigned int sid_len);
+WOLFSSL_API int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+                         const unsigned char *sid_ctx, unsigned int sid_ctx_len);
 WOLFSSL_API WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void);
 WOLFSSL_API void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg);
 WOLFSSL_API const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
