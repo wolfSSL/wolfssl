@@ -12,6 +12,22 @@ QUIC, on the other hand, is always protected by TLS. A QUIC implementation does 
 implementation of the TLS protocol, specifically TLSv1.3. It does this in new ways and TLS
 implementations need to accommodate these. Those specifics have been added to wolfSSL.
 
+## wolfSSL Configuration
+
+QUIC support is enabled in the common autoconf style via:
+
+```
+> ./configure --enable-quic
+```
+
+this drags in some very basic features. To have everything necessary for a QUIC protocol implementation like ngtcp2, one would do:
+
+```
+ ./configure --enable-quic --enable-session-ticket --enable-earlydata --enable-psk
+```
+
+**Note**: for now, quic is not enabled via `--enable-all` and always needs to be specified.
+
 ## ngtcp2
 
 One of the recommended QUIC implementations is [ngtpc2](https://github.com/ngtcp2/ngtcp2). It now
@@ -42,24 +58,6 @@ The separation of HTTP/3 and QUIC is natural when you think about the relationsh
 The separation of QUIC's "crypto" parts from its other protocol enabling functions is a matter of security. In its experimental beginnings, QUIC had its own security design. With the emerging TLSv1.3 and all it improvements, plus decades of experience, it seemed rather unwise to have something separate in QUIC.
 
 Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementors happily make use of existing TLS libraries. 
-
-
-
-## wolfSSL Configuration
-
-QUIC support is enabled in the common autoconf style via:
-
-```
-> ./configure --enable-quic
-```
-
-this drags in some very basic features. To have everything necessary for a QUIC protocol implementation like ngtcp2, one would do:
-
-```
- ./configure --enable-quic --enable-session-ticket --enable-earlydata --enable-psk
-```
-
-**Note**: for now, quic is not enabled via `--enable-all` and always needs to be specified.
 
 ## wolfSSL API
 
