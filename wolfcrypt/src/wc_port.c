@@ -2587,7 +2587,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
     #warning No mutex handling defined
 
 #endif
-#ifndef WOLFSSL_USE_RWLOCK
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
     int wc_InitRwLock(wolfSSL_RwLock* m)
     {
         return wc_InitMutex(m);

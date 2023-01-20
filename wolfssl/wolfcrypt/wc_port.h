@@ -175,18 +175,7 @@
                 /* definitions are in linuxkm/linuxkm_wc_port.h */
             #else
                 #define WOLFSSL_PTHREADS
-                #ifdef HAVE_CONFIG_H
-                    /* Need to pull in config.h to get access to
-                     * HAVE_PTHREAD_RWLOCK_DESTROY */
-                    #include <config.h>
-                    #undef HAVE_CONFIG_H
-                #endif
                 #include <pthread.h>
-                #if !defined(WOLFSSL_NO_RWLOCK) && \
-                    defined(HAVE_PTHREAD_RWLOCK_DESTROY)
-                    #undef WOLFSSL_USE_RWLOCK
-                    #define WOLFSSL_USE_RWLOCK
-                #endif
             #endif
         #endif
     #endif
@@ -300,7 +289,7 @@
     #endif /* USE_WINDOWS_API */
 
 #endif /* SINGLE_THREADED */
-#ifndef WOLFSSL_USE_RWLOCK
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
 
