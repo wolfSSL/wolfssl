@@ -13352,7 +13352,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 if (args->totalCerts >= MAX_CHAIN_DEPTH) {
                     if (ssl->peerVerifyRet == 0) /* Return first cert error here */
-                        ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG;
+                        ssl->peerVerifyRet =
+                                        WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG;
                     ret = MAX_CHAIN_ERROR;
                     WOLFSSL_ERROR_VERBOSE(ret);
                     WOLFSSL_MSG("Too many certs for MAX_CHAIN_DEPTH");
@@ -13656,7 +13657,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                          * an ultimately trusted issuer.*/
                         args->count > (ssl->verifyDepth + 1)) {
                         if (ssl->peerVerifyRet == 0) /* Return first cert error here */
-                            ssl->peerVerifyRet = WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG;
+                            ssl->peerVerifyRet =
+                                         WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG;
                         ret = MAX_CHAIN_ERROR;
                         WOLFSSL_ERROR_VERBOSE(ret);
                     }
@@ -13854,16 +13856,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->peerVerifyRet == 0) { /* Return first cert error here */
                         if (ret == ASN_BEFORE_DATE_E) {
                             ssl->peerVerifyRet =
-                                   (unsigned long)WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
+                           (unsigned long)WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
                         }
                         else if (ret == ASN_AFTER_DATE_E) {
                             ssl->peerVerifyRet =
-                                   (unsigned long)WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
+                            (unsigned long)WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
                         }
                         else {
                             ssl->peerVerifyRet =
                                    (unsigned long)
-                                   WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
+                            WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
                         }
                     }
                     #endif

@@ -687,7 +687,8 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
     if (ctx->chain != NULL) {
         for (node = ctx->chain; node != NULL; node = node->next) {
-            if (wolfSSL_X509_check_issued(node->data.x509, x) == WOLFSSL_X509_V_OK) {
+            if (wolfSSL_X509_check_issued(node->data.x509, x) ==
+                                                            WOLFSSL_X509_V_OK) {
                 *issuer = x;
                 return WOLFSSL_SUCCESS;
             }
