@@ -501,8 +501,10 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
     }
 
     /* call extract */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_HKDF_Extract(hpke->kdf_digest, salt, salt_len, labeled_ikm,
         (word32)(size_t)(labeled_ikm_p - labeled_ikm), out);
+    PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(labeled_ikm, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -559,10 +561,12 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
         labeled_info_p += infoSz;
 
         /* call expand */
+        PRIVATE_KEY_UNLOCK();
         ret = wc_HKDF_Expand(hpke->kdf_digest,
             prk, prk_len,
             labeled_info, (word32)(size_t)(labeled_info_p - labeled_info),
             out, L);
+        PRIVATE_KEY_LOCK();
     }
 
 #ifdef WOLFSSL_SMALL_STACK

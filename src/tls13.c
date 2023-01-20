@@ -4633,12 +4633,16 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
         }
 
     /* extract clientRandom with a key of all zeros */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_HKDF_Extract(digestType, zeros, digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk);
+        PRIVATE_KEY_LOCK();
+    }
 
     /* tls expand with the confirmation label */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_Tls13_HKDF_Expand_Label(
             output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
             ECH_ACCEPT_CONFIRMATION_SZ,
@@ -4646,6 +4650,8 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
             TLS13_PROTOCOL_LABEL_SZ, echAcceptConfirmationLabel,
             ECH_ACCEPT_CONFIRMATION_LABEL_SZ, transcriptEchConf, digestSize,
             digestType);
+        PRIVATE_KEY_LOCK();
+    }
 
     if (ret == 0)
         XMEMCPY(ssl->arrays->serverRandom, output + serverRandomOffset,
@@ -6270,7 +6276,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     Dch13Args  args[1];
 #endif
 #if defined(HAVE_ECH)
-    word32 echInOutIdx;
     TLSX* echX = NULL;
 #endif
 
@@ -6746,23 +6751,13 @@ exit_dch:
     }
 
 #if defined(HAVE_ECH)
-    /* do the hello again with the inner */
-    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
-        /* reset the idx */
-        echInOutIdx = args->begin;
+    if (ret == 0 && echX != NULL &&
+        ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
 
         /* add the header to the inner hello */
         AddTls13HandShakeHeader(((WOLFSSL_ECH*)echX->data)->innerClientHello,
             ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen, 0, 0,
             client_hello, ssl);
-
-        ret = DoTls13ClientHello(ssl,
-            ((WOLFSSL_ECH*)echX->data)->innerClientHello,
-            &echInOutIdx, ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
-
-        /* inner hello succeeded, consider this handshake message processed */
-        if (ret == 0)
-            *inOutIdx = args->begin + helloSz;
     }
 #endif
 
@@ -10830,6 +10825,10 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
     word32 inIdx = *inOutIdx;
+#if defined(HAVE_ECH)
+    TLSX* echX = NULL;
+    word32 echInOutIdx;
+#endif
 
     (void)totalSz;
 
@@ -10935,7 +10934,34 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* Messages only received by server. */
     case client_hello:
         WOLFSSL_MSG("processing client hello");
+#if defined(HAVE_ECH)
+        /* keep the start idx so we can restore it for the inner call */
+        echInOutIdx = *inOutIdx;
+#endif
         ret = DoTls13ClientHello(ssl, input, inOutIdx, size);
+#if defined(HAVE_ECH)
+        if (ret == 0) {
+            echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+
+            if (echX != NULL &&
+                ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
+
+                /* reset the inOutIdx to the outer start */
+                *inOutIdx = echInOutIdx;
+
+                /* call again with the inner hello */
+                ret = DoTls13ClientHello(ssl,
+                    ((WOLFSSL_ECH*)echX->data)->innerClientHello,
+                    &echInOutIdx,
+                    ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
+
+                /* if the inner ech parsed successfully we have sucessfully
+                 * handled the hello and can skip the whole message */
+                if (ret == 0)
+                    *inOutIdx += size;
+            }
+        }
+#endif /* HAVE_ECH */
         break;
 
     #ifdef WOLFSSL_EARLY_DATA
