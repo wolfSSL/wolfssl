@@ -1360,6 +1360,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_SESSION_set_ex_data         wolfSSL_SESSION_set_ex_data
 #define SSL_SESSION_get_ex_new_index    wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
+#define SSL_SESSION_get0_id_context     wolfSSL_SESSION_get0_id_context
+#define SSL_SESSION_set1_id             wolfSSL_SESSION_set1_id
+#define SSL_SESSION_set1_id_context     wolfSSL_SESSION_set1_id_context
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
 #define sk_GENERAL_NAME_free            wolfSSL_sk_GENERAL_NAME_free

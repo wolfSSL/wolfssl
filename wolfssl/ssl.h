@@ -2339,7 +2339,7 @@ enum {
 #define SSL_NOTHING 1
 #define SSL_WRITING 2
 #define SSL_READING 3
-
+#define SSL_MAX_SSL_SESSION_ID_LENGTH 32  /* = ID_LEN */
 enum {
 #ifdef HAVE_OCSP
     /* OCSP Flags */
@@ -2362,8 +2362,6 @@ enum {
     OCSP_RESPONSE = 8,
     OCSP_BASICRESP = 16,
 #endif
-
-    SSL_MAX_SSL_SESSION_ID_LENGTH = 32,
 
     SSL_ST_CONNECT = 0x1000,
     SSL_ST_ACCEPT  = 0x2000,
@@ -5023,14 +5021,16 @@ WOLFSSL_API int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-WOLFSSL_API const unsigned char *SSL_SESSION_get0_id_context(
-        const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
+WOLFSSL_API const unsigned char *wolfSSL_SESSION_get0_id_context(
+                      const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
 #endif
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-WOLFSSL_API int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len);
-WOLFSSL_API int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+WOLFSSL_API int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
+                                 const unsigned char *sid, unsigned int sid_len);
+WOLFSSL_API int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+                         const unsigned char *sid_ctx, unsigned int sid_ctx_len);
 WOLFSSL_API WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void);
 WOLFSSL_API void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg);
 WOLFSSL_API const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
