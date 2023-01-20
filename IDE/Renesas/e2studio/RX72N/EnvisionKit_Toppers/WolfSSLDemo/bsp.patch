@@ -1,0 +1,147 @@
+diff -cr --new-file src/smc_gen/r_bsp/mcu/all/resetprg.c src/smc_gen_A0/r_bsp/mcu/all/resetprg.c
+*** src/smc_gen/r_bsp/mcu/all/resetprg.c	Tue Dec 13 14:52:54 2022
+--- src/smc_gen_A0/r_bsp/mcu/all/resetprg.c	Tue Dec 13 14:57:16 2022
+***************
+*** 158,164 ****
+  R_BSP_POR_FUNCTION(R_BSP_STARTUP_FUNCTION);
+  
+  /* Main program function declaration */
+! #if (BSP_CFG_RTOS_USED == 0) || (BSP_CFG_RTOS_USED == 5)    /* Non-OS or Azure RTOS */
+  extern void R_BSP_MAIN_FUNCTION(void);
+  #endif
+  
+--- 158,164 ----
+  R_BSP_POR_FUNCTION(R_BSP_STARTUP_FUNCTION);
+  
+  /* Main program function declaration */
+! #if (BSP_CFG_RTOS_USED == 0) || (BSP_CFG_RTOS_USED == 5) || (BSP_CFG_RTOS_USED == 4)   /* Non-OS or Azure RTOS */
+  extern void R_BSP_MAIN_FUNCTION(void);
+  #endif
+  
+***************
+*** 200,214 ****
+       * and constructors of C++ objects have not been executed until the _INITSCT() is executed. */
+  #if defined(__GNUC__)
+  #if BSP_CFG_USER_STACK_ENABLE == 1
+!     INTERNAL_NOT_USED(ustack_area);
+  #endif
+!     INTERNAL_NOT_USED(istack_area);
+  #endif
+  
+  #if defined(__CCRX__) || defined(__GNUC__)
+  
+      /* Initialize the Interrupt Table Register */
+!     R_BSP_SET_INTB(R_BSP_SECTOP_INTVECTTBL);
+  
+  #ifdef BSP_MCU_EXCEPTION_TABLE
+      /* Initialize the Exception Table Register */
+--- 200,214 ----
+       * and constructors of C++ objects have not been executed until the _INITSCT() is executed. */
+  #if defined(__GNUC__)
+  #if BSP_CFG_USER_STACK_ENABLE == 1
+!   //  INTERNAL_NOT_USED(ustack_area);
+  #endif
+!  //   INTERNAL_NOT_USED(istack_area);
+  #endif
+  
+  #if defined(__CCRX__) || defined(__GNUC__)
+  
+      /* Initialize the Interrupt Table Register */
+!  //   R_BSP_SET_INTB(R_BSP_SECTOP_INTVECTTBL);
+  
+  #ifdef BSP_MCU_EXCEPTION_TABLE
+      /* Initialize the Exception Table Register */
+***************
+*** 275,281 ****
+  #endif
+  
+      /* Initialize MCU interrupt callbacks. */
+!     bsp_interrupt_open();
+  
+      /* Initialize register protection functionality. */
+      bsp_register_protect_open();
+--- 275,281 ----
+  #endif
+  
+      /* Initialize MCU interrupt callbacks. */
+!  //   bsp_interrupt_open();
+  
+      /* Initialize register protection functionality. */
+      bsp_register_protect_open();
+***************
+*** 302,308 ****
+      /* Enable the bus error interrupt to catch accesses to illegal/reserved areas of memory */
+      R_BSP_InterruptControl(BSP_INT_SRC_BUS_ERROR, BSP_INT_CMD_INTERRUPT_ENABLE, FIT_NO_PTR);
+  
+! #if (BSP_CFG_RTOS_USED == 0) || (BSP_CFG_RTOS_USED == 5)    /* Non-OS or Azure RTOS */
+      /* Call the main program function (should not return) */
+      R_BSP_MAIN_FUNCTION();
+  #elif BSP_CFG_RTOS_USED == 1    /* FreeRTOS */
+--- 302,308 ----
+      /* Enable the bus error interrupt to catch accesses to illegal/reserved areas of memory */
+      R_BSP_InterruptControl(BSP_INT_SRC_BUS_ERROR, BSP_INT_CMD_INTERRUPT_ENABLE, FIT_NO_PTR);
+  
+! #if (BSP_CFG_RTOS_USED == 0) || (BSP_CFG_RTOS_USED == 5) || (BSP_CFG_RTOS_USED == 4)    /* Non-OS or Azure RTOS */
+      /* Call the main program function (should not return) */
+      R_BSP_MAIN_FUNCTION();
+  #elif BSP_CFG_RTOS_USED == 1    /* FreeRTOS */
+diff -cr --new-file src/smc_gen/r_config/r_bsp_config.h src/smc_gen_A0/r_config/r_bsp_config.h
+*** src/smc_gen/r_config/r_bsp_config.h	Tue Dec 13 14:52:56 2022
+--- src/smc_gen_A0/r_config/r_bsp_config.h	Tue Dec 13 14:57:16 2022
+***************
+*** 667,673 ****
+     4 = Renesas ITRON OS (RI600V4 or RI600PX) is used.
+     5 = Azure RTOS is used.(This is not available.)
+  */
+! #define BSP_CFG_RTOS_USED               (0)
+  
+  /* This macro is used to select which Renesas ITRON OS.
+     0 = RI600V4 is used.
+--- 667,673 ----
+     4 = Renesas ITRON OS (RI600V4 or RI600PX) is used.
+     5 = Azure RTOS is used.(This is not available.)
+  */
+! #define BSP_CFG_RTOS_USED               (4)
+  
+  /* This macro is used to select which Renesas ITRON OS.
+     0 = RI600V4 is used.
+diff -cr --new-file src/smc_gen/r_config/r_cmt_rx_config.h src/smc_gen_A0/r_config/r_cmt_rx_config.h
+*** src/smc_gen/r_config/r_cmt_rx_config.h	Tue Dec 13 14:52:55 2022
+--- src/smc_gen_A0/r_config/r_cmt_rx_config.h	Tue Dec 13 14:57:16 2022
+***************
+*** 37,43 ****
+  #define CMT_RX_CFG_IPR         (5)
+  
+  #if (BSP_CFG_RTOS_USED == 4) && (BSP_CFG_RENESAS_RTOS_USED == 0) /* RI600V4 */
+! #define _RI_TRACE_TIMER 1 /* RI600V4 uses CMT1 channel for the trace feature.*/
+  #elif (BSP_CFG_RTOS_USED == 4) && (BSP_CFG_RENESAS_RTOS_USED == 1) /* RI600PX */
+  #include "r_bsp_config.h"
+  #define _RI_TRACE_TIMER BSP_CFG_RTOS_SYSTEM_TIMER /* RI600PX does not actually have the trace feature.*/
+--- 37,43 ----
+  #define CMT_RX_CFG_IPR         (5)
+  
+  #if (BSP_CFG_RTOS_USED == 4) && (BSP_CFG_RENESAS_RTOS_USED == 0) /* RI600V4 */
+! #define _RI_TRACE_TIMER 0 /* RI600V4 uses CMT1 channel for the trace feature.*/
+  #elif (BSP_CFG_RTOS_USED == 4) && (BSP_CFG_RENESAS_RTOS_USED == 1) /* RI600PX */
+  #include "r_bsp_config.h"
+  #define _RI_TRACE_TIMER BSP_CFG_RTOS_SYSTEM_TIMER /* RI600PX does not actually have the trace feature.*/
+diff -cr --new-file src/smc_gen/r_t4_driver_rx/src/t4_driver.c src/smc_gen_A0/r_t4_driver_rx/src/t4_driver.c
+*** src/smc_gen/r_t4_driver_rx/src/t4_driver.c	Tue Dec 13 15:19:38 2022
+--- src/smc_gen_A0/r_t4_driver_rx/src/t4_driver.c	Tue Dec 13 14:57:17 2022
+***************
+*** 70,76 ****
+  #include "r_tsip_rx_if.h"
+  #elif (defined BSP_MCU_RX72M || defined BSP_MCU_RX72N || defined BSP_MCU_RX66N) && \
+      (BSP_CFG_MCU_PART_FUNCTION == 0x11 /* H */)
+! #include "r_tsip_rx_if.h"
+  #else
+  #warning "Your MCU does not support TSIP functions. It is better to use RX Family that support TSIP functions for more security. Vulnerability reference: https://www.ipa.go.jp/security/rfc/RFC1948EN.html"
+  #endif  /* defined BSP_MCU_RX231 || defined BSP_MCU_RX23W && BSP_CFG_MCU_PART_VERSION == 0xB */
+--- 70,76 ----
+  #include "r_tsip_rx_if.h"
+  #elif (defined BSP_MCU_RX72M || defined BSP_MCU_RX72N || defined BSP_MCU_RX66N) && \
+      (BSP_CFG_MCU_PART_FUNCTION == 0x11 /* H */)
+! //#include "r_tsip_rx_if.h"
+  #else
+  #warning "Your MCU does not support TSIP functions. It is better to use RX Family that support TSIP functions for more security. Vulnerability reference: https://www.ipa.go.jp/security/rfc/RFC1948EN.html"
+  #endif  /* defined BSP_MCU_RX231 || defined BSP_MCU_RX23W && BSP_CFG_MCU_PART_VERSION == 0xB */
