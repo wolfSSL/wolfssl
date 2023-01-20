@@ -33273,6 +33273,12 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
     byte msg[] = { 0x00 };
     word32 msgSz = sizeof(msg);
 
+#ifdef WOLFSSL_SHA384
+    ret = wc_HashEccsiId(priv, WC_HASH_TYPE_SHA384, id, idSz, pvt, hashPriv,
+            &hashSz);
+    if (ret != BAD_FUNC_ARG)
+        return -10174;
+#endif
     ret = wc_HashEccsiId(priv, WC_HASH_TYPE_SHA256, id, idSz, pvt, hashPriv,
             &hashSz);
     if (ret != 0)

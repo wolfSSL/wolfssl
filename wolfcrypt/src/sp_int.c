@@ -17090,6 +17090,9 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 int sp_read_radix(sp_int* a, const char* in, int radix)
 {
     int err = MP_OKAY;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    int sign = MP_ZPOS;
+#endif
 
     if ((a == NULL) || (in == NULL)) {
         err = MP_VAL;
@@ -17106,7 +17109,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
         #ifdef WOLFSSL_SP_INT_NEGATIVE
             if (*in == '-') {
                 /* Make number negative if signed string. */
-                a->sign = MP_NEG;
+                sign = MP_NEG;
                 in++;
             }
         #endif /* WOLFSSL_SP_INT_NEGATIVE */
@@ -17129,8 +17132,13 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
         #ifdef WOLFSSL_SP_INT_NEGATIVE
             /* Ensure not negative when zero. */
-            if ((err == MP_OKAY) && sp_iszero(a)) {
-                a->sign = MP_ZPOS;
+            if (err == MP_OKAY) {
+                if (sp_iszero(a)) {
+                    a->sign = MP_ZPOS;
+                }
+                else {
+                    a->sign = sign;
+                }
             }
         #endif
         }
