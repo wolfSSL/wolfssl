@@ -2,7 +2,8 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/README-jp.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/README-en.md
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/setting.sh
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/Toppers_app
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/Toppers_app/.cproject
