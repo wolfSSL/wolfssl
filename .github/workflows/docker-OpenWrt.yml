@@ -1,6 +1,6 @@
-# This workflow tests out new libraries with existing OpenWRT builds to check
-# there aren't any compatibility issues. Take a look at Docker/OpenWRT/README.md
-name: OpenWRT test
+# This workflow tests out new libraries with existing OpenWrt builds to check
+# there aren't any compatibility issues. Take a look at Docker/OpenWrt/README.md
+name: OpenWrt test
 concurrency:
     group: ${{ github.ref }}
 
@@ -12,7 +12,7 @@ on:
 
 jobs:
     compile_container:
-        name: Build OpenWRT test container
+        name: Build OpenWrt test container
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
@@ -24,7 +24,7 @@ jobs:
               with:
                   context: .
                   platforms: linux/amd64
-                  file: Docker/OpenWRT/Dockerfile
+                  file: Docker/OpenWrt/Dockerfile
                   push: false
                   tags: openwrt-test:latest
 #                  cache-from: type=registry,ref=openwrt-test:latest
