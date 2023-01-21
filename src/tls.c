@@ -10454,13 +10454,13 @@ static int TLSX_ServerECH_Use(TLSX** extensions, void* heap,
     WOLFSSL_ECH* ech;
     TLSX* echX;
 
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
     /* if we already have ech don't override it */
     echX = TLSX_Find(*extensions, TLSX_ECH);
     if (echX != NULL)
         return 0;
-
-    if (extensions == NULL)
-        return BAD_FUNC_ARG;
 
     ech = (WOLFSSL_ECH*)XMALLOC(sizeof(WOLFSSL_ECH), heap,
         DYNAMIC_TYPE_TMP_BUFFER);

@@ -1,7 +1,7 @@
-#/bin/sh
+#!/bin/sh
 
-function runCMD() { # usage: runCMD "<command>" "<retVal>"
-    eval $1 &>/dev/null
+runCMD() { # usage: runCMD "<command>" "<retVal>"
+    eval $1 >/dev/null 2>&1
     RETVAL=$?
     if [ "$RETVAL" != "$2" ]; then
         echo "Command ($1) returned ${RETVAL}, but expected $2. Rerunning with output to terminal:"
