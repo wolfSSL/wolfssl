@@ -10519,7 +10519,9 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
         if (ret != WOLFSSL_SUCCESS)
             return ret;
 
-        return configsLen;
+        *offset += configsLen;
+
+        return 0;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
