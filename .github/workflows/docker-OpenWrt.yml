@@ -1,0 +1,33 @@
+# This workflow tests out new libraries with existing OpenWrt builds to check
+# there aren't any compatibility issues. Take a look at Docker/OpenWrt/README.md
+name: OpenWrt test
+concurrency:
+    group: ${{ github.ref }}
+
+on:
+    push:
+        branches: [ 'master', 'main', 'release/**' ]
+    pull_request:
+        branches: [ '*' ]
+
+jobs:
+    compile_container:
+        name: Build OpenWrt test container
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: docker/setup-qemu-action@v2
+            - uses: docker/setup-buildx-action@v2
+            -
+              name: Build but dont push
+              uses: docker/build-push-action@v3
+              with:
+                  context: .
+                  platforms: linux/amd64
+                  file: Docker/OpenWrt/Dockerfile
+                  push: false
+                  tags: openwrt-test:latest
+#                  cache-from: type=registry,ref=openwrt-test:latest
+#                  cache-to: type=inline
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
