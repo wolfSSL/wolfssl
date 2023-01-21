@@ -24160,11 +24160,44 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
-const unsigned char *SSL_SESSION_get0_id_context(const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length)
+const unsigned char *wolfSSL_SESSION_get0_id_context(
+                      const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length)
 {
-    sess = ClientSessionToSession(sess);
     return wolfSSL_SESSION_get_id((WOLFSSL_SESSION *)sess, sid_ctx_length);
 }
+int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
+                                 const unsigned char *sid, unsigned int sid_len)
+{
+    if (s == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (sid_len > ID_LEN) {
+        return WOLFSSL_FAILURE;
+    }
+    s->sessionIDSz = sid_len;
+    if (sid != s->sessionID) {
+        XMEMCPY(s->sessionID, sid, sid_len);
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
+                         const unsigned char *sid_ctx, unsigned int sid_ctx_len)
+{
+    if (s == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (sid_ctx_len > ID_LEN) {
+        return WOLFSSL_FAILURE;
+    }
+    s->sessionCtxSz = sid_ctx_len;
+    if (sid_ctx != s->sessionCtx) {
+        XMEMCPY(s->sessionCtx, sid_ctx, sid_ctx_len);
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 #endif
 
 /*** TBD ***/
@@ -24249,32 +24282,6 @@ long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
     (void)s;
     (void)arg;
     WOLFSSL_STUB("wolfSSL_set_tlsext_status_ids");
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-/*** TBD ***/
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid,
-    unsigned int sid_len)
-{
-    (void)s;
-    (void)sid;
-    (void)sid_len;
-    WOLFSSL_STUB("SSL_SESSION_set1_id");
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
-    const unsigned char *sid_ctx, unsigned int sid_ctx_len)
-{
-    (void)s;
-    (void)sid_ctx;
-    (void)sid_ctx_len;
-    WOLFSSL_STUB("SSL_SESSION_set1_id_context");
     return WOLFSSL_FAILURE;
 }
 #endif

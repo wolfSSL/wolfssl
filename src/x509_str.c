@@ -165,21 +165,21 @@ int GetX509Error(int e)
 {
     switch (e) {
         case ASN_BEFORE_DATE_E:
-            return X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
+            return WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
         case ASN_AFTER_DATE_E:
-            return X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
+            return WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
         case ASN_NO_SIGNER_E: /* get issuer error if no CA found locally */
-            return X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
+            return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
         case ASN_SELF_SIGNED_E:
-            return X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
+            return WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case ASN_PATHLEN_INV_E:
         case ASN_PATHLEN_SIZE_E:
-            return X509_V_ERR_PATH_LENGTH_EXCEEDED;
+            return WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED;
         case ASN_SIG_OID_E:
         case ASN_SIG_CONFIRM_E:
         case ASN_SIG_HASH_E:
         case ASN_SIG_KEY_E:
-            return X509_V_ERR_CERT_SIGNATURE_FAILURE;
+            return WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE;
         default:
 #ifdef HAVE_WOLFSSL_MSG_EX
             WOLFSSL_MSG_EX("Error not configured or implemented yet: %d", e);
@@ -238,11 +238,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
         if (XVALIDATE_DATE(afterDate, (byte)ctx->current_cert->notAfter.type,
                                                                    AFTER) < 1) {
-            error = X509_V_ERR_CERT_HAS_EXPIRED;
+            error = WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
         }
         else if (XVALIDATE_DATE(beforeDate,
                     (byte)ctx->current_cert->notBefore.type, BEFORE) < 1) {
-            error = X509_V_ERR_CERT_NOT_YET_VALID;
+            error = WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
         }
 
         if (error != 0 ) {
@@ -687,7 +687,8 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
     if (ctx->chain != NULL) {
         for (node = ctx->chain; node != NULL; node = node->next) {
-            if (wolfSSL_X509_check_issued(node->data.x509, x) == X509_V_OK) {
+            if (wolfSSL_X509_check_issued(node->data.x509, x) ==
+                                                            WOLFSSL_X509_V_OK) {
                 *issuer = x;
                 return WOLFSSL_SUCCESS;
             }

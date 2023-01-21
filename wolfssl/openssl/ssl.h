@@ -1360,6 +1360,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_SESSION_set_ex_data         wolfSSL_SESSION_set_ex_data
 #define SSL_SESSION_get_ex_new_index    wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
+#define SSL_SESSION_get0_id_context     wolfSSL_SESSION_get0_id_context
+#define SSL_SESSION_set1_id             wolfSSL_SESSION_set1_id
+#define SSL_SESSION_set1_id_context     wolfSSL_SESSION_set1_id_context
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
 #define sk_GENERAL_NAME_free            wolfSSL_sk_GENERAL_NAME_free
@@ -1505,7 +1508,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
 #define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 #define SSL_R_NULL_SSL_METHOD_PASSED               BAD_FUNC_ARG
-
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
