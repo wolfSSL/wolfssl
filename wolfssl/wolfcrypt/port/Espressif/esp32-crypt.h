@@ -115,19 +115,26 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
         ESP32_SHA_INIT = 0,
         ESP32_SHA_HW = 1,
         ESP32_SHA_SW = 2,
-        ESP32_SHA_FAIL_NEED_UNROLL = -1
+        ESP32_SHA_FAIL_NEED_UNROLL = 3
     } ESP32_MODE;
 
     typedef struct {
-        byte isfirstblock;
-
+        /* NOTE:
+        **
+        ** There's a known Espressif byte alignment issue. See:
+        ** https://github.com/wolfSSL/wolfssl/issues/5948  
+        **
+        ** To avoid problems, list the largest types first.
+        */
         ESP32_MODE mode; /* typically 0 init, 1 HW, 2 SW */
 
-        /* we'll keep track of our own locks.
-         * actual enable/disable only occurs for ref_counts[periph] == 0 */
-        int lockDepth; /* see ref_counts[periph] in periph_ctrl.c */
+        /* see esp_rom/include/esp32/rom/sha.h */
+        enum SHA_TYPE sha_type; /* the Espressif type: SHA1, SHA256, etc.*/
 
-        enum SHA_TYPE sha_type;
+        /* we'll keep track of our own locks.
+        ** actual enable/disable only occurs for ref_counts[periph] == 0 */
+        int lockDepth;     /* see ref_counts[periph] in periph_ctrl.c    */
+        byte isfirstblock; /* 0 is not first block; 1 = is first block   */
     } WC_ESP32SHA;
 
     int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);
