@@ -4839,7 +4839,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
-            ((ivSz == 0) && (iv != NULL)) || (ivSz > AES_BLOCK_SIZE) ||
+            ((ivSz == 0) && (iv != NULL)) ||
             ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }

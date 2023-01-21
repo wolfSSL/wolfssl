@@ -18575,6 +18575,73 @@ static int test_wc_AesGcmEncryptDecrypt(void)
 } /* END test_wc_AesGcmEncryptDecrypt */
 
 /*
+ * test function for mixed (one-shot encrpytion + stream decryption) AES GCM
+ * using a long IV (older FIPS does NOT support long IVs).  Relates to zd15423
+ */
+static int test_wc_AesGcmMixedEncDecLongIV(void)
+{
+    int ret = TEST_SKIPPED;
+
+#if  (!defined(HAVE_FIPS) || \
+      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+     !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+
+    const byte key[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+
+    const byte in[] = {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+
+    const byte aad[] = {
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xab, 0xad, 0xda, 0xd2
+    };
+
+    Aes     aesEnc, aesDec;
+    byte    iv[]  = "1234567890abcdefghij";
+    byte    out[sizeof(in)];
+    byte    plain[sizeof(in)];
+    byte    tag[AES_BLOCK_SIZE];
+
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(plain, 0, sizeof(plain));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    /* Perform one-shot encryption using long IV */
+    AssertIntEQ(wc_AesInit(&aesEnc, NULL, INVALID_DEVID), 0);
+    AssertIntEQ(wc_AesGcmSetKey(&aesEnc, key, sizeof(key)), 0);
+    AssertIntEQ(wc_AesGcmEncrypt(&aesEnc, out, in, sizeof(in), iv, sizeof(iv),
+                                 tag, sizeof(tag), aad, sizeof(aad)), 0);
+
+    /* Perform streaming decryption using long IV */
+    AssertIntEQ(wc_AesInit(&aesDec, NULL, INVALID_DEVID), 0);
+    AssertIntEQ(wc_AesGcmInit(&aesDec, key, sizeof(key), iv, sizeof(iv)), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(&aesDec, plain, out, sizeof(out), aad,
+                                       sizeof(aad)), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(&aesDec, tag, sizeof(tag)), 0);
+    AssertIntEQ(XMEMCMP(plain, in, sizeof(in)), 0);
+
+    /* Free resources */
+    wc_AesFree(&aesEnc);
+    wc_AesFree(&aesDec);
+
+    ret = TEST_SUCCESS;
+
+#endif
+
+    return ret;
+
+} /* END wc_AesGcmMixedEncDecLongIV */
+
+/*
  * unit test for wc_GmacSetKey()
  */
 static int test_wc_GmacSetKey(void)
@@ -61084,6 +61151,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_AesCtrEncryptDecrypt),
     TEST_DECL(test_wc_AesGcmSetKey),
     TEST_DECL(test_wc_AesGcmEncryptDecrypt),
+    TEST_DECL(test_wc_AesGcmMixedEncDecLongIV),
     TEST_DECL(test_wc_GmacSetKey),
     TEST_DECL(test_wc_GmacUpdate),
     TEST_DECL(test_wc_InitRsaKey),
@@ -61297,7 +61365,6 @@ TEST_CASE testCases[] = {
                            !defined(WOLFSSL_NO_CLIENT_AUTH))
     TEST_DECL(test_various_pathlen_chains),
 #endif
-
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
