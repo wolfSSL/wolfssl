@@ -737,8 +737,8 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 {
     int ret;
     word32 dh_len;
-    word16 receiverPubKeySz = hpke->Npk;
-    word16 ephemeralPubKeySz = hpke->Npk;
+    word16 receiverPubKeySz;
+    word16 ephemeralPubKeySz;
 #ifndef WOLFSSL_SMALL_STACK
     byte dh[HPKE_Ndh_MAX];
     byte kemContext[HPKE_Npk_MAX * 2];
@@ -751,6 +751,9 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
         sharedSecret == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    receiverPubKeySz = hpke->Npk;
+    ephemeralPubKeySz = hpke->Npk;
 
 #ifdef WOLFSSL_SMALL_STACK
     dh = (byte*)XMALLOC(hpke->Ndh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -949,7 +952,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
 {
     int ret;
     word32 dh_len;
-    word16 receiverPubKeySz = hpke->Npk;
+    word16 receiverPubKeySz;
     void* ephemeralKey = NULL;
 #ifndef WOLFSSL_SMALL_STACK
     byte dh[HPKE_Ndh_MAX];
@@ -962,6 +965,8 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
     if (hpke == NULL || receiverKey == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    receiverPubKeySz = hpke->Npk;
 
 #ifdef WOLFSSL_SMALL_STACK
     dh = (byte*)XMALLOC(hpke->Ndh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1098,9 +1103,7 @@ static int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context,
     if (ret == 0)
         ret = wc_AesInit(aes_key, hpke->heap, INVALID_DEVID);
     if (ret == 0) {
-        if (ret == 0) {
-            ret = wc_AesGcmSetKey(aes_key, context->key, hpke->Nk);
-        }
+        ret = wc_AesGcmSetKey(aes_key, context->key, hpke->Nk);
         if (ret == 0) {
             ret = wc_AesGcmDecrypt(aes_key, out, ciphertext, ctSz, nonce,
                 hpke->Nn, ciphertext + ctSz, hpke->Nt, aad, aadSz);
