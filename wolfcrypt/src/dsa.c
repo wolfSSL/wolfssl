@@ -662,7 +662,6 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 #endif
     mp_int* qMinus1;
     int     ret = 0, halfSz = 0;
-    byte*   tmp;  /* initial output pointer */
 
     if (digest == NULL || out == NULL || key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
@@ -720,7 +719,6 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
             break;
         }
 
-        tmp = out;
         qMinus1 = kInv;
 
         /* NIST FIPS 186-4: B.2.2
@@ -904,21 +902,11 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
         /* write out */
         {
-            int rSz = mp_unsigned_bin_size(r);
-            int sSz = mp_unsigned_bin_size(s);
-
-            while (rSz++ < halfSz) {
-                *out++ = 0x00;  /* pad front with zeros */
-            }
-
-            if (mp_to_unsigned_bin(r, out) != MP_OKAY)
+            if (mp_to_unsigned_bin_len(r, out, halfSz) != MP_OKAY)
                 ret = MP_TO_E;
             else {
-                out = tmp + halfSz;  /* advance to s in output */
-                while (sSz++ < halfSz) {
-                    *out++ = 0x00;  /* pad front with zeros */
-                }
-                ret = mp_to_unsigned_bin(s, out);
+                out += halfSz;  /* advance to s in output */
+                ret = mp_to_unsigned_bin_len(s, out, halfSz);
             }
         }
     } while (0);

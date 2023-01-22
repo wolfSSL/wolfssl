@@ -34,7 +34,6 @@ This library provides single precision (SP) integer math functions.
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -16972,7 +16971,7 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
                     /* Stop if the output buffer is filled. */
                     if (j < 0) {
                         if ((i < a->used - 1) || (d > 0)) {
-                            err = BUFFER_E;
+                            err = MP_VAL;
                         }
                         break;
                     }
@@ -16986,7 +16985,7 @@ int sp_to_unsigned_bin_len(const sp_int* a, byte* out, int outSz)
     }
 #else
     if ((err == MP_OKAY) && (outSz < a->used)) {
-        err = BUFFER_E;
+        err = MP_VAL;
     }
     if (err == MP_OKAY) {
         int i;

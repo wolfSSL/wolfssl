@@ -39776,6 +39776,11 @@ static int mp_test_read_to_bin(mp_int* a)
         }
     }
 
+    /* Length too small. */
+    ret = mp_to_unsigned_bin_len(a, out, 1);
+    if (ret != MP_VAL)
+        return -12716;
+
     ret = mp_read_unsigned_bin(a, NULL, 0);
     if (ret != 0)
         return -12714;
