@@ -1,4 +1,4 @@
-/*kernel.h
+/* kernel.h
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
@@ -33,4 +33,4 @@ extern ER		rot_rdq(PRI tskpri);
 #define TPRI_SELF		0
 #define _RI_CLOCK_TIMER (0)
 #define TRUE	true
-#endif //KERNEL_H
+#endif /* KERNEL_H */

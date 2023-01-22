@@ -1,6 +1,6 @@
 /* strings.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,5 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#ifndef _STRING_H
+#define _STRING_H
 
 int strncasecmp(const char *s1, const char * s2, unsigned int sz);
+
+#endif

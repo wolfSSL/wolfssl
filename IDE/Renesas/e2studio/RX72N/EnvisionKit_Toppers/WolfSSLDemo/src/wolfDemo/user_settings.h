@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,6 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 #ifndef USER_SETTINGS_H
 #define USER_SETTINGS_H
 
@@ -47,19 +48,8 @@
 
 #define WOLFSSL_USER_IO
 
-#define WOLFSSL_TLS12
-
-
-//#define WOLFSSL_USER_KEYFILES /* To be defined key and cert files in user_settings.h  */
-//#define WOLFSSL_NO_ABORT      /* No abort during the test except exception occurred */
-//#define DEBUG_WOLFSSL
-
-//#define OPENSSL_EXTRA
-
-//#define USER_TIME
 #define XTIME time
 #define USE_WOLF_SUSECONDS_T
-//#define USE_WOLF_TIMEVAL_T
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 
@@ -86,6 +76,6 @@
 
 #define WC_RSA_PSS
 #define HAVE_HKDF
-#define  HAVE_FFDHE_2048
+#define HAVE_FFDHE_2048
 
 #endif

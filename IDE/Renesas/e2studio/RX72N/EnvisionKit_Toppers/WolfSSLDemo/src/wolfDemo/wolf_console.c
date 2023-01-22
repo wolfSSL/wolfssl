@@ -1,6 +1,6 @@
-/* wolf_main.c
+/* wolf_console.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,7 +26,7 @@
 
 #include "wolf_demo.h"
 extern void wolfSSL_TLS_server(void *v_ctx, func_args *args);
-extern  void wolfSSL_TLS_client(void *v_ctx, func_args *args);
+extern void wolfSSL_TLS_client(void *v_ctx, func_args *args);
 
 static WOLFSSL_CTX *wolfSSL_sv_ctx;
 static WOLFSSL_CTX *wolfSSL_cl_ctx;
@@ -109,14 +109,18 @@ void wolfSSL_main()
     case 't':
         get_arg(&args);
         printf("Start wolfCrypt Test\n");
-     //   wolfcrypt_test(&args);
+#ifndef NO_CRYPT_TEST
+        wolfcrypt_test(&args);
+#endif
         printf("End wolfCrypt Test\n");
 	break;
 	
     case 'b':
         get_arg(&args);
         printf("Start wolfCrypt Benchmark\n");
+#ifndef NO_CRYPT_BENCHMARK
         benchmark_test(NULL);
+#endif
         printf("End wolfCrypt Benchmark\n");
 	break;
 	
