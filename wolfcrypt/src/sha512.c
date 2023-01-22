@@ -969,8 +969,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #ifndef WC_NO_HARDEN
     /* We'll add a 0x80 byte at the end,
     ** so make sure we have appropriate buffer length. */
-    if ((sha512->buffLen < 0) ||
-        (sha512->buffLen > WC_SHA512_BLOCK_SIZE - 1)) {
+    if (sha512->buffLen > WC_SHA512_BLOCK_SIZE - 1) {
         return BAD_FUNC_ARG;
     }
 #endif

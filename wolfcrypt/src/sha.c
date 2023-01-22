@@ -722,7 +722,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #ifndef WC_NO_HARDEN
     /* We'll add a 0x80 byte at the end,
     ** so make sure we have appropriate buffer length. */
-    if ((sha->buffLen < 0) || (sha->buffLen > WC_SHA_BLOCK_SIZE - 1)) {
+    if (sha->buffLen > WC_SHA_BLOCK_SIZE - 1) {
         return BAD_FUNC_ARG;
     }
 #endif

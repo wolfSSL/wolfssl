@@ -1246,8 +1246,7 @@ static int InitSha256(wc_Sha256* sha256)
 #ifndef WC_NO_HARDEN
         /* We'll add a 0x80 byte at the end,
         ** so make sure we have appropriate buffer length. */
-        if ((sha256->buffLen < 0) ||
-            (sha256->buffLen > WC_SHA256_BLOCK_SIZE - 1)) {
+        if (sha256->buffLen > WC_SHA256_BLOCK_SIZE - 1) {
             return BAD_FUNC_ARG;
         }
 #endif
