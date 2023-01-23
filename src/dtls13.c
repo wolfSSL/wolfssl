@@ -435,8 +435,27 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
     return 0;
 }
 
-/* Handshake header DTLS only fields are not included in the transcript hash */
-int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
+/* Handshake header DTLS only fields are not inlcuded in the transcript hash.
+ * body points to the body of the DTLSHandshake message. */
+int Dtls13HashHandshakeType(WOLFSSL* ssl, const byte* body, word32 length,
+        enum HandShakeType handshakeType)
+{
+    /* msg_type(1) + length (3) */
+    byte header[OPAQUE32_LEN];
+    int ret;
+
+    header[0] = (byte)handshakeType;
+    c32to24(length, header + 1);
+
+    ret = HashRaw(ssl, header, OPAQUE32_LEN);
+    if (ret != 0)
+        return ret;
+
+    return HashRaw(ssl, body, length);
+}
+
+/* Handshake header DTLS only fields are not inlcuded in the transcript hash */
+int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
 {
     int ret;
 
@@ -444,18 +463,18 @@ int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
         return BAD_FUNC_ARG;
 
     /* msg_type(1) + length (3) */
-    ret = HashRaw(ssl, output, OPAQUE32_LEN);
+    ret = HashRaw(ssl, input, OPAQUE32_LEN);
     if (ret != 0)
         return ret;
 
-    output += OPAQUE32_LEN;
+    input += OPAQUE32_LEN;
     length -= OPAQUE32_LEN;
 
     /* message_seq(2) + fragment_offset(3) + fragment_length(3) */
-    output += OPAQUE64_LEN;
+    input += OPAQUE64_LEN;
     length -= OPAQUE64_LEN;
 
-    return HashRaw(ssl, output, length);
+    return HashRaw(ssl, input, length);
 }
 
 static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,

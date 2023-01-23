@@ -111,7 +111,7 @@ typedef struct WolfSSL_CH {
     WolfSSL_ConstVector cipherSuite;
     WolfSSL_ConstVector compression;
     WolfSSL_ConstVector extension;
-    const byte* msg;
+    const byte* raw;
     word32 length;
     /* Store the DTLS 1.2 cookie since we can just compute it once in dtls.c */
     byte dtls12cookie[DTLS_COOKIE_SZ];
@@ -221,7 +221,7 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
     if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
         return BUFFER_ERROR;
 
-    ch->msg = input - DTLS_HANDSHAKE_HEADER_SZ;
+    ch->raw = input;
     ch->pv = (ProtocolVersion*)(input + idx);
     idx += OPAQUE16_LEN;
     ch->random = (byte*)(input + idx);
@@ -241,7 +241,7 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
     idx += ReadVector16(input + idx, &ch->extension);
     if (idx > helloSz)
         return BUFFER_ERROR;
-    ch->length = idx + DTLS_HANDSHAKE_HEADER_SZ;
+    ch->length = idx;
     return 0;
 }
 
@@ -502,8 +502,8 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
             }
 
             /* Hashes are reset in SendTls13ServerHello when sending a HRR */
-            ret = Dtls13HashHandshake((WOLFSSL*)ssl, ch->msg,
-                                      (word16)ch->length);
+            ret = Dtls13HashHandshakeType((WOLFSSL*)ssl, ch->raw, ch->length,
+                                          client_hello);
             if (ret != 0)
                 goto dtls13_cleanup;
 

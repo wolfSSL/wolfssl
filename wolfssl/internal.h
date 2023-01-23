@@ -6126,8 +6126,10 @@ WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
 WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
     word32 inputSize);
-WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output,
+WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input,
     word16 length);
+WOLFSSL_LOCAL int Dtls13HashHandshakeType(WOLFSSL* ssl, const byte* body,
+    word32 length, enum HandShakeType handshakeType);
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
