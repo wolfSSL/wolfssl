@@ -736,7 +736,9 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     byte* sharedSecret)
 {
     int ret;
+#ifdef ECC_TIMING_RESISTANT
     WC_RNG* rng;
+#endif
     word32 dh_len;
     word16 receiverPubKeySz;
     word16 ephemeralPubKeySz;
@@ -778,6 +780,10 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
         case DHKEM_P521_HKDF_SHA512:
 #ifdef ECC_TIMING_RESISTANT
             rng = wc_rng_new(NULL, 0, hpke->heap);
+
+            if (rng == NULL)
+                return RNG_FAILURE_E;
+
             wc_ecc_set_rng((ecc_key*)ephemeralKey, rng);
 #endif
 
@@ -957,7 +963,9 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
     word16 pubKeySz, byte* sharedSecret)
 {
     int ret;
+#ifdef ECC_TIMING_RESISTANT
     WC_RNG* rng;
+#endif
     word32 dh_len;
     word16 receiverPubKeySz;
     void* ephemeralKey = NULL;
@@ -1001,6 +1009,10 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             case DHKEM_P521_HKDF_SHA512:
 #ifdef ECC_TIMING_RESISTANT
                 rng = wc_rng_new(NULL, 0, hpke->heap);
+
+                if (rng == NULL)
+                    return RNG_FAILURE_E;
+
                 wc_ecc_set_rng((ecc_key*)receiverKey, rng);
 #endif
 
