@@ -16944,23 +16944,48 @@ static int sp_256_mod_mul_norm_8(sp_digit* r, const sp_digit* a, const sp_digit*
         "neg   r12, r12\n\t"
         /* Add overflow */
         /* Subtract underflow - add neg underflow */
-        "adds  r2, r2, r11\n\t"
+        "adds	r2, r2, r11\n\t"
+        "adcs	r3, r3, #0\n\t"
+        "adcs	r4, r4, #0\n\t"
+        "adds	r5, r5, r12\n\t"
+        "adcs	r6, r6, #0\n\t"
+        "adcs	r8, r8, #0\n\t"
+        "adcs	r9, r9, r12\n\t"
+        "adcs	r14, r14, r11\n\t"
+        "mov	r10, #0\n\t"
+        "adc	r10, r10, #0\n\t"
+        /* Subtract overflow */
+        /* Add underflow - subtract neg underflow */
+        "subs	r2, r2, r12\n\t"
+        "sbcs	r3, r3, #0\n\t"
+        "sbcs	r4, r4, #0\n\t"
+        "subs	r5, r5, r11\n\t"
+        "sbcs	r6, r6, #0\n\t"
+        "sbcs	r8, r8, #0\n\t"
+        "sbcs	r9, r9, r11\n\t"
+        "sbcs	r14, r14, r12\n\t"
+        "mov	r12, #0\n\t"
+        "sbc	r12, r12, #0\n\t"
+        "neg	r12, r12\n\t"
+        /* Add overflow */
+        /* Subtract underflow - add neg underflow */
+        "adds  r2, r2, r10\n\t"
         "adcs  r3, r3, #0\n\t"
         "adcs  r4, r4, #0\n\t"
         "adds  r5, r5, r12\n\t"
         "adcs  r6, r6, #0\n\t"
         "adcs  r8, r8, #0\n\t"
         "adcs  r9, r9, r12\n\t"
-        "adc   r14, r14, r11\n\t"
+        "adc   r14, r14, r10\n\t"
         /* Subtract overflow */
         /* Add underflow - subtract neg underflow */
         "subs  r2, r2, r12\n\t"
         "sbcs  r3, r3, #0\n\t"
         "sbcs  r4, r4, #0\n\t"
-        "subs  r5, r5, r11\n\t"
+        "subs  r5, r5, r10\n\t"
         "sbcs  r6, r6, #0\n\t"
         "sbcs  r8, r8, #0\n\t"
-        "sbcs  r9, r9, r11\n\t"
+        "sbcs  r9, r9, r10\n\t"
         "sbc   r14, r14, r12\n\t"
         /* Store result */
         "str r2, [%[r], #0]\n\t"
