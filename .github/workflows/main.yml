@@ -46,6 +46,8 @@ jobs:
         uses: ./.github/workflows/libssh2.yml
     openssh:
         uses: ./.github/workflows/openssh.yml
+    mosquitto:
+        uses: ./.github/workflows/mosquitto.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml
