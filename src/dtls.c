@@ -470,6 +470,240 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
 }
 #endif
 
+#ifdef WOLFSSL_DTLS13
+
+#ifndef WOLFSSL_SEND_HRR_COOKIE
+#error "WOLFSSL_SEND_HRR_COOKIE has to be defined to use DTLS 1.3 server"
+#endif
+
+static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
+                                    PskInfo* pskInfo)
+{
+    int ret = -1;
+    if (ch->cookie.size == 0) {
+        TLSX* parsedExts = NULL;
+        WolfSSL_ConstVector tlsx;
+        Suites suites;
+        word16 len;
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        byte haveKS = 0;
+        byte usePSK = 0;
+        byte doKE = 0;
+#endif
+        CipherSuite cs;
+        CipherSpecs specs;
+
+        XMEMSET(&cs, 0, sizeof(cs));
+        XMEMSET(&specs, 0, sizeof(specs));
+
+        /* We need to echo the session ID sent by the client */
+        if (ch->sessionId.size > ID_LEN) {
+            /* Too large. We can't echo this. */
+            ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
+        }
+
+        /* Hashes are reset in SendTls13ServerHello when sending a HRR */
+        ret = Dtls13HashHandshakeType((WOLFSSL*)ssl, ch->raw, ch->length,
+                                      client_hello);
+        if (ret != 0)
+            goto dtls13_cleanup;
+
+        /* Populate the suites struct to find a common ciphersuite */
+        XMEMSET(&suites, 0, sizeof(suites));
+        suites.suiteSz = (word16)ch->cipherSuite.size;
+        if ((suites.suiteSz % 2) != 0)
+            ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
+        if (suites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+        XMEMCPY(suites.suites, ch->cipherSuite.elements, suites.suiteSz);
+
+        /* Populate extensions */
+
+        /* Supported versions always need to be present. Has to appear after
+         * key share as that is the order we reconstruct it in
+         * RestartHandshakeHashWithCookie. */
+        ret = TLSX_Push(&parsedExts,
+                  TLSX_SUPPORTED_VERSIONS, ssl, ssl->heap);
+        if (ret != 0)
+            goto dtls13_cleanup;
+        /* Set that this is a response extension */
+        parsedExts->resp = 1;
+
+        ret = CopyExtensions(ssl->extensions, &parsedExts, ssl->heap);
+        if (ret != 0)
+            goto dtls13_cleanup;
+
+        /* Signature algs */
+        ret = TlsxFindByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
+                             ch->extension);
+        if (ret != 0)
+            goto dtls13_cleanup;
+        if (tlsx.size > OPAQUE16_LEN) {
+            ato16(tlsx.elements, &len);
+            if (len != tlsx.size - OPAQUE16_LEN)
+                ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+            if ((len % 2) != 0)
+                ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+            suites.hashSigAlgoSz = len;
+            XMEMCPY(suites.hashSigAlgo, tlsx.elements + OPAQUE16_LEN,
+                    len);
+        }
+
+        /* Supported groups */
+        ret = TlsxFindByType(&tlsx, TLSX_SUPPORTED_GROUPS,
+                             ch->extension);
+        if (ret != 0)
+            goto dtls13_cleanup;
+        if (tlsx.size != 0) {
+            ret = TLSX_SupportedCurve_Parse(ssl, tlsx.elements,
+                                         (word16)tlsx.size, 1, &parsedExts);
+            if (ret != 0)
+                goto dtls13_cleanup;
+        }
+
+        /* Key share */
+        ret = TlsxFindByType(&tlsx, TLSX_KEY_SHARE,
+                             ch->extension);
+        if (ret != 0)
+            goto dtls13_cleanup;
+        if (tlsx.size != 0) {
+            ret = TLSX_KeyShare_Parse_ClientHello(ssl, tlsx.elements,
+                                            (word16)tlsx.size, &parsedExts);
+            if (ret != 0)
+                goto dtls13_cleanup;
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            haveKS = 1;
+#endif
+        }
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        /* Pre-shared key */
+        ret = TlsxFindByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension);
+        if (ret != 0)
+            goto dtls13_cleanup;
+        if (tlsx.size != 0) {
+            /* Let's just assume that the binders are correct here. We will
+             * actually verify this in the stateful part of the processing
+             * and if they don't match we will error out there anyway. */
+            byte modes;
+
+#ifndef NO_PSK
+            /* When we didn't find a valid ticket ask the user for the
+             * ciphersuite matching this identity */
+            if (!pskInfo->isValid) {
+                if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
+                        tlsx.elements, tlsx.size, ssl->heap) == 0)
+                    FindPskSuiteFromExt(ssl, parsedExts, pskInfo, &suites);
+                /* Revert to full handshake if PSK parsing failed */
+            }
+#endif
+
+            if (pskInfo->isValid) {
+                ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
+                                     ch->extension);
+                if (ret != 0)
+                    goto dtls13_cleanup;
+                if (tlsx.size == 0)
+                    ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
+                ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
+                                                  client_hello, &modes);
+                if (ret != 0)
+                    goto dtls13_cleanup;
+                if ((modes & (1 << PSK_DHE_KE)) &&
+                        !ssl->options.noPskDheKe) {
+                    if (!haveKS)
+                        ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
+                    doKE = 1;
+                }
+                else if ((modes & (1 << PSK_KE)) == 0) {
+                        ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
+                }
+                usePSK = 1;
+            }
+        }
+#endif
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        if (usePSK && pskInfo->isValid) {
+            cs.cipherSuite0 = pskInfo->cipherSuite0;
+            cs.cipherSuite = pskInfo->cipherSuite;
+
+            if (doKE) {
+                byte searched = 0;
+                ret = TLSX_KeyShare_Choose(ssl, parsedExts, &cs.clientKSE,
+                        &searched);
+                if (ret != 0)
+                    goto dtls13_cleanup;
+                if (cs.clientKSE == NULL && searched)
+                    cs.doHelloRetry = 1;
+            }
+        }
+        else
+#endif
+        {
+            ret = MatchSuite_ex(ssl, &suites, &cs, parsedExts);
+            if (ret < 0) {
+                WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
+                SendAlert((WOLFSSL*)ssl, alert_fatal, handshake_failure);
+                goto dtls13_cleanup;
+            }
+        }
+        if (cs.doHelloRetry) {
+            ret = TLSX_KeyShare_SetSupported(ssl, &parsedExts);
+            if (ret != 0)
+                goto dtls13_cleanup;
+        }
+        else {
+            /* Need to remove the keyshare ext if we found a common group
+             * and are not doing curve negotiation. */
+            TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
+        }
+
+        {
+            WOLFSSL* nonConstSSL = (WOLFSSL*)ssl;
+            TLSX* sslExts = nonConstSSL->extensions;
+
+            /* This is required to correctly generate the hash */
+            ret = SetCipherSpecs_ex(WOLFSSL_SERVER_END, cs.cipherSuite0,
+                                 cs.cipherSuite, &nonConstSSL->specs, NULL);
+            if (ret != 0)
+                goto dtls13_cleanup;
+            nonConstSSL->options.tls = 1;
+            nonConstSSL->options.tls1_1 = 1;
+            nonConstSSL->options.tls1_3 = 1;
+
+            XMEMCPY(nonConstSSL->session->sessionID, ch->sessionId.elements,
+                    ch->sessionId.size);
+            nonConstSSL->session->sessionIDSz = (byte)ch->sessionId.size;
+            nonConstSSL->options.cipherSuite0 = cs.cipherSuite0;
+            nonConstSSL->options.cipherSuite = cs.cipherSuite;
+            nonConstSSL->extensions = parsedExts;
+
+            ret = SendTls13ServerHello(nonConstSSL, hello_retry_request);
+
+            /* Can be modified inside SendTls13ServerHello */
+            parsedExts = nonConstSSL->extensions;
+
+            InitCipherSpecs(&nonConstSSL->specs);
+
+            nonConstSSL->session->sessionIDSz = 0;
+            nonConstSSL->options.cipherSuite0 = 0;
+            nonConstSSL->options.cipherSuite = 0;
+            nonConstSSL->extensions = sslExts;
+
+            nonConstSSL->options.tls = 0;
+            nonConstSSL->options.tls1_1 = 0;
+            nonConstSSL->options.tls1_3 = 0;
+        }
+dtls13_cleanup:
+        TLSX_FreeAll(parsedExts, ssl->heap);
+    }
+    else
+        ret = SendAlert((WOLFSSL*)ssl, alert_fatal, illegal_parameter);
+    return ret;
+}
+#endif
+
 static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
                               PskInfo* pskInfo)
 {
@@ -478,230 +712,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
     (void)pskInfo;
 #ifdef WOLFSSL_DTLS13
     if (isTls13) {
-#ifdef WOLFSSL_SEND_HRR_COOKIE
-        if (ch->cookie.size == 0) {
-            TLSX* parsedExts = NULL;
-            WolfSSL_ConstVector tlsx;
-            Suites suites;
-            word16 len;
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            byte haveKS = 0;
-            byte usePSK = 0;
-            byte doKE = 0;
-#endif
-            CipherSuite cs;
-            CipherSpecs specs;
-
-            XMEMSET(&cs, 0, sizeof(cs));
-            XMEMSET(&specs, 0, sizeof(specs));
-
-            /* We need to echo the session ID sent by the client */
-            if (ch->sessionId.size > ID_LEN) {
-                /* Too large. We can't echo this. */
-                ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
-            }
-
-            /* Hashes are reset in SendTls13ServerHello when sending a HRR */
-            ret = Dtls13HashHandshakeType((WOLFSSL*)ssl, ch->raw, ch->length,
-                                          client_hello);
-            if (ret != 0)
-                goto dtls13_cleanup;
-
-            /* Populate the suites struct to find a common ciphersuite */
-            XMEMSET(&suites, 0, sizeof(suites));
-            suites.suiteSz = (word16)ch->cipherSuite.size;
-            if ((suites.suiteSz % 2) != 0)
-                ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
-            if (suites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
-                ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
-            XMEMCPY(suites.suites, ch->cipherSuite.elements, suites.suiteSz);
-
-            /* Populate extensions */
-
-            /* Supported versions always need to be present. Has to appear after
-             * key share as that is the order we reconstruct it in
-             * RestartHandshakeHashWithCookie. */
-            ret = TLSX_Push(&parsedExts,
-                      TLSX_SUPPORTED_VERSIONS, ssl, ssl->heap);
-            if (ret != 0)
-                goto dtls13_cleanup;
-            /* Set that this is a response extension */
-            parsedExts->resp = 1;
-
-            ret = CopyExtensions(ssl->extensions, &parsedExts, ssl->heap);
-            if (ret != 0)
-                goto dtls13_cleanup;
-
-            /* Signature algs */
-            ret = TlsxFindByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
-                                 ch->extension);
-            if (ret != 0)
-                goto dtls13_cleanup;
-            if (tlsx.size > OPAQUE16_LEN) {
-                ato16(tlsx.elements, &len);
-                if (len != tlsx.size - OPAQUE16_LEN)
-                    ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
-                if ((len % 2) != 0)
-                    ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
-                suites.hashSigAlgoSz = len;
-                XMEMCPY(suites.hashSigAlgo, tlsx.elements + OPAQUE16_LEN,
-                        len);
-            }
-
-            /* Supported groups */
-            ret = TlsxFindByType(&tlsx, TLSX_SUPPORTED_GROUPS,
-                                 ch->extension);
-            if (ret != 0)
-                goto dtls13_cleanup;
-            if (tlsx.size != 0) {
-                ret = TLSX_SupportedCurve_Parse(ssl, tlsx.elements,
-                                             (word16)tlsx.size, 1, &parsedExts);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-            }
-
-            /* Key share */
-            ret = TlsxFindByType(&tlsx, TLSX_KEY_SHARE,
-                                 ch->extension);
-            if (ret != 0)
-                goto dtls13_cleanup;
-            if (tlsx.size != 0) {
-                ret = TLSX_KeyShare_Parse_ClientHello(ssl, tlsx.elements,
-                                                (word16)tlsx.size, &parsedExts);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-                haveKS = 1;
-#endif
-            }
-
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            /* Pre-shared key */
-            ret = TlsxFindByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension);
-            if (ret != 0)
-                goto dtls13_cleanup;
-            if (tlsx.size != 0) {
-                /* Let's just assume that the binders are correct here. We will
-                 * actually verify this in the stateful part of the processing
-                 * and if they don't match we will error out there anyway. */
-                byte modes;
-
-#ifndef NO_PSK
-                /* When we didn't find a valid ticket ask the user for the
-                 * ciphersuite matching this identity */
-                if (!pskInfo->isValid) {
-                    if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
-                            tlsx.elements, tlsx.size, ssl->heap) == 0)
-                        FindPskSuiteFromExt(ssl, parsedExts, pskInfo, &suites);
-                    /* Revert to full handshake if PSK parsing failed */
-                }
-#endif
-
-                if (pskInfo->isValid) {
-                    ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
-                                         ch->extension);
-                    if (ret != 0)
-                        goto dtls13_cleanup;
-                    if (tlsx.size == 0)
-                        ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
-                    ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
-                                                      client_hello, &modes);
-                    if (ret != 0)
-                        goto dtls13_cleanup;
-                    if ((modes & (1 << PSK_DHE_KE)) &&
-                            !ssl->options.noPskDheKe) {
-                        if (!haveKS)
-                            ERROR_OUT(MISSING_HANDSHAKE_DATA, dtls13_cleanup);
-                        doKE = 1;
-                    }
-                    else if ((modes & (1 << PSK_KE)) == 0) {
-                            ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
-                    }
-                    usePSK = 1;
-                }
-            }
-#endif
-
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            if (usePSK && pskInfo->isValid) {
-                cs.cipherSuite0 = pskInfo->cipherSuite0;
-                cs.cipherSuite = pskInfo->cipherSuite;
-
-                if (doKE) {
-                    byte searched = 0;
-                    ret = TLSX_KeyShare_Choose(ssl, parsedExts, &cs.clientKSE,
-                            &searched);
-                    if (ret != 0)
-                        goto dtls13_cleanup;
-                    if (cs.clientKSE == NULL && searched)
-                        cs.doHelloRetry = 1;
-                }
-            }
-            else
-#endif
-            {
-                ret = MatchSuite_ex(ssl, &suites, &cs, parsedExts);
-                if (ret < 0) {
-                    WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
-                    SendAlert((WOLFSSL*)ssl, alert_fatal, handshake_failure);
-                    goto dtls13_cleanup;
-                }
-            }
-            if (cs.doHelloRetry) {
-                ret = TLSX_KeyShare_SetSupported(ssl, &parsedExts);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-            }
-            else {
-                /* Need to remove the keyshare ext if we found a common group
-                 * and are not doing curve negotiation. */
-                TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
-            }
-
-            {
-                WOLFSSL* nonConstSSL = (WOLFSSL*)ssl;
-                TLSX* sslExts = nonConstSSL->extensions;
-
-                /* This is required to correctly generate the hash */
-                ret = SetCipherSpecs_ex(WOLFSSL_SERVER_END, cs.cipherSuite0,
-                                     cs.cipherSuite, &nonConstSSL->specs, NULL);
-                if (ret != 0)
-                    goto dtls13_cleanup;
-                nonConstSSL->options.tls = 1;
-                nonConstSSL->options.tls1_1 = 1;
-                nonConstSSL->options.tls1_3 = 1;
-
-                XMEMCPY(nonConstSSL->session->sessionID, ch->sessionId.elements,
-                        ch->sessionId.size);
-                nonConstSSL->session->sessionIDSz = (byte)ch->sessionId.size;
-                nonConstSSL->options.cipherSuite0 = cs.cipherSuite0;
-                nonConstSSL->options.cipherSuite = cs.cipherSuite;
-                nonConstSSL->extensions = parsedExts;
-
-                ret = SendTls13ServerHello(nonConstSSL, hello_retry_request);
-
-                /* Can be modified inside SendTls13ServerHello */
-                parsedExts = nonConstSSL->extensions;
-
-                InitCipherSpecs(&nonConstSSL->specs);
-
-                nonConstSSL->session->sessionIDSz = 0;
-                nonConstSSL->options.cipherSuite0 = 0;
-                nonConstSSL->options.cipherSuite = 0;
-                nonConstSSL->extensions = sslExts;
-
-                nonConstSSL->options.tls = 0;
-                nonConstSSL->options.tls1_1 = 0;
-                nonConstSSL->options.tls1_3 = 0;
-            }
-dtls13_cleanup:
-            TLSX_FreeAll(parsedExts, ssl->heap);
-        }
-        else
-            ret = SendAlert((WOLFSSL*)ssl, alert_fatal, illegal_parameter);
-#else
-#error "WOLFSSL_SEND_HRR_COOKIE has to be defined to use DTLS 1.3 server"
-#endif
+        ret = SendStatelessReplyDtls13(ssl, ch, pskInfo);
     }
     else
 #endif
