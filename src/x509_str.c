@@ -713,6 +713,7 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
     defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
+    int ret;
     WOLFSSL_X509_STORE* store = NULL;
     WOLFSSL_ENTER("SSL_X509_STORE_new");
 
@@ -722,12 +723,10 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 
     XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE));
     store->isDynamic = 1;
-    store->refCount = 1;
 
-#ifndef SINGLE_THREADED
-    if (wc_InitMutex(&store->refMutex) != 0)
+    wolfSSL_RefInit(&store->ref, &ret);
+    if (ret != 0)
         goto err_exit;
-#endif
 
     if ((store->cm = wolfSSL_CertManagerNew()) == NULL)
         goto err_exit;
@@ -774,17 +773,11 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
     int doFree = 0;
     if (store != NULL && store->isDynamic) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&store->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefDec(&store->ref, &doFree, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock store mutex");
         }
-#endif
-        store->refCount--;
-        if (store->refCount == 0)
-            doFree = 1;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&store->refMutex);
-#endif
 
         if (doFree) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -844,16 +837,12 @@ void* wolfSSL_X509_STORE_get_ex_data(WOLFSSL_X509_STORE* store, int idx)
 int wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE* store)
 {
     if (store) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&store->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefInc(&store->ref, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock store mutex");
             return WOLFSSL_FAILURE;
         }
-#endif
-        store->refCount++;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&store->refMutex);
-#endif
 
         return WOLFSSL_SUCCESS;
     }

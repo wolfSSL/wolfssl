@@ -1160,8 +1160,9 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 /* increases CTX reference count to track proper time to "free" */
 int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
-    int refCount = SSL_CTX_RefCount(ctx, 1);
-    return ((refCount > 1) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+    int ret;
+    wolfSSL_RefInc(&ctx->ref, &ret);
+    return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
 }
 
 WOLFSSL_ABI
@@ -4836,21 +4837,22 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     cm = (WOLFSSL_CERT_MANAGER*) XMALLOC(sizeof(WOLFSSL_CERT_MANAGER), heap,
                                          DYNAMIC_TYPE_CERT_MANAGER);
     if (cm) {
+        int ret;
+
         XMEMSET(cm, 0, sizeof(WOLFSSL_CERT_MANAGER));
-        cm->refCount = 1;
 
         if (wc_InitMutex(&cm->caLock) != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
-        #ifndef SINGLE_THREADED
-        if (wc_InitMutex(&cm->refMutex) != 0) {
+
+        wolfSSL_RefInit(&cm->ref, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
-        #endif
 
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (wc_InitMutex(&cm->tpLock) != 0) {
@@ -4892,20 +4894,14 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void)
 void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 {
     int doFree = 0;
+    int ret;
     WOLFSSL_ENTER("wolfSSL_CertManagerFree");
 
     if (cm) {
-        #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&cm->refMutex) != 0) {
+        wolfSSL_RefDec(&cm->ref, &doFree, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock cm mutex");
         }
-        #endif
-        cm->refCount--;
-        if (cm->refCount == 0)
-            doFree = 1;
-        #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&cm->refMutex);
-        #endif
         if (doFree) {
             #ifdef HAVE_CRL
                 if (cm->crl)
@@ -4929,11 +4925,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
             FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
             wc_FreeMutex(&cm->tpLock);
             #endif
-            #ifndef SINGLE_THREADED
-            if (wc_FreeMutex(&cm->refMutex) != 0) {
-                WOLFSSL_MSG("Couldn't free refMutex mutex");
-            }
-            #endif
+            wolfSSL_RefFree(&cm->ref);
             XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
         }
     }
@@ -4943,16 +4935,13 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm)
 {
     if (cm) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&cm->refMutex) != 0) {
+        int ret;
+
+        wolfSSL_RefInc(&cm->ref, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock cm mutex");
             return WOLFSSL_FAILURE;
         }
-#endif
-        cm->refCount++;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&cm->refMutex);
-#endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -20963,15 +20952,14 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
     ret = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), heap,
             DYNAMIC_TYPE_SESSION);
     if (ret != NULL) {
+        int err;
         XMEMSET(ret, 0, sizeof(WOLFSSL_SESSION));
-    #ifndef SINGLE_THREADED
-        if (wc_InitMutex(&ret->refMutex) != 0) {
+        wolfSSL_RefInit(&ret->ref, &err);
+        if (err != 0) {
             WOLFSSL_MSG("Error setting up session reference mutex");
             XFREE(ret, ret->heap, DYNAMIC_TYPE_SESSION);
             return NULL;
         }
-    #endif
-        ret->refCount = 1;
 #ifndef NO_SESSION_CACHE
         ret->cacheRow = INVALID_SESSION_ROW; /* not in cache */
 #endif
@@ -21021,21 +21009,19 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
 int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
 {
+    int ret;
+
     session = ClientSessionToSession(session);
 
     if (session == NULL || session->type != WOLFSSL_SESSION_TYPE_HEAP)
         return WOLFSSL_FAILURE;
 
-#ifndef SINGLE_THREADED
-    if (wc_LockMutex(&session->refMutex) != 0) {
+    wolfSSL_RefInc(&session->ref, &ret);
+    if (ret != 0) {
         WOLFSSL_MSG("Failed to lock session mutex");
         return WOLFSSL_FAILURE;
     }
-#endif
-    session->refCount++;
-#ifndef SINGLE_THREADED
-    wc_UnLockMutex(&session->refMutex);
-#endif
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -21322,32 +21308,22 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 
 void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 {
+    int isZero;
+
     session = ClientSessionToSession(session);
     if (session == NULL)
         return;
 
     (void)ctx;
 
-    /* refCount will always be 1 or more if created externally.
-     * Internal cache sessions don't initialize a refMutex. */
-    if (session->refCount > 0) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&session->refMutex) != 0) {
-            WOLFSSL_MSG("Failed to lock session mutex");
+    if (session->ref.count > 0) {
+        int ret;
+        wolfSSL_RefDec(&session->ref, &isZero, &ret);
+        (void)ret;
+        if (!isZero) {
             return;
         }
-#endif
-        if (session->refCount > 1) {
-            session->refCount--;
-#ifndef SINGLE_THREADED
-            wc_UnLockMutex(&session->refMutex);
-#endif
-            return;
-        }
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&session->refMutex);
-        wc_FreeMutex(&session->refMutex);
-#endif
+        wolfSSL_RefFree(&session->ref);
     }
 
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
@@ -32436,6 +32412,7 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
+    int ret;
     /* This method requires some explanation. Its sibling is
      *   int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
      * which re-inits the WOLFSSL* with all settings in the new CTX.
@@ -32458,7 +32435,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx == ctx)
         return ssl->ctx;
 
-    if (SSL_CTX_RefCount(ctx, 1) < 0) {
+    wolfSSL_RefInc(&ctx->ref, &ret);
+    if (ret != 0) {
         /* can only fail on serious stuff, like mutex not working
          * or ctx refcount out of whack. */
         return NULL;

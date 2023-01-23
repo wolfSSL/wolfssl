@@ -48888,9 +48888,9 @@ static int test_wolfSSL_EVP_PKEY_encrypt(void)
 
     /* Test pkey references count is decremented. pkey shouldn't be destroyed
      since ctx uses it.*/
-    AssertIntEQ(pkey->references, 2);
+    AssertIntEQ(pkey->ref.count, 2);
     EVP_PKEY_free(pkey);
-    AssertIntEQ(pkey->references, 1);
+    AssertIntEQ(pkey->ref.count, 1);
 
     /* Encrypt data */
     /* Check that we can get the required output buffer length by passing in a
