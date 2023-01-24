@@ -3465,8 +3465,10 @@ exit:
 
    (void)a;
 
-   /* k can't have more bits than modulus count plus 1 */
-   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+   /* For supported curves the order is the same length in bits as the modulus.
+    * Can't have more than order bits for the scalar.
+    */
+   if (mp_count_bits(k) > mp_count_bits(modulus)) {
        return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
