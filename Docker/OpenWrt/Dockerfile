@@ -9,7 +9,7 @@ RUN apk add argp-standalone asciidoc bash bc binutils bzip2 cdrkit coreutils \
 COPY . /workspace
 RUN cd /workspace && ./autogen.sh && ./configure --enable-all && make
 
-FROM openwrt/rootfs:x86-64-22.03.0
+FROM openwrt/rootfs:x86-64-snapshot
 
 RUN mkdir -p /var/lock # Fix for parent container
 COPY --from=builder /workspace/src/.libs/libwolfssl.so.35.3.0 /tmp/libwolfssl.so
