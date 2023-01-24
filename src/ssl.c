@@ -11508,7 +11508,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
                 #else
                         0,
                 #endif
-                        &ssl->clientSession);
+                        &ssl->clientSession, 0);
                 if (err == 0) {
                     return (WOLFSSL_SESSION*)ssl->clientSession;
                 }
@@ -15353,7 +15353,8 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
 
 int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         const byte* id, byte idSz, int* sessionIndex, int side,
-        word16 useTicket, ClientSession** clientCacheEntry)
+        word16 useTicket, ClientSession** clientCacheEntry,
+        int updateIntCacheOnly)
 {
     WOLFSSL_SESSION* cacheSession = NULL;
     SessionRow* sessRow = NULL;
@@ -15379,11 +15380,14 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     int row;
     int i;
     int overwrite = 0;
-
+#ifdef HAVE_EX_DATA
+    int rem_sess_cb_called = 0;
+#endif
     (void)ctx;
     (void)sessionIndex;
     (void)useTicket;
     (void)clientCacheEntry;
+    (void)updateIntCacheOnly;
 
     WOLFSSL_ENTER("AddSessionToCache");
 
@@ -15498,11 +15502,12 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (cacheSession->ownExData) {
         crypto_ex_cb_free_data(cacheSession, crypto_ex_cb_ctx_session,
                                &cacheSession->ex_data);
-        if (cacheSession->rem_sess_cb) {
+        if (cacheSession->rem_sess_cb && !updateIntCacheOnly) {
             cacheSession->rem_sess_cb(NULL, cacheSession);
             /* Make sure not to call remove functions again */
             cacheSession->ownExData = 0;
             cacheSession->rem_sess_cb = NULL;
+            rem_sess_cb_called = 1;
         }
     }
 #endif
@@ -15573,23 +15578,18 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #endif
 
     if (ret == 0) {
-        /* Increment the totalCount and the nextIdx */
-        if (sessRow->totalCount < SESSIONS_PER_ROW)
-            sessRow->totalCount++;
-        sessRow->nextIdx = (sessRow->nextIdx + 1) % SESSIONS_PER_ROW;
+        if (!overwrite) {
+            /* Increment the totalCount and the nextIdx */
+            if (sessRow->totalCount < SESSIONS_PER_ROW)
+                sessRow->totalCount++;
+            sessRow->nextIdx = (sessRow->nextIdx + 1) % SESSIONS_PER_ROW;
+        }
         if (id != addSession->sessionID) {
             /* ssl->session->sessionID may contain the bogus ID or we want the
              * ID from the arrays object */
             XMEMCPY(cacheSession->sessionID, id, ID_LEN);
             cacheSession->sessionIDSz = ID_LEN;
         }
-#ifdef HAVE_EX_DATA
-        if (ctx->rem_sess_cb != NULL) {
-            addSession->ownExData = 0;
-            cacheSession->ownExData = 1;
-            cacheSession->rem_sess_cb = ctx->rem_sess_cb;
-        }
-#endif
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
@@ -15610,8 +15610,30 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         cacheSession->ticketLen = 0;
     }
 #endif
-
+#ifdef HAVE_EX_DATA
+        if (ctx->rem_sess_cb != NULL && !updateIntCacheOnly) {
+            cacheSession->rem_sess_cb = ctx->rem_sess_cb;
+            if (rem_sess_cb_called == 1 ||
+               (!cacheSession->ownExData && ctx->new_sess_cb != NULL)) {
+                /* Include it if previously removed for an update.
+                 * Or include it if this is the initial session. */
+                wolfSSL_SESSION_up_ref(addSession);
+                cacheSession->ex_data = addSession->ex_data;
+                addSession->ownExData = 0;
+                cacheSession->ownExData = 1;
+                ret = ctx->new_sess_cb(NULL, cacheSession);
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = 0;  /* reset to wolfssl success */
+                }
+            }
+        }
+#endif
     SESSION_ROW_UNLOCK(sessRow);
+#ifdef HAVE_EX_DATA
+    if (ret != 0 && rem_sess_cb_called) {
+        wolfSSL_FreeSession(ctx, cacheSession);
+    }
+#endif
     cacheSession = NULL; /* Can't access after unlocked */
 
 #ifndef NO_CLIENT_CACHE
@@ -15646,9 +15668,6 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
     return ret;
 }
-
-#ifndef NO_CLIENT_CACHE
-#endif
 
 void AddSession(WOLFSSL* ssl)
 {
@@ -15694,7 +15713,6 @@ void AddSession(WOLFSSL* ssl)
         idSz = session->sessionIDSz;
     }
 
-    session->timeout = ssl->timeout;
     session->side = (byte)ssl->options.side;
     if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
         XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
@@ -15749,7 +15767,8 @@ void AddSession(WOLFSSL* ssl)
 #endif
             )
     {
-        /* Try to add the session to cache. Its ok if we don't succeed. */
+        /* Try to add the session to internal cache and external cache
+        if a new_sess_cb is set. Its ok if we don't succeed. */
         (void)AddSessionToCache(ssl->ctx, session, id, idSz,
 #ifdef SESSION_INDEX
                 &ssl->sessionIndex,
@@ -15762,19 +15781,21 @@ void AddSession(WOLFSSL* ssl)
 #else
                 0,
 #endif
-                NULL
-                );
+                NULL,
+                0);
     }
-
+    else {
 #ifdef HAVE_EXT_CACHE
-    if (error == 0 && ssl->ctx->new_sess_cb != NULL) {
-        int cbRet = 0;
-        wolfSSL_SESSION_up_ref(session);
-        cbRet = ssl->ctx->new_sess_cb(ssl, session);
-        if (cbRet == 0)
-            wolfSSL_FreeSession(ssl->ctx, session);
-    }
+        /* cache client session if a new_sess_cb is set. */
+        if (error == 0 && ssl->ctx->new_sess_cb != NULL) {
+            int cbRet = 0;
+            wolfSSL_SESSION_up_ref(session);
+            cbRet = ssl->ctx->new_sess_cb(ssl, session);
+            if (cbRet == 0)
+                wolfSSL_FreeSession(ssl->ctx, session);
+        }
 #endif
+    }
 
 #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
     if (error == 0) {
@@ -17718,8 +17739,16 @@ cleanup:
         if ((ctx->mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
           ctx->noTicketTls12 = 1;
         }
+        /* This code is here for documentation purpose. You must not turn off
+         * session tickets with the WOLFSSL_OP_NO_TICKET option for TLSv1.3.
+         * Because we need to support both stateful and stateless tickets.
+        #ifdef WOLFSSL_TLS13
+            if ((ctx->mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
+                ctx->noTicketTls13 = 1;
+            }
+        #endif
+        */
 #endif
-
         return ctx->mask;
     }
 
@@ -21151,11 +21180,11 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         #endif
     #endif
 #ifdef HAVE_EX_DATA
-        crypto_ex_cb_setup_new_data(ret, crypto_ex_cb_ctx_session,
-                &ret->ex_data);
-#endif
-#ifdef HAVE_EX_DATA
-        ret->ownExData = 1;
+        if (crypto_ex_cb_ctx_session != NULL) {
+            crypto_ex_cb_setup_new_data(ret, crypto_ex_cb_ctx_session,
+                    &ret->ex_data);
+            ret->ownExData = 1;
+        }
 #endif
     }
     return ret;
@@ -21608,7 +21637,8 @@ int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 #else
             0,
 #endif
-            NULL);
+            NULL,
+            1);
 
     return error == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
@@ -32687,9 +32717,10 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
                          * over so the user can free it. */
                         XMEMCPY(&s->ex_data, &cacheSession->ex_data,
                                 sizeof(WOLFSSL_CRYPTO_EX_DATA));
+                        s->ownExData = 1;
+                        cacheSession->ownExData = 0; /* We clear below */
                     }
-                    cacheSession->ownExData = 0; /* We clear below */
-                    s->ownExData = 1;
+
 #endif
 
 #ifdef SESSION_CACHE_DYNAMIC_MEM

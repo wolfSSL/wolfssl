@@ -4156,7 +4156,8 @@ WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
 WOLFSSL_API int AddSessionToCache(WOLFSSL_CTX* ssl,
     WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
-    int side, word16 useTicket, ClientSession** clientCacheEntry);
+    int side, word16 useTicket, ClientSession** clientCacheEntry,
+    int updateIntCacheOnly);
 #ifndef NO_CLIENT_CACHE
 WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
                       byte* serverID, word16 idLen, const byte* sessionID,

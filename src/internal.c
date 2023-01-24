@@ -34913,7 +34913,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int decryptRet;
         int ret;
-
+        WOLFSSL* ssl_tmp = (WOLFSSL*)ssl;
         WOLFSSL_START(WC_FUNC_TICKET_DO);
         WOLFSSL_ENTER("DoClientTicket_ex");
 
@@ -34927,6 +34927,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             psk->decryptRet = PSK_DECRYPT_CREATE;
             break;
         default:
+            /* Handle stateful session tickets, session ID only */
+            if (decryptRet == WOLFSSL_TICKET_RET_REJECT &&
+                psk->identityLen == ID_LEN) {
+                if ((IsAtLeastTLSv1_3(ssl->version) &&
+                   (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)) {
+                    ssl->session->haveAltSessionID = 1;
+                    XMEMCPY(ssl_tmp->session->altSessionID, psk->identity,
+                            ID_LEN);
+                    if (wolfSSL_GetSession(ssl_tmp,
+                                           ssl->session->masterSecret, 1)
+                        != NULL) {
+                        WOLFSSL_MSG("Found session matching the session id"
+                                    " found in the ticket");
+                    }
+                    else {
+                        WOLFSSL_MSG("Can't find session matching the session id"
+                                    " found in the ticket");
+                    }
+                    return WOLFSSL_TICKET_RET_OK;
+                }
+            }
             psk->decryptRet = PSK_DECRYPT_FAIL;
             return decryptRet;
         }
@@ -34960,6 +34981,24 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoClientTicket");
 
         decryptRet = DoDecryptTicket(ssl, input, len, &it);
+        /* Handle stateful session tickets, session ID only */
+        if (decryptRet == WOLFSSL_TICKET_RET_REJECT && len == ID_LEN) {
+            if ((IsAtLeastTLSv1_3(ssl->version) &&
+               (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)) {
+                ssl->session->haveAltSessionID = 1;
+                XMEMCPY(ssl->session->altSessionID, input, ID_LEN);
+                if (wolfSSL_GetSession(ssl, ssl->session->masterSecret, 1)
+                                      != NULL) {
+                    WOLFSSL_MSG("Found session matching the session id"
+                                " found in the ticket");
+                }
+                else {
+                    WOLFSSL_MSG("Can't find session matching the session id"
+                                " found in the ticket");
+                }
+                return WOLFSSL_TICKET_RET_OK;
+            }
+        }
         if (decryptRet != WOLFSSL_TICKET_RET_OK &&
                 decryptRet != WOLFSSL_TICKET_RET_CREATE)
             return decryptRet;

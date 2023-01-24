@@ -5686,10 +5686,12 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
 
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            if (DoClientTicketCheck(ssl, current, ssl->timeout, suite) != 0)
-                continue;
+            if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) == 0) {
+                if (DoClientTicketCheck(ssl, current, ssl->timeout, suite) != 0)
+                    continue;
 
-            DoClientTicketFinalize(ssl, current->it);
+                DoClientTicketFinalize(ssl, current->it);
+             }
 
             /* SERVER: using secret in session ticket for peer auth. */
             ssl->options.peerAuthGood = 1;
@@ -10124,14 +10126,16 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 
     #ifndef NO_SESSION_CACHE
     AddSession(ssl);
-    id = ssl->session->sessionID;
-    idSz = ssl->session->sessionIDSz;
-    if (ssl->session->haveAltSessionID) {
-        id = ssl->session->altSessionID;
-        idSz = ID_LEN;
+    if (!ssl->options.internalCacheOff) {
+        id = ssl->session->sessionID;
+        idSz = ssl->session->sessionIDSz;
+        if (ssl->session->haveAltSessionID) {
+            id = ssl->session->altSessionID;
+            idSz = ID_LEN;
+        }
+        AddSessionToCache(ssl->ctx, ssl->session, id, idSz, NULL,
+            ssl->session->side, 1, &ssl->clientSession, 0);
     }
-    AddSessionToCache(ssl->ctx, ssl->session, id, idSz, NULL,
-        ssl->session->side, 1, &ssl->clientSession);
     #endif
 
     /* Always encrypted. */
@@ -10316,12 +10320,19 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #else
     extSz = EXTS_SZ;
 #endif
-
-    /* Lifetime | Age Add | Ticket | Extensions */
-    length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
-             ssl->session->ticketLen + extSz;
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        /* Lifetime | Age Add | Ticket session ID | Extensions */
+        length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
+                 ID_LEN + extSz;
+    }
+    else {
+        /* Lifetime | Age Add | Ticket | Extensions */
+        length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
+                 ssl->session->ticketLen + extSz;
+    }
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
+
     sendSz = idx + length + MAX_MSG_EXTRA;
 
     /* Check buffers are big enough and grow if needed. */
@@ -10346,11 +10357,23 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     output[idx++] = ssl->session->ticketNonce.data[0];
 
     /* length */
-    c16toa(ssl->session->ticketLen, output + idx);
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        c16toa(ID_LEN, output + idx);
+    }
+    else {
+        c16toa(ssl->session->ticketLen, output + idx);
+    }
+
     idx += LENGTH_SZ;
     /* ticket */
-    XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
-    idx += ssl->session->ticketLen;
+    if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
+        XMEMCPY(output + idx, ssl->session->altSessionID, ID_LEN);
+        idx += ID_LEN;
+    }
+    else {
+        XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
+        idx += ssl->session->ticketLen;
+    }
 
 #ifdef WOLFSSL_EARLY_DATA
     extSz = 0;
@@ -10369,7 +10392,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Only add to cache when support built in and when the ticket contains
      * an ID. Otherwise we have no way to actually retrieve the ticket from the
      * cache. */
-#if !defined(NO_SESSION_CACHE) && defined(WOLFSSL_TICKET_HAVE_ID)
+#if !defined(NO_SESSION_CACHE)
     AddSession(ssl);
 #endif
 

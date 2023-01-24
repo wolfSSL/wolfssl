@@ -7447,6 +7447,538 @@ static int test_wolfSSL_CTX_add_session(void)
 
     return res;
 }
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+     defined(SESSION_CERTS) && defined(HAVE_SESSION_TICKET) && \
+    !defined(TITAN_SESSION_CACHE) && \
+    !defined(HUGE_SESSION_CACHE) && \
+    !defined(BIG_SESSION_CACHE) && \
+    !defined(MEDIUM_SESSION_CACHE)
+
+/* Sessions to restore/store */
+static WOLFSSL_SESSION* twcase_server_first_session_ptr;
+static WOLFSSL_SESSION* twcase_client_first_session_ptr;
+static WOLFSSL_CTX*     twcase_server_current_ctx_ptr;
+static int new_session_called    = 0;
+static int remove_session_called = 0;
+static int get_session_called    = 0;
+
+/* Test default, SESSIONS_PER_ROW*SESSION_ROWS = 3*11, see ssl.c */
+#define SESSION_CACHE_SIZE 33
+
+typedef struct {
+    const byte* key;  /* key, altSessionID, session ID, NULL if empty */
+    WOLFSSL_SESSION* value;
+} hashTable_entry;
+
+typedef struct {
+    hashTable_entry entries[SESSION_CACHE_SIZE];  /* hash slots */
+    size_t capacity;                     /* size of entries */
+    size_t length;                       /* number of items in the hash table */
+    wolfSSL_Mutex htLock;                /* lock */
+}hashTable;
+
+static hashTable server_sessionCache;
+
+static int twcase_new_sessionCb(WOLFSSL *ssl, WOLFSSL_SESSION *sess)
+{
+    (void)ssl;
+    int i;
+    /*
+    This example uses a hash table.
+    Steps you should take for a non-demo code:
+    acquire a lock for the file named according to the session id
+    open the file
+    encrypt and write the SSL_SESSION object to the file
+    release the lock
+    */
+    if (sess == NULL)
+        return 1;
+
+    if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
+        return 0;
+    }
+    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if(server_sessionCache.entries[i].value == NULL) {
+            if (sess->haveAltSessionID == 1)
+                server_sessionCache.entries[i].key = sess->altSessionID;
+            else
+                server_sessionCache.entries[i].key = sess->sessionID;
+
+            server_sessionCache.entries[i].value = sess;
+            server_sessionCache.length++;
+            break;
+        }
+    }
+    ++new_session_called;
+    wc_UnLockMutex(&server_sessionCache.htLock);
+    fprintf(stderr, "new_session_called %d\n", new_session_called);
+    return 1;
+}
+
+static void twcase_remove_sessionCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
+{
+    (void)ctx;
+    (void)sess;
+    int i;
+
+    if (sess == NULL)
+        return;
+    /*
+    This example uses a hash table.
+    Steps you should take for a non-demo code:
+    acquire a lock for the file named according to the session id
+    remove the file
+    release the lock
+    */
+    if (wc_LockMutex(&server_sessionCache.htLock) != 0) {
+        return;
+    }
+    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if(server_sessionCache.entries[i].key != NULL &&
+           XMEMCMP(server_sessionCache.entries[i].key,
+                   sess->sessionID, SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
+            server_sessionCache.entries[i].value = NULL;
+            server_sessionCache.entries[i].key = NULL;
+            server_sessionCache.length--;
+            break;
+        }
+    }
+    ++remove_session_called;
+    wc_UnLockMutex(&server_sessionCache.htLock);
+    fprintf(stderr, "remove_session_called %d\n", remove_session_called);
+}
+
+static WOLFSSL_SESSION *twcase_get_sessionCb(WOLFSSL *ssl,
+                                  const unsigned char *id, int len, int *ref)
+{
+    (void)ssl;
+    (void)id;
+    (void)len;
+    int i;
+
+    /*
+    This example uses a hash table.
+    Steps you should take for a non-demo code:
+    acquire a lock for the file named according to the session id in the 2nd arg
+    read and decrypt contents of file and create a new SSL_SESSION
+    object release the lock
+    set the integer referenced by the fourth parameter to 0
+    return the new session object
+    */
+    fprintf(stderr, "get_session_called %d\n", ++get_session_called);
+    *ref = 1;
+
+    for(i = 0; i < SESSION_CACHE_SIZE; i++) {
+        if(server_sessionCache.entries[i].key != NULL &&
+           XMEMCMP(server_sessionCache.entries[i].key, id,
+                   SSL_MAX_SSL_SESSION_ID_LENGTH) == 0) {
+           return server_sessionCache.entries[i].value;
+        }
+    }
+    return NULL;
+}
+
+static void twcase_cache_intOff_extOff(WOLFSSL_CTX* ctx)
+{
+    /* off - Disable internal cache */
+    AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
+    AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
+#endif
+    /* off - Donot setup external cache */
+
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOn_extOff(WOLFSSL_CTX* ctx)
+{
+   /* on - internal cache is on by default*/
+   /* off - Donot setup external cache */
+   /* Require both peers to provide certs */
+   wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOff_extOn(WOLFSSL_CTX* ctx)
+{
+   /* off - Disable internal cache */
+   AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
+   AssertIntEQ(wolfSSL_CTX_get_session_cache_mode(ctx) &
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE,
+           WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE);
+#endif
+   /* on - Enable external cache */
+   wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+   wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+   wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+   /* Require both peers to provide certs */
+   wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void twcase_cache_intOn_extOn(WOLFSSL_CTX* ctx)
+{
+    /* on - internal cache is on by default */
+    /* on - Enable external cache */
+    wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+    wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+static void twcase_cache_intOn_extOn_noTicket(WOLFSSL_CTX* ctx)
+{
+    /* on - internal cache is on by default */
+    /* on - Enable external cache */
+    wolfSSL_CTX_sess_set_new_cb(ctx, twcase_new_sessionCb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx, twcase_remove_sessionCb);
+    wolfSSL_CTX_sess_set_get_cb(ctx, twcase_get_sessionCb);
+
+    wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TICKET);
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+static void twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION** sess;
+    if (wolfSSL_is_server(ssl))
+        sess = &twcase_server_first_session_ptr;
+    else
+        return;
+
+    if (*sess == NULL) {
+        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+        /* Now save the session in the internal store to make it available
+         * for lookup. For TLS 1.3, we can't save the session without
+         * WOLFSSL_TICKET_HAVE_ID because there is no way to retrieve the
+         * session from cache. */
+        if (wolfSSL_is_server(ssl)
+#ifndef WOLFSSL_TICKET_HAVE_ID
+                && wolfSSL_version(ssl) != TLS1_3_VERSION
+#endif
+                )
+            AssertIntEQ(wolfSSL_CTX_add_session(wolfSSL_get_SSL_CTX(ssl),
+                    *sess), WOLFSSL_SUCCESS);
+    }
+    /* Save CTX to be able to decrypt tickets */
+    if (twcase_server_current_ctx_ptr == NULL) {
+        AssertNotNull(twcase_server_current_ctx_ptr = wolfSSL_get_SSL_CTX(ssl));
+        AssertIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
+                    WOLFSSL_SUCCESS);
+    }
+#ifdef SESSION_CERTS
+#ifndef WOLFSSL_TICKET_HAVE_ID
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
+#endif
+    {
+        /* With WOLFSSL_TICKET_HAVE_ID the peer certs should be available
+         * for all connections. TLS 1.3 only has tickets so if we don't
+         * include the session id in the ticket then the certificates
+         * will not be available on resumption. */
+        WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+        AssertNotNull(peer);
+        wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+    }
+#endif
+}
+
+static void twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION** sess;
+    sess = &twcase_client_first_session_ptr;
+    if (*sess == NULL) {
+        AssertNotNull(*sess = wolfSSL_get_session(ssl));
+    }
+    else {
+        /* If we have a session retrieved then remaining connections should be
+         * resuming on that session */
+        AssertIntEQ(wolfSSL_session_reused(ssl), 1);
+    }
+
+#ifdef SESSION_CERTS
+#ifndef WOLFSSL_TICKET_HAVE_ID
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
+#endif
+    {
+
+        WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+        AssertNotNull(peer);
+        wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+#ifdef OPENSSL_EXTRA
+        AssertNotNull(wolfSSL_SESSION_get0_peer(*sess));
+#endif
+    }
+#endif
+}
+static void twcase_client_set_sess_ssl_ready(WOLFSSL* ssl)
+{
+    /* Set the session to reuse for the client */
+    AssertIntEQ(wolfSSL_set_session(ssl,twcase_client_first_session_ptr),
+                WOLFSSL_SUCCESS);
+}
+#endif
+
+static int test_wolfSSL_CTX_add_session_ext(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
+     defined(SESSION_CERTS) && defined(HAVE_SESSION_TICKET) && \
+    !defined(TITAN_SESSION_CACHE) && \
+    !defined(HUGE_SESSION_CACHE) && \
+    !defined(BIG_SESSION_CACHE) && \
+    !defined(MEDIUM_SESSION_CACHE)
+    /* Test the default 33 sessions */
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions client_cb;
+    callback_functions server_cb;
+    method_provider methods[][2] = {
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+#endif
+#if !defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+        !defined(NO_DES3))
+        { wolfTLSv1_1_client_method, wolfTLSv1_1_server_method },
+#endif
+    };
+
+    const byte tls_version[][8]= {
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET)
+        "TLSv1_3",
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        "TLSv1_2",
+#endif
+#if !defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+        !defined(NO_DES3))
+        "TLSv1_1",
+#endif
+    };
+
+    const int methodsLen = sizeof(methods)/sizeof(*methods);
+    int i, j;
+
+    XMEMSET(&server_sessionCache, 0, sizeof(hashTable));
+    if (wc_InitMutex(&server_sessionCache.htLock) != 0)
+        return BAD_MUTEX_E;
+    server_sessionCache.capacity = SESSION_CACHE_SIZE;
+
+    for (i = 0; i < methodsLen; i++) {
+        fprintf(stderr, "Begin %s\n", tls_version[i]);
+        for (j = 0; j < 5; j++) {
+            /* Test five cache configurations */
+            twcase_client_first_session_ptr = NULL;
+            twcase_server_first_session_ptr = NULL;
+            twcase_server_current_ctx_ptr = NULL;
+            new_session_called    = 0;
+            remove_session_called = 0;
+            get_session_called    = 0;
+
+    #ifdef WOLFSSL_TIRTOS
+            fdOpenSession(Task_self());
+    #endif
+            /* connection 1 - first connection */
+            fprintf(stderr, "connect: %s: j=%d, methodsLen=%d\n", tls_version[i],
+                    j, methodsLen);
+            StartTCP();
+            InitTcpReady(&ready);
+
+            XMEMSET(&client_args, 0, sizeof(func_args));
+            XMEMSET(&server_args, 0, sizeof(func_args));
+
+            XMEMSET(&client_cb, 0, sizeof(callback_functions));
+            XMEMSET(&server_cb, 0, sizeof(callback_functions));
+            client_cb.method  = methods[i][0];
+            server_cb.method  = methods[i][1];
+
+            server_args.signal    = &ready;
+            server_args.callbacks = &server_cb;
+            client_args.signal    = &ready;
+            client_args.callbacks = &client_cb;
+
+            /* Setup internal and external cache */
+            switch (j) {
+                case 0:
+                    /* SSL_OP_NO_TICKET case */
+                    server_cb.ctx_ready = twcase_cache_intOn_extOn_noTicket;
+                    break;
+                case 1:
+                    server_cb.ctx_ready = twcase_cache_intOn_extOn;
+                    break;
+                case 2:
+                    server_cb.ctx_ready = twcase_cache_intOff_extOn;
+                    break;
+                case 3:
+                    server_cb.ctx_ready = twcase_cache_intOn_extOff;
+                    break;
+                case 4:
+                    server_cb.ctx_ready = twcase_cache_intOff_extOff;
+                    break;
+            }
+            client_cb.ctx_ready = twcase_cache_intOff_extOff;
+
+            /* Add session to internal cache and save SSL session for testing */
+            server_cb.on_result = twcase_server_sess_ctx_pre_shutdown;
+            /* Save client SSL session for testing */
+            client_cb.on_result = twcase_client_sess_ctx_pre_shutdown;
+            server_cb.ticNoInit = 1; /* Use default builtin */
+            /* Don't free/release ctx */
+            server_cb.ctx = twcase_server_current_ctx_ptr;
+            server_cb.isSharedCtx = 1;
+
+            start_thread(test_server_nofail, &server_args, &serverThread);
+            wait_tcp_ready(&server_args);
+            test_client_nofail(&client_args, NULL);
+            join_thread(serverThread);
+
+            AssertTrue(client_args.return_code);
+            AssertTrue(server_args.return_code);
+            switch (j) {
+                case 0:
+                case 1:
+                case 2:
+                    /* cache cannot be searched with out a connection */
+                    AssertIntEQ(get_session_called, 0);
+                    /* Add a new session */
+                    AssertIntEQ(new_session_called, 1);
+                    AssertIntLE(remove_session_called, 2);
+                    break;
+                case 3:
+                case 4:
+                    /* no external cache  */
+                    AssertIntEQ(get_session_called, 0);
+                    AssertIntEQ(new_session_called, 0);
+                    AssertIntLE(remove_session_called, 2);
+                    break;
+            }
+
+            /* connection 2 - session resume */
+            fprintf(stderr, "Resume: %s: j=%d, methodsLen=%d\n", tls_version[i],
+                    j, methodsLen);
+            new_session_called    = 0;
+            remove_session_called = 0;
+            get_session_called    = 0;
+            server_cb.on_result = 0;
+            client_cb.on_result = 0;
+            server_cb.ticNoInit = 1; /* Use default builtin */
+
+            server_cb.ctx = twcase_server_current_ctx_ptr;
+
+            /* try session resumption */
+            client_cb.ssl_ready = twcase_client_set_sess_ssl_ready;
+
+            start_thread(test_server_nofail, &server_args, &serverThread);
+            wait_tcp_ready(&server_args);
+            test_client_nofail(&client_args, NULL);
+            join_thread(serverThread);
+
+            AssertTrue(client_args.return_code);
+            AssertTrue(server_args.return_code);
+
+            switch (j) {
+                case 0:
+                    if (i == 0) {
+                        /* TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(get_session_called, 1);
+
+                        /* TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(new_session_called, 1);
+                        AssertIntEQ(remove_session_called, 1);
+
+                    }
+                    else {
+                        /* non TLSv1.3 case, no update */
+                        AssertIntEQ(get_session_called, 1);
+                        AssertIntEQ(new_session_called, 0);
+                        AssertIntEQ(remove_session_called, 1);
+                    }
+                    break;
+                case 1:
+                    if (i == 0) {
+                        /* TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(get_session_called, 1);
+                        /* TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(new_session_called, 1);
+                        AssertIntEQ(remove_session_called, 1);
+                    }
+                    else {
+                        /* non TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(get_session_called, 1);
+                        AssertIntEQ(new_session_called, 0);
+                        AssertIntEQ(remove_session_called, 1);
+                    }
+                    break;
+                case 2:
+                    if (i == 0) {
+                        /* TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(get_session_called, 1);
+                        /* TLSv1.3 creates a new ticket,
+                         * updates both internal and external cache */
+                        AssertIntEQ(new_session_called, 1);
+                        AssertIntLE(remove_session_called, 1);
+                    }
+                    else {
+                        /* non TLSv1.3 case */
+                        /* cache hit */
+                        AssertIntEQ(get_session_called, 1);
+                        AssertIntEQ(new_session_called, 0);
+                        AssertIntEQ(remove_session_called, 1);
+                    }
+                    break;
+                case 3:
+                case 4:
+                    /* no external cache */
+                    AssertIntEQ(get_session_called, 0);
+                    AssertIntEQ(new_session_called, 0);
+                    AssertIntLE(remove_session_called, 1);
+                    break;
+            }
+            FreeTcpReady(&ready);
+            wolfSSL_SESSION_free(twcase_client_first_session_ptr);
+            wolfSSL_SESSION_free(twcase_server_first_session_ptr);
+            wolfSSL_CTX_free(twcase_server_current_ctx_ptr);
+        }
+        XMEMSET(&server_sessionCache.entries, 0,
+                sizeof(server_sessionCache.entries));
+        fprintf(stderr, "End %s\n", tls_version[i]);
+    }
+    wc_FreeMutex(&server_sessionCache.htLock);
+    res = TEST_RES_CHECK(1);
+#endif
+
+    return res;
+}
+
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
 /* canned export of a session using older version 3 */
@@ -64970,6 +65502,7 @@ TEST_CASE testCases[] = {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
     TEST_DECL(test_wolfSSL_get_finished),
     TEST_DECL(test_wolfSSL_CTX_add_session),
+    TEST_DECL(test_wolfSSL_CTX_add_session_ext),
 #endif
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
