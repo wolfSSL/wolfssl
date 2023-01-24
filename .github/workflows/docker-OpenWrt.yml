@@ -28,7 +28,7 @@ jobs:
               uses: actions/upload-artifact@v3
               with:
                 name: libwolfssl.so
-                path: src/.libs/libwolfssl.so.35.3.0
+                path: src/.libs/libwolfssl.so
                 retention-days: 1
     compile_container:
         name: Build OpenWrt test container
@@ -45,7 +45,7 @@ jobs:
               with:
                 name: libwolfssl.so
                 path: Docker/OpenWrt/.
-            - run: ls Docker/OpenWrt
+            - run: ls Docker/OpenWrt -l
             -
               name: Build but dont push
               uses: docker/build-push-action@v3
