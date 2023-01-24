@@ -27,7 +27,7 @@ RUN export LIBWOLFSSL=$(ls /usr/lib/libwolfssl.so.* -1); \
 COPY Docker/OpenWrt/runTests.sh /tmp/.
 RUN /tmp/runTests.sh
 
-FROM openwrt/rootfs:x86-64-21.03-SNAPSHOT
+FROM openwrt/rootfs:x86-64-21.02-SNAPSHOT
 
 RUN mkdir -p /var/lock # Fix for parent container
 COPY --from=builder /workspace/src/.libs/libwolfssl.so.35.3.0 /tmp/libwolfssl.so
