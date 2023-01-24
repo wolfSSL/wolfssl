@@ -48,9 +48,8 @@ jobs:
               env:
                 DOCKER_BASE_CONTAINER: "openwrt/rootfs:x86-64-22.03-SNAPSHOT"
               with:
-                  context: .
+                  context: Docker/OpenWrt
                   platforms: linux/amd64
-                  file: Docker/OpenWrt/Dockerfile
                   push: false
                   tags: openwrt-test:latest
                   cache-from: type=gha

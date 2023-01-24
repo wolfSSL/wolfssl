@@ -6,5 +6,5 @@ RUN mkdir -p /var/lock # Fix for parent container
 COPY libwolfssl.so /tmp/libwolfssl.so
 RUN export LIBWOLFSSL=$(ls /usr/lib/libwolfssl.so.* -1); \
                       rm ${LIBWOLFSSL} && ln -s /tmp/libwolfssl.so ${LIBWOLFSSL}
-COPY Docker/OpenWrt/runTests.sh /tmp/.
+COPY runTests.sh /tmp/.
 RUN /tmp/runTests.sh
