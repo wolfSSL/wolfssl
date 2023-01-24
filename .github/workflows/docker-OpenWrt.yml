@@ -13,23 +13,6 @@ on:
         branches: [ '*' ]
 
 jobs:
-    build_library:
-        name: Compile latest libwolfssl.so
-        runs-on: ubuntu-latest
-        container:
-            image: alpine:latest
-        steps:
-            - name: Install required tools
-              run: apk add argp-standalone asciidoc bash bc binutils bzip2 cdrkit coreutils diffutils elfutils-dev findutils flex musl-fts-dev g++ gawk gcc gettext git grep intltool libxslt linux-headers make musl-libintl musl-obstack-dev ncurses-dev openssl-dev patch perl python3-dev rsync tar unzip util-linux wget zlib-dev autoconf automake libtool
-            - uses: actions/checkout@v3
-            - name: Compile libwolfssl.so
-              run: ./autogen.sh && ./configure --enable-all && make
-            - name: Upload libwolfssl.so
-              uses: actions/upload-artifact@v3
-              with:
-                name: libwolfssl.so
-                path: src/.libs/libwolfssl.so.35.3.0
-                retention-days: 1
     compile_container:
         name: Build OpenWrt test container
         runs-on: ubuntu-latest
