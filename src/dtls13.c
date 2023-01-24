@@ -437,24 +437,36 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
 
 /* Handshake header DTLS only fields are not inlcuded in the transcript hash.
  * body points to the body of the DTLSHandshake message. */
-int Dtls13HashHandshakeType(WOLFSSL* ssl, const byte* body, word32 length,
-        enum HandShakeType handshakeType)
+int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
+        const byte* body, word32 length, CipherSpecs* specs)
 {
     /* msg_type(1) + length (3) */
     byte header[OPAQUE32_LEN];
     int ret;
+    wc_HashAlg hashCtx;
+    int type = wolfSSL_GetHmacType_ex(specs);
 
-    header[0] = (byte)handshakeType;
+    header[0] = (byte)client_hello;
     c32to24(length, header + 1);
 
-    ret = HashRaw(ssl, header, OPAQUE32_LEN);
-    if (ret != 0)
-        return ret;
-
-    return HashRaw(ssl, body, length);
+    ret = wc_HashInit_ex(&hashCtx, type, ssl->heap, ssl->devId);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hashCtx, type, header, OPAQUE32_LEN);
+        if (ret == 0)
+            ret = wc_HashUpdate(&hashCtx, type, body, length);
+        if (ret == 0)
+            ret = wc_HashFinal(&hashCtx, type, hash);
+        if (ret == 0) {
+            *hashSz = wc_HashGetDigestSize(type);
+            if (*hashSz < 0)
+                ret = *hashSz;
+        }
+        wc_HashFree(&hashCtx, type);
+    }
+    return ret;
 }
 
-/* Handshake header DTLS only fields are not inlcuded in the transcript hash */
+/* Handshake header DTLS only fields are not included in the transcript hash */
 int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
 {
     int ret;

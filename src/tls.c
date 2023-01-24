@@ -663,14 +663,12 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     return ret;
 }
 
-
-/* return HMAC digest type in wolfSSL format */
-int wolfSSL_GetHmacType(WOLFSSL* ssl)
+int wolfSSL_GetHmacType_ex(CipherSpecs* specs)
 {
-    if (ssl == NULL)
+    if (specs == NULL)
         return BAD_FUNC_ARG;
 
-    switch (ssl->specs.mac_algorithm) {
+    switch (specs->mac_algorithm) {
         #ifndef NO_MD5
         case md5_mac:
         {
@@ -707,6 +705,15 @@ int wolfSSL_GetHmacType(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
         }
     }
+}
+
+/* return HMAC digest type in wolfSSL format */
+int wolfSSL_GetHmacType(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_GetHmacType_ex(&ssl->specs);
 }
 
 

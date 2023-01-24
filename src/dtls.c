@@ -492,21 +492,16 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
 #endif
         CipherSuite cs;
         CipherSpecs specs;
+        byte cookieHash[WC_MAX_DIGEST_SIZE];
+        int cookieHashSz;
 
         XMEMSET(&cs, 0, sizeof(cs));
-        XMEMSET(&specs, 0, sizeof(specs));
 
         /* We need to echo the session ID sent by the client */
         if (ch->sessionId.size > ID_LEN) {
             /* Too large. We can't echo this. */
             ERROR_OUT(INVALID_PARAMETER, dtls13_cleanup);
         }
-
-        /* Hashes are reset in SendTls13ServerHello when sending a HRR */
-        ret = Dtls13HashHandshakeType((WOLFSSL*)ssl, ch->raw, ch->length,
-                                      client_hello);
-        if (ret != 0)
-            goto dtls13_cleanup;
 
         /* Populate the suites struct to find a common ciphersuite */
         XMEMSET(&suites, 0, sizeof(suites));
@@ -659,13 +654,28 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
             TLSX_Remove(&parsedExts, TLSX_KEY_SHARE, ssl->heap);
         }
 
+        /* This is required to correctly generate the hash */
+        ret = SetCipherSpecs_ex(WOLFSSL_SERVER_END, cs.cipherSuite0,
+                             cs.cipherSuite, &specs, NULL);
+        if (ret != 0)
+            goto dtls13_cleanup;
+
+        /* Calculate the cookie hash */
+        ret = Dtls13HashClientHello(ssl, cookieHash, &cookieHashSz, ch->raw,
+                                    ch->length, &specs);
+        if (ret != 0)
+            goto dtls13_cleanup;
+
+        /* Push the cookie to extensions */
+        ret = CreateCookieExt(ssl, cookieHash, cookieHashSz, &parsedExts,
+                              cs.cipherSuite0, cs.cipherSuite);
+        if (ret != 0)
+            goto dtls13_cleanup;
+
         {
             WOLFSSL* nonConstSSL = (WOLFSSL*)ssl;
             TLSX* sslExts = nonConstSSL->extensions;
 
-            /* This is required to correctly generate the hash */
-            ret = SetCipherSpecs_ex(WOLFSSL_SERVER_END, cs.cipherSuite0,
-                                 cs.cipherSuite, &nonConstSSL->specs, NULL);
             if (ret != 0)
                 goto dtls13_cleanup;
             nonConstSSL->options.tls = 1;
@@ -683,8 +693,6 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
 
             /* Can be modified inside SendTls13ServerHello */
             parsedExts = nonConstSSL->extensions;
-
-            InitCipherSpecs(&nonConstSSL->specs);
 
             nonConstSSL->session->sessionIDSz = 0;
             nonConstSSL->options.cipherSuite0 = 0;

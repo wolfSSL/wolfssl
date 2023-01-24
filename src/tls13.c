@@ -3337,14 +3337,34 @@ byte SuiteMac(const byte* suite)
  * hashSz  The size of the hash data in bytes.
  * returns 0 on success, otherwise failure.
  */
-static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
-                           TLSX** exts)
+int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
+                    TLSX** exts, byte cipherSuite0, byte cipherSuite)
 {
     int  ret;
     byte mac[WC_MAX_DIGEST_SIZE] = {0};
     Hmac cookieHmac;
     byte cookieType = 0;
     byte macSz = 0;
+    byte cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
+    TLSX* ext;
+    word16 cookieSz = 0;
+
+    /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
+    cookie[cookieSz++] = hashSz;
+    XMEMCPY(cookie + cookieSz, hash, hashSz);
+    cookieSz += hashSz;
+    cookie[cookieSz++] = cipherSuite0;
+    cookie[cookieSz++] = cipherSuite;
+    if ((ext = TLSX_Find(*exts, TLSX_KEY_SHARE)) != NULL) {
+        KeyShareEntry* kse = (KeyShareEntry*)ext->data;
+        if (kse == NULL) {
+            WOLFSSL_MSG("KeyShareEntry can't be empty when negotiating "
+                        "parameters");
+            return BAD_STATE_E;
+        }
+        c16toa(kse->group, cookie + cookieSz);
+        cookieSz += OPAQUE16_LEN;
+    }
 
 #if !defined(NO_SHA) && defined(NO_SHA256)
     cookieType = SHA;
@@ -3362,7 +3382,7 @@ static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
                             ssl->buffers.tls13CookieSecret.length);
     }
     if (ret == 0)
-        ret = wc_HmacUpdate(&cookieHmac, hash, hashSz);
+        ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz);
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
     if (ret == 0) {
@@ -3381,7 +3401,7 @@ static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         return ret;
 
     /* The cookie data is the hash and the integrity check. */
-    return TLSX_Cookie_Use(ssl, hash, hashSz, mac, macSz, 1, exts);
+    return TLSX_Cookie_Use(ssl, cookie, cookieSz, mac, macSz, 1, exts);
 }
 #endif
 
@@ -3391,16 +3411,13 @@ static int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
 #define HRR_MAX_HS_HEADER_SZ HANDSHAKE_HEADER_SZ
 #endif /* WOLFSSL_DTLS13 */
 
-static int CreateCookieHash(const WOLFSSL* ssl, byte** hash, byte* hashSz,
+static int CreateCookie(const WOLFSSL* ssl, byte** hash, byte* hashSz,
                             Hashes* hashes, TLSX** exts)
 {
-    int    ret;
+    int    ret = 0;
 
     (void)exts;
 
-    ret = BuildCertHashes(ssl, hashes);
-    if (ret != 0)
-        return ret;
     *hash = NULL;
     switch (ssl->specs.mac_algorithm) {
     #ifndef NO_SHA256
@@ -3426,30 +3443,9 @@ static int CreateCookieHash(const WOLFSSL* ssl, byte** hash, byte* hashSz,
         return BAD_FUNC_ARG;
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-    if (ssl->options.sendCookie && ssl->options.side == WOLFSSL_SERVER_END) {
-        byte   cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
-        TLSX*  ext;
-        word16 idx = 0;
-
-        /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
-        cookie[idx++] = *hashSz;
-        if (*hash)
-            XMEMCPY(cookie + idx, *hash, *hashSz);
-        idx += *hashSz;
-        cookie[idx++] = ssl->options.cipherSuite0;
-        cookie[idx++] = ssl->options.cipherSuite;
-        if ((ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE)) != NULL) {
-            KeyShareEntry* kse = (KeyShareEntry*)ext->data;
-            if (kse == NULL) {
-                WOLFSSL_MSG("KeyShareEntry can't be empty when negotiating "
-                            "parameters");
-                return BAD_STATE_E;
-            }
-            c16toa(kse->group, cookie + idx);
-            idx += OPAQUE16_LEN;
-        }
-        ret = CreateCookieExt(ssl, cookie, idx, exts);
-    }
+    if (ssl->options.sendCookie && ssl->options.side == WOLFSSL_SERVER_END)
+        ret = CreateCookieExt(ssl, *hash, *hashSz, exts,
+                ssl->options.cipherSuite0, ssl->options.cipherSuite);
 #endif
     return ret;
 }
@@ -3467,7 +3463,10 @@ int RestartHandshakeHash(WOLFSSL* ssl)
     byte*  hash = NULL;
     byte   hashSz = 0;
 
-    ret = CreateCookieHash(ssl, &hash, &hashSz, &hashes, &ssl->extensions);
+    ret = BuildCertHashes(ssl, &hashes);
+    if (ret != 0)
+        return ret;
+    ret = CreateCookie(ssl, &hash, &hashSz, &hashes, &ssl->extensions);
     if (ret != 0)
         return ret;
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
@@ -6883,7 +6882,13 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ServerHello");
 
-    if (extMsgType == hello_retry_request) {
+    /* When ssl->options.dtlsStateful is not set then cookie is calculated in
+     * dtls.c */
+    if (extMsgType == hello_retry_request
+#ifdef WOLFSSL_DTLS13
+            && (!ssl->options.dtls || ssl->options.dtlsStateful)
+#endif
+            ) {
         WOLFSSL_MSG("wolfSSL Sending HelloRetryRequest");
         if ((ret = RestartHandshakeHash(ssl)) < 0)
             return ret;
@@ -6970,7 +6975,14 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ssl->options.sendCookie && extMsgType == hello_retry_request) {
         /* Reset the hashes from here. We will be able to restart the hashes
          * from the cookie in RestartHandshakeHashWithCookie */
-        ret = InitHandshakeHashes(ssl);
+#ifdef WOLFSSL_DTLS13
+        /* When ssl->options.dtlsStateful is not set then cookie is calculated
+         * in dtls.c */
+        if (ssl->options.dtls && !ssl->options.dtlsStateful)
+            ret = 0;
+        else
+#endif
+            ret = InitHandshakeHashes(ssl);
     }
     else
 #endif

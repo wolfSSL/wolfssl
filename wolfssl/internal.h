@@ -5863,6 +5863,10 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
     WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL* ssl,
         const byte* cookie, byte cookieSz);
 
+    WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
+                                      word16 hashSz, TLSX** exts,
+                                      byte cipherSuite0, byte cipherSuite);
+
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
             const byte* input, word32* inOutIdx, word32 helloSz);
@@ -6128,8 +6132,8 @@ WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
     word32 inputSize);
 WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input,
     word16 length);
-WOLFSSL_LOCAL int Dtls13HashHandshakeType(WOLFSSL* ssl, const byte* body,
-    word32 length, enum HandShakeType handshakeType);
+WOLFSSL_LOCAL int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash,
+        int* hashSz, const byte* body, word32 length, CipherSpecs* specs);
 WOLFSSL_LOCAL void Dtls13FreeFsmResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13RtxTimeout(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13ProcessBufferedMessages(WOLFSSL* ssl);
@@ -6217,6 +6221,8 @@ WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
         byte* psk_key, word32* psk_keySz, const byte* suite, int* found,
         byte* foundSuite);
 #endif
+
+WOLFSSL_LOCAL int wolfSSL_GetHmacType_ex(CipherSpecs* specs);
 
 #ifdef __cplusplus
     }  /* extern "C" */
