@@ -1,10 +1,10 @@
 ## Renesas RX72N EnvisionKit with TOPPERS OS
 
 
-This demo client and server run on "Toopers OS" and Renesas "RX72N EnvisionKit" with wolfSSL.
+This demo client and server run on "Toppers OS" and Renesas "RX72N EnvisionKit" with wolfSSL.
 
 
-# Prerequisit
+# Prerequisite
 
 
 1.Renesas e² studio Version: 2022-07 (22.7.0) or later  

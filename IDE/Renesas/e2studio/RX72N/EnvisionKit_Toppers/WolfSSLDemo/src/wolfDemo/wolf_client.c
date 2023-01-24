@@ -18,11 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
 #include <stdio.h>
 #include <string.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/wolfcrypt/settings.h>
 
 #include "r_t4_itcpip.h"
 

@@ -53,7 +53,7 @@
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 
-#define WOLFSSL_GENSEED_FORTEST /* Wardning: define your own seed gen */
+#define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
 
 #define SINGLE_THREADED  /* or define RTOS  option */
 /*#define WOLFSSL_CMSIS_RTOS */
