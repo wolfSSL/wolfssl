@@ -11866,6 +11866,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    int      x, err;
    unsigned y, z = 0, bitlen, bitpos, lut_gap;
    int first;
+   int tk_zeroize = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
    tk = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
@@ -11884,6 +11885,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 
    if ((err = mp_copy(k, tk)) != MP_OKAY)
        goto done;
+   tk_zeroize = 1;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
    mp_memzero_add("accel_fp_mul tk", tk);
@@ -12004,7 +12006,10 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 done:
    /* cleanup */
    mp_clear(order);
-   mp_forcezero(tk);
+   /* Ensure it was initialized. */
+   if (tk_zeroize) {
+       mp_forcezero(tk);
+   }
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
