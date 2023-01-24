@@ -2,7 +2,8 @@
 # there aren't any compatibility issues. Take a look at Docker/OpenWrt/README.md
 name: OpenWrt test
 concurrency:
-    group: ${{ github.ref }}
+    group: ${{ github.head_ref || github.run_id }}
+#    cancel-in-progress: true
 
 on:
     push:
