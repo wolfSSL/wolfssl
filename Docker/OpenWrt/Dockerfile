@@ -12,7 +12,8 @@ RUN cd /workspace && ./autogen.sh && ./configure --enable-all && make
 FROM openwrt/rootfs:x86-64-22.03.0
 
 RUN mkdir -p /var/lock # Fix for parent container
-RUN rm -f /usr/lib/libwolfssl* # make sure to eliminate existing wolfSSL library
-COPY --from=builder /workspace/src/.libs/libwolfssl.so.35.3.0 /usr/lib/libwolfssl.so.5.4.0.ee39414e
+COPY --from=builder /workspace/src/.libs/libwolfssl.so.35.3.0 /tmp/libwolfssl.so
+RUN export LIBWOLFSSL=$(ls /usr/lib/libwolfssl.so.* -1); \
+                      rm ${LIBWOLFSSL} && ln -s /tmp/libwolfssl.so ${LIBWOLFSSL}
 COPY Docker/OpenWrt/runTests.sh /tmp/.
 RUN /tmp/runTests.sh
