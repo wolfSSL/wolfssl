@@ -44,6 +44,7 @@ jobs:
               with:
                 name: libwolfssl.so
                 path: Docker/OpenWrt/.
+            - run: ls Docker/OpenWrt
             -
               name: Build but dont push
               uses: docker/build-push-action@v3
