@@ -36,16 +36,13 @@ jobs:
         needs: build_library
         strategy:
             matrix:
-                DOCKER_BASE_CONTAINER: [ "openwrt/rootfs:x86-64-22.03-SNAPSHOT" ]
+                release: [ "snapshot" "22.03-SNAPSHOT" "21.02-SNAPSHOT" ] # some other versions: 21.02.0 21.02.5 22.03.0 22.03.3
         steps:
             - uses: actions/checkout@v3
-            - uses: docker/setup-qemu-action@v2
-            - uses: docker/setup-buildx-action@v2
             - uses: actions/download-artifact@v3
               with:
                 name: libwolfssl.so
                 path: Docker/OpenWrt/.
-            - run: ls Docker/OpenWrt -l
             -
               name: Build but dont push
               uses: docker/build-push-action@v3
@@ -54,6 +51,6 @@ jobs:
                   platforms: linux/amd64
                   push: false
                   tags: openwrt-test:latest
-                  build-args: DOCKER_BASE_CONTAINER=${{ matrix.DOCKER_BASE_CONTAINER }}
+                  build-args: DOCKER_BASE_CONTAINER=openwrt/rootfs:x86-64-${{ matrix.release }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
