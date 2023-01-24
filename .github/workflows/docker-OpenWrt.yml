@@ -54,7 +54,6 @@ jobs:
                   platforms: linux/amd64
                   push: false
                   tags: openwrt-test:latest
-                  build-args:
-                    DOCKER_BASE_CONTAINER: ${{ matrix.DOCKER_BASE_CONTAINER }}
+                  build-args: DOCKER_BASE_CONTAINER=${{ matrix.DOCKER_BASE_CONTAINER }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
