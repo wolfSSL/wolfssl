@@ -8438,8 +8438,8 @@ static int aes_xts_128_test(void)
 #endif
     int aes_inited = 0;
     int ret = 0;
-    unsigned char buf[AES_BLOCK_SIZE * 2];
-    unsigned char cipher[AES_BLOCK_SIZE * 2];
+    unsigned char buf[AES_BLOCK_SIZE * 2 + 8];
+    unsigned char cipher[AES_BLOCK_SIZE * 2 + 8];
 
     /* 128 key tests */
     WOLFSSL_SMALL_STACK_STATIC unsigned char k1[] = {
@@ -8495,6 +8495,31 @@ static int aes_xts_128_test(void)
         0xd7, 0x0b, 0x6b, 0x3d, 0x5c, 0x8e, 0x66, 0x23,
         0x2b, 0xe6, 0xb8, 0x07, 0xd4, 0xdc, 0xc6, 0x0e,
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char i3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char p3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char c3[] = {
+        0xA2, 0x07, 0x47, 0x76, 0x3F, 0xEC, 0x0C, 0x23,
+        0x1B, 0xD0, 0xBD, 0x46, 0x9A, 0x27, 0x38, 0x12,
+        0x95, 0x02, 0x3D, 0x5D, 0xC6, 0x94, 0x51, 0x36,
+        0xA0, 0x85, 0xD2, 0x69, 0x6E, 0x87, 0x0A, 0xBF,
+        0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
     };
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -8603,6 +8628,39 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5415, out);
     if (XMEMCMP(p2, buf, sizeof(p2)))
         ERROR_OUT(-5416, out);
+
+    wc_AesXtsFree(aes);
+
+    /* Test ciphertext stealing in-place. */
+    XMEMCPY(buf, p3, sizeof(p3));
+    if (wc_AesXtsSetKey(aes, k3, sizeof(k3), AES_ENCRYPTION,
+            HEAP_HINT, devId) != 0)
+        ERROR_OUT(-5417, out);
+    else
+        aes_inited = 1;
+
+    ret = wc_AesXtsEncrypt(aes, buf, buf, sizeof(p3), i3, sizeof(i3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(-5418, out);
+    if (XMEMCMP(c3, buf, sizeof(c3)))
+        ERROR_OUT(-5419, out);
+
+    wc_AesXtsFree(aes);
+
+    if (wc_AesXtsSetKey(aes, k3, sizeof(k3), AES_DECRYPTION,
+            HEAP_HINT, devId) != 0)
+        ERROR_OUT(-5420, out);
+    ret = wc_AesXtsDecrypt(aes, buf, buf, sizeof(c3), i3, sizeof(i3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(-5421, out);
+    if (XMEMCMP(p3, buf, sizeof(p3)))
+        ERROR_OUT(-5422, out);
 
   out:
 

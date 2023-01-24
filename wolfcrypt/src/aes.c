@@ -12014,8 +12014,17 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 RESTORE_VECTOR_REGISTERS();
                 return BUFFER_E;
             }
-            XMEMCPY(out, buf, sz);
-            XMEMCPY(buf, in, sz);
+            if (in != out) {
+                XMEMCPY(out, buf, sz);
+                XMEMCPY(buf, in, sz);
+            }
+            else {
+                byte buf2[AES_BLOCK_SIZE];
+
+                XMEMCPY(buf2, buf, sz);
+                XMEMCPY(buf, in, sz);
+                XMEMCPY(out, buf2, sz);
+            }
 
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             ret = wc_AesEncryptDirect(aes, out - AES_BLOCK_SIZE, buf);
