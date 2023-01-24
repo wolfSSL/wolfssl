@@ -3564,7 +3564,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         /* Resumption PSK is master secret. */
         ssl->arrays->psk_keySz = ssl->specs.hash_size;
         if ((ret = DeriveResumptionPSK(ssl, ssl->session->ticketNonce.data,
-                    ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+                   ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
             return ret;
         }
         if (!clientHello) {
@@ -5479,6 +5479,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     byte        cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
     Arrays*     sa = ssl->arrays;
 
+    (void)suite;
+
     if (ssl->options.server_psk_tls13_cb != NULL) {
          sa->psk_keySz = ssl->options.server_psk_tls13_cb(ssl,
              sa->client_identity, sa->psk_key, MAX_PSK_KEY_LEN, &cipherName);
@@ -5570,6 +5572,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     word32        binderLen;
 
     WOLFSSL_ENTER("DoPreSharedKeys");
+
+    (void)suite;
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL) {
@@ -5904,6 +5908,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         }
         modes = ext->val;
 
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     #ifdef HAVE_SUPPORTED_CURVES
         ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
         /* Use (EC)DHE for forward-security if possible. */
@@ -5913,6 +5918,9 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             ssl->namedGroup = ssl->session->namedGroup;
 
             *usingPSK = 2; /* generate new ephemeral key */
+        }
+        else if (ssl->options.onlyPskDheKe) {
+            return PSK_KEY_ERROR;
         }
         else
     #endif
@@ -5927,6 +5935,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
             *usingPSK = 1;
         }
+#endif
     }
 #ifdef WOLFSSL_PSK_ID_PROTECTION
     else {
@@ -6586,8 +6595,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (!args->usingPSK)
 #endif
     {
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         /* Not using PSK so don't require no KE. */
         ssl->options.noPskDheKe = 0;
+#endif
 
 #ifndef NO_CERTS
         if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
@@ -11896,7 +11907,9 @@ int wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx)
     if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
         return BAD_FUNC_ARG;
 
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ctx->noPskDheKe = 1;
+#endif
 
     return 0;
 }
@@ -11912,11 +11925,49 @@ int wolfSSL_no_dhe_psk(WOLFSSL* ssl)
     if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->options.noPskDheKe = 1;
+#endif
 
     return 0;
 }
 
+#ifdef HAVE_SUPPORTED_CURVES
+/* Only allow (EC)DHE key exchange when using pre-shared keys.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL and 0 on success.
+ */
+int wolfSSL_CTX_only_dhe_psk(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    ctx->onlyPskDheKe = 1;
+#endif
+
+    return 0;
+}
+
+/* Only allow (EC)DHE key exchange when using pre-shared keys.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3 and 0 on
+ * success.
+ */
+int wolfSSL_only_dhe_psk(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    ssl->options.onlyPskDheKe = 1;
+#endif
+
+    return 0;
+}
+#endif /* HAVE_SUPPORTED_CURVES */
 
 int Tls13UpdateKeys(WOLFSSL* ssl)
 {
@@ -12735,13 +12786,15 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_THIRD_REPLY_DONE :
-#ifdef HAVE_SUPPORTED_CURVES
-            if (!ssl->options.noPskDheKe) {
+#if defined(HAVE_SUPPORTED_CURVES) && (defined(HAVE_SESSION_TICKET) || \
+    !defined(NO_PSK))
+            if (!ssl->options.noPskDheKe)
+#endif
+            {
                 ssl->error = TLSX_KeyShare_DeriveSecret(ssl);
                 if (ssl->error != 0)
                     return WOLFSSL_FATAL_ERROR;
             }
-#endif
 
             if ((ssl->error = SendTls13EncryptedExtensions(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
