@@ -7,7 +7,7 @@ binaries.
 To run the test locally, build libwolfssl.so (or download from the GitHub Action)
 and put it in Docker/OpenWrt. Then switch to that folder and run:
 docker build -t openwrt --build-args DOCKER_BASE_CONTAINER=<openwrtContainer> .
-where 'openwrtContainer' => "openwrt/rootfs:x86-64-snapshot" or similar
+where 'openwrtContainer' => "openwrt/rootfs:x86-64-22.03-SNAPSHOT" or similar
 
 This should run some sample tests. The resulting container then can be used to
 evaluate OpenWrt with the latest wolfSSL library.
