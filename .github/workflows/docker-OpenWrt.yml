@@ -34,6 +34,8 @@ jobs:
         name: Build OpenWrt test container
         runs-on: ubuntu-latest
         needs: build_library
+        strategy:
+            matrix: [ "openwrt/rootfs:x86-64-22.03-SNAPSHOT" ]
         steps:
             - uses: actions/checkout@v3
             - uses: docker/setup-qemu-action@v2
@@ -45,12 +47,12 @@ jobs:
             -
               name: Build but dont push
               uses: docker/build-push-action@v3
-              env:
-                DOCKER_BASE_CONTAINER: "openwrt/rootfs:x86-64-22.03-SNAPSHOT"
               with:
                   context: Docker/OpenWrt
                   platforms: linux/amd64
                   push: false
                   tags: openwrt-test:latest
+                  build-args:
+                    DOCKER_BASE_CONTAINER: "openwrt/rootfs:x86-64-22.03-SNAPSHOT"
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
