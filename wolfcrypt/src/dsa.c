@@ -927,33 +927,33 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (k) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_forcezero(k);
         XFREE(k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (kInv) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_forcezero(kInv);
         XFREE(kInv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (r) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_clear(r);
         XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (s) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_clear(s);
         XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (H) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_clear(H);
         XFREE(H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (b) {
-        if (ret != MP_INIT_E)
+        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
             mp_forcezero(b);
         XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
