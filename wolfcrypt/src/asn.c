@@ -29102,7 +29102,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     int sz = 0;
     int ret = 0;
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
-    word32 sbjRawSz;
+    word32 sbjRawSz = 0;
 #endif
 
     /* Unused without OQS */
