@@ -33,7 +33,7 @@ static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
     ID  cepid;
-printf("my_IORecv\n");
+    printf("my_IORecv\n");
     if(ctx != NULL)cepid = *(ID *)ctx;
     else return WOLFSSL_CBIO_ERR_GENERAL;
 
@@ -47,26 +47,19 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid;
     printf("my_IOSend sz %d\n",sz);
-
     if(ctx != NULL) {
         printf("my_IOSend cepid OK \n");
-
     	cepid = *(ID *)ctx;
     }
     else return WOLFSSL_CBIO_ERR_GENERAL;
-if(sz >= 1200) {
-	ret = 0;
-}
+
 	ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
 
     if(ret == sz) {
         printf("my_IOSend OK \n");
-
     	return ret;
-    }
-    else    {
+    } else  {
         printf("my_IOSend NG \n");
-
     	return WOLFSSL_CBIO_ERR_GENERAL;
     }
 }
@@ -78,7 +71,7 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
 	int ret;
     WOLFSSL_CTX* ctx;
 
-    #ifndef NO_FILESYSTEM
+#ifndef NO_FILESYSTEM
         #ifdef USE_ECC_CERT
         char *cert       = "./certs/server-ecc-cert.pem";
         char *key        = "./certs/server-ecc-key.pem";
@@ -86,7 +79,7 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
         char *cert       = "./certs/server-cert.pem";
         char *key        = "./certs/server-key.pem";
         #endif
-    #else
+#else
         #ifdef USE_ECC_CERT
         char *cert       = serv_ecc_der_256;
         int  sizeof_cert = sizeof_serv_ecc_der_256;
@@ -98,12 +91,11 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
         const unsigned char *key        = server_key_der_2048;
         #define  sizeof_key sizeof_server_key_der_2048
         #endif
-    #endif
+#endif
 
-
-    #ifdef DEBUG_WOLFSSL
+#ifdef DEBUG_WOLFSSL
 	    wolfSSL_Debugging_ON();
-	#endif
+#endif
 
 	/* Create and initialize WOLFSSL_CTX */
 	if ((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex((void *)NULL))) == NULL) {
@@ -111,26 +103,26 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
 		return NULL;
 	}
 
-    #if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
         ret = wolfSSL_CTX_use_certificate_file(ctx, cert, 0);
-    #else
-        ret = wolfSSL_CTX_use_certificate_buffer(ctx, cert, sizeof_cert, SSL_FILETYPE_ASN1);
-    #endif
-        if (ret != SSL_SUCCESS) {
+#else
+        ret = wolfSSL_CTX_use_certificate_buffer(ctx, cert, sizeof_cert, WOLFSSL_FILETYPE_ASN1);
+#endif
+        if (ret != WOLFSSL_SUCCESS) {
             printf("Error %d loading server-cert!\n", ret);
-	    return NULL;
+	        return NULL;
 
         }
 
         /* Load server key into WOLFSSL_CTX */
-    #if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
         ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, 0);
-    #else
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, sizeof_key, SSL_FILETYPE_ASN1);
-    #endif
-        if (ret != SSL_SUCCESS) {
+#else
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, sizeof_key, WOLFSSL_FILETYPE_ASN1);
+#endif
+        if (ret != WOLFSSL_SUCCESS) {
             printf("Error %d loading server-key!\n", ret);
-	    return NULL;
+	        return NULL;
         }
 
 	/* Register callbacks */
@@ -186,15 +178,14 @@ void wolfSSL_TLS_server(void *v_ctx, func_args *args)
         printf("ERROR: SSL Accept(%d)\n", wolfSSL_get_error(ssl, 0));
         return;
     }
-printf("SSL Accept\n");
+    printf("SSL Read\n");
     if ((len = wolfSSL_read(ssl, buff, sizeof(buff) - 1)) < 0) {
         printf("ERROR: SSL Read(%d)\n", wolfSSL_get_error(ssl, 0));
         return;
     }
-    printf("SSL Read\n");
 
     buff[len] = '\0';
-    printf("Received: %s\n", buff);
+    printf("Received Data: %s\n", buff);
 
     if (wolfSSL_write(ssl, buff, len) != len) {
         printf("ERROR: SSL Write(%d)\n", wolfSSL_get_error(ssl, 0));
