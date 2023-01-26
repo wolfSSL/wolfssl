@@ -22001,6 +22001,8 @@ Signer* MakeSigner(void* heap)
  */
 void FreeSigner(Signer* signer, void* heap)
 {
+    (void)signer;
+    (void)heap;
     XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE((void*)signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -22013,8 +22015,6 @@ void FreeSigner(Signer* signer, void* heap)
     FreeDer(&signer->derCert);
 #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
-    (void)signer;
-    (void)heap;
 }
 
 
