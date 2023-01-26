@@ -15424,8 +15424,16 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                             ERROR_OUT(MEMORY_E, exit_cs);
                         }
                     #endif
-                        mp_init(r);
-                        mp_init(s);
+                        if((ret = mp_init(r)) != 0) {
+                            WOLFSSL_MSG("Variable ('r') initialization error");
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            goto exit_cs;
+                        }
+                        if((ret = mp_init(s)) != 0) {
+                            WOLFSSL_MSG("Variable ('s') initialization error");
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            goto exit_cs;
+                        }
 
                         idx = 0;
                         if (DecodeECC_DSA_Sig(sig + idx, sigSz - idx, r, s)
