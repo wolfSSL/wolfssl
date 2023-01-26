@@ -1,4 +1,4 @@
-## Renesas RX72N EnvisionKit with TOPPERS OS
+## Renesas RX72N EnvisionKit with Toppers OS
 
 
 This demo client and server run on "Toppers OS" and Renesas "RX72N EnvisionKit" with wolfSSL.
