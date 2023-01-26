@@ -23441,7 +23441,10 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
     if (ret != 0) {
         goto done;
     }
+#if (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
+    && (HAVE_FIPS_VERSION > 2)))
     wc_ecc_set_flags(key, WC_ECC_FLAG_DEC_SIGN);
+#endif
 
     ret = wc_ecc_sign_set_k(k, sizeof(k), key);
     if (ret != 0) {
