@@ -1,4 +1,4 @@
- /*wolf_main.c
+ /* wolf_main.c
  *
  * Copyright (C) 2006-2022 wolfSSL Inc.
  *
