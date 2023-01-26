@@ -480,6 +480,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
                                     PskInfo* pskInfo)
 {
     int ret = -1;
+
+    (void)pskInfo;
+
     if (ch->cookie.size == 0) {
         TLSX* parsedExts = NULL;
         WolfSSL_ConstVector tlsx;
