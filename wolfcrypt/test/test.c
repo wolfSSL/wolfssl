@@ -22540,24 +22540,30 @@ static int hpke_test_single(Hpke* hpke)
         ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
 
     /* seal */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             (byte*)start_text, (word32)XSTRLEN(start_text),
             ciphertext);
+        PRIVATE_KEY_LOCK();
+    }
 
     /* export ephemeral key */
     if (ret == 0)
         ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, &pubKeySz);
 
     /* open with exported ephemeral key */
-    if (ret == 0)
+    if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             ciphertext, (word32)XSTRLEN(start_text),
             plaintext);
+        PRIVATE_KEY_LOCK();
+    }
 
     if (ret == 0)
         ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
