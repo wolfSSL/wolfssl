@@ -156,8 +156,14 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             return BAD_FUNC_ARG;
         }
 
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+
         if (aes->rdFd == WC_SOCK_NOTSET) {
-                if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESCBC,
+            if ((ret = wc_AesSetup(aes, WC_TYPE_SYMKEY, WC_NAME_AESCBC,
                                 AES_IV_SIZE, 0)) != 0) {
                 WOLFSSL_MSG("Error with first time setup of AF_ALG socket");
                 return ret;
@@ -205,9 +211,16 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         struct iovec    iov;
         int ret;
 
-        if (aes == NULL || out == NULL || in == NULL
-                                       || sz % AES_BLOCK_SIZE != 0) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
+            return BAD_FUNC_ARG;
+#endif
         }
 
         if (aes->rdFd == WC_SOCK_NOTSET) {
@@ -534,6 +547,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (ivSz > WC_SYSTEM_AESGCM_IV)
+        ivSz = WC_SYSTEM_AESGCM_IV;
+
     if (ivSz != WC_SYSTEM_AESGCM_IV) {
         WOLFSSL_MSG("IV size not supported on system");
         return BAD_FUNC_ARG;
@@ -636,8 +652,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         xorbuf(authTag, scratch, authTagSz);
     }
 #else
@@ -723,6 +740,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
+
+    if (ivSz > WC_SYSTEM_AESGCM_IV)
+        ivSz = WC_SYSTEM_AESGCM_IV;
 
     if (ivSz != WC_SYSTEM_AESGCM_IV) {
         WOLFSSL_MSG("IV size not supported on system");
