@@ -22582,13 +22582,27 @@ static int hpke_test_single(Hpke* hpke)
     byte plaintext[MAX_HPKE_LABEL_SZ];
     void* receiverKey = NULL;
     void* ephemeralKey = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    uint8_t *pubKey = NULL; /* public key */
+    word16 pubKeySz = (word16)HPKE_Npk_MAX;
+#else
     uint8_t pubKey[HPKE_Npk_MAX]; /* public key */
     word16 pubKeySz = (word16)sizeof(pubKey);
+#endif
 
     rngRet = ret = wc_InitRng(rng);
 
     if (ret != 0)
         return ret;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        pubKey = (uint8_t *)XMALLOC(pubKeySz, HEAP_HINT,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (pubKey == NULL)
+            ret = MEMORY_E;
+    }
+#endif
 
     /* generate the keys */
     if (ret == 0)
@@ -22598,24 +22612,26 @@ static int hpke_test_single(Hpke* hpke)
         ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, rng);
 
     /* seal */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             (byte*)start_text, (word32)XSTRLEN(start_text),
             ciphertext);
+    }
 
     /* export ephemeral key */
     if (ret == 0)
         ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, &pubKeySz);
 
     /* open with exported ephemeral key */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             ciphertext, (word32)XSTRLEN(start_text),
             plaintext);
+    }
 
     if (ret == 0)
         ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
@@ -22625,6 +22641,11 @@ static int hpke_test_single(Hpke* hpke)
 
     if (receiverKey != NULL)
         wc_HpkeFreeKey(hpke, hpke->kem, receiverKey, hpke->heap);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (pubKey != NULL)
+        XFREE(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (rngRet == 0)
         wc_FreeRng(rng);

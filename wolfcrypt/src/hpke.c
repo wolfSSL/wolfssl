@@ -942,14 +942,19 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     }
 #endif
 
+    PRIVATE_KEY_UNLOCK();
+
     /* setup the context and pubKey */
     ret = wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey, info,
         infoSz);
 
     /* run seal using the context */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_HpkeContextSealBase(hpke, context, aad, aadSz, plaintext,
             ptSz, ciphertext);
+    }
+
+    PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1174,6 +1179,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     }
 #endif
 
+    PRIVATE_KEY_UNLOCK();
+
     /* setup receiver */
     ret = wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
         pubKeySz, info, infoSz);
@@ -1183,6 +1190,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
         ret = wc_HpkeContextOpenBase(hpke, context, aad, aadSz, ciphertext,
             ctSz, plaintext);
     }
+
+    PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);

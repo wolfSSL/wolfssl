@@ -35,7 +35,10 @@ AC_CONFIG_HEADERS([config.h:config.in])
 LT_PREREQ([2.4.2])
 LT_INIT([disable-static win32-dll])
 
-AC_ARG_VAR(EXTRA_CFLAGS, [Extra CFLAGS to add to autoconf-computed arg list.  Can also supply directly to make.])
+AC_ARG_VAR(EXTRA_CPPFLAGS, [Extra CPPFLAGS to add to end of autoconf-computed arg list.  Can also supply directly to make.])
+AC_ARG_VAR(EXTRA_CFLAGS, [Extra CFLAGS to add to end of autoconf-computed arg list.  Can also supply directly to make.])
+AC_ARG_VAR(EXTRA_CCASFLAGS, [Extra CCASFLAGS to add to end of autoconf-computed arg list.  Can also supply directly to make.])
+AC_ARG_VAR(EXTRA_LDFLAGS, [Extra LDFLAGS to add to end of autoconf-computed arg list.  Can also supply directly to make.])
 
 WOLFSSL_CONFIG_ARGS=$ac_configure_args
 AC_SUBST([WOLFSSL_CONFIG_ARGS])
@@ -65,7 +68,7 @@ AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
 gl_VISIBILITY
 AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
-       AM_CFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
+       AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
        ])
 
 
@@ -981,7 +984,6 @@ AC_ARG_WITH([liboqs],
     [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
     [
         AC_MSG_CHECKING([for liboqs])
-        CPPFLAGS="$CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
         LIBS="$LIBS -loqs"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
@@ -994,8 +996,8 @@ AC_ARG_WITH([liboqs],
                 tryliboqsdir="/usr/local"
             fi
 
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include"
             LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
-            CPPFLAGS="$CPPFLAGS -I$tryliboqsdir/include"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
@@ -1004,6 +1006,7 @@ AC_ARG_WITH([liboqs],
                 If it's already installed, specify its path using --with-liboqs=/dir/])
             fi
             AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$CPPFLAGS"
             AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
         else
             AC_MSG_RESULT([yes])
@@ -4840,7 +4843,6 @@ AC_ARG_WITH([wnr],
     [AS_HELP_STRING([--with-wnr=PATH],[Path to Whitewood netRandom install (default /usr/local)])],
     [
         AC_MSG_CHECKING([for Whitewood netRandom])
-        CPPFLAGS="$CPPFLAGS -DHAVE_WNR"
         LIBS="$LIBS -lwnr"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
@@ -4853,8 +4855,8 @@ AC_ARG_WITH([wnr],
                 trywnrdir="/usr/local"
             fi
 
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_WNR -I$trywnrdir/include"
             LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trywnrdir/lib"
-            CPPFLAGS="$CPPFLAGS -I$trywnrdir/include"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
 
@@ -4863,6 +4865,7 @@ AC_ARG_WITH([wnr],
                 If it's already installed, specify its path using --with-wnr=/dir/])
             fi
             AC_MSG_RESULT([yes])
+            AM_CPPFLAGS="$CPPFLAGS"
             AM_LDFLAGS="$AM_LDFLAGS -L$trywnrdir/lib"
         else
             AC_MSG_RESULT([yes])
@@ -6423,7 +6426,6 @@ AC_ARG_WITH([cavium],
     [  --with-cavium=PATH      PATH to cavium/software dir ],
     [
         AC_MSG_CHECKING([for cavium])
-        CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
         LIB_ADD="-lrt $LIB_ADD"
 
         if test "x$withval" = "xyes" ; then
@@ -6433,8 +6435,8 @@ AC_ARG_WITH([cavium],
             trycaviumdir=$withval
         fi
 
+        CPPFLAGS="$AM_CPPFLAGS -DHAVE_CAVIUM -I$trycaviumdir/include"
         LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
-        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
 
@@ -6442,7 +6444,8 @@ AC_ARG_WITH([cavium],
             AC_MSG_ERROR([cavium isn't found.
             If it's already installed, specify its path using --with-cavium=/dir/])
         else
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM"
+            AM_CPPFLAGS="$CPPFLAGS"
+            AM_LDFLAGS="$LDFLAGS"
         fi
         AC_MSG_RESULT([yes])
         enable_shared=no
@@ -8508,6 +8511,10 @@ then
     AM_CFLAGS="$AM_CFLAGS -include ${output_objdir}/.build_params"
 fi
 
+AM_CPPFLAGS="$AM_CPPFLAGS $EXTRA_CPPFLAGS"
+AM_CFLAGS="$AM_CFLAGS $EXTRA_CFLAGS"
+AM_CCASFLAGS="$AM_CCASFLAGS $EXTRA_CCASFLAGS"
+AM_LDFLAGS="$AM_LDFLAGS $EXTRA_LDFLAGS"
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
@@ -8564,9 +8571,11 @@ fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" > ${output_objdir}/.build_params &&
-        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> ${output_objdir}/.build_params ||
+    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" > "${output_objdir}/.build_params" &&
+        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> "${output_objdir}/.build_params" ||
         AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
+else
+    rm -f "${output_objdir}/.build_params"
 fi
 
 # generate user options header
@@ -8579,7 +8588,7 @@ rm -f $OPTION_FILE
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2022 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2023 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
@@ -8595,11 +8604,12 @@ echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
-for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS $EXTRA_CFLAGS; do
-    defonly=`echo $option | sed 's/^-D//'`
-    if test "$defonly" != "$option"
-    then
-        noequalsign=`echo $defonly | sed 's/=/ /'`
+for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
+    opt_type=$(echo $option | colrm 3)
+    case "$opt_type" in
+    -D)
+        RHS_only=$(echo $option | sed 's/^-D//')
+        noequalsign=$(echo $RHS_only | sed 's/=/ /')
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
             if test "$verbose" = "yes"; then
@@ -8615,7 +8625,7 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS $EXTRA_CFLAGS; do
             echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
         fi
 
-        noarg=`echo $defonly | sed 's/=.*//'`
+        noarg=$(echo "$RHS_only" | sed 's/=.*//')
         echo "#undef  $noarg" >> $OPTION_FILE
         echo "#define $noequalsign" >> $OPTION_FILE
 
@@ -8625,11 +8635,18 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS $EXTRA_CFLAGS; do
         fi
 
         echo "" >> $OPTION_FILE
-    else
+        ;;
+    -U)
+        RHS_only=$(echo $option | sed 's/^-U//')
+        echo "#undef  $RHS_only" >> $OPTION_FILE
+        echo "" >> $OPTION_FILE
+        ;;
+    *)
         if test "$verbose" = "yes"; then
-            AC_MSG_NOTICE([option w/o begin -D is $option, not saving to $OPTION_FILE])
+            AC_MSG_NOTICE([option "$option" is not a preprocessor directive -- not saving to $OPTION_FILE])
         fi
-    fi
+        ;;
+    esac
 done
 
 echo "" >> $OPTION_FILE
@@ -8678,6 +8695,7 @@ echo "   * C++ Compiler:               $CXX"
 echo "   * C++ Flags:                  $CXXFLAGS"
 echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
+echo "   * LD Flags:                   $LDFLAGS"
 echo "   * LIB Flags:                  $LIB"
 echo "   * Library Suffix:             $LIBSUFFIX"
 
