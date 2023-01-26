@@ -21,7 +21,6 @@
 #ifndef WOLFSSLDEMO_H_
 #define WOLFSSLDEMO_H_
 
-
 #include "r_sys_time_rx_if.h"
 #include "r_cmt_rx_if.h"
 #include "Pin.h"

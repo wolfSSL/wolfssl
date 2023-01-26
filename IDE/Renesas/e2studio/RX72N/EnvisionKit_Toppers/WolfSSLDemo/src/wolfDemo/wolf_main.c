@@ -20,11 +20,11 @@
  */
 #include <string.h>
 #include <wolf_main.h>
-
 #include "r_sys_time_rx_if.h"
 #include "r_cmt_rx_if.h"
 #include "Pin.h"
 #include "r_t4_itcpip.h"
+
 #define SSL_SERVER
 #define ETHER_TASK
 extern const UB _t4_dhcp_enable;

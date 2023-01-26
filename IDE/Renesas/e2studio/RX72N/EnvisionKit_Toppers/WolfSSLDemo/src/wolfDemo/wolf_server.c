@@ -22,12 +22,10 @@
 #include <wolfssl/ssl.h>
 #include <stdio.h>
 #include <string.h>
-
 #include "r_t4_itcpip.h"
 #include "r_ether_rx_if.h"
 #include "r_sys_time_rx_if.h"
 #include "r_t4_rx_config.h"
-
 #include "wolfssl/certs_test.h"
 #include "wolf_demo.h"
 

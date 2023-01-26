@@ -23,8 +23,8 @@
 #include "wolfssl/ssl.h"
 #include <stdio.h>
 #include <stdint.h>
-
 #include "wolf_demo.h"
+
 extern void wolfSSL_TLS_server(void *v_ctx, func_args *args);
 extern void wolfSSL_TLS_client(void *v_ctx, func_args *args);
 

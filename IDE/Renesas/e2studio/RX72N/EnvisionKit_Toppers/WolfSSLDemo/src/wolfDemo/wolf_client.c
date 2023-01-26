@@ -22,9 +22,7 @@
 #include <wolfssl/ssl.h>
 #include <stdio.h>
 #include <string.h>
-
 #include "r_t4_itcpip.h"
-
 #include "wolfssl/certs_test.h"
 #include "wolf_demo.h"
 
@@ -69,13 +67,13 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
 {
 
     WOLFSSL_CTX* ctx;
-    #ifndef NO_FILESYSTEM
+#ifndef NO_FILESYSTEM
         #ifdef USE_ECC_CERT
         char *cert       = "./certs/ca-ecc-cert.pem";
         #else
         char *cert       = "./certs/ca-cert.pem";
         #endif
-    #else
+#else
         #ifdef USE_ECC_CERT
         const unsigned char *cert       = ca_ecc_der_256;
         #define  SIZEOF_CERT sizeof_ca_ecc_der_256
@@ -83,33 +81,34 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
         const unsigned char *cert       = ca_cert_der_2048;
         #define  SIZEOF_CERT sizeof_ca_cert_der_2048
         #endif
-    #endif
+#endif
 
-    #ifdef DEBUG_WOLFSSL
+#ifdef DEBUG_WOLFSSL
         wolfSSL_Debugging_ON();
-    #endif
+#endif
 
     /* Create and initialize WOLFSSL_CTX */
-    #ifdef WOLFSSL_TLS13
-    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method_ex((void *)NULL))) == NULL) {
-    #else
-    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
-    #endif
+#ifdef WOLFSSL_TLS13
+    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method_ex((void *)NULL))) == NULL) 
+#else
+    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) 
+#endif
+    {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return NULL;
     }
 
-    #if !defined(NO_FILESYSTEM)
-    if (wolfSSL_CTX_load_verify_locations(ctx, cert, 0) != SSL_SUCCESS) {
+#if !defined(NO_FILESYSTEM)
+    if (wolfSSL_CTX_load_verify_locations(ctx, cert, 0) != WOLFSSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
         return NULL;
     }
-    #else
-    if (wolfSSL_CTX_load_verify_buffer(ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+#else
+    if (wolfSSL_CTX_load_verify_buffer(ctx, cert, SIZEOF_CERT, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return NULL;
     }
-    #endif
+#endif
 
 
     /* Register callbacks */
@@ -131,18 +130,6 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     char    rcvBuff[BUFF_SIZE] = {0};
     static T_IPV4EP my_addr = { 0, 0 };
     T_IPV4EP dst_addr;
-#if 0
-    if(args->argc >= 2){
-	    if((dst_addr.ipaddr = getIPaddr(args->argv[1])) == 0){
-		printf("ERROR: IP address\n");
-	        return;
-	    }
-	    if((dst_addr.portno = getPort(args->argv[2])) == 0){
-		printf("ERROR: IP address\n");
-	        return;
-	    }
-    }
-#endif
 
     dst_addr.ipaddr = getIPaddr(SERVER_IP);
     dst_addr.portno = SERVER_PortNo;
@@ -160,7 +147,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     wolfSSL_SetIOReadCtx(ssl, (void *)&cepid);
     wolfSSL_SetIOWriteCtx(ssl, (void *)&cepid);
 
-    if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
+    if(wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         return;
     }
