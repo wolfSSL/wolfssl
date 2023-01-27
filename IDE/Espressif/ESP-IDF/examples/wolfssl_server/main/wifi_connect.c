@@ -1,4 +1,4 @@
-/* wifi_connect.c 
+/* wifi_connect.c
  *
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
@@ -27,11 +27,20 @@
 #include "lwip/netdb.h"
 #include "lwip/apps/sntp.h"
 #include "nvs_flash.h"
+
+/* wolfSSL */
+#include <wolfssl/wolfcrypt/settings.h>
+#include <user_settings.h>
+#include <wolfssl/version.h>
+#ifndef WOLFSSL_ESPIDF
+    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+#endif
+
 #if ESP_IDF_VERSION_MAJOR >= 4
-#include "protocol_examples_common.h"
+    #include "protocol_examples_common.h"
 #else
-const static int CONNECTED_BIT = BIT0;
-static EventGroupHandle_t wifi_event_group;
+    const static int CONNECTED_BIT = BIT0;
+    static EventGroupHandle_t wifi_event_group;
 #endif
 
 /* prefix for logging */
@@ -56,7 +65,7 @@ static void set_time()
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;
-    
+
     settimeofday(&utctime, &tz);
 
     time(&now);
@@ -128,7 +137,52 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 /* entry point */
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Start app_main...");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "CONFIG_IDF_TARGET = %s", CONFIG_IDF_TARGET);
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_STRING = %s", LIBWOLFSSL_VERSION_STRING);
+
+#if defined(WOLFSSL_MULTI_INSTALL_WARNING)
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "WARNING: Multiple wolfSSL installs found.");
+    ESP_LOGI(TAG, "Check ESP-IDF and local project [components] directory.");
+    ESP_LOGI(TAG, "");
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH = %s", LIBWOLFSSL_VERSION_GIT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_SHORT_HASH )
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_SHORT_HASH = %s", LIBWOLFSSL_VERSION_GIT_SHORT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH_DATE)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH_DATE = %s", LIBWOLFSSL_VERSION_GIT_HASH_DATE);
+#endif
+
+
+    /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* not available for C3 at this time */
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#else
+    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#endif
+
+    /* all platforms: stack high water mark check */
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+
     ESP_ERROR_CHECK(nvs_flash_init());
 
     ESP_LOGI(TAG, "Initialize wifi");
@@ -161,7 +215,7 @@ void app_main(void)
     };
     /* WiFi station mode */
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    /* Wifi Set the configuration of the ESP32 STA or AP */ 
+    /* Wifi Set the configuration of the ESP32 STA or AP */
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     /* Start Wifi */
     ESP_ERROR_CHECK(esp_wifi_start() );
