@@ -1950,7 +1950,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
     AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
     res = TEST_RES_CHECK(ret == ASN_UNKNOWN_OID_E);
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
-    !defined(OPENSSL_COMPATIBLE_DEFAULTS)
+    !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_ASN_TIME)
     AssertIntEQ(ret, ASN_AFTER_DATE_E);
     res = TEST_RES_CHECK(ret == ASN_AFTER_DATE_E);
 #else
@@ -3101,7 +3101,7 @@ static int test_wolfSSL_CTX_load_verify_locations_ex(void)
             WOLFSSL_LOAD_FLAG_NONE));
 
     /* test expired CA */
-#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+#if !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_ASN_TIME)
     AssertIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
             WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
 #else
@@ -3155,7 +3155,7 @@ static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
     /* test expired CA failure */
 
 
-#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+#if !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_ASN_TIME)
     AssertIntNE(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
             sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
             WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
