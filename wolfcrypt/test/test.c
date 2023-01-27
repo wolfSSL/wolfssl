@@ -8497,6 +8497,8 @@ static int aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)
+
     WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -8521,6 +8523,8 @@ static int aes_xts_128_test(void)
         0xA0, 0x85, 0xD2, 0x69, 0x6E, 0x87, 0x0A, 0xBF,
         0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
     };
+
+#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
@@ -8631,6 +8635,8 @@ static int aes_xts_128_test(void)
 
     wc_AesXtsFree(aes);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)
+
     /* Test ciphertext stealing in-place. */
     XMEMCPY(buf, p3, sizeof(p3));
     if (wc_AesXtsSetKey(aes, k3, sizeof(k3), AES_ENCRYPTION,
@@ -8661,6 +8667,8 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5421, out);
     if (XMEMCMP(p3, buf, sizeof(p3)))
         ERROR_OUT(-5422, out);
+
+#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
   out:
 
@@ -22673,7 +22681,8 @@ WOLFSSL_TEST_SUBROUTINE int hpke_test(void)
         return ret;
     #endif
 
-    #ifdef WOLFSSL_SHA384
+    #if defined(WOLFSSL_SHA384) && \
+        (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
     /* p384 */
     ret = wc_HpkeInit(hpke, DHKEM_P384_HKDF_SHA384, HKDF_SHA384,
         HPKE_AES_128_GCM, NULL);
@@ -22687,7 +22696,8 @@ WOLFSSL_TEST_SUBROUTINE int hpke_test(void)
         return ret;
     #endif
 
-    #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    #if (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)) && \
+        (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
     /* p521 */
     ret = wc_HpkeInit(hpke, DHKEM_P521_HKDF_SHA512, HKDF_SHA512,
         HPKE_AES_128_GCM, NULL);
