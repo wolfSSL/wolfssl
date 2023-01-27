@@ -108,7 +108,8 @@ void taskDemoWolf(intptr_t exinf)
 {
     uint32_t channel = 0;
     wolfSSL_init();
-    if (!init_ether()) return ;
+    if (!init_ether()) 
+        return ;
     R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
     ICU.SLIBXR128.BYTE = 1; /* select B */
 
