@@ -28,6 +28,8 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/component.mk
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/Kconfig.projbuild
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/main.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/main.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/components/wolfssl/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/components/wolfssl/component.mk
 
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main
@@ -41,6 +43,8 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/component.mk
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/Kconfig.projbuild
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/wifi_connect.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/main/include/wifi_connect.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/components/wolfssl/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_client/components/wolfssl/component.mk
 
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/Makefile
@@ -52,6 +56,8 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/main/component.mk
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/main/server-tls.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/main/wifi_connect.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/main/include/wifi_connect.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/components/wolfssl/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/components/wolfssl/component.mk
 
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/Makefile
@@ -65,6 +71,8 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/main/Kconfig.projbuild
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/main/main.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/main/time_helper.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/main/time_helper.h
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/components/wolfssl/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_test/components/wolfssl/component.mk
 
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/libs/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/libs/component.mk
