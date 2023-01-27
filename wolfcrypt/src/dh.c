@@ -1291,7 +1291,6 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 {
     int ret = 0;
 #ifndef WOLFSSL_SP_MATH
-    word32 binSz = 0;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int* x;
     mp_int* y;
@@ -1300,6 +1299,10 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     mp_int y[1];
 #endif
 #endif
+
+    if (*pubSz < (word32)mp_unsigned_bin_size(&key->p)) {
+        return WC_KEY_SIZE_E;
+    }
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
@@ -1341,18 +1344,11 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     if (ret == 0 && mp_exptmod(&key->g, x, &key->p, y) != MP_OKAY)
         ret = MP_EXPTMOD_E;
 
-    if (ret == 0) {
-        binSz = mp_unsigned_bin_size(y);
-        if (binSz > *pubSz) {
-            ret = WC_KEY_SIZE_E;
-        }
-    }
-
     if (ret == 0 && mp_to_unsigned_bin(y, pub) != MP_OKAY)
         ret = MP_TO_E;
 
     if (ret == 0)
-        *pubSz = binSz;
+        *pubSz = mp_unsigned_bin_size(y);
 
     mp_clear(y);
     mp_clear(x);
