@@ -33,13 +33,13 @@ static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid = /* Not used ID 3 Used */;
 
-    if(ctx != NULL)
+    if (ctx != NULL)
      cepid = *(ID *)ctx;
     else 
      return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
-    if(ret > 0)
+    if (ret > 0)
      return ret;
     else         
      return WOLFSSL_CBIO_ERR_GENERAL;
@@ -50,13 +50,13 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid = /* Not used ID 3 Used */;
 
-    if(ctx != NULL)
+    if (ctx != NULL)
      cepid = *(ID *)ctx;
     else 
      return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
-    if(ret == sz)
+    if (ret == sz)
      return ret;
     else         
      return WOLFSSL_CBIO_ERR_GENERAL;
@@ -65,7 +65,7 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 static int getIPaddr(char *arg)
 {
     int a1, a2, a3, a4;
-    if(sscanf(arg, "%d.%d.%d.%d", &a1, &a2, &a3, &a4) == 4)
+    if (sscanf(arg, "%d.%d.%d.%d", &a1, &a2, &a3, &a4) == 4)
          return (a1 << 24) | (a2 << 16) | (a3 << 8) | a4;
     else 
          return 0;
@@ -77,19 +77,19 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
 
     WOLFSSL_CTX* ctx;
 #ifndef NO_FILESYSTEM
-        #ifdef USE_ECC_CERT
+    #ifdef USE_ECC_CERT
         char *cert       = "./certs/ca-ecc-cert.pem";
-        #else
+    #else
         char *cert       = "./certs/ca-cert.pem";
-        #endif
+    #endif
 #else
-        #ifdef USE_ECC_CERT
+    #ifdef USE_ECC_CERT
         const unsigned char *cert       = ca_ecc_der_256;
         #define  SIZEOF_CERT sizeof_ca_ecc_der_256
-        #else
+    #else
         const unsigned char *cert       = ca_cert_der_2048;
         #define  SIZEOF_CERT sizeof_ca_cert_der_2048
-        #endif
+    #endif
 #endif
 
 #ifdef DEBUG_WOLFSSL
@@ -142,12 +142,12 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
 
     dst_addr.ipaddr = getIPaddr(SERVER_IP);
     dst_addr.portno = SERVER_PortNo;
-    if((ercd = tcp_con_cep(cepid, &my_addr, &dst_addr, TMO_FEVR)) != E_OK) {
+    if ((ercd = tcp_con_cep(cepid, &my_addr, &dst_addr, TMO_FEVR)) != E_OK) {
         printf("ERROR TCP Connect: %d\n", ercd);
         return;
     }
 
-    if((ssl = wolfSSL_new(ctx)) == NULL) {
+    if ((ssl = wolfSSL_new(ctx)) == NULL) {
         printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
         return;
     }
@@ -156,7 +156,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     wolfSSL_SetIOReadCtx(ssl, (void *)&cepid);
     wolfSSL_SetIOWriteCtx(ssl, (void *)&cepid);
 
-    if(wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         return;
     }

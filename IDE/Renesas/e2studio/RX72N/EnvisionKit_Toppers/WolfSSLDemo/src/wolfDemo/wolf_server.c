@@ -32,33 +32,37 @@
 static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
-    ID  cepid;
+    ID  cepid = 0;
     printf("my_IORecv\n");
-    if(ctx != NULL)cepid = *(ID *)ctx;
-    else return WOLFSSL_CBIO_ERR_GENERAL;
+    if (ctx != NULL)
+        cepid = *(ID *)ctx;
+    else 
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
-    if(ret == sz)return ret;
-    else         return WOLFSSL_CBIO_ERR_GENERAL;
+    if (ret == sz)
+        return ret;
+    else         
+        return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
-    ID  cepid;
+    ID  cepid = 0;
     printf("my_IOSend sz %d\n",sz);
-    if(ctx != NULL) {
+    if (ctx != NULL) {
         printf("my_IOSend cepid OK \n");
     	cepid = *(ID *)ctx;
-    }
-    else return WOLFSSL_CBIO_ERR_GENERAL;
-
+    } else 
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    
 	ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
 
-    if(ret == sz) {
+    if (ret == sz) {
         printf("my_IOSend OK \n");
     	return ret;
-    } else  {
+    } else {
         printf("my_IOSend NG \n");
     	return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -72,25 +76,25 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
     WOLFSSL_CTX* ctx;
 
 #ifndef NO_FILESYSTEM
-        #ifdef USE_ECC_CERT
+    #ifdef USE_ECC_CERT
         char *cert       = "./certs/server-ecc-cert.pem";
         char *key        = "./certs/server-ecc-key.pem";
-        #else
+    #else
         char *cert       = "./certs/server-cert.pem";
         char *key        = "./certs/server-key.pem";
-        #endif
+    #endif
 #else
-        #ifdef USE_ECC_CERT
+    #ifdef USE_ECC_CERT
         char *cert       = serv_ecc_der_256;
         int  sizeof_cert = sizeof_serv_ecc_der_256;
         char *cert       = serv_ecc_key_der_256;
         int  sizeof_key  = sizeof_serv_ecc_key_der_256;
-        #else
+    #else
         const unsigned char *cert       = server_cert_der_2048;
         #define sizeof_cert sizeof_server_cert_der_2048
         const unsigned char *key        = server_key_der_2048;
         #define  sizeof_key sizeof_server_key_der_2048
-        #endif
+    #endif
 #endif
 
 #ifdef DEBUG_WOLFSSL
@@ -104,26 +108,26 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
 	}
 
 #if !defined(NO_FILESYSTEM)
-        ret = wolfSSL_CTX_use_certificate_file(ctx, cert, 0);
+    ret = wolfSSL_CTX_use_certificate_file(ctx, cert, 0);
 #else
-        ret = wolfSSL_CTX_use_certificate_buffer(ctx, cert, sizeof_cert, WOLFSSL_FILETYPE_ASN1);
+    ret = wolfSSL_CTX_use_certificate_buffer(ctx, cert, sizeof_cert, WOLFSSL_FILETYPE_ASN1);
 #endif
-        if (ret != WOLFSSL_SUCCESS) {
-            printf("Error %d loading server-cert!\n", ret);
-	        return NULL;
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error %d loading server-cert!\n", ret);
+	    return NULL;
 
-        }
+    }
 
         /* Load server key into WOLFSSL_CTX */
 #if !defined(NO_FILESYSTEM)
-        ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, 0);
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, 0);
 #else
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, sizeof_key, WOLFSSL_FILETYPE_ASN1);
+    ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, sizeof_key, WOLFSSL_FILETYPE_ASN1);
 #endif
-        if (ret != WOLFSSL_SUCCESS) {
-            printf("Error %d loading server-key!\n", ret);
-	        return NULL;
-        }
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error %d loading server-key!\n", ret);
+	    return NULL;
+    }
 
 	/* Register callbacks */
 	wolfSSL_SetIORecv(ctx, my_IORecv);
@@ -140,7 +144,7 @@ void wolfSSL_TLS_server2()
     ER ercd;
 
     T_IPV4EP dst_addr = {0, 0};
-    if((ercd = tcp_acp_cep(cepid, repid, &dst_addr, TMO_FEVR)) != E_OK) {
+    if ((ercd = tcp_acp_cep(cepid, repid, &dst_addr, TMO_FEVR)) != E_OK) {
          printf("ERROR TCP Accept: %d\n", ercd);
          return;
      }
@@ -160,12 +164,12 @@ void wolfSSL_TLS_server(void *v_ctx, func_args *args)
     int len;
     T_IPV4EP dst_addr = {0, 0};
 
-    if((ercd = tcp_acp_cep(cepid, repid, &dst_addr, TMO_FEVR)) != E_OK) {
+    if ((ercd = tcp_acp_cep(cepid, repid, &dst_addr, TMO_FEVR)) != E_OK) {
         printf("ERROR TCP Accept: %d\n", ercd);
         return;
     }
 
-    if((ssl = wolfSSL_new(ctx)) == NULL) {
+    if ((ssl = wolfSSL_new(ctx)) == NULL) {
         printf("ERROR: failed wolfSSL_new\n");
         return;
     }
@@ -195,7 +199,7 @@ void wolfSSL_TLS_server(void *v_ctx, func_args *args)
     wolfSSL_free(ssl);
     tcp_sht_cep(cepid);
     ercd = tcp_cls_cep(cepid, TMO_FEVR);
-    if(ercd != E_OK) {
+    if (ercd != E_OK) {
     	printf("tcp_cls_cep error %d\n",ercd);
     }
 
