@@ -10502,7 +10502,8 @@ static int test_wolfSSL_X509_verify(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
-        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO) \
+        && !defined(NO_ASN_TIME)
 /* create certificate with version 2 */
 static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
 {
@@ -10591,7 +10592,8 @@ static int test_wolfSSL_X509_TLS_version(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
-        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO) \
+        && !defined(NO_ASN_TIME)
     tcp_ready   ready;
     func_args   server_args;
     func_args   client_args;
@@ -37917,8 +37919,8 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
 static int test_wolfSSL_ASN1_TIME_to_tm(void)
 {
     int res = TEST_SKIPPED;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) \
+#if (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
     && !defined(NO_ASN_TIME)
     ASN1_TIME asnTime;
     struct tm tm;
@@ -38118,14 +38120,16 @@ static int test_wolfSSL_X509_sign2(void)
     const unsigned char *pt;
     WOLFSSL_EVP_PKEY  *priv;
     WOLFSSL_X509_NAME *name;
-    WOLFSSL_ASN1_TIME *notBefore, *notAfter;
     int derSz;
+#ifndef NO_ASN_TIME
+    WOLFSSL_ASN1_TIME *notBefore, *notAfter;
 
     const int year = 365*24*60*60;
     const int day  = 24*60*60;
     const int hour = 60*60;
     const int mini = 60;
     time_t t;
+#endif
 
     const unsigned char expected[] = {
         0x30, 0x82, 0x05, 0x13, 0x30, 0x82, 0x03, 0xFB, 0xA0, 0x03, 0x02, 0x01,
@@ -38252,6 +38256,7 @@ static int test_wolfSSL_X509_sign2(void)
     AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
     AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
 
+#ifndef NO_ASN_TIME
     t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
     AssertNotNull(notBefore = wolfSSL_ASN1_TIME_adj(NULL, t, 0, 0));
     AssertNotNull(notAfter = wolfSSL_ASN1_TIME_adj(NULL, t, 365, 0));
@@ -38259,6 +38264,7 @@ static int test_wolfSSL_X509_sign2(void)
 
     AssertTrue(wolfSSL_X509_set_notBefore(x509, notBefore));
     AssertTrue(wolfSSL_X509_set_notAfter(x509, notAfter));
+#endif
 
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
@@ -53699,6 +53705,9 @@ static int test_wolfSSL_X509_print(void)
       /* Will print IP address subject alt name. */
      AssertIntEQ(BIO_get_mem_data(bio, NULL), 3350);
   #endif
+#elif defined(NO_ASN_TIME)
+    /* With NO_ASN_TIME defined, X509_print skips printing Validity. */
+    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3213);
 #else
     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3328);
 #endif
