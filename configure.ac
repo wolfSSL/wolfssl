@@ -2024,8 +2024,9 @@ AC_ARG_WITH([se050],
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/ex/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/port/default"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
-            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/log/"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/log"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/se05x_03_xx_xx"
 
             if test -e "$trylibse050dir/build/sss/libSSS_APIs.a"; then
                 SE050_STATIC=yes
@@ -2924,7 +2925,7 @@ AC_ARG_ENABLE([keygen],
 if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || \
    test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || \
    test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || \
-   test "$ENABLED_STRONGSWAN" = "yes"
+   test "$ENABLED_STRONGSWAN" = "yes" || test "$ENABLED_SE050" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi

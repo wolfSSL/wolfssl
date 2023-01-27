@@ -96,6 +96,8 @@ $ make
 If no installation path is provided to `--with-se05x`, wolfSSL will use the
 default installation locations above.
 
+Example: `--with-se050=/home/pi/se_mw/simw-top/`
+
 If the SE05x middleware libraries have been linked against OpenSSL (on Linux),
 and you run into compiler errors in wolfSSL due to conflicts with the wolfSSL
 compatibility layer headers when compiling wolfSSL's examples and test apps,
@@ -115,7 +117,7 @@ wolfSSL can generate RSA and ECC keys inside the SE050. To include that support,
 wolfSSL should be configured with `--enable-keygen` or `-DWOLFSSL_KEY_GEN`.
 
 ```sh
-$ ./configure --with-se0500 --enable-keygen
+$ ./configure --with-se050 --enable-keygen
 ```
 
 ### wolfSSL HostCrypto support for SCP03 Authentication
