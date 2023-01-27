@@ -65,21 +65,21 @@ void taskEther(intptr_t exinf)
     int dhcp_cnt = 0;
     bool flg = false;
     while(1) {
-     if (flg == false) {
-       waisem_ether_wrapper();
-       flg = true;
-     }
-     dhcp_check();
-     dly_tsk(1);
+        if (flg == false) {
+            waisem_ether_wrapper();
+            flg = true;
+         }
+        dhcp_check();
+        dly_tsk(1);
     }
 }
 /* DHCP Reset Event Check */
 void dhcp_check(void)
 {
 
-    if(DHCP_ENABEL == _t4_dhcp_enable && dhcp_evt == DHCP_EV_PLEASE_RESET) {
-     tcpudp_reset(IF_CH_NUMBER);
-     dhcp_evt = 0;
+    if (DHCP_ENABEL == _t4_dhcp_enable && dhcp_evt == DHCP_EV_PLEASE_RESET) {
+        tcpudp_reset(IF_CH_NUMBER);
+        dhcp_evt = 0;
     }
     return;
 }
@@ -89,15 +89,15 @@ void taskNetWork(intptr_t exinf)
     UB ctl = 0;
     UW i = 0;
     while(1) {
-     if(!(i % 10)) {
-      ctl = ctl ? 0 : 1;
-     }
-     LED_CTL(ctl)
-     i++;
+        if (!(i % 10)) {
+            ctl = ctl ? 0 : 1;
+        }
+        LED_CTL(ctl)
+        i++;
 #ifdef ETHER_TASK
-     cmt1_isr();
+        cmt1_isr();
 #endif
-     dly_tsk(1);
+        dly_tsk(1);
     }
 
 }
@@ -106,23 +106,23 @@ extern void timeTick(void *pdata);
 
 void taskDemoWolf(intptr_t exinf) 
 {
-    uint32_t channel;
+    uint32_t channel = 0;
     wolfSSL_init();
-    if(!init_ether()) return ;
+    if (!init_ether()) return ;
     R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
-    ICU.SLIBXR128.BYTE = 1; //select B
+    ICU.SLIBXR128.BYTE = 1; /* select B */
 
     sigsem_ether_wrapper();
     while(1) {
-     dly_tsk(10);
-     if (dhcp_accept_flg == 1) {
-      dly_tsk(100);
+        dly_tsk(10);
+        if (dhcp_accept_flg == 1) {
+            dly_tsk(100);
 #ifdef SSL_SERVER
-      wolfSSL_TLS_server_Wrapper();
+            wolfSSL_TLS_server_Wrapper();
 #else
-      wolfSSL_TLS_client_Wrapper();
+            wolfSSL_TLS_client_Wrapper();
 #endif
-     }
+        }
     }
 }
 
@@ -133,26 +133,26 @@ bool init_ether()
     sys_time_err_t systime_ercd;
     systime_ercd = R_SYS_TIME_Open();
     if (systime_ercd != SYS_TIME_SUCCESS) {
-     printf("init_ether R_SYS_TIME_Open Error%d \n",systime_ercd);
-     return false;
+        printf("init_ether R_SYS_TIME_Open Error%d \n",systime_ercd);
+        return false;
     }
     R_Pins_Create();
 
     ercd = lan_open();
     if (ercd != E_OK) {
-     printf("lan_open Error%d \n",ercd);
-     return false;
+        printf("lan_open Error%d \n",ercd);
+        return false;
     }
 
     size = tcpudp_get_ramsize();
     if (size > (sizeof(tcpudp_work))) {
-     printf("tcpudp_get_ramsize size over %d \n",size);
-     return false;
+        printf("tcpudp_get_ramsize size over %d \n",size);
+        return false;
     }
     ercd = tcpudp_open(tcpudp_work);
     if (ercd != E_OK) {
-     printf("tcpudp_open Open Error %d \n",ercd);
-     return false;
+        printf("tcpudp_open Open Error %d \n",ercd);
+        return false;
     }
     return true;
 }
@@ -181,70 +181,70 @@ ER system_callback(UB channel, UW eventid, VP param)
     printf("Network callback accept channel=%d,EventNo=%d \n",channel,eventid);
     dhcp_evt = eventid;
     switch(eventid) {
-     case ETHER_EV_LINK_OFF:
-     {
-      printf("DHCP Event Accept ETHER_EV_LINK_OFF\n");
-     }
-     break;
-     case ETHER_EV_LINK_ON:
-     {
-      printf("DHCP Event Accept ETHER_EV_LINK_ON\n");
-     }
-     break;
+        case ETHER_EV_LINK_OFF:
+            {
+                printf("DHCP Event Accept ETHER_EV_LINK_OFF\n");
+            }
+            break;
+        case ETHER_EV_LINK_ON:
+            {
+                printf("DHCP Event Accept ETHER_EV_LINK_ON\n");
+            }
+            break;
      case ETHER_EV_COLLISION_IP:
-     {
-      printf("DHCP Event Accept ETHER_EV_COLLISION_IP\n");
-     }
-     break;
+            {
+                 printf("DHCP Event Accept ETHER_EV_COLLISION_IP\n");
+            }
+            break;
      case DHCP_EV_LEASE_IP:
-     {
-      printf("DHCP Event Accept DHCP_EV_LEASE_IP\n");
-      print_dhcp(param);
-      dhcp_accept_flg = 1;
-     }
-     break;
+           {
+                printf("DHCP Event Accept DHCP_EV_LEASE_IP\n");
+                print_dhcp(param);
+                dhcp_accept_flg = 1;
+            }
+            break;
      case DHCP_EV_LEASE_OVER:
-     {
-      printf("DHCP Event Accept DHCP_EV_LEASE_OVER\n");
-     }
-     break;
+           {
+                printf("DHCP Event Accept DHCP_EV_LEASE_OVER\n");
+           }
+           break;
      case DHCP_EV_INIT:
-     {
-      printf("DHCP Event Accept DHCP_EV_INIT\n");
-     }
-     break;
+           {
+               printf("DHCP Event Accept DHCP_EV_INIT\n");
+           } 
+           break;
      case DHCP_EV_INIT_REBOOT:
-     {
-      printf("DHCP Event Accept DHCP_EV_INIT_REBOOT\n");
-     }
-     break;
+           {
+               printf("DHCP Event Accept DHCP_EV_INIT_REBOOT\n");
+           }
+           break;
      case DHCP_EV_APIPA:
-     {
-      printf("DHCP Event Accept DHCP_EV_LEASE_IP\n");
-      print_dhcp(param);
-      dhcp_accept_flg = 1;
-     }
-     break;
+           {
+               printf("DHCP Event Accept DHCP_EV_LEASE_IP\n");
+               print_dhcp(param);
+               dhcp_accept_flg = 1;
+           }
+           break;
      case DHCP_EV_NAK:
-     {
-      printf("DHCP Event Accept DHCP_EV_NAK\n");
-     }
-     break;
+           {
+               printf("DHCP Event Accept DHCP_EV_NAK\n");
+           }
+           break;
      case DHCP_EV_FATAL_ERROR:
-     {
-      printf("DHCP Event Accept DHCP_EV_FATAL_ERROR\n");
-     }
-     break;
+           {
+               printf("DHCP Event Accept DHCP_EV_FATAL_ERROR\n");
+           }
+           break;
      case DHCP_EV_PLEASE_RESET:
-     {
-       printf("DHCP Event Accept DHCP_EV_PLEASE_RESET\n");
-     }
-     break;
+           {
+                printf("DHCP Event Accept DHCP_EV_PLEASE_RESET\n");
+           }
+           break;
      default:
-     {
-      printf("DHCP Event Accept undefined\n");
-     }
-     break;
+           {
+                printf("DHCP Event Accept undefined\n");
+           }
+           break;
     }
     return 0;
 }
