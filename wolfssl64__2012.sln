@@ -15,7 +15,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "client", "examples\client\c
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server", "examples\server\server_2012.vcxproj", "{E9FB0BA5-BA46-4A59-A953-39C18CD1DCB1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sslSniffTest", "sslSniffer\sslSnifferTest\sslSniffTest_2012.vcxproj", "{8C89E16E-9C36-45EF-A491-F4EBD4A8D8F1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sslSniffTest", "sslSniffer\sslSnifferTest\sslSniffTest.vcxproj", "{8C89E16E-9C36-45EF-A491-F4EBD4A8D8F1}"
 	ProjectSection(ProjectDependencies) = postProject
 		{34FAE5A6-2B0F-4B55-86FE-0C43E4810F4D} = {34FAE5A6-2B0F-4B55-86FE-0C43E4810F4D}
 	EndProjectSection
