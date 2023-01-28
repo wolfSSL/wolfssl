@@ -17293,7 +17293,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 Because an empty-path is a valid 'heir-part' a URI that contains a scheme
                 must be an absolute path. 
                 
-                However, RFC 5280 §4.2.16:
+                However, RFC 5280 section 4.2.16:
                   When the subjectAltName extension contains a URI the name:
                     * MUST NOT be a relative URI
                     * MUST follow the URI syntax in RFC 3986
