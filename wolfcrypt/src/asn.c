@@ -27093,6 +27093,7 @@ static int SetValidity(byte* output, int daysValid)
 #else
 static int SetValidity(byte* before, byte* after, int daysValid)
 {
+#ifndef NO_ASN_TIME
     int ret = 0;
     time_t now;
     time_t then;
@@ -27145,6 +27146,12 @@ static int SetValidity(byte* before, byte* after, int daysValid)
     }
 
     return ret;
+#else
+    (void)before;
+    (void)after;
+    (void)daysValid;
+    return NOT_COMPILED_IN;
+#endif
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
 

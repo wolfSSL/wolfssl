@@ -13166,13 +13166,15 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
             #ifndef NO_RSA
                 static const char* eccKeyPubFileDer = CERT_ROOT "ecc-keyPub.der";
             #endif
-            static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
-            static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
-            #ifdef ENABLE_ECC384_CERT_GEN_TEST
-                static const char* eccCaKey384File =
-                                               CERT_ROOT "ca-ecc384-key.der";
-                static const char* eccCaCert384File =
-                                               CERT_ROOT "ca-ecc384-cert.pem";
+            #ifndef NO_ASN_TIME
+                static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
+                static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
+                #ifdef ENABLE_ECC384_CERT_GEN_TEST
+                    static const char* eccCaKey384File =
+                                                CERT_ROOT "ca-ecc384-key.der";
+                    static const char* eccCaCert384File =
+                                                CERT_ROOT "ca-ecc384-cert.pem";
+                #endif
             #endif
         #endif
         #if defined(HAVE_PKCS7) && defined(HAVE_ECC)
@@ -13209,7 +13211,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
-    #ifdef WOLFSSL_CERT_GEN
+    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
          static const char* certEccPemFile =   CERT_WRITE_TEMP_DIR "certecc.pem";
          static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
     #endif
@@ -13230,7 +13232,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
-    #ifdef WOLFSSL_CERT_GEN
+    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
         static const char* otherCertDerFile = CERT_WRITE_TEMP_DIR "othercert.der";
         static const char* certDerFile = CERT_WRITE_TEMP_DIR "cert.der";
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
@@ -15320,7 +15322,7 @@ exit_rsa_even_mod:
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
 static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -16805,7 +16807,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     /* Make Cert / Sign example for RSA cert and RSA CA */
     ret = rsa_certgen_test(key, keypub, &rng, tmp);
     if (ret != 0)
@@ -25624,7 +25626,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
 
 /* Make Cert / Sign example for ECC cert and ECC CA */
 static int ecc_test_cert_gen(WC_RNG* rng)
@@ -26515,7 +26517,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 #elif defined(HAVE_ECC_KEY_IMPORT)
     (void)ecc_test_make_pub; /* for compiler warning */
 #endif
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
     ret = ecc_test_cert_gen(&rng);
     if (ret != 0) {
         printf("ecc_test_cert_gen failed!: %d\n", ret);
