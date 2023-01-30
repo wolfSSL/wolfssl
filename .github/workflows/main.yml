@@ -11,8 +11,11 @@ on:
     branches: [ '*' ]
 
 jobs:
-    call_workflow:
-        stategy:
-            matrix:
-                workflow: [ docker-Espressif docker-OpenWrt multi-compiler os-check ]
-        uses: ./.github/workflows/${{ matrix.workflow }}.yml
+    call_docker-Espressif:
+        uses: ./.github/workflows/docker-Espressif.yml
+    call_multi-compiler:
+        uses: ./.github/workflows/multi-compiler.yml
+    call_docker-OpenWrt:
+        uses: ./.github/workflows/docker-OpenWrt.yml
+    call_os-check:
+        uses: ./.github/workflows/os-check.yml
