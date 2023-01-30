@@ -30,7 +30,7 @@
 #define SERVER_TEST
 
 void main(void);
-bool init_ether();
+bool init_ether(void);
 
 /******************************************************************************
 Typedef definitions
@@ -40,13 +40,13 @@ extern ER		dly_tsk(UW) ;
 extern void dhcp_check(void);
 extern void print_dhcp(VP param);
 extern void startw(void);
-extern void waisem_ether_wrapper();
-extern void sigsem_ether_wrapper();
+extern void waisem_ether_wrapper(void);
+extern void sigsem_ether_wrapper(void);
 extern void timer_interrupt(void *pdata);
 extern void cmt_isr_common2 (uint32_t channel);
 extern void wolfSSL_init(void);
-extern void wolfSSL_TLS_client_Wrapper() ;
-extern void wolfSSL_TLS_server_Wrapper() ;
+extern void wolfSSL_TLS_client_Wrapper(void) ;
+extern void wolfSSL_TLS_server_Wrapper(void) ;
 extern void timeTick(void *pdata);
 extern void cmt1_isr (void);
 

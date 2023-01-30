@@ -72,7 +72,7 @@ static int getIPaddr(char *arg)
 }
 
 
-WOLFSSL_CTX *wolfSSL_TLS_client_init()
+WOLFSSL_CTX *wolfSSL_TLS_client_init(void)
 {
 
     WOLFSSL_CTX* ctx;

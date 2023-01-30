@@ -46,21 +46,21 @@ double current_time(int reset)
     return ((double)tick/FREQ) ;	
 }
 
-void wolfSSL_init()
+void wolfSSL_init(void)
 {
     uint32_t channel;
     wolfSSL_sv_ctx = wolfSSL_TLS_server_init();
     wolfSSL_cl_ctx = wolfSSL_TLS_client_init();
 }
 
-void wolfSSL_TLS_client_Wrapper() {
+void wolfSSL_TLS_client_Wrapper(void) {
     func_args args = {0};
 
 	printf("Start TLS Client\n");
 
 	wolfSSL_TLS_client(wolfSSL_cl_ctx, &args);
 }
-void wolfSSL_TLS_server_Wrapper() {
+void wolfSSL_TLS_server_Wrapper(void) {
     func_args args = {0};
 
 	printf("Start TLS Server\n");

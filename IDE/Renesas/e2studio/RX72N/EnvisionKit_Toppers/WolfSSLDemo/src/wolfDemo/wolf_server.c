@@ -69,7 +69,7 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 }
 
 
-WOLFSSL_CTX *wolfSSL_TLS_server_init()
+WOLFSSL_CTX *wolfSSL_TLS_server_init(void)
 {
 
 	int ret;
@@ -98,7 +98,7 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
 #endif
 
 #ifdef DEBUG_WOLFSSL
-	    wolfSSL_Debugging_ON();
+	    wolfSSL_Debugging_ON(void);
 #endif
 
 	/* Create and initialize WOLFSSL_CTX */
@@ -137,7 +137,7 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init()
 }
 #define BUFF_SIZE 256
 char buff[BUFF_SIZE];
-void wolfSSL_TLS_server2()
+void wolfSSL_TLS_server2(void)
 {
     ID cepid = 1;
     ID repid = 1;

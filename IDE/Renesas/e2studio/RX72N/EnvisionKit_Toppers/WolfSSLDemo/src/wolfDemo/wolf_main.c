@@ -42,21 +42,21 @@ void main(void)
     startw();
 }
 
-void timer_int_Wrapper() 
+void timer_int_Wrapper(void) 
 {
 #ifndef ETHER_TASK
     cmt1_isr();
 #endif
  }
 
- void timer_cm2_int_Wrapper() 
+ void timer_cm2_int_Wrapper(void) 
  {
     int du = 0;
     timeTick((void *)&du);
  }
 extern bool		sns_ctx(void);
 
-void ether_int_Wrapper() 
+void ether_int_Wrapper(void) 
 {
     R_BSP_InterruptControl(BSP_INT_SRC_AL1_EDMAC0_EINT0, BSP_INT_CMD_CALL_CALLBACK, FIT_NO_PTR);
 }
@@ -127,7 +127,7 @@ void taskDemoWolf(intptr_t exinf)
     }
 }
 
-bool init_ether() 
+bool init_ether(void) 
 {
     ER   ercd;
     W    size;
