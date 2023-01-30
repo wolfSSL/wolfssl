@@ -6377,7 +6377,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
             /* Get top digit after multipling. */
             tt = (t * m) >> SP_WORD_SIZE;
             /* Subtract trial division. */
-            tr = (sp_int_digit)(t - tt * d);
+            tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
         #else
             /* Multiply digit. */
             SP_ASM_MUL(l, tt, a->dp[i], m);
@@ -6404,7 +6404,7 @@ static void _sp_div_small(const sp_int* a, sp_int_digit d, sp_int* r,
             /* Get top digit after multipling. */
             tt = (t * m) >> SP_WORD_SIZE;
             /* Subtract trial division. */
-            tr = (sp_int_digit)(t - tt * d);
+            tr = (sp_int_digit)t - (sp_int_digit)(tt * d);
         #else
             /* Multiply digit. */
             SP_ASM_MUL(l, tt, a->dp[i], m);
