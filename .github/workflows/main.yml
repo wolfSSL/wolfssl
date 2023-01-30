@@ -14,5 +14,5 @@ jobs:
     call_workflows:
         strategy:
             matrix:
-                workflow: [ docker-Espressif, multi-compiler, docker-OpenWrt, os-check ]
-        uses: ./.github/workflows/${{ matrix.workflow }}.yml
+                workflow: [ "docker-Espressif.yml", "multi-compiler.yml", "docker-OpenWrt.yml", "os-check.yml" ]
+        uses: ./.github/workflows/${{ matrix.workflow }}
