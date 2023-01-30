@@ -1,15 +1,9 @@
 # This workflow tests out new libraries with existing OpenWrt builds to check
 # there aren't any compatibility issues. Take a look at Docker/OpenWrt/README.md
 name: OpenWrt test
-concurrency:
-    group: ${{ github.head_ref || github.run_id }}
-#    cancel-in-progress: true
 
 on:
-    push:
-        branches: [ 'master', 'main', 'release/**' ]
-    pull_request:
-        branches: [ '*' ]
+    workflow_call:
 
 jobs:
     build_library:
