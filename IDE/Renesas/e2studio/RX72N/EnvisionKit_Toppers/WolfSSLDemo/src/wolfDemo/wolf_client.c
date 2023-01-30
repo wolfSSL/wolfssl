@@ -31,44 +31,44 @@ ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
 static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
-    ID  cepid = /* Not used ID 3 Used */;
+    ID  cepid = 0; 
 
     if (ctx != NULL)
-     cepid = *(ID *)ctx;
+        cepid = *(ID *)ctx;
     else 
-     return WOLFSSL_CBIO_ERR_GENERAL;
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
     if (ret > 0)
-     return ret;
+        return ret;
     else         
-     return WOLFSSL_CBIO_ERR_GENERAL;
+        return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
-    ID  cepid = /* Not used ID 3 Used */;
+    ID  cepid = 0 ;
 
     if (ctx != NULL)
-     cepid = *(ID *)ctx;
+        cepid = *(ID *)ctx;
     else 
-     return WOLFSSL_CBIO_ERR_GENERAL;
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
     if (ret == sz)
-     return ret;
+        return ret;
     else         
-     return WOLFSSL_CBIO_ERR_GENERAL;
+        return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 static int getIPaddr(char *arg)
 {
     int a1, a2, a3, a4;
     if (sscanf(arg, "%d.%d.%d.%d", &a1, &a2, &a3, &a4) == 4)
-         return (a1 << 24) | (a2 << 16) | (a3 << 8) | a4;
+        return (a1 << 24) | (a2 << 16) | (a3 << 8) | a4;
     else 
-         return 0;
+        return 0;
 }
 
 
@@ -93,7 +93,7 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
 #endif
 
 #ifdef DEBUG_WOLFSSL
-        wolfSSL_Debugging_ON();
+    wolfSSL_Debugging_ON();
 #endif
 
     /* Create and initialize WOLFSSL_CTX */
@@ -170,7 +170,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
         printf("ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
         return;
     }
-    ret = (ret == BUFF_SIZE) ? BUFF_SIZE - 1 : ret ;
+    ret = (ret >= BUFF_SIZE) ? BUFF_SIZE - 1 : ret ;
     rcvBuff[ret] = '\0' ;
     printf("Received: %s\n", rcvBuff);
 

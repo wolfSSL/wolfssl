@@ -42,13 +42,13 @@ time_t time(time_t *t)
 #include <ctype.h>
 int strncasecmp2(const char *s1, const char * s2, unsigned int sz)
 {
-    for( ; sz>0; sz--, s1++, s2++){
-            if(toupper(*s1) < toupper(*s2)){
-            return -1;
-        }
-        if(toupper(*s1) > toupper(*s2)){
-            return 1;
-        }
+    for ( ; sz>0; sz--, s1++, s2++){
+            if (toupper(*s1) < toupper(*s2)){
+                return -1;
+            }
+            if (toupper(*s1) > toupper(*s2)){
+                return 1;
+            } 
     }
     return 0;	
 }
@@ -58,9 +58,4 @@ void abort(void)
     while(1);
 }
 
-WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void)
-{ 
-	return NULL;
-}
-    
 

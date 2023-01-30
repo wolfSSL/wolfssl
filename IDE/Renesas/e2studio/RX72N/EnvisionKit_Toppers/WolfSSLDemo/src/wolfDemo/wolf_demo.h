@@ -30,7 +30,6 @@ typedef struct func_args
 } func_args;
 
 void wolfSSL_init(void) ;
-void wolfSSL_main(void) ;
 WOLFSSL_CTX *wolfSSL_TLS_server_init(void);
 WOLFSSL_CTX *wolfSSL_TLS_client_init(void);
 

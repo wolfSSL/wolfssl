@@ -68,7 +68,7 @@ void taskEther(intptr_t exinf)
         if (flg == false) {
             waisem_ether_wrapper();
             flg = true;
-         }
+        }
         dhcp_check();
         dly_tsk(1);
     }
