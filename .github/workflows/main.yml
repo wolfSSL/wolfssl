@@ -1,0 +1,18 @@
+name: wolfSSL CI tests
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ '*' ]
+#    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+    stategy:
+        matrix:
+            workflow: [ docker-Espressif docker-OpenWrt multi-compiler os-check ]
+    call_workflow:
+        uses: ./.github/workflows/${{ matrix.workflow }}.yml

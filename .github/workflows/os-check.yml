@@ -1,13 +1,7 @@
 name: Ubuntu-Macos-Windows Tests
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-#  cancel-in-progress: true
 
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
-  pull_request:
-    branches: [ '*' ]
+  workflow_call:
 
 jobs:
   make_check:
