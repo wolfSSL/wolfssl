@@ -3350,7 +3350,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     word16 cookieSz = 0;
 
     /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
-    cookie[cookieSz++] = hashSz;
+    cookie[cookieSz++] = (byte)hashSz;
     XMEMCPY(cookie + cookieSz, hash, hashSz);
     cookieSz += hashSz;
     cookie[cookieSz++] = cipherSuite0;

@@ -671,8 +671,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
             goto dtls13_cleanup;
 
         /* Push the cookie to extensions */
-        ret = CreateCookieExt(ssl, cookieHash, cookieHashSz, &parsedExts,
-                              cs.cipherSuite0, cs.cipherSuite);
+        ret = CreateCookieExt(ssl, cookieHash, (word16)cookieHashSz,
+                              &parsedExts, cs.cipherSuite0, cs.cipherSuite);
         if (ret != 0)
             goto dtls13_cleanup;
 
