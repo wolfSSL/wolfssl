@@ -273,17 +273,24 @@ static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
 }
 #endif
 
-#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
 #ifdef HAVE_SESSION_TICKET
 static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
-                            PskInfo* pskInfo)
+                            PskInfo* pskInfo, byte isTls13)
 {
     WolfSSL_ConstVector tlsxSessionTicket;
     byte tempTicket[SESSION_TICKET_LEN];
     InternalTicket* it;
     int ret;
 
-    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
+    (void)isTls13;
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
+    if (isTls13)
+        ret = TlsxFindByType(&tlsxSessionTicket, TLSX_PRE_SHARED_KEY, exts);
+    else
+#endif
+        ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
     if (ret != 0)
         return ret;
     if (tlsxSessionTicket.size == 0)
@@ -363,12 +370,13 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 }
 
 static int TlsResumptionIsValid(const WOLFSSL* ssl, WolfSSL_CH* ch,
-                                PskInfo* pskInfo)
+                                PskInfo* pskInfo, byte isTls13)
 {
     int ret;
 
+    (void)isTls13;
 #ifdef HAVE_SESSION_TICKET
-    ret = TlsTicketIsValid(ssl, ch->extension, pskInfo);
+    ret = TlsTicketIsValid(ssl, ch->extension, pskInfo, isTls13);
     if (ret != 0)
         return ret;
     if (pskInfo->isValid)
@@ -377,17 +385,15 @@ static int TlsResumptionIsValid(const WOLFSSL* ssl, WolfSSL_CH* ch,
     ret = TlsSessionIdIsValid(ssl, ch->sessionId, pskInfo);
     return ret;
 }
-#endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
+#endif /* WOLFSSL_DTLS13 || WOLFSSL_DTLS_NO_HVR_ON_RESUME */
 
 #ifdef WOLFSSL_DTLS13
 static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
-        WolfSSL_CH* ch, byte *isTls13, PskInfo* pskInfo)
+        WolfSSL_CH* ch, byte *isTls13)
 {
     WolfSSL_ConstVector tlsxSupportedVersions;
     int ret;
     ProtocolVersion pv = ssl->version;
-
-    (void)pskInfo;
 
     ret = TlsxFindByType(&tlsxSupportedVersions, TLSX_SUPPORTED_VERSIONS,
                          ch->extension);
@@ -401,11 +407,6 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
             (word16)tlsxSupportedVersions.size, client_hello, &pv, NULL, NULL);
     if (ret != 0)
         return ret;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    if (pskInfo->isValid && (pskInfo->pv.major != pv.major ||
-                             pskInfo->pv.minor != pv.minor))
-        return VERSION_ERROR;
-#endif
     if (IsAtLeastTLSv1_3(pv))
         *isTls13 = 1;
     else
@@ -756,25 +757,40 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
     if (ret != 0)
         return ret;
 
-#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-    ret = TlsResumptionIsValid(ssl, &ch, &pskInfo);
-    if (ret != 0)
-        return ret;
-    if (pskInfo.isValid) {
-        ssl->options.dtlsStateful = 1;
-        return 0;
-    }
-#endif /* WOLFSSL_DTLS_NO_HVR_ON_RESUME */
-
 #ifdef WOLFSSL_DTLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13, &pskInfo);
+        ret = TlsCheckSupportedVersion(ssl, &ch, &isTls13);
         if (ret != 0)
             return ret;
         if (isTls13) {
             ret = TlsxFindByType(&ch.cookie, TLSX_COOKIE, ch.extension);
             if (ret != 0)
                 return ret;
+        }
+    }
+#endif
+
+#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
+    ret = TlsResumptionIsValid(ssl, &ch, &pskInfo, isTls13);
+    if (ret != 0)
+        return ret;
+#endif
+#ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
+    if (pskInfo.isValid) {
+        ssl->options.dtlsStateful = 1;
+        return 0;
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (pskInfo.isValid) {
+        if (IsAtLeastTLSv1_3(pskInfo.pv)) {
+            if (!isTls13)
+                return VERSION_ERROR;
+        }
+        else {
+            if (isTls13)
+                return VERSION_ERROR;
         }
     }
 #endif
