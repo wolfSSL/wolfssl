@@ -1306,7 +1306,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->ctx.isfirstblock = 1;
     if(sha384->ctx.mode == ESP32_SHA_HW) {
         /* release hw */
-        esp_sha_hw_unlock(&(sha512->ctx));
+        esp_sha_hw_unlock(&(sha384->ctx));
     }
     /* always set mode as INIT
     *  whether using HW or SW is determined at first call of update()
