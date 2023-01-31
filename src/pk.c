@@ -3402,9 +3402,9 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
 {
     int ret = 1;
     enum wc_HashType hashType;
-    int hashLen;
-    int emLen;
-    int mgf;
+    int hashLen = 0;
+    int emLen = 0;
+    int mgf = 0;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3534,11 +3534,11 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
                                  const unsigned char *em, int saltLen)
 {
     int ret = 1;
-    int hashLen;
-    int mgf;
-    int emLen;
-    int mPrimeLen;
-    enum wc_HashType hashType;
+    int hashLen = 0;
+    int mgf = 0;
+    int emLen = 0;
+    int mPrimeLen = 0;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     byte *mPrime = NULL;
     byte *buf = NULL;
 

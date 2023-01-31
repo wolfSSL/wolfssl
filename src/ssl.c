@@ -38218,7 +38218,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     byte* key = NULL;
     word32 keySz;
     byte* pem = NULL;
-    int pemSz;
+    int pemSz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
     int algId;
     const byte* curveOid;
