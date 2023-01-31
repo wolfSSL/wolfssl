@@ -41212,7 +41212,30 @@ static int test_wolfSSL_BIO_up_ref(void)
 #endif
     return res;
 }
+static int test_wolfSSL_BIO_reset(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    BIO* bio;
+    byte buf[16];
 
+    AssertNotNull(bio = BIO_new_mem_buf("secure your data",
+                                       (word32)XSTRLEN("secure your data")));
+    AssertIntEQ(BIO_read(bio, buf, 6), 6);
+    AssertIntEQ(XMEMCMP(buf, "secure", 6), 0);
+    XMEMSET(buf, 0, 16);
+    AssertIntEQ(BIO_read(bio, buf, 16), 10);
+    AssertIntEQ(XMEMCMP(buf, " your data", 10), 0);
+    AssertIntEQ(BIO_read(bio, buf, 16), -1);
+    XMEMSET(buf, 0, 16);
+    AssertIntEQ(BIO_reset(bio), 0);
+    AssertIntEQ(BIO_read(bio, buf, 16), 16);
+    AssertIntEQ(XMEMCMP(buf, "secure your data", 16), 0);
+    BIO_free(bio);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
 #endif /* !NO_BIO */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
@@ -61564,6 +61587,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_BIO_f_md),
     TEST_DECL(test_wolfSSL_BIO_up_ref),
     TEST_DECL(test_wolfSSL_BIO_tls),
+    TEST_DECL(test_wolfSSL_BIO_reset),
 #endif
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_SESSION),

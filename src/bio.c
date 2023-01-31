@@ -137,7 +137,6 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
             }
             bio->wrSz = 0;
             bio->rdIdx = 0;
-            bio->mem_buf->length = 0;
             bio->ptr = bio->mem_buf->data;
         }
         else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD) {
@@ -1428,14 +1427,8 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
         case WOLFSSL_BIO_MEMORY:
             bio->rdIdx = 0;
             bio->wrIdx = 0;
-            bio->wrSz  = 0;
-            XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
-            bio->ptr = NULL;
-            bio->num = 0;
             if (bio->mem_buf != NULL) {
-                bio->mem_buf->data = NULL;
-                bio->mem_buf->length = 0;
-                bio->mem_buf->max = 0;
+                bio->wrSz  = (int)bio->mem_buf->length;
             }
             return 0;
 
