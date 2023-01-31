@@ -41,6 +41,8 @@ typedef struct WOLFSSL_SHA_CTX {
     /* big enough to hold wolfcrypt Sha, but check on init */
 #if defined(STM32_HASH)
     void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(STM32_HASH_Context)) / sizeof(void*)];
+#elif defined(WOLFSSL_ESPWROOM32) && !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(WC_ESP32SHA)) / sizeof(void*)];
 #else
     void* holder[(112 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 #endif
