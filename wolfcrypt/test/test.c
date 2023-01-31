@@ -13065,7 +13065,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     }
 #endif
 
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC) && defined(XREALLOC)
     /* realloc test */
     {
         byte *c = NULL;
