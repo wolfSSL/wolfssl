@@ -90,9 +90,7 @@
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
     #include <wolfssl/openssl/fips_rand.h>
-#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
-#endif
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>
@@ -204,10 +202,148 @@
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
+/* Convert shortname to NID.
+ *
+ * For OpenSSL compatability.
+ *
+ * This function shouldn't exist!
+ * Uses defines in wolfssl/openssl/evp.h.
+ * Uses EccEnumToNID which uses defines in wolfssl/openssl/ec.h.
+ *
+ * @param [in] sn  Short name of OID.
+ * @return  NID corresponding to shortname on success.
+ * @return  NID_undef when not recognized.
+ */
+int wc_OBJ_sn2nid(const char *sn)
+{
+    const struct {
+        const char *sn;
+        int  nid;
+    } sn2nid[] = {
+#ifndef NO_CERTS
+        {WOLFSSL_COMMON_NAME, NID_commonName},
+        {WOLFSSL_COUNTRY_NAME, NID_countryName},
+        {WOLFSSL_LOCALITY_NAME, NID_localityName},
+        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
+        {WOLFSSL_ORG_NAME, NID_organizationName},
+        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        {WOLFSSL_NAME, NID_name},
+        {WOLFSSL_INITIALS, NID_initials},
+        {WOLFSSL_GIVEN_NAME, NID_givenName},
+        {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
+    #endif
+        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+#endif
+        {"SHA1", NID_sha1},
+        {NULL, -1}};
+    int i;
+#ifdef HAVE_ECC
+    char curveName[ECC_MAXNAME + 1];
+    int eccEnum;
+#endif
+    WOLFSSL_ENTER("OBJ_sn2nid");
+    for(i=0; sn2nid[i].sn != NULL; i++) {
+        if (XSTRCMP(sn, sn2nid[i].sn) == 0) {
+            return sn2nid[i].nid;
+        }
+    }
+#ifdef HAVE_ECC
+
+    if (XSTRLEN(sn) > ECC_MAXNAME)
+        return NID_undef;
+
+    /* Nginx uses this OpenSSL string. */
+    if (XSTRCMP(sn, "prime256v1") == 0)
+        sn = "SECP256R1";
+    /* OpenSSL allows lowercase curve names */
+    for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
+        curveName[i] = (char)XTOUPPER((unsigned char) *sn++);
+    }
+    curveName[i] = '\0';
+    /* find based on name and return NID */
+    for (i = 0;
+#ifndef WOLFSSL_ECC_CURVE_STATIC
+         ecc_sets[i].size != 0 && ecc_sets[i].name != NULL;
+#else
+         ecc_sets[i].size != 0;
+#endif
+         i++) {
+        if (XSTRCMP(curveName, ecc_sets[i].name) == 0) {
+            eccEnum = ecc_sets[i].id;
+            /* Convert enum value in ecc_curve_id to OpenSSL NID */
+            return EccEnumToNID(eccEnum);
+        }
+    }
+#endif /* HAVE_ECC */
+
+    return NID_undef;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifndef WOLFCRYPT_ONLY
 
+#ifndef OPENSSL_EXTRA_NO_PK
 #define WOLFSSL_PK_INCLUDED
 #include "src/pk.c"
+#endif
+
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
+
+#define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
+static WC_RNG globalRNG;
+static int initGlobalRNG = 0;
+#ifndef WOLFCRYPT_ONLY
+static wolfSSL_Mutex globalRNGMutex;
+static int globalRNGMutex_valid = 0;
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
+static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
+#endif
+#endif
+
+WC_RNG* wolfssl_get_global_rng(void)
+{
+    WC_RNG* ret = NULL;
+
+    if (initGlobalRNG == 0)
+        WOLFSSL_MSG("Global RNG no Init");
+    else
+        ret = &globalRNG;
+
+    return ret;
+}
+
+/* Make a global RNG and return.
+ *
+ * @return  Global RNG on success.
+ * @return  NULL on error.
+ */
+WC_RNG* wolfssl_make_global_rng()
+{
+    WC_RNG* ret;
+
+#ifdef HAVE_GLOBAL_RNG
+    /* Get the global random number generator instead. */
+    ret = wolfssl_get_global_rng();
+#ifdef OPENSSL_EXTRA
+    if (ret == NULL) {
+        /* Create a global random if possible. */
+        (void)wolfSSL_RAND_Init();
+        ret = wolfssl_get_global_rng();
+    }
+#endif
+#else
+    WOLFSSL_ERROR_MSG("Bad RNG Init");
+    ret = NULL;
+#endif
+
+    return ret;
+}
+
+#endif
 
 #ifdef OPENSSL_EXTRA
     /* Global pointer to constant BN on */
@@ -6118,33 +6254,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif /* !NO_CLIENT_CACHE */
 
 #endif /* !NO_SESSION_CACHE */
-
-#if !defined(WC_NO_RNG) && (defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA)) || \
-    (defined(OPENSSL_ALL) && !defined(NO_DH)))
-
-    #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
-    static WC_RNG globalRNG;
-    static int initGlobalRNG = 0;
-    static wolfSSL_Mutex globalRNGMutex;
-    static int globalRNGMutex_valid = 0;
-
-    #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
-    static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
-    #endif
-
-    WC_RNG* wolfssl_get_global_rng(void)
-    {
-        WC_RNG* ret = NULL;
-
-        if (initGlobalRNG == 0)
-            WOLFSSL_MSG("Global RNG no Init");
-        else
-            ret = &globalRNG;
-
-        return ret;
-    }
-#endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
 static int wolfSSL_RAND_InitMutex(void);
@@ -28624,19 +28733,9 @@ static int pem_write_pubkey(WOLFSSL_EVP_PKEY* key, void* heap, byte** derBuf,
                 WOLFSSL_MSG("key->ecc is null");
                 break;
             }
-            sz = wc_EccPublicKeyDerSize((ecc_key*)key->ecc->internal, 1);
-            if (sz <= 0) {
-                WOLFSSL_MSG("wc_EccPublicKeyDerSize failed");
-                break;
-            }
-            buf = (byte*)XMALLOC(sz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (buf == NULL) {
-                WOLFSSL_MSG("malloc failed");
-                break;
-            }
-            sz = wc_EccPublicKeyToDer((ecc_key*)key->ecc->internal, buf, sz, 1);
-            if (sz < 0) {
-                WOLFSSL_MSG("wc_EccPublicKeyToDer failed");
+            if ((sz = wolfssl_ec_key_to_pubkey_der(key->ecc, &buf, heap)) <=
+                    0) {
+                WOLFSSL_MSG("wolfssl_ec_key_to_pubkey_der failed");
                 break;
             }
             break;
