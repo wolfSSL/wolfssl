@@ -5863,10 +5863,6 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
     WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL* ssl,
         const byte* cookie, byte cookieSz);
 
-    WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
-                                      word16 hashSz, TLSX** exts,
-                                      byte cipherSuite0, byte cipherSuite);
-
 #if !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
             const byte* input, word32* inOutIdx, word32 helloSz);
@@ -6223,6 +6219,12 @@ WOLFSSL_LOCAL int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk,
 #endif
 
 WOLFSSL_LOCAL int wolfSSL_GetHmacType_ex(CipherSpecs* specs);
+
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
+                                  word16 hashSz, TLSX** exts,
+                                  byte cipherSuite0, byte cipherSuite);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */
