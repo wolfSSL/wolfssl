@@ -10664,8 +10664,8 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_AFALG
-    aes->alFd = -1;
-    aes->rdFd = -1;
+    aes->alFd = WC_SOCK_NOTSET;
+    aes->rdFd = WC_SOCK_NOTSET;
 #endif
 #ifdef WOLFSSL_KCAPI_AES
     aes->handle = NULL;
@@ -10769,9 +10769,11 @@ void wc_AesFree(Aes* aes)
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
     if (aes->rdFd > 0) { /* negative is error case */
         close(aes->rdFd);
+        aes->rdFd = WC_SOCK_NOTSET;
     }
     if (aes->alFd > 0) {
         close(aes->alFd);
+        aes->alFd = WC_SOCK_NOTSET;
     }
 #endif /* WOLFSSL_AFALG */
 #ifdef WOLFSSL_KCAPI_AES
