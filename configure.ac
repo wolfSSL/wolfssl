@@ -1621,6 +1621,19 @@ AC_SUBST([PSA_LIB])
 AC_SUBST([PSA_LIB_NAME])
 AC_SUBST([PSA_INCLUDE])
 
+
+# Platform Security Architecture (PSA) Engine (provider)
+AC_ARG_ENABLE([psa-engine],
+[AS_HELP_STRING([--enable-psa-engine],[Platform Security Architecture (PSA) API Crypto Provider (Engine) (default: disabled)])],
+[ ENABLED_PSA_ENGINE=$enableval ],
+[ ENABLED_PSA_ENGINE=no ]
+)
+
+if test "x$ENABLED_PSA_ENGINE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_PSA_ENGINE"
+fi
+
 # OPENSSL Compatibility ALL
 AC_ARG_ENABLE([opensslall],
 [AS_HELP_STRING([--enable-opensslall],[Enable all OpenSSL API, size++ (default: disabled)])],
@@ -8490,6 +8503,7 @@ AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
 AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
+AM_CONDITIONAL([BUILD_PSA_ENGINE],[test "x$ENABLED_PSA_ENGINE" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS13],[test "x$ENABLED_DTLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_QUIC],[test "x$ENABLED_QUIC" = "xyes"])
 AM_CONDITIONAL([BUILD_DTLS_CID],[test "x$ENABLED_DTLS_CID" = "xyes"])
@@ -8938,6 +8952,7 @@ echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
+echo "   * PSA Engine:                 $ENABLED_PSA_ENGINE"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo ""
