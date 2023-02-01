@@ -7,6 +7,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 set(COMPONENT_SRCS "client-tls.c" "wifi_connect.c")
 set(COMPONENT_ADD_INCLUDEDIRS "." "./include")
 
+set (git_cmd "git")
+
 if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
     #
     # wolfSSL found in both ESP-IDF and local project - needs to be resolved by user
@@ -19,44 +21,54 @@ endif()
 
 register_component()
 
-set (git_cmd "git")
-set (git_rev_parse "rev-parse")
-set (git_short "--short")
-set (git_HEAD "HEAD")
-set (git_show "show")
-set (git_no_patch "--no-patch")
-set (git_no_notes "--no-notes")
-set (git_pretty "--pretty=\'\%cd\'" )
+#
+# LIBWOLFSSL_SAVE_INFO(VAR_OUPUT THIS_VAR VAR_RESULT)
+#
+# Save the THIS_VAR as a string in a macro called VAR_OUPUT
+#
+# VAR_OUPUT:  the name of the macro to define
+# THIS_VAR:   the OUTPUT_VARIABLE result from a execute_process()
+# VAR_RESULT: the RESULT_VARIABLE from a execute_process(); "0" if successful.
+#
+function ( LIBWOLFSSL_SAVE_INFO VAR_OUPUT THIS_VAR VAR_RESULT )
+    # is the RESULT_VARIABLE output value 0? If so, IS_VALID_VALUE is true.
+    string(COMPARE EQUAL "${VAR_RESULT}" "0" IS_VALID_VALUE)
+
+    # if we had a successful operation, save the THIS_VAR in VAR_OUPUT
+    if(${IS_VALID_VALUE})
+        # strip newline chars in THIS_VAR parameter and save in VAR_VALUE
+        string(REPLACE "\n" ""  VAR_VALUE  ${THIS_VAR})
+
+        # we'll could percolate the value to the parent for possible later use
+        # set(${VAR_OUPUT} ${VAR_VALUE} PARENT_SCOPE)
+
+        # but we're only using it here in this function
+        set(${VAR_OUPUT} ${VAR_VALUE})
+
+        # we'll print what we found to the console
+        message(STATUS "Found ${VAR_OUPUT}=${VAR_VALUE}")
+
+        # the interesting part is defining the VAR_OUPUT name a value to use in the app
+        add_definitions(-D${VAR_OUPUT}=\"${VAR_VALUE}\")
+    else()
+        # if we get here, check the execute_process command and parameters.
+        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT")
+        set(${VAR_OUPUT} "Unknown")
+    endif()
+endfunction() # LIBWOLFSSL_SAVE_INFO
 
 if(NOT CMAKE_BUILD_EARLY_EXPANSION)
     # LIBWOLFSSL_VERSION_GIT_HASH
-    execute_process(COMMAND ${git_cmd} ${git_rev_parse} ${git_HEAD} OUTPUT_VARIABLE LIBWOLFSSL_VERSION_GIT_HASH_VAR RESULT_VARIABLE WOLFSSL_GIT_PEEK_RESULT ERROR_QUIET )
-    string(REPLACE "\n" ""  LIBWOLFSSL_VERSION_GIT_HASH  ${LIBWOLFSSL_VERSION_GIT_HASH_VAR})
-    string(COMPARE EQUAL "${WOLFSSL_GIT_PEEK_RESULT}" "0" WOLFSSL_FOUND_GIT_VALUE)
-    if(${WOLFSSL_FOUND_GIT_VALUE})
-        message(STATUS "Found LIBWOLFSSL_VERSION_GIT_HASH=${LIBWOLFSSL_VERSION_GIT_HASH}")
-        #idf_build_set_property(COMPILE_DEFINITIONS "LIBWOLFSSL_VERSION_GIT_HASH=\"${LIBWOLFSSL_VERSION_GIT_HASH_VAR1}\"" APPEND)
-        #idf_build_set_property(COMPILE_DEFINITIONS "LIBWOLFSSL_VERSION_GIT_HASH=\"${LIBWOLFSSL_VERSION_GIT_HASH_VAR}\"" APPEND)
-        add_definitions(-DLIBWOLFSSL_VERSION_GIT_HASH=\"${LIBWOLFSSL_VERSION_GIT_HASH}\")
-    endif()
+    execute_process(COMMAND ${git_cmd} "rev-parse" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
+    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_SHORT_HASH
-    execute_process(COMMAND ${git_cmd} ${git_rev_parse} ${git_short} ${git_HEAD} OUTPUT_VARIABLE LIBWOLFSSL_VERSION_GIT_SHORT_HASH_VAR RESULT_VARIABLE WOLFSSL_GIT_PEEK_RESULT ERROR_QUIET )
-    string(REPLACE "\n" ""  LIBWOLFSSL_VERSION_GIT_SHORT_HASH  ${LIBWOLFSSL_VERSION_GIT_SHORT_HASH_VAR})
-    string(COMPARE EQUAL "${WOLFSSL_GIT_PEEK_RESULT}" "0" WOLFSSL_FOUND_GIT_VALUE)
-    if(${WOLFSSL_FOUND_GIT_VALUE})
-        message(STATUS "Found LIBWOLFSSL_VERSION_GIT_SHORT_HASH=${LIBWOLFSSL_VERSION_GIT_SHORT_HASH}")
-        add_definitions(-DLIBWOLFSSL_VERSION_GIT_SHORT_HASH=\"${LIBWOLFSSL_VERSION_GIT_SHORT_HASH}\")
-    endif()
+    execute_process(COMMAND ${git_cmd} "rev-parse" "--short" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
+    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_SHORT_HASH "${TMP_OUT}" "${TMP_RES}")
 
-    # LIBWOLFSSL_VERSION_GIT_SHORT_HASH
-    execute_process(COMMAND ${git_cmd} ${git_show} ${git_no_patch} ${git_no_notes} ${git_pretty} OUTPUT_VARIABLE LIBWOLFSSL_VERSION_GIT_HASH_DATE_VAR RESULT_VARIABLE WOLFSSL_GIT_PEEK_RESULT  )
-    string(REPLACE "\n" ""  LIBWOLFSSL_VERSION_GIT_HASH_DATE  ${LIBWOLFSSL_VERSION_GIT_HASH_DATE_VAR})
-    string(COMPARE EQUAL "${WOLFSSL_GIT_PEEK_RESULT}" "0" WOLFSSL_FOUND_GIT_VALUE)
-    if(${WOLFSSL_FOUND_GIT_VALUE})
-        message(STATUS "Found LIBWOLFSSL_VERSION_GIT_HASH_DATE=${LIBWOLFSSL_VERSION_GIT_HASH_DATE}")
-        add_definitions(-DLIBWOLFSSL_VERSION_GIT_HASH_DATE=\"${LIBWOLFSSL_VERSION_GIT_HASH_DATE}\")
-    endif()
+    # LIBWOLFSSL_VERSION_GIT_HASH_DATE
+    execute_process(COMMAND ${git_cmd} "show" "--no-patch" "--no-notes" "--pretty=\'\%cd\'" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES  )
+    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH_DATE "${TMP_OUT}" "${TMP_RES}")
 endif()
 
 message(STATUS "")

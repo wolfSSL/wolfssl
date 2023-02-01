@@ -40,7 +40,9 @@ endif()
 FILE(GLOB EXCLUDE_ASM *.S)
 file(GLOB_RECURSE EXCLUDE_ASM ${CMAKE_SOURCE_DIR} "${WOLFSSL_ROOT}/wolfcrypt/src/*.S")
 
-message(STATUS "EXCLUDE_ASM = ${EXCLUDE_ASM}")
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+    message(STATUS "EXCLUDE_ASM = ${EXCLUDE_ASM}")
+endif()
 
 set(INCLUDE_PATH ${WOLFSSL_ROOT})
 
@@ -61,8 +63,12 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
     # wolfSSL found in both ESP-IDF and local project - needs to be resolved by user
     #
     message(STATUS "")
+    message(STATUS "********************************************************************")
     message(STATUS "WARNING: Found components/wolfssl in both local project and IDF_PATH")
+    message(STATUS "********************************************************************")
     message(STATUS "")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
+
 else()
     if(EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
         #
@@ -104,6 +110,7 @@ else()
                 #
                 # first check if there's a [root]/include/user_settings.h
                 if( EXISTS "${WOLFSSL_ROOT}/include/user_settings.h" )
+                    # we won't overwrite an existing user settings file, just note that we already have one:
                     message(STATUS "Found wolfSSL user_settings.h in ${WOLFSSL_ROOT}/include/user_settings.h")
                 else()
                     message(STATUS "Installing wolfSSL user_settings.h to ${WOLFSSL_ROOT}/include/user_settings.h")
@@ -123,13 +130,14 @@ else()
             endif()
 
         else()
-            # we did not find a ./components/wolfssl/include/ directory froim this pass of cmake.
+            # we did not find a ./components/wolfssl/include/ directory from this pass of cmake.
             if($WOLFSSL_FOUND_IDF)
                 message(STATUS "")
                 message(STATUS "WARNING: wolfSSL not found.")
                 message(STATUS "")
             else()
-                # probably needs to be reparsed by Espressif
+                # probably needs to be re-parsed by Espressif
+                message(STATUS "wolfSSL found IDF. Project Source:${PROJECT_SOURCE_DIR}")
             endif() # else we have not found ESP-IDF yet
         endif() # else not a local wolfSSL component
 
@@ -199,7 +207,10 @@ endif()
 # check to see if there's both a local copy and EDP-IDF copy of the wolfssl components
 if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
     message(STATUS "")
+    message(STATUS "")
+    message(STATUS "********************************************************************")
     message(STATUS "WARNING: Found components/wolfssl in both local project and IDF_PATH")
+    message(STATUS "********************************************************************")
     message(STATUS "")
 endif()
 # end multiple component check
