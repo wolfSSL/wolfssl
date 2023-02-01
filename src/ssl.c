@@ -321,7 +321,7 @@ WC_RNG* wolfssl_get_global_rng(void)
  * @return  Global RNG on success.
  * @return  NULL on error.
  */
-WC_RNG* wolfssl_make_global_rng()
+WC_RNG* wolfssl_make_global_rng(void)
 {
     WC_RNG* ret;
 
