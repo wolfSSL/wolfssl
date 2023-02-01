@@ -44173,6 +44173,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, AES_ENCRYPT);
     AssertIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #ifdef HAVE_AES_DECRYPT
 
@@ -44184,6 +44185,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, AES_DECRYPT);
     AssertIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #endif
 
@@ -44217,6 +44219,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key192, sizeof(key192)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, AES_ENCRYPT);
     AssertIntEQ(XMEMCMP(out, ct192, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #ifdef HAVE_AES_DECRYPT
 
@@ -44228,6 +44231,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, AES_DECRYPT);
     AssertIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #endif
   }
@@ -44262,6 +44266,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, AES_ENCRYPT);
     AssertIntEQ(XMEMCMP(out, ct256, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #ifdef HAVE_AES_DECRYPT
 
@@ -44273,6 +44278,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
     wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, AES_DECRYPT);
     AssertIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
+    wc_AesFree((Aes*)&aes);
 
     #endif
 
@@ -44288,6 +44294,7 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
             15), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
             sizeof(key256)), sizeof(wrapCipher));
+    wc_AesFree((Aes*)&aes);
 
     /* wolfSSL_AES_unwrap_key() 256-bit NULL iv */
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
@@ -44298,17 +44305,20 @@ static int test_wolfSSL_AES_cbc_encrypt(void)
     AssertIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
     XMEMSET(wrapCipher, 0, sizeof(wrapCipher));
     XMEMSET(wrapPlain, 0, sizeof(wrapPlain));
+    wc_AesFree((Aes*)&aes);
 
     /* wolfSSL_AES_wrap_key() 256-bit custom iv */
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
     AssertIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapCipher, key256,
             sizeof(key256)), sizeof(wrapCipher));
+    wc_AesFree((Aes*)&aes);
 
     /* wolfSSL_AES_unwrap_key() 256-bit custom iv */
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
     AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, wrapPlain, wrapCipher,
             sizeof(wrapCipher)), sizeof(wrapPlain));
     AssertIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
+    wc_AesFree((Aes*)&aes);
     }
     #endif /* HAVE_AES_KEYWRAP */
   }

@@ -295,13 +295,12 @@ int wc_OBJ_sn2nid(const char *sn)
 #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
 static WC_RNG globalRNG;
 static int initGlobalRNG = 0;
-#ifndef WOLFCRYPT_ONLY
+
 static wolfSSL_Mutex globalRNGMutex;
 static int globalRNGMutex_valid = 0;
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
 static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
-#endif
 #endif
 
 WC_RNG* wolfssl_get_global_rng(void)
@@ -321,7 +320,7 @@ WC_RNG* wolfssl_get_global_rng(void)
  * @return  Global RNG on success.
  * @return  NULL on error.
  */
-WC_RNG* wolfssl_make_global_rng()
+WC_RNG* wolfssl_make_global_rng(void)
 {
     WC_RNG* ret;
 

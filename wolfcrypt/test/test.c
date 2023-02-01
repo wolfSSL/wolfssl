@@ -20327,6 +20327,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
                                                     (byte*)cbcPlain, 0) != 1)
             return -8666;
 
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8724;
         EVP_CIPHER_CTX_init(en);
         if (EVP_CipherInit(en, EVP_aes_128_cbc(),
             (unsigned char*)key, (unsigned char*)iv, 1) == 0)
@@ -20391,6 +20393,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             return -8684;
 
         total = 0;
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8725;
         EVP_CIPHER_CTX_init(en);
         if (EVP_EncryptInit(en, EVP_aes_128_cbc(),
             (unsigned char*)key, (unsigned char*)iv) == 0)
@@ -20416,6 +20420,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             return 3438;
 
         total = 0;
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(de) != WOLFSSL_SUCCESS)
+            return -8726;
         EVP_CIPHER_CTX_init(de);
         if (EVP_DecryptInit(de, EVP_aes_128_cbc(),
             (unsigned char*)key, (unsigned char*)iv) == 0)
@@ -20462,11 +20468,15 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (EVP_CIPHER_CTX_mode(en) != (en->flags & WOLFSSL_EVP_CIPH_MODE))
             return -8704;
 
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8727;
         EVP_CIPHER_CTX_init(en);
         if (EVP_CipherInit_ex(en, EVP_aes_128_cbc(), NULL,
             (unsigned char*)key, (unsigned char*)iv, 0) == 0)
             return -8705;
 
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8728;
         EVP_CIPHER_CTX_init(en);
         if (EVP_EncryptInit_ex(en, EVP_aes_128_cbc(), NULL,
                 (unsigned char*)key, (unsigned char*)iv) == 0)
@@ -20478,6 +20488,11 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (wolfSSL_EVP_EncryptFinal(NULL, NULL, NULL) != WOLFSSL_FAILURE)
             return -8708;
 
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(de) != WOLFSSL_SUCCESS)
+            return -8729;
+
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(de) != WOLFSSL_SUCCESS)
+            return -8730;
         EVP_CIPHER_CTX_init(de);
         if (EVP_DecryptInit_ex(de, EVP_aes_128_cbc(), NULL,
                 (unsigned char*)key, (unsigned char*)iv) == 0)
@@ -20492,6 +20507,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         if (EVP_CIPHER_CTX_block_size(NULL) != BAD_FUNC_ARG)
             return -8712;
 
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8731;
         EVP_CIPHER_CTX_init(en);
         EVP_EncryptInit_ex(en, EVP_aes_128_cbc(), NULL,
                 (unsigned char*)key, (unsigned char*)iv);
@@ -20521,6 +20538,11 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             return -8720;
         if (EVP_CIPHER_CTX_set_padding(en, 1) != WOLFSSL_SUCCESS)
             return -8721;
+
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(en) != WOLFSSL_SUCCESS)
+            return -8732;
+        if (wolfSSL_EVP_CIPHER_CTX_cleanup(de) != WOLFSSL_SUCCESS)
+            return -8733;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wolfSSL_EVP_CIPHER_CTX_free(en);
