@@ -12051,7 +12051,9 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
                 s = bit;
 
                 /* 6.4.4. t = (t * pre[j-1]) mod m */
-                err = sp_mul(t, pre[j-1], t);
+                if (err == MP_OKAY) {
+                    err = sp_mul(t, pre[j-1], t);
+                }
                 if (err == MP_OKAY) {
                     err = _sp_mont_red(t, m, mp);
                 }
@@ -12072,6 +12074,8 @@ int sp_invmod_mont_ct(const sp_int* a, const sp_int* m, sp_int* r,
                 err = _sp_mont_red(t, m, mp);
             }
         }
+    }
+    if (err == MP_OKAY) {
         /* 8. If j > 0 then r = (t * pre[j-1]) mod m */
         if (j > 0) {
             err = sp_mul(t, pre[j-1], r);
