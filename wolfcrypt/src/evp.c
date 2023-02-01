@@ -5991,8 +5991,15 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         if (ctx) {
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)) || \
+    defined(HAVE_AESCCM) || \
+    defined(HAVE_AESCBC) || \
+    defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB) || \
+    defined(HAVE_AES_CFB) || \
+    defined(HAVE_AES_OFB) || \
+    defined(WOLFSSL_AES_XTS)
 
-    #ifndef NO_AES
             switch (ctx->cipherType) {
     #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
                 case AES_128_GCM_TYPE:
@@ -6004,22 +6011,22 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case AES_192_CCM_TYPE:
                 case AES_256_CCM_TYPE:
     #endif /* HAVE_AESCCM */
-#ifdef HAVE_AESCBC
+    #ifdef HAVE_AESCBC
                 case AES_128_CBC_TYPE:
                 case AES_192_CBC_TYPE:
                 case AES_256_CBC_TYPE:
-#endif
-#ifdef WOLFSSL_AES_COUNTER
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
                 case AES_128_CTR_TYPE:
                 case AES_192_CTR_TYPE:
                 case AES_256_CTR_TYPE:
-#endif
-#ifdef HAVE_AES_ECB
+    #endif
+    #ifdef HAVE_AES_ECB
                 case AES_128_ECB_TYPE:
                 case AES_192_ECB_TYPE:
                 case AES_256_ECB_TYPE:
-#endif
-#ifdef HAVE_AES_CFB
+    #endif
+    #ifdef HAVE_AES_CFB
                 case AES_128_CFB1_TYPE:
                 case AES_192_CFB1_TYPE:
                 case AES_256_CFB1_TYPE:
@@ -6029,20 +6036,22 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 case AES_128_CFB128_TYPE:
                 case AES_192_CFB128_TYPE:
                 case AES_256_CFB128_TYPE:
-#endif
-#ifdef HAVE_AES_OFB
+    #endif
+    #ifdef HAVE_AES_OFB
                 case AES_128_OFB_TYPE:
                 case AES_192_OFB_TYPE:
                 case AES_256_OFB_TYPE:
-#endif
-#ifdef WOLFSSL_AES_XTS
+    #endif
+    #ifdef WOLFSSL_AES_XTS
                 case AES_128_XTS_TYPE:
                 case AES_256_XTS_TYPE:
-#endif
+    #endif
                     wc_AesFree(&ctx->cipher.aes);
             }
-#endif /* !NO_AES */
+
+#endif /* AES */
 #endif /* not FIPS or FIPS v2+ */
+
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             if (ctx->key) {
