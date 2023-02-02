@@ -4874,6 +4874,10 @@ int sp_copy(const sp_int* a, sp_int* r)
     }
     /* Only copy if different pointers. */
     else if (a != r) {
+    PRAGMA_GCC_DIAG_PUSH
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wstrict-overflow\"")
+    /* Surrounded in gcc pragma to avoid -Werror=strict-overflow when the
+     * compiler optimizes out the check and assumes no overflow. */
         /* Validated space in result. */
         if (a->used > r->size) {
             err = MP_VAL;
@@ -4893,6 +4897,7 @@ int sp_copy(const sp_int* a, sp_int* r)
             r->sign = a->sign;
         #endif
         }
+    PRAGMA_GCC_DIAG_POP
     }
 
     return err;
