@@ -63,14 +63,25 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
     # wolfSSL found in both ESP-IDF and local project - needs to be resolved by user
     #
     message(STATUS "")
-    message(STATUS "********************************************************************")
-    message(STATUS "WARNING: Found components/wolfssl in both local project and IDF_PATH")
-    message(STATUS "********************************************************************")
+    message(STATUS "**************************************************************************************")
     message(STATUS "")
+    message(STATUS "Error: Found components/wolfssl in both local project and IDF_PATH")
+    message(STATUS "")
+    message(STATUS "To proceed: ")
+    message(STATUS "")
+    message(STATUS "Remove either the local project component: ${CMAKE_HOME_DIRECTORY}/components/wolfssl/ ")
+    message(STATUS "or the Espressif shared component installed at: $ENV{IDF_PATH}/components/wolfssl/ ")
+    message(STATUS "")
+    message(FATAL_ERROR "Please use wolfSSL in either local project or Espressif components, but not both.")
+    message(STATUS "")
+    message(STATUS "**************************************************************************************")
+    message(STATUS "")
+
+    # Optional: if you change the above FATAL_ERROR to STATUS you can warn at runtime with this macro definition:
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
 
 else()
-    if(EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
+    if( EXISTS "$ENV{IDF_PATH}/components/wolfssl/" )
         #
         # wolfSSL found in ESP-IDF components and is assumed to be already configured in user_settings.h via setup.
         #
