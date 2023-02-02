@@ -1297,7 +1297,12 @@ int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
     int ret;
     wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+#else
+    (void)ret;
+    return WOLFSSL_SUCCESS;
+#endif
 }
 
 WOLFSSL_ABI
@@ -4983,11 +4988,15 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
         }
 
         wolfSSL_RefInit(&cm->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
+    #else
+        (void)ret;
+    #endif
 
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (wc_InitMutex(&cm->tpLock) != 0) {
@@ -5034,9 +5043,13 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 
     if (cm) {
         wolfSSL_RefDec(&cm->ref, &doFree, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock cm mutex");
         }
+    #else
+        (void)ret;
+    #endif
         if (doFree) {
             #ifdef HAVE_CRL
                 if (cm->crl)
@@ -5073,10 +5086,14 @@ int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm)
         int ret;
 
         wolfSSL_RefInc(&cm->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Failed to lock cm mutex");
             return WOLFSSL_FAILURE;
         }
+    #else
+        (void)ret;
+    #endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -21063,11 +21080,15 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         int err;
         XMEMSET(ret, 0, sizeof(WOLFSSL_SESSION));
         wolfSSL_RefInit(&ret->ref, &err);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (err != 0) {
             WOLFSSL_MSG("Error setting up session reference mutex");
             XFREE(ret, ret->heap, DYNAMIC_TYPE_SESSION);
             return NULL;
         }
+    #else
+        (void)err;
+    #endif
 #ifndef NO_SESSION_CACHE
         ret->cacheRow = INVALID_SESSION_ROW; /* not in cache */
 #endif
@@ -21125,10 +21146,14 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
         return WOLFSSL_FAILURE;
 
     wolfSSL_RefInc(&session->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
         WOLFSSL_MSG("Failed to lock session mutex");
         return WOLFSSL_FAILURE;
     }
+#else
+    (void)ret;
+#endif
 
     return WOLFSSL_SUCCESS;
 }
@@ -32534,11 +32559,15 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return ssl->ctx;
 
     wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
         /* can only fail on serious stuff, like mutex not working
          * or ctx refcount out of whack. */
         return NULL;
     }
+#else
+    (void)ret;
+#endif
     if (ssl->ctx) {
         wolfSSL_CTX_free(ssl->ctx);
     }

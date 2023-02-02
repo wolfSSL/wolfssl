@@ -9386,9 +9386,13 @@ int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
     if (pkey) {
         int ret;
         wolfSSL_RefInc(&pkey->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Failed to lock pkey mutex");
         }
+    #else
+        (void)ret;
+    #endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -9498,12 +9502,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         }
 
         wolfSSL_RefInit(&pkey->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
             WOLFSSL_MSG("Issue initializing mutex");
             return NULL;
         }
-
+    #else
+        (void)ret;
+    #endif
     }
     else {
         WOLFSSL_MSG("memory failure");
@@ -9519,9 +9526,13 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
     if (key != NULL) {
         int ret;
         wolfSSL_RefDec(&key->ref, &doFree, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
+    #else
+        (void)ret;
+    #endif
 
         if (doFree) {
             wc_FreeRng(&key->rng);
