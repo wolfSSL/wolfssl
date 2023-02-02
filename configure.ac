@@ -3915,12 +3915,6 @@ AC_ARG_ENABLE([asn],
     [ ENABLED_ASN=yes ]
     )
 
-if test "$ENABLED_ASN" = "template"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
-    ENABLED_ASN=yes
-fi
-
 if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
@@ -3931,6 +3925,17 @@ then
         AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
     fi
 else
+    if test "$ENABLED_ASN" = "template"; then
+        ENABLED_ASN="yes"
+    fi
+    if test "$ENABLED_ASN" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+    else
+        if test "$ENABLED_ASN" != "original"; then
+            AC_MSG_ERROR([Invalid asn option. Valid are: template or original. Seen: $ENABLED_ASN.])
+        fi
+    fi
+
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
     then

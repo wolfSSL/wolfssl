@@ -8518,18 +8518,18 @@ exit_dc:
     /* pbes2ParamsASN longer than pkcs8DecASN_Length/pbes1ParamsASN_Length. */
     DECL_ASNGETDATA(dataASN, pbes2ParamsASN_Length);
     int    ret = 0;
-    int    id;
+    int    id = 0;
     int    version;
     word32 idx = 0;
     word32 pIdx = 0;
     word32 iterations;
     word32 keySz = 0;
-    word32 saltSz;
+    word32 saltSz = 0;
     word32 shaOid = 0;
     byte*  salt = NULL;
     byte*  key = NULL;
     byte   cbcIv[MAX_IV_SIZE];
-    byte*  params;
+    byte*  params = NULL;
 
     WOLFSSL_ENTER("DecryptContent");
 
@@ -8927,7 +8927,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     int id;
     int blockSz = 0;
     byte* pkcs8;
-    word32 pkcs8Sz;
+    word32 pkcs8Sz = 0;
     byte cbcIv[MAX_IV_SIZE];
 
     (void)heap;
@@ -9773,6 +9773,9 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
                         (dataASN[DHKEYPKCS8ASN_IDX_VER].length != 0)) {
                     ret = ASN_PARSE_E;
                 }
+            }
+            if ((ret == 0) && mp_iszero(&key->pub)) {
+                ret = mp_exptmod(&key->g, &key->priv, &key->p, &key->pub);
             }
         }
 #endif
@@ -14740,6 +14743,7 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     DECL_ASNSETDATA(dataASN, digestInfoASN_Length);
     int ret = 0;
     int sz;
+    unsigned char dgst[WC_MAX_DIGEST_SIZE];
 
     CALLOC_ASNSETDATA(dataASN, digestInfoASN_Length, ret, NULL);
 
@@ -14747,6 +14751,10 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
         /* Set hash OID and type. */
         SetASN_OID(&dataASN[DIGESTINFOASN_IDX_DIGALGO_OID], hashOID, oidHashType);
         /* Set digest. */
+        if (digest == out) {
+            XMEMCPY(dgst, digest, digSz);
+            digest = dgst;
+        }
         SetASN_Buffer(&dataASN[DIGESTINFOASN_IDX_DIGEST], digest, digSz);
 
         /* Calculate size of encoding. */
@@ -16511,7 +16519,6 @@ static int DecodeSEP(ASNGetData* dataASN, DecodedCert* cert)
 }
 #endif /* WOLFSSL_SEP */
 
-#ifdef WOLFSSL_FPKI
 static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
 {
     DNS_entry* entry = NULL;
@@ -16520,10 +16527,12 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
     const char* buf = NULL;
 
     switch (oid) {
+#ifdef WOLFSSL_FPKI
         case FASCN_OID:
             bufLen = dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_FASCN].data.ref.data;
             break;
+#endif /* WOLFSSL_FPKI */
         case UPN_OID:
             bufLen = dataASN[OTHERNAMEASN_IDX_UPN].data.ref.length;
             buf    = (const char*)dataASN[OTHERNAMEASN_IDX_UPN].data.ref.data;
@@ -16537,13 +16546,14 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
     if (ret == 0) {
         ret = SetDNSEntry(cert, buf, bufLen, ASN_OTHER_TYPE, &entry);
         if (ret == 0) {
+        #ifdef WOLFSSL_FPKI
             entry->oidSum = oid;
+        #endif
             AddDNSEntryToList(&cert->altNames, entry);
         }
     }
     return ret;
 }
-#endif /* WOLFSSL_FPKI */
 
 /* Decode data with OtherName format from after implicit SEQUENCE.
  *
@@ -16587,15 +16597,14 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
         #endif /* WOLFSSL_SEP */
         #ifdef WOLFSSL_FPKI
             case FASCN_OID:
+        #endif /* WOLFSSL_FPKI */
             case UPN_OID:
                 ret = DecodeOtherHelper(dataASN, cert,
                         dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum);
                 break;
-        #endif /* WOLFSSL_FPKI */
             default:
-                WOLFSSL_MSG("\tunsupported OID");
-                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-                ret = ASN_PARSE_E;
+                WOLFSSL_MSG("\tunsupported OID skipping");
+                break;
         }
     }
 
@@ -17861,8 +17870,9 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
                 GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
                         &cert->extAuthInfo, &sz32);
                 cert->extAuthInfoSz = sz32;
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
                 count++;
-            #if !defined(OPENSSL_ALL) || !defined(WOLFSSL_QT)
+            #else
                 break;
             #endif
             }
@@ -26617,7 +26627,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     CERTEXTSASN_IDX_BC_PATHLEN);
         }
     #ifdef WOLFSSL_ALT_NAMES
-        if (!forRequest && cert->altNamesSz > 0) {
+        if (cert->altNamesSz > 0) {
             /* Set Subject Alternative Name OID and data. */
             SetASN_Buffer(&dataASN[CERTEXTSASN_IDX_SAN_OID],
                     sanOID, sizeof(sanOID));
@@ -30945,18 +30955,20 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     GetASN_MP(&dataASN[DSASIGASN_IDX_S], s);
 
     /* Decode the DSA signature. */
-    ret = GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 1, sig, &idx,
+    ret = GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 0, sig, &idx,
                        sigLen);
 #ifndef NO_STRICT_ECDSA_LEN
     /* sanity check that the index has been advanced all the way to the end of
      * the buffer */
     if ((ret == 0) && (idx != sigLen)) {
-        mp_clear(r);
-        mp_clear(s);
         ret = ASN_ECC_KEY_E;
     }
-
 #endif
+    if (ret != 0) {
+        mp_clear(r);
+        mp_clear(s);
+    }
+
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -35920,13 +35932,14 @@ end:
         dcrl->issuer   = (byte*)GetNameFromDer((byte*)GetASNItem_Addr(
                             dataASN[CRLASN_IDX_TBS_ISSUER], buff),
                             (int)dcrl->issuerSz);
+    #endif
         /* Calculate the Hash id from the issuer name. */
         ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                dcrl->issuerSz, dcrl->issuerHash);
+                GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
+                dcrl->issuerHash);
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }
-    #endif
     }
 
     if ((ret == 0) && (dataASN[CRLASN_IDX_TBS_REVOKEDCERTS].tag != 0)) {
