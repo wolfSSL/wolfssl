@@ -39833,7 +39833,7 @@ static int mp_test_add_sub_d(mp_int* a, mp_int* r1)
     for (i = 0; i <= DIGIT_BIT * 2; i++) {
         mp_zero(a);
         mp_set_bit(a, i);
-        if (a->used != (i + DIGIT_BIT) / DIGIT_BIT)
+        if ((int)a->used != (i + DIGIT_BIT) / DIGIT_BIT)
             return -12690;
         for (j = 0; j < i && j < DIGIT_BIT; j++) {
             mp_zero(r1);
@@ -41594,13 +41594,18 @@ static int mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
 }
 #endif
 
-#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_EXTRA) ||  \
+    (defined(HAVE_ECC) && defined(HAVE_COMP_KEY))
 static int mp_test_mod_d(mp_int* a, WC_RNG* rng)
 {
     int ret;
     mp_digit r;
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
     mp_digit rem;
     int i;
+#endif
+
+    (void)rng;
 
     if (mp_set(a, 1) != MP_OKAY)
         return -13130;
@@ -41619,6 +41624,7 @@ static int mp_test_mod_d(mp_int* a, WC_RNG* rng)
     if (ret != MP_OKAY)
         return -13134;
 
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
     for (i = MP_MAX_TEST_BYTE_LEN - 16; i <= MP_MAX_TEST_BYTE_LEN; i++) {
         ret = randNum(a, i, rng, NULL);
         if (ret != MP_OKAY)
@@ -41632,6 +41638,7 @@ static int mp_test_mod_d(mp_int* a, WC_RNG* rng)
         if (r != rem)
             return -13138;
     }
+#endif
 
     return 0;
 }
@@ -42320,7 +42327,8 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_mod_2d(&a, &r1, &p, &rng)) != 0)
         return ret;
 #endif
-#if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(OPENSSL_EXTRA) ||  \
+    (defined(HAVE_ECC) && defined(HAVE_COMP_KEY))
     if ((ret = mp_test_mod_d(&a, &rng)) != 0)
         return ret;
 #endif

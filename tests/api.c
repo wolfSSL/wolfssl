@@ -49105,7 +49105,8 @@ static int test_X509_REQ(void)
 static int test_wolfssl_PKCS7(void)
 {
     int res = TEST_SKIPPED;
-#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO)
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_RSA)
     PKCS7* pkcs7;
     byte   data[FOURK_BUF];
     word32 len = sizeof(data);
@@ -49717,7 +49718,8 @@ static int test_X509_STORE_No_SSL_CTX(void)
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_WOLFSSL_DIR) && defined(HAVE_CRL) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(NO_RSA)
 
     X509_STORE *     store;
     X509_STORE_CTX * storeCtx;
@@ -49787,7 +49789,8 @@ static int test_X509_LOOKUP_add_dir(void)
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
     !defined(NO_WOLFSSL_DIR) && defined(HAVE_CRL) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
-    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
+    !defined(NO_RSA)
 
     X509_STORE *     store;
     X509_STORE_CTX * storeCtx;

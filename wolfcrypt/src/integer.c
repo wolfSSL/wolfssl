@@ -5006,7 +5006,7 @@ LBL_B:mp_clear (&b);
 
 #endif /* (WOLFSSL_KEY_GEN && !NO_RSA) || !NO_DH || !NO_DSA */
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA))
 
 static const int USE_BBS = 1;
 
@@ -5077,6 +5077,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
     return MP_OKAY;
 }
 
+#endif
+
+#if defined(WOLFSSL_KEY_GEN)
 
 /* computes least common multiple as |a*b|/(a, b) */
 int mp_lcm (mp_int * a, mp_int * b, mp_int * c)

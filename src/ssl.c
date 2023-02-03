@@ -37091,9 +37091,9 @@ static WOLFSSL_BN_ULONG wolfSSL_BN_get_word_1(mp_int *mp) {
     return (WOLFSSL_BN_ULONG)mp->dp[0];
 #else
     WOLFSSL_BN_ULONG ret = 0UL;
-    int digit_i;
+    unsigned int digit_i;
 
-    for (digit_i = 0; digit_i < mp->used; ++digit_i)
+    for (digit_i = 0; digit_i < (unsigned int)mp->used; ++digit_i)
         ret |= ((WOLFSSL_BN_ULONG)mp->dp[digit_i]) << (DIGIT_BIT * digit_i);
 
     return ret;
