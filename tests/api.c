@@ -47216,7 +47216,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     EVP_PKEY* pkey;
     const unsigned char* p;
-    unsigned char* der = NULL;
+    unsigned char *der = NULL, *tmp = NULL;
     int derLen;
 
     p = client_keypub_der_2048;
@@ -47228,6 +47228,14 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
     /* Ensure that the encoded version matches the original. */
     AssertIntEQ(derLen, sizeof_client_keypub_der_2048);
     AssertIntEQ(XMEMCMP(der, client_keypub_der_2048, derLen), 0);
+
+    /* Do same test except with pre-allocated buffer to ensure the der pointer
+     * is advanced. */
+    tmp = der;
+    AssertIntGE((derLen = wolfSSL_i2d_PublicKey(pkey, &tmp)), 0);
+    AssertIntEQ(derLen, sizeof_client_keypub_der_2048);
+    AssertIntEQ(XMEMCMP(der, client_keypub_der_2048, derLen), 0);
+    AssertTrue(der + derLen == tmp);
 
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
     EVP_PKEY_free(pkey);
