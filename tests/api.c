@@ -57831,8 +57831,11 @@ static int test_wolfSSL_dtls_fragments(void)
         AssertFalse(func_cb_server.return_code);
 
         /* The socket should be closed by the server resulting in a
-         * socket error */
-        AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
+         * socket error or reading a close notify alert */
+        if (func_cb_client.last_err != SOCKET_ERROR_E &&
+                func_cb_client.last_err != WOLFSSL_ERROR_ZERO_RETURN) {
+            AssertIntEQ(func_cb_client.last_err, SOCKET_ERROR_E);
+        }
         /* Check the server returned an error indicating the msg buffer
          * was full */
         AssertIntEQ(func_cb_server.last_err, DTLS_TOO_MANY_FRAGMENTS_E);
