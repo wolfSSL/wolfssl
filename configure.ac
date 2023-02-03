@@ -1109,9 +1109,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
                    AM_CFLAGS="$AM_CFLAGS $PTHREAD_CFLAGS"
                    LIBS="$LIBS $PTHREAD_LIBS"
-                   AC_CHECK_FUNC([pthread_rwlock_destroy], [
-                     AC_DEFINE([WOLFSSL_USE_RWLOCK], [1], [Define if you have a rwlock implementations])
-                   ])
+                   AC_CHECK_TYPES([pthread_rwlock_t])
                    ],[
                       ENABLED_SINGLETHREADED=yes
                       ])
