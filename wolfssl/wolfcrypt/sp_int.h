@@ -768,12 +768,12 @@ typedef struct sp_ecc_ctx {
  */
 typedef struct sp_int {
     /** Number of words that contain data.  */
-    int used;
+    unsigned int used;
     /** Maximum number of words in data.  */
-    int size;
+    unsigned int size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /** Indicates whether number is 0/positive or negative.  */
-    int sign;
+    unsigned int sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     /** Unsigned binary (big endian) representation of number. */
@@ -784,10 +784,10 @@ typedef struct sp_int {
 } sp_int;
 
 typedef struct sp_int_minimal {
-    int used;
-    int size;
+    unsigned int used;
+    unsigned int size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    int sign;
+    unsigned int sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     struct WC_BIGINT raw;

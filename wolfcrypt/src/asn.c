@@ -35590,7 +35590,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
                         if (ret == 0) {
                             dcrl->crlNumber = 0;
-                            for (i = 0; i < (*m).used; ++i) {
+                            for (i = 0; i < (int)(*m).used; ++i) {
                                 if (i > (CHAR_BIT *
                                          (int)sizeof(word32) / DIGIT_BIT)) {
                                     break;
