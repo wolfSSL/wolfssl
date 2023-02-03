@@ -7228,7 +7228,7 @@ static void GHASH_INIT(Aes* aes) {
     /* Reset counts of AAD and cipher text. */
     aes->aOver = 0;
     aes->cOver = 0;
-    /* Extra initialization baed on implementation. */
+    /* Extra initialization based on implementation. */
     GHASH_INIT_EXTRA(aes);
 }
 
@@ -9283,6 +9283,82 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(
 int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     word32 ivSz)
 {
+
+#if 1 // TWW - Use AesGcmInit_C()... WORKS!!! (passes unit.test & testwolfcrypt)
+
+    int ret = 0;
+    int needInit = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
+            ((ivSz == 0) && (iv != NULL)) ||
+            ((ivSz > 0) && (iv == NULL))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    if ((ret == 0) && (aes->streamData == NULL)) {
+        /* Allocate buffers for streaming. */
+        aes->streamData = (byte*)XMALLOC(5 * AES_BLOCK_SIZE, aes->heap,
+                                                              DYNAMIC_TYPE_AES);
+        if (aes->streamData == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
+    /* Set the key if passed in. */
+    if ((ret == 0) && (key != NULL)) {
+        ret = wc_AesGcmSetKey(aes, key, len);
+    }
+
+    if (ret == 0) {
+        /* Setup with IV if needed. */
+        if (iv != NULL) {
+            /* Initialize and generate GHASH from provided IV. */
+            ret = AesGcmInit_C(aes, iv, ivSz);
+            if (ret == 0) {
+                /* Cache the GHASH in the AES GCM object. */
+                XMEMCPY((byte*)aes->reg, AES_COUNTER(aes), sizeof(aes->reg));
+                aes->nonceSz = (ivSz > sizeof(aes->reg) ?
+                                sizeof(aes->reg) : ivSz);
+            }
+        }
+        else if (aes->nonceSz != 0) {
+            /* Copy out the cached copy. */
+            iv = (byte*)aes->reg;
+            ivSz = aes->nonceSz;
+            needInit = 1;
+        }
+
+        if ((ret == 0) && (iv != NULL)) {
+            /* Initialize with the IV. */
+        #ifdef WOLFSSL_AESNI
+            if (haveAESNI
+            #ifdef HAVE_INTEL_AVX2
+                || IS_INTEL_AVX2(intel_flags)
+            #endif
+            #ifdef HAVE_INTEL_AVX1
+                || IS_INTEL_AVX1(intel_flags)
+            #endif
+                ) {
+                ret = AesGcmInit_aesni(aes, iv, ivSz);
+            }
+            else
+        #endif
+            if (needInit) {
+                ret = AesGcmInit_C(aes, iv, ivSz);
+            }
+
+            aes->nonceSet = 1;
+        }
+    }
+
+    return ret;
+
+#endif // TWW
+
+#if 0 // TWW - Use GHASH - EXPERIMENTAL (not working)
     int ret = 0;
 
     /* Check validity of parameters. */
@@ -9311,8 +9387,19 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     if (ret == 0) {
         /* Setup with IV if needed. */
         if (iv != NULL) {
-            /* Cache the IV in AES GCM object. */
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
+            /* Reduce large IVs to size supported by AES GCM object. */
+#ifdef OPENSSL_EXTRA
+            word32 aadTemp = aes->aadLen;
+            aes->aadLen = 0;
+#endif
+            /* Reduce IV and cache the IV in AES GCM object. */
+            GHASH(aes, NULL, 0, iv, ivSz, (byte*)aes->reg, sizeof(aes->reg));
+#ifdef OPENSSL_EXTRA
+            aes->aadLen = aadTemp;
+#endif
+            /* Use reduced IV. */
+            iv = (byte*)aes->reg;
+            ivSz = (ivSz < sizeof(aes->reg) ? ivSz : sizeof(aes->reg));
             aes->nonceSz = ivSz;
         }
         else if (aes->nonceSz != 0) {
@@ -9345,6 +9432,9 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     }
 
     return ret;
+
+#endif // TWW
+
 }
 
 /* Initialize an AES GCM cipher for encryption.
@@ -9592,7 +9682,7 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
         else
     #endif
         {
-            /* Update the authenication tag with any authentication data and
+            /* Update the authentication tag with any authentication data and
              * cipher text. */
             GHASH_UPDATE(aes, authIn, authInSz, in, sz);
             /* Decrypt the cipher text. */
@@ -9685,6 +9775,31 @@ static WARN_UNUSED_RESULT WC_INLINE int CheckAesGcmIvSize(int ivSz) {
 
 int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 {
+#if 0 // TWW - Use GHASH directly
+    int ret = 0;
+
+    if (aes == NULL || iv == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+
+        /* Reduce IV and cache the IV in AES GCM object. */
+        GHASH(aes, NULL, 0, iv, ivSz, (byte*)aes->reg, sizeof(aes->reg));
+
+        /* If the IV is 96, allow for a 2^64 invocation counter.
+         * For any other size for the nonce, limit the invocation
+         * counter to 32-bits. (SP 800-38D 8.3) */
+        aes->invokeCtr[0] = 0;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
+        aes->nonceSz = (ivSz < sizeof(aes->reg) ? ivSz : sizeof(aes->reg));
+    }
+
+    return ret;
+#else // TWW - original
     int ret = 0;
 
     if (aes == NULL || iv == NULL || !CheckAesGcmIvSize(ivSz)) {
@@ -9706,6 +9821,7 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
     }
 
     return ret;
+#endif // TWW
 }
 
 
@@ -9713,6 +9829,41 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                    const byte* ivFixed, word32 ivFixedSz,
                    WC_RNG* rng)
 {
+#if 0 // TWW - Use GHASH
+    int ret = 0;
+    byte* iv = (byte*)aes->reg;
+
+    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize(ivSz) ||
+        (ivFixed == NULL && ivFixedSz != 0) ||
+        (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        if (ivFixedSz)
+            XMEMCPY(iv, ivFixed, ivFixedSz);
+
+        ret = wc_RNG_GenerateBlock(rng, iv + ivFixedSz, ivSz - ivFixedSz);
+    }
+
+    if (ret == 0) {
+        /* Reduce IV and cache the IV in AES GCM object. */
+        GHASH(aes, NULL, 0, iv, ivSz, (byte*)aes->reg, sizeof(aes->reg));
+
+        /* If the IV is 96, allow for a 2^64 invocation counter.
+         * For any other size for the nonce, limit the invocation
+         * counter to 32-bits. (SP 800-38D 8.3) */
+        aes->invokeCtr[0] = 0;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
+        aes->nonceSz = ivSz;
+    }
+
+    return ret;
+#else // TWW - original
     int ret = 0;
 
     if (aes == NULL || rng == NULL || !CheckAesGcmIvSize(ivSz) ||
@@ -9744,6 +9895,7 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
     }
 
     return ret;
+#endif // TWW
 }
 
 
