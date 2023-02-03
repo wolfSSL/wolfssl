@@ -295,6 +295,7 @@ typedef struct wolfSSL_Ref {
 } wolfSSL_Ref;
 
 #ifdef SINGLE_THREADED
+
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
         (ref)->count = 1;                    \
@@ -312,7 +313,9 @@ typedef struct wolfSSL_Ref {
         *(isZero) = ((ref)->count == 0);     \
         *(err) = 0;                          \
     } while(0)
+
 #elif defined(HAVE_C___ATOMIC)
+
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
         (ref)->count = 1;                    \
@@ -332,11 +335,16 @@ typedef struct wolfSSL_Ref {
         *(isZero) = ((ref)->count == 0);     \
         *(err) = 0;                          \
     } while(0)
+
 #else
+
+#define WOLFSSL_REFCNT_ERROR_RETURN
+
 WOLFSSL_LOCAL void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err);
 WOLFSSL_LOCAL void wolfSSL_RefFree(wolfSSL_Ref* ref);
 WOLFSSL_LOCAL void wolfSSL_RefInc(wolfSSL_Ref* ref, int* err);
 WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
+
 #endif
 
 

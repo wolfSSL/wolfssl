@@ -940,19 +940,13 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         doFree = 0;
     }
     if (doFree) {
-        int isZero;
         int err;
 
         /* Decrement reference count. */
-        wolfSSL_RefDec(&rsa->ref, &isZero, &err);
-        if (err == 0) {
-            /* Continue if reference count is zero. */
-            doFree = isZero;
-        }
-        else {
-            /* Didn't reference decrement so can't free. */
-            doFree = 0;
-        }
+        wolfSSL_RefDec(&rsa->ref, &doFree, &err);
+    #ifndef WOLFSSL_REFCNT_ERROR_RETURN
+        (void)err;
+    #endif
     }
     if (doFree) {
         void* heap = rsa->heap;
@@ -1052,8 +1046,10 @@ WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
 
         /* Initialize reference counting. */
         wolfSSL_RefInit(&rsa->ref, &err);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     }
     if (!err) {
+#endif
         /* Initialize wolfCrypt RSA key. */
         if (wc_InitRsaKey_ex(key, heap, devId) != 0) {
             WOLFSSL_ERROR_MSG("InitRsaKey WOLFSSL_RSA failure");
@@ -6229,8 +6225,10 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
         XMEMSET(dh, 0, sizeof(WOLFSSL_DH));
         /* Initialize reference counting. */
         wolfSSL_RefInit(&dh->ref, &err);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     }
     if (!err) {
+#endif
         /* Allocate wolfSSL DH key. */
         key = (DhKey*)XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
         if (key == NULL) {
@@ -11127,9 +11125,10 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
 
         /* Initialize reference count. */
         wolfSSL_RefInit(&key->ref, &err);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     }
-
     if (!err) {
+#endif
         /* Allocate memory for internal EC key representation. */
         key->internal = (ecc_key*)XMALLOC(sizeof(ecc_key), heap,
             DYNAMIC_TYPE_ECC);
@@ -11243,7 +11242,7 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
 
         /* Decrement reference count. */
         wolfSSL_RefDec(&key->ref, &doFree, &err);
-        if ((!err) && doFree) {
+        if (doFree) {
             /* Dispose of allocated reference counting data. */
             wolfSSL_RefFree(&key->ref);
 

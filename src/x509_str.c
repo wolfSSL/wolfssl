@@ -725,8 +725,12 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
     store->isDynamic = 1;
 
     wolfSSL_RefInit(&store->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0)
         goto err_exit;
+#else
+    (void)ret;
+#endif
 
     if ((store->cm = wolfSSL_CertManagerNew()) == NULL)
         goto err_exit;
@@ -775,9 +779,13 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
     if (store != NULL && store->isDynamic) {
         int ret;
         wolfSSL_RefDec(&store->ref, &doFree, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock store mutex");
         }
+    #else
+        (void)ret;
+    #endif
 
         if (doFree) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -839,10 +847,14 @@ int wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE* store)
     if (store) {
         int ret;
         wolfSSL_RefInc(&store->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
         if (ret != 0) {
             WOLFSSL_MSG("Failed to lock store mutex");
             return WOLFSSL_FAILURE;
         }
+    #else
+        (void)ret;
+    #endif
 
         return WOLFSSL_SUCCESS;
     }

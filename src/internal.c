@@ -2155,12 +2155,16 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 
     wolfSSL_RefInit(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
         ctx->err = CTX_INIT_MUTEX_E;
         WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
         return BAD_MUTEX_E;
     }
+#else
+    (void)ret;
+#endif
 
 #ifndef NO_CERTS
     ctx->privateKeyDevId = INVALID_DEVID;
@@ -2621,6 +2625,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
     /* decrement CTX reference count */
     wolfSSL_RefDec(&ctx->ref, &isZero, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         /* check error state, if mutex error code then mutex init failed but
          * CTX was still malloc'd */
@@ -2633,6 +2638,9 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
         }
         return;
     }
+#else
+    (void)ret;
+#endif
 
     if (isZero) {
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
@@ -6188,9 +6196,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* increment CTX reference count */
     wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         return ret;
     }
+#else
+    (void)ret;
+#endif
     ret = WOLFSSL_SUCCESS; /* set default ret */
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
