@@ -577,7 +577,11 @@ WOLFSSL_TEST_SUBROUTINE int logging_test(void);
 #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
 WOLFSSL_TEST_SUBROUTINE int time_test(void);
 #endif
+#if defined(__INCLUDE_NUTTX_CONFIG_H)
+WOLFSSL_TEST_SUBROUTINE int wolfcrypt_mutex_test(void);
+#else
 WOLFSSL_TEST_SUBROUTINE int mutex_test(void);
+#endif
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void);
 #endif
@@ -1474,7 +1478,11 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("time test passed!\n");
 #endif
 
-    if ( (ret = mutex_test()) != 0)
+#if defined(__INCLUDE_NUTTX_CONFIG_H)
+    if ((ret = wolfcrypt_mutex_test()) != 0)
+#else
+    if ((ret = mutex_test()) != 0)
+#endif
         return err_sys("mutex    test failed!\n", ret);
     else
         TEST_PASS("mutex    test passed!\n");
@@ -42826,8 +42834,11 @@ WOLFSSL_TEST_SUBROUTINE int logging_test(void)
     return 0;
 }
 
-
+#if defined(__INCLUDE_NUTTX_CONFIG_H)
+WOLFSSL_TEST_SUBROUTINE int wolfcrypt_mutex_test(void)
+#else
 WOLFSSL_TEST_SUBROUTINE int mutex_test(void)
+#endif
 {
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
