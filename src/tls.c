@@ -5698,12 +5698,13 @@ static word16 TLSX_UseSRTP_Write(TlsxSrtp* srtp, byte* output)
     word16 offset = 0;
     int i, j;
 
-    c16toa(srtp->profileCount*2, output+offset);
+    c16toa(srtp->profileCount * 2, output + offset);
     offset += OPAQUE16_LEN;
-    for (i=0; i< srtp->profileCount; i+=2) {
-        for (j=0; j<16; j++) {
+    j = 0;
+    for (i = 0; i < srtp->profileCount; i++) {
+        for (; j < 16; j++) {
             if (srtp->ids & (1 << j)) {
-                c16toa(j, output+offset);
+                c16toa(j, output + offset);
                 offset += OPAQUE16_LEN;
             }
         }
