@@ -36125,6 +36125,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
     }
 #endif
 
+    /* First get the magnitude of ASN1_INTEGER. */
     ret = GetInt(mpi, ai->data, &idx, ai->dataMax);
     if (ret != 0) {
     #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
@@ -36151,6 +36152,11 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
     #endif
         return NULL;
     #endif
+    }
+
+    /* Now get the sign of ASN1_INTEGER. */
+    if (ai->negative) {
+        mp_setneg(mpi);
     }
 
     /* mp_clear needs called because mpi is copied and causes memory leak with
