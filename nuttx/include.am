@@ -1,4 +1,6 @@
-EXTRA_DIST+= nuttx/include.am
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the rootEXTRA_DIST+= nuttx/include.am
 EXTRA_DIST+= nuttx/README.md
 EXTRA_DIST+= nuttx/wolfssl/.gitignore
 EXTRA_DIST+= nuttx/wolfssl/.depend

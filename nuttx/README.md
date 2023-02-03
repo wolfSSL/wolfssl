@@ -1,6 +1,6 @@
 # wolfSSL NuttX integration
 
-This folder contains the instructions, scripts and build files neccessary to build NuttX with wolfSSL
+This folder contains the instructions, scripts and build files necessary to build NuttX with wolfSSL
 
 ## Installation
 ```
