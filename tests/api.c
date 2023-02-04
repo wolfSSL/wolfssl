@@ -61251,6 +61251,79 @@ static int test_ticket_nonce_malloc(void)
 
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC */
 
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                 \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+
+static int test_ticket_ret_create(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    byte ticket[SESSION_TICKET_LEN];
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_SESSION *sess = NULL;
+    word16 ticketLen;
+    int ret;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+    if (ret != 0)
+        return TEST_FAIL;
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_set_verify(ssl_c, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_UseSessionTicket(ctx_c);
+
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    sess = wolfSSL_get1_session(ssl_c);
+    if (sess->ticketLen > SESSION_TICKET_LEN)
+        return TEST_FAIL;
+    ticketLen = sess->ticketLen;
+    XMEMCPY(ticket, sess->ticket, sess->ticketLen);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+
+    ssl_s = wolfSSL_new(ctx_s);
+    if (ssl_s == NULL)
+        return TEST_FAIL;
+    wolfSSL_SetIOWriteCtx(ssl_s, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_s, &test_ctx);
+    ssl_c = wolfSSL_new(ctx_c);
+    if (ssl_c == NULL)
+        return TEST_FAIL;
+    wolfSSL_SetIOWriteCtx(ssl_c, &test_ctx);
+    wolfSSL_SetIOReadCtx(ssl_c, &test_ctx);
+
+    wolfSSL_set_session(ssl_c, sess);
+    ret = test_memio_do_handshake(ssl_c, ssl_s, 10, NULL);
+    if (ret != 0)
+        return TEST_FAIL;
+    if (ssl_c->session->ticketLen > SESSION_TICKET_LEN)
+        return TEST_FAIL;
+    if (ssl_c->session->ticketLen != ticketLen)
+        return TEST_FAIL;
+    if (XMEMCMP(ssl_c->session->ticket, ticket, ticketLen) == 0)
+        return TEST_FAIL;
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_ticket_ret_create(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -62242,6 +62315,7 @@ TEST_CASE testCases[] = {
                            !defined(WOLFSSL_NO_CLIENT_AUTH))
     TEST_DECL(test_various_pathlen_chains),
 #endif
+    TEST_DECL(test_ticket_ret_create),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
