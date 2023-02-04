@@ -3956,6 +3956,11 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
+if test "x$ENABLED_ECC" != "xno" && test "x$ENABLED_ASN" = "xno"
+then
+    AC_MSG_ERROR([please disable ecc if disabling asn.])
+fi
+
 # No Big Int (ASN, DSA, RSA, DH and ECC need bigint)
 if test "$ENABLED_ASN" = "no" && test "$ENABLED_DSA" = "no" && \
    test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && \
@@ -6287,11 +6292,6 @@ then
     if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ASN" = "xno"
     then
         AC_MSG_ERROR([please enable psk if disabling asn.])
-    fi
-
-    if test "x$ENABLED_ECC" != "xno" && test "x$ENABLED_ASN" = "xno"
-    then
-        AC_MSG_ERROR([please disable ecc if disabling asn.])
     fi
 
     if test "$ENABLED_AFALG" = "yes"
