@@ -2605,9 +2605,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_XOR_OPS
 #endif
 
-#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY)
+#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_WOLFSSH)
     #undef  WOLFSSL_NO_INT_ENCODE
     #define WOLFSSL_NO_INT_ENCODE
+#endif
+
+#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY)
     #undef  WOLFSSL_NO_INT_DECODE
     #define WOLFSSL_NO_INT_DECODE
 #endif
