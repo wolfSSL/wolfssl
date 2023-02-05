@@ -23,7 +23,7 @@
         <Revision>9</Revision>
       </Version>
     </ToolchainID>
-    <RelativeSourceDirectory />
+    <RelativeSourceDirectory>..</RelativeSourceDirectory>
     <ConfigurationType>DEBUG</ConfigurationType>
     <BinaryDirectory>build/$(PlatformName)/$(ConfigurationName)</BinaryDirectory>
     <MakeCommandTemplate>
@@ -67,8 +67,8 @@
       <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
       <ESPIDFExtension>
         <IDFCheckout>
-          <Version>v4.4.2</Version>
-          <Subdirectory>esp-idf/v4.4.2</Subdirectory>
+          <Version>v4.4.1</Version>
+          <Subdirectory>esp-idf/v4.4.1</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
         <COMPort>COM20</COMPort>
