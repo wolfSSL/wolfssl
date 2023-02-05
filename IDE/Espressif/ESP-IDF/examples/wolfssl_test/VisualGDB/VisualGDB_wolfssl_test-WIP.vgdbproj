@@ -7,7 +7,7 @@
     </CustomSourceDirectories>
     <AutoProgramSPIFFSPartition>true</AutoProgramSPIFFSPartition>
     <ProjectModeSettings>
-      <ProjectGUID>bdbba681-1213-45f8-a44e-4652fe489fe3</ProjectGUID>
+      <ProjectGUID>35e5525f-318a-466e-a8c7-36548547d801</ProjectGUID>
       <GroupSourcesByTypes>true</GroupSourcesByTypes>
       <GroupSourcesByPaths>true</GroupSourcesByPaths>
       <HeaderScanMode>SourceDirs</HeaderScanMode>
@@ -23,6 +23,7 @@
         <Revision>9</Revision>
       </Version>
     </ToolchainID>
+    <RelativeSourceDirectory>..</RelativeSourceDirectory>
     <ConfigurationType>DEBUG</ConfigurationType>
     <BinaryDirectory>build/$(PlatformName)/$(ConfigurationName)</BinaryDirectory>
     <MakeCommandTemplate>
@@ -57,16 +58,17 @@
         <BuildAllTargetsInSubdir>false</BuildAllTargetsInSubdir>
         <FoldSingleItemPathLevels>true</FoldSingleItemPathLevels>
       </ProjectItemSettings>
+      <TargetSpecificSettings />
       <SetLDLibraryPathFromDependentArtifacts>true</SetLDLibraryPathFromDependentArtifacts>
-      <ProjectGUID>e903e9cc-1a23-4b00-8914-7e45ec21e351</ProjectGUID>
+      <ProjectGUID>eadcc9ab-72b3-4b51-a838-593e5d80ddf7</ProjectGUID>
       <VirtualFolders />
       <ConfigurationNameCase>Upper</ConfigurationNameCase>
       <DefaultHeaderDiscoveryMode>HeaderDirectoryAndSubdirectories</DefaultHeaderDiscoveryMode>
       <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
       <ESPIDFExtension>
         <IDFCheckout>
-          <Version>v4.4.2</Version>
-          <Subdirectory>esp-idf/v4.4.2</Subdirectory>
+          <Version>v4.4.1</Version>
+          <Subdirectory>esp-idf/v4.4.1</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
         <COMPort>COM20</COMPort>
@@ -102,7 +104,7 @@
     </Connection>
     <LastConnectionTime>0</LastConnectionTime>
     <EchoTypedCharacters>false</EchoTypedCharacters>
-    <ClearContentsWhenReconnecting>false</ClearContentsWhenReconnecting>
+    <ClearContentsWhenReconnecting>true</ClearContentsWhenReconnecting>
     <ReconnectAutomatically>false</ReconnectAutomatically>
     <DisplayMode>ASCII</DisplayMode>
     <Colors>
@@ -155,6 +157,7 @@
     <ShowMessageAfterExecuting>true</ShowMessageAfterExecuting>
   </CustomShortcuts>
   <UserDefinedVariables />
+  <ImportedPropertySheets />
   <CodeSense>
     <Enabled>Unknown</Enabled>
     <ExtraSettings>
@@ -177,6 +180,7 @@
       <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.cmake.extension" />
     </VisualGDBConfiguration>
   </Configurations>
+  <ProgramArgumentsSuggestions />
   <Debug xsi:type="com.visualgdb.debug.embedded">
     <AdditionalStartupCommands />
     <AdditionalGDBSettings>
@@ -216,7 +220,7 @@
     <DebugMethod>
       <ID>openocd</ID>
       <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 3000" -f target/esp32.cfg</CommandLine>
+        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 13000" -f target/esp32.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />

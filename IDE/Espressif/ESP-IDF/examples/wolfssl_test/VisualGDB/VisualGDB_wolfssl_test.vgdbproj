@@ -23,7 +23,7 @@
         <Revision>2</Revision>
       </Version>
     </ToolchainID>
-    <RelativeSourceDirectory />
+    <RelativeSourceDirectory>..</RelativeSourceDirectory>
     <ConfigurationType>DEBUG</ConfigurationType>
     <BinaryDirectory>build/$(PlatformName)/$(ConfigurationName)</BinaryDirectory>
     <MakeCommandTemplate>
@@ -220,7 +220,7 @@
     <DebugMethod>
       <ID>openocd</ID>
       <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 3000" -f target/esp32s3.cfg</CommandLine>
+        <CommandLine>-f interface/tigard.cfg -c "adapter_khz 3000" -f target/esp32.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />
