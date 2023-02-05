@@ -90,9 +90,7 @@
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
     #include <wolfssl/openssl/fips_rand.h>
-#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
-#endif
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>
@@ -204,10 +202,147 @@
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
+/* Convert shortname to NID.
+ *
+ * For OpenSSL compatability.
+ *
+ * This function shouldn't exist!
+ * Uses defines in wolfssl/openssl/evp.h.
+ * Uses EccEnumToNID which uses defines in wolfssl/openssl/ec.h.
+ *
+ * @param [in] sn  Short name of OID.
+ * @return  NID corresponding to shortname on success.
+ * @return  NID_undef when not recognized.
+ */
+int wc_OBJ_sn2nid(const char *sn)
+{
+    const struct {
+        const char *sn;
+        int  nid;
+    } sn2nid[] = {
+#ifndef NO_CERTS
+        {WOLFSSL_COMMON_NAME, NID_commonName},
+        {WOLFSSL_COUNTRY_NAME, NID_countryName},
+        {WOLFSSL_LOCALITY_NAME, NID_localityName},
+        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
+        {WOLFSSL_ORG_NAME, NID_organizationName},
+        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+    #ifdef WOLFSSL_CERT_NAME_ALL
+        {WOLFSSL_NAME, NID_name},
+        {WOLFSSL_INITIALS, NID_initials},
+        {WOLFSSL_GIVEN_NAME, NID_givenName},
+        {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
+    #endif
+        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+#endif
+        {"SHA1", NID_sha1},
+        {NULL, -1}};
+    int i;
+#ifdef HAVE_ECC
+    char curveName[ECC_MAXNAME + 1];
+    int eccEnum;
+#endif
+    WOLFSSL_ENTER("OBJ_sn2nid");
+    for(i=0; sn2nid[i].sn != NULL; i++) {
+        if (XSTRCMP(sn, sn2nid[i].sn) == 0) {
+            return sn2nid[i].nid;
+        }
+    }
+#ifdef HAVE_ECC
+
+    if (XSTRLEN(sn) > ECC_MAXNAME)
+        return NID_undef;
+
+    /* Nginx uses this OpenSSL string. */
+    if (XSTRCMP(sn, "prime256v1") == 0)
+        sn = "SECP256R1";
+    /* OpenSSL allows lowercase curve names */
+    for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
+        curveName[i] = (char)XTOUPPER((unsigned char) *sn++);
+    }
+    curveName[i] = '\0';
+    /* find based on name and return NID */
+    for (i = 0;
+#ifndef WOLFSSL_ECC_CURVE_STATIC
+         ecc_sets[i].size != 0 && ecc_sets[i].name != NULL;
+#else
+         ecc_sets[i].size != 0;
+#endif
+         i++) {
+        if (XSTRCMP(curveName, ecc_sets[i].name) == 0) {
+            eccEnum = ecc_sets[i].id;
+            /* Convert enum value in ecc_curve_id to OpenSSL NID */
+            return EccEnumToNID(eccEnum);
+        }
+    }
+#endif /* HAVE_ECC */
+
+    return NID_undef;
+}
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifndef WOLFCRYPT_ONLY
 
+#ifndef OPENSSL_EXTRA_NO_PK
 #define WOLFSSL_PK_INCLUDED
 #include "src/pk.c"
+#endif
+
+#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
+
+#define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
+static WC_RNG globalRNG;
+static int initGlobalRNG = 0;
+
+static wolfSSL_Mutex globalRNGMutex;
+static int globalRNGMutex_valid = 0;
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
+static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
+#endif
+
+WC_RNG* wolfssl_get_global_rng(void)
+{
+    WC_RNG* ret = NULL;
+
+    if (initGlobalRNG == 0)
+        WOLFSSL_MSG("Global RNG no Init");
+    else
+        ret = &globalRNG;
+
+    return ret;
+}
+
+/* Make a global RNG and return.
+ *
+ * @return  Global RNG on success.
+ * @return  NULL on error.
+ */
+WC_RNG* wolfssl_make_global_rng(void)
+{
+    WC_RNG* ret;
+
+#ifdef HAVE_GLOBAL_RNG
+    /* Get the global random number generator instead. */
+    ret = wolfssl_get_global_rng();
+#ifdef OPENSSL_EXTRA
+    if (ret == NULL) {
+        /* Create a global random if possible. */
+        (void)wolfSSL_RAND_Init();
+        ret = wolfssl_get_global_rng();
+    }
+#endif
+#else
+    WOLFSSL_ERROR_MSG("Bad RNG Init");
+    ret = NULL;
+#endif
+
+    return ret;
+}
+
+#endif
 
 #ifdef OPENSSL_EXTRA
     /* Global pointer to constant BN on */
@@ -1160,8 +1295,14 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 /* increases CTX reference count to track proper time to "free" */
 int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
-    int refCount = SSL_CTX_RefCount(ctx, 1);
-    return ((refCount > 1) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+    int ret;
+    wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
+    return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
+#else
+    (void)ret;
+    return WOLFSSL_SUCCESS;
+#endif
 }
 
 WOLFSSL_ABI
@@ -4836,21 +4977,26 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     cm = (WOLFSSL_CERT_MANAGER*) XMALLOC(sizeof(WOLFSSL_CERT_MANAGER), heap,
                                          DYNAMIC_TYPE_CERT_MANAGER);
     if (cm) {
+        int ret;
+
         XMEMSET(cm, 0, sizeof(WOLFSSL_CERT_MANAGER));
-        cm->refCount = 1;
 
         if (wc_InitMutex(&cm->caLock) != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
-        #ifndef SINGLE_THREADED
-        if (wc_InitMutex(&cm->refMutex) != 0) {
+
+        wolfSSL_RefInit(&cm->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
-        #endif
+    #else
+        (void)ret;
+    #endif
 
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (wc_InitMutex(&cm->tpLock) != 0) {
@@ -4892,20 +5038,18 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void)
 void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 {
     int doFree = 0;
+    int ret;
     WOLFSSL_ENTER("wolfSSL_CertManagerFree");
 
     if (cm) {
-        #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&cm->refMutex) != 0) {
+        wolfSSL_RefDec(&cm->ref, &doFree, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock cm mutex");
         }
-        #endif
-        cm->refCount--;
-        if (cm->refCount == 0)
-            doFree = 1;
-        #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&cm->refMutex);
-        #endif
+    #else
+        (void)ret;
+    #endif
         if (doFree) {
             #ifdef HAVE_CRL
                 if (cm->crl)
@@ -4929,11 +5073,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
             FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
             wc_FreeMutex(&cm->tpLock);
             #endif
-            #ifndef SINGLE_THREADED
-            if (wc_FreeMutex(&cm->refMutex) != 0) {
-                WOLFSSL_MSG("Couldn't free refMutex mutex");
-            }
-            #endif
+            wolfSSL_RefFree(&cm->ref);
             XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
         }
     }
@@ -4943,16 +5083,17 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm)
 {
     if (cm) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&cm->refMutex) != 0) {
+        int ret;
+
+        wolfSSL_RefInc(&cm->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock cm mutex");
             return WOLFSSL_FAILURE;
         }
-#endif
-        cm->refCount++;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&cm->refMutex);
-#endif
+    #else
+        (void)ret;
+    #endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -6129,33 +6270,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif /* !NO_CLIENT_CACHE */
 
 #endif /* !NO_SESSION_CACHE */
-
-#if !defined(WC_NO_RNG) && (defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA)) || \
-    (defined(OPENSSL_ALL) && !defined(NO_DH)))
-
-    #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
-    static WC_RNG globalRNG;
-    static int initGlobalRNG = 0;
-    static wolfSSL_Mutex globalRNGMutex;
-    static int globalRNGMutex_valid = 0;
-
-    #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
-    static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
-    #endif
-
-    WC_RNG* wolfssl_get_global_rng(void)
-    {
-        WC_RNG* ret = NULL;
-
-        if (initGlobalRNG == 0)
-            WOLFSSL_MSG("Global RNG no Init");
-        else
-            ret = &globalRNG;
-
-        return ret;
-    }
-#endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
 static int wolfSSL_RAND_InitMutex(void);
@@ -20963,15 +21077,18 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
     ret = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), heap,
             DYNAMIC_TYPE_SESSION);
     if (ret != NULL) {
+        int err;
         XMEMSET(ret, 0, sizeof(WOLFSSL_SESSION));
-    #ifndef SINGLE_THREADED
-        if (wc_InitMutex(&ret->refMutex) != 0) {
+        wolfSSL_RefInit(&ret->ref, &err);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (err != 0) {
             WOLFSSL_MSG("Error setting up session reference mutex");
             XFREE(ret, ret->heap, DYNAMIC_TYPE_SESSION);
             return NULL;
         }
+    #else
+        (void)err;
     #endif
-        ret->refCount = 1;
 #ifndef NO_SESSION_CACHE
         ret->cacheRow = INVALID_SESSION_ROW; /* not in cache */
 #endif
@@ -21021,21 +21138,23 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
 int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
 {
+    int ret;
+
     session = ClientSessionToSession(session);
 
     if (session == NULL || session->type != WOLFSSL_SESSION_TYPE_HEAP)
         return WOLFSSL_FAILURE;
 
-#ifndef SINGLE_THREADED
-    if (wc_LockMutex(&session->refMutex) != 0) {
+    wolfSSL_RefInc(&session->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
+    if (ret != 0) {
         WOLFSSL_MSG("Failed to lock session mutex");
         return WOLFSSL_FAILURE;
     }
+#else
+    (void)ret;
 #endif
-    session->refCount++;
-#ifndef SINGLE_THREADED
-    wc_UnLockMutex(&session->refMutex);
-#endif
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -21322,32 +21441,22 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 
 void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 {
+    int isZero;
+
     session = ClientSessionToSession(session);
     if (session == NULL)
         return;
 
     (void)ctx;
 
-    /* refCount will always be 1 or more if created externally.
-     * Internal cache sessions don't initialize a refMutex. */
-    if (session->refCount > 0) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&session->refMutex) != 0) {
-            WOLFSSL_MSG("Failed to lock session mutex");
+    if (session->ref.count > 0) {
+        int ret;
+        wolfSSL_RefDec(&session->ref, &isZero, &ret);
+        (void)ret;
+        if (!isZero) {
             return;
         }
-#endif
-        if (session->refCount > 1) {
-            session->refCount--;
-#ifndef SINGLE_THREADED
-            wc_UnLockMutex(&session->refMutex);
-#endif
-            return;
-        }
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&session->refMutex);
-        wc_FreeMutex(&session->refMutex);
-#endif
+        wolfSSL_RefFree(&session->ref);
     }
 
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
@@ -28648,19 +28757,9 @@ static int pem_write_pubkey(WOLFSSL_EVP_PKEY* key, void* heap, byte** derBuf,
                 WOLFSSL_MSG("key->ecc is null");
                 break;
             }
-            sz = wc_EccPublicKeyDerSize((ecc_key*)key->ecc->internal, 1);
-            if (sz <= 0) {
-                WOLFSSL_MSG("wc_EccPublicKeyDerSize failed");
-                break;
-            }
-            buf = (byte*)XMALLOC(sz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (buf == NULL) {
-                WOLFSSL_MSG("malloc failed");
-                break;
-            }
-            sz = wc_EccPublicKeyToDer((ecc_key*)key->ecc->internal, buf, sz, 1);
-            if (sz < 0) {
-                WOLFSSL_MSG("wc_EccPublicKeyToDer failed");
+            if ((sz = wolfssl_ec_key_to_pubkey_der(key->ecc, &buf, heap)) <=
+                    0) {
+                WOLFSSL_MSG("wolfssl_ec_key_to_pubkey_der failed");
                 break;
             }
             break;
@@ -32436,6 +32535,7 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
+    int ret;
     /* This method requires some explanation. Its sibling is
      *   int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
      * which re-inits the WOLFSSL* with all settings in the new CTX.
@@ -32458,11 +32558,16 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ssl->ctx == ctx)
         return ssl->ctx;
 
-    if (SSL_CTX_RefCount(ctx, 1) < 0) {
+    wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
+    if (ret != 0) {
         /* can only fail on serious stuff, like mutex not working
          * or ctx refcount out of whack. */
         return NULL;
     }
+#else
+    (void)ret;
+#endif
     if (ssl->ctx) {
         wolfSSL_CTX_free(ssl->ctx);
     }
@@ -36986,9 +37091,9 @@ static WOLFSSL_BN_ULONG wolfSSL_BN_get_word_1(mp_int *mp) {
     return (WOLFSSL_BN_ULONG)mp->dp[0];
 #else
     WOLFSSL_BN_ULONG ret = 0UL;
-    int digit_i;
+    unsigned int digit_i;
 
-    for (digit_i = 0; digit_i < mp->used; ++digit_i)
+    for (digit_i = 0; digit_i < (unsigned int)mp->used; ++digit_i)
         ret |= ((WOLFSSL_BN_ULONG)mp->dp[digit_i]) << (DIGIT_BIT * digit_i);
 
     return ret;
@@ -38141,7 +38246,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     byte* key = NULL;
     word32 keySz;
     byte* pem = NULL;
-    int pemSz;
+    int pemSz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
     int algId;
     const byte* curveOid;

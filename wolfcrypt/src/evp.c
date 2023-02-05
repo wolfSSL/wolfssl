@@ -5991,21 +5991,67 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         if (ctx) {
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)) || \
+    defined(HAVE_AESCCM) || \
+    defined(HAVE_AESCBC) || \
+    defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB) || \
+    defined(HAVE_AES_CFB) || \
+    defined(HAVE_AES_OFB) || \
+    defined(WOLFSSL_AES_XTS)
+
+            switch (ctx->cipherType) {
     #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
-            if ((ctx->cipherType == AES_128_GCM_TYPE) ||
-                (ctx->cipherType == AES_192_GCM_TYPE) ||
-                (ctx->cipherType == AES_256_GCM_TYPE)) {
-                wc_AesFree(&ctx->cipher.aes);
-            }
+                case AES_128_GCM_TYPE:
+                case AES_192_GCM_TYPE:
+                case AES_256_GCM_TYPE:
     #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
     #if defined(HAVE_AESCCM)
-            if ((ctx->cipherType == AES_128_CCM_TYPE) ||
-                (ctx->cipherType == AES_192_CCM_TYPE) ||
-                (ctx->cipherType == AES_256_CCM_TYPE)) {
-                wc_AesFree(&ctx->cipher.aes);
-            }
+                case AES_128_CCM_TYPE:
+                case AES_192_CCM_TYPE:
+                case AES_256_CCM_TYPE:
     #endif /* HAVE_AESCCM */
+    #ifdef HAVE_AESCBC
+                case AES_128_CBC_TYPE:
+                case AES_192_CBC_TYPE:
+                case AES_256_CBC_TYPE:
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
+                case AES_128_CTR_TYPE:
+                case AES_192_CTR_TYPE:
+                case AES_256_CTR_TYPE:
+    #endif
+    #ifdef HAVE_AES_ECB
+                case AES_128_ECB_TYPE:
+                case AES_192_ECB_TYPE:
+                case AES_256_ECB_TYPE:
+    #endif
+    #ifdef HAVE_AES_CFB
+                case AES_128_CFB1_TYPE:
+                case AES_192_CFB1_TYPE:
+                case AES_256_CFB1_TYPE:
+                case AES_128_CFB8_TYPE:
+                case AES_192_CFB8_TYPE:
+                case AES_256_CFB8_TYPE:
+                case AES_128_CFB128_TYPE:
+                case AES_192_CFB128_TYPE:
+                case AES_256_CFB128_TYPE:
+    #endif
+    #ifdef HAVE_AES_OFB
+                case AES_128_OFB_TYPE:
+                case AES_192_OFB_TYPE:
+                case AES_256_OFB_TYPE:
+    #endif
+    #ifdef WOLFSSL_AES_XTS
+                case AES_128_XTS_TYPE:
+                case AES_256_XTS_TYPE:
+    #endif
+                    wc_AesFree(&ctx->cipher.aes);
+            }
+
+#endif /* AES */
 #endif /* not FIPS or FIPS v2+ */
+
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             if (ctx->key) {
@@ -9338,15 +9384,15 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_EVP_PKEY2PKCS8(const WOLFSSL_EVP_PKEY* pkey
 int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
 {
     if (pkey) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&pkey->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefInc(&pkey->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock pkey mutex");
         }
-#endif
-        pkey->references++;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&pkey->refMutex);
-#endif
+    #else
+        (void)ret;
+    #endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -9444,27 +9490,27 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         pkey->heap = heap;
         pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
 
-#ifndef SINGLE_THREADED
-        /* init of mutex needs to come before wolfSSL_EVP_PKEY_free */
-        ret = wc_InitMutex(&pkey->refMutex);
-        if (ret != 0){
-            XFREE(pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            WOLFSSL_MSG("Issue initializing mutex");
-            return NULL;
-        }
-#endif
-
 #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&pkey->rng, heap, INVALID_DEVID);
 #else
         ret = wc_InitRng(&pkey->rng);
 #endif
-        pkey->references = 1;
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
             WOLFSSL_MSG("Issue initializing RNG");
             return NULL;
         }
+
+        wolfSSL_RefInit(&pkey->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0){
+            wolfSSL_EVP_PKEY_free(pkey);
+            WOLFSSL_MSG("Issue initializing mutex");
+            return NULL;
+        }
+    #else
+        (void)ret;
+    #endif
     }
     else {
         WOLFSSL_MSG("memory failure");
@@ -9478,20 +9524,15 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
     int doFree = 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_free");
     if (key != NULL) {
-        #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&key->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefDec(&key->ref, &doFree, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
-        #endif
-
-        /* only free if all references to it are done */
-        key->references--;
-        if (key->references == 0) {
-            doFree = 1;
-        }
-        #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&key->refMutex);
-        #endif
+    #else
+        (void)ret;
+    #endif
 
         if (doFree) {
             wc_FreeRng(&key->rng);
@@ -9573,11 +9614,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
             }
 
-            #ifndef SINGLE_THREADED
-            if (wc_FreeMutex(&key->refMutex) != 0) {
-                WOLFSSL_MSG("Couldn't free pkey mutex");
-            }
-            #endif
+            wolfSSL_RefFree(&key->ref);
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }

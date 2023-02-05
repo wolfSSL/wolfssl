@@ -2946,18 +2946,11 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 #endif
         if (x509->dynamicMemory) {
         #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-        #ifndef SINGLE_THREADED
-            if (wc_LockMutex(&x509->refMutex) != 0) {
+            int ret;
+            wolfSSL_RefDec(&x509->ref, &doFree, &ret);
+            if (ret != 0) {
                 WOLFSSL_MSG("Couldn't lock x509 mutex");
             }
-        #endif
-            /* only free if all references to it are done */
-            x509->refCount--;
-            if (x509->refCount == 0)
-                doFree = 1;
-        #ifndef SINGLE_THREADED
-            wc_UnLockMutex(&x509->refMutex);
-        #endif
         #endif /* OPENSSL_EXTRA_X509_SMALL || OPENSSL_EXTRA */
 
         #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
@@ -8916,7 +8909,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
             goto error;
 
         nid = wolfSSL_EC_GROUP_get_curve_name(group);
-        if (nid == WOLFSSL_FAILURE) {
+        if (nid <= 0) {
             /* TODO: Add support for no nid case */
             WOLFSSL_MSG("nid not found");
             goto error;
@@ -9038,21 +9031,16 @@ char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509* x509)
 #endif /* KEEP_PEER_CERT */
 
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-
 /* increments ref count of WOLFSSL_X509. Return 1 on success, 0 on error */
 int wolfSSL_X509_up_ref(WOLFSSL_X509* x509)
 {
     if (x509) {
-#ifndef SINGLE_THREADED
-        if (wc_LockMutex(&x509->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefInc(&x509->ref, &ret);
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock x509 mutex");
             return WOLFSSL_FAILURE;
         }
-#endif
-        x509->refCount++;
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&x509->refMutex);
-#endif
 
         return WOLFSSL_SUCCESS;
     }

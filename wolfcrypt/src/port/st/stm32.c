@@ -306,13 +306,15 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     }
 
     if (wroteToFifo) {
-        /* If we wrote a block send one more 32-bit to FIFO to trigger
-         * start. We cannot leave 16 deep FIFO filled before saving off
-         * context */
+    #if defined(STM32_HASH_FIFO_SIZE) && STM32_HASH_FIFO_SIZE > 1
+        /* If FIFO depth > 1 and we wrote a block send one more 32-bit to
+         * FIFO to trigger start. We cannot leave 16 deep FIFO filled before
+         * saving off context */
         wc_Stm32_Hash_Data(stmCtx, 4);
         stmCtx->fifoBytes += 4;
 
         (void)wc_Stm32_Hash_WaitDone(stmCtx);
+    #endif
 
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);

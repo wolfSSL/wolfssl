@@ -657,8 +657,8 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
     }
     if (status == kStatus_SSS_Success) {
         outBitSz = (*outSz) * 8;
-        status = sss_key_store_get_key(&host_keystore, &object, out, outSz,
-                                       &outBitSz);
+        status = sss_key_store_get_key(&host_keystore, &object, out,
+                                       (size_t*)outSz, &outBitSz);
     }
     wolfSSL_CryptHwMutexUnLock();
 
@@ -1365,7 +1365,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         if (key->keyIdSet == 0) {
             /* key was not generated in SE050, export RsaKey to DER
              * and use that to store into SE050 keystore */
-            derSz = wc_RsaKeyToDer(key, NULL, 0);
+            derSz = wc_RsaKeyToPublicDer(key, NULL, 0);
             if (derSz < 0) {
                 status = kStatus_SSS_Fail;
                 ret = derSz;
@@ -1380,7 +1380,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                 }
             }
             if (status == kStatus_SSS_Success) {
-                derSz = wc_RsaKeyToDer(key, derBuf, derSz);
+                derSz = wc_RsaKeyToPublicDer(key, derBuf, derSz);
                 if (derSz < 0) {
                     status = kStatus_SSS_Fail;
                     ret = derSz;
@@ -1389,7 +1389,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
             if (status == kStatus_SSS_Success) {
                 keyId = se050_allocate_key(SE050_RSA_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
-                    kSSS_KeyPart_Pair, kSSS_CipherType_RSA, keySz,
+                    kSSS_KeyPart_Public, kSSS_CipherType_RSA, keySz,
                     kKeyObject_Mode_Persistent);
             }
             if (status == kStatus_SSS_Success) {
@@ -1548,7 +1548,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
         if (key->keyIdSet == 0) {
             /* key was not generated in SE050, export RsaKey to DER
              * and use that to store into SE050 keystore */
-            derSz = wc_RsaKeyToDer(key, NULL, 0);
+            derSz = wc_RsaKeyToPublicDer(key, NULL, 0);
             if (derSz < 0) {
                 status = kStatus_SSS_Fail;
                 ret = derSz;
@@ -1563,7 +1563,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
                 }
             }
             if (status == kStatus_SSS_Success) {
-                derSz = wc_RsaKeyToDer(key, derBuf, derSz);
+                derSz = wc_RsaKeyToPublicDer(key, derBuf, derSz);
                 if (derSz < 0) {
                     status = kStatus_SSS_Fail;
                     ret = derSz;
@@ -1572,7 +1572,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
             if (status == kStatus_SSS_Success) {
                 keyId = se050_allocate_key(SE050_RSA_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
-                    kSSS_KeyPart_Pair, kSSS_CipherType_RSA, keySz,
+                    kSSS_KeyPart_Public, kSSS_CipherType_RSA, keySz,
                     kKeyObject_Mode_Persistent);
             }
             if (status == kStatus_SSS_Success) {

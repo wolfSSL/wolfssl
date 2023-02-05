@@ -736,6 +736,9 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     byte* sharedSecret)
 {
     int ret;
+#ifdef ECC_TIMING_RESISTANT
+    WC_RNG* rng;
+#endif
     word32 dh_len;
     word16 receiverPubKeySz;
     word16 ephemeralPubKeySz;
@@ -775,12 +778,21 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
         case DHKEM_P256_HKDF_SHA256:
         case DHKEM_P384_HKDF_SHA384:
         case DHKEM_P521_HKDF_SHA512:
-            ((ecc_key*)ephemeralKey)->rng = wc_rng_new(NULL, 0, hpke->heap);
+#ifdef ECC_TIMING_RESISTANT
+            rng = wc_rng_new(NULL, 0, hpke->heap);
+
+            if (rng == NULL)
+                return RNG_FAILURE_E;
+
+            wc_ecc_set_rng((ecc_key*)ephemeralKey, rng);
+#endif
 
             ret = wc_ecc_shared_secret((ecc_key*)ephemeralKey,
                 (ecc_key*)receiverKey, dh, &dh_len);
 
-            wc_rng_free(((ecc_key*)ephemeralKey)->rng);
+#ifdef ECC_TIMING_RESISTANT
+            wc_rng_free(rng);
+#endif
             break;
 #endif
 #if defined(HAVE_CURVE25519)
@@ -930,14 +942,19 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     }
 #endif
 
+    PRIVATE_KEY_UNLOCK();
+
     /* setup the context and pubKey */
     ret = wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey, info,
         infoSz);
 
     /* run seal using the context */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_HpkeContextSealBase(hpke, context, aad, aadSz, plaintext,
             ptSz, ciphertext);
+    }
+
+    PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -951,6 +968,9 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
     word16 pubKeySz, byte* sharedSecret)
 {
     int ret;
+#ifdef ECC_TIMING_RESISTANT
+    WC_RNG* rng;
+#endif
     word32 dh_len;
     word16 receiverPubKeySz;
     void* ephemeralKey = NULL;
@@ -992,12 +1012,21 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             case DHKEM_P256_HKDF_SHA256:
             case DHKEM_P384_HKDF_SHA384:
             case DHKEM_P521_HKDF_SHA512:
-                ((ecc_key*)receiverKey)->rng = wc_rng_new(NULL, 0, hpke->heap);
+#ifdef ECC_TIMING_RESISTANT
+                rng = wc_rng_new(NULL, 0, hpke->heap);
+
+                if (rng == NULL)
+                    return RNG_FAILURE_E;
+
+                wc_ecc_set_rng((ecc_key*)receiverKey, rng);
+#endif
 
                 ret = wc_ecc_shared_secret((ecc_key*)receiverKey,
                     (ecc_key*)ephemeralKey, dh, &dh_len);
 
-                wc_rng_free(((ecc_key*)receiverKey)->rng);
+#ifdef ECC_TIMING_RESISTANT
+                wc_rng_free(rng);
+#endif
                 break;
 #endif
 #if defined(HAVE_CURVE25519)
@@ -1150,6 +1179,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     }
 #endif
 
+    PRIVATE_KEY_UNLOCK();
+
     /* setup receiver */
     ret = wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey,
         pubKeySz, info, infoSz);
@@ -1159,6 +1190,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
         ret = wc_HpkeContextOpenBase(hpke, context, aad, aadSz, ciphertext,
             ctSz, plaintext);
     }
+
+    PRIVATE_KEY_LOCK();
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);

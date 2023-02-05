@@ -382,10 +382,7 @@ struct WOLFSSL_EVP_PKEY {
     int type;         /* openssh dereference */
     int save_type;    /* openssh dereference */
     int pkey_sz;
-    int references;  /*number of times free should be called for complete free*/
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex    refMutex; /* ref count mutex */
-#endif
+    wolfSSL_Ref ref;
 
     union {
         char* ptr; /* der format of key */
@@ -560,10 +557,7 @@ struct WOLFSSL_BIO {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-    #ifndef SINGLE_THREADED
-    wolfSSL_Mutex    refMutex;  /* ref count mutex */
-    #endif
-    int              refCount;  /* reference count */
+    wolfSSL_Ref  ref;
 #endif
 };
 
@@ -614,10 +608,7 @@ struct WOLFSSL_X509_STORE {
         defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_CRL)
     WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex   refMutex;   /* reference count mutex */
-#endif
-    int             refCount;         /* reference count */
+    wolfSSL_Ref     ref;
 };
 
 #define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
@@ -4153,6 +4144,11 @@ enum {
 };
 
 /* Object functions */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* Do not use - use wolfSSL_OBJ_sn2nid instead. */
+WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 WOLFSSL_API const char* wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_get_type(const WOLFSSL_ASN1_OBJECT *o);

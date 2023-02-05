@@ -1,13 +1,7 @@
 name: Ubuntu-Macos-Windows Tests
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-#  cancel-in-progress: true
 
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
-  pull_request:
-    branches: [ '*' ]
+  workflow_call:
 
 jobs:
   make_check:
@@ -133,6 +127,24 @@ jobs:
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+  make_user_wolftpm:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_wolftpm on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
+    - name: user_settings_wolftpm.h
+      run: |
+        cp ./examples/configs/user_settings_wolftpm.h user_settings.h
         ./configure --enable-usersettings --disable-examples
         make
         ./wolfcrypt/test/testwolfcrypt

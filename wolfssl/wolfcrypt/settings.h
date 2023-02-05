@@ -806,12 +806,11 @@ extern void uITRON4_free(void *p) ;
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
         /* FreeRTOS pvPortRealloc() implementation can be found here:
-            https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
-        #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519) || \
-            defined(HAVE_ED448)
+         * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
+        #if defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA)
             #if defined(WOLFSSL_ESPIDF)
-                /*In IDF, realloc(p, n) is equivalent to
-                heap_caps_realloc(p, s, MALLOC_CAP_8BIT) */
+                /* In IDF, realloc(p, n) is equivalent to
+                 * heap_caps_realloc(p, s, MALLOC_CAP_8BIT) */
                 #define XREALLOC(p, n, h, t) realloc((p), (n))
             #else
                 #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
@@ -2606,9 +2605,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_XOR_OPS
 #endif
 
-#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY)
+#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_WOLFSSH)
     #undef  WOLFSSL_NO_INT_ENCODE
     #define WOLFSSL_NO_INT_ENCODE
+#endif
+
+#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY)
     #undef  WOLFSSL_NO_INT_DECODE
     #define WOLFSSL_NO_INT_DECODE
 #endif
@@ -2884,6 +2886,10 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_HPKE
 #endif
 
+/* Provide way to forcefully disable use of XREALLOC */
+#ifdef WOLFSSL_NO_REALLOC
+    #undef XREALLOC
+#endif
 
 
 /* ---------------------------------------------------------------------------

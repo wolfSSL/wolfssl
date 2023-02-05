@@ -766,14 +766,14 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 int wolfSSL_BIO_up_ref(WOLFSSL_BIO* bio)
 {
     if (bio) {
-    #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&bio->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefInc(&bio->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock BIO mutex");
         }
-    #endif
-        bio->refCount++;
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&bio->refMutex);
+    #else
+        (void)ret;
     #endif
 
         return WOLFSSL_SUCCESS;
@@ -2495,14 +2495,19 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             }
 
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            bio->refCount = 1;
-            #ifndef SINGLE_THREADED
-            if (wc_InitMutex(&bio->refMutex) != 0) {
-                wolfSSL_BIO_free(bio);
-                WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
-                return NULL;
-            }
+            {
+                int ret;
+                wolfSSL_RefInit(&bio->ref, &ret);
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                if (ret != 0) {
+                    wolfSSL_BIO_free(bio);
+                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
+                    return NULL;
+                }
+            #else
+                (void)ret;
             #endif
+            }
         #endif
 
         }
@@ -2566,32 +2571,22 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 }
             }
 
-        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            #ifndef SINGLE_THREADED
-            if (wc_LockMutex(&bio->refMutex) != 0) {
-                WOLFSSL_MSG("Couldn't lock BIO mutex");
-                return WOLFSSL_FAILURE;
-            }
-            #endif
-
-            /* only free if all references to it are done */
-            bio->refCount--;
-            if (bio->refCount == 0) {
-                doFree = 1;
-            }
-
-            #ifndef SINGLE_THREADED
-            wc_UnLockMutex(&bio->refMutex);
-            #endif
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            wolfSSL_RefDec(&bio->ref, &doFree, &ret);
 
             if (!doFree) {
                 /* return success if BIO ref count is not 1 yet */
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE ;
+            #else
+                (void)ret;
                 return WOLFSSL_SUCCESS;
-            }
-            #ifndef SINGLE_THREADED
-            wc_FreeMutex(&bio->refMutex);
             #endif
+            }
+        #ifndef SINGLE_THREADED
+            wolfSSL_RefFree(&bio->ref);
         #endif
+    #endif
 
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
             wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
