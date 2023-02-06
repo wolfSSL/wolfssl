@@ -10149,7 +10149,8 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP* group,
     return ret;
 }
 
-#if defined(USE_ECC_B_PARAM) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
 /* Check if EC point is on the the curve defined by the EC group.
  *
  * @param [in] group  EC group defining curve.
@@ -10190,7 +10191,7 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
     /* Return boolean of on curve. No error means on curve. */
     return !err;
 }
-#endif /* USE_ECC_B_PARAM && !(FIPS_VERSION <= 2) */
+#endif /* USE_ECC_B_PARAM && !HAVE_SELFTEST && !(FIPS_VERSION <= 2) */
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 /* Convert Jacobian ordinates to affine.
@@ -10335,9 +10336,9 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
  * @return  1 on success.
  * @return  0 on error.
  */
-int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
-    WOLFSSL_EC_POINT *point, const WOLFSSL_BIGNUM *x, const WOLFSSL_BIGNUM *y,
-    WOLFSSL_BN_CTX *ctx)
+int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
+    WOLFSSL_EC_POINT* point, const WOLFSSL_BIGNUM* x, const WOLFSSL_BIGNUM* y,
+    WOLFSSL_BN_CTX* ctx)
 {
     int ret = 1;
 
@@ -10393,6 +10394,16 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
         WOLFSSL_MSG("ec_point_internal_set failed");
         ret = 0;
     }
+
+#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    /* Check that the point is valid. */
+    if ((ret == 1) && (wolfSSL_EC_POINT_is_on_curve(group,
+            (WOLFSSL_EC_POINT *)point, ctx) != 1)) {
+        WOLFSSL_MSG("EC_POINT_is_on_curve failed");
+        ret = 0;
+    }
+#endif
 
     return ret;
 }
@@ -11018,8 +11029,8 @@ int wolfSSL_EC_POINT_copy(WOLFSSL_EC_POINT *dest, const WOLFSSL_EC_POINT *src)
     }
 
     /* Copy internal EC points. */
-    if ((ret == 1) && (wc_ecc_copy_point((ecc_point*) dest->internal,
-            (ecc_point*) src->internal) != MP_OKAY)) {
+    if ((ret == 1) && (wc_ecc_copy_point((ecc_point*)src->internal,
+            (ecc_point*)dest->internal) != MP_OKAY)) {
         ret = 0;
     }
 
