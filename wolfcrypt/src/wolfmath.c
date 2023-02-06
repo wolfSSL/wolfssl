@@ -104,7 +104,7 @@ mp_digit get_digit(const mp_int* a, int n)
     if (a == NULL)
         return 0;
 
-    return (n >= a->used || n < 0) ? 0 : a->dp[n];
+    return (n < 0 || (unsigned int)n >= (unsigned int)a->used) ? 0 : a->dp[n];
 }
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)
@@ -119,7 +119,11 @@ mp_digit get_digit(const mp_int* a, int n)
 int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    unsigned int i;
+#else
     int i;
+#endif
 #if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
     unsigned int mask = (unsigned int)0 - copy;
 #else
@@ -174,7 +178,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     if (rng == NULL) {
         ret = MISSING_RNG_E;
     }
-    else if (a == NULL || digits == 0) {
+    else if (a == NULL || digits <= 0) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -185,7 +189,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     }
 #else
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    if ((ret == MP_OKAY) && (digits > a->size))
+    if ((ret == MP_OKAY) && ((unsigned int)digits > a->size))
 #else
     if ((ret == MP_OKAY) && (digits > FP_SIZE))
 #endif

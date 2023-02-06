@@ -823,17 +823,19 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define sk_ASN1_OBJECT_free             wolfSSL_sk_ASN1_OBJECT_free
 
+#ifndef NO_ASN_TIME
 #define ASN1_TIME_new                   wolfSSL_ASN1_TIME_new
 #define ASN1_UTCTIME_new                wolfSSL_ASN1_TIME_new
 #define ASN1_TIME_free                  wolfSSL_ASN1_TIME_free
 #define ASN1_UTCTIME_free               wolfSSL_ASN1_TIME_free
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print
-#define ASN1_TIME_to_generalizedtime    wolfSSL_ASN1_TIME_to_generalizedtime
-#define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
-#define ASN1_TIME_set_string            wolfSSL_ASN1_TIME_set_string
 #define ASN1_TIME_to_string             wolfSSL_ASN1_TIME_to_string
 #define ASN1_TIME_to_tm                 wolfSSL_ASN1_TIME_to_tm
+#define ASN1_TIME_to_generalizedtime    wolfSSL_ASN1_TIME_to_generalizedtime
+#endif
+#define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
+#define ASN1_TIME_set_string            wolfSSL_ASN1_TIME_set_string
 #define ASN1_GENERALIZEDTIME_print      wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_GENERALIZEDTIME_free       wolfSSL_ASN1_GENERALIZEDTIME_free
 

@@ -2155,12 +2155,16 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 
     wolfSSL_RefInit(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
         ctx->err = CTX_INIT_MUTEX_E;
         WOLFSSL_ERROR_VERBOSE(BAD_MUTEX_E);
         return BAD_MUTEX_E;
     }
+#else
+    (void)ret;
+#endif
 
 #ifndef NO_CERTS
     ctx->privateKeyDevId = INVALID_DEVID;
@@ -2621,6 +2625,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
     /* decrement CTX reference count */
     wolfSSL_RefDec(&ctx->ref, &isZero, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         /* check error state, if mutex error code then mutex init failed but
          * CTX was still malloc'd */
@@ -2633,6 +2638,9 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
         }
         return;
     }
+#else
+    (void)ret;
+#endif
 
     if (isZero) {
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
@@ -6188,9 +6196,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* increment CTX reference count */
     wolfSSL_RefInc(&ctx->ref, &ret);
+#ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         return ret;
     }
+#else
+    (void)ret;
+#endif
     ret = WOLFSSL_SUCCESS; /* set default ret */
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
@@ -12909,9 +12921,17 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
         return BAD_FUNC_ARG;
     }
 
+PRAGMA_GCC_DIAG_PUSH
+PRAGMA_GCC("GCC diagnostic ignored \"-Wstrict-overflow\"")
+    /* Surrounded in gcc pragma to avoid -Werror=strict-overflow when the
+     * compiler optimizes out the check and assumes no underflow. Keeping the
+     * check in place to handle multiple build configurations and future
+     * changes. */
+
     /* check to make sure certificate index is valid */
     if (args->certIdx > args->count)
         return BUFFER_E;
+PRAGMA_GCC_DIAG_POP
 
     /* check if returning from non-blocking OCSP */
     /* skip this section because cert is already initialized and parsed */
@@ -34475,7 +34495,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BAD_TICKET_KEY_CB_SZ;
         }
         *it = (InternalTicket*)et->enc_ticket;
-        return 0;
+        return ret;
     }
 
     /* Parse ticket sent by client, returns callback return value */
@@ -34488,7 +34508,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoClientTicket");
 
         ret = DoDecryptTicket(ssl, input, len, &it);
-        if (ret != 0)
+        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE)
             return ret;
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */

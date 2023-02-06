@@ -5784,6 +5784,10 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId)
 {
     int ret = 0;
+#ifdef WOLFSSL_SE050
+    /* SE050 TLS users store a word32 at id, need to cast back */
+    word32* keyPtr = NULL;
+#endif
 
     if (key == NULL)
         ret = BAD_FUNC_ARG;
@@ -5795,6 +5799,13 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(key->id, id, len);
         key->idLen = len;
+    #ifdef WOLFSSL_SE050
+        /* Set SE050 ID from word32, populate ecc_key with public from SE050 */
+        if (len == (int)sizeof(word32)) {
+            keyPtr = (word32*)key->id;
+            ret = wc_ecc_use_key_id(key, *keyPtr, 0);
+        }
+    #endif
     }
 
     return ret;

@@ -6084,10 +6084,8 @@ WOLFSSL_LOCAL int GetX509Error(int e);
 WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index);
 #endif
 
-#if !defined(WC_NO_RNG) && (defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA)))
 WOLFSSL_LOCAL WC_RNG* wolfssl_get_global_rng(void);
-#endif
+WOLFSSL_LOCAL WC_RNG* wolfssl_make_global_rng(void);
 
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)

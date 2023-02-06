@@ -10996,7 +10996,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     byte authTag[AES_BLOCK_SIZE];
     byte nonce[GCM_NONCE_MID_SZ];   /* GCM nonce is larger than CCM */
     byte macInt[MAX_VERSION_SZ];
-    word32 nonceSz = 0, macIntSz = 0;
+    byte algoParamSeq[MAX_SEQ_SZ];
+    word32 nonceSz = 0, macIntSz = 0, algoParamSeqSz = 0;
 
     /* authAttribs */
     byte* flatAuthAttribs = NULL;
@@ -11345,12 +11346,16 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* put together aes-ICVlen INTEGER */
     macIntSz = SetMyVersion(sizeof(authTag), macInt, 0);
 
+    /* add nonce and icv len into parameters string RFC5084 */
+    algoParamSeqSz = SetSequence(nonceOctetStringSz + nonceSz + macIntSz,
+            algoParamSeq);
+
     /* build up our ContentEncryptionAlgorithmIdentifier sequence,
      * adding (nonceOctetStringSz + blockSz + macIntSz) for nonce OCTET STRING
      * and tag size */
     contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
                                  oidBlkType, nonceOctetStringSz + nonceSz +
-                                 macIntSz);
+                                 macIntSz + algoParamSeqSz);
 
     if (contentEncAlgoSz == 0) {
         wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
@@ -11367,17 +11372,17 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   nonceOctetStringSz + nonceSz + macIntSz +
-                                  encContentOctetSz + encryptedOutSz,
-                                  encContentSeq);
+                                  algoParamSeqSz + encContentOctetSz +
+                                  encryptedOutSz, encContentSeq);
 
     macOctetStringSz = SetOctetString(sizeof(authTag), macOctetString);
 
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
               contentEncAlgoSz + nonceOctetStringSz + nonceSz + macIntSz +
-              encContentOctetSz + encryptedOutSz + authAttribsSz +
-              authAttribsSetSz + macOctetStringSz + sizeof(authTag) +
-              unauthAttribsSz + unauthAttribsSetSz;
+              algoParamSeqSz + encContentOctetSz + encryptedOutSz +
+              authAttribsSz + authAttribsSetSz + macOctetStringSz +
+              sizeof(authTag) + unauthAttribsSz + unauthAttribsSetSz;
 
     /* EnvelopedData */
     envDataSeqSz = SetSequence(totalSz, envDataSeq);
@@ -11429,6 +11434,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     idx += contentTypeSz;
     XMEMCPY(output + idx, contentEncAlgo, contentEncAlgoSz);
     idx += contentEncAlgoSz;
+    XMEMCPY(output + idx, algoParamSeq, algoParamSeqSz);
+    idx += algoParamSeqSz;
     XMEMCPY(output + idx, nonceOctetString, nonceOctetStringSz);
     idx += nonceOctetStringSz;
     XMEMCPY(output + idx, nonce, nonceSz);
@@ -11644,12 +11651,19 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 ret = expBlockSz;
             }
 
-            /* get nonce, stored in OPTIONAL parameter of AlgoID */
+            /* get nonce, stored in OPTIONAL parameter of AlgoID
+             * RFC 5084 Appendix lists GCM parameters as
+             * seq
+             * ---->octet string with nonce
+             * ---->aes gcm icvlen
+             */
             if (ret == 0 && GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
             }
 
-            if (ret == 0 && tag != ASN_OCTET_STRING) {
+
+            if (ret == 0 && tag != (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                WOLFSSL_MSG("Optional parameters is not wrapped in a sequence");
                 ret = ASN_PARSE_E;
             }
 
@@ -11675,7 +11689,14 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
         #endif
-            if (ret == 0 && GetLength(pkiMsg, &idx, &nonceSz, pkiMsgSz) < 0) {
+            /* get length of optional parameter sequence */
+            if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+
+            /* get nonce from octet string */
+            if (ret == 0 &&
+                GetOctetString(pkiMsg, &idx, &nonceSz, pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
             }
 
@@ -11772,8 +11793,10 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             encryptedContentSz = pkcs7->stream->expected;
         #endif
 
+            /* AES-GCM/CCM does NOT require padding for plaintext content or
+             * AAD inputs RFC 5084 section 3.1 and 3.2 */
             encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
-                                                               DYNAMIC_TYPE_PKCS7);
+                                                            DYNAMIC_TYPE_PKCS7);
             if (ret == 0 && encryptedContent == NULL) {
                 ret = MEMORY_E;
             }

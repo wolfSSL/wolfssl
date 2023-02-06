@@ -4379,10 +4379,12 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_END;
+    }
     /* case TLS_ASYNC_BUILD */
     FALL_THROUGH;
 
     case TLS_ASYNC_END:
+    {
 #ifdef WOLFSSL_EARLY_DATA_GROUP
     /* QUIC needs to forward records at their encryption level
      * and is therefore unable to group here */

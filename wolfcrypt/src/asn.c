@@ -11753,156 +11753,6 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-#if defined(HAVE_ECC)
-/* Converts ECC curve enum values in ecc_curve_id to the associated OpenSSL NID
- * value.
- *
- * @param [in] n  ECC curve id.
- * @return  ECC curve NID (OpenSSL compatable value).
- */
-WOLFSSL_API int EccEnumToNID(int n)
-{
-    WOLFSSL_ENTER("EccEnumToNID()");
-
-    switch(n) {
-        case ECC_SECP192R1:
-            return NID_X9_62_prime192v1;
-        case ECC_PRIME192V2:
-            return NID_X9_62_prime192v2;
-        case ECC_PRIME192V3:
-            return NID_X9_62_prime192v3;
-        case ECC_PRIME239V1:
-            return NID_X9_62_prime239v1;
-        case ECC_PRIME239V2:
-            return NID_X9_62_prime239v2;
-        case ECC_PRIME239V3:
-            return NID_X9_62_prime239v3;
-        case ECC_SECP256R1:
-            return NID_X9_62_prime256v1;
-        case ECC_SECP112R1:
-            return NID_secp112r1;
-        case ECC_SECP112R2:
-            return NID_secp112r2;
-        case ECC_SECP128R1:
-            return NID_secp128r1;
-        case ECC_SECP128R2:
-            return NID_secp128r2;
-        case ECC_SECP160R1:
-            return NID_secp160r1;
-        case ECC_SECP160R2:
-            return NID_secp160r2;
-        case ECC_SECP224R1:
-            return NID_secp224r1;
-        case ECC_SECP384R1:
-            return NID_secp384r1;
-        case ECC_SECP521R1:
-            return NID_secp521r1;
-        case ECC_SECP160K1:
-            return NID_secp160k1;
-        case ECC_SECP192K1:
-            return NID_secp192k1;
-        case ECC_SECP224K1:
-            return NID_secp224k1;
-        case ECC_SECP256K1:
-            return NID_secp256k1;
-        case ECC_BRAINPOOLP160R1:
-            return NID_brainpoolP160r1;
-        case ECC_BRAINPOOLP192R1:
-            return NID_brainpoolP192r1;
-        case ECC_BRAINPOOLP224R1:
-            return NID_brainpoolP224r1;
-        case ECC_BRAINPOOLP256R1:
-            return NID_brainpoolP256r1;
-        case ECC_BRAINPOOLP320R1:
-            return NID_brainpoolP320r1;
-        case ECC_BRAINPOOLP384R1:
-            return NID_brainpoolP384r1;
-        case ECC_BRAINPOOLP512R1:
-            return NID_brainpoolP512r1;
-        default:
-            WOLFSSL_MSG("NID not found");
-            return -1;
-    }
-}
-#endif /* HAVE_ECC */
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
-    && !defined(WOLFCRYPT_ONLY)
-/* Convert shortname to NID.
- *
- * For OpenSSL compatability.
- *
- * @param [in] sn  Short name of OID.
- * @return  NID corresponding to shortname on success.
- * @return  NID_undef when not recognized.
- */
-int wc_OBJ_sn2nid(const char *sn)
-{
-    const struct {
-        const char *sn;
-        int  nid;
-    } sn2nid[] = {
-        {WOLFSSL_COMMON_NAME, NID_commonName},
-        {WOLFSSL_COUNTRY_NAME, NID_countryName},
-        {WOLFSSL_LOCALITY_NAME, NID_localityName},
-        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
-        {WOLFSSL_ORG_NAME, NID_organizationName},
-        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
-    #ifdef WOLFSSL_CERT_NAME_ALL
-        {WOLFSSL_NAME, NID_name},
-        {WOLFSSL_INITIALS, NID_initials},
-        {WOLFSSL_GIVEN_NAME, NID_givenName},
-        {WOLFSSL_DNQUALIFIER, NID_dnQualifier},
-    #endif
-        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
-        {"SHA1", NID_sha1},
-        {NULL, -1}};
-    int i;
-#ifdef HAVE_ECC
-    char curveName[ECC_MAXNAME + 1];
-    int eccEnum;
-#endif
-    WOLFSSL_ENTER("OBJ_sn2nid");
-    for(i=0; sn2nid[i].sn != NULL; i++) {
-        if (XSTRCMP(sn, sn2nid[i].sn) == 0) {
-            return sn2nid[i].nid;
-        }
-    }
-#ifdef HAVE_ECC
-
-    if (XSTRLEN(sn) > ECC_MAXNAME)
-        return NID_undef;
-
-    /* Nginx uses this OpenSSL string. */
-    if (XSTRCMP(sn, "prime256v1") == 0)
-        sn = "SECP256R1";
-    /* OpenSSL allows lowercase curve names */
-    for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
-        curveName[i] = (char)XTOUPPER((unsigned char) *sn++);
-    }
-    curveName[i] = '\0';
-    /* find based on name and return NID */
-    for (i = 0;
-#ifndef WOLFSSL_ECC_CURVE_STATIC
-         ecc_sets[i].size != 0 && ecc_sets[i].name != NULL;
-#else
-         ecc_sets[i].size != 0;
-#endif
-         i++) {
-        if (XSTRCMP(curveName, ecc_sets[i].name) == 0) {
-            eccEnum = ecc_sets[i].id;
-            /* Convert enum value in ecc_curve_id to OpenSSL NID */
-            return EccEnumToNID(eccEnum);
-        }
-    }
-#endif /* HAVE_ECC */
-
-    return NID_undef;
-}
-#endif
-
 /* Calculate hash of the id using the SHA-1 or SHA-256.
  *
  * @param [in]  data  Data to hash.
@@ -13927,7 +13777,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
     (void)tmpTime;
 
     ltime = wc_Time(0);
-    if (ltime < 0){
+    if (sizeof(ltime) == sizeof(word32) && (int)ltime < 0){
         /* A negative response here could be due to a 32-bit time_t
          * where the year is 2038 or later. */
         WOLFSSL_MSG("wc_Time failed to return a valid value");
@@ -22296,6 +22146,10 @@ wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 #ifdef HAVE_ECC
     wcchar BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
     wcchar END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
+#ifdef OPENSSL_EXTRA
+    wcchar BEGIN_EC_PARAM   = "-----BEGIN EC PARAMETERS-----";
+    wcchar END_EC_PARAM     = "-----END EC PARAMETERS-----";
+#endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
                                                                 !defined(NO_DSA)
@@ -22420,6 +22274,13 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             if (footer) *footer = END_EC_PRIV;
             ret = 0;
             break;
+    #ifdef OPENSSL_EXTRA
+        case ECC_PARAM_TYPE:
+            if (header) *header = BEGIN_EC_PARAM;
+            if (footer) *footer = END_EC_PARAM;
+            ret = 0;
+            break;
+    #endif
     #endif
         case RSA_TYPE:
         case PRIVATEKEY_TYPE:
@@ -22985,6 +22846,17 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 break;
             }
         }
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
+        else if (type == ECC_PARAM_TYPE) {
+            if (header == BEGIN_EC_PARAM) {
+                header = BEGIN_EC_PARAM;
+                footer = END_EC_PARAM;
+            }
+            else {
+                break;
+            }
+        }
+#endif
 #ifdef HAVE_CRL
         else if ((type == CRL_TYPE) && (header != BEGIN_X509_CRL)) {
             header =  BEGIN_X509_CRL;
@@ -27093,6 +26965,7 @@ static int SetValidity(byte* output, int daysValid)
 #else
 static int SetValidity(byte* before, byte* after, int daysValid)
 {
+#ifndef NO_ASN_TIME
     int ret = 0;
     time_t now;
     time_t then;
@@ -27145,6 +27018,12 @@ static int SetValidity(byte* before, byte* after, int daysValid)
     }
 
     return ret;
+#else
+    (void)before;
+    (void)after;
+    (void)daysValid;
+    return NOT_COMPILED_IN;
+#endif
 }
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
@@ -35711,7 +35590,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
                         if (ret == 0) {
                             dcrl->crlNumber = 0;
-                            for (i = 0; i < (*m).used; ++i) {
+                            for (i = 0; i < (int)(*m).used; ++i) {
                                 if (i > (CHAR_BIT *
                                          (int)sizeof(word32) / DIGIT_BIT)) {
                                     break;

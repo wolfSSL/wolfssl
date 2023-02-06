@@ -157,13 +157,15 @@ int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *key,
                                    wc_pem_password_cb *cb, void *u);
 WOLFSSL_API
 int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY* key);
+#endif
 
+#ifndef NO_BIO
 WOLFSSL_API
 WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
                                                WOLFSSL_EC_KEY** ec,
                                                wc_pem_password_cb* cb,
                                                void *pass);
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_BIO */
 
 /* EVP_KEY */
 WOLFSSL_API

@@ -1098,6 +1098,8 @@ void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err)
     int ret = wc_LockMutex(&ref->mutex);
     if (ret != 0) {
         WOLFSSL_MSG("Failed to lock mutex for reference decrement!");
+        /* Can't say count is zero. */
+        *isZero = 0;
     }
     else {
         if (ref->count > 0) {
