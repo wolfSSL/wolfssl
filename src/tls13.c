@@ -5507,6 +5507,7 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
             /* Check whether PSK ciphersuite is in SSL. */
             found = (suite[0] == cipherSuite0) && (suite[1] == cipherSuite);
         #else
+            (void)suite;
             /* Check whether PSK ciphersuite is in SSL. */
             {
                 byte s[2] = {

@@ -6025,6 +6025,12 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
     fi
 
+    if test "xENABLE_IP_ALT_NAME" = "xno"
+    then
+        ENABLE_IP_ALT_NAME="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IP_ALT_NAME"
+    fi
+
     if test "x$ENABLED_SESSION_TICKET" = "xno"
     then
         ENABLED_SESSION_TICKET="yes"
