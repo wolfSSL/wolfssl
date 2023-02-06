@@ -26331,7 +26331,8 @@ static int test_wc_ecc_pointFns(void)
         }
     }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
 #ifdef USE_ECC_B_PARAM
     /* On curve if ret == 0 */
     if (ret == 0) {
@@ -26351,7 +26352,7 @@ static int test_wc_ecc_pointFns(void)
         }
     }
 #endif /* USE_ECC_B_PARAM */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* !HAVE_SELFTEST && (!HAVE_FIPS || HAVE_FIPS_VERSION > 2) */
 
     /* Free */
     wc_ecc_del_point(point);
@@ -56225,14 +56226,10 @@ static int test_wolfSSL_EC_POINT(void)
     /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(new_point->X), 0);
 
-#ifdef USE_ECC_B_PARAM
+#if defined(USE_ECC_B_PARAM) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
     AssertIntEQ(EC_POINT_is_on_curve(group, new_point, ctx), 1);
-#endif /* USE_ECC_B_PARAM */
-
-    /* Force non-affine coordinates */
-    AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
-        (WOLFSSL_BIGNUM*)BN_value_one()), 1);
-    new_point->inSet = 0;
+#endif
 
     /* extract the coordinates from point */
     AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y,
@@ -56266,6 +56263,19 @@ static int test_wolfSSL_EC_POINT(void)
     AssertIntEQ(EC_POINT_invert(NULL, new_point, ctx), 0);
     AssertIntEQ(EC_POINT_invert(group, NULL, ctx), 0);
     AssertIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
+
+    /* Test getting affine converts from projective. */
+    AssertIntEQ(EC_POINT_copy(set_point, new_point), 1);
+    /* Force non-affine coordinates */
+    AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
+        (WOLFSSL_BIGNUM*)BN_value_one()), 1);
+    new_point->inSet = 0;
+    /* extract the coordinates from point */
+    AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y,
+        ctx), WOLFSSL_SUCCESS);
+    /* check if point ordinates have changed. */
+    AssertIntNE(BN_cmp(X, set_point->X), 0);
+    AssertIntNE(BN_cmp(Y, set_point->Y), 0);
 
     /* Test check for infinity */
 #ifndef WOLF_CRYPTO_CB_ONLY_ECC
