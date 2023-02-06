@@ -36313,10 +36313,28 @@ static int test_wolfSSL_BN(void)
     AssertIntEQ(BN_sub(c, a, b), SSL_SUCCESS);
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
     {
-    char* ret;
-    AssertNotNull(ret = BN_bn2dec(c));
-    AssertIntEQ(XMEMCMP(ret, "-4", sizeof("-4")), 0);
-    XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+        /* Do additional tests on negative BN conversions. */
+        char *         ret;
+        ASN1_INTEGER * asn1;
+        BIGNUM *       tmp;
+
+        /* Sanity check we have a negative BN. */
+        AssertIntEQ(BN_is_negative(c), 1);
+        AssertNotNull(ret = BN_bn2dec(c));
+        AssertIntEQ(XMEMCMP(ret, "-4", sizeof("-4")), 0);
+        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+
+        /* Convert to ASN1_INTEGER and back to BN. */
+        AssertNotNull(asn1 = BN_to_ASN1_INTEGER(c, NULL));
+        AssertNotNull(tmp = ASN1_INTEGER_to_BN(asn1, NULL));
+
+        /* After converting back BN should be negative and correct. */
+        AssertIntEQ(BN_is_negative(tmp), 1);
+        AssertNotNull(ret = BN_bn2dec(tmp));
+        AssertIntEQ(XMEMCMP(ret, "-4", sizeof("-4")), 0);
+        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+        ASN1_INTEGER_free(asn1);
+        BN_free(tmp);
     }
 #endif
     AssertIntEQ(BN_get_word(c), 4);
