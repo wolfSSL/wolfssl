@@ -74,6 +74,7 @@
     ```
     nsh> wolfcrypt_test
     nsh> wolfcrypt_benchmark
+    nsh> wolfssl_client_server
     ```
 ## Notes
 - Developed using the following targets:
