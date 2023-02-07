@@ -111,6 +111,7 @@ typedef struct WolfSSL_CH {
     WolfSSL_ConstVector cipherSuite;
     WolfSSL_ConstVector compression;
     WolfSSL_ConstVector extension;
+    WolfSSL_ConstVector cookieExt;
     const byte* raw;
     word32 length;
     /* Store the DTLS 1.2 cookie since we can just compute it once in dtls.c */
@@ -184,13 +185,13 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
 #ifdef WOLFSSL_DTLS13
     if (isTls13) {
         word16  len;
-        if (ch->cookie.size < OPAQUE16_LEN + 1)
+        if (ch->cookieExt.size < OPAQUE16_LEN + 1)
             return BUFFER_E;
-        ato16(ch->cookie.elements, &len);
-        if (ch->cookie.size - OPAQUE16_LEN != len)
+        ato16(ch->cookieExt.elements, &len);
+        if (ch->cookieExt.size - OPAQUE16_LEN != len)
             return BUFFER_E;
-        ret = TlsCheckCookie(ssl, ch->cookie.elements + OPAQUE16_LEN,
-                (word16)(ch->cookie.size - OPAQUE16_LEN));
+        ret = TlsCheckCookie(ssl, ch->cookieExt.elements + OPAQUE16_LEN,
+                (word16)(ch->cookieExt.size - OPAQUE16_LEN));
         if (ret < 0 && ret != HRR_COOKIE_ERROR)
             return ret;
         *cookieGood = ret > 0;
@@ -484,7 +485,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
 
     (void)pskInfo;
 
-    if (ch->cookie.size == 0) {
+    if (ch->cookieExt.size == 0) {
         TLSX* parsedExts = NULL;
         WolfSSL_ConstVector tlsx;
         Suites suites;
@@ -763,7 +764,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
         if (ret != 0)
             return ret;
         if (isTls13) {
-            ret = TlsxFindByType(&ch.cookie, TLSX_COOKIE, ch.extension);
+            ret = TlsxFindByType(&ch.cookieExt, TLSX_COOKIE, ch.extension);
             if (ret != 0)
                 return ret;
         }
@@ -795,7 +796,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
     }
 #endif
 
-    if (ch.cookie.size == 0) {
+    if (ch.cookie.size == 0 && ch.cookieExt.size == 0) {
         ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13, &pskInfo);
     }
     else {
