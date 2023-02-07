@@ -48,7 +48,6 @@
 #define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_EXTENDED_MASTER
 #define WOLFSSL_TLS13
-#define WOLFSSL_TLS12
 #define HAVE_AESGCM
 #define HAVE_HKDF
 #define HAVE_DH
@@ -63,3 +62,4 @@
 #define HAVE_POLY1305
 #define HAVE_CHACHA
 #define HAVE_ENCRYPT_THEN_MAC
+#define NO_OLD_TLS

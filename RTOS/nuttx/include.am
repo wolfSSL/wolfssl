@@ -3,7 +3,6 @@
 # All paths should be given relative to the rootEXTRA_DIST+= nuttx/include.am
 EXTRA_DIST+= RTOS/nuttx/README.md
 EXTRA_DIST+= RTOS/nuttx/wolfssl/.gitignore
-EXTRA_DIST+= RTOS/nuttx/wolfssl/.depend
 EXTRA_DIST+= RTOS/nuttx/wolfssl/Kconfig
 EXTRA_DIST+= RTOS/nuttx/wolfssl/Makefile
 EXTRA_DIST+= RTOS/nuttx/wolfssl/README.md
