@@ -12007,7 +12007,11 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
      * pem_read_bio_key(), and then check key format if it is EC.
      */
     if ((!err) && (pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE,
-            &keyFormat, &der) <= 0) && (keyFormat != ECDSAk)) {
+            &keyFormat, &der) <= 0)) {
+        err = 1;
+    }
+    if (keyFormat != ECDSAk) {
+        WOLFSSL_ERROR_MSG("Error not EC key format");
         err = 1;
     }
     /* Load the EC key with the private key from the DER encoding. */
