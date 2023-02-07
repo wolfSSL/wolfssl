@@ -576,10 +576,12 @@ typedef struct callback_functions {
     ctx_callback ctx_ready;
     ssl_callback ssl_ready;
     ssl_callback on_result;
+    ssl_callback on_cleanup;
     WOLFSSL_CTX* ctx;
     const char* caPemFile;
     const char* certPemFile;
     const char* keyPemFile;
+    const char* crlPemFile;
 #ifdef WOLFSSL_STATIC_MEMORY
     byte*               mem;
     word32              memSz;

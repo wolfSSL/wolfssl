@@ -7614,6 +7614,8 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     word32 derSz;
     DhKey* key;
 
+    (void)heap;
+
     /* Set internal parameters based on external parameters. */
     if ((dh->inSet == 0) && (SetDhInternal(dh) != 1)) {
         WOLFSSL_ERROR_MSG("Unable to set internal DH structure");

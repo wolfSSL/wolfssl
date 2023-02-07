@@ -3236,7 +3236,7 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
      */
 
     /* make sure bidirectional TLS shutdown completes */
-    if (ssl->error == WOLFSSL_ERROR_SYSCALL) {
+    if (ssl->error == WOLFSSL_ERROR_SYSCALL || ssl->options.shutdownDone) {
         /* ask the underlying transport the connection is closed */
         if (ssl->CBIORecv(ssl, (char*)data, 0, ssl->IOCB_ReadCtx) ==
                                             WOLFSSL_CBIO_ERR_CONN_CLOSE) {
@@ -4389,7 +4389,9 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             ret = ProcessReply(ssl);
             if (ret == ZERO_RETURN) {
                 /* simulate OpenSSL behavior */
-                ssl->error = WOLFSSL_ERROR_SYSCALL;
+                ssl->options.shutdownDone = 1;
+                /* Clear error */
+                ssl->error = WOLFSSL_ERROR_NONE;
                 ret = WOLFSSL_SUCCESS;
             } else if (ssl->error == WOLFSSL_ERROR_NONE) {
                 ret = WOLFSSL_SHUTDOWN_NOT_DONE;
@@ -4444,7 +4446,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
         return WOLFSSL_ERROR_WANT_READ;         /* convert to OpenSSL type */
     else if (ssl->error == WANT_WRITE)
         return WOLFSSL_ERROR_WANT_WRITE;        /* convert to OpenSSL type */
-    else if (ssl->error == ZERO_RETURN)
+    else if (ssl->error == ZERO_RETURN || ssl->options.shutdownDone)
         return WOLFSSL_ERROR_ZERO_RETURN;       /* convert to OpenSSL type */
     return ssl->error;
 }
@@ -12360,121 +12362,6 @@ int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 #ifdef OPENSSL_EXTRA
 
 /*
- * build enabled cipher list w/ TLS13 or w/o TLS13 suites
- * @param ctx    a pointer to WOLFSSL_CTX structure
- * @param suites currently enabled suites
- * @param onlytlsv13suites flag whether correcting w/ TLS13 suites
- *                         or w/o TLS13 suties
- * @param list   suites list that user wants to update
- * @return suites list on success, otherwise NULL
- */
-static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
-           int tls13Only, const char* list)
-{
-    word32 idx = 0;
-    word32 listsz = 0;
-    word32 len = 0;
-    word32 ianasz = 0;
-    const char* enabledcs = NULL;
-    char* locallist = NULL;
-    char* head = NULL;
-    byte cipherSuite0;
-    byte cipherSuite;
-
-    /* sanity check */
-    if (ctx == NULL || suites == NULL || list == NULL)
-        return NULL;
-
-    if (!suites->setSuites)
-        return NULL;
-
-    listsz = (word32)XSTRLEN(list);
-
-    /* calculate necessary buffer length */
-    for(idx = 0; idx < suites->suiteSz; idx++) {
-
-        cipherSuite0 = suites->suites[idx];
-        cipherSuite  = suites->suites[++idx];
-
-        if (tls13Only && cipherSuite0 == TLS13_BYTE) {
-            enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-        }
-        else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
-            enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-        }
-        else
-            continue;
-
-        if (XSTRCMP(enabledcs, "None") != 0) {
-            len += (word32)XSTRLEN(enabledcs) + 2;
-        }
-    }
-
-    len += listsz + 2;
-
-    /* build string */
-    if (len > (listsz + 2)) {
-        locallist = (char*)XMALLOC(len, ctx->heap,
-                                           DYNAMIC_TYPE_TMP_BUFFER);
-        /* sanity check */
-        if (!locallist)
-            return NULL;
-
-        XMEMSET(locallist, 0, len);
-
-        head = locallist;
-
-        if (!tls13Only)
-        {
-            /* always tls13 suites in the head position */
-            XSTRNCPY(locallist, list, len);
-            locallist += listsz;
-            *locallist++ = ':';
-            *locallist = 0;
-            len -= listsz + 1;
-        }
-
-        for(idx = 0; idx < suites->suiteSz; idx++) {
-            cipherSuite0 = suites->suites[idx];
-            cipherSuite  = suites->suites[++idx];
-
-            if (tls13Only && cipherSuite0 == TLS13_BYTE) {
-                enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-            }
-            else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
-                enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-            }
-            else
-                continue;
-
-            ianasz = (int)XSTRLEN(enabledcs);
-            if (ianasz + 1 < len) {
-                XSTRNCPY(locallist, enabledcs, len);
-                locallist += ianasz;
-
-                *locallist++ = ':';
-                *locallist = 0;
-                len -= ianasz + 1;
-            }
-            else{
-                XFREE(locallist, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return NULL;
-            }
-        }
-
-        if (tls13Only) {
-            XSTRNCPY(locallist, list, len);
-            locallist += listsz;
-            *locallist = 0;
-        }
-
-        return head;
-    }
-    else
-        return NULL;
-}
-
-/*
  * check if the list has TLS13 and pre-TLS13 suites
  * @param list cipher suite list that user want to set
  * @return mixed: 0, only pre-TLS13: 1, only TLS13: 2
@@ -12506,17 +12393,22 @@ static int CheckcipherList(const char* list)
         XMEMCPY(name, current, length);
         name[length] = 0;
 
+        if (XSTRCMP(name, "ALL") == 0 || XSTRCMP(name, "DEFAULT") == 0 ||
+                XSTRCMP(name, "HIGH") == 0) {
+            findTLSv13Suites = 1;
+            findbeforeSuites = 1;
+            break;
+        }
+
         ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0,
                                                         &cipherSuite1, &flags);
         if (ret == 0) {
             if (cipherSuite0 == TLS13_BYTE) {
                 /* TLSv13 suite */
                 findTLSv13Suites = 1;
-                break;
             }
             else {
                 findbeforeSuites = 1;
-                break;
             }
         }
 
@@ -12565,10 +12457,13 @@ static int CheckcipherList(const char* list)
 static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         const char* list)
 {
-    int       ret          = 0;
-    int listattribute = 0;
-    char*     buildcipherList = NULL;
-    int tls13Only = 0;
+    int     ret = 0;
+    int     listattribute = 0;
+    int     tls13Only = 0;
+    byte    suitesCpy[WOLFSSL_MAX_SUITE_SZ];
+    word16  suitesCpySz = 0;
+    word16  i = 0;
+    word16  j = 0;
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("NULL argument");
@@ -12588,24 +12483,62 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
        /* list has only pre-TLSv13 suites.
         * Only update before TLSv13 suites.
         */
-        tls13Only = 1;
+        tls13Only = 0;
     }
     else if (listattribute == 2) {
        /* list has only TLSv13 suites. Only update TLv13 suites
         * simulate set_ciphersuites() compatibility layer API
         */
-        tls13Only = 0;
+        tls13Only = 1;
+        if (!IsAtLeastTLSv1_3(ctx->method->version)) {
+            /* Silently ignore TLS 1.3 ciphers if we don't support it. */
+            return WOLFSSL_SUCCESS;
+        }
     }
 
-    buildcipherList = buildEnabledCipherList(ctx, ctx->suites,
-                                            tls13Only, list);
+    /* list contains ciphers either only for TLS 1.3 or <= TLS 1.2 */
 
-    if (buildcipherList) {
-        ret = SetCipherList(ctx, suites, buildcipherList);
-        XFREE(buildcipherList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    else {
-        ret = SetCipherList(ctx, suites, list);
+    XMEMCPY(suitesCpy, suites->suites, suites->suiteSz);
+    suitesCpySz = suites->suiteSz;
+
+    ret = SetCipherList(ctx, suites, list);
+    if (ret != 1)
+        return WOLFSSL_FAILURE;
+
+    for (i = 0; i < suitesCpySz &&
+                suites->suiteSz <= (WOLFSSL_MAX_SUITE_SZ - SUITE_LEN); i += 2) {
+        /* Check for duplicates */
+        int duplicate = 0;
+        for (j = 0; j < suites->suiteSz; j += 2) {
+            if (suitesCpy[i] == suites->suites[j] &&
+                    suitesCpy[i+1] == suites->suites[j+1]) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (!duplicate) {
+            if (tls13Only) {
+                /* Updating TLS 1.3 ciphers */
+                if (suitesCpy[i] != TLS13_BYTE) {
+                    /* Only copy over <= TLS 1.2 ciphers */
+                    /* TLS 1.3 ciphers take precedence */
+                    suites->suites[suites->suiteSz++] = suitesCpy[i];
+                    suites->suites[suites->suiteSz++] = suitesCpy[i+1];
+                }
+            }
+            else {
+                /* Updating <= TLS 1.2 ciphers */
+                if (suitesCpy[i] == TLS13_BYTE) {
+                    /* Only copy over TLS 1.3 ciphers */
+                    /* TLS 1.3 ciphers take precedence */
+                    XMEMMOVE(suites->suites + SUITE_LEN, suites->suites,
+                             suites->suiteSz);
+                    suites->suites[0] = suitesCpy[i];
+                    suites->suites[1] = suitesCpy[i+1];
+                    suites->suiteSz += 2;
+                }
+            }
+        }
     }
 
     return ret;
@@ -14267,6 +14200,15 @@ int wolfSSL_Cleanup(void)
     #endif
 #endif
 
+#if defined(HAVE_EX_DATA) && \
+   (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || \
+    defined(WOLFSSL_WPAS_SMALL)
+    crypto_ex_cb_free(crypto_ex_cb_ctx_session);
+    crypto_ex_cb_ctx_session = NULL;
+#endif
+
     return ret;
 }
 
@@ -14634,7 +14576,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             WOLFSSL_MSG("Session found in external cache");
             error = wolfSSL_DupSession(sess, output, 0);
 #ifdef HAVE_EX_DATA
-            output->ownExData = 0; /* Session cache owns external data */
+            output->ownExData = 1;
 #endif
             /* If copy not set then free immediately */
             if (!copy)
@@ -15174,6 +15116,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     (void)useTicket;
     (void)clientCacheEntry;
 
+    WOLFSSL_ENTER("AddSessionToCache");
+
     if (idSz == 0) {
         WOLFSSL_MSG("AddSessionToCache idSz == 0");
         return BAD_FUNC_ARG;
@@ -15261,11 +15205,15 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     cacheSession = &sessRow->Sessions[idx];
 
 #ifdef HAVE_EX_DATA
-    if (cacheSession->rem_sess_cb && cacheSession->ownExData) {
-        cacheSession->rem_sess_cb(NULL, cacheSession);
-        /* Make sure not to call remove functions again */
-        cacheSession->ownExData = 0;
-        cacheSession->rem_sess_cb = NULL;
+    if (cacheSession->ownExData) {
+        crypto_ex_cb_free_data(cacheSession, crypto_ex_cb_ctx_session,
+                               &cacheSession->ex_data);
+        if (cacheSession->rem_sess_cb) {
+            cacheSession->rem_sess_cb(NULL, cacheSession);
+            /* Make sure not to call remove functions again */
+            cacheSession->ownExData = 0;
+            cacheSession->rem_sess_cb = NULL;
+        }
     }
 #endif
 
@@ -18137,6 +18085,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
  */
 static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 {
+    int ret;
     WOLFSSL_ENTER("Set_CTX_max_proto_version");
 
     if (!ctx || !ctx->method) {
@@ -18175,7 +18124,68 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         return WOLFSSL_FAILURE;
     }
 
-    return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
+    ret = CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Check the major */
+        switch (ver) {
+    #ifndef NO_TLS
+        case SSL3_VERSION:
+        case TLS1_VERSION:
+        case TLS1_1_VERSION:
+        case TLS1_2_VERSION:
+        case TLS1_3_VERSION:
+            if (ctx->method->version.major != SSLv3_MAJOR) {
+                WOLFSSL_MSG("Mismatched protocol version");
+                return WOLFSSL_FAILURE;
+            }
+            break;
+    #endif
+    #ifdef WOLFSSL_DTLS
+        case DTLS1_VERSION:
+        case DTLS1_2_VERSION:
+            if (ctx->method->version.major != DTLS_MAJOR) {
+                WOLFSSL_MSG("Mismatched protocol version");
+                return WOLFSSL_FAILURE;
+            }
+            break;
+    #endif
+        }
+        /* Update the method */
+        switch (ver) {
+        case SSL2_VERSION:
+            WOLFSSL_MSG("wolfSSL does not support SSLv2");
+            return WOLFSSL_FAILURE;
+    #ifndef NO_TLS
+        case SSL3_VERSION:
+            ctx->method->version.minor = SSLv3_MINOR;
+            break;
+        case TLS1_VERSION:
+            ctx->method->version.minor = TLSv1_MINOR;
+            break;
+        case TLS1_1_VERSION:
+            ctx->method->version.minor = TLSv1_1_MINOR;
+            break;
+        case TLS1_2_VERSION:
+            ctx->method->version.minor = TLSv1_2_MINOR;
+            break;
+        case TLS1_3_VERSION:
+            ctx->method->version.minor = TLSv1_3_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_DTLS
+        case DTLS1_VERSION:
+            ctx->method->version.minor = DTLS_MINOR;
+            break;
+        case DTLS1_2_VERSION:
+            ctx->method->version.minor = DTLSv1_2_MINOR;
+            break;
+    #endif
+        default:
+            WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    return ret;
 }
 
 
@@ -19772,6 +19782,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             }
         }
 
+        /* reset error */
+        ssl->error = 0;
+
         /* reset option bits */
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
@@ -21110,16 +21123,9 @@ WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
         ret->ticketNonce.data = ret->ticketNonce.dataStatic;
         #endif
     #endif
-#ifdef HAVE_STUNNEL
-        /* stunnel has this funny mechanism of storing the "is_authenticated"
-         * session info in the session ex data. This is basically their
-         * default so let's just hard code it. */
-        if (wolfSSL_SESSION_set_ex_data(ret, 0, (void *)(-1))
-                != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error setting up ex data for stunnel");
-            XFREE(ret, NULL, DYNAMIC_TYPE_SESSION);
-            return NULL;
-        }
+#ifdef HAVE_EX_DATA
+        crypto_ex_cb_setup_new_data(ret, crypto_ex_cb_ctx_session,
+                &ret->ex_data);
 #endif
 #ifdef HAVE_EX_DATA
         ret->ownExData = 1;
@@ -21390,6 +21396,16 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 
 #endif /* HAVE_SESSION_TICKET */
+
+#ifdef HAVE_EX_DATA
+    if (input->type != WOLFSSL_SESSION_TYPE_CACHE &&
+            output->type != WOLFSSL_SESSION_TYPE_CACHE) {
+        /* Not called with cache as that passes ownership of ex_data */
+        ret = crypto_ex_cb_dup_data(&input->ex_data, &output->ex_data,
+                                    crypto_ex_cb_ctx_session);
+    }
+#endif
+
     return ret;
 }
 
@@ -21465,6 +21481,12 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     }
 
 #if defined(HAVE_EXT_CACHE) || defined(HAVE_EX_DATA)
+#ifdef HAVE_EX_DATA
+    if (session->ownExData) {
+        crypto_ex_cb_free_data(session, crypto_ex_cb_ctx_session,
+                &session->ex_data);
+    }
+#endif
     if (ctx != NULL && ctx->rem_sess_cb
 #ifdef HAVE_EX_DATA
             && session->ownExData /* This will be true if we are not using the
@@ -31630,6 +31652,78 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
     defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || \
     defined(WOLFSSL_WPAS_SMALL)
+CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session = NULL;
+
+static int crypto_ex_cb_new(CRYPTO_EX_cb_ctx** dst, long ctx_l, void* ctx_ptr,
+        WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
+        WOLFSSL_CRYPTO_EX_free* free_func)
+{
+    CRYPTO_EX_cb_ctx* new_ctx = (CRYPTO_EX_cb_ctx*)XMALLOC(
+            sizeof(CRYPTO_EX_cb_ctx), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (new_ctx == NULL)
+        return -1;
+    new_ctx->ctx_l = ctx_l;
+    new_ctx->ctx_ptr = ctx_ptr;
+    new_ctx->new_func = new_func;
+    new_ctx->free_func = free_func;
+    new_ctx->dup_func = dup_func;
+    new_ctx->next = NULL;
+    /* Push to end of list */
+    while (*dst != NULL)
+        dst = &(*dst)->next;
+    *dst = new_ctx;
+    return 0;
+}
+
+void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx)
+{
+    while (cb_ctx != NULL) {
+        CRYPTO_EX_cb_ctx* next = cb_ctx->next;
+        XFREE(cb_ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+        cb_ctx = next;
+    }
+}
+
+void crypto_ex_cb_setup_new_data(void *new_obj, CRYPTO_EX_cb_ctx* cb_ctx,
+        WOLFSSL_CRYPTO_EX_DATA* ex_data)
+{
+    int idx = 0;
+    for (; cb_ctx != NULL; idx++, cb_ctx = cb_ctx->next) {
+        if (cb_ctx->new_func != NULL)
+            cb_ctx->new_func(new_obj, NULL, ex_data, idx, cb_ctx->ctx_l,
+                    cb_ctx->ctx_ptr);
+    }
+}
+
+int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
+        WOLFSSL_CRYPTO_EX_DATA *out, CRYPTO_EX_cb_ctx* cb_ctx)
+{
+    int idx = 0;
+    for (; cb_ctx != NULL; idx++, cb_ctx = cb_ctx->next) {
+        if (cb_ctx->dup_func != NULL) {
+            void* ptr = wolfSSL_CRYPTO_get_ex_data(in, idx);
+            if (!cb_ctx->dup_func(out, in,
+                    &ptr, idx,
+                    cb_ctx->ctx_l, cb_ctx->ctx_ptr)) {
+                return WOLFSSL_FAILURE;
+            }
+            wolfSSL_CRYPTO_set_ex_data(out, idx, ptr);
+        }
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
+        WOLFSSL_CRYPTO_EX_DATA* ex_data)
+{
+    int idx = 0;
+    for (; cb_ctx != NULL; idx++, cb_ctx = cb_ctx->next) {
+        if (cb_ctx->free_func != NULL)
+            cb_ctx->free_func(obj, NULL, ex_data, idx, cb_ctx->ctx_l,
+                    cb_ctx->ctx_ptr);
+    }
+}
+
 /**
  * get_ex_new_index is a helper function for the following
  * xx_get_ex_new_index functions:
@@ -31640,7 +31734,9 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
  * Returns an index number greater or equal to zero on success,
  * -1 on failure.
  */
-int wolfssl_get_ex_new_index(int class_index)
+int wolfssl_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
+        WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
+        WOLFSSL_CRYPTO_EX_free* free_func)
 {
     /* index counter for each class index*/
     static int ctx_idx = 0;
@@ -31652,15 +31748,24 @@ int wolfssl_get_ex_new_index(int class_index)
 
     switch(class_index) {
         case WOLF_CRYPTO_EX_INDEX_SSL:
+            WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
+                    dup_func, free_func);
             idx = ssl_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_CTX:
+            WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
+                    dup_func, free_func);
             idx = ctx_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_X509:
+            WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(ctx_l, ctx_ptr, new_func,
+                    dup_func, free_func);
             idx = x509_idx++;
             break;
         case WOLF_CRYPTO_EX_INDEX_SSL_SESSION:
+            if (crypto_ex_cb_new(&crypto_ex_cb_ctx_session, ctx_l, ctx_ptr,
+                    new_func, dup_func, free_func) != 0)
+                return -1;
             idx = ssl_session_idx++;
             break;
 
@@ -31680,6 +31785,8 @@ int wolfssl_get_ex_new_index(int class_index)
         default:
             break;
     }
+    if (idx >= MAX_EX_DATA)
+        return -1;
     return idx;
 }
 #endif /* HAVE_EX_DATA || WOLFSSL_WPAS_SMALL */
@@ -31705,9 +31812,8 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
 
-    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(idx, arg, a, b, c);
-
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX);
+    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx, arg, a,
+            b, c);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -31720,9 +31826,8 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
 {
     WOLFSSL_ENTER("wolfSSL_get_ex_new_index");
 
-    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(argValue, arg, cb1, cb2, cb3);
-
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL);
+    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL, argValue, arg,
+            cb1, cb2, cb3);
 }
 
 
@@ -32469,12 +32574,13 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
     defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
 #ifdef HAVE_EX_DATA
-int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
-       void* cb2, CRYPTO_free_func* cb3)
+int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
+        WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
+        WOLFSSL_CRYPTO_EX_free* free_func)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_new_index");
-    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(idx, data, cb1, cb2, cb3);
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION);
+    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION, ctx_l,
+            ctx_ptr, new_func, dup_func, free_func);
 }
 #endif
 
@@ -39292,10 +39398,8 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
 
-    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(argl, argp, new_func, dup_func,
-                                         free_func);
-
-    return wolfssl_get_ex_new_index(class_index);
+    return wolfssl_get_ex_new_index(class_index, argl, argp, new_func,
+            dup_func, free_func);
 }
 #endif /* HAVE_EX_DATA */
 

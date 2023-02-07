@@ -1302,13 +1302,6 @@ typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
         }                                                        \
     } while(0)
 
-typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
-        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
-typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-
 WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
         WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
         WOLFSSL_CRYPTO_EX_free* c);
@@ -4674,8 +4667,11 @@ WOLFSSL_API int wolfSSL_SESSION_set_ex_data_with_cleanup(
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
-WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long idx,void* data,void* cb1,void* cb2,
-        CRYPTO_free_func* cb3);
+#ifdef HAVE_EX_DATA
+WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long ctx_l,void* ctx_ptr,
+        WOLFSSL_CRYPTO_EX_new* new_func, WOLFSSL_CRYPTO_EX_dup* dup_func,
+        WOLFSSL_CRYPTO_EX_free* free_func);
+#endif
 
 WOLFSSL_API const unsigned char* wolfSSL_SESSION_get_id(
         const WOLFSSL_SESSION* sess, unsigned int* idLen);

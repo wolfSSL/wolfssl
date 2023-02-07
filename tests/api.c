@@ -461,6 +461,12 @@ static int testDevId = WOLFSSL_CAAM_DEVID;
 static int testDevId = INVALID_DEVID;
 #endif
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+#define HAVE_IO_TESTS_DEPENDENCIES
+#endif
+
 /*----------------------------------------------------------------------------*
  | Setup
  *----------------------------------------------------------------------------*/
@@ -3582,6 +3588,51 @@ static int test_wolfSSL_set_minmax_proto_version(void)
     return res;
 }
 
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+static void test_wolfSSL_CTX_set_max_proto_version_on_result(WOLFSSL* ssl)
+{
+    AssertStrEQ(wolfSSL_get_version(ssl), "TLSv1.2");
+}
+
+static void test_wolfSSL_CTX_set_max_proto_version_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    /* Set TLS 1.2 */
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION),
+            WOLFSSL_SUCCESS);
+}
+
+/* Test using wolfSSL_CTX_set_max_proto_version to limit the version below
+ * what was set at ctx creation. */
+static int test_wolfSSL_CTX_set_max_proto_version(void)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLS_client_method;
+    server_cbs.method = wolfTLS_server_method;
+
+    server_cbs.ctx_ready = test_wolfSSL_CTX_set_max_proto_version_ctx_ready;
+
+    client_cbs.on_result = test_wolfSSL_CTX_set_max_proto_version_on_result;
+    server_cbs.on_result = test_wolfSSL_CTX_set_max_proto_version_on_result;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_cbs.return_code, TEST_SUCCESS);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_wolfSSL_CTX_set_max_proto_version(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | SSL
  *----------------------------------------------------------------------------*/
@@ -4886,11 +4937,6 @@ static int test_wolfSSL_EVP_CIPHER_CTX(void)
 /*----------------------------------------------------------------------------*
  | IO
  *----------------------------------------------------------------------------*/
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
-#define HAVE_IO_TESTS_DEPENDENCIES
-#endif
 
 /* helper functions */
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -5089,6 +5135,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int doUdp = 0;
     SOCKADDR_IN_T cliAddr;
     socklen_t     cliLen;
+    const char* certFile = svrCertFile;
+    const char* keyFile = svrKeyFile;
 
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     size_t msg_len = 0;
@@ -5178,28 +5226,44 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
+
+    if (cbf != NULL && cbf->certPemFile != NULL)
+        certFile = cbf->certPemFile;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+    if (wolfSSL_CTX_use_certificate_file(ctx, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+
+    if (cbf != NULL && cbf->keyPemFile != NULL)
+        keyFile = cbf->keyPemFile;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+
+#ifdef HAVE_CRL
+    if (cbf != NULL && cbf->crlPemFile != NULL) {
+        if (wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL) != WOLFSSL_SUCCESS)
+            goto done;
+        if (wolfSSL_CTX_LoadCRLFile(ctx, cbf->crlPemFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            goto done;
+    }
+#endif
 
     /* call ctx setup callback */
     if (cbf != NULL && cbf->ctx_ready != NULL) {
@@ -5336,6 +5400,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 done:
     if (cbf != NULL)
         cbf->last_err = err;
+    if (cbf != NULL && cbf->on_cleanup != NULL)
+        cbf->on_cleanup(ssl);
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
@@ -5651,6 +5717,16 @@ static int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 
+#ifdef HAVE_CRL
+    if (cbf != NULL && cbf->crlPemFile != NULL) {
+        if (wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL) != WOLFSSL_SUCCESS)
+            goto done;
+        if (wolfSSL_CTX_LoadCRLFile(ctx, cbf->crlPemFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            goto done;
+    }
+#endif
+
     /* call ctx setup callback */
     if (cbf != NULL && cbf->ctx_ready != NULL) {
         cbf->ctx_ready(ctx);
@@ -5770,6 +5846,8 @@ static int test_client_nofail(void* args, cbType cb)
 done:
     if (cbf != NULL)
         cbf->last_err = err;
+    if (cbf != NULL && cbf->on_cleanup != NULL)
+        cbf->on_cleanup(ssl);
 
     wolfSSL_free(ssl);
     if (!sharedCtx)
@@ -6288,6 +6366,14 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
             WOLFSSL_FILETYPE_PEM));
 
+#ifdef HAVE_CRL
+    if (callbacks->crlPemFile != NULL) {
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_LoadCRLFile(ctx, callbacks->crlPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
+#endif
+
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
@@ -6503,6 +6589,14 @@ static void run_wolfssl_client(void* args)
             wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
                 WOLFSSL_FILETYPE_PEM));
     }
+
+#ifdef HAVE_CRL
+    if (callbacks->crlPemFile != NULL) {
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_LoadCRLFile(ctx, callbacks->crlPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
+#endif
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -59506,6 +59600,82 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     return res;
 }
 
+#if defined(HAVE_EX_DATA) && \
+    (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+        (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+        defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+        defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))))
+
+#define SESSION_NEW_IDX_LONG 0xDEADBEEF
+#define SESSION_NEW_IDX_VAL  ((void*)0xAEADAEAD)
+#define SESSION_DUP_IDX_VAL  ((void*)0xDEDEDEDE)
+#define SESSION_NEW_IDX_PTR  "Testing"
+
+static void test_wolfSSL_SESSION_get_ex_new_index_new_cb(void* p, void* ptr,
+        CRYPTO_EX_DATA* a, int idx, long argValue, void* arg)
+{
+    AssertNotNull(p);
+    AssertNull(ptr);
+    AssertIntEQ(CRYPTO_set_ex_data(a, idx, SESSION_NEW_IDX_VAL), SSL_SUCCESS);
+    AssertIntEQ(argValue, SESSION_NEW_IDX_LONG);
+    AssertStrEQ(arg, SESSION_NEW_IDX_PTR);
+}
+
+static int test_wolfSSL_SESSION_get_ex_new_index_dup_cb(CRYPTO_EX_DATA* out,
+        const CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV,
+        void* arg)
+{
+    AssertNotNull(out);
+    AssertNotNull(in);
+    AssertPtrEq(*(void**)inPtr, SESSION_NEW_IDX_VAL);
+    AssertPtrEq(CRYPTO_get_ex_data(in, idx), SESSION_NEW_IDX_VAL);
+    AssertPtrEq(CRYPTO_get_ex_data(out, idx), SESSION_NEW_IDX_VAL);
+    AssertIntEQ(argV, SESSION_NEW_IDX_LONG);
+    AssertStrEQ(arg, SESSION_NEW_IDX_PTR);
+    *(void**)inPtr = SESSION_DUP_IDX_VAL;
+    return SSL_SUCCESS;
+}
+
+static int test_wolfSSL_SESSION_get_ex_new_index_free_cb_called = 0;
+static void test_wolfSSL_SESSION_get_ex_new_index_free_cb(void* p, void* ptr,
+        CRYPTO_EX_DATA* a, int idx, long argValue, void* arg)
+{
+    AssertNotNull(p);
+    AssertNull(ptr);
+    AssertPtrNE(CRYPTO_get_ex_data(a, idx), 0);
+    AssertIntEQ(argValue, SESSION_NEW_IDX_LONG);
+    AssertStrEQ(arg, SESSION_NEW_IDX_PTR);
+    test_wolfSSL_SESSION_get_ex_new_index_free_cb_called++;
+}
+
+static int test_wolfSSL_SESSION_get_ex_new_index(void)
+{
+    int idx = SSL_SESSION_get_ex_new_index(SESSION_NEW_IDX_LONG,
+                (void*)SESSION_NEW_IDX_PTR,
+                test_wolfSSL_SESSION_get_ex_new_index_new_cb,
+                test_wolfSSL_SESSION_get_ex_new_index_dup_cb,
+                test_wolfSSL_SESSION_get_ex_new_index_free_cb);
+    SSL_SESSION* s = SSL_SESSION_new();
+    SSL_SESSION* d = NULL;
+
+    AssertNotNull(s);
+    AssertPtrEq(SSL_SESSION_get_ex_data(s, idx), SESSION_NEW_IDX_VAL);
+    AssertNotNull(d = SSL_SESSION_dup(s));
+    AssertPtrEq(SSL_SESSION_get_ex_data(d, idx), SESSION_DUP_IDX_VAL);
+    SSL_SESSION_free(s);
+    AssertIntEQ(test_wolfSSL_SESSION_get_ex_new_index_free_cb_called, 1);
+    SSL_SESSION_free(d);
+    AssertIntEQ(test_wolfSSL_SESSION_get_ex_new_index_free_cb_called, 2);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_wolfSSL_SESSION_get_ex_new_index(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 static int test_wolfSSL_set_psk_use_session_callback(void)
 {
     int res = TEST_SKIPPED;
@@ -61360,6 +61530,270 @@ static int test_ticket_ret_create(void)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && defined(HAVE_SESSION_TICKET) \
+    && defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_AESGCM) && !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+static void test_ticket_and_psk_mixing_on_result(WOLFSSL* ssl)
+{
+    int ret;
+    WOLFSSL_SESSION* session = NULL;
+    AssertIntEQ(wolfSSL_get_current_cipher_suite(ssl), 0x1301);
+    if (!wolfSSL_is_server(ssl)) {
+        session = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl));
+        AssertNotNull(session);
+    }
+    do {
+        ret = wolfSSL_shutdown(ssl);
+    } while (ret == WOLFSSL_SHUTDOWN_NOT_DONE);
+    AssertIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    wolfSSL_set_psk_callback_ctx(ssl, (void*)"TLS13-AES256-GCM-SHA384");
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    /* OpenSSL considers PSK to be verified. We error out with NO_PEER_CERT. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+#endif
+
+    if (!wolfSSL_is_server(ssl)) {
+        /* client */
+        AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384:"
+                "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+        wolfSSL_set_session(ssl, session);
+        wolfSSL_SESSION_free(session);
+        wolfSSL_set_psk_client_tls13_callback(ssl, my_psk_client_tls13_cb);
+        AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    }
+    else {
+        /* server */
+        /* Different ciphersuite so that the ticket will be invalidated based on
+         * the ciphersuite */
+        AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384"),
+                        WOLFSSL_SUCCESS);
+        wolfSSL_set_psk_server_tls13_callback(ssl, my_psk_server_tls13_cb);
+        AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+    }
+}
+
+static void test_ticket_and_psk_mixing_ssl_ready(WOLFSSL* ssl)
+{
+    AssertIntEQ(wolfSSL_UseSessionTicket(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
+                    WOLFSSL_SUCCESS);
+}
+
+static int test_ticket_and_psk_mixing(void)
+{
+    /* Test mixing tickets and regular PSK */
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLSv1_3_client_method;
+    server_cbs.method = wolfTLSv1_3_server_method;
+
+    client_cbs.ssl_ready = test_ticket_and_psk_mixing_ssl_ready;
+
+    client_cbs.on_result = test_ticket_and_psk_mixing_on_result;
+    server_cbs.on_result = test_ticket_and_psk_mixing_on_result;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_cbs.return_code, TEST_SUCCESS);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_ticket_and_psk_mixing(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK) && defined(HAVE_SESSION_TICKET) \
+    && defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_AESGCM) && !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+static int test_prioritize_psk_cb_called = FALSE;
+
+static unsigned int test_prioritize_psk_cb(WOLFSSL* ssl,
+        const char* identity, unsigned char* key, unsigned int key_max_len,
+        const char** ciphersuite)
+{
+    test_prioritize_psk_cb_called = TRUE;
+    return my_psk_server_tls13_cb(ssl, identity, key, key_max_len, ciphersuite);
+}
+
+static void test_prioritize_psk_on_result(WOLFSSL* ssl)
+{
+    int ret;
+    WOLFSSL_SESSION* session = NULL;
+    AssertIntEQ(wolfSSL_get_current_cipher_suite(ssl), 0x1301);
+    if (!wolfSSL_is_server(ssl)) {
+        session = wolfSSL_SESSION_dup(wolfSSL_get_session(ssl));
+        AssertNotNull(session);
+    }
+    do {
+        ret = wolfSSL_shutdown(ssl);
+    } while (ret == WOLFSSL_SHUTDOWN_NOT_DONE);
+    AssertIntEQ(wolfSSL_clear(ssl), WOLFSSL_SUCCESS);
+    wolfSSL_set_psk_callback_ctx(ssl, (void*)"TLS13-AES256-GCM-SHA384");
+    /* Previous connection was made with TLS13-AES128-GCM-SHA256. Order is
+     * important. */
+    AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384:"
+            "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    /* OpenSSL considers PSK to be verified. We error out with NO_PEER_CERT. */
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_NONE, NULL);
+#endif
+
+    if (!wolfSSL_is_server(ssl)) {
+        /* client */
+        wolfSSL_set_psk_client_tls13_callback(ssl, my_psk_client_tls13_cb);
+        wolfSSL_set_session(ssl, session);
+        wolfSSL_SESSION_free(session);
+        AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    }
+    else {
+        /* server */
+        wolfSSL_set_psk_server_tls13_callback(ssl, test_prioritize_psk_cb);
+        AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+#ifdef WOLFSSL_PRIORITIZE_PSK
+        /* The ticket should be first tried with all ciphersuites and chosen */
+        AssertFalse(test_prioritize_psk_cb_called);
+#else
+        /* Ciphersuites should be tried with each PSK. This triggers the PSK
+         * callback that sets this var. */
+        AssertTrue(test_prioritize_psk_cb_called);
+#endif
+    }
+}
+
+static void test_prioritize_psk_ssl_ready(WOLFSSL* ssl)
+{
+    if (!wolfSSL_is_server(ssl))
+        AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
+                WOLFSSL_SUCCESS);
+    else
+        AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384:"
+                "TLS13-AES128-GCM-SHA256"), WOLFSSL_SUCCESS);
+}
+
+static int test_prioritize_psk(void)
+{
+    /* We always send the ticket first. With WOLFSSL_PRIORITIZE_PSK the order
+     * of the PSK's will be followed instead of the ciphersuite. */
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLSv1_3_client_method;
+    server_cbs.method = wolfTLSv1_3_server_method;
+
+    client_cbs.ssl_ready = test_prioritize_psk_ssl_ready;
+    server_cbs.ssl_ready = test_prioritize_psk_ssl_ready;
+
+    client_cbs.on_result = test_prioritize_psk_on_result;
+    server_cbs.on_result = test_prioritize_psk_on_result;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_cbs.return_code, TEST_SUCCESS);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_prioritize_psk(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    !defined(WOLFSSL_NO_TLS12)
+static void test_wolfSSL_CTX_set_ciphersuites_ctx_ready_server(WOLFSSL_CTX* ctx)
+{
+    AssertTrue(SSL_CTX_set_cipher_list(ctx, "DEFAULT"));
+    /* Set TLS 1.3 specific suite */
+    AssertTrue(SSL_CTX_set_ciphersuites(ctx, "TLS13-AES128-GCM-SHA256"));
+}
+
+static int test_wolfSSL_CTX_set_ciphersuites(void)
+{
+    /* Test using SSL_CTX_set_cipher_list and SSL_CTX_set_ciphersuites and then
+     * do a 1.2 connection. */
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfTLSv1_2_client_method;
+    server_cbs.method = wolfTLS_server_method; /* Allow downgrade */
+
+    server_cbs.ctx_ready = test_wolfSSL_CTX_set_ciphersuites_ctx_ready_server;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_cbs.return_code, TEST_SUCCESS);
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_wolfSSL_CTX_set_ciphersuites(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if defined(HAVE_CRL) && defined(WOLFSSL_CHECK_ALERT_ON_ERR) && \
+        defined(HAVE_IO_TESTS_DEPENDENCIES)
+static void test_wolfSSL_CRL_CERT_REVOKED_alert_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void test_wolfSSL_CRL_CERT_REVOKED_alert_on_cleanup(WOLFSSL* ssl)
+{
+    WOLFSSL_ALERT_HISTORY h;
+    AssertIntEQ(wolfSSL_get_alert_history(ssl, &h), WOLFSSL_SUCCESS);
+    AssertIntEQ(h.last_rx.level, alert_fatal);
+    AssertIntEQ(h.last_rx.code, certificate_revoked);
+}
+
+static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
+{
+    callback_functions client_cbs, server_cbs;
+
+    XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+    server_cbs.certPemFile = "./certs/server-revoked-cert.pem";
+    server_cbs.keyPemFile = "./certs/server-revoked-key.pem";
+    client_cbs.crlPemFile = "./certs/crl/crl.revoked";
+
+    client_cbs.ctx_ready = test_wolfSSL_CRL_CERT_REVOKED_alert_ctx_ready;
+    server_cbs.on_cleanup = test_wolfSSL_CRL_CERT_REVOKED_alert_on_cleanup;
+
+    test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+    AssertIntEQ(client_cbs.return_code, TEST_FAIL);
+    AssertIntEQ(server_cbs.return_code, TEST_FAIL);
+
+    return TEST_RES_CHECK(1);
+
+}
+#else
+static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -61649,6 +62083,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_postauth),
     TEST_DECL(test_wolfSSL_CTX_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_set_minmax_proto_version),
+    TEST_DECL(test_wolfSSL_CTX_set_max_proto_version),
     TEST_DECL(test_wolfSSL_THREADID_hash),
     TEST_DECL(test_wolfSSL_RAND_set_rand_method),
     TEST_DECL(test_wolfSSL_RAND_bytes),
@@ -61999,10 +62434,13 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_set_timeout),
     TEST_DECL(test_wolfSSL_OpenSSL_version),
     TEST_DECL(test_wolfSSL_set_psk_use_session_callback),
+    TEST_DECL(test_ticket_and_psk_mixing),
+    TEST_DECL(test_prioritize_psk),
 
     TEST_DECL(test_CONF_CTX_FILE),
     TEST_DECL(test_CONF_CTX_CMDLINE),
     TEST_DECL(test_wolfSSL_CRYPTO_get_ex_new_index),
+    TEST_DECL(test_wolfSSL_SESSION_get_ex_new_index),
 
     /* wolfcrypt */
     TEST_DECL(test_wolfCrypt_Init),
@@ -62337,6 +62775,8 @@ TEST_CASE testCases[] = {
 #endif /* !defined(NO_OLD_TLS) */
 #endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&     \
         *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) */
+    TEST_DECL(test_wolfSSL_CTX_set_ciphersuites),
+    TEST_DECL(test_wolfSSL_CRL_CERT_REVOKED_alert),
     TEST_DECL(test_WOLFSSL_dtls_version_alert),
     TEST_DECL(test_ForceZero),
 

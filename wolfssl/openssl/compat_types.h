@@ -63,4 +63,14 @@ typedef WOLFSSL_ENGINE         ENGINE;
 typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef HAVE_EX_DATA
+typedef void (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+        const WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV,
+        void* arg);
+typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+#endif
+
 #endif /* !WOLFSSL_OPENSSL_COMPAT_TYPES_H_ */
