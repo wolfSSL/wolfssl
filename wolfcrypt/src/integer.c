@@ -2512,13 +2512,13 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 1), NULL,
+  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 2), NULL,
     DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
 
-  XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 1));
+  XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 2));
 
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
