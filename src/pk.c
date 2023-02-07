@@ -9176,6 +9176,7 @@ int wolfSSL_EC_GROUP_cmp(const WOLFSSL_EC_GROUP *a, const WOLFSSL_EC_GROUP *b,
 {
     int ret;
 
+    /* No BN operations performed. */
     (void)ctx;
 
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_cmp");
@@ -10967,15 +10968,131 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group,
     return ret;
 }
 
+#ifdef WOLFSSL_EC_POINT_CMP_JACOBIAN
+/* Compare two points on a the same curve.
+ *
+ * (Ax, Ay, Az) => (Ax / (Az ^ 2), Ay / (Az ^ 3))
+ * (Bx, By, Bz) => (Bx / (Bz ^ 2), By / (Bz ^ 3))
+ * When equal:
+ *      (Ax / (Az ^ 2), Ay / (Az ^ 3)) = (Bx / (Bz ^ 2), By / (Bz ^ 3))
+ *   => (Ax * (Bz ^ 2), Ay * (Bz ^ 3)) = (Bx * (Az ^ 2), By * (Az ^ 3))
+ *
+ * @param [in] group  EC group.
+ * @param [in] a      EC point to compare.
+ * @param [in] b      EC point to compare.
+ * @return  0 when equal.
+ * @return  1 when different.
+ * @return  -1 on error.
+ */
+static int ec_point_cmp_jacobian(const WOLFSSL_EC_GROUP* group,
+    const WOLFSSL_EC_POINT *a, const WOLFSSL_EC_POINT *b, WOLFSSL_BN_CTX *ctx)
+{
+    int ret = 0;
+    BIGNUM* at = BN_new();
+    BIGNUM* bt = BN_new();
+    BIGNUM* az = BN_new();
+    BIGNUM* bz = BN_new();
+    BIGNUM* mod = BN_new();
+
+    /* Check that the big numbers were allocated. */
+    if ((at == NULL) || (bt == NULL) || (az == NULL) || (bz == NULL) ||
+            (mod == NULL)) {
+        ret = -1;
+    }
+    /* Get the modulus for the curve. */
+    if ((ret == 0) &&
+            (BN_hex2bn(&mod, ecc_sets[group->curve_idx].prime) != 1)) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        /* bt = Bx * (Az ^ 2). When Az is one then just copy. */
+        if (BN_is_one(a->Z)) {
+            if (BN_copy(bt, b->X) == NULL) {
+                ret = -1;
+            }
+        }
+        /* az = Az ^ 2 */
+        else if ((BN_mod_mul(az, a->Z, a->Z, mod, ctx) != 1)) {
+            ret = -1;
+        }
+        /* bt = Bx * az = Bx * (Az ^ 2) */
+        else if (BN_mod_mul(bt, b->X, az, mod, ctx) != 1) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        /* at = Ax * (Bz ^ 2). When Bz is one then just copy. */
+        if (BN_is_one(b->Z)) {
+            if (BN_copy(at, a->X) == NULL) {
+                ret = -1;
+            }
+        }
+        /* bz = Bz ^ 2 */
+        else if (BN_mod_mul(bz, b->Z, b->Z, mod, ctx) != 1) {
+            ret = -1;
+        }
+        /* at = Ax * bz = Ax * (Bz ^ 2) */
+        else if (BN_mod_mul(at, a->X, bz, mod, ctx) != 1) {
+            ret = -1;
+        }
+    }
+    /* Compare x-ordinates. */
+    if ((ret == 0) && (BN_cmp(at, bt) != 0)) {
+        ret = 1;
+    }
+    if (ret == 0) {
+        /* bt = By * (Az ^ 3). When Az is one then just copy. */
+        if (BN_is_one(a->Z)) {
+            if (BN_copy(bt, b->Y) == NULL) {
+                ret = -1;
+            }
+        }
+        /* az = az * Az = Az ^ 3 */
+        else if ((BN_mod_mul(az, az, a->Z, mod, ctx) != 1)) {
+            ret = -1;
+        }
+        /* bt = By * az = By * (Az ^ 3) */
+        else if (BN_mod_mul(bt, b->Y, az, mod, ctx) != 1) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        /* at = Ay * (Bz ^ 3). When Bz is one then just copy. */
+        if (BN_is_one(b->Z)) {
+            if (BN_copy(at, a->Y) == NULL) {
+                ret = -1;
+            }
+        }
+        /* bz = bz * Bz = Bz ^ 3 */
+        else if (BN_mod_mul(bz, bz, b->Z, mod, ctx) != 1) {
+            ret = -1;
+        }
+        /* at = Ay * bz = Ay * (Bz ^ 3) */
+        else if (BN_mod_mul(at, a->Y, bz, mod, ctx) != 1) {
+            ret = -1;
+        }
+    }
+    /* Compare y-ordinates. */
+    if ((ret == 0) && (BN_cmp(at, bt) != 0)) {
+        ret = 1;
+    }
+
+    BN_free(mod);
+    BN_free(bz);
+    BN_free(az);
+    BN_free(bt);
+    BN_free(at);
+    return ret;
+}
+#endif
+
 /* Compare two points on a the same curve.
  *
  * Return code compliant with OpenSSL.
  *
- * TODO: Compare affine co-ordinate like OpenSSL?
- *
  * @param [in] group  EC group.
- * @param [in] a      EC point to invert.
- * @param [in] b      EC point to invert.
+ * @param [in] a      EC point to compare.
+ * @param [in] b      EC point to compare.
  * @param [in] ctx    Context to use for BN operations. Unused.
  * @return  0 when equal.
  * @return  1 when different.
@@ -10984,10 +11101,7 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group,
 int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
     const WOLFSSL_EC_POINT *a, const WOLFSSL_EC_POINT *b, WOLFSSL_BN_CTX *ctx)
 {
-    int ret;
-
-    /* No BN operations performed. */
-    (void)ctx;
+    int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_cmp");
 
@@ -10997,9 +11111,23 @@ int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
         WOLFSSL_MSG("wolfSSL_EC_POINT_cmp Bad arguments");
         ret = -1;
     }
-    else  {
+    if (ret != -1) {
+    #ifdef WOLFSSL_EC_POINT_CMP_JACOBIAN
+        /* If same Z ordinate then no need to convert to affine. */
+        if (BN_cmp(a->Z, b->Z) == 0) {
+            /* Compare */
+            ret = ((BN_cmp(a->X, b->X) != 0) || (BN_cmp(a->Y, b->Y) != 0));
+        }
+        else {
+            ret = ec_point_cmp_jacobian(group, a, b, ctx);
+        }
+    #else
+        /* No BN operations performed. */
+        (void)ctx;
+
         ret = (wc_ecc_cmp_point((ecc_point*)a->internal,
             (ecc_point*)b->internal) != MP_EQ);
+    #endif
     }
 
     return ret;
