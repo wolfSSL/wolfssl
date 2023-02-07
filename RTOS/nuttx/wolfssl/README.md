@@ -42,6 +42,7 @@
 >   - For BL602 (RISC-V): `$ ./tools/configure.sh -l bl602evb:nsh`
 >   - For NUCLEO-L552ZE-Q (Cortex-M33): `$ ./tools/configure.sh -l nucleo-l552ze:nsh`
 >   - For NUCLEO-H753ZI: `$ ./tools/configure.sh -l nucleo-h743zi:nsh`
+>   - For NUCLEO-F756ZG: `./tools/configure.sh -l nucleo-144:f746-nsh`
 
 7) Start custom configuration system:
     ```
@@ -184,5 +185,6 @@ CP: nuttx.bin
 - Developed using the following targets:
     - STM NUCLEO-L552ZE-Q (Cortex-M33)
     - STM NUCLEO-H753ZI
+    - STM NUCLEO-F756ZG
     - DT-BL10 / BL602 (RISC-V)
     - NuttX simulator
