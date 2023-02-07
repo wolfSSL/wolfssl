@@ -1,7 +1,7 @@
 ############################################################################
 # apps/crypto/wolfssl/Make.defs
 #
-# Copyright (C) 2006-2020 wolfSSL Inc.
+# Copyright (C) 2006-2023 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -19,6 +19,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #
+############################################################################
 
 ifeq ($(CONFIG_CRYPTO_WOLFSSL),y)
 CONFIGURED_APPS += $(APPDIR)/crypto/wolfssl

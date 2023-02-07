@@ -10,8 +10,7 @@
 #define WOLF_C99
 
 /* Math */
-#ifdef CONFIG_ARCH_CHIP_STM32L552ZE
-    /* Math - Optimized for NUCLEO-L552ZE-Q */
+#if defined(CONFIG_ARCH_CHIP_STM32L552ZE) || defined(CONFIG_ARCH_CHIP_STM32F746ZG) || defined(CONFIG_ARCH_CHIP_STM32H743ZI)
     #define WOLFSSL_SP
     #define WOLFSSL_SP_SMALL
     #define WOLFSSL_HAVE_SP_RSA
