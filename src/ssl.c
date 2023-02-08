@@ -206,7 +206,7 @@
     !defined(WOLFCRYPT_ONLY)
 /* Convert shortname to NID.
  *
- * For OpenSSL compatability.
+ * For OpenSSL compatibility.
  *
  * This function shouldn't exist!
  * Uses defines in wolfssl/openssl/evp.h.
@@ -6228,7 +6228,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             #else
                 /* ClientSession objects are lightweight (compared to
                  * WOLFSSL_SESSION) so to decrease chance that user will reuse
-                 * thse wrong session, increase the ClientCache size. This will
+                 * the wrong session, increase the ClientCache size. This will
                  * make the entire ClientCache about the size of one
                  * WOLFSSL_SESSION object. */
                 #define CLIENT_SESSIONS_MULTIPLIER 8
@@ -11331,7 +11331,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
         return ssl->session;
 #else
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            /* On the client side we want to return a persistant reference for
+            /* On the client side we want to return a persistent reference for
              * backwards compatibility. */
 #ifndef NO_CLIENT_CACHE
             if (ssl->clientSession) {
@@ -15023,7 +15023,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx, byte* serverI
             }
             else {
                 error = -1;
-                ClientCache[clientRow].nextIdx = 0; /* reset index as saftey */
+                ClientCache[clientRow].nextIdx = 0; /* reset index as safety */
                 WOLFSSL_MSG("Invalid client cache index! "
                             "Possible corrupted memory");
             }
@@ -15353,7 +15353,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     }
 #ifdef HAVE_SESSION_TICKET
     else if (ticBuffUsed) {
-        /* Error occured. Need to clean up the ticket buffer. */
+        /* Error occurred. Need to clean up the ticket buffer. */
         cacheSession->ticket = cacheSession->staticTicket;
         cacheSession->ticketLenAlloc = 0;
         cacheSession->ticketLen = 0;
@@ -16777,7 +16777,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* This function is currently the same as
         wolfSSL_OpenSSL_add_all_algorithms_noconf since we do not employ
         the use of a wolfssl.cnf type configuration file and is only used for
-        OpenSSL compatability. */
+        OpenSSL compatibility. */
 
         if (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR) {
             return WOLFSSL_FATAL_ERROR;
@@ -17587,7 +17587,7 @@ cleanup:
         ctx->x509_store.cache = str->cache;
         ctx->x509_store_pt    = str; /* take ownership of store and free it
                                         with CTX free */
-        ctx->cm->x509_store_p = ctx->x509_store_pt;/* CTX has onwership
+        ctx->cm->x509_store_p = ctx->x509_store_pt;/* CTX has ownership
                                                     and free it with CTX free*/
     }
 
@@ -38923,7 +38923,7 @@ void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id)
     return;
 }
 /* wolfSSL_THREADID_hash is provided as a compatible API with
- * CRYPTO_THREADID_hash which returns a hash value calcurated from the
+ * CRYPTO_THREADID_hash which returns a hash value calculated from the
  * specified thread id. However, CRYPTO_THREADID_hash API has been
  * deprecated and no longer exists in the OpenSSL 1.0.0 or later.
  * This API only works as a stub to returns 0. This behavior is
@@ -39049,7 +39049,7 @@ int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
 #if defined(OPENSSL_EXTRA)
 
 /**
- * free allocated memory resouce
+ * free allocated memory resource
  * @param str  a pointer to resource to be freed
  * @param file dummy argument
  * @param line dummy argument
@@ -39642,7 +39642,7 @@ int wolfSSL_RAND_egd(const char* nm)
             ret = WOLFSSL_FATAL_ERROR;
         }
         #ifdef SHOW_SECRETS
-        else { /* print out entropy found only when no error occured */
+        else { /* print out entropy found only when no error occurred */
             word32 i;
             printf("EGD Entropy = ");
             for (i = 0; i < bytes; i++) {
@@ -39706,7 +39706,7 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
 {
     int ret;
     int hash;
-    byte secret[DRBG_SEED_LEN]; /* secret length arbitraily choosen */
+    byte secret[DRBG_SEED_LEN]; /* secret length arbitrarily chosen */
 
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
@@ -42396,7 +42396,7 @@ int wolfSSL_FIPS_drbg_uninstantiate(WOLFSSL_DRBG_CTX *ctx)
 void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
 {
     if (ctx != NULL) {
-        /* As saftey check if free'ing the default drbg, then mark global NULL.
+        /* As safety check if free'ing the default drbg, then mark global NULL.
          * Technically the user should not call free on the default drbg. */
         if (ctx == gDrbgDefCtx) {
             gDrbgDefCtx = NULL;
