@@ -502,6 +502,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     Suites suites;
     byte haveSA = 0;
     byte haveKS = 0;
+    byte haveSG = 0;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     byte usePSK = 0;
     byte doKE = 0;
@@ -573,6 +574,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
                                      (word16)tlsx.size, 1, &parsedExts);
         if (ret != 0)
             goto dtls13_cleanup;
+        haveSG = 1;
     }
 
     /* Key share */
@@ -640,6 +642,11 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
         cs.cipherSuite0 = pskInfo->cipherSuite0;
         cs.cipherSuite = pskInfo->cipherSuite;
 
+        if (haveSG && !haveKS) {
+            WOLFSSL_MSG("Client didn't send KeyShare or Supported Groups.");
+            ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
+        }
+
         if (doKE) {
             byte searched = 0;
             ret = TLSX_KeyShare_Choose(ssl, parsedExts, &cs.clientKSE,
@@ -653,8 +660,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     else
 #endif
     {
-        if (!haveKS || !haveSA) {
-            WOLFSSL_MSG("Client didn't send KeyShare or SigAlgs");
+        if (!haveKS || !haveSA || !haveSG) {
+            WOLFSSL_MSG("Client didn't send KeyShare or SigAlgs or "
+                        "Supported Groups.");
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
         ret = MatchSuite_ex(ssl, &suites, &cs, parsedExts);
