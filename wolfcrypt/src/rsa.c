@@ -4035,6 +4035,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
         }
     }
 
+#ifdef WOLFSSL_PSS_LONG_SALT
     /* if long salt is larger then default maximum buffer then allocate a buffer */
     if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
         sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, heap,
@@ -4043,6 +4044,11 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
             ret = MEMORY_E;
         }
     }
+#else
+    if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
+        ret = BUFFER_E;
+    }
+#endif
 
     /* Exp Hash = HASH(8 * 0x00 | Message Hash | Salt) */
     if (ret == 0) {
@@ -4059,9 +4065,11 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
         }
     }
 
+#ifdef WOLFSSL_PSS_LONG_SALT
     if (sigCheck != NULL && sigCheck != sigCheckBuf) {
         XFREE(sigCheck, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
+#endif
 
     (void)heap; /* unused if memory is disabled */
     return ret;

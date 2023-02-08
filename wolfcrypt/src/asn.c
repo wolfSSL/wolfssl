@@ -15424,14 +15424,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                             ERROR_OUT(MEMORY_E, exit_cs);
                         }
                     #endif
-                        if((ret = mp_init(r)) != 0) {
-                            WOLFSSL_MSG("Variable ('r') initialization error");
-                            WOLFSSL_ERROR_VERBOSE(ret);
-                            goto exit_cs;
-                        }
-                        if((ret = mp_init(s)) != 0) {
-                            WOLFSSL_MSG("Variable ('s') initialization error");
-                            WOLFSSL_ERROR_VERBOSE(ret);
+                        if ((ret = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY) {
                             goto exit_cs;
                         }
 
