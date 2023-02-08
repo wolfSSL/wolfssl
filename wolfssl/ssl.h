@@ -3902,8 +3902,8 @@ enum {
      * beside the group number. Please see the NIST PQC Competition's submitted
      * papers for more details.
      *
-     * LEVEL1 means that an attack on that parameter set would reqire the same
-     * or more resources as a key search on AES 128. LEVEL3 would reqire the
+     * LEVEL1 means that an attack on that parameter set would require the same
+     * or more resources as a key search on AES 128. LEVEL3 would require the
      * same or more resources as a key search on AES 192. LEVEL5 would require
      * the same or more resources as a key search on AES 256. None of the
      * algorithms have LEVEL2 and LEVEL4 because none of these submissions

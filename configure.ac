@@ -577,7 +577,7 @@ if test "$ENABLED_SP_ASM" != "no"
 then
     if test "$ENABLED_SP" = "no"
     then
-        AC_MSG_ERROR([--enable-sp-asm requries SP to be enabled.])
+        AC_MSG_ERROR([--enable-sp-asm requires SP to be enabled.])
     fi
     if test "$ENABLED_SP" = ""
     then
@@ -4844,7 +4844,7 @@ AC_ARG_WITH([user-crypto],
 
 if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
 then
-    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto posibility of using code in fips boundary.])
+    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto possibility of using code in fips boundary.])
 fi
 
 # Whitewood netRandom client library
@@ -5325,7 +5325,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DASN_BER_TO_DER"
 fi
 
-# Alternate certification chains, as oppossed to requiring full chain validataion.
+# Alternate certification chains, as opposed to requiring full chain validation.
 # Certificate validation behavior is relaxed, similar to openssl and
 # browsers. Only the peer certificate must validate to a trusted
 # certificate. Without this, all certificates sent by a peer must be
@@ -7142,7 +7142,7 @@ if test "$ENABLED_FAST_RSA" = "yes"; then
         esac
 
         if test "$fastRSA_found" = "yes"; then
-            # was succesfull so add tested LDFLAGS to AM_ flags
+            # was successful so add tested LDFLAGS to AM_ flags
             AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
             AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
             IPPHEADERS="${srcdir}/IPP/include/*.h"
@@ -7574,7 +7574,7 @@ then
     ENABLED_TRUSTED_PEER_CERT=yes
 fi
 
-# dertermine if we have key validation mechanism
+# determine if we have key validation mechanism
 if test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_RSA" = "xyes"
 then
     if test "x$ENABLED_ASN" = "xyes"
