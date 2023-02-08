@@ -304,10 +304,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     if (err == MP_OKAY)
 #endif
-        err = mp_init(tmp);
-
-    if (err == MP_OKAY)
-        err = mp_init_multi(tmp2, &dsa->p, &dsa->q, 0, 0, 0);
+        err = mp_init_multi(tmp, tmp2, &dsa->p, &dsa->q, 0, 0);
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(tmp2, buf, msize - qsize);
