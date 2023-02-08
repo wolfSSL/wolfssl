@@ -500,7 +500,6 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     TLSX* parsedExts = NULL;
     WolfSSL_ConstVector tlsx;
     Suites suites;
-    word16 len;
     byte haveSA = 0;
     byte haveKS = 0;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -553,14 +552,14 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     if (ret != 0)
         goto dtls13_cleanup;
     if (tlsx.size > OPAQUE16_LEN) {
-        ato16(tlsx.elements, &len);
-        if (len != tlsx.size - OPAQUE16_LEN)
+        WolfSSL_ConstVector sigAlgs;
+        ReadVector16(tlsx.elements, &sigAlgs);
+        if (sigAlgs.size != tlsx.size - OPAQUE16_LEN)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
-        if ((len % 2) != 0)
+        if ((sigAlgs.size % 2) != 0)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
-        suites.hashSigAlgoSz = len;
-        XMEMCPY(suites.hashSigAlgo, tlsx.elements + OPAQUE16_LEN,
-                len);
+        suites.hashSigAlgoSz = (word16)sigAlgs.size;
+        XMEMCPY(suites.hashSigAlgo, sigAlgs.elements, sigAlgs.size);
         haveSA = 1;
     }
 
