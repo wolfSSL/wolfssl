@@ -393,6 +393,8 @@ cmake_install.cmake
 # GDB Settings
 \.gdbinit
 
+libFuzzer
+
 # Pycharm and other IDEs
 \.idea
 

@@ -5112,7 +5112,7 @@ void bench_shake128(int useDeviceID)
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
                                           0, &times, numBlocks, &pending)) {
                         ret = wc_Shake128_Update(&hash[i], bench_plain,
-                            BENCH_SIZE);
+                            bench_size);
                         if (!bench_async_handle(&ret,
                             BENCH_ASYNC_GET_DEV(&hash[i]), 0,
                                                 &times, &pending)) {
@@ -5148,7 +5148,7 @@ void bench_shake128(int useDeviceID)
                 ret = wc_InitShake128(hash, HEAP_HINT,
                     useDeviceID ? devId : INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Shake128_Update(hash, bench_plain, BENCH_SIZE);
+                    ret = wc_Shake128_Update(hash, bench_plain, bench_size);
                 if (ret == 0)
                     ret = wc_Shake128_Final(hash, digest[0],
                         WC_SHA3_128_BLOCK_SIZE);
@@ -5207,7 +5207,7 @@ void bench_shake256(int useDeviceID)
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
                                           0, &times, numBlocks, &pending)) {
                         ret = wc_Shake256_Update(&hash[i], bench_plain,
-                            BENCH_SIZE);
+                            bench_size);
                         if (!bench_async_handle(&ret,
                             BENCH_ASYNC_GET_DEV(&hash[i]), 0,
                                                 &times, &pending)) {
@@ -5243,7 +5243,7 @@ void bench_shake256(int useDeviceID)
                 ret = wc_InitShake256(hash, HEAP_HINT,
                     useDeviceID ? devId : INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Shake256_Update(hash, bench_plain, BENCH_SIZE);
+                    ret = wc_Shake256_Update(hash, bench_plain, bench_size);
                 if (ret == 0)
                     ret = wc_Shake256_Final(hash, digest[0],
                         WC_SHA3_256_BLOCK_SIZE);
