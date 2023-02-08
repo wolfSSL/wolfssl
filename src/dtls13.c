@@ -435,7 +435,7 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
     return 0;
 }
 
-/* Handshake header DTLS only fields are not inlcuded in the transcript hash.
+/* Handshake header DTLS only fields are not included in the transcript hash.
  * body points to the body of the DTLSHandshake message. */
 int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
         const byte* body, word32 length, CipherSpecs* specs)

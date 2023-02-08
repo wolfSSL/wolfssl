@@ -6071,6 +6071,7 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 WOLFSSL_API int wolfSSL_DtlsUpdateWindow(word16 cur_hi, word32 cur_lo,
         word16* next_hi, word32* next_lo, word32 *window);
 WOLFSSL_LOCAL void DtlsResetState(WOLFSSL *ssl);
+WOLFSSL_LOCAL int DtlsIgnoreError(int err);
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -6225,6 +6226,8 @@ WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
                                   word16 hashSz, TLSX** exts,
                                   byte cipherSuite0, byte cipherSuite);
 #endif
+
+WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -6398,7 +6398,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
         if (ret != 0 || !ssl->options.dtlsStateful) {
             *inOutIdx += helloSz;
-            DtlsResetState(ssl);
             goto exit_dch;
         }
     }
@@ -6422,8 +6421,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* this check pass for DTLS Major (0xff) */
     if (args->pv.major < SSLv3_MAJOR) {
         WOLFSSL_MSG("Legacy version field contains unsupported value");
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
-        ERROR_OUT(INVALID_PARAMETER, exit_dch);
+        ERROR_OUT(VERSION_ERROR, exit_dch);
     }
 
 #ifdef WOLFSSL_DTLS13
@@ -6501,12 +6499,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     sessIdSz = input[args->idx++];
-    if (sessIdSz != ID_LEN && sessIdSz != 0)
+    if (sessIdSz != ID_LEN && sessIdSz != 0) {
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
-
-    if (sessIdSz + args->idx > helloSz) {
-        ERROR_OUT(BUFFER_ERROR, exit_dch);
     }
+
+    if (sessIdSz + args->idx > helloSz)
+        ERROR_OUT(BUFFER_ERROR, exit_dch);
 
     ssl->session->sessionIDSz = sessIdSz;
     if (sessIdSz == ID_LEN) {
@@ -6516,8 +6514,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS13
     /* legacy_cookie */
-    if (ssl->options.dtls)
-        args->idx += OPAQUE8_LEN;
+    if (ssl->options.dtls) {
+        /* https://www.rfc-editor.org/rfc/rfc9147.html#section-5.3 */
+        byte cookieLen = input[args->idx++];
+        if (cookieLen != 0) {
+            ERROR_OUT(INVALID_PARAMETER, exit_dch);
+        }
+    }
 #endif /* WOLFSSL_DTLS13 */
 
     args->clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
@@ -6624,12 +6627,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             */
             if (ext->resp == 0) {
                 ret = RestartHandshakeHashWithCookie(ssl, (Cookie*)ext->data);
-#ifdef WOLFSSL_DTLS13
-                /* Send a new cookie request */
-                if (ret == HRR_COOKIE_ERROR && ssl->options.dtls)
-                    ssl->options.serverState = NULL_STATE;
-                else
-#endif
                 if (ret != 0)
                     goto exit_dch;
                 ssl->options.serverState = SERVER_HELLO_COMPLETE;
@@ -6675,12 +6672,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
         if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
             WOLFSSL_MSG("Client did not send a KeyShare extension");
-            SendAlert(ssl, alert_fatal, missing_extension);
             ERROR_OUT(INCOMPLETE_DATA, exit_dch);
         }
         if (TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS) == NULL) {
             WOLFSSL_MSG("Client did not send a SignatureAlgorithms extension");
-            SendAlert(ssl, alert_fatal, missing_extension);
             ERROR_OUT(INCOMPLETE_DATA, exit_dch);
         }
 #else
@@ -6706,11 +6701,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (!args->usingPSK) {
         if ((ret = MatchSuite(ssl, args->clSuites)) < 0) {
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E)
-                goto exit_dch;
+            if (ret != WC_PENDING_E)
         #endif
-            WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
-            SendAlert(ssl, alert_fatal, handshake_failure);
+                WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
             goto exit_dch;
         }
     }
@@ -6758,8 +6751,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.cipherSuite0 != TLS13_BYTE) {
             WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
                         "TLS v1.3");
-            SendAlert(ssl, alert_fatal, handshake_failure);
-            ERROR_OUT(VERSION_ERROR, exit_dch);
+            ERROR_OUT(MATCH_SUITE_ERROR, exit_dch);
         }
 
     #ifdef HAVE_SESSION_TICKET
@@ -6781,22 +6773,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     } /* switch (ssl->options.asyncState) */
 
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-    /* We are using DTLSv13 and set the HRR cookie secret, use the cookie to
-       perform a return-routability check. */
     if (ret == 0 && ssl->options.dtls && ssl->options.sendCookie &&
-        ssl->options.serverState < SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-
-        /* ssl->options.serverState < SERVER_HELLO_RETRY_REQUEST_COMPLETE
-           so the client already provided a good KeyShareEntry. In this case
-           we don't add the KEY_SHARE extension to the HelloRetryRequest or
-           in the Cookie. The RFC8446 forbids to select a supported group
-           with KeyShare extension in HelloRetryRequest if the client
-           already provided a KeyShareEntry for that group. See rfc8446
-           section 4.1.4 */
-        TLSX_Remove(&ssl->extensions, TLSX_KEY_SHARE, ssl->heap);
-
-        /* send an HRR (see wolfSSL_Accept_TLSv13()) */
-        ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
+        ssl->options.serverState <= SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+        /* Cookie and key share negotiation should be handled in
+         * DoClientHelloStateless. If we enter here then something went wrong
+         * in our logic. */
+        ERROR_OUT(BAD_HELLO, exit_dch);
     }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -6819,22 +6801,6 @@ exit_dch:
         return ret;
     }
 #endif
-
-    if (ret == VERSION_ERROR) {
-#ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
-                  ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
-                 (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {
-                /* We should continue with the same sequence number as the
-                 * Client Hello if available. */
-                ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-                ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
-            }
-        }
-#endif
-        SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
-    }
 
     FreeDch13Args(ssl, args);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10937,6 +10903,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
     word32 inIdx = *inOutIdx;
+    int alertType = invalid_alert;
 #if defined(HAVE_ECH)
     TLSX* echX = NULL;
     word32 echInOutIdx;
@@ -11143,12 +11110,18 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = HashInput(ssl, input + inIdx, size);
     }
 
-    if (ret == BUFFER_ERROR || ret == MISSING_HANDSHAKE_DATA)
-        SendAlert(ssl, alert_fatal, decode_error);
-    else if (ret == EXT_NOT_ALLOWED || ret == PEER_KEY_ERROR ||
-                        ret == ECC_PEERKEY_ERROR || ret == BAD_KEY_SHARE_DATA ||
-                        ret == PSK_KEY_ERROR || ret == INVALID_PARAMETER) {
-        SendAlert(ssl, alert_fatal, illegal_parameter);
+    alertType = TranslateErrorToAlert(ret);
+
+    if (alertType != invalid_alert) {
+#ifdef WOLFSSL_DTLS13
+        if (type == client_hello && ssl->options.dtls) {
+            /* We should continue with the same sequence number as the
+             * Client Hello. */
+            ssl->dtls13EncryptEpoch->nextSeqNumber =
+                    w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
+        }
+#endif
+        SendAlert(ssl, alert_fatal, alertType);
     }
 
     if (ret == 0 && ssl->options.tls1_3) {
@@ -11263,7 +11236,15 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* NO_WOLFSSL_SERVER */
     }
 
-    WOLFSSL_LEAVE("DoTls13HandShakeMsgType", ret);
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && !ssl->options.dtlsStateful) {
+        DtlsResetState(ssl);
+        if (DtlsIgnoreError(ret))
+            ret = 0;
+    }
+#endif
+
+    WOLFSSL_LEAVE("DoTls13HandShakeMsgType()", ret);
     return ret;
 }
 
@@ -12524,47 +12505,6 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
 
 
 #ifndef NO_WOLFSSL_SERVER
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-static int DtlsAcceptStateless(WOLFSSL *ssl)
-{
-    int ret;
-
-    if (!ssl->options.dtls)
-        return 0;
-
-    switch (ssl->options.acceptState) {
-    case TLS13_ACCEPT_BEGIN:
-
-        while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-            ret = ProcessReply(ssl);
-            if (ret != 0)
-                return ret;
-        }
-
-        if (!IsAtLeastTLSv1_3(ssl->version))
-            return wolfSSL_accept(ssl);
-
-        ssl->options.acceptState = TLS13_ACCEPT_CLIENT_HELLO_DONE;
-        WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
-        FALL_THROUGH;
-
-    case TLS13_ACCEPT_CLIENT_HELLO_DONE:
-        if (ssl->options.serverState ==
-                                          SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-            ret = SendTls13ServerHello(ssl, hello_retry_request);
-            DtlsResetState(ssl);
-            return ret;
-        }
-
-        ssl->options.acceptState = TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE;
-        WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
-        FALL_THROUGH;
-
-    default:
-        return 0;
-    }
-}
-#endif /* WOLFSSL_DTLS13 */
 
 /* The server accepting a connection from a client.
  * The protocol version is expecting to be TLS v1.3.
@@ -12760,19 +12700,6 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         ssl->options.acceptState++;
     }
 #endif /* WOLFSSL_DTLS13 */
-
-#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
-    if (ssl->options.dtls && ssl->options.sendCookie) {
-        while (ssl->options.serverState < SERVER_HELLO_COMPLETE) {
-            ret = DtlsAcceptStateless(ssl);
-            if (ret != 0) {
-                ssl->error = ret;
-                WOLFSSL_ERROR(ssl->error);
-                return WOLFSSL_FATAL_ERROR;
-            }
-        }
-    }
-#endif /* defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE) */
 
     switch (ssl->options.acceptState) {
 

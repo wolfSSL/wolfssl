@@ -30656,6 +30656,32 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* HAVE_ECC */
 
+    int TranslateErrorToAlert(int err)
+    {
+        switch (err) {
+            case BUFFER_ERROR:
+                return decode_error;
+            case EXT_NOT_ALLOWED:
+            case PEER_KEY_ERROR:
+            case ECC_PEERKEY_ERROR:
+            case BAD_KEY_SHARE_DATA:
+            case PSK_KEY_ERROR:
+            case INVALID_PARAMETER:
+            case HRR_COOKIE_ERROR:
+                return illegal_parameter;
+                break;
+            case INCOMPLETE_DATA:
+                return missing_extension;
+            case MATCH_SUITE_ERROR:
+            case MISSING_HANDSHAKE_DATA:
+                return handshake_failure;
+            case VERSION_ERROR:
+                return wolfssl_alert_protocol_version;
+            default:
+                return invalid_alert;
+        }
+    }
+
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -33158,22 +33184,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* Update the ssl->options.dtlsStateful setting `if` statement in
          * wolfSSL_accept when changing this one. */
         if (IsDtlsNotSctpMode(ssl) && IsDtlsNotSrtpMode(ssl) && !IsSCR(ssl)) {
-            if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
-                  ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
-                 (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {
-                /* We should continue with the same sequence number as the
-                 * Client Hello if available. */
-                ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-                ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
-            }
+            /* We should continue with the same sequence number as the
+             * Client Hello. */
+            ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+            ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
             /* We should continue with the same handshake number as the
              * Client Hello. */
             ssl->keys.dtls_handshake_number =
                     ssl->keys.dtls_peer_handshake_number;
             ret = DoClientHelloStateless(ssl, input, inOutIdx, helloSz);
             if (ret != 0 || !ssl->options.dtlsStateful) {
+                int alertType = TranslateErrorToAlert(ret);
+                if (alertType != invalid_alert)
+                    SendAlert(ssl, alert_fatal, alertType);
                 *inOutIdx += helloSz;
                 DtlsResetState(ssl);
+                if (DtlsIgnoreError(ret))
+                    ret = 0;
                 return ret;
             }
         }
@@ -35440,7 +35467,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         }
 
         ssl->buffers.outputBuffer.length += sendSz;
-        DtlsResetState(ssl);
 
         return SendBuffered(ssl);
     }
