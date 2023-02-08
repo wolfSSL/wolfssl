@@ -6732,6 +6732,7 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
 #endif
 }
 
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Divides a by 2 and stores in r: r = a >> 1
  *
  * @param  [in]   a  SP integer to divide.
@@ -6740,12 +6741,10 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a or r is NULL.
  */
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 int sp_div_2(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
 
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
     /* Only when a public API. */
     if ((a == NULL) || (r == NULL)) {
         err = MP_VAL;
@@ -6754,7 +6753,6 @@ int sp_div_2(const sp_int* a, sp_int* r)
     if ((err == MP_OKAY) && (a->used > r->size)) {
         err = MP_VAL;
     }
-#endif
 
     if (err == MP_OKAY) {
         _sp_div_2(a, r);
@@ -6762,7 +6760,7 @@ int sp_div_2(const sp_int* a, sp_int* r)
 
     return err;
 }
-#endif
+#endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
 #endif /* HAVE_ECC || !NO_DSA || OPENSSL_EXTRA ||
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
 
