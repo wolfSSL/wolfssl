@@ -1,6 +1,18 @@
 # NuttX + wolfSSL
 
-## Instructions
+## Installation
+
+### Installing from nuttx-apps
+
+Clone wolfssl into the the the crypto/wolfssl folder
+
+```
+git clone https://github.com/wolfSSL/wolfssl.git apps/crypto/wolfssl/wolfssl
+```
+
+Skip to step 6
+
+### Installing from wolfssl
 
 1) Create working directory (e.g. ~/nuttxspace):
     ```
