@@ -1200,7 +1200,7 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
 
 #endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+#ifndef HAVE_USER_RSA
 static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     void* heap);
 #endif
@@ -1307,7 +1307,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **out,
     return rsa;
 }
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && \
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_USER_RSA) && \
     !defined(HAVE_FAST_RSA)
 /* Converts an internal RSA structure to DER format for the private key.
  *
@@ -1382,7 +1382,7 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 
     return ret;
 }
-#endif /* defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) &&
+#endif /* defined(OPENSSL_EXTRA) && !defined(HAVE_USER_RSA) &&
         * !defined(HAVE_FAST_RSA) */
 
 #endif /* OPENSSL_EXTRA */
@@ -1512,7 +1512,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
 
 #ifdef OPENSSL_EXTRA
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+#ifndef HAVE_USER_RSA
 /* Create a DER encoding of key.
  *
  * Not OpenSSL API.
@@ -1645,7 +1645,7 @@ static int wolfSSL_RSA_To_Der_ex(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey,
     WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", ret);
     return ret;
 }
-#endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
+#endif /* !HAVE_USER_RSA */
 
 #endif /* OPENSSL_EXTRA */
 

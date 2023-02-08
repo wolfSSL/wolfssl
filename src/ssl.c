@@ -10402,6 +10402,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     return d2iGenericKey(out, in, inSz, 0);
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED)
+
 /* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
 static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
@@ -10439,8 +10442,10 @@ static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char**
 
 int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 {
-    return wolfSSL_EVP_PKEY_get_der(key, der);
+    return wolfSSL_i2d_PublicKey(key, der);
 }
+
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
 
 static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,
     const unsigned char **in, long inSz, int priv)
@@ -22949,7 +22954,114 @@ int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
 
 int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 {
-    return wolfSSL_EVP_PKEY_get_der(key, der);
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+#ifdef HAVE_ECC
+    unsigned char *local_der = NULL;
+    word32 local_derSz = 0;
+    unsigned char *pub_der = NULL;
+    ecc_key eccKey;
+    word32 inOutIdx = 0;
+#endif
+    word32 pub_derSz = 0;
+    int ret = 0;
+    int key_type = 0;
+
+    if (key == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    key_type = key->type;
+    if ((key_type != EVP_PKEY_EC) && (key_type != EVP_PKEY_RSA)) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+#ifndef NO_RSA
+    if (key_type == EVP_PKEY_RSA) {
+        return wolfSSL_i2d_RSAPublicKey(key->rsa, der);
+    }
+#endif
+
+    /* Now that RSA is taken care of, we only need to consider the ECC case. */
+
+#ifdef HAVE_ECC
+
+    /* We need to get the DER, then convert it to a public key. But what we get
+     * might be a buffereed private key so we need to decode it and then encode
+     * the public part. */
+    if (ret == 0) {
+        local_derSz = wolfSSL_EVP_PKEY_get_der(key, &local_der);
+        if (local_derSz <= 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_ecc_init(&eccKey);
+    }
+
+    if (ret == 0) {
+        ret = wc_EccPublicKeyDecode(local_der, &inOutIdx, &eccKey, local_derSz);
+    }
+
+    if (ret == 0) {
+        pub_derSz = wc_EccPublicKeyDerSize(&eccKey, 0);
+        if (pub_derSz <= 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == 0) {
+        pub_der = (unsigned char*)XMALLOC(pub_derSz, NULL,
+                                          DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pub_der == NULL) {
+            WOLFSSL_MSG("Failed to allocate output buffer.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        pub_derSz = wc_EccPublicKeyToDer(&eccKey, pub_der, pub_derSz, 0);
+        if (pub_derSz <= 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    /* This block is for actually returning the DER of the public key */
+    if ((ret == 0) && (der != NULL)) {
+        if (*der == NULL) {
+            *der = (unsigned char*)XMALLOC(pub_derSz, NULL,
+                                           DYNAMIC_TYPE_PUBLIC_KEY);
+            if (*der == NULL) {
+                WOLFSSL_MSG("Failed to allocate output buffer.");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+
+            if (ret == 0) {
+                XMEMCPY(*der, pub_der, pub_derSz);
+            }
+        }
+        else {
+            XMEMCPY(*der, pub_der, pub_derSz);
+            *der += pub_derSz;
+        }
+    }
+
+    XFREE(pub_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(local_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+
+    wc_ecc_free(&eccKey);
+#else
+    ret = WOLFSSL_FATAL_ERROR;
+#endif /* HAVE_ECC */
+
+    if (ret == 0) {
+        return pub_derSz;
+    }
+
+    return ret;
+#else
+    return WOLFSSL_FATAL_ERROR;
+#endif /* !NO_RSA || HAVE_ECC */
 }
 #endif /* !NO_ASN && !NO_PWDBASED */
 
