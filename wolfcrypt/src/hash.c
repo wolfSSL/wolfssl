@@ -1219,6 +1219,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the md5 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(md5, sizeof(wc_Md5));
+
         if ((ret = wc_InitMd5(md5)) != 0) {
             WOLFSSL_MSG("InitMd5 failed");
         }
@@ -1256,6 +1261,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha we start with does not have
+        ** any unexpected values in any of the properties */
+        ForceZero(sha, sizeof(wc_Sha));
 
     #ifdef WOLF_CRYPTO_CB
         /* only use devId if its not an empty hash */
@@ -1301,6 +1311,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha224 we start with does not have
+        ** any unexpected values in any of the properties */
+        ForceZero(sha224, sizeof(wc_Sha224));
+
         if ((ret = wc_InitSha224(sha224)) != 0) {
             WOLFSSL_MSG("InitSha224 failed");
         }
@@ -1339,6 +1354,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha256 == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha256 we start with does not have
+        ** any unexpected values in any of the properties */
+        ForceZero(sha256, sizeof(wc_Sha256));
 
     #ifdef WOLF_CRYPTO_CB
         /* only use devId if its not an empty hash */
@@ -1388,6 +1408,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha512 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha512, sizeof(wc_Sha512));
+
         if ((ret = wc_InitSha512(sha512)) != 0) {
             WOLFSSL_MSG("InitSha512 failed");
         }
@@ -1424,6 +1449,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha512 == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha512 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha512, sizeof(wc_Sha512));
 
         if ((ret = wc_InitSha512_224(sha512)) != 0) {
             WOLFSSL_MSG("wc_InitSha512_224 failed");
@@ -1464,6 +1494,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha512 == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha512, sizeof(wc_Sha512));
 
         if ((ret = wc_InitSha512_256(sha512)) != 0) {
             WOLFSSL_MSG("wc_InitSha512_256 failed");
@@ -1506,6 +1541,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha384 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha384, sizeof(wc_Sha384));
+
         if ((ret = wc_InitSha384(sha384)) != 0) {
             WOLFSSL_MSG("InitSha384 failed");
         }
@@ -1545,6 +1585,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha3 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha3, sizeof(wc_Sha3));
+
         if ((ret = wc_InitSha3_224(sha3, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitSha3_224 failed");
         }
@@ -1582,6 +1627,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha3 == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha3 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha3, sizeof(wc_Sha3));
 
         if ((ret = wc_InitSha3_256(sha3, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitSha3_256 failed");
@@ -1621,6 +1671,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha3 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha3, sizeof(wc_Sha3));
+
         if ((ret = wc_InitSha3_384(sha3, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitSha3_384 failed");
         }
@@ -1658,6 +1713,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (sha3 == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the sha3 we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(sha3, sizeof(wc_Sha3));
 
         if ((ret = wc_InitSha3_512(sha3, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitSha3_512 failed");
@@ -1698,6 +1758,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the shake we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(shake, sizeof(wc_Shake));
+
         if ((ret = wc_InitShake128(shake, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitShake128 failed");
         }
@@ -1736,6 +1801,11 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         if (shake == NULL)
             return MEMORY_E;
     #endif
+
+        /* Typically only important to hardware acceleration, but a good
+        ** practice: we'll make sure the shake we start with does not have
+        ** any unexpected values in any of the properties. */
+        ForceZero(shake, sizeof(wc_Shake));
 
         if ((ret = wc_InitShake256(shake, NULL, INVALID_DEVID)) != 0) {
             WOLFSSL_MSG("InitShake256 failed");
