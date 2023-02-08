@@ -433,10 +433,8 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
     return 0;
 }
 
-static int CopyExtensions(TLSX* src, TLSX** dst, void* heap)
+static int CopySupportedGroup(TLSX* src, TLSX** dst, void* heap)
 {
-    /* Copy the following extensions
-     * * SupportedCurves */
     TLSX* extension;
     int ret;
 
@@ -545,7 +543,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     /* Set that this is a response extension */
     parsedExts->resp = 1;
 
-    ret = CopyExtensions(ssl->extensions, &parsedExts, ssl->heap);
+    ret = CopySupportedGroup(ssl->extensions, &parsedExts, ssl->heap);
     if (ret != 0)
         goto dtls13_cleanup;
 
