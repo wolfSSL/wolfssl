@@ -12121,7 +12121,7 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
     DerBuffer*      der = NULL;
     int             keyFormat = 0;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_EC_PUBKEY");
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_ECPrivateKey");
 
     /* Validate parameters. */
     if (bio == NULL) {
@@ -12135,9 +12135,16 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
             err = 1;
         }
     }
-    /* Read a PEM key in to a new DER buffer. */
-    if ((!err) && (pem_read_bio_key(bio, cb, pass, ECC_PRIVATEKEY_TYPE,
+    /* Read a PEM key in to a new DER buffer.
+     * To check ENC EC PRIVATE KEY, it uses PRIVATEKEY_TYPE to call
+     * pem_read_bio_key(), and then check key format if it is EC.
+     */
+    if ((!err) && (pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE,
             &keyFormat, &der) <= 0)) {
+        err = 1;
+    }
+    if (keyFormat != ECDSAk) {
+        WOLFSSL_ERROR_MSG("Error not EC key format");
         err = 1;
     }
     /* Load the EC key with the private key from the DER encoding. */
