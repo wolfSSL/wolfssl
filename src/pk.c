@@ -1824,18 +1824,16 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
     /* Validate parameters. */
     if ((bio == NULL) || (rsa == NULL)) {
         WOLFSSL_ERROR_MSG("Bad Function Arguments");
-        ret = 0;
+        return 0;
     }
 
-    if (ret == 1) {
-        if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, bio->heap)) < 0) {
-            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
-            ret = 0;
-        }
-        if (derBuf == NULL) {
-            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
-            ret = 0;
-        }
+    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, bio->heap)) < 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
+        ret = 0;
+    }
+    if (derBuf == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
+        ret = 0;
     }
     if ((ret == 1) && (der_write_to_bio_as_pem(derBuf, derSz, bio,
             PUBLICKEY_TYPE) != WOLFSSL_SUCCESS)) {
@@ -1871,18 +1869,16 @@ static int wolfssl_pem_write_rsa_public_key(XFILE fp, WOLFSSL_RSA* rsa,
     /* Validate parameters. */
     if ((fp == XBADFILE) || (rsa == NULL)) {
         WOLFSSL_ERROR_MSG("Bad Function Arguments");
-        ret = 0;
+        return 0;
     }
 
-    if (ret == 1) {
-        if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, rsa->heap)) < 0) {
-            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
-            ret = 0;
-        }
-        if (derBuf == NULL) {
-            WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
-            ret = 0;
-        }
+    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, rsa->heap)) < 0) {
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed");
+        ret = 0;
+    }
+    if (derBuf == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_RSA_To_Der failed to get buffer");
+        ret = 0;
     }
     if ((ret == 1) && (der_write_to_file_as_pem(derBuf, derSz, fp, type,
             rsa->heap) != WOLFSSL_SUCCESS)) {
@@ -12024,15 +12020,13 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY* key)
     /* Validate parameters. */
     if ((fp == XBADFILE) || (key == NULL)) {
         WOLFSSL_MSG("Bad argument.");
-        ret = 0;
+        return 0;
     }
 
-    if (ret == 1) {
-        /* Encode public key in EC key as DER. */
-        derSz = wolfssl_ec_key_to_pubkey_der(key, &derBuf, key->heap);
-        if (derSz == 0) {
-            ret = 0;
-        }
+    /* Encode public key in EC key as DER. */
+    derSz = wolfssl_ec_key_to_pubkey_der(key, &derBuf, key->heap);
+    if (derSz == 0) {
+        ret = 0;
     }
 
     /* Write out to file the PEM encoding of the DER. */
@@ -12188,15 +12182,13 @@ int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec)
     /* Validate parameters. */
     if ((bio == NULL) || (ec == NULL)) {
         WOLFSSL_MSG("Bad Function Arguments");
-        ret = 0;
+        return 0;
     }
 
-    if (ret == 1) {
-        /* Encode public key in EC key as DER. */
-        derSz = wolfssl_ec_key_to_pubkey_der(ec, &derBuf, ec->heap);
-        if (derSz == 0) {
-            ret = 0;
-        }
+    /* Encode public key in EC key as DER. */
+    derSz = wolfssl_ec_key_to_pubkey_der(ec, &derBuf, ec->heap);
+    if (derSz == 0) {
+        ret = 0;
     }
 
     /* Write out to BIO the PEM encoding of the EC private key. */
