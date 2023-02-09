@@ -13053,7 +13053,7 @@ int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len)
     ctx->kdfSaltSz = len;
 
     if (ctx->protocol == REQ_RESP_CLIENT) {
-        ctx->srvSt = ecSRV_SALT_SET;
+        ctx->cliSt = ecCLI_SALT_SET;
     }
     else if (ctx->protocol == REQ_RESP_SERVER) {
         ctx->srvSt = ecSRV_SALT_SET;
