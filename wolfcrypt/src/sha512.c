@@ -1622,11 +1622,6 @@ int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
 #if !defined(WOLFSSL_NOSHA512_224)
 int wc_InitSha512_224(wc_Sha512* sha)
 {
-    if (sha == NULL)
-        return BAD_FUNC_ARG;
-
-    XMEMSET(sha, 0, sizeof(wc_Sha512));
-
     return wc_InitSha512_224_ex(sha, NULL, INVALID_DEVID);
 }
 
