@@ -15282,8 +15282,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                             ERROR_OUT(MEMORY_E, exit_cs);
                         }
                     #endif
-                        mp_init(r);
-                        mp_init(s);
+                        if ((ret = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+                            goto exit_cs;
+                        }
 
                         idx = 0;
                         if (DecodeECC_DSA_Sig(sig + idx, sigSz - idx, r, s)
@@ -21853,6 +21854,8 @@ Signer* MakeSigner(void* heap)
  */
 void FreeSigner(Signer* signer, void* heap)
 {
+    (void)signer;
+    (void)heap;
     XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE((void*)signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -21865,8 +21868,6 @@ void FreeSigner(Signer* signer, void* heap)
     FreeDer(&signer->derCert);
 #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
-    (void)signer;
-    (void)heap;
 }
 
 

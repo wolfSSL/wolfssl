@@ -4055,6 +4055,10 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
             ret = MEMORY_E;
         }
     }
+#else
+    if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
+        ret = BUFFER_E;
+    }
 #endif
 
     /* Exp Hash = HASH(8 * 0x00 | Message Hash | Salt) */
