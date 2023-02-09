@@ -573,10 +573,13 @@ static int InitSha512_256(wc_Sha512* sha512)
 static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
                              int (*initfp)(wc_Sha512*))
 {
-   int ret = 0;
+    int ret = 0;
 
-    if (sha512 == NULL)
+    if (sha512 == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(sha512, 0, sizeof(wc_Sha512));
 
     sha512->heap = heap;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -588,8 +591,9 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 #endif
 
     ret = initfp(sha512);
-    if (ret != 0)
+    if (ret != 0) {
         return ret;
+    }
 
 #if defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
@@ -1618,8 +1622,14 @@ int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
 #if !defined(WOLFSSL_NOSHA512_224)
 int wc_InitSha512_224(wc_Sha512* sha)
 {
+    if (sha == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(sha, 0, sizeof(wc_Sha512));
+
     return wc_InitSha512_224_ex(sha, NULL, INVALID_DEVID);
 }
+
 int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);

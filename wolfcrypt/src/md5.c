@@ -314,14 +314,18 @@ int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
 {
     int ret = 0;
 
-    if (md5 == NULL)
+    if (md5 == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(md5, 0, sizeof(wc_Md5));
 
     md5->heap = heap;
 
     ret = _InitMd5(md5);
-    if (ret != 0)
+    if (ret != 0) {
         return ret;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)
     ret = wolfAsync_DevCtxInit(&md5->asyncDev, WOLFSSL_ASYNC_MARKER_MD5,
@@ -495,9 +499,6 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 
 int wc_InitMd5(wc_Md5* md5)
 {
-    if (md5 == NULL) {
-        return BAD_FUNC_ARG;
-    }
     return wc_InitMd5_ex(md5, NULL, INVALID_DEVID);
 }
 

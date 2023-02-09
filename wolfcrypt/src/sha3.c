@@ -762,13 +762,17 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 {
     int ret = 0;
 
-    if (sha3 == NULL)
+    if (sha3 == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(sha3, 0, sizeof(wc_Sha3));
 
     sha3->heap = heap;
     ret = InitSha3(sha3);
-    if (ret != 0)
+    if (ret != 0) {
         return ret;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     ret = wolfAsync_DevCtxInit(&sha3->asyncDev,

@@ -524,8 +524,11 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 {
     int ret = 0;
 
-    if (sha == NULL)
+    if (sha == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(sha, 0, sizeof(wc_Sha));
 
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
@@ -540,8 +543,9 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->ctx.lockDepth = 0; /* keep track of how many times lock is called */
 #endif
     ret = InitSha(sha);
-    if (ret != 0)
+    if (ret != 0) {
         return ret;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
     ret = wolfAsync_DevCtxInit(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA,
@@ -869,7 +873,7 @@ void wc_ShaFree(wc_Sha* sha)
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !WOLFSSL_TI_HASH */
-#endif /* HAVE_FIPS */
+#endif /* !HAVE_FIPS ... */
 
 #if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP)
 
@@ -944,9 +948,10 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #endif
     return ret;
 }
-#endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
-#endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
+#endif /* !defined(WOLFSSL_RENESAS_TSIP_CRYPT) ||
+          defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH) */
+#endif /* !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP) */
 
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_ShaSetFlags(wc_Sha* sha, word32 flags)

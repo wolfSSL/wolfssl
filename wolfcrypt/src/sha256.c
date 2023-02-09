@@ -1567,8 +1567,11 @@ static int InitSha256(wc_Sha256* sha256)
     {
         int ret = 0;
 
-        if (sha224 == NULL)
+        if (sha224 == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        XMEMSET(sha224, 0, sizeof(wc_Sha224));
 
         sha224->heap = heap;
     #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -1576,8 +1579,9 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
 
         ret = InitSha224(sha224);
-        if (ret != 0)
+        if (ret != 0) {
             return ret;
+        }
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         ret = wolfAsync_DevCtxInit(&sha224->asyncDev,
