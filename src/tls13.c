@@ -103,9 +103,9 @@
     #include <errno.h>
 #endif
 
-#if defined(__MACH__) || defined(__FreeBSD__)
+#if defined(__MACH__) || defined(__FreeBSD__) || defined(__INCLUDE_NUTTX_CONFIG_H)
 #include <sys/time.h>
-#endif /* __MACH__ || __FreeBSD__ */
+#endif /* __MACH__ || __FreeBSD__ || __INCLUDE_NUTTX_CONFIG_H */
 
 
 #include <wolfssl/internal.h>
