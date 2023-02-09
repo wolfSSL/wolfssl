@@ -116,7 +116,7 @@ struct WOLFSSL_EC_KEY {
 
     void*          internal;     /* our ECC Key */
     void*          heap;
-    char           form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
+    unsigned char  form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
                                   * POINT_CONVERSION_COMPRESSED */
     word16 pkcs8HeaderSz;
 

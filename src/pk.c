@@ -12659,7 +12659,7 @@ point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key)
     int ret = -1;
 
     if (key != NULL) {
-        ret = (int)(unsigned char)key->form;
+        ret = key->form;
     }
 
     return ret;
