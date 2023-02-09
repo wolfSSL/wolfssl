@@ -26591,6 +26591,89 @@ done:
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
+static int ecc_ctx_kdf_salt_test(WC_RNG* rng)
+{
+    ecc_key a[1], b[1];
+    ecEncCtx* aCtx = NULL;
+    ecEncCtx* bCtx = NULL;
+    const byte salt[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+        15};
+    int ret = 0, aRet = -1, bRet = -1;
+    const char* message = "Hello wolfSSL!";
+    byte plaintext[256];
+    byte encrypted[256];
+    byte decrypted[256];
+    word32 plaintextLen = sizeof(message), encryptLen = 256, decryptLen = 256;
+
+    if (ret == 0)
+        ret = aRet = wc_ecc_init(a);
+
+    if (ret == 0)
+        ret = bRet = wc_ecc_init(b);
+
+    if (ret == 0)
+        ret = wc_ecc_make_key(rng, 32, a);
+
+    if (ret == 0)
+        ret = wc_ecc_make_key(rng, 32, b);
+
+    /* create context */
+    if (ret == 0) {
+        aCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+
+        if (aCtx == NULL)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        bCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
+
+        if (bCtx == NULL)
+            ret = -1;
+    }
+
+    /* set salt */
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_kdf_salt(aCtx, salt, sizeof(salt));
+
+    if (ret == 0)
+        ret = wc_ecc_ctx_set_kdf_salt(bCtx, salt, sizeof(salt));
+
+    XMEMCPY(plaintext, message, XSTRLEN(message));
+
+    while (plaintextLen % AES_BLOCK_SIZE != 0) {
+        plaintextLen++;
+    }
+
+    /* encrypt */
+    if (ret == 0)
+        ret = wc_ecc_encrypt(a, b, plaintext, plaintextLen, encrypted,
+            &encryptLen, aCtx);
+
+    /* decrypt */
+    if (ret == 0)
+        ret = wc_ecc_decrypt(b, a, encrypted, encryptLen, decrypted,
+            &decryptLen, bCtx);
+
+    /* compare */
+    if (ret == 0 && XMEMCMP(decrypted, (byte*)message, sizeof(message)) != 0)
+        ret = -1;
+
+    if (aRet == 0)
+        wc_ecc_free(a);
+
+    if (bRet == 0)
+        wc_ecc_free(b);
+
+    if (aCtx != NULL)
+        wc_ecc_ctx_free(aCtx);
+
+    if (bCtx != NULL)
+        wc_ecc_ctx_free(bCtx);
+
+    return ret;
+}
+
 /* ecc_encrypt_e2e_test() uses wc_ecc_ctx_set_algo(), which was added in
  * wolfFIPS 5.3.
  * ecc_encrypt_kat() is used only by ecc_encrypt_e2e_test().
@@ -27218,6 +27301,9 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
         }
     }
 #endif
+    if (ret == 0) {
+        ret = ecc_ctx_kdf_salt_test(&rng);
+    }
 #endif
 
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
