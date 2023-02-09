@@ -22959,7 +22959,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     unsigned char *local_der = NULL;
     word32 local_derSz = 0;
     unsigned char *pub_der = NULL;
-    ecc_key eccKey;
+    ecc_key *eccKey = NULL;
     word32 inOutIdx = 0;
 #endif
     word32 pub_derSz = 0;
@@ -22996,15 +22996,23 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     }
 
     if (ret == 0) {
-        ret = wc_ecc_init(&eccKey);
+        eccKey = (ecc_key *)XMALLOC(sizeof(*eccKey), NULL, DYNAMIC_TYPE_ECC);
+        if (eccKey == NULL) {
+            WOLFSSL_MSG("Failed to allocate key buffer.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
     }
 
     if (ret == 0) {
-        ret = wc_EccPublicKeyDecode(local_der, &inOutIdx, &eccKey, local_derSz);
+        ret = wc_ecc_init(eccKey);
     }
 
     if (ret == 0) {
-        pub_derSz = wc_EccPublicKeyDerSize(&eccKey, 0);
+        ret = wc_EccPublicKeyDecode(local_der, &inOutIdx, eccKey, local_derSz);
+    }
+
+    if (ret == 0) {
+        pub_derSz = wc_EccPublicKeyDerSize(eccKey, 0);
         if (pub_derSz <= 0) {
             ret = WOLFSSL_FAILURE;
         }
@@ -23020,7 +23028,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     }
 
     if (ret == 0) {
-        pub_derSz = wc_EccPublicKeyToDer(&eccKey, pub_der, pub_derSz, 0);
+        pub_derSz = wc_EccPublicKeyToDer(eccKey, pub_der, pub_derSz, 0);
         if (pub_derSz <= 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -23049,7 +23057,9 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     XFREE(pub_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(local_der, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
 
-    wc_ecc_free(&eccKey);
+    wc_ecc_free(eccKey);
+    XFREE(eccKey, NULL, DYNAMIC_TYPE_ECC);
+
 #else
     ret = WOLFSSL_FATAL_ERROR;
 #endif /* HAVE_ECC */
