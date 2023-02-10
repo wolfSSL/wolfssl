@@ -27423,6 +27423,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                      "sha3-512WithRSAEncryption"},
         #endif
         #endif
+        #ifdef WC_RSA_PSS
+        { NID_rsassaPss, CTC_RSASSAPSS, oidSigType, "RSASSA-PSS", "rsassaPss" },
+        #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         #ifndef NO_SHA
@@ -27466,6 +27469,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #endif /* NO_DSA */
     #ifndef NO_RSA
         { NID_rsaEncryption, RSAk, oidKeyType, "rsaEncryption", "rsaEncryption"},
+    #ifdef WC_RSA_PSS
+        { NID_rsassaPss, RSAPSSk, oidKeyType, "RSASSA-PSS", "rsassaPss"},
+    #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         { NID_X9_62_id_ecPublicKey, ECDSAk, oidKeyType, "id-ecPublicKey",
@@ -35923,6 +35929,10 @@ int oid2nid(word32 oid, int grp)
                 case CTC_SHA3_512wRSA:
                     return NID_RSA_SHA3_512;
                 #endif
+                #ifdef WC_RSA_PSS
+                case CTC_RSASSAPSS:
+                    return NID_rsassaPss;
+                #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case CTC_SHAwECDSA:
@@ -35959,6 +35969,10 @@ int oid2nid(word32 oid, int grp)
             #ifndef NO_RSA
                 case RSAk:
                     return NID_rsaEncryption;
+                #ifdef WC_RSA_PSS
+                case RSAPSSk:
+                    return NID_rsassaPss;
+                #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case ECDSAk:
