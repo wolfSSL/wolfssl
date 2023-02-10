@@ -3837,6 +3837,9 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   if (i < a->used - 1) {
       return FP_VAL;
   }
+  if ((i == a->used - 1) && ((a->dp[i] >> j) != 0)) {
+      return FP_VAL;
+  }
 
   return FP_OKAY;
 #else
