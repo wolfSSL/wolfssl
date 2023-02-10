@@ -1109,6 +1109,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
                    AM_CFLAGS="$AM_CFLAGS $PTHREAD_CFLAGS"
                    LIBS="$LIBS $PTHREAD_LIBS"
+                   AC_CHECK_TYPES([pthread_rwlock_t])
                    ],[
                       ENABLED_SINGLETHREADED=yes
                       ])

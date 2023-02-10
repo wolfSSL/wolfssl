@@ -1560,6 +1560,48 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
 #elif defined(WOLFSSL_PTHREADS)
 
+    #ifdef WOLFSSL_USE_RWLOCK
+        int wc_InitRwLock(wolfSSL_RwLock* m)
+        {
+            if (pthread_rwlock_init(m, 0) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+        int wc_FreeRwLock(wolfSSL_RwLock* m)
+        {
+            if (pthread_rwlock_destroy(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+        int wc_LockRwLock_Wr(wolfSSL_RwLock* m)
+        {
+            if (pthread_rwlock_wrlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+        int wc_LockRwLock_Rd(wolfSSL_RwLock* m)
+        {
+            if (pthread_rwlock_rdlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+        int wc_UnLockRwLock(wolfSSL_RwLock* m)
+        {
+            if (pthread_rwlock_unlock(m) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+    #endif
+
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
         if (pthread_mutex_init(m, 0) == 0)
@@ -1594,7 +1636,6 @@ int wolfSSL_CryptHwMutexUnLock(void)
         else
             return BAD_MUTEX_E;
     }
-
 #elif defined(WOLFSSL_LINUXKM)
 
     /* Linux kernel mutex routines are voids, alas. */
@@ -2545,6 +2586,32 @@ int wolfSSL_CryptHwMutexUnLock(void)
 #else
     #warning No mutex handling defined
 
+#endif
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
+    int wc_InitRwLock(wolfSSL_RwLock* m)
+    {
+        return wc_InitMutex(m);
+    }
+
+    int wc_FreeRwLock(wolfSSL_RwLock* m)
+    {
+        return wc_FreeMutex(m);
+    }
+
+    int wc_LockRwLock_Wr(wolfSSL_RwLock* m)
+    {
+        return wc_LockMutex(m);
+    }
+
+    int wc_LockRwLock_Rd(wolfSSL_RwLock* m)
+    {
+        return wc_LockMutex(m);
+    }
+
+    int wc_UnLockRwLock(wolfSSL_RwLock* m)
+    {
+        return wc_UnLockMutex(m);
+    }
 #endif
 
 #ifndef NO_ASN_TIME

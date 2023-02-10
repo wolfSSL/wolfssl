@@ -1348,7 +1348,6 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
                 break;
             }
         }
-
         if (crl->setup < 0)
             ret = crl->setup;  /* store setup error */
 
