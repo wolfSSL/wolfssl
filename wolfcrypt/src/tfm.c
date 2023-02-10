@@ -4807,21 +4807,10 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 
 #endif /* WOLFSSL_KEY_GEN || HAVE_ECC */
 
-static int fp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
+static int fp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t)
 {
     int i;
     mp_digit mask = (mp_digit)0 - m;
-#ifndef WOLFSSL_SMALL_STACK
-    fp_int  t[1];
-#else
-    fp_int* t;
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
 
     t->used = (a->used ^ b->used) & mask;
     for (i = 0; i < c; i++) {
@@ -4835,6 +4824,26 @@ static int fp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
     for (i = 0; i < c; i++) {
         b->dp[i] ^= t->dp[i];
     }
+
+    return FP_OKAY;
+}
+
+
+static int fp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    fp_int  t[1];
+#else
+    fp_int* t;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+   fp_cond_swap_ct_ex(a, b, c, m, t);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
@@ -5426,7 +5435,12 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
 
-int mp_cond_swap_ct(mp_int * a, mp_int * b, int c, int m)
+int mp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t)
+{
+    return fp_cond_swap_ct_ex(a, b, c, m, t);
+}
+
+int mp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m)
 {
     return fp_cond_swap_ct(a, b, c, m);
 }

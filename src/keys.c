@@ -1354,12 +1354,113 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
     }
     }
 
+    if (cipherSuite0 == SM_BYTE) {
+
+    switch (cipherSuite) {
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+    case TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3 :
+        specs->bulk_cipher_algorithm = wolfssl_sm4_cbc;
+        specs->cipher_type           = block;
+        specs->mac_algorithm         = sm3_mac;
+        specs->kea                   = ecc_diffie_hellman_kea;
+        specs->sig_algo              = sm2_sa_algo;
+        specs->hash_size             = WC_SM3_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = SM4_KEY_SIZE;
+        specs->iv_size               = SM4_IV_SIZE;
+        specs->block_size            = SM4_BLOCK_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+    case TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3 :
+        specs->bulk_cipher_algorithm = wolfssl_sm4_gcm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sm3_mac;
+        specs->kea                   = ecc_diffie_hellman_kea;
+        specs->sig_algo              = sm2_sa_algo;
+        specs->hash_size             = WC_SM3_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = SM4_KEY_SIZE;
+        specs->block_size            = SM4_BLOCK_SIZE;
+        specs->iv_size               = GCM_IMP_IV_SZ;
+        specs->aead_mac_size         = SM4_GCM_AUTH_SZ;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+    case TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3 :
+        specs->bulk_cipher_algorithm = wolfssl_sm4_ccm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sm3_mac;
+        specs->kea                   = ecc_diffie_hellman_kea;
+        specs->sig_algo              = sm2_sa_algo;
+        specs->hash_size             = WC_SM3_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = SM4_KEY_SIZE;
+        specs->block_size            = SM4_BLOCK_SIZE;
+        specs->iv_size               = GCM_IMP_IV_SZ;
+        specs->aead_mac_size         = SM4_CCM_AUTH_SZ;
+
+        break;
+#endif
+
+    default:
+        break;
+    }
+    }
 
     if (cipherSuite0 != ECC_BYTE &&
         cipherSuite0 != ECDHE_PSK_BYTE &&
         cipherSuite0 != CHACHA_BYTE &&
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
+    (defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_GCM) || \
+     defined(WOLFSSL_SM4_CCM))
+        cipherSuite0 != SM_BYTE &&
+#endif
         cipherSuite0 != TLS13_BYTE) {   /* normal suites */
     switch (cipherSuite) {
+
+#ifdef BUILD_TLS_SM4_GCM_SM3
+    case TLS_SM4_GCM_SM3 :
+        specs->bulk_cipher_algorithm = wolfssl_sm4_gcm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sm3_mac;
+        specs->kea                   = 0;
+        specs->sig_algo              = 0;
+        specs->hash_size             = WC_SM3_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = SM4_KEY_SIZE;
+        specs->block_size            = SM4_BLOCK_SIZE;
+        specs->iv_size               = SM4_GCM_NONCE_SZ;
+        specs->aead_mac_size         = SM4_GCM_AUTH_SZ;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_SM4_CCM_SM3
+    case TLS_SM4_CCM_SM3 :
+        specs->bulk_cipher_algorithm = wolfssl_sm4_ccm;
+        specs->cipher_type           = aead;
+        specs->mac_algorithm         = sm3_mac;
+        specs->kea                   = 0;
+        specs->sig_algo              = 0;
+        specs->hash_size             = WC_SM3_DIGEST_SIZE;
+        specs->pad_size              = PAD_SHA;
+        specs->static_ecdh           = 0;
+        specs->key_size              = SM4_KEY_SIZE;
+        specs->block_size            = SM4_BLOCK_SIZE;
+        specs->iv_size               = SM4_CCM_NONCE_SZ;
+        specs->aead_mac_size         = SM4_CCM_AUTH_SZ;
+
+        break;
+#endif
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
     case SSL_RSA_WITH_RC4_128_SHA :
@@ -2779,6 +2880,284 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif /* HAVE_CAMELLIA */
+
+#ifdef WOLFSSL_SM4_CBC
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for SM4_CBC
+    #endif
+
+    if (specs->bulk_cipher_algorithm == wolfssl_sm4_cbc) {
+        int sm4Ret = 0;
+
+        if (enc) {
+            if (enc->sm4 == NULL) {
+                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                    DYNAMIC_TYPE_CIPHER);
+                if (enc->sm4 == NULL)
+                    return MEMORY_E;
+            }
+            else {
+                wc_Sm4Free(enc->sm4);
+            }
+
+            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
+        }
+        if (dec) {
+            if (dec->sm4 == NULL) {
+                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                    DYNAMIC_TYPE_CIPHER);
+                if (dec->sm4 == NULL)
+                    return MEMORY_E;
+            }
+            else {
+                wc_Sm4Free(dec->sm4);
+            }
+
+            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
+        }
+        if (enc) {
+            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
+        if (side == WOLFSSL_CLIENT_END) {
+            if (enc) {
+                sm4Ret = wc_Sm4SetKey(enc->sm4, keys->client_write_key,
+                    specs->key_size);
+                if (sm4Ret != 0) return sm4Ret;
+                sm4Ret = wc_Sm4SetIV(enc->sm4, keys->client_write_IV);
+                if (sm4Ret != 0) return sm4Ret;
+            }
+            if (dec) {
+                sm4Ret = wc_Sm4SetKey(dec->sm4, keys->server_write_key,
+                    specs->key_size);
+                if (sm4Ret != 0) return sm4Ret;
+                sm4Ret = wc_Sm4SetIV(dec->sm4, keys->server_write_IV);
+                if (sm4Ret != 0) return sm4Ret;
+            }
+        }
+        else {
+            if (enc) {
+                sm4Ret = wc_Sm4SetKey(enc->sm4, keys->server_write_key,
+                    specs->key_size);
+                if (sm4Ret != 0) return sm4Ret;
+                sm4Ret = wc_Sm4SetIV(enc->sm4, keys->server_write_IV);
+                if (sm4Ret != 0) return sm4Ret;
+            }
+            if (dec) {
+                sm4Ret = wc_Sm4SetKey(dec->sm4, keys->client_write_key,
+                    specs->key_size);
+                if (sm4Ret != 0) return sm4Ret;
+                sm4Ret = wc_Sm4SetIV(dec->sm4, keys->client_write_IV);
+                if (sm4Ret != 0) return sm4Ret;
+            }
+        }
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
+    }
+#endif /* WOLFSSL_SM4_CBC */
+
+#ifdef WOLFSSL_SM4_GCM
+    /* check that buffer sizes are sufficient */
+    #if (AEAD_MAX_IMP_SZ < 4) /* SM4-GCM_IMP_IV_SZ */
+        #error AEAD_MAX_IMP_SZ too small for SM4-GCM
+    #endif
+    #if (AEAD_MAX_EXP_SZ < 8) /* SM4-GCM_EXP_IV_SZ */
+        #error AEAD_MAX_EXP_SZ too small for SM4-GCM
+    #endif
+    #if (MAX_WRITE_IV_SZ < 4) /* SM4-GCM_IMP_IV_SZ */
+        #error MAX_WRITE_IV_SZ too small for SM4-GCM
+    #endif
+
+    if (specs->bulk_cipher_algorithm == wolfssl_sm4_gcm) {
+        int gcmRet;
+
+        if (enc) {
+            if (enc->sm4 == NULL) {
+                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                                            DYNAMIC_TYPE_CIPHER);
+                if (enc->sm4 == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_Sm4Free(enc->sm4);
+            }
+
+            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
+        }
+        if (dec) {
+            if (dec->sm4 == NULL) {
+                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                                            DYNAMIC_TYPE_CIPHER);
+                if (dec->sm4 == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_Sm4Free(dec->sm4);
+            }
+
+            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
+        }
+
+        if (enc) {
+            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
+        if (side == WOLFSSL_CLIENT_END) {
+            if (enc) {
+                gcmRet = wc_Sm4GcmSetKey(enc->sm4, keys->client_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+            if (dec) {
+                gcmRet = wc_Sm4GcmSetKey(dec->sm4, keys->server_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        else {
+            if (enc) {
+                gcmRet = wc_Sm4GcmSetKey(enc->sm4, keys->server_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+            if (dec) {
+                gcmRet = wc_Sm4GcmSetKey(dec->sm4, keys->client_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
+    }
+#endif /* WOLFSSL_SM4_GCM */
+
+#ifdef WOLFSSL_SM4_CCM
+    /* check that buffer sizes are sufficient (CCM is same size as GCM) */
+    #if (AEAD_MAX_IMP_SZ < 4) /* SM4-CCM_IMP_IV_SZ */
+        #error AEAD_MAX_IMP_SZ too small for SM4-CCM
+    #endif
+    #if (AEAD_MAX_EXP_SZ < 8) /* SM4-CCM_EXP_IV_SZ */
+        #error AEAD_MAX_EXP_SZ too small for SM4-CCM
+    #endif
+    #if (MAX_WRITE_IV_SZ < 4) /* SM4-CCM_IMP_IV_SZ */
+        #error MAX_WRITE_IV_SZ too small for SM4-CCM
+    #endif
+
+    if (specs->bulk_cipher_algorithm == wolfssl_sm4_ccm) {
+        int CcmRet;
+
+        if (enc) {
+            if (enc->sm4 == NULL) {
+                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                                            DYNAMIC_TYPE_CIPHER);
+                if (enc->sm4 == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_Sm4Free(enc->sm4);
+            }
+
+            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
+        }
+        if (dec) {
+            if (dec->sm4 == NULL) {
+                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
+                                            DYNAMIC_TYPE_CIPHER);
+                if (dec->sm4 == NULL)
+                return MEMORY_E;
+            } else {
+                wc_Sm4Free(dec->sm4);
+            }
+            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
+        }
+
+        if (enc) {
+            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
+                WOLFSSL_MSG("Sm4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
+        if (side == WOLFSSL_CLIENT_END) {
+            if (enc) {
+                CcmRet = wc_Sm4SetKey(enc->sm4, keys->client_write_key,
+                                      specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+            if (dec) {
+                CcmRet = wc_Sm4SetKey(dec->sm4, keys->server_write_key,
+                                      specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        else {
+            if (enc) {
+                CcmRet = wc_Sm4SetKey(enc->sm4, keys->server_write_key,
+                                      specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+            if (dec) {
+                CcmRet = wc_Sm4SetKey(dec->sm4, keys->client_write_key,
+                                      specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+            }
+        }
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
+    }
+#endif /* WOLFSSL_SM4_CCM */
 
 #ifdef HAVE_NULL_CIPHER
     if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {

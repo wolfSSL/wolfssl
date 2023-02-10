@@ -104,13 +104,13 @@ masking and clearing memory logic.
 
     WC_MISC_STATIC WC_INLINE word32 rotlFixed(word32 x, word32 y)
     {
-        return (x << y) | (x >> (sizeof(y) * 8 - y));
+        return (x << y) | (x >> (sizeof(x) * 8 - y));
     }
 
 /* This routine performs a right circular arithmetic shift of <x> by <y> value. */
     WC_MISC_STATIC WC_INLINE word32 rotrFixed(word32 x, word32 y)
     {
-        return (x >> y) | (x << (sizeof(y) * 8 - y));
+        return (x >> y) | (x << (sizeof(x) * 8 - y));
     }
 
 #endif
@@ -120,14 +120,14 @@ masking and clearing memory logic.
 /* This routine performs a left circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
 {
-    return (x << y) | (x >> (sizeof(y) * 8 - y));
+    return (x << y) | (x >> (sizeof(x) * 8 - y));
 }
 
 
 /* This routine performs a right circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 {
-    return (x >> y) | (x << (sizeof(y) * 8 - y));
+    return (x >> y) | (x << (sizeof(x) * 8 - y));
 }
 
 #endif /* WC_RC2 */

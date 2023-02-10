@@ -189,17 +189,17 @@
 
 #define ExpectPtr(x, y, op, er) do {                                           \
     if (_ret != TEST_FAIL) {                                                   \
-        PRAGMA_DIAG_PUSH;                                                      \
+        PRAGMA_GCC_DIAG_PUSH;                                                  \
           /* remarkably, without this inhibition, */                           \
           /* the _Pragma()s make the declarations warn. */                     \
-        PRAGMA("GCC diagnostic ignored \"-Wdeclaration-after-statement\"");    \
+        PRAGMA_GCC("GCC diagnostic ignored \"-Wdeclaration-after-statement\"");\
           /* inhibit "ISO C forbids conversion of function pointer */          \
           /* to object pointer type [-Werror=pedantic]" */                     \
-        PRAGMA("GCC diagnostic ignored \"-Wpedantic\"");                       \
+        PRAGMA_GCC("GCC diagnostic ignored \"-Wpedantic\"");                   \
         void* _x = (void*)(x);                                                 \
         void* _y = (void*)(y);                                                 \
         Expect(_x op _y, ("%s " #op " %s", #x, #y), ("%p " #er " %p", _x, _y));\
-        PRAGMA_DIAG_POP;                                                       \
+        PRAGMA_GCC_DIAG_POP;                                                   \
     }                                                                          \
 } while(0)
 

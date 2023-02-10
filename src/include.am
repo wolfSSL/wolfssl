@@ -473,6 +473,27 @@ endif
 endif
 endif !BUILD_FIPS_CURRENT
 
+if !BUILD_FIPS_CURRENT
+if BUILD_SM2
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm2.c
+endif BUILD_SM2
+endif !BUILD_FIPS_CURRENT
+
+if !BUILD_FIPS_CURRENT
+if BUILD_SM3
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm3.c
+if BUILD_INTELASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm3_asm.S
+endif
+endif BUILD_SM3
+endif !BUILD_FIPS_CURRENT
+
+if !BUILD_FIPS_CURRENT
+if BUILD_SM4
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sm4.c
+endif BUILD_SM4
+endif !BUILD_FIPS_CURRENT
+
 endif !BUILD_FIPS_RAND
 
 if BUILD_SIPHASH

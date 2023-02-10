@@ -8815,6 +8815,10 @@ int EccEnumToNID(int n)
             return NID_brainpoolP384r1;
         case ECC_BRAINPOOLP512R1:
             return NID_brainpoolP512r1;
+    #ifdef WOLFSSL_SM2
+        case ECC_SM2P256V1:
+            return NID_sm2;
+    #endif
         default:
             WOLFSSL_MSG("NID not found");
             return -1;

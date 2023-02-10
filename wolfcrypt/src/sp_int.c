@@ -5233,48 +5233,65 @@ int sp_exch(sp_int* a, sp_int* b)
  * @param [in]  b     Second SP int to conditionally swap.
  * @param [in]  cnt   Count of words to copy.
  * @param [in]  swap  When value is 1 then swap.
+ * @param [in]  t     Temporary SP int to use in swap.
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+int sp_cond_swap_ct_ex(sp_int* a, sp_int* b, int cnt, int swap, sp_int* t)
+{
+    unsigned int i;
+    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
+
+    /* XOR other fields in sp_int into temp - mask set when swapping. */
+    t->used = (a->used ^ b->used) & (unsigned int)mask;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    t->sign = (a->sign ^ b->sign) & (unsigned int)mask;
+#endif
+
+    /* XOR requested words into temp - mask set when swapping. */
+    for (i = 0; i < (unsigned int)cnt; i++) {
+        t->dp[i] = (a->dp[i] ^ b->dp[i]) & mask;
+    }
+
+    /* XOR temporary - when mask set then result will be b. */
+    a->used ^= t->used;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    a->sign ^= t->sign;
+#endif
+    for (i = 0; i < (unsigned int)cnt; i++) {
+        a->dp[i] ^= t->dp[i];
+    }
+
+    /* XOR temporary - when mask set then result will be a. */
+    b->used ^= t->used;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    b->sign ^= b->sign;
+#endif
+    for (i = 0; i < (unsigned int)cnt; i++) {
+        b->dp[i] ^= t->dp[i];
+    }
+
+    return MP_OKAY;
+}
+
+/* Conditional swap of SP int values in constant time.
+ *
+ * @param [in]  a     First SP int to conditionally swap.
+ * @param [in]  b     Second SP int to conditionally swap.
+ * @param [in]  cnt   Count of words to copy.
+ * @param [in]  swap  When value is 1 then swap.
  * @return  MP_OKAY on success.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_cond_swap_ct(sp_int* a, sp_int* b, int cnt, int swap)
 {
-    unsigned int i;
     int err = MP_OKAY;
-    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
     DECL_SP_INT(t, (size_t)cnt);
 
     /* Allocate temporary to hold masked xor of a and b. */
     ALLOC_SP_INT(t, cnt, err, NULL);
-    if (err == MP_OKAY) {
-        /* XOR other fields in sp_int into temp - mask set when swapping. */
-        t->used = (a->used ^ b->used) & (unsigned int)mask;
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        t->sign = (a->sign ^ b->sign) & (unsigned int)mask;
-    #endif
 
-        /* XOR requested words into temp - mask set when swapping. */
-        for (i = 0; i < (unsigned int)cnt; i++) {
-            t->dp[i] = (a->dp[i] ^ b->dp[i]) & mask;
-        }
-
-        /* XOR temporary - when mask set then result will be b. */
-        a->used ^= t->used;
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        a->sign ^= t->sign;
-    #endif
-        for (i = 0; i < (unsigned int)cnt; i++) {
-            a->dp[i] ^= t->dp[i];
-        }
-
-        /* XOR temporary - when mask set then result will be a. */
-        b->used ^= t->used;
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        b->sign ^= b->sign;
-    #endif
-        for (i = 0; i < (unsigned int)cnt; i++) {
-            b->dp[i] ^= t->dp[i];
-        }
-    }
+    err = sp_cond_swap_ct_ex(a, b, cnt, swap, t);
 
     FREE_SP_INT(t, NULL);
     return err;

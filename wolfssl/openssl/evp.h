@@ -57,6 +57,12 @@
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
 
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
 #include <wolfssl/wolfcrypt/coding.h>
@@ -90,6 +96,8 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_512(void);
+
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sm3(void);
 
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ecb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ecb(void);
@@ -149,7 +157,21 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20_poly1305(void);
 #define WOLFSSL_EVP_CHACHA_IV_BYTES     (CHACHA_IV_BYTES + sizeof(word32))
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_chacha20(void);
 #endif
-
+#ifdef WOLFSSL_SM4_ECB
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ecb(void);
+#endif
+#ifdef WOLFSSL_SM4_CBC
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_cbc(void);
+#endif
+#ifdef WOLFSSL_SM4_CTR
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ctr(void);
+#endif
+#ifdef WOLFSSL_SM4_GCM
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_gcm(void);
+#endif
+#ifdef WOLFSSL_SM4_CCM
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ccm(void);
+#endif
 
 typedef union {
     #ifndef NO_MD4
@@ -185,6 +207,9 @@ typedef union {
         WOLFSSL_SHA3_384_CTX sha3_384;
     #ifndef WOLFSSL_NOSHA3_512
         WOLFSSL_SHA3_512_CTX sha3_512;
+    #endif
+    #ifdef WOLFSSL_SM3
+        wc_Sm3               sm3;
     #endif
 } WOLFSSL_Hasher;
 
@@ -224,6 +249,9 @@ typedef union {
 #endif
 #ifdef HAVE_CHACHA
     ChaCha chacha;
+#endif
+#ifdef WOLFSSL_SM4
+    wc_Sm4 sm4;
 #endif
 } WOLFSSL_Cipher;
 
@@ -266,6 +294,11 @@ typedef union {
 #define NID_camellia_256_cbc            753
 #define NID_chacha20_poly1305           1018
 #define NID_chacha20                    1019
+#define NID_sm4_ecb                     1133
+#define NID_sm4_cbc                     1134
+#define NID_sm4_ctr                     1139
+#define NID_sm4_gcm                     1248
+#define NID_sm4_ccm                     1249
 #define NID_md5WithRSA                  104
 #define NID_md2WithRSAEncryption        9
 #define NID_md5WithRSAEncryption        99
@@ -303,6 +336,7 @@ typedef union {
 #define NID_shake256                    1101
 #define NID_sha1                        64
 #define NID_sha224                      675
+#define NID_sm3                         1143
 #define NID_md2                         77
 #define NID_md4                         257
 #define NID_md5                         40
@@ -346,6 +380,8 @@ typedef union {
 #define NID_auth_srp                    1052
 #define NID_auth_null                   1054
 #define NID_auth_any                    1055
+/* Curve */
+#define NID_sm2                         1172
 
 #define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
 #define NID_rsaEncryption        EVP_PKEY_RSA
@@ -360,52 +396,57 @@ typedef union {
 #define EVP_PKEY_PRINT_INDENT_MAX    128
 
 enum {
-    AES_128_CBC_TYPE  = 1,
-    AES_192_CBC_TYPE  = 2,
-    AES_256_CBC_TYPE  = 3,
-    AES_128_CTR_TYPE  = 4,
-    AES_192_CTR_TYPE  = 5,
-    AES_256_CTR_TYPE  = 6,
-    AES_128_ECB_TYPE  = 7,
-    AES_192_ECB_TYPE  = 8,
-    AES_256_ECB_TYPE  = 9,
-    DES_CBC_TYPE      = 10,
-    DES_ECB_TYPE      = 11,
-    DES_EDE3_CBC_TYPE = 12,
-    DES_EDE3_ECB_TYPE = 13,
-    ARC4_TYPE         = 14,
-    NULL_CIPHER_TYPE  = 15,
-    EVP_PKEY_RSA      = 16,
-    EVP_PKEY_DSA      = 17,
-    EVP_PKEY_EC       = 18,
-    AES_128_GCM_TYPE  = 21,
-    AES_192_GCM_TYPE  = 22,
-    AES_256_GCM_TYPE  = 23,
-    EVP_PKEY_DH       = NID_dhKeyAgreement,
-    EVP_PKEY_HMAC     = NID_hmac,
-    EVP_PKEY_CMAC     = NID_cmac,
-    EVP_PKEY_HKDF     = NID_hkdf,
-    EVP_PKEY_FALCON   = 300, /* Randomly picked value. */
-    EVP_PKEY_DILITHIUM= 301, /* Randomly picked value. */
-    AES_128_CFB1_TYPE = 24,
-    AES_192_CFB1_TYPE = 25,
-    AES_256_CFB1_TYPE = 26,
-    AES_128_CFB8_TYPE = 27,
-    AES_192_CFB8_TYPE = 28,
-    AES_256_CFB8_TYPE = 29,
-    AES_128_CFB128_TYPE = 30,
-    AES_192_CFB128_TYPE = 31,
-    AES_256_CFB128_TYPE = 32,
-    AES_128_OFB_TYPE = 33,
-    AES_192_OFB_TYPE = 34,
-    AES_256_OFB_TYPE = 35,
-    AES_128_XTS_TYPE = 36,
-    AES_256_XTS_TYPE = 37,
+    AES_128_CBC_TYPE       = 1,
+    AES_192_CBC_TYPE       = 2,
+    AES_256_CBC_TYPE       = 3,
+    AES_128_CTR_TYPE       = 4,
+    AES_192_CTR_TYPE       = 5,
+    AES_256_CTR_TYPE       = 6,
+    AES_128_ECB_TYPE       = 7,
+    AES_192_ECB_TYPE       = 8,
+    AES_256_ECB_TYPE       = 9,
+    DES_CBC_TYPE           = 10,
+    DES_ECB_TYPE           = 11,
+    DES_EDE3_CBC_TYPE      = 12,
+    DES_EDE3_ECB_TYPE      = 13,
+    ARC4_TYPE              = 14,
+    NULL_CIPHER_TYPE       = 15,
+    EVP_PKEY_RSA           = 16,
+    EVP_PKEY_DSA           = 17,
+    EVP_PKEY_EC            = 18,
+    AES_128_GCM_TYPE       = 21,
+    AES_192_GCM_TYPE       = 22,
+    AES_256_GCM_TYPE       = 23,
+    EVP_PKEY_DH            = NID_dhKeyAgreement,
+    EVP_PKEY_HMAC          = NID_hmac,
+    EVP_PKEY_CMAC          = NID_cmac,
+    EVP_PKEY_HKDF          = NID_hkdf,
+    EVP_PKEY_FALCON        = 300, /* Randomly picked value. */
+    EVP_PKEY_DILITHIUM     = 301, /* Randomly picked value. */
+    AES_128_CFB1_TYPE      = 24,
+    AES_192_CFB1_TYPE      = 25,
+    AES_256_CFB1_TYPE      = 26,
+    AES_128_CFB8_TYPE      = 27,
+    AES_192_CFB8_TYPE      = 28,
+    AES_256_CFB8_TYPE      = 29,
+    AES_128_CFB128_TYPE    = 30,
+    AES_192_CFB128_TYPE    = 31,
+    AES_256_CFB128_TYPE    = 32,
+    AES_128_OFB_TYPE       = 33,
+    AES_192_OFB_TYPE       = 34,
+    AES_256_OFB_TYPE       = 35,
+    AES_128_XTS_TYPE       = 36,
+    AES_256_XTS_TYPE       = 37,
     CHACHA20_POLY1305_TYPE = 38,
-    CHACHA20_TYPE    = 39,
-    AES_128_CCM_TYPE  = 40,
-    AES_192_CCM_TYPE  = 41,
-    AES_256_CCM_TYPE  = 42
+    CHACHA20_TYPE          = 39,
+    AES_128_CCM_TYPE       = 40,
+    AES_192_CCM_TYPE       = 41,
+    AES_256_CCM_TYPE       = 42,
+    SM4_ECB_TYPE           = 43,
+    SM4_CBC_TYPE           = 44,
+    SM4_CTR_TYPE           = 45,
+    SM4_GCM_TYPE           = 46,
+    SM4_CCM_TYPE           = 47
 };
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -421,6 +462,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #if !defined(NO_AES)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[AES_BLOCK_SIZE];
+#elif defined(WOLFSSL_SM4)
+    ALIGN16 unsigned char  iv[SM4_BLOCK_SIZE];
 #elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ALIGN16 unsigned char  iv[CHACHA20_POLY1305_AEAD_IV_SIZE];
 #elif !defined(NO_DES3)
@@ -433,10 +476,12 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 #if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_AESGCM) || \
     defined (WOLFSSL_AES_XTS) || (defined(HAVE_CHACHA) || \
-    defined(HAVE_POLY1305) || defined(HAVE_AESCCM))
+    defined(HAVE_POLY1305) || defined(HAVE_AESCCM)) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     byte*   authBuffer;
     int     authBufferLen;
     byte*   authIn;
@@ -446,15 +491,19 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     byte*   key;                 /* used in partial Init()s */
 #endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-        (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
+#elif defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+    ALIGN16 unsigned char authTag[SM4_BLOCK_SIZE];
 #else
     ALIGN16 unsigned char authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
 #endif
     int     authTagSz;
 #endif
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     byte    authIvGenEnable:1;
     byte    authIncIv:1;
 #endif
@@ -877,6 +926,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_ripemd160     wolfSSL_EVP_ripemd160
 #define EVP_shake128      wolfSSL_EVP_shake128
 #define EVP_shake256      wolfSSL_EVP_shake256
+#define EVP_sm3           wolfSSL_EVP_sm3
 #define EVP_set_pw_prompt wolfSSL_EVP_set_pw_prompt
 
 #define EVP_sha3_224    wolfSSL_EVP_sha3_224
@@ -923,6 +973,11 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_rc4               wolfSSL_EVP_rc4
 #define EVP_chacha20          wolfSSL_EVP_chacha20
 #define EVP_chacha20_poly1305 wolfSSL_EVP_chacha20_poly1305
+#define EVP_sm4_ecb           wolfSSL_EVP_sm4_ecb
+#define EVP_sm4_cbc           wolfSSL_EVP_sm4_cbc
+#define EVP_sm4_ctr           wolfSSL_EVP_sm4_ctr
+#define EVP_sm4_gcm           wolfSSL_EVP_sm4_gcm
+#define EVP_sm4_ccm           wolfSSL_EVP_sm4_ccm
 #define EVP_enc_null          wolfSSL_EVP_enc_null
 
 #define EVP_MD_size             wolfSSL_EVP_MD_size

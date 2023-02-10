@@ -137,6 +137,9 @@
     #if !defined(DER_SZ)
         #define DER_SZ(ks) ((ks) * 2 + 1)
     #endif
+    #ifdef WOLFSSL_SM2
+        #include <wolfssl/wolfcrypt/sm2.h>
+    #endif
 #endif
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn_public.h>
@@ -173,11 +176,18 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
+
 #ifndef NO_AES
     #include <wolfssl/wolfcrypt/aes.h>
     #ifdef HAVE_AES_DECRYPT
         #include <wolfssl/wolfcrypt/wc_encrypt.h>
     #endif
+#endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
 #endif
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
@@ -14153,6 +14163,269 @@ static int test_wc_Shake256Hash(void)
     return EXPECT_RESULT();
 }  /* END test_wc_Shake256Hash */
 
+
+/*
+ *  Testing wc_InitSm3(), wc_Sm3Free()
+ */
+static int test_wc_InitSm3Free(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_InitSm3(NULL, NULL, INVALID_DEVID), BAD_FUNC_ARG);
+
+    /* Valid Parameters */
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+
+    wc_Sm3Free(NULL);
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_InitSm3 */
+
+/*
+ *  Testing wc_Sm3Update(), wc_Sm3Final()
+ */
+static int test_wc_Sm3UpdateFinal(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+    byte data[WC_SM3_BLOCK_SIZE * 4];
+    byte hash[WC_SM3_DIGEST_SIZE];
+    byte calcHash[WC_SM3_DIGEST_SIZE];
+    byte expHash[WC_SM3_DIGEST_SIZE] = {
+        0x38, 0x48, 0x15, 0xa7, 0x0e, 0xae, 0x0b, 0x27,
+        0x5c, 0xde, 0x9d, 0xa5, 0xd1, 0xa4, 0x30, 0xa1,
+        0xca, 0xd4, 0x54, 0x58, 0x44, 0xa2, 0x96, 0x1b,
+        0xd7, 0x14, 0x80, 0x3f, 0x80, 0x1a, 0x07, 0xb6
+    };
+    word32 chunk;
+    word32 i;
+
+    XMEMSET(data, 0, sizeof(data));
+
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_Sm3Update(NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Update(&sm3, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Update(NULL, data, 1), BAD_FUNC_ARG);
+
+    /* Valid Parameters */
+    ExpectIntEQ(wc_Sm3Update(&sm3, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE - 2), 0);
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE * 2), 0);
+    /* Ensure too many bytes for lengths. */
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_PAD_SIZE), 0);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_Sm3Final(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Final(&sm3, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Final(NULL, hash), BAD_FUNC_ARG);
+
+    /* Valid Parameters */
+    ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
+    ExpectBufEQ(hash, expHash, WC_SM3_DIGEST_SIZE);
+
+    /* Chunk tests. */
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, sizeof(data)), 0);
+    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
+    for (chunk = 1; chunk <= WC_SM3_BLOCK_SIZE + 1; chunk++) {
+        for (i = 0; i + chunk <= (word32)sizeof(data); i += chunk) {
+            ExpectIntEQ(wc_Sm3Update(&sm3, data + i, chunk), 0);
+        }
+        if (i < (word32)sizeof(data)) {
+            ExpectIntEQ(wc_Sm3Update(&sm3, data + i, (word32)sizeof(data) - i),
+                0);
+        }
+        ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
+        ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
+    }
+
+    /* Not testing when the low 32-bit length overflows. */
+
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_Sm3Update */
+
+/*
+ *  Testing wc_Sm3GetHash()
+ */
+static int test_wc_Sm3GetHash(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+    byte hash[WC_SM3_DIGEST_SIZE];
+    byte calcHash[WC_SM3_DIGEST_SIZE];
+    byte data[WC_SM3_BLOCK_SIZE];
+
+    XMEMSET(data, 0, sizeof(data));
+
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_Sm3GetHash(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3GetHash(&sm3, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3GetHash(NULL, hash), BAD_FUNC_ARG);
+
+    /* Valid Parameters */
+    ExpectIntEQ(wc_Sm3GetHash(&sm3, hash), 0);
+    ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
+
+    /* With update. */
+    ExpectIntEQ(wc_Sm3Update(&sm3, data, sizeof(data)), 0);
+    ExpectIntEQ(wc_Sm3GetHash(&sm3, hash), 0);
+    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
+    ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
+
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_Sm3Update */
+
+/*
+ *  Testing wc_Sm3Copy()
+ */
+static int test_wc_Sm3Copy(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
+    wc_Sm3 sm3;
+    wc_Sm3 sm3Copy;
+    byte hash[WC_SM3_DIGEST_SIZE];
+    byte hashCopy[WC_SM3_DIGEST_SIZE];
+    byte data[WC_SM3_BLOCK_SIZE + 1];
+    int i;
+
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitSm3(&sm3Copy, NULL, INVALID_DEVID), 0);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_Sm3Copy(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Copy(&sm3, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Copy(NULL, &sm3Copy), BAD_FUNC_ARG);
+
+    /* Valid Parameters */
+    ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
+
+    /* Ensure all parts of data updated during hashing are copied. */
+    for (i = 0; i < WC_SM3_BLOCK_SIZE + 1; i++) {
+        ExpectIntEQ(wc_Sm3Update(&sm3, data, i), 0);
+        ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
+        ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
+        ExpectIntEQ(wc_Sm3Update(&sm3Copy, data, 1), 0);
+        ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
+        ExpectIntEQ(wc_Sm3Final(&sm3Copy, hashCopy), 0);
+        ExpectBufEQ(hash, hashCopy, WC_SM3_DIGEST_SIZE);
+    }
+
+    wc_Sm3Free(&sm3Copy);
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_Sm3Copy */
+
+/*
+ * Testing wc_Sm3FinalRaw()
+ */
+static int test_wc_Sm3FinalRaw(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SM3) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
+    wc_Sm3 sm3;
+    byte hash1[WC_SM3_DIGEST_SIZE];
+    byte hash2[WC_SM3_DIGEST_SIZE];
+    byte hash3[WC_SM3_DIGEST_SIZE];
+    byte* hash_test[3] = { hash1, hash2, hash3 };
+    int times;
+    int i;
+
+    XMEMSET(&sm3, 0, sizeof(sm3));
+
+    /* Initialize */
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(wc_Sm3FinalRaw(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3FinalRaw(&sm3, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3FinalRaw(NULL, hash1), BAD_FUNC_ARG);
+
+    times = sizeof(hash_test) / sizeof(byte*);
+    for (i = 0; i < times; i++) {
+        ExpectIntEQ(wc_Sm3FinalRaw(&sm3, hash_test[i]), 0);
+    }
+
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_Sm3FinalRaw */
+/*
+ *  Testing wc_Sm3GetFlags, wc_Sm3SetFlags()
+ */
+static int test_wc_Sm3GetSetFlags(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
+    wc_Sm3 sm3;
+    wc_Sm3 sm3Copy;
+    word32 flags = 0;
+
+    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_InitSm3(&sm3Copy, NULL, INVALID_DEVID), 0);
+
+    ExpectIntEQ(wc_Sm3GetFlags(NULL, &flags), 0);
+    ExpectIntEQ(flags, 0);
+    ExpectIntEQ(wc_Sm3SetFlags(NULL, WC_HASH_FLAG_WILLCOPY), 0);
+    ExpectIntEQ(wc_Sm3GetFlags(NULL, &flags), 0);
+    ExpectIntEQ(flags, 0);
+    ExpectIntEQ(wc_Sm3GetFlags(&sm3, &flags), 0);
+    ExpectIntEQ(flags, 0);
+    ExpectIntEQ(wc_Sm3SetFlags(&sm3, WC_HASH_FLAG_WILLCOPY), 0);
+    ExpectIntEQ(wc_Sm3GetFlags(&sm3, &flags), 0);
+    ExpectIntEQ(flags, WC_HASH_FLAG_WILLCOPY);
+
+    ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
+    ExpectIntEQ(wc_Sm3GetFlags(&sm3Copy, &flags), 0);
+    ExpectIntEQ(flags, WC_HASH_FLAG_ISCOPY | WC_HASH_FLAG_WILLCOPY);
+
+    wc_Sm3Free(&sm3Copy);
+    wc_Sm3Free(&sm3);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_Sm3Update */
+
+/*
+ *  Testing wc_Sm3Hash()
+ */
+static int test_wc_Sm3Hash(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
+    byte data[WC_SM3_BLOCK_SIZE];
+    byte hash[WC_SM3_DIGEST_SIZE];
+
+    /* Invalid parameters. */
+    ExpectIntEQ(wc_Sm3Hash(NULL, sizeof(data), hash), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), NULL), BAD_FUNC_ARG);
+
+    /* Valid parameters. */
+    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), hash), 0);
+#endif
+    return EXPECT_RESULT();
+}  /* END test_wc_Sm3Hash */
+
 /*
  * Test function for wc_HmacSetKey
  */
@@ -14191,7 +14464,7 @@ static int test_wc_Md5HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_MD5, NULL, (word32)XSTRLEN(keys[0])),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+    ExpectIntEQ(wc_HmacSetKey(&hmac, 21, (byte*)keys[0],
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ret = wc_HmacSetKey(&hmac, WC_MD5, (byte*)keys[0], 0);
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
@@ -14243,7 +14516,7 @@ static int test_wc_ShaHmacSetKey(void)
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA, NULL, (word32)XSTRLEN(keys[0])),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+    ExpectIntEQ(wc_HmacSetKey(&hmac, 21, (byte*)keys[0],
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
 
     ret = wc_HmacSetKey(&hmac, WC_SHA, (byte*)keys[0], 0);
@@ -14292,7 +14565,7 @@ static int test_wc_Sha224HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA224, NULL, (word32)XSTRLEN(keys[0])),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+    ExpectIntEQ(wc_HmacSetKey(&hmac, 21, (byte*)keys[0],
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
@@ -14340,7 +14613,7 @@ static int test_wc_Sha256HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA256, NULL, (word32)XSTRLEN(keys[0])),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+    ExpectIntEQ(wc_HmacSetKey(&hmac, 21, (byte*)keys[0],
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
@@ -14389,7 +14662,7 @@ static int test_wc_Sha384HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ExpectIntEQ(wc_HmacSetKey(&hmac, WC_SHA384, NULL, (word32)XSTRLEN(keys[0])),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+    ExpectIntEQ(wc_HmacSetKey(&hmac, 21, (byte*)keys[0],
         (word32)XSTRLEN(keys[0])), BAD_FUNC_ARG);
     ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
@@ -15208,6 +15481,691 @@ static int test_wc_AesGcmStream(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_AesGcmStream */
+
+
+/*
+ * Testing streaming SM4 API.
+ */
+static int test_wc_Sm4(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+#if defined(WOLFSSL_SM4_ECB) || defined(WOLFSSL_SM4_CBC) || \
+    defined(WOLFSSL_SM4_CTR) || defined(WOLFSSL_SM4_CCM)
+    unsigned char key[SM4_KEY_SIZE];
+#endif
+#if defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_CTR)
+    unsigned char iv[SM4_IV_SIZE];
+#endif
+
+    /* Invalid parameters - wc_Sm4Init */
+    ExpectIntEQ(wc_Sm4Init(NULL, NULL, INVALID_DEVID), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4Init */
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+
+#if defined(WOLFSSL_SM4_ECB) || defined(WOLFSSL_SM4_CBC) || \
+    defined(WOLFSSL_SM4_CTR) || defined(WOLFSSL_SM4_CCM)
+    XMEMSET(key, 0, sizeof(key));
+
+    /* Invalid parameters - wc_Sm4SetKey. */
+    ExpectIntEQ(wc_Sm4SetKey(NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(NULL, key, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(NULL, NULL, SM4_KEY_SIZE), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, NULL, SM4_KEY_SIZE), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(NULL, key, SM4_KEY_SIZE), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE-1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE+1), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4SetKey. */
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+#endif
+
+#if defined(WOLFSSL_SM4_CBC) || defined(WOLFSSL_SM4_CTR)
+    XMEMSET(iv, 0, sizeof(iv));
+
+    /* Invalid parameters - wc_Sm4SetIV. */
+    ExpectIntEQ(wc_Sm4SetIV(NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4SetIV(NULL, iv), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4SetIV. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+#endif
+
+    /* Valid cases - wc_Sm4Free */
+    wc_Sm4Free(NULL);
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4 */
+
+/*
+ * Testing block based SM4-ECB API.
+ */
+static int test_wc_Sm4Ecb(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_ECB
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    unsigned char key[SM4_KEY_SIZE];
+    unsigned char in[SM4_BLOCK_SIZE * 2];
+    unsigned char out[SM4_BLOCK_SIZE * 2];
+    unsigned char out2[SM4_BLOCK_SIZE];
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(in, 0, sizeof(in));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out, in, 0), MISSING_KEY);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out, in, 0), MISSING_KEY);
+
+    /* Tested in test_wc_Sm4. */
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+
+    /* Invalid parameters - wc_Sm4EcbEncrypt. */
+    ExpectIntEQ(wc_Sm4EcbEncrypt(NULL, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(NULL, out, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(NULL, NULL, in, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(NULL, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(NULL, out, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out, in, 1), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4EcbEncrypt. */
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out, in, 0), 0);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out2, in, SM4_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, SM4_BLOCK_SIZE), 0);
+    /*   In and out are same pointer. */
+    ExpectIntEQ(wc_Sm4EcbEncrypt(&sm4, in, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(in, out, SM4_BLOCK_SIZE * 2), 0);
+
+    /* Invalid parameters - wc_Sm4EcbDecrypt. */
+    ExpectIntEQ(wc_Sm4EcbDecrypt(NULL, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(NULL, out, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(NULL, NULL, in, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(NULL, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(NULL, out, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out, in, 1), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4EcbDecrypt. */
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out, in, 0), 0);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out2, in, SM4_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, SM4_BLOCK_SIZE), 0);
+    /*   In and out are same pointer. */
+    ExpectIntEQ(wc_Sm4EcbDecrypt(&sm4, in, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(in, out, SM4_BLOCK_SIZE * 2), 0);
+
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4Ecb */
+
+/*
+ * Testing block based SM4-CBC API.
+ */
+static int test_wc_Sm4Cbc(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CBC
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    unsigned char key[SM4_KEY_SIZE];
+    unsigned char iv[SM4_IV_SIZE];
+    unsigned char in[SM4_BLOCK_SIZE * 2];
+    unsigned char out[SM4_BLOCK_SIZE * 2];
+    unsigned char out2[SM4_BLOCK_SIZE];
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(in, 0, sizeof(in));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, in, 0), MISSING_KEY);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, in, 0), MISSING_KEY);
+    /* Tested in test_wc_Sm4. */
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, in, 0), MISSING_IV);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, in, 0), MISSING_IV);
+    /* Tested in test_wc_Sm4. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+
+    /* Invalid parameters - wc_Sm4CbcEncrypt. */
+    ExpectIntEQ(wc_Sm4CbcEncrypt(NULL, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(NULL, out, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(NULL, NULL, in, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(NULL, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(NULL, out, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, in, 1), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4CbcEncrypt. */
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, in, 0), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out2, in, SM4_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, SM4_BLOCK_SIZE), 0);
+    /*   In and out are same pointer. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CbcEncrypt(&sm4, in, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(in, out, SM4_BLOCK_SIZE * 2), 0);
+
+    /* Invalid parameters - wc_Sm4CbcDecrypt. */
+    ExpectIntEQ(wc_Sm4CbcDecrypt(NULL, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, NULL, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(NULL, out, NULL, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(NULL, NULL, in, 1), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(NULL, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(NULL, out, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, in, 1), BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    /* Valid cases - wc_Sm4CbcDecrypt. */
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, in, 0), 0);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out2, in, SM4_BLOCK_SIZE), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, SM4_BLOCK_SIZE), 0);
+    /*   In and out are same pointer. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CbcDecrypt(&sm4, in, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(in, out, SM4_BLOCK_SIZE * 2), 0);
+
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4Cbc */
+
+/*
+ * Testing streaming SM4-CTR API.
+ */
+static int test_wc_Sm4Ctr(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CTR
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    unsigned char key[SM4_KEY_SIZE];
+    unsigned char iv[SM4_IV_SIZE];
+    unsigned char in[SM4_BLOCK_SIZE * 4];
+    unsigned char out[SM4_BLOCK_SIZE * 4];
+    unsigned char out2[SM4_BLOCK_SIZE * 4];
+    word32 chunk;
+    word32 i;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+    XMEMSET(in, 0, sizeof(in));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, 0), MISSING_KEY);
+    /* Tested in test_wc_Sm4. */
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, 0), MISSING_IV);
+    /* Tested in test_wc_Sm4. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+
+    /* Invalid parameters - wc_Sm4CtrEncrypt. */
+    ExpectIntEQ(wc_Sm4CtrEncrypt(NULL, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(NULL, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(NULL, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, NULL, in, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(NULL, out, in, 0), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4CtrEncrypt. */
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, 0), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out2, in, 1), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, 1), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out2, in, SM4_BLOCK_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(out2, out, 2), 0);
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(out, out2, SM4_BLOCK_SIZE), 0);
+    /*   In and out are same pointer. Also check encrypt of cipher text produces
+     *   plaintext.
+     */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, out, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(XMEMCMP(in, out, SM4_BLOCK_SIZE * 2), 0);
+
+    /* Chunking tests. */
+    ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+    ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out2, in, (word32)sizeof(in)), 0);
+    for (chunk = 1; chunk <= SM4_BLOCK_SIZE + 1; chunk++) {
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        for (i = 0; i + chunk <= (word32)sizeof(in); i += chunk) {
+             ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out + i, in + i, chunk), 0);
+        }
+        if (i < (word32)sizeof(in)) {
+             ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out + i, in + i,
+                 (word32)sizeof(in) - i), 0);
+        }
+        ExpectIntEQ(XMEMCMP(out, out2, (word32)sizeof(out)), 0);
+    }
+
+    for (i = 0; i < (word32)sizeof(iv); i++) {
+        iv[i] = 0xff;
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2), 0);
+        ExpectIntEQ(wc_Sm4SetIV(&sm4, iv), 0);
+        ExpectIntEQ(wc_Sm4CtrEncrypt(&sm4, out2, out, SM4_BLOCK_SIZE * 2), 0);
+        ExpectIntEQ(XMEMCMP(out2, in, SM4_BLOCK_SIZE * 2), 0);
+    }
+
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4Ctr */
+
+/*
+ * Testing stream SM4-GCM API.
+ */
+static int test_wc_Sm4Gcm(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_GCM
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    unsigned char key[SM4_KEY_SIZE];
+    unsigned char nonce[GCM_NONCE_MAX_SZ];
+    unsigned char in[SM4_BLOCK_SIZE * 2];
+    unsigned char in2[SM4_BLOCK_SIZE * 2];
+    unsigned char out[SM4_BLOCK_SIZE * 2];
+    unsigned char out2[SM4_BLOCK_SIZE * 2];
+    unsigned char dec[SM4_BLOCK_SIZE * 2];
+    unsigned char tag[SM4_BLOCK_SIZE];
+    unsigned char aad[SM4_BLOCK_SIZE * 2];
+    word32 i;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(in2, 0, sizeof(in2));
+    XMEMSET(aad, 0, sizeof(aad));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 0, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), MISSING_KEY);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 0, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), MISSING_KEY);
+
+    /* Invalid parameters - wc_Sm4GcmSetKey. */
+    ExpectIntEQ(wc_Sm4GcmSetKey(NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(&sm4, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(NULL, key, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(NULL, NULL, SM4_KEY_SIZE), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(&sm4, key, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(&sm4, NULL, SM4_KEY_SIZE), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmSetKey(NULL, key, SM4_KEY_SIZE), BAD_FUNC_ARG);
+
+    /* Valid parameters - wc_Sm4GcmSetKey. */
+    ExpectIntEQ(wc_Sm4GcmSetKey(&sm4, key, SM4_KEY_SIZE), 0);
+
+    /* Invalid parameters - wc_Sm4GcmEncrypt. */
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, out, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, NULL, in, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, NULL, NULL, 1, nonce, GCM_NONCE_MID_SZ,
+        NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, NULL, NULL, 1, NULL, 0, tag,
+        SM4_BLOCK_SIZE, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(NULL, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, NULL, in, 1, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, NULL, 1, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, NULL, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, nonce, 0, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ,
+        NULL, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        WOLFSSL_MIN_AUTH_TAG_SZ-1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE+1, aad, sizeof(aad)), BAD_FUNC_ARG);
+
+    /* Invalid parameters - wc_Sm4GcmDecrypt. */
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, out, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, NULL, in, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, NULL, NULL, 1, nonce, GCM_NONCE_MID_SZ,
+        NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, NULL, NULL, 1, NULL, 0, tag,
+        SM4_BLOCK_SIZE, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(NULL, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, NULL, in, 1, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, NULL, 1, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 1, NULL, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 1, nonce, 0, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ,
+        NULL, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        WOLFSSL_MIN_AUTH_TAG_SZ-1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 1, nonce, GCM_NONCE_MID_SZ, tag,
+        SM4_BLOCK_SIZE+1, aad, sizeof(aad)), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4GcmEncrypt/wc_Sm4GcmDecrypt. */
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, NULL, NULL, 0, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, NULL, NULL, 0, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, NULL, NULL, 0, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, NULL, NULL, 0, nonce, GCM_NONCE_MID_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 1), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 1), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, in2, in2, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(XMEMCMP(in2, out, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in2, in2, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(XMEMCMP(in2, in, SM4_BLOCK_SIZE * 2), 0);
+
+    /* Check vald values of nonce - wc_Sm4GcmEncrypt/wc_Sm4GcmDecrypt. */
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        GCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MIN_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MIN_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE * 2, nonce,
+        GCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)),
+        SM4_GCM_AUTH_E);
+
+    /* Check valid values of tag size - wc_Sm4GcmEncrypt/wc_Sm4GcmDecrypt. */
+    for (i = WOLFSSL_MIN_AUTH_TAG_SZ; i < SM4_BLOCK_SIZE; i++) {
+        ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+            GCM_NONCE_MID_SZ, tag, i, aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+            GCM_NONCE_MID_SZ, tag, i, aad, sizeof(aad)), 0);
+    }
+
+    /* Check different in/out sizes. */
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 0, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, out, in, 0, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, 1, nonce,
+        GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    for (i = 2; i <= SM4_BLOCK_SIZE * 2; i++) {
+        XMEMCPY(out2, out, i - 1);
+        ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, out, in, i, nonce, GCM_NONCE_MID_SZ,
+            tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(out, out2, i - 1), 0);
+        ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, dec, out, i, nonce, GCM_NONCE_MID_SZ,
+            tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(in, dec, i), 0);
+    }
+
+    /* Force the counter to roll over in first byte. */
+    {
+        static unsigned char largeIn[256 * SM4_BLOCK_SIZE];
+        static unsigned char largeOut[256 * SM4_BLOCK_SIZE];
+
+        ExpectIntEQ(wc_Sm4GcmEncrypt(&sm4, largeOut, largeIn, sizeof(largeIn),
+            nonce, GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, largeOut, largeOut, sizeof(largeIn),
+            nonce, GCM_NONCE_MID_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(largeOut, largeIn, sizeof(largeIn)), 0);
+    }
+
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4Gcm */
+
+/*
+ * Testing stream SM4-CCM API.
+ */
+static int test_wc_Sm4Ccm(void)
+{
+    int res = TEST_SKIPPED;
+#ifdef WOLFSSL_SM4_CCM
+    EXPECT_DECLS;
+    wc_Sm4 sm4;
+    unsigned char key[SM4_KEY_SIZE];
+    unsigned char nonce[CCM_NONCE_MAX_SZ];
+    unsigned char in[SM4_BLOCK_SIZE * 2];
+    unsigned char in2[SM4_BLOCK_SIZE * 2];
+    unsigned char out[SM4_BLOCK_SIZE * 2];
+    unsigned char out2[SM4_BLOCK_SIZE * 2];
+    unsigned char dec[SM4_BLOCK_SIZE * 2];
+    unsigned char tag[SM4_BLOCK_SIZE];
+    unsigned char aad[SM4_BLOCK_SIZE * 2];
+    word32 i;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(in, 0, sizeof(in));
+    XMEMSET(in2, 0, sizeof(in2));
+    XMEMSET(aad, 0, sizeof(aad));
+
+    ExpectIntEQ(wc_Sm4Init(&sm4, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 0, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), MISSING_KEY);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 0, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), MISSING_KEY);
+    ExpectIntEQ(wc_Sm4SetKey(&sm4, key, SM4_KEY_SIZE), 0);
+
+    /* Invalid parameters - wc_Sm4CcmEncrypt. */
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, out, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, NULL, in, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, NULL, NULL, 1, nonce, CCM_NONCE_MAX_SZ,
+        NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, NULL, NULL, 1, NULL, 0, tag,
+        SM4_BLOCK_SIZE, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(NULL, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, NULL, in, 1, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, NULL, 1, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, NULL, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, nonce, 0, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ,
+        NULL, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        WOLFSSL_MIN_AUTH_TAG_SZ-1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE+1, aad, sizeof(aad)), BAD_FUNC_ARG);
+
+    /* Invalid parameters - wc_Sm4CcmDecrypt. */
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, NULL, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, out, NULL, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, NULL, in, 1, NULL, 0, NULL, 0, NULL,
+        0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, NULL, NULL, 1, nonce, CCM_NONCE_MAX_SZ,
+        NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, NULL, NULL, 1, NULL, 0, tag,
+        SM4_BLOCK_SIZE, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(NULL, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, NULL, in, 1, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, NULL, 1, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 1, NULL, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 1, nonce, 0, tag,
+        SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ,
+        NULL, SM4_BLOCK_SIZE, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        WOLFSSL_MIN_AUTH_TAG_SZ - 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 1, nonce, CCM_NONCE_MAX_SZ, tag,
+        SM4_BLOCK_SIZE + 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+
+    /* Valid cases - wc_Sm4CcmEncrypt/wc_Sm4CcmDecrypt. */
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, NULL, NULL, 0, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, NULL, NULL, 0, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, NULL, NULL, 0, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, NULL, NULL, 0, nonce, CCM_NONCE_MAX_SZ,
+        tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 1), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 1), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE * 2, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE * 2, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, in2, in2, SM4_BLOCK_SIZE * 2, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(XMEMCMP(in2, out, SM4_BLOCK_SIZE * 2), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in2, in2, SM4_BLOCK_SIZE * 2, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    ExpectIntEQ(XMEMCMP(in2, in, SM4_BLOCK_SIZE * 2), 0);
+
+    /* Check vald values of nonce - wc_Sm4CcmEncrypt/wc_Sm4CcmDecrypt. */
+    for (i = CCM_NONCE_MIN_SZ; i <= CCM_NONCE_MAX_SZ; i++) {
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+            i, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+            i, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    }
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+        CCM_NONCE_MIN_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)),
+        SM4_CCM_AUTH_E);
+
+    /* Check invalid values of tag size - wc_Sm4CcmEncrypt/wc_Sm4CcmDecrypt. */
+    for (i = 0; i < 4; i++) {
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2 + 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2 + 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    }
+    /*   Odd values in range 4..SM4_BLOCK_SIZE. */
+    for (i = 2; i < SM4_BLOCK_SIZE / 2; i++) {
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2 + 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2 + 1, aad, sizeof(aad)), BAD_FUNC_ARG);
+    }
+    /* Check valid values of tag size - wc_Sm4CcmEncrypt/wc_Sm4CcmDecrypt.
+     * Even values in range 4..SM4_BLOCK_SIZE.
+     */
+    for (i = 2; i < SM4_BLOCK_SIZE / 2; i++) {
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2, aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
+            CCM_NONCE_MAX_SZ, tag, i * 2, aad, sizeof(aad)), 0);
+    }
+
+    /* Check different in/out sizes. */
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 0, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, out, in, 0, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, 1, nonce,
+        CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, NULL, 0), 0);
+    for (i = 2; i <= SM4_BLOCK_SIZE * 2; i++) {
+        XMEMCPY(out2, out, i - 1);
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, out, in, i, nonce, CCM_NONCE_MAX_SZ,
+            tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(out, out2, i - 1), 0);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, dec, out, i, nonce, CCM_NONCE_MAX_SZ,
+            tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(in, dec, i), 0);
+    }
+
+    /* Force the counter to roll over in first byte. */
+    {
+        static unsigned char largeIn[256 * SM4_BLOCK_SIZE];
+        static unsigned char largeOut[256 * SM4_BLOCK_SIZE];
+
+        ExpectIntEQ(wc_Sm4CcmEncrypt(&sm4, largeOut, largeIn, sizeof(largeIn),
+            nonce, CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, largeOut, largeOut, sizeof(largeIn),
+            nonce, CCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
+        ExpectIntEQ(XMEMCMP(largeOut, largeIn, sizeof(largeIn)), 0);
+    }
+
+    wc_Sm4Free(&sm4);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+} /* END test_wc_Sm4Ccm */
 
 
 /*
@@ -21793,6 +22751,615 @@ static int test_wc_ecc_sig_size_calc(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_sig_size_calc */
+
+/*
+ * Testing wc_ecc_sm2_make_key()
+ */
+static int test_wc_ecc_sm2_make_key(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2)
+    EXPECT_DECLS;
+    WC_RNG  rng[1];
+    ecc_key key[1];
+
+    XMEMSET(rng, 0, sizeof(*rng));
+    XMEMSET(key, 0, sizeof(*key));
+
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_make_key(NULL, NULL, WC_ECC_FLAG_NONE),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, NULL, WC_ECC_FLAG_NONE),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_make_key(NULL, key, WC_ECC_FLAG_NONE),
+        BAD_FUNC_ARG);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, key, WC_ECC_FLAG_NONE), 0);
+    ExpectIntEQ(key->dp->id, ECC_SM2P256V1);
+
+    wc_ecc_free(key);
+    wc_FreeRng(rng);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/*
+ * Testing wc_ecc_sm2_shared_secret()
+ */
+static int test_wc_ecc_sm2_shared_secret(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2)
+    EXPECT_DECLS;
+    WC_RNG  rng[1];
+    ecc_key keyA[1];
+    ecc_key keyB[1];
+    byte outA[32];
+    byte outB[32];
+    word32 outALen = 32;
+    word32 outBLen = 32;
+
+    XMEMSET(rng, 0, sizeof(*rng));
+    XMEMSET(keyA, 0, sizeof(*keyA));
+    XMEMSET(keyB, 0, sizeof(*keyB));
+
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(wc_ecc_init(keyA), 0);
+    ExpectIntEQ(wc_ecc_init(keyB), 0);
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, keyA, WC_ECC_FLAG_NONE), 0);
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, keyB, WC_ECC_FLAG_NONE), 0);
+
+#ifdef ECC_TIMING_RESISTANT
+    ExpectIntEQ(wc_ecc_set_rng(keyA, rng), 0);
+    ExpectIntEQ(wc_ecc_set_rng(keyB, rng), 0);
+#endif
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(NULL, NULL, NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyA, NULL, NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(NULL, keyB, NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(NULL, NULL, outA, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(NULL, NULL, NULL, &outALen),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(NULL, keyB, outA, &outALen),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyA, NULL, outA, &outALen),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyA, keyB, NULL, &outALen),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyA, keyB, outA, NULL), BAD_FUNC_ARG);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyA, keyB, outA, &outALen), 0);
+    ExpectIntLE(outALen, 32);
+    ExpectIntEQ(wc_ecc_sm2_shared_secret(keyB, keyA, outB, &outBLen), 0);
+    ExpectIntLE(outBLen, 32);
+    ExpectIntEQ(outALen, outBLen);
+    ExpectBufEQ(outA, outB, outALen);
+
+    wc_ecc_free(keyB);
+    wc_ecc_free(keyA);
+    wc_FreeRng(rng);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/*
+ * Testing wc_ecc_sm2_create_digest()
+ */
+static int test_wc_ecc_sm2_create_digest(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && !defined(NO_HASH_WRAPPER) && \
+    (defined(WOLFSSL_SM3) || !defined(NO_SHA256))
+    EXPECT_DECLS;
+    ecc_key key[1];
+    enum wc_HashType hashType;
+    unsigned char pub[] = {
+        0x04,
+        0x63, 0x7F, 0x1B, 0x13, 0x50, 0x36, 0xC9, 0x33,
+        0xDC, 0x3F, 0x7A, 0x8E, 0xBB, 0x1B, 0x7B, 0x2F,
+        0xD1, 0xDF, 0xBD, 0x26, 0x8D, 0x4F, 0x89, 0x4B,
+        0x5A, 0xD4, 0x7D, 0xBD, 0xBE, 0xCD, 0x55, 0x8F,
+        0xE8, 0x81, 0x01, 0xD0, 0x80, 0x48, 0xE3, 0x6C,
+        0xCB, 0xF6, 0x1C, 0xA3, 0x8D, 0xDF, 0x7A, 0xBA,
+        0x54, 0x2B, 0x44, 0x86, 0xE9, 0x9E, 0x49, 0xF3,
+        0xA7, 0x47, 0x0A, 0x85, 0x7A, 0x09, 0x64, 0x33
+    };
+    unsigned char id[] = {
+        0x01, 0x02, 0x03,
+    };
+    unsigned char msg[] = {
+        0x01, 0x02, 0x03,
+    };
+    unsigned char hash[32];
+#ifdef WOLFSSL_SM3
+    unsigned char expHash[32] = {
+        0xc1, 0xdd, 0x92, 0xc5, 0x60, 0xd3, 0x94, 0x28,
+        0xeb, 0x0f, 0x57, 0x79, 0x3f, 0xc9, 0x96, 0xc5,
+        0xfa, 0xf5, 0x90, 0xb2, 0x64, 0x2f, 0xaf, 0x9c,
+        0xc8, 0x57, 0x21, 0x6a, 0x52, 0x7e, 0xf1, 0x95
+    };
+#else
+    unsigned char expHash[32] = {
+        0xea, 0x41, 0x55, 0x21, 0x61, 0x00, 0x5c, 0x9a,
+        0x57, 0x35, 0x6b, 0x49, 0xca, 0x8f, 0x65, 0xc2,
+        0x0e, 0x29, 0x0c, 0xa0, 0x1d, 0xa7, 0xc4, 0xed,
+        0xdd, 0x51, 0x12, 0xf6, 0xe7, 0x55, 0xc5, 0xf4
+    };
+#endif
+
+#ifdef WOLFSSL_SM3
+    hashType = WC_HASH_TYPE_SM3;
+#else
+    hashType = WC_HASH_TYPE_SHA256;
+#endif
+
+    XMEMSET(key, 0, sizeof(*key));
+
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test with no curve set. */
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        hashType, hash, sizeof(hash), key), BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_ecc_import_x963_ex(pub, sizeof(pub), key, ECC_SM2P256V1), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_create_digest(NULL, sizeof(id), NULL, sizeof(msg),
+        hashType, NULL, sizeof(hash), NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), NULL, sizeof(msg),
+        hashType, NULL, sizeof(hash), NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(NULL, sizeof(id), msg, sizeof(msg),
+        hashType, NULL, sizeof(hash), NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(NULL, sizeof(id), NULL, sizeof(msg),
+        hashType, hash, sizeof(hash), NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(NULL, sizeof(id), NULL, sizeof(msg),
+        hashType, NULL, sizeof(hash), key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(NULL, sizeof(id), msg, sizeof(msg),
+        hashType, hash, sizeof(hash), key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), NULL, sizeof(msg),
+        hashType, hash, sizeof(hash), key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        hashType, NULL, sizeof(hash), key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        hashType, hash, sizeof(hash), NULL), BAD_FUNC_ARG);
+
+    /* Bad hash type. */
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        -1, hash, 0, key), BAD_FUNC_ARG);
+    /* Bad hash size. */
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        hashType, hash, 0, key), BUFFER_E);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
+        hashType, hash, sizeof(hash), key), 0);
+    ExpectBufEQ(hash, expHash, sizeof(expHash));
+
+    wc_ecc_free(key);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+/*
+ * Testing wc_ecc_sm2_verify_hash_ex()
+ */
+static int test_wc_ecc_sm2_verify_hash_ex(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(HAVE_ECC_VERIFY) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    EXPECT_DECLS;
+    ecc_key key[1];
+    mp_int r[1];
+    mp_int s[1];
+    int verified;
+    unsigned char pub[] = {
+        0x04,
+        0x63, 0x7F, 0x1B, 0x13, 0x50, 0x36, 0xC9, 0x33,
+        0xDC, 0x3F, 0x7A, 0x8E, 0xBB, 0x1B, 0x7B, 0x2F,
+        0xD1, 0xDF, 0xBD, 0x26, 0x8D, 0x4F, 0x89, 0x4B,
+        0x5A, 0xD4, 0x7D, 0xBD, 0xBE, 0xCD, 0x55, 0x8F,
+        0xE8, 0x81, 0x01, 0xD0, 0x80, 0x48, 0xE3, 0x6C,
+        0xCB, 0xF6, 0x1C, 0xA3, 0x8D, 0xDF, 0x7A, 0xBA,
+        0x54, 0x2B, 0x44, 0x86, 0xE9, 0x9E, 0x49, 0xF3,
+        0xA7, 0x47, 0x0A, 0x85, 0x7A, 0x09, 0x64, 0x33
+    };
+    unsigned char hash[] = {
+        0x3B, 0xFA, 0x5F, 0xFB, 0xC4, 0x27, 0x8C, 0x9D,
+        0x02, 0x3A, 0x19, 0xCB, 0x1E, 0xAA, 0xD2, 0xF1,
+        0x50, 0x69, 0x5B, 0x20
+    };
+    unsigned char rData[] = {
+        0xD2, 0xFC, 0xA3, 0x88, 0xE3, 0xDF, 0xA3, 0x00,
+        0x73, 0x9B, 0x3C, 0x2A, 0x0D, 0xAD, 0x44, 0xA2,
+        0xFC, 0x62, 0xD5, 0x6B, 0x84, 0x54, 0xD8, 0x40,
+        0x22, 0x62, 0x3D, 0x5C, 0xA6, 0x61, 0x9B, 0xE7,
+    };
+    unsigned char sData[] = {
+        0x1D,
+        0xB5, 0xB5, 0xD9, 0xD8, 0xF1, 0x20, 0xDD, 0x97,
+        0x92, 0xBF, 0x7E, 0x9B, 0x3F, 0xE6, 0x3C, 0x4B,
+        0x03, 0xD8, 0x80, 0xBD, 0xB7, 0x27, 0x7E, 0x6A,
+        0x84, 0x23, 0xDE, 0x61, 0x7C, 0x8D, 0xDC
+    };
+    unsigned char rBadData[] = {
+        0xD2, 0xFC, 0xA3, 0x88, 0xE3, 0xDF, 0xA3, 0x00,
+        0x73, 0x9B, 0x3C, 0x2A, 0x0D, 0xAD, 0x44, 0xA2,
+        0xFC, 0x62, 0xD5, 0x6B, 0x84, 0x54, 0xD8, 0x40,
+        0x22, 0x62, 0x3D, 0x5C, 0xA6, 0x61, 0x9B, 0xE8,
+    };
+
+    XMEMSET(key, 0, sizeof(*key));
+    XMEMSET(r, 0, sizeof(*r));
+    XMEMSET(s, 0, sizeof(*s));
+
+    ExpectIntEQ(mp_init(r), 0);
+    ExpectIntEQ(mp_init(s), 0);
+    ExpectIntEQ(mp_read_unsigned_bin(r, rData, sizeof(rData)), 0);
+    ExpectIntEQ(mp_read_unsigned_bin(s, sData, sizeof(sData)), 0);
+
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test with no curve set. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_ecc_import_x963_ex(pub, sizeof(pub), key, ECC_SM2P256V1), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, NULL, NULL, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, NULL, NULL, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, s, NULL, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, NULL, hash, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, NULL, NULL, sizeof(hash),
+        &verified, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, NULL, NULL, sizeof(hash),
+        NULL, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(NULL, s, hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, NULL, hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, NULL, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        NULL, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        &verified, NULL), BAD_FUNC_ARG);
+
+    /* Make key not on the SM2 curve. */
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SM2P256V1), 0);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        &verified, key), 0);
+    ExpectIntEQ(verified, 1);
+
+    ExpectIntEQ(mp_read_unsigned_bin(r, rBadData, sizeof(rBadData)), 0);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash),
+        &verified, key), 0);
+    ExpectIntEQ(verified, 0);
+
+    mp_free(s);
+    mp_free(r);
+    wc_ecc_free(key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/*
+ * Testing wc_ecc_sm2_verify_hash()
+ */
+static int test_wc_ecc_sm2_verify_hash(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(HAVE_ECC_VERIFY)
+    EXPECT_DECLS;
+    ecc_key key[1];
+    int verified;
+    unsigned char pub[] = {
+        0x04,
+        0x63, 0x7F, 0x1B, 0x13, 0x50, 0x36, 0xC9, 0x33,
+        0xDC, 0x3F, 0x7A, 0x8E, 0xBB, 0x1B, 0x7B, 0x2F,
+        0xD1, 0xDF, 0xBD, 0x26, 0x8D, 0x4F, 0x89, 0x4B,
+        0x5A, 0xD4, 0x7D, 0xBD, 0xBE, 0xCD, 0x55, 0x8F,
+        0xE8, 0x81, 0x01, 0xD0, 0x80, 0x48, 0xE3, 0x6C,
+        0xCB, 0xF6, 0x1C, 0xA3, 0x8D, 0xDF, 0x7A, 0xBA,
+        0x54, 0x2B, 0x44, 0x86, 0xE9, 0x9E, 0x49, 0xF3,
+        0xA7, 0x47, 0x0A, 0x85, 0x7A, 0x09, 0x64, 0x33
+    };
+    unsigned char hash[] = {
+        0x3B, 0xFA, 0x5F, 0xFB, 0xC4, 0x27, 0x8C, 0x9D,
+        0x02, 0x3A, 0x19, 0xCB, 0x1E, 0xAA, 0xD2, 0xF1,
+        0x50, 0x69, 0x5B, 0x20
+    };
+    unsigned char sig[] = {
+        0x30, 0x45, 0x02, 0x21, 0x00, 0xD2, 0xFC, 0xA3,
+        0x88, 0xE3, 0xDF, 0xA3, 0x00, 0x73, 0x9B, 0x3C,
+        0x2A, 0x0D, 0xAD, 0x44, 0xA2, 0xFC, 0x62, 0xD5,
+        0x6B, 0x84, 0x54, 0xD8, 0x40, 0x22, 0x62, 0x3D,
+        0x5C, 0xA6, 0x61, 0x9B, 0xE7, 0x02, 0x20, 0x1D,
+        0xB5, 0xB5, 0xD9, 0xD8, 0xF1, 0x20, 0xDD, 0x97,
+        0x92, 0xBF, 0x7E, 0x9B, 0x3F, 0xE6, 0x3C, 0x4B,
+        0x03, 0xD8, 0x80, 0xBD, 0xB7, 0x27, 0x7E, 0x6A,
+        0x84, 0x23, 0xDE, 0x61, 0x7C, 0x8D, 0xDC
+    };
+    unsigned char sigBad[] = {
+        0x30, 0x45, 0x02, 0x21, 0x00, 0xD2, 0xFC, 0xA3,
+        0x88, 0xE3, 0xDF, 0xA3, 0x00, 0x73, 0x9B, 0x3C,
+        0x2A, 0x0D, 0xAD, 0x44, 0xA2, 0xFC, 0x62, 0xD5,
+        0x6B, 0x84, 0x54, 0xD8, 0x40, 0x22, 0x62, 0x3D,
+        0x5C, 0xA6, 0x61, 0x9B, 0xE7, 0x02, 0x20, 0x1D,
+        0xB5, 0xB5, 0xD9, 0xD8, 0xF1, 0x20, 0xDD, 0x97,
+        0x92, 0xBF, 0x7E, 0x9B, 0x3F, 0xE6, 0x3C, 0x4B,
+        0x03, 0xD8, 0x80, 0xBD, 0xB7, 0x27, 0x7E, 0x6A,
+        0x84, 0x23, 0xDE, 0x61, 0x7C, 0x8D, 0xDD
+    };
+
+
+    XMEMSET(key, 0, sizeof(*key));
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test with no curve set. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_ecc_import_x963_ex(pub, sizeof(pub), key, ECC_SM2P256V1), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(NULL, sizeof(sig), NULL, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), NULL, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(NULL, sizeof(sig), hash, sizeof(hash),
+        NULL, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(NULL, sizeof(sig), NULL, sizeof(hash),
+        &verified, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(NULL, sizeof(sig), NULL, sizeof(hash),
+        NULL, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(NULL, sizeof(sig), hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), NULL, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+        NULL, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+        &verified, NULL), BAD_FUNC_ARG);
+
+    /* Make key not on the SM2 curve. */
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+        &verified, key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SM2P256V1), 0);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sizeof(sig), hash, sizeof(hash),
+        &verified, key), 0);
+    ExpectIntEQ(verified, 1);
+
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sigBad, sizeof(sigBad), hash,
+        sizeof(hash), &verified, key), 0);
+    ExpectIntEQ(verified, 0);
+
+    wc_ecc_free(key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+/*
+ * Testing wc_ecc_sm2_verify_hash_ex()
+ */
+static int test_wc_ecc_sm2_sign_hash_ex(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(HAVE_ECC_SIGN) && \
+    defined(WOLFSSL_PUBLIC_MP)
+    EXPECT_DECLS;
+    WC_RNG  rng[1];
+    ecc_key key[1];
+    mp_int r[1];
+    mp_int s[1];
+    unsigned char hash[32];
+#ifdef HAVE_ECC_VERIFY
+    int verified;
+#endif
+
+    XMEMSET(rng, 0, sizeof(*rng));
+    XMEMSET(key, 0, sizeof(*key));
+    XMEMSET(r, 0, sizeof(*r));
+    XMEMSET(s, 0, sizeof(*s));
+
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(mp_init(r), 0);
+    ExpectIntEQ(mp_init(s), 0);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, hash, sizeof(hash)), 0);
+
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test with no curve set. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key, r, s),
+        BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, key, WC_ECC_FLAG_NONE), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), NULL, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), NULL, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), rng, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), NULL, key, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), NULL, NULL, r,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), NULL, NULL, NULL,
+        s), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(NULL, sizeof(hash), rng, key, r, s),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), NULL, key, r, s),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, NULL, r, s),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key, NULL, s),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key, r, NULL),
+        BAD_FUNC_ARG);
+
+    /* Make key not on the SM2 curve. */
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key, r, s),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SM2P256V1), 0);
+
+#ifdef WOLFSSL_SP_MATH_ALL
+    {
+        mp_int smallR[1];
+        sp_init_size(smallR, 1);
+        /* Force failure in _ecc_sm2_calc_r_s by r being too small. */
+        ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key,
+            smallR, s), MP_VAL);
+    }
+#endif
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash_ex(hash, sizeof(hash), rng, key, r, s),
+        0);
+#ifdef HAVE_ECC_VERIFY
+    ExpectIntEQ(wc_ecc_sm2_verify_hash_ex(r, s, hash, sizeof(hash), &verified,
+        key), 0);
+    ExpectIntEQ(verified, 1);
+#endif
+
+    mp_free(s);
+    mp_free(r);
+    wc_ecc_free(key);
+    wc_FreeRng(rng);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+
+/*
+ * Testing wc_ecc_sm2_verify_hash()
+ */
+static int test_wc_ecc_sm2_sign_hash(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(HAVE_ECC_SIGN)
+    EXPECT_DECLS;
+    WC_RNG  rng[1];
+    ecc_key key[1];
+    unsigned char hash[32];
+    unsigned char sig[72];
+    word32 sigSz = sizeof(sig);
+#ifdef HAVE_ECC_VERIFY
+    int verified;
+#endif
+
+    XMEMSET(rng, 0, sizeof(*rng));
+    XMEMSET(key, 0, sizeof(*key));
+
+    ExpectIntEQ(wc_InitRng(rng), 0);
+    ExpectIntEQ(wc_RNG_GenerateBlock(rng, hash, sizeof(hash)), 0);
+
+    ExpectIntEQ(wc_ecc_init(key), 0);
+
+    /* Test with no curve set. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key),
+        BAD_FUNC_ARG);
+
+    ExpectIntEQ(wc_ecc_sm2_make_key(rng, key, WC_ECC_FLAG_NONE), 0);
+
+    /* Test invalid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), NULL, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), NULL, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), sig, NULL, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), NULL, &sigSz, NULL,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), NULL, NULL, rng,
+        NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), NULL, NULL, NULL,
+        key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(NULL, sizeof(hash), sig, &sigSz, rng,
+        key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), NULL, &sigSz, rng,
+        key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, NULL, rng,
+        key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, &sigSz, NULL,
+        key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, &sigSz, rng,
+        NULL), BAD_FUNC_ARG);
+
+    /* Make key not on the SM2 curve. */
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SECP256R1), 0);
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key),
+        BAD_FUNC_ARG);
+    ExpectIntEQ(wc_ecc_set_curve(key, 32, ECC_SM2P256V1), 0);
+
+    /* Test valid parameters. */
+    ExpectIntEQ(wc_ecc_sm2_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key),
+        0);
+#ifdef HAVE_ECC_VERIFY
+    ExpectIntEQ(wc_ecc_sm2_verify_hash(sig, sigSz, hash, sizeof(hash),
+        &verified, key), 0);
+    ExpectIntEQ(verified, 1);
+#endif
+
+    wc_ecc_free(key);
+    wc_FreeRng(rng);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+
 /*
  * Testing ToTraditional
  */
@@ -36896,8 +38463,8 @@ static int test_wolfSSL_ERR_print_errors(void)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     ERR_clear_error(); /* clear out any error nodes */
     ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
-    /* Choosing -299 as an unused errno between MIN_CODE_E < x < WC_LAST_E. */
-    ERR_put_error(0,SYS_F_BIND, -299, "asn.c", 100);
+    /* Choosing -600 as an unused errno. */
+    ERR_put_error(0,SYS_F_BIND, -600, "asn.c", 100);
 
     ERR_print_errors(bio);
     ExpectIntEQ(BIO_gets(bio, buf, sizeof(buf)), 56);
@@ -36906,7 +38473,7 @@ static int test_wolfSSL_ERR_print_errors(void)
         buf, 55), 0);
     ExpectIntEQ(BIO_gets(bio, buf, sizeof(buf)), 57);
     ExpectIntEQ(XSTRNCMP(
-        "error:299:wolfSSL library:unknown error number:asn.c:100",
+        "error:600:wolfSSL library:unknown error number:asn.c:100",
         buf, 56), 0);
     ExpectIntEQ(BIO_gets(bio, buf, sizeof(buf)), 1);
     ExpectIntEQ(buf[0], '\0');
@@ -40478,6 +42045,7 @@ static int test_wolfSSL_SHA(void)
     return EXPECT_RESULT();
 }
 
+
 /* test_EVP_Cipher_extra, Extra-test on EVP_CipherUpdate/Final. see also test.c */
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) &&\
     (!defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128))
@@ -43367,6 +44935,23 @@ static int test_wolfSSL_EVP_CIPHER_block_size(void)
     ExpectIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_chacha20_poly1305()), 1);
 #endif
 #endif
+
+#ifdef WOLFSSL_SM4_ECB
+    ExpectIntEQ(EVP_CIPHER_block_size(EVP_sm4_ecb()), SM4_BLOCK_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_CBC
+    ExpectIntEQ(EVP_CIPHER_block_size(EVP_sm4_cbc()), SM4_BLOCK_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_CTR
+    ExpectIntEQ(EVP_CIPHER_block_size(EVP_sm4_ctr()), 1);
+#endif
+#ifdef WOLFSSL_SM4_GCM
+    ExpectIntEQ(EVP_CIPHER_block_size(EVP_sm4_gcm()), 1);
+#endif
+#ifdef WOLFSSL_SM4_CCM
+    ExpectIntEQ(EVP_CIPHER_block_size(EVP_sm4_ccm()), 1);
+#endif
+
     return EXPECT_RESULT();
 }
 
@@ -50091,6 +51676,511 @@ static int test_wolfssl_EVP_chacha20(void)
     EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
+}
+
+static int test_wolfssl_EVP_sm4_ecb(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_ECB)
+    EXPECT_DECLS;
+    byte key[SM4_KEY_SIZE];
+    byte plainText[SM4_BLOCK_SIZE] = {
+        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
+    };
+    byte cipherText[sizeof(plainText) + SM4_BLOCK_SIZE];
+    byte decryptedText[sizeof(plainText) + SM4_BLOCK_SIZE];
+    EVP_CIPHER_CTX* ctx;
+    int outSz;
+
+    XMEMSET(key, 0, sizeof(key));
+
+    /* Encrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_ecb(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    /* Any tag length must fail - not an AEAD cipher. */
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
+        sizeof(plainText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, cipherText + outSz, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, SM4_BLOCK_SIZE);
+    ExpectBufNE(cipherText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Decrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_sm4_ecb(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+        sizeof(cipherText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText + outSz, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufEQ(decryptedText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_cbc(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CBC)
+    EXPECT_DECLS;
+    byte key[SM4_KEY_SIZE];
+    byte iv[SM4_BLOCK_SIZE];
+    byte plainText[SM4_BLOCK_SIZE] = {
+        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+        0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
+    };
+    byte cipherText[sizeof(plainText) + SM4_BLOCK_SIZE];
+    byte decryptedText[sizeof(plainText) + SM4_BLOCK_SIZE];
+    EVP_CIPHER_CTX* ctx;
+    int outSz;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+
+    /* Encrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_cbc(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    /* Any tag length must fail - not an AEAD cipher. */
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
+        sizeof(plainText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, cipherText + outSz, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, SM4_BLOCK_SIZE);
+    ExpectBufNE(cipherText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Decrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_sm4_cbc(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+        sizeof(cipherText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText + outSz, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufEQ(decryptedText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Test partial Inits. CipherInit() allow setting of key and iv
+     * in separate calls. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(wolfSSL_EVP_CipherInit(ctx, EVP_sm4_cbc(), key, NULL, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+         sizeof(cipherText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText + outSz, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufEQ(decryptedText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_ctr(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CTR)
+    EXPECT_DECLS;
+    byte key[SM4_KEY_SIZE];
+    byte iv[SM4_BLOCK_SIZE];
+    byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte cipherText[sizeof(plainText)];
+    byte decryptedText[sizeof(plainText)];
+    EVP_CIPHER_CTX* ctx;
+    int outSz;
+
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+
+    /* Encrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_sm4_ctr(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    /* Any tag length must fail - not an AEAD cipher. */
+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, NULL),
+        WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_EncryptUpdate(ctx, cipherText, &outSz, plainText,
+        sizeof(plainText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(plainText));
+    ExpectIntEQ(EVP_EncryptFinal_ex(ctx, cipherText, &outSz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufNE(cipherText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Decrypt. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_sm4_ctr(), NULL, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+        sizeof(cipherText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(cipherText));
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufEQ(decryptedText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* Test partial Inits. CipherInit() allow setting of key and iv
+     * in separate calls. */
+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
+    ExpectIntEQ(wolfSSL_EVP_CipherInit(ctx, EVP_sm4_ctr(), key, NULL, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 1),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &outSz, cipherText,
+         sizeof(cipherText)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, sizeof(cipherText));
+    ExpectIntEQ(EVP_DecryptFinal_ex(ctx, decryptedText, &outSz),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(outSz, 0);
+    ExpectBufEQ(decryptedText, plainText, sizeof(plainText));
+    EVP_CIPHER_CTX_free(ctx);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_gcm_zeroLen(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_GCM)
+    /* Zero length plain text */
+    EXPECT_DECLS;
+    byte key[] = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte iv[]  = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte plaintxt[1];
+    int ivSz  = 12;
+    int plaintxtSz = 0;
+    unsigned char tag[16];
+    unsigned char tag_kat[16] = {
+        0x23,0x2f,0x0c,0xfe,0x30,0x8b,0x49,0xea,
+        0x6f,0xc8,0x82,0x29,0xb5,0xdc,0x85,0x8d
+    };
+
+    byte ciphertxt[SM4_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[SM4_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+
+    EVP_CIPHER_CTX *en = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *de = EVP_CIPHER_CTX_new();
+
+    ExpectIntEQ(1, EVP_EncryptInit_ex(en, EVP_sm4_gcm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
+        plaintxtSz));
+    ExpectIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
+    ciphertxtSz += len;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_GET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_cleanup(en));
+
+    ExpectIntEQ(0, ciphertxtSz);
+    ExpectIntEQ(0, XMEMCMP(tag, tag_kat, sizeof(tag)));
+
+    EVP_CIPHER_CTX_init(de);
+    ExpectIntEQ(1, EVP_DecryptInit_ex(de, EVP_sm4_gcm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, len));
+    decryptedtxtSz = len;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_GCM_SET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
+    decryptedtxtSz += len;
+    ExpectIntEQ(0, decryptedtxtSz);
+
+    EVP_CIPHER_CTX_free(en);
+    EVP_CIPHER_CTX_free(de);
+
+    res = EXPECT_RESULT();
+#endif /* OPENSSL_EXTRA && WOLFSSL_SM4_GCM */
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_gcm(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_GCM)
+    EXPECT_DECLS;
+    byte *key = (byte*)"0123456789012345";
+    /* A 128 bit IV */
+    byte *iv = (byte*)"0123456789012345";
+    int ivSz = SM4_BLOCK_SIZE;
+    /* Message to be encrypted */
+    byte *plaintxt = (byte*)"for things to change you have to change";
+    /* Additional non-confidential data */
+    byte *aad = (byte*)"Don't spend major time on minor things.";
+
+    unsigned char tag[SM4_BLOCK_SIZE] = {0};
+    int plaintxtSz = (int)XSTRLEN((char*)plaintxt);
+    int aadSz = (int)XSTRLEN((char*)aad);
+    byte ciphertxt[SM4_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[SM4_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+    int i = 0;
+    EVP_CIPHER_CTX en[2];
+    EVP_CIPHER_CTX de[2];
+
+    for (i = 0; i < 2; i++) {
+        EVP_CIPHER_CTX_init(&en[i]);
+
+        if (i == 0) {
+            /* Default uses 96-bits IV length */
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_gcm(), NULL, key,
+                iv));
+        }
+        else {
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_gcm(), NULL, NULL,
+                NULL));
+             /* non-default must to set the IV length first */
+            ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_GCM_SET_IVLEN,
+                ivSz, NULL));
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], NULL, NULL, key, iv));
+        }
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], ciphertxt, &len, plaintxt,
+            plaintxtSz));
+        ciphertxtSz = len;
+        ExpectIntEQ(1, EVP_EncryptFinal_ex(&en[i], ciphertxt, &len));
+        ciphertxtSz += len;
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_GCM_GET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
+
+        EVP_CIPHER_CTX_init(&de[i]);
+        if (i == 0) {
+            /* Default uses 96-bits IV length */
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_gcm(), NULL, key,
+                iv));
+        }
+        else {
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_gcm(), NULL, NULL,
+                NULL));
+            /* non-default must to set the IV length first */
+            ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_IVLEN,
+                ivSz, NULL));
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
+
+        }
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        decryptedtxtSz = len;
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        decryptedtxtSz += len;
+        ExpectIntEQ(ciphertxtSz, decryptedtxtSz);
+        ExpectIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
+
+        /* modify tag*/
+        tag[SM4_BLOCK_SIZE-1]+=0xBB;
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        /* fail due to wrong tag */
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        ExpectIntEQ(0, len);
+        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
+    }
+
+    res = EXPECT_RESULT();
+#endif /* OPENSSL_EXTRA && WOLFSSL_SM4_GCM */
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_ccm_zeroLen(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CCM)
+    /* Zero length plain text */
+    EXPECT_DECLS;
+    byte key[] = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte iv[]  = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte plaintxt[1];
+    int ivSz  = 12;
+    int plaintxtSz = 0;
+    unsigned char tag[16];
+
+    byte ciphertxt[SM4_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[SM4_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+
+    EVP_CIPHER_CTX *en = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *de = EVP_CIPHER_CTX_new();
+
+    ExpectIntEQ(1, EVP_EncryptInit_ex(en, EVP_sm4_ccm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
+                                     plaintxtSz));
+    ExpectIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
+    ciphertxtSz += len;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_CCM_GET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_cleanup(en));
+
+    ExpectIntEQ(0, ciphertxtSz);
+
+    EVP_CIPHER_CTX_init(de);
+    ExpectIntEQ(1, EVP_DecryptInit_ex(de, EVP_sm4_ccm(), NULL, key, iv));
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_IVLEN, ivSz, NULL));
+    ExpectIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, len));
+    decryptedtxtSz = len;
+    ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_CCM_SET_TAG, 16, tag));
+    ExpectIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
+    decryptedtxtSz += len;
+    ExpectIntEQ(0, decryptedtxtSz);
+
+    EVP_CIPHER_CTX_free(en);
+    EVP_CIPHER_CTX_free(de);
+
+    res = EXPECT_RESULT();
+#endif /* OPENSSL_EXTRA && WOLFSSL_SM4_CCM */
+    return res;
+}
+
+static int test_wolfssl_EVP_sm4_ccm(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM4_CCM)
+    EXPECT_DECLS;
+    byte *key = (byte*)"0123456789012345";
+    byte *iv = (byte*)"0123456789012";
+    int ivSz = (int)XSTRLEN((char*)iv);
+    /* Message to be encrypted */
+    byte *plaintxt = (byte*)"for things to change you have to change";
+    /* Additional non-confidential data */
+    byte *aad = (byte*)"Don't spend major time on minor things.";
+
+    unsigned char tag[SM4_BLOCK_SIZE] = {0};
+    int plaintxtSz = (int)XSTRLEN((char*)plaintxt);
+    int aadSz = (int)XSTRLEN((char*)aad);
+    byte ciphertxt[SM4_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[SM4_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+    int i = 0;
+    EVP_CIPHER_CTX en[2];
+    EVP_CIPHER_CTX de[2];
+
+    for (i = 0; i < 2; i++) {
+        EVP_CIPHER_CTX_init(&en[i]);
+
+        if (i == 0) {
+            /* Default uses 96-bits IV length */
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_ccm(), NULL, key,
+                iv));
+        }
+        else {
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], EVP_sm4_ccm(), NULL, NULL,
+                NULL));
+             /* non-default must to set the IV length first */
+            ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_SET_IVLEN,
+                ivSz, NULL));
+            ExpectIntEQ(1, EVP_EncryptInit_ex(&en[i], NULL, NULL, key, iv));
+        }
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_EncryptUpdate(&en[i], ciphertxt, &len, plaintxt,
+            plaintxtSz));
+        ciphertxtSz = len;
+        ExpectIntEQ(1, EVP_EncryptFinal_ex(&en[i], ciphertxt, &len));
+        ciphertxtSz += len;
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_CCM_GET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
+
+        EVP_CIPHER_CTX_init(&de[i]);
+        if (i == 0) {
+            /* Default uses 96-bits IV length */
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_ccm(), NULL, key,
+                iv));
+        }
+        else {
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_sm4_ccm(), NULL, NULL,
+                NULL));
+            /* non-default must to set the IV length first */
+            ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_IVLEN,
+                ivSz, NULL));
+            ExpectIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
+
+        }
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        decryptedtxtSz = len;
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        ExpectIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        decryptedtxtSz += len;
+        ExpectIntEQ(ciphertxtSz, decryptedtxtSz);
+        ExpectIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
+
+        /* modify tag*/
+        tag[SM4_BLOCK_SIZE-1]+=0xBB;
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_CCM_SET_TAG,
+            SM4_BLOCK_SIZE, tag));
+        /* fail due to wrong tag */
+        ExpectIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt,
+            ciphertxtSz));
+        ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
+        ExpectIntEQ(0, len);
+        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
+    }
+
+    res = EXPECT_RESULT();
+#endif /* OPENSSL_EXTRA && WOLFSSL_SM4_CCM */
+    return res;
 }
 
 static int test_wolfSSL_EVP_PKEY_hkdf(void)
@@ -56985,6 +59075,100 @@ static int test_wolfSSL_EVP_shake256(void)
     return EXPECT_RESULT();
 }
 
+/*
+ *  Testing EVP digest API with SM3
+ */
+static int test_wolfSSL_EVP_sm3(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SM3)
+    EXPECT_DECLS;
+    const EVP_MD* md = NULL;
+    EVP_MD_CTX* mdCtx = NULL;
+    byte data[WC_SM3_BLOCK_SIZE * 4];
+    byte hash[WC_SM3_DIGEST_SIZE];
+    byte calcHash[WC_SM3_DIGEST_SIZE];
+    byte expHash[WC_SM3_DIGEST_SIZE] = {
+        0x38, 0x48, 0x15, 0xa7, 0x0e, 0xae, 0x0b, 0x27,
+        0x5c, 0xde, 0x9d, 0xa5, 0xd1, 0xa4, 0x30, 0xa1,
+        0xca, 0xd4, 0x54, 0x58, 0x44, 0xa2, 0x96, 0x1b,
+        0xd7, 0x14, 0x80, 0x3f, 0x80, 0x1a, 0x07, 0xb6
+    };
+    word32 chunk;
+    word32 i;
+    unsigned int sz;
+    int ret;
+
+    XMEMSET(data, 0, sizeof(data));
+
+    md = EVP_sm3();
+    ExpectTrue(md != NULL);
+    ExpectIntEQ(XSTRNCMP(md, "SM3", XSTRLEN("SM3")), 0);
+    mdCtx = EVP_MD_CTX_new();
+    ExpectTrue(mdCtx != NULL);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(EVP_DigestInit(NULL, md), BAD_FUNC_ARG);
+    /* Valid Parameters */
+    ExpectIntEQ(EVP_DigestInit(mdCtx, md), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(EVP_DigestUpdate(NULL, NULL, 1), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, NULL, 1), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestUpdate(NULL, data, 1), WOLFSSL_FAILURE);
+
+    /* Valid Parameters */
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, WC_SM3_BLOCK_SIZE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, WC_SM3_BLOCK_SIZE - 2),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, WC_SM3_BLOCK_SIZE * 2),
+        WOLFSSL_SUCCESS);
+    /* Ensure too many bytes for lengths. */
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, WC_SM3_PAD_SIZE),
+        WOLFSSL_SUCCESS);
+
+    /* Invalid Parameters */
+    ExpectIntEQ(EVP_DigestFinal(NULL, NULL, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestFinal(mdCtx, NULL, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestFinal(NULL, hash, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestFinal(NULL, hash, NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(EVP_DigestFinal(mdCtx, NULL, NULL), WOLFSSL_FAILURE);
+
+    /* Valid Parameters */
+    ExpectIntEQ(EVP_DigestFinal(mdCtx, hash, NULL), WOLFSSL_SUCCESS);
+    ExpectBufEQ(hash, expHash, WC_SM3_DIGEST_SIZE);
+
+    /* Chunk tests. */
+    ExpectIntEQ(EVP_DigestUpdate(mdCtx, data, sizeof(data)), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestFinal(mdCtx, calcHash, &sz), WOLFSSL_SUCCESS);
+    ExpectIntEQ(sz, WC_SM3_DIGEST_SIZE);
+    for (chunk = 1; chunk <= WC_SM3_BLOCK_SIZE + 1; chunk++) {
+        for (i = 0; i + chunk <= (word32)sizeof(data); i += chunk) {
+            ExpectIntEQ(EVP_DigestUpdate(mdCtx, data + i, chunk),
+                WOLFSSL_SUCCESS);
+        }
+        if (i < (word32)sizeof(data)) {
+            ExpectIntEQ(EVP_DigestUpdate(mdCtx, data + i,
+                (word32)sizeof(data) - i), WOLFSSL_SUCCESS);
+        }
+        ExpectIntEQ(EVP_DigestFinal(mdCtx, hash, NULL), WOLFSSL_SUCCESS);
+        ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
+    }
+
+    /* Not testing when the low 32-bit length overflows. */
+
+    ret = EVP_MD_CTX_cleanup(mdCtx);
+    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    wolfSSL_EVP_MD_CTX_free(mdCtx);
+
+    res = EXPECT_RESULT();
+#endif
+    return res;
+}  /* END test_EVP_sm3 */
+
 static int test_EVP_blake2(void)
 {
     EXPECT_DECLS;
@@ -59971,6 +62155,15 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Shake256_Copy),
     TEST_DECL(test_wc_Shake256Hash),
 
+    /* SM3 Digest */
+    TEST_DECL(test_wc_InitSm3Free),
+    TEST_DECL(test_wc_Sm3UpdateFinal),
+    TEST_DECL(test_wc_Sm3GetHash),
+    TEST_DECL(test_wc_Sm3Copy),
+    TEST_DECL(test_wc_Sm3FinalRaw),
+    TEST_DECL(test_wc_Sm3GetSetFlags),
+    TEST_DECL(test_wc_Sm3Hash),
+
     TEST_DECL(test_wc_HashInit),
     TEST_DECL(test_wc_HashSetFlags),
     TEST_DECL(test_wc_HashGetFlags),
@@ -60037,6 +62230,14 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_GmacUpdate),
     TEST_DECL(test_wc_AesCcmSetKey),
     TEST_DECL(test_wc_AesCcmEncryptDecrypt),
+
+    /* SM4 cipher */
+    TEST_DECL(test_wc_Sm4),
+    TEST_DECL(test_wc_Sm4Ecb),
+    TEST_DECL(test_wc_Sm4Cbc),
+    TEST_DECL(test_wc_Sm4Ctr),
+    TEST_DECL(test_wc_Sm4Gcm),
+    TEST_DECL(test_wc_Sm4Ccm),
 
     /* RNG tests */
 #ifdef HAVE_HASHDRBG
@@ -60130,6 +62331,15 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ecc_get_curve_id_from_oid),
     TEST_DECL(test_wc_ecc_sig_size_calc),
     TEST_DECL(test_wc_EccPrivateKeyToDer),
+
+    /* SM2 elliptic curve */
+    TEST_DECL(test_wc_ecc_sm2_make_key),
+    TEST_DECL(test_wc_ecc_sm2_shared_secret),
+    TEST_DECL(test_wc_ecc_sm2_create_digest),
+    TEST_DECL(test_wc_ecc_sm2_verify_hash_ex),
+    TEST_DECL(test_wc_ecc_sm2_verify_hash),
+    TEST_DECL(test_wc_ecc_sm2_sign_hash_ex),
+    TEST_DECL(test_wc_ecc_sm2_sign_hash),
 
     /* Curve25519 */
     TEST_DECL(test_wc_curve25519_init),
@@ -60321,6 +62531,7 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_EVP_shake128),
     TEST_DECL(test_wolfSSL_EVP_shake256),
+    TEST_DECL(test_wolfSSL_EVP_sm3),
     TEST_DECL(test_EVP_blake2),
 #ifdef OPENSSL_ALL
     TEST_DECL(test_wolfSSL_EVP_md4),
@@ -60347,6 +62558,13 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfssl_EVP_aes_ccm_zeroLen),
     TEST_DECL(test_wolfssl_EVP_chacha20),
     TEST_DECL(test_wolfssl_EVP_chacha20_poly1305),
+    TEST_DECL(test_wolfssl_EVP_sm4_ecb),
+    TEST_DECL(test_wolfssl_EVP_sm4_cbc),
+    TEST_DECL(test_wolfssl_EVP_sm4_ctr),
+    TEST_DECL(test_wolfssl_EVP_sm4_gcm_zeroLen),
+    TEST_DECL(test_wolfssl_EVP_sm4_gcm),
+    TEST_DECL(test_wolfssl_EVP_sm4_ccm_zeroLen),
+    TEST_DECL(test_wolfssl_EVP_sm4_ccm),
 #ifdef OPENSSL_ALL
     TEST_DECL(test_wolfSSL_EVP_aes_256_gcm),
     TEST_DECL(test_wolfSSL_EVP_aes_192_gcm),

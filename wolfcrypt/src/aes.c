@@ -4890,12 +4890,12 @@ static WC_INLINE void RIGHTSHIFTX(byte* x)
 
 #ifdef GCM_TABLE
 
-static void GenerateM0(Aes* aes)
+void GenerateM0(Gcm* gcm)
 {
     int i, j;
-    byte (*m)[AES_BLOCK_SIZE] = aes->M0;
+    byte (*m)[AES_BLOCK_SIZE] = gcm->M0;
 
-    XMEMCPY(m[128], aes->H, AES_BLOCK_SIZE);
+    XMEMCPY(m[128], gcm->H, AES_BLOCK_SIZE);
 
     for (i = 64; i > 0; i /= 2) {
         XMEMCPY(m[i], m[i*2], AES_BLOCK_SIZE);
@@ -4924,17 +4924,17 @@ static WC_INLINE void Shift4_M0(byte *r8, byte *z8)
 }
 #endif
 
-static void GenerateM0(Aes* aes)
+void GenerateM0(Gcm* gcm)
 {
 #if !defined(BIG_ENDIAN_ORDER) && !defined(WC_16BIT_CPU)
     int i;
 #endif
-    byte (*m)[AES_BLOCK_SIZE] = aes->M0;
+    byte (*m)[AES_BLOCK_SIZE] = gcm->M0;
 
     /* 0 times -> 0x0 */
     XMEMSET(m[0x0], 0, AES_BLOCK_SIZE);
     /* 1 times -> 0x8 */
-    XMEMCPY(m[0x8], aes->H, AES_BLOCK_SIZE);
+    XMEMCPY(m[0x8], gcm->H, AES_BLOCK_SIZE);
     /* 2 times -> 0x4 */
     XMEMCPY(m[0x4], m[0x8], AES_BLOCK_SIZE);
     RIGHTSHIFTX(m[0x4]);
@@ -5015,8 +5015,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 
 #ifdef OPENSSL_EXTRA
-    XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
-    aes->aadLen = 0;
+    XMEMSET(aes->gcm.aadH, 0, sizeof(aes->gcm.aadH));
+    aes->gcm.aadLen = 0;
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
@@ -5037,10 +5037,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0)
-        ret = wc_AesEncrypt(aes, iv, aes->H);
+        ret = wc_AesEncrypt(aes, iv, aes->gcm.H);
     if (ret == 0) {
     #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-        GenerateM0(aes);
+        GenerateM0(&aes->gcm);
     #endif /* GCM_TABLE */
     }
 #endif /* FREESCALE_LTC_AES_GCM */
@@ -5147,7 +5147,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -5155,11 +5155,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 blocks, partial;
     byte* h;
 
-    if (aes == NULL) {
+    if (gcm == NULL) {
         return;
     }
 
-    h = aes->H;
+    h = gcm->H;
     XMEMSET(x, 0, AES_BLOCK_SIZE);
 
     /* Hash in A, the Additional Authentication Data */
@@ -5223,7 +5223,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
-        GMULT(AES_TAG(aes), aes->H);                    \
+        GMULT(AES_TAG(aes), aes->gcm.H);                \
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
@@ -5350,14 +5350,14 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
 #endif
 }
 
-void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
 
-    if (aes == NULL) {
+    if (gcm == NULL) {
         return;
     }
 
@@ -5369,14 +5369,14 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         partial = aSz % AES_BLOCK_SIZE;
         while (blocks--) {
             xorbuf(x, a, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
             a += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, a, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
         }
     }
 
@@ -5386,14 +5386,14 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         partial = cSz % AES_BLOCK_SIZE;
         while (blocks--) {
             xorbuf(x, c, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
             c += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, c, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
         }
     }
 
@@ -5401,7 +5401,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     FlattenSzInBits(&scratch[0], aSz);
     FlattenSzInBits(&scratch[8], cSz);
     xorbuf(x, scratch, AES_BLOCK_SIZE);
-    GMULT(x, aes->M0);
+    GMULT(x, gcm->M0);
 
     /* Copy the result into s. */
     XMEMCPY(s, x, sSz);
@@ -5424,7 +5424,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
-        GMULT(AES_TAG(aes), aes->M0);                   \
+        GMULT(AES_TAG(aes), aes->gcm.M0);               \
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
@@ -5650,14 +5650,14 @@ static WC_INLINE void GMULT(byte *x, byte m[32][AES_BLOCK_SIZE])
 }
 #endif
 
-void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
 
-    if (aes == NULL) {
+    if (gcm == NULL) {
         return;
     }
 
@@ -5669,14 +5669,14 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         partial = aSz % AES_BLOCK_SIZE;
         while (blocks--) {
             xorbuf(x, a, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
             a += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, a, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
         }
     }
 
@@ -5686,14 +5686,14 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         partial = cSz % AES_BLOCK_SIZE;
         while (blocks--) {
             xorbuf(x, c, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
             c += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, c, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
-            GMULT(x, aes->M0);
+            GMULT(x, gcm->M0);
         }
     }
 
@@ -5701,7 +5701,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     FlattenSzInBits(&scratch[0], aSz);
     FlattenSzInBits(&scratch[8], cSz);
     xorbuf(x, scratch, AES_BLOCK_SIZE);
-    GMULT(x, aes->M0);
+    GMULT(x, gcm->M0);
 
     /* Copy the result into s. */
     XMEMCPY(s, x, sSz);
@@ -5724,7 +5724,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
-        GMULT(AES_TAG(aes), (aes)->M0);                 \
+        GMULT(AES_TAG(aes), (aes)->gcm.M0);             \
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
@@ -5768,18 +5768,18 @@ static void GMULT(word64* X, word64* Y)
 }
 
 
-void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     word64 x[2] = {0,0};
     word32 blocks, partial;
     word64 bigH[2];
 
-    if (aes == NULL) {
+    if (gcm == NULL) {
         return;
     }
 
-    XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
+    XMEMCPY(bigH, gcm->H, AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(bigH, bigH, AES_BLOCK_SIZE);
     #endif
@@ -5811,10 +5811,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         }
 #ifdef OPENSSL_EXTRA
         /* store AAD partial tag for next call */
-        aes->aadH[0] = (word32)((x[0] & 0xFFFFFFFF00000000ULL) >> 32);
-        aes->aadH[1] = (word32)(x[0] & 0xFFFFFFFF);
-        aes->aadH[2] = (word32)((x[1] & 0xFFFFFFFF00000000ULL) >> 32);
-        aes->aadH[3] = (word32)(x[1] & 0xFFFFFFFF);
+        gcm->aadH[0] = (word32)((x[0] & 0xFFFFFFFF00000000ULL) >> 32);
+        gcm->aadH[1] = (word32)(x[0] & 0xFFFFFFFF);
+        gcm->aadH[2] = (word32)((x[1] & 0xFFFFFFFF00000000ULL) >> 32);
+        gcm->aadH[3] = (word32)(x[1] & 0xFFFFFFFF);
 #endif
     }
 
@@ -5825,9 +5825,9 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         partial = cSz % AES_BLOCK_SIZE;
 #ifdef OPENSSL_EXTRA
         /* Start from last AAD partial tag */
-        if(aes->aadLen) {
-            x[0] = ((word64)aes->aadH[0]) << 32 | aes->aadH[1];
-            x[1] = ((word64)aes->aadH[2]) << 32 | aes->aadH[3];
+        if(gcm->aadLen) {
+            x[0] = ((word64)gcm->aadH[0]) << 32 | gcm->aadH[1];
+            x[1] = ((word64)gcm->aadH[2]) << 32 | gcm->aadH[3];
          }
 #endif
         while (blocks--) {
@@ -5857,8 +5857,8 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         word64 len[2];
         len[0] = aSz; len[1] = cSz;
 #ifdef OPENSSL_EXTRA
-        if (aes->aadLen)
-            len[0] = (word64)aes->aadLen;
+        if (gcm->aadLen)
+            len[0] = (word64)gcm->aadLen;
 #endif
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
@@ -5884,7 +5884,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in] aes  AES GCM object.
  */
 #define GHASH_INIT_EXTRA(aes)                                               \
-    ByteReverseWords64((word64*)aes->H, (word64*)aes->H, AES_BLOCK_SIZE)
+    ByteReverseWords64((word64*)aes->gcm.H, (word64*)aes->gcm.H, AES_BLOCK_SIZE)
 
 /* GHASH one block of data..
  *
@@ -5896,7 +5896,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                             \
     do {                                                        \
         word64* x = (word64*)AES_TAG(aes);                      \
-        word64* h = (word64*)aes->H;                            \
+        word64* h = (word64*)aes->gcm.H;                        \
         word64 block64[2];                                      \
         XMEMCPY(block64, block, AES_BLOCK_SIZE);                \
         ByteReverseWords64(block64, block64, AES_BLOCK_SIZE);   \
@@ -5916,11 +5916,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                            \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->H;                    \
+        word64* h = (word64*)aes->gcm.H;                \
         word64 len[2];                                  \
         len[0] = aes->aSz; len[1] = aes->cSz;           \
-        if (aes->aadLen)                                \
-            len[0] = (word64)aes->aadLen;               \
+        if (aes->gcm.aadLen)                            \
+            len[0] = (word64)aes->gcm.aadLen;           \
         /* Lengths are in bytes. Convert to bits. */    \
         len[0] *= 8;                                    \
         len[1] *= 8;                                    \
@@ -5941,7 +5941,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                            \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->H;                    \
+        word64* h = (word64*)aes->gcm.H;                \
         word64 len[2];                                  \
         len[0] = aes->aSz; len[1] = aes->cSz;           \
         /* Lengths are in bytes. Convert to bits. */    \
@@ -5974,7 +5974,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->H;                    \
+        word64* h = (word64*)aes->gcm.H;                \
         word64 block64[2];                              \
         XMEMCPY(block64, block, AES_BLOCK_SIZE);        \
         x[0] ^= block64[0];                             \
@@ -5993,11 +5993,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                            \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->H;                    \
+        word64* h = (word64*)aes->gcm.H;                \
         word64 len[2];                                  \
         len[0] = aes->aSz; len[1] = aes->cSz;           \
-        if (aes->aadLen)                                \
-            len[0] = (word64)aes->aadLen;               \
+        if (aes->gcm.aadLen)                            \
+            len[0] = (word64)aes->gcm.aadLen;           \
         /* Lengths are in bytes. Convert to bits. */    \
         len[0] *= 8;                                    \
         len[1] *= 8;                                    \
@@ -6017,7 +6017,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                            \
     do {                                                \
         word64* x = (word64*)AES_TAG(aes);              \
-        word64* h = (word64*)aes->H;                    \
+        word64* h = (word64*)aes->gcm.H;                \
         word64 len[2];                                  \
         len[0] = aes->aSz; len[1] = aes->cSz;           \
         /* Lengths are in bytes. Convert to bits. */    \
@@ -6085,18 +6085,18 @@ static void GMULT(word32* X, word32* Y)
 }
 
 
-void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     word32 x[4] = {0,0,0,0};
     word32 blocks, partial;
     word32 bigH[4];
 
-    if (aes == NULL) {
+    if (gcm == NULL) {
         return;
     }
 
-    XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
+    XMEMCPY(bigH, gcm->H, AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(bigH, bigH, AES_BLOCK_SIZE);
     #endif
@@ -6194,7 +6194,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes  AES GCM object.
  */
 #define GHASH_INIT_EXTRA(aes) \
-    ByteReverseWords((word32*)aes->H, (word32*)aes->H, AES_BLOCK_SIZE)
+    ByteReverseWords((word32*)aes->gcm.H, (word32*)aes->gcm.H, AES_BLOCK_SIZE)
 
 /* GHASH one block of data..
  *
@@ -6206,7 +6206,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                         \
     do {                                                    \
         word32* x = (word32*)AES_TAG(aes);                  \
-        word32* h = (word32*)aes->H;                        \
+        word32* h = (word32*)aes->gcm.H;                    \
         word32 bigEnd[4];                                   \
         XMEMCPY(bigEnd, block, AES_BLOCK_SIZE);             \
         ByteReverseWords(bigEnd, bigEnd, AES_BLOCK_SIZE);   \
@@ -6228,7 +6228,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     do {                                                    \
         word32 len[4];                                      \
         word32* x = (word32*)AES_TAG(aes);                  \
-        word32* h = (word32*)aes->H;                        \
+        word32* h = (word32*)aes->gcm.H;                    \
         len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
         len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
@@ -6258,7 +6258,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                         \
     do {                                                    \
         word32* x = (word32*)AES_TAG(aes);                  \
-        word32* h = (word32*)aes->H;                        \
+        word32* h = (word32*)aes->gcm.H;                    \
         word32 block32[4];                                  \
         XMEMCPY(block32, block, AES_BLOCK_SIZE);            \
         x[0] ^= block32[0];                                 \
@@ -6277,7 +6277,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     do {                                                    \
         word32 len[4];                                      \
         word32* x = (word32*)AES_TAG(aes);                  \
-        word32* h = (word32*)aes->H;                        \
+        word32* h = (word32*)aes->gcm.H;                    \
         len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
         len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
@@ -6547,7 +6547,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         pCtr[AES_BLOCK_SIZE - 1] = 1;
     }
     else {
-        GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
     XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
@@ -6721,7 +6721,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         /* return authTag */
         if (authTag) {
             if (useSwGhash) {
-                GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
+                GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
                 ret = wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)tag);
                 if (ret == 0) {
                     xorbuf(authTag, tag, authTagSz);
@@ -6779,12 +6779,12 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
     else {
         /* Counter is GHASH of IV. */
 #ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->aadLen;
-        aes->aadLen = 0;
+        word32 aadTemp = aes->gcm.aadLen;
+        aes->gcm.aadLen = 0;
 #endif
-        GHASH(aes, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
 #ifdef OPENSSL_EXTRA
-        aes->aadLen = aadTemp;
+        aes->gcm.aadLen = aadTemp;
 #endif
     }
     XMEMCPY(initialCounter, counter, AES_BLOCK_SIZE);
@@ -6844,7 +6844,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
         xorbufout(c, scratch, p, partial);
     }
     if (authTag) {
-        GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
+        GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncrypt(aes, initialCounter, scratch);
         if (ret != 0)
             return ret;
@@ -6852,7 +6852,7 @@ WARN_UNUSED_RESULT int AES_GCM_encrypt_C(
 #ifdef OPENSSL_EXTRA
         if (!in && !sz)
             /* store AAD size for next call */
-            aes->aadLen = authInSz;
+            aes->gcm.aadLen = authInSz;
 #endif
     }
 
@@ -7060,7 +7060,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         pCtr[AES_BLOCK_SIZE - 1] = 1;
     }
     else {
-        GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
 
     /* Make copy of expected authTag, which could get corrupted in some
@@ -7089,7 +7089,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         || authPadSz != authInSz
     #endif
     ) {
-        GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
+        GHASH(&aes->gcm, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
         ret = wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
         if (ret != 0)
             return ret;
@@ -7304,17 +7304,17 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     else {
         /* Counter is GHASH of IV. */
 #ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->aadLen;
-        aes->aadLen = 0;
+        word32 aadTemp = aes->gcm.aadLen;
+        aes->gcm.aadLen = 0;
 #endif
-        GHASH(aes, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
 #ifdef OPENSSL_EXTRA
-        aes->aadLen = aadTemp;
+        aes->gcm.aadLen = aadTemp;
 #endif
     }
 
     /* Calc the authTag again using received auth data and the cipher text */
-    GHASH(aes, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
+    GHASH(&aes->gcm, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
     ret = wc_AesEncrypt(aes, counter, EKY0);
     if (ret != 0)
         return ret;
@@ -7337,7 +7337,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     if (!out) {
         /* authenticated, non-confidential data */
         /* store AAD size for next call */
-        aes->aadLen = authInSz;
+        aes->gcm.aadLen = authInSz;
     }
 #endif
 
@@ -7563,12 +7563,12 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
     else {
         /* Counter is GHASH of IV. */
     #ifdef OPENSSL_EXTRA
-        word32 aadTemp = aes->aadLen;
-        aes->aadLen = 0;
+        word32 aadTemp = aes->gcm.aadLen;
+        aes->gcm.aadLen = 0;
     #endif
-        GHASH(aes, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
     #ifdef OPENSSL_EXTRA
-        aes->aadLen = aadTemp;
+        aes->gcm.aadLen = aadTemp;
     #endif
     }
 
@@ -7695,7 +7695,7 @@ static WARN_UNUSED_RESULT int AesGcmFinal_C(
     xorbuf(authTag, AES_INITCTR(aes), authTagSz);
 #ifdef OPENSSL_EXTRA
     /* store AAD size for next call */
-    aes->aadLen = aes->aSz;
+    aes->gcm.aadLen = aes->aSz;
 #endif
     /* Zeroize last block to protect sensitive data. */
     ForceZero(AES_LASTBLOCK(aes), AES_BLOCK_SIZE);
@@ -7788,8 +7788,8 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_avx2((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
-                          AES_COUNTER(aes), AES_INITCTR(aes));
+        AES_GCM_init_avx2((byte*)aes->key, (int)aes->rounds, iv, ivSz,
+            aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
     else
@@ -7797,16 +7797,16 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(
 #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_avx1((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
-                          AES_COUNTER(aes), AES_INITCTR(aes));
+        AES_GCM_init_avx1((byte*)aes->key, (int)aes->rounds, iv, ivSz,
+            aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
-        AES_GCM_init_aesni((byte*)aes->key, (int)aes->rounds, iv, ivSz, aes->H,
-                           AES_COUNTER(aes), AES_INITCTR(aes));
+        AES_GCM_init_aesni((byte*)aes->key, (int)aes->rounds, iv, ivSz,
+            aes->gcm.H, AES_COUNTER(aes), AES_INITCTR(aes));
         RESTORE_VECTOR_REGISTERS();
     }
     return 0;
@@ -7847,20 +7847,20 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
             #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_AVX2(intel_flags)) {
                     AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
             #ifdef HAVE_INTEL_AVX1
                 if (IS_INTEL_AVX1(intel_flags)) {
                     AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
                 {
                     AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                              aes->H);
+                                              aes->gcm.H);
                 }
                 /* Reset count. */
                 aes->aOver = 0;
@@ -7878,20 +7878,20 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
                 AES_GCM_aad_update_avx2(a, blocks * AES_BLOCK_SIZE,
-                                        AES_TAG(aes), aes->H);
+                                        AES_TAG(aes), aes->gcm.H);
             }
             else
         #endif
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_GCM_aad_update_avx1(a, blocks * AES_BLOCK_SIZE,
-                                        AES_TAG(aes), aes->H);
+                                        AES_TAG(aes), aes->gcm.H);
             }
             else
         #endif
             {
                 AES_GCM_aad_update_aesni(a, blocks * AES_BLOCK_SIZE,
-                                         AES_TAG(aes), aes->H);
+                                         AES_TAG(aes), aes->gcm.H);
             }
             /* Skip over to end of AAD blocks. */
             a += blocks * AES_BLOCK_SIZE;
@@ -7910,19 +7910,21 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         /* GHASH last AAD block. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
-            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                     aes->gcm.H);
         }
         else
     #endif
     #ifdef HAVE_INTEL_AVX1
         if (IS_INTEL_AVX1(intel_flags)) {
-            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                     aes->gcm.H);
         }
         else
     #endif
         {
             AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                      aes->H);
+                                      aes->gcm.H);
         }
         /* Clear partial count for next time through. */
         aes->aOver = 0;
@@ -7975,20 +7977,20 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_AVX2(intel_flags)) {
                     AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
             #ifdef HAVE_INTEL_AVX1
                 if (IS_INTEL_AVX1(intel_flags)) {
                     AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
                 {
                     AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                              aes->H);
+                                              aes->gcm.H);
                 }
                 /* Reset count. */
                 aes->cOver = 0;
@@ -8007,7 +8009,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
                 AES_GCM_encrypt_update_avx2((byte*)aes->key, (int)aes->rounds,
-                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             else
@@ -8015,14 +8017,14 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_GCM_encrypt_update_avx1((byte*)aes->key, (int)aes->rounds,
-                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             else
         #endif
             {
                 AES_GCM_encrypt_update_aesni((byte*)aes->key, (int)aes->rounds,
-                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    c, p, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             /* Skip over to end of blocks. */
@@ -8089,39 +8091,41 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_aesni(
         /* GHASH last cipher block. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
-            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                     aes->gcm.H);
         }
         else
     #endif
     #ifdef HAVE_INTEL_AVX1
         if (IS_INTEL_AVX1(intel_flags)) {
-            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                     aes->gcm.H);
         }
         else
     #endif
         {
             AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
-                                      aes->H);
+                                      aes->gcm.H);
         }
     }
     /* Calculate the authentication tag. */
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
         AES_GCM_encrypt_final_avx2(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes));
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes));
     }
     else
 #endif
 #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
         AES_GCM_encrypt_final_avx1(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes));
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes));
     }
     else
 #endif
     {
         AES_GCM_encrypt_final_aesni(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes));
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes));
     }
     RESTORE_VECTOR_REGISTERS();
     return 0;
@@ -8205,20 +8209,20 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             #ifdef HAVE_INTEL_AVX2
                 if (IS_INTEL_AVX2(intel_flags)) {
                     AES_GCM_ghash_block_avx2(AES_LASTBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
             #ifdef HAVE_INTEL_AVX1
                 if (IS_INTEL_AVX1(intel_flags)) {
                     AES_GCM_ghash_block_avx1(AES_LASTBLOCK(aes), AES_TAG(aes),
-                                             aes->H);
+                                             aes->gcm.H);
                 }
                 else
             #endif
                 {
                     AES_GCM_ghash_block_aesni(AES_LASTBLOCK(aes), AES_TAG(aes),
-                                              aes->H);
+                                              aes->gcm.H);
                 }
                 /* Reset count. */
                 aes->cOver = 0;
@@ -8237,7 +8241,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
         #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_AVX2(intel_flags)) {
                 AES_GCM_decrypt_update_avx2((byte*)aes->key, (int)aes->rounds,
-                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             else
@@ -8245,14 +8249,14 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_GCM_decrypt_update_avx1((byte*)aes->key, (int)aes->rounds,
-                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             else
         #endif
             {
                 AES_GCM_decrypt_update_aesni((byte*)aes->key, (int)aes->rounds,
-                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    p, c, blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->gcm.H,
                     AES_COUNTER(aes));
             }
             /* Skip over to end of blocks. */
@@ -8325,38 +8329,38 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(
         /* Hash the last block of cipher text. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
-            AES_GCM_ghash_block_avx2(lastBlock, AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx2(lastBlock, AES_TAG(aes), aes->gcm.H);
         }
         else
     #endif
     #ifdef HAVE_INTEL_AVX1
         if (IS_INTEL_AVX1(intel_flags)) {
-            AES_GCM_ghash_block_avx1(lastBlock, AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_avx1(lastBlock, AES_TAG(aes), aes->gcm.H);
         }
         else
     #endif
         {
-            AES_GCM_ghash_block_aesni(lastBlock, AES_TAG(aes), aes->H);
+            AES_GCM_ghash_block_aesni(lastBlock, AES_TAG(aes), aes->gcm.H);
         }
     }
     /* Calculate and compare the authentication tag. */
 #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
         AES_GCM_decrypt_final_avx2(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
     }
     else
 #endif
 #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
         AES_GCM_decrypt_final_avx1(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
     }
     else
 #endif
     {
         AES_GCM_decrypt_final_aesni(AES_TAG(aes), authTag, authTagSz, aes->cSz,
-            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+            aes->aSz, aes->gcm.H, AES_INITCTR(aes), &res);
     }
     RESTORE_VECTOR_REGISTERS();
     /* Return error code when calculated doesn't match input. */
@@ -9818,8 +9822,8 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
 #ifdef HAVE_AESGCM
 #ifdef OPENSSL_EXTRA
-    XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
-    aes->aadLen = 0;
+    XMEMSET(aes->gcm.aadH, 0, sizeof(aes->gcm.aadH));
+    aes->gcm.aadLen = 0;
 #endif
 #endif
 

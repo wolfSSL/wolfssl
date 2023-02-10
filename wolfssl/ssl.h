@@ -3227,7 +3227,10 @@ enum BulkCipherAlgorithm {
     wolfssl_aes_gcm     = 7,
     wolfssl_aes_ccm     = 8,
     wolfssl_chacha      = 9,
-    wolfssl_camellia    = 10
+    wolfssl_camellia    = 10,
+    wolfssl_sm4_cbc     = 11,
+    wolfssl_sm4_gcm     = 12,
+    wolfssl_sm4_ccm     = 13
 };
 
 
@@ -3235,7 +3238,8 @@ enum BulkCipherAlgorithm {
 enum KDF_MacAlgorithm {
     wolfssl_sha256 = 4,     /* needs to match hash.h wc_MACAlgorithm */
     wolfssl_sha384,
-    wolfssl_sha512
+    wolfssl_sha512,
+    wolfssl_sm3 = 9
 };
 
 
@@ -3895,7 +3899,8 @@ enum {
     WOLFSSL_ECC_BRAINPOOLP512R1 = 28,
     WOLFSSL_ECC_X25519    = 29,
     WOLFSSL_ECC_X448      = 30,
-    WOLFSSL_ECC_MAX       = 30,
+    WOLFSSL_ECC_SM2P256V1 = 41,
+    WOLFSSL_ECC_MAX       = 41,
 
     WOLFSSL_FFDHE_2048    = 256,
     WOLFSSL_FFDHE_3072    = 257,

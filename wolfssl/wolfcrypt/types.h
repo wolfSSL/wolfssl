@@ -1009,6 +1009,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SESSION      = 96,
         DYNAMIC_TYPE_DILITHIUM    = 97,
         DYNAMIC_TYPE_SPHINCS      = 98,
+        DYNAMIC_TYPE_SM4_BUFFER   = 99,
         DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
         DYNAMIC_TYPE_SNIFFER_PB         = 1002,
@@ -1067,7 +1068,7 @@ typedef struct w64wrapper {
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S,
         #ifndef WOLFSSL_NOSHA512_224
             #define WOLFSSL_NOSHA512_224
         #endif
@@ -1104,11 +1105,18 @@ typedef struct w64wrapper {
         #endif
         #ifdef WOLFSSL_SHAKE128
             WC_HASH_TYPE_SHAKE128 = 18,
+            #undef _WC_HASH_TYPE_MAX
+            #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE128
         #endif
         #ifdef WOLFSSL_SHAKE256
             WC_HASH_TYPE_SHAKE256 = 19,
             #undef _WC_HASH_TYPE_MAX
             #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
+        #endif
+        #ifdef WOLFSSL_SM3
+            WC_HASH_TYPE_SM3     = 20,
+            #undef _WC_HASH_TYPE_MAX
+            #define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SM3
         #endif
         WC_HASH_TYPE_MAX = _WC_HASH_TYPE_MAX
         #undef _WC_HASH_TYPE_MAX

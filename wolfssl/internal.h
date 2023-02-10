@@ -58,6 +58,9 @@
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
 #include <wolfssl/wolfcrypt/logging.h>
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -83,6 +86,9 @@
 #ifdef WOLFSSL_SHA512
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
 #ifdef HAVE_AESGCM
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
@@ -94,6 +100,9 @@
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef WOLFSSL_SM2
+    #include <wolfssl/wolfcrypt/sm2.h>
 #endif
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
@@ -840,6 +849,17 @@
     #endif
 #endif
 
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        #ifdef WOLFSSL_SM4_CBC
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3
+        #endif
+        #ifdef WOLFSSL_SM4_GCM
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3
+        #endif
+        #ifdef WOLFSSL_SM4_CCM
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3
+        #endif
+    #endif
 #endif
 
 #if defined(WOLFSSL_TLS13)
@@ -870,6 +890,16 @@
         #endif
         #ifdef WOLFSSL_SHA384
             #define BUILD_TLS_SHA384_SHA384
+        #endif
+    #endif
+
+    #ifdef WOLFSSL_SM3
+        #ifdef WOLFSSL_SM4_GCM
+            #define BUILD_TLS_SM4_GCM_SM3
+        #endif
+
+        #ifdef WOLFSSL_SM4_CCM
+            #define BUILD_TLS_SM4_CCM_SM3
         #endif
     #endif
 #endif
@@ -971,6 +1001,7 @@
      defined(HAVE_AESCCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
      !defined(NO_CHAPOL_AEAD)) || \
+    defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER))
 
     #define HAVE_AEAD
@@ -1139,6 +1170,15 @@ enum {
     /* TLS v1.3 Integrity only cipher suites - 0xC0 (ECC) first byte */
     TLS_SHA256_SHA256            = 0xB4,
     TLS_SHA384_SHA384            = 0xB5,
+
+    /* TLS v1.3 SM cipher suites - 0x00 (CIPHER_BYTE) is first byte */
+    TLS_SM4_GCM_SM3              = 0xC6,
+    TLS_SM4_CCM_SM3              = 0xC7,
+
+    /* TLS v1.2 SM cipher suites - 0xE0 (SM_BYTE) is first byte */
+    TLS_ECDHE_ECDSA_WITH_SM4_CBC_SM3 = 0x11,
+    TLS_ECDHE_ECDSA_WITH_SM4_GCM_SM3 = 0x51,
+    TLS_ECDHE_ECDSA_WITH_SM4_CCM_SM3 = 0x52,
 
     /* Fallback SCSV (Signaling Cipher Suite Value) */
     TLS_FALLBACK_SCSV                        = 0x56,
@@ -1395,6 +1435,15 @@ enum {
 #define DTLS_AEAD_AES_CCM_FAIL_LIMIT             w64From32(0x00B5, 0x04F3)
 #define DTLS_AEAD_AES_CCM_FAIL_KU_LIMIT          w64From32(0x005A, 0x8279)
 
+/* Limit is (2^22 - 1) full messages [2^36 - 31 octets]
+ * https://www.rfc-editor.org/rfc/rfc8998.html#name-aead_sm4_gcm
+ */
+#define AEAD_SM4_GCM_LIMIT                       w64From32(0, (1 << 22) - 1)
+/* Limit is (2^10 - 1) full messages [2^24 - 1 octets]
+ * https://www.rfc-editor.org/rfc/rfc8998.html#name-aead_sm4_ccm
+ */
+#define AEAD_SM4_CCM_LIMIT                       w64From32(0, (1 << 10) - 1)
+
 #if defined(WOLFSSL_TLS13) || !defined(NO_PSK)
 
 #define TLS13_TICKET_NONCE_MAX_SZ 255
@@ -1432,6 +1481,7 @@ enum Misc {
     CHACHA_BYTE    = 0xCC,         /* ChaCha first cipher suite */
     TLS13_BYTE     = 0x13,         /* TLS v1.3 first byte of cipher suite */
     ECDHE_PSK_BYTE = 0xD0,         /* RFC 8442 */
+    SM_BYTE        = 0xE0,         /* SM first byte - private range */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
@@ -1651,6 +1701,9 @@ enum Misc {
     AESGCM_IMP_IV_SZ    = 4,   /* Size of GCM/CCM AEAD implicit IV */
     AESGCM_EXP_IV_SZ    = 8,   /* Size of GCM/CCM AEAD explicit IV */
     AESGCM_NONCE_SZ     = AESGCM_EXP_IV_SZ + AESGCM_IMP_IV_SZ,
+    GCM_IMP_IV_SZ       = 4,   /* Size of GCM/CCM AEAD implicit IV */
+    GCM_EXP_IV_SZ       = 8,   /* Size of GCM/CCM AEAD explicit IV */
+    GCM_NONCE_SZ        = GCM_EXP_IV_SZ + GCM_IMP_IV_SZ,
 
     CHACHA20_IMP_IV_SZ  = 12,  /* Size of ChaCha20 AEAD implicit IV */
     CHACHA20_NONCE_SZ   = 12,  /* Size of ChacCha20 nonce           */
@@ -1662,6 +1715,11 @@ enum Misc {
     AES_CCM_16_AUTH_SZ  = 16, /* AES-CCM-16 Auth Tag length */
     AES_CCM_8_AUTH_SZ   = 8,  /* AES-CCM-8 Auth Tag Length  */
     AESCCM_NONCE_SZ     = 12,
+
+    SM4_GCM_AUTH_SZ     = 16, /* SM4-GCM Auth Tag length    */
+    SM4_GCM_NONCE_SZ    = 12, /* SM4 GCM Nonce length       */
+    SM4_CCM_AUTH_SZ     = 16, /* SM4-CCM Auth Tag length    */
+    SM4_CCM_NONCE_SZ    = 12, /* SM4 CCM Nonce length       */
 
     CAMELLIA_128_KEY_SIZE = 16, /* for 128 bit */
     CAMELLIA_192_KEY_SIZE = 24, /* for 192 bit */
@@ -1689,6 +1747,8 @@ enum Misc {
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
     ED448_SA_MINOR      = 8,   /* Least significant byte for ED448 */
+    SM2_SA_MAJOR        = 7,   /* Most significant byte for SM2 with SM3 */
+    SM2_SA_MINOR        = 8,   /* Least significant byte for SM2 with SM3 */
 
     PQC_SA_MAJOR        = 0xFE,/* Most significant byte used with PQC sig algs */
 
@@ -2252,6 +2312,9 @@ WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
                                             int haveRSAsig, int haveFalconSig,
                                             int haveDilithiumSig, int haveAnon,
                                             int tls1_2, int keySz, word16* len);
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int have,
+                                             int tls1_2, int keySz,
+                                             word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
@@ -2341,7 +2404,9 @@ struct WOLFSSL_OCSP {
 
 typedef struct CRL_Entry CRL_Entry;
 
-#ifdef NO_SHA
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    #define CRL_DIGEST_SIZE WC_SM3_DIGEST_SIZE
+#elif defined(NO_SHA)
     #define CRL_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #else
     #define CRL_DIGEST_SIZE WC_SHA_DIGEST_SIZE
@@ -3195,10 +3260,11 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group,
         word16 len, byte* data, KeyShareEntry **kse, TLSX** extensions);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl,
-                                             TLSX** extensions);
+        TLSX** extensions);
 WOLFSSL_LOCAL int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
-                                       KeyShareEntry** kse, byte* searched);
+        byte cipherSuite0, byte cipherSuite, KeyShareEntry** kse,
+        byte* searched);
 WOLFSSL_LOCAL int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE);
 WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl, int* doHelloRetry);
 WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* sclientKSEclientKSEsl);
@@ -3825,6 +3891,14 @@ enum KeyExchangeAlgorithm {
     ecc_static_diffie_hellman_kea       /* for verify suite only */
 };
 
+/* Used with InitSuitesHashSigAlgo_ex2 */
+#define SIG_ECDSA       0x01
+#define SIG_RSA         0x02
+#define SIG_SM2         0x04
+#define SIG_FALCON      0x08
+#define SIG_DILITHIUM   0x10
+#define SIG_ANON        0x20
+
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
     anonymous_sa_algo            = 0,
@@ -3840,6 +3914,7 @@ enum SignatureAlgorithm {
     dilithium_level2_sa_algo     = 14,
     dilithium_level3_sa_algo     = 15,
     dilithium_level5_sa_algo     = 16,
+    sm2_sa_algo                  = 17,
     invalid_sa_algo              = 255
 };
 
@@ -3855,6 +3930,18 @@ enum SigAlgRsaPss {
     pss_sha512  = 0x0b,
 };
 
+#ifdef WOLFSSL_SM2
+    /* Default SM2 signature ID. */
+    #define TLS12_SM2_SIG_ID        ((byte*)"1234567812345678")
+    /* Length of default SM2 signature ID. */
+    #define TLS12_SM2_SIG_ID_SZ     16
+
+    /* https://www.rfc-editor.org/rfc/rfc8998.html#name-sm2-signature-scheme */
+    /* ID to use when signing/verifying TLS v1.3 data. */
+    #define TLS13_SM2_SIG_ID        ((byte*)"TLSv1.3+GM+Cipher+Suite")
+    /* Length of ID to use when signing/verifying TLS v1.3 data. */
+    #define TLS13_SM2_SIG_ID_SZ     23
+#endif
 
 /* Supported ECC Curve Types */
 enum EccCurves {
@@ -3930,6 +4017,9 @@ typedef struct Ciphers {
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
 #endif
+#ifdef WOLFSSL_SM4
+    wc_Sm4*   sm4;
+#endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER) && !defined(NO_HMAC)
     Hmac* hmac;
 #endif
@@ -3988,6 +4078,9 @@ typedef struct Hashes {
     #ifdef WOLFSSL_SHA512
         byte sha512[WC_SHA512_DIGEST_SIZE];
     #endif
+    #ifdef WOLFSSL_SM3
+        byte sm3[WC_SM3_DIGEST_SIZE];
+    #endif
 } Hashes;
 
 WOLFSSL_LOCAL int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes);
@@ -4002,6 +4095,9 @@ typedef union Digest {
 #endif
 #ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
+#endif
+#ifdef WOLFSSL_SM3
+    wc_Sm3    sm3;
 #endif
 } Digest;
 #endif
@@ -4498,7 +4594,8 @@ struct Options {
     word16            sentChangeCipher:1; /* Change Cipher Spec sent */
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+               ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
+                (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
     word16            cacheMessages:1;    /* Cache messages for sign/verify */
 #endif
@@ -4977,8 +5074,12 @@ typedef struct HS_Hashes {
 #ifdef WOLFSSL_SHA512
     wc_Sha512       hashSha512;         /* sha512 hash of handshake msgs */
 #endif
-#if (defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
-                                                !defined(WOLFSSL_NO_CLIENT_AUTH)
+#ifdef WOLFSSL_SM3
+    wc_Sm3          hashSm3;            /* sm3 hash of handshake msgs */
+#endif
+#if (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+     (defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3))) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
     byte*           messages;           /* handshake messages */
     int             length;             /* length of handshake messages' data */
     int             prevLen;            /* length of messages but last */
@@ -5921,6 +6022,14 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
             ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
             word32* outlen, int side);
     #endif /* HAVE_ECC */
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        WOLFSSL_LOCAL int Sm2wSm3Sign(WOLFSSL* ssl, const byte* id, word32 idSz,
+            const byte* in, word32 inSz, byte* out, word32* outSz, ecc_key* key,
+            DerBuffer* keyBufInfo);
+        WOLFSSL_LOCAL int Sm2wSm3Verify(WOLFSSL* ssl, const byte* id,
+            word32 idSz, const byte* in, word32 inSz, const byte* out,
+            word32 outSz, ecc_key* key, buffer* keyBufInfo);
+    #endif /* WOLFSSL_SM2 && WOLFSSL_SM3 */
     #ifdef HAVE_ED25519
         WOLFSSL_LOCAL int Ed25519CheckPubKey(WOLFSSL* ssl);
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,

@@ -142,6 +142,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 
+#ifdef WOLFSSL_SM2
+    #include <wolfssl/wolfcrypt/sm2.h>
+#endif
+
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
@@ -4028,6 +4032,10 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte sigSha3_512wEcdsaOid[] = {96, 134, 72, 1, 101, 3, 4, 3, 12};
     #endif
     #endif
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    /* 0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x83, 0x75 */
+    static const byte sigSm3wSm2Oid[] = {42, 129, 28, 207, 85, 1, 131, 117};
+    #endif
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
     static const byte sigEd25519Oid[] = {43, 101, 112};
@@ -4645,6 +4653,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigSha3_512wEcdsaOid);
                     break;
                 #endif
+                #endif
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                case CTC_SM3wSM2:
+                    oid = sigSm3wSm2Oid;
+                    *oidSz = sizeof(sigSm3wSm2Oid);
+                    break;
                 #endif
                 #endif /* HAVE_ECC */
                 #ifdef HAVE_ED25519
@@ -11322,8 +11336,8 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
     if (ret == 0) {
     #ifdef HAVE_OCSP
-        ret = CalcHashId(source + *srcIdx, (word32)length,
-                         cert->subjectKeyHash);
+        ret = CalcHashId_ex(source + *srcIdx, (word32)length,
+            cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
     }
     if (ret == 0) {
     #endif
@@ -11926,7 +11940,8 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     *srcIdx += (word32)length;
 
 #ifdef HAVE_OCSP
-    return CalcHashId(cert->publicKey, cert->pubKeySize, cert->subjectKeyHash);
+    return CalcHashId_ex(cert->publicKey, cert->pubKeySize,
+        cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
 #else
     return 0;
 #endif
@@ -11956,8 +11971,8 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     #endif
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
-        ret = CalcHashId(cert->publicKey, cert->pubKeySize,
-                         cert->subjectKeyHash);
+        ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
+                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
     #endif
     }
 
@@ -12058,8 +12073,8 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     #endif
 
     #ifdef HAVE_OCSP
-        ret = CalcHashId(source + *srcIdx, (word32)length,
-                         cert->subjectKeyHash);
+        ret = CalcHashId_ex(source + *srcIdx, (word32)length,
+            cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
         if (ret != 0)
             return ret;
     #endif
@@ -12108,9 +12123,9 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 
     #ifdef HAVE_OCSP
         /* Calculate the hash of the subject public key for OCSP. */
-        ret = CalcHashId(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.data,
+        ret = CalcHashId_ex(dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.data,
                          dataASN[ECCCERTKEYASN_IDX_SUBJPUBKEY].data.ref.length,
-                         cert->subjectKeyHash);
+                         cert->subjectKeyHash, HashIdAlg(cert->signatureOID));
     }
     if (ret == 0) {
     #endif
@@ -12336,6 +12351,9 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             break;
 #endif /* NO_RSA */
     #ifdef HAVE_ECC
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        case SM2k:
+    #endif
         case ECDSAk:
             ret = StoreEccKey(cert, source, &srcIdx, maxIdx, source + pubIdx,
                               (word32)pubLen);
@@ -12426,6 +12444,30 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
 }
 #endif
 
+/* Return the hash algorithm to use with the signature algorithm.
+ *
+ * @param [in] oidSum  Signature id.
+ * @return  Hash algorithm id.
+ */
+int HashIdAlg(int oidSum)
+{
+    (void)oidSum;
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (oidSum == CTC_SM3wSM2) {
+        return WC_SM3;
+    }
+    if (oidSum == SM2k) {
+        return WC_SM3;
+    }
+#endif
+#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
+    return WC_SHA256;
+#else
+    return WC_SHA;
+#endif
+}
+
 /* Calculate hash of the id using the SHA-1 or SHA-256.
  *
  * @param [in]  data  Data to hash.
@@ -12436,18 +12478,55 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
  */
 int CalcHashId(const byte* data, word32 len, byte* hash)
 {
+    /* Use default hash algorithm. */
+    return CalcHashId_ex(data, len, hash,
+#if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
+        WC_SHA256
+#else
+        WC_SHA
+#endif
+        );
+}
+
+/* Calculate hash of the id using the SHA-1 or SHA-256.
+ *
+ * @param [in]  data  Data to hash.
+ * @param [in]  len   Length of data to hash.
+ * @param [out] hash  Buffer to hold hash.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int CalcHashId_ex(const byte* data, word32 len, byte* hash, int hashAlg)
+{
     int ret;
 
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (hashAlg == WC_SM3) {
+        ret = wc_Sm3Hash(data, len, hash);
+    }
+    else
+#endif
 #if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
-    ret = wc_Sha256Hash(data, len, hash);
+    if (hashAlg == WC_SHA256) {
+        ret = wc_Sha256Hash(data, len, hash);
+    }
+    else
 #elif !defined(NO_SHA)
-    ret = wc_ShaHash(data, len, hash);
+    if (hashAlg == WC_SHA) {
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        XMEMSET(hash + WC_SHA_DIGEST_SIZE, 0, KEYID_SIZE - WC_SHA_DIGEST_SIZE);
+    #endif
+        ret = wc_ShaHash(data, len, hash);
+    }
+    else
 #else
-    ret = NOT_COMPILED_IN;
     (void)data;
     (void)len;
     (void)hash;
 #endif
+    {
+        ret = NOT_COMPILED_IN;
+    }
 
     return ret;
 }
@@ -12463,16 +12542,24 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int GetHashId(const byte* id, int length, byte* hash)
+static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 {
     int ret;
 
-    if (length == KEYID_SIZE) {
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if (length == wc_HashGetDigestSize(wc_HashTypeConvert(hashAlg)))
+#else
+    if (length == KEYID_SIZE)
+#endif
+    {
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        XMEMSET(hash + length, 0, KEYID_SIZE - length);
+    #endif
         XMEMCPY(hash, id, (size_t)length);
         ret = 0;
     }
     else {
-        ret = CalcHashId(id, (word32)length, hash);
+        ret = CalcHashId_ex(id, (word32)length, hash, hashAlg);
     }
 
     return ret;
@@ -13205,8 +13292,10 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     /* For OCSP, RFC2560 section 4.1.1 states the issuer hash should be
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
-    if (CalcHashId(input + *inOutIdx, maxIdx - *inOutIdx, hash) != 0)
+    if (CalcHashId_ex(input + *inOutIdx, maxIdx - *inOutIdx, hash,
+            HashIdAlg(cert->signatureOID)) != 0) {
         return ASN_PARSE_E;
+    }
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)
@@ -13858,7 +13947,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     /* For OCSP, RFC2560 section 4.1.1 states the issuer hash should be
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
-    if (CalcHashId(input + srcIdx, maxIdx - srcIdx, hash) != 0) {
+    if (CalcHashId_ex(input + srcIdx, maxIdx - srcIdx, hash,
+            HashIdAlg(cert->signatureOID)) != 0) {
         ret = ASN_PARSE_E;
     }
 
@@ -14939,9 +15029,8 @@ int DecodeToKey(DecodedCert* cert, int verify)
     else
 #endif
     {
-        cert->selfSigned = XMEMCMP(cert->issuerHash,
-                                   cert->subjectHash,
-                                   KEYID_SIZE) == 0 ? 1 : 0;
+        cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
+            KEYID_SIZE) == 0 ? 1 : 0;
     }
 
     ret = GetCertKey(cert, cert->source, &cert->srcIdx, cert->maxIdx);
@@ -15213,6 +15302,9 @@ static WC_INLINE int IsSigAlgoECC(word32 algoOID)
     return (0
         #ifdef HAVE_ECC
               || IsSigAlgoECDSA(algoOID)
+        #endif
+        #ifdef WOLFSSL_SM2
+              || (algoOID == SM2k)
         #endif
         #ifdef HAVE_ED25519
               || (algoOID == ED25519k)
@@ -15532,6 +15624,9 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         #endif
         #ifdef HAVE_ECC
             case ECDSAk:
+        #ifdef WOLFSSL_SM2
+            case SM2k:
+        #endif
             #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
                 defined(WC_ASYNC_ENABLE_ECC)
                 if (sigCtx->key.ecc->nb_ctx != NULL) {
@@ -15716,6 +15811,14 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             break;
     #endif
     #endif
+    #if defined(WOLFSSL_SM2) & defined(WOLFSSL_SM3)
+        case CTC_SM3wSM2:
+            if ((ret = wc_Sm3Hash(buf, bufSz, digest)) == 0) {
+                *typeH    = SM3h;
+                *digestSz = WC_SM3_DIGEST_SIZE;
+            }
+            break;
+    #endif
     #ifdef HAVE_ED25519
         case CTC_ED25519:
             /* Hashes done in signing operation.
@@ -15856,6 +15959,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 if (ret != 0) {
                     goto exit_cs;
                 }
+            }
+            else
+        #endif
+        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            if (sigOID == CTC_SM3wSM2) {
+                ; /* SM2 hash requires public key. Done later. */
             }
             else
         #endif
@@ -16027,6 +16136,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 }
             #endif /* !NO_DSA && !HAVE_SELFTEST */
             #ifdef HAVE_ECC
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                case SM2k:
+            #endif
                 case ECDSAk:
                 {
                     word32 idx = 0;
@@ -16478,9 +16590,50 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* !NO_DSA && !HAVE_SELFTEST */
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                case SM2k:
+                {
+                    /* OpenSSL creates signature without CERT_SIG_ID. */
+                    ret = wc_ecc_sm2_create_digest(CERT_SIG_ID, 0, buf, bufSz,
+                        WC_HASH_TYPE_SM3, sigCtx->digest, WC_SM3_DIGEST_SIZE,
+                        sigCtx->key.ecc);
+                    if (ret == 0) {
+                        sigCtx->typeH    = SM3h;
+                        sigCtx->digestSz = WC_SM3_DIGEST_SIZE;
+                    }
+                    else {
+                        WOLFSSL_MSG("SM2wSM3 create digest failed");
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        goto exit_cs;
+                    }
+                    ret = wc_ecc_sm2_verify_hash(sig, sigSz, sigCtx->digest,
+                        sigCtx->digestSz, &sigCtx->verify, sigCtx->key.ecc);
+                    break;
+                }
+            #endif
             #if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
                 case ECDSAk:
                 {
+                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                    if (sigOID == CTC_SM3wSM2) {
+                        ret = wc_ecc_sm2_create_digest(CERT_SIG_ID,
+                            CERT_SIG_ID_SZ, buf, bufSz, WC_HASH_TYPE_SM3,
+                            sigCtx->digest, WC_SM3_DIGEST_SIZE,
+                            sigCtx->key.ecc);
+                        if (ret == 0) {
+                            sigCtx->typeH    = SM3h;
+                            sigCtx->digestSz = WC_SM3_DIGEST_SIZE;
+                        }
+                        else {
+                            WOLFSSL_MSG("SM2wSM3 create digest failed");
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            goto exit_cs;
+                        }
+                        ret = wc_ecc_sm2_verify_hash(sig, sigSz, sigCtx->digest,
+                            sigCtx->digestSz, &sigCtx->verify, sigCtx->key.ecc);
+                    }
+                    else
+                #endif
                 #if defined(HAVE_PK_CALLBACKS)
                     if (sigCtx->pkCbEcc) {
                         ret = sigCtx->pkCbEcc(
@@ -16666,6 +16819,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 }
             #endif /* !NO_DSA && !HAVE_SELFTEST */
             #ifdef HAVE_ECC
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                case SM2k:
+            #endif
                 case ECDSAk:
                 {
                     if (sigCtx->verify == 1) {
@@ -18682,7 +18838,8 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
     cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
 
-    return GetHashId(input + idx, length, cert->extAuthKeyId);
+    return GetHashId(input + idx, length, cert->extAuthKeyId,
+        HashIdAlg(cert->signatureOID));
 #else
     DECL_ASNGETDATA(dataASN, authKeyIdASN_Length);
     int ret = 0;
@@ -18716,7 +18873,7 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                         (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                        cert->extAuthKeyId);
+                        cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
         }
     }
 
@@ -18753,7 +18910,8 @@ static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
     #endif /* OPENSSL_EXTRA */
 
         /* Get the hash or hash of the hash if wrong size. */
-        ret = GetHashId(input + idx, length, cert->extSubjKeyId);
+        ret = GetHashId(input + idx, length, cert->extSubjKeyId,
+            HashIdAlg(cert->signatureOID));
     }
 
     return ret;
@@ -21322,6 +21480,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  *
  * @param [in]  input   Input data.
  * @param [in]  maxIdx  Maximum index for data.
+ * @param [in]  sigOID  Signature OID for determining hash algorithm.
  * @param [out] hash    Hash of AKI.
  * @param [out] set     Whether the hash buffer was set.
  * @param [in]  heap    Dynamic memory allocation hint.
@@ -21330,8 +21489,8 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
-                      void* heap)
+static int GetAKIHash(const byte* input, word32 maxIdx, int sigOID,
+                      byte* hash, int* set, void* heap)
 {
     /* AKI and Certificate Extenion ASN.1 templates are the same length. */
     DECL_ASNGETDATA(dataASN, certExtASN_Length);
@@ -21381,7 +21540,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
                     ret = GetHashId(
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                             dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                            hash);
+                            hash, sigOID);
                 }
                 break;
             }
@@ -21646,7 +21805,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                                     /* Get the hash or hash of the hash if wrong
                                      * size. */
                                     ret = GetHashId(cert + extIdx, extLen,
-                                                    hash);
+                                        hash, HashIdAlg(signatureOID));
                                 }
                             }
                             break;
@@ -21668,14 +21827,16 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         if (extAuthKeyIdSet)
             ca = GetCA(cm, hash);
         if (ca == NULL) {
-            ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
+            ret = CalcHashId_ex(cert + issuerIdx, issuerSz, hash,
+                HashIdAlg(signatureOID));
             if (ret == 0)
                 ca = GetCAByName(cm, hash);
         }
     }
 #else
     if (ret == 0 && pubKey == NULL) {
-        ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
+        ret = CalcHashId_ex(cert + issuerIdx, issuerSz, hash,
+            HashIdAlg(signatureOID));
         if (ret == 0)
             ca = GetCA(cm, hash);
     }
@@ -21904,7 +22065,8 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         /* Find the AKI extension in list of extensions and get hash. */
         if ((!req) && (akiData != NULL)) {
             /* TODO: test case */
-            ret = GetAKIHash(akiData, akiLen, hash, &extAuthKeyIdSet, heap);
+            ret = GetAKIHash(akiData, akiLen, sigOID, hash, &extAuthKeyIdSet,
+                heap);
         }
 
         /* Get the CA by hash one was found. */
@@ -21915,7 +22077,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif
         {
             /* Try hash of issuer name. */
-            ret = CalcHashId(caName, caNameLen, hash);
+            ret = CalcHashId_ex(caName, caNameLen, hash, HashIdAlg(sigOID));
             if (ret == 0) {
                 ca = GetCAByName(cm, hash);
             }
@@ -22391,8 +22553,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
-            ret = CalcHashId(cert->publicKey, cert->pubKeySize,
-                                                            cert->extSubjKeyId);
+            if (cert->signatureOID == CTC_SM3wSM2) {
+                /* TODO: GmSSL creates IDs this way but whole public key info
+                 * block should be hashed. */
+                ret = CalcHashId_ex(cert->publicKey + cert->pubKeySize - 65, 65,
+                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
+            }
+            else {
+                ret = CalcHashId_ex(cert->publicKey, cert->pubKeySize,
+                    cert->extSubjKeyId, HashIdAlg(cert->signatureOID));
+            }
             if (ret != 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
@@ -22412,7 +22582,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 cert->ca = GetCA(cm, cert->extSubjKeyId);
             }
             if (cert->ca != NULL && XMEMCMP(cert->issuerHash,
-                                  cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
+                    cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
                 cert->ca = NULL;
             }
             if (cert->ca == NULL) {
@@ -22541,7 +22711,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (cert->ca) {
                 /* Need the CA's public key hash for OCSP */
                 XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
-                                                                KEYID_SIZE);
+                    KEYID_SIZE);
             }
         }
         #endif /* HAVE_OCSP */
@@ -22560,7 +22730,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             return ret;
         }
         cert->sigCtx.CertAtt.certBegin = cert->certBegin;
-    } else if (cert->keyOID == ECDSAk) {
+    }
+    else if (cert->keyOID == ECDSAk) {
         cert->sigCtx.CertAtt.certBegin = cert->certBegin;
     }
     /* check if we can use TSIP for cert verification */
@@ -29992,12 +30163,22 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 
     /* Compute SKID by hashing public key */
     if (kid_type == SKID_TYPE) {
-        ret = CalcHashId(buf, (word32)bufferSz, cert->skid);
+        int hashId = HashIdAlg(cert->sigType);
+        ret = CalcHashId_ex(buf, (word32)bufferSz, cert->skid, hashId);
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        cert->skidSz = wc_HashGetDigestSize(wc_HashTypeConvert(hashId));
+    #else
         cert->skidSz = KEYID_SIZE;
+    #endif
     }
     else if (kid_type == AKID_TYPE) {
-        ret = CalcHashId(buf, (word32)bufferSz, cert->akid);
+        int hashId = HashIdAlg(cert->sigType);
+        ret = CalcHashId_ex(buf, (word32)bufferSz, cert->akid, hashId);
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        cert->akidSz = wc_HashGetDigestSize(wc_HashTypeConvert(hashId));
+    #else
         cert->akidSz = KEYID_SIZE;
+    #endif
     }
     else
         ret = BAD_FUNC_ARG;
@@ -30231,9 +30412,14 @@ static int SetAuthKeyIdFromDcert(Cert* cert, DecodedCert* decoded)
     }
 
     else {
-        /* Put the SKID of CA to AKID of certificate */
-        XMEMCPY(cert->akid, decoded->extSubjKeyId, KEYID_SIZE);
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        cert->akidSz = wc_HashGetDigestSize(wc_HashTypeConvert(HashIdAlg(
+            cert->sigType)));
+    #else
         cert->akidSz = KEYID_SIZE;
+    #endif
+        /* Put the SKID of CA to AKID of certificate */
+        XMEMCPY(cert->akid, decoded->extSubjKeyId, cert->akidSz);
     }
 
     return ret;
@@ -31835,6 +32021,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
         /* ignore error, did not have pkcs8 header */
     }
+    else {
+        curve_id = wc_ecc_get_oid(algId, NULL, NULL);
+    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -31944,7 +32133,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte version;
     int ret = 0;
     int curve_id = ECC_CURVE_DEF;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
     word32 algId = 0;
 #endif
 
@@ -31953,10 +32142,13 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         ret = BAD_FUNC_ARG;
     }
 
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
     /* if has pkcs8 header skip it */
     if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
         /* ignore error, did not have pkcs8 header */
+    }
+    else {
+        curve_id = wc_ecc_get_oid(algId, NULL, NULL);
     }
 #endif
 
@@ -32372,10 +32564,14 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (ret == 0) {
         /* Clear dynamic data for ECC public key. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * eccPublicKeyASN_Length);
+#if !defined(WOLFSSL_SM2) || !defined(WOLFSSL_SM3)
         /* Set required ECDSA OID and ignore the curve OID type. */
         GetASN_ExpBuffer(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], keyEcdsaOid,
                 sizeof(keyEcdsaOid));
-        GetASN_OID(&dataASN[oidIdx], oidIgnoreType);
+#else
+        GetASN_OID(&dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID], oidKeyType);
+#endif
+        GetASN_OID(&dataASN[oidIdx], oidCurveType);
         /* Decode the public ECC key. */
         ret = GetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length, 1,
                            input, inOutIdx, inSz);
@@ -32389,7 +32585,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             /* Clear dynamic data for ECC private key. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * eccKeyASN_Length);
             /* Check named curve OID type. */
-            GetASN_OID(&dataASN[oidIdx], oidIgnoreType);
+            GetASN_OID(&dataASN[oidIdx], oidCurveType);
             /* Try private key format .*/
             ret = GetASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, 1, input,
                                inOutIdx, inSz);
@@ -32399,6 +32595,14 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
 
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+    if ((ret == 0) && (oidIdx == ECCPUBLICKEYASN_IDX_ALGOID_CURVEID)) {
+        int oidSum = dataASN[ECCPUBLICKEYASN_IDX_ALGOID_OID].data.oid.sum;
+        if ((oidSum != ECDSAk) && (oidSum != SM2k)) {
+            ret = ASN_PARSE_E;
+        }
+    }
+#endif
     if (ret == 0) {
         if (dataASN[oidIdx].tag != 0) {
             /* Named curve - check and get id. */
@@ -33872,6 +34076,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 #else
     DECL_ASNGETDATA(dataASN, singleResponseASN_Length);
     int ret = 0;
+    word32 ocspDigestSize = OCSP_DIGEST_SIZE;
     CertStatus* cs = NULL;
     word32 serialSz;
     word32 issuerHashLen;
@@ -33918,12 +34123,18 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         ret = GetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
                 1, source, ioIndex, size);
     }
+    if (ret == 0) {
+        single->hashAlgoOID =
+            dataASN[SINGLERESPONSEASN_IDX_CID_HASHALGO_OID].data.oid.sum;
+        ocspDigestSize = wc_HashGetDigestSize(
+            wc_OidGetHash(single->hashAlgoOID));
+    }
     /* Validate the issuer hash length is the size required. */
-    if ((ret == 0) && (issuerHashLen != OCSP_DIGEST_SIZE)) {
+    if ((ret == 0) && (issuerHashLen != ocspDigestSize)) {
         ret = ASN_PARSE_E;
     }
     /* Validate the issuer key hash length is the size required. */
-    if ((ret == 0) && (issuerKeyHashLen != OCSP_DIGEST_SIZE)) {
+    if ((ret == 0) && (issuerKeyHashLen != ocspDigestSize)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
@@ -35147,17 +35358,20 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     byte extArray[MAX_OCSP_EXT_SZ];
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, extSz, totalSz;
     int i, snSz;
+    int keyIdSz;
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
 #ifdef NO_SHA
     algoSz = SetAlgoID(SHA256h, algoArray, oidHashType, 0);
+    keyIdSz = WC_SHA256_DIGEST_SIZE;
 #else
     algoSz = SetAlgoID(SHAh, algoArray, oidHashType, 0);
+    keyIdSz = WC_SHA_DIGEST_SIZE;
 #endif
 
-    issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
-    issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
+    issuerSz    = SetDigest(req->issuerHash,    keyIdSz,    issuerArray);
+    issuerKeySz = SetDigest(req->issuerKeyHash, keyIdSz,    issuerKeyArray);
     snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray,
                                                           MAX_SN_SZ, MAX_SN_SZ);
     extSz       = 0;
@@ -35215,6 +35429,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     word32 extSz = 0;
     int sz = 0;
     int ret = 0;
+    int keyIdSz;
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
@@ -35225,16 +35440,18 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     #ifdef NO_SHA
         SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], SHA256h,
                 oidHashType);
+        keyIdSz = WC_SHA256_DIGEST_SIZE;
     #else
         SetASN_OID(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID], SHAh,
                 oidHashType);
+        keyIdSz = WC_SHA_DIGEST_SIZE;
     #endif
         /* Set issuer, issuer key hash and serial number of certificate being
          * checked. */
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUER],
-                req->issuerHash, KEYID_SIZE);
+                req->issuerHash, keyIdSz);
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY],
-                req->issuerKeyHash, KEYID_SIZE);
+                req->issuerKeyHash, keyIdSz);
         SetASN_Buffer(&dataASN[OCSPREQUESTASN_IDX_TBS_REQ_SERIAL],
                 req->serial, req->serialSz);
         /* Only extension to write is nonce - check if one to encode. */
@@ -35377,6 +35594,7 @@ void FreeOcspRequest(OcspRequest* req)
 int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
     int cmp = -1; /* default as not matching, cmp gets set on each check */
+    int ocspDigestSize;
     OcspEntry *single, *next, *prev = NULL, *top;
 
     WOLFSSL_ENTER("CompareOcspReqResp");
@@ -35412,11 +35630,17 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* match based on found status and return */
     for (single = resp->single; single; single = next) {
+    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+        ocspDigestSize = wc_HashGetDigestSize(
+            wc_OidGetHash(single->hashAlgoOID));
+    #else
+        ocspDigestSize = OCSP_DIGEST_SIZE;
+    #endif
         cmp = req->serialSz - single->status->serialSz;
         if (cmp == 0) {
             cmp = XMEMCMP(req->serial, single->status->serial, req->serialSz)
-               || XMEMCMP(req->issuerHash, single->issuerHash, OCSP_DIGEST_SIZE)
-               || XMEMCMP(req->issuerKeyHash, single->issuerKeyHash, OCSP_DIGEST_SIZE);
+               || XMEMCMP(req->issuerHash, single->issuerHash, ocspDigestSize)
+               || XMEMCMP(req->issuerKeyHash, single->issuerKeyHash, ocspDigestSize);
             if (cmp == 0) {
                 /* match found */
                 if (resp->single != single && prev) {
@@ -35462,6 +35686,14 @@ enum {
 /* store WC_SHA hash of NAME */
 int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 {
+    /* Use summy signature OID. */
+    return GetNameHash_ex(source, idx, hash, maxIdx, 0);
+}
+
+/* store WC_SHA hash of NAME */
+int GetNameHash_ex(const byte* source, word32* idx, byte* hash, int maxIdx,
+    int sigOID)
+{
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;  /* length of all distinguished names */
     int    ret;
@@ -35489,7 +35721,8 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
     if (GetSequence(source, idx, &length, (word32)maxIdx) < 0)
         return ASN_PARSE_E;
 
-    ret = CalcHashId(source + dummy, (word32)length + *idx - dummy, hash);
+    ret = CalcHashId_ex(source + dummy, (word32)length + *idx - dummy, hash,
+        HashIdAlg(sigOID));
 
     *idx += (word32)length;
 
@@ -35509,10 +35742,10 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
          * calculated over the entire DER encoding of the Name field, including
          * the tag and length. */
         /* Calculate hash of complete name including SEQUENCE. */
-        ret = CalcHashId(
+        ret = CalcHashId_ex(
                 GetASNItem_Addr(dataASN[NAMEHASHASN_IDX_NAME], source),
                 GetASNItem_Length(dataASN[NAMEHASHASN_IDX_NAME], source),
-                hash);
+                hash, HashIdAlg(sigOID));
     }
 
     return ret;
@@ -35827,7 +36060,7 @@ static int PaseCRL_CheckSignature(DecodedCRL* dcrl, const byte* buff, void* cm)
     }
     /* Check issuerHash matched CA's subjectNameHash. */
     if ((ca != NULL) && (XMEMCMP(dcrl->issuerHash, ca->subjectNameHash,
-                                 KEYID_SIZE) != 0)) {
+            KEYID_SIZE) != 0)) {
         ca = NULL;
     }
     if (ca == NULL) {
@@ -35899,7 +36132,7 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
     dcrl->issuer   = (byte*)GetNameFromDer(buf + idx, (int)dcrl->issuerSz);
 #endif
 
-    if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
+    if (GetNameHash_ex(buf, &idx, dcrl->issuerHash, sz, oid) < 0)
         return ASN_PARSE_E;
 
     if (GetBasicDate(buf, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
@@ -35989,7 +36222,8 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
 
     dcrl->extAuthKeyIdSet = 1;
     /* Get the hash or hash of the hash if wrong size. */
-    ret = GetHashId(input + idx, length, dcrl->extAuthKeyId);
+    ret = GetHashId(input + idx, length, dcrl->extAuthKeyId,
+        HashIdAlg(dcrl->signatureOID));
 
     return ret;
 #else
@@ -36015,7 +36249,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                 dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                dcrl->extAuthKeyId);
+                dcrl->extAuthKeyId, HashIdAlg(dcrl->signatureOID));
         }
     }
 
@@ -36348,7 +36582,7 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
         ca = GetCA(cm, dcrl->extAuthKeyId); /* more unique than issuerHash */
     }
     if (ca != NULL && XMEMCMP(dcrl->issuerHash, ca->subjectNameHash,
-                KEYID_SIZE) != 0) {
+            KEYID_SIZE) != 0) {
         ca = NULL;
     }
     if (ca == NULL) {
@@ -36474,9 +36708,10 @@ end:
                             (int)dcrl->issuerSz);
     #endif
         /* Calculate the Hash id from the issuer name. */
-        ret = CalcHashId(GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
+        ret = CalcHashId_ex(
+                GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
                 GetASNItem_Length(dataASN[CRLASN_IDX_TBS_ISSUER], buff),
-                dcrl->issuerHash);
+                dcrl->issuerHash, HashIdAlg(dcrl->signatureOID));
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }

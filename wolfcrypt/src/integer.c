@@ -553,6 +553,15 @@ int mp_exch (mp_int * a, mp_int * b)
   return MP_OKAY;
 }
 
+int mp_cond_swap_ct_ex (mp_int * a, mp_int * b, int c, int m, mp_int * t)
+{
+    (void)c;
+    (void)t;
+    if (m == 1)
+        mp_exch(a, b);
+    return MP_OKAY;
+}
+
 int mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
 {
     (void)c;

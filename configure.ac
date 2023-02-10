@@ -184,7 +184,6 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
-
 # Start without certificates enabled and enable if a certificate algorithm is
 # enabled
 ENABLED_CERTS="no"
@@ -2255,8 +2254,97 @@ then
 fi
 
 
+# SM4
+ENABLED_SM4="no"
+AC_ARG_ENABLE([sm4-ecb],
+    [AS_HELP_STRING([--enable-sm4-ecb],[Enable wolfSSL SM4-ECB support (default: disabled)])],
+    [ ENABLED_SM4_ECB=$enableval ],
+    [ ENABLED_SM4_ECB=no ]
+    )
+
+if test "$ENABLED_SM4_ECB" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_SMALL"
+fi
+if test "$ENABLED_SM4_ECB" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_ECB"
+    ENABLED_SM4="yes"
+fi
+
+AC_ARG_ENABLE([sm4-cbc],
+    [AS_HELP_STRING([--enable-sm4-cbc],[Enable wolfSSL SM4-CBC support (default: disabled)])],
+    [ ENABLED_SM4_CBC=$enableval ],
+    [ ENABLED_SM4_CBC=no ]
+    )
+
+if test "$ENABLED_SM4_CBC" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_SMALL"
+fi
+if test "$ENABLED_SM4_CBC" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_CBC"
+    ENABLED_SM4="yes"
+fi
+
+AC_ARG_ENABLE([sm4-ctr],
+    [AS_HELP_STRING([--enable-sm4-ctr],[Enable wolfSSL SM4-CTR support (default: disabled)])],
+    [ ENABLED_SM4_CTR=$enableval ],
+    [ ENABLED_SM4_CTR=no ]
+    )
+
+if test "$ENABLED_SM4_CTR" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_SMALL"
+fi
+if test "$ENABLED_SM4_CTR" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_CTR"
+    ENABLED_SM4="yes"
+fi
+
+AC_ARG_ENABLE([sm4-gcm],
+    [AS_HELP_STRING([--enable-sm4-gcm],[Enable wolfSSL SM4-GCM support (default: enabled)])],
+    [ ENABLED_SM4_GCM=$enableval ],
+    [ ENABLED_SM4_GCM=no ]
+    )
+
+if test "$ENABLED_SM4_GCM" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_SMALL"
+fi
+if test "$ENABLED_SM4_GCM" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_GCM"
+    ENABLED_SM4="yes"
+fi
+
+AC_ARG_ENABLE([sm4-ccm],
+    [AS_HELP_STRING([--enable-sm4-ccm],[Enable wolfSSL SM4-CCM support (default: enabled)])],
+    [ ENABLED_SM4_CCM=$enableval ],
+    [ ENABLED_SM4_CCM=no ]
+    )
+
+if test "$ENABLED_SM4_CCM" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_SMALL"
+fi
+if test "$ENABLED_SM4_CCM" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4_CCM"
+    ENABLED_SM4="yes"
+fi
+
+if test "$ENABLED_SM4" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4"
+fi
+
+
 ENABLED_ARMASM_INLINE="no"
 ENABLED_ARMASM_SHA3="no"
+ENABLED_ARMASM_CRYPTO_SM4="no"
 # ARM Assembly
 # Both SHA3 and SHA512 instructions available with ARMV8.2-a
 AC_ARG_ENABLE([armasm],
@@ -2284,6 +2372,33 @@ then
                 break;;
             esac
             ENABLED_ARMASM_SHA3=yes
+            ENABLED_ARMASM_PLUS=yes
+            ;;
+        sm4)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SM4 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SM4=yes
+            # gcc requires -march=...+sm4 to enable SM4 instructions
+            ENABLED_ARMASM_CRYPTO_SM4=yes
+            ENABLED_ARMASM_PLUS=yes
+            ;;
+        sm3)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SM3 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SM3=yes
+            # gcc requires -march=...+sm4 to enable SM3 instructions
+            ENABLED_ARMASM_CRYPTO_SM4=yes
+            ENABLED_ARMASM_PLUS=yes
             ;;
         *)
             AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
@@ -2308,8 +2423,14 @@ then
                 ;;
             *)
                 # +crypto needed for hardware acceleration
-                if test "$ENABLED_ARMASM_SHA3" = "yes"; then
-                    AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8.2-a+crypto+sha3"
+                if test "$ENABLED_ARMASM_PLUS" = "yes"; then
+                    AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8.2-a+crypto"
+                    if test "$ENABLED_ARMASM_SHA3" = "yes"; then
+                        AM_CPPFLAGS="$AM_CPPFLAGS+sha3"
+                    fi
+                    if test "$ENABLED_ARMASM_CRYPTO_SM4" = "yes"; then
+                        AM_CPPFLAGS="$AM_CPPFLAGS+sm4"
+                    fi
                 else
                     AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
                 fi
@@ -2358,6 +2479,12 @@ fi
 if test "$ENABLED_ARMASM_SHA3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
+fi
+if test "$ENABLED_ARMASM_SM3" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM3"
+fi
+if test "$ENABLED_ARMASM_SM4" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
 fi
 
 # Xilinx hardened crypto
@@ -2957,6 +3084,22 @@ then
 fi
 
 
+# SM3
+AC_ARG_ENABLE([sm3],
+    [AS_HELP_STRING([--enable-sm3],[Enable wolfSSL SM3 support (default: disabled)])],
+    [ ENABLED_SM3=$enableval ],
+    [ ENABLED_SM3=no ]
+    )
+
+if test "$ENABLED_SM3" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM3_SMALL"
+fi
+if test "$ENABLED_SM3" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM3"
+fi
+
 # SESSION CERTS
 AC_ARG_ENABLE([sessioncerts],
     [AS_HELP_STRING([--enable-sessioncerts],[Enable session cert storing (default: disabled)])],
@@ -3167,6 +3310,24 @@ then
     fi
 
     ENABLED_CERTS=yes
+fi
+
+
+# SM2
+AC_ARG_ENABLE([sm2],
+    [AS_HELP_STRING([--enable-sm2],[Enable wolfSSL SM2 support (default: disabled)])],
+    [ ENABLED_SM2=$enableval ],
+    [ ENABLED_SM2=no ]
+    )
+
+if test "$ENABLED_SM2" = "yes"
+then
+    if test "$ENABLED_ECC" = "no"
+    then
+        AC_MSG_ERROR([Cannot enable SM2 without enabling ecc.])
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM2 -DWOLFSSL_BASE16"
 fi
 
 
@@ -8532,6 +8693,9 @@ AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SM2],[test "x$ENABLED_SM2" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SM3],[test "x$ENABLED_SM3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SM4],[test "x$ENABLED_SM4" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
@@ -8927,6 +9091,11 @@ echo "   * AES-OFB:                    $ENABLED_AESOFB"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
+echo "   * SM4-ECB:                    $ENABLED_SM4_ECB"
+echo "   * SM4-CBC:                    $ENABLED_SM4_CBC"
+echo "   * SM4-CTR:                    $ENABLED_SM4_CTR"
+echo "   * SM4-GCM:                    $ENABLED_SM4_GCM"
+echo "   * SM4-CCM:                    $ENABLED_SM4_CCM"
 echo "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
 echo "   * MD2:                        $ENABLED_MD2"
 echo "   * MD4:                        $ENABLED_MD4"
@@ -8939,6 +9108,7 @@ echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * SHAKE128:                   $ENABLED_SHAKE128"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
+echo "   * SM3:                        $ENABLED_SM3"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"
@@ -9081,6 +9251,7 @@ then
 fi
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * ARM ASM SHA512/SHA3 Crypto  $ENABLED_ARMASM_SHA3"
+echo "   * ARM ASM SM3/SM4 Crypto      $ENABLED_ARMASM_CRYPTO_SM4"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
