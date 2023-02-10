@@ -10272,6 +10272,9 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->options.haveSessionId = 1;
 
+    /* Only add to cache when suppport built in and when the ticket contains
+     * an ID. Otherwise we have no way to actually retrieve the ticket from the
+     * cache. */
 #if !defined(NO_SESSION_CACHE) && defined(WOLFSSL_TICKET_HAVE_ID)
     AddSession(ssl);
 #endif

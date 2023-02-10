@@ -6209,13 +6209,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
     #define SESSION_ROW_RD_LOCK(row)   wc_LockRwLock_Rd(&(row)->row_lock)
     #define SESSION_ROW_WR_LOCK(row)   wc_LockRwLock_Wr(&(row)->row_lock)
-    #define SESSION_ROW_UNLOCK(row) wc_UnLockRwLock(&(row)->row_lock);
+    #define SESSION_ROW_UNLOCK(row)    wc_UnLockRwLock(&(row)->row_lock);
     #else
     static WOLFSSL_GLOBAL wolfSSL_RwLock session_lock; /* SessionCache lock */
     static WOLFSSL_GLOBAL int session_lock_valid = 0;
     #define SESSION_ROW_RD_LOCK(row)   wc_LockRwLock_Rd(&session_lock)
     #define SESSION_ROW_WR_LOCK(row)   wc_LockRwLock_Wr(&session_lock)
-    #define SESSION_ROW_UNLOCK(row) wc_UnLockRwLock(&session_lock);
+    #define SESSION_ROW_UNLOCK(row)    wc_UnLockRwLock(&session_lock);
     #endif
 
     #if !defined(NO_SESSION_CACHE_REF) && defined(NO_CLIENT_CACHE)
@@ -14586,6 +14586,9 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif /* WOLFSSL_TLS13 */
     byte         tmpBufSet = 0;
 #endif
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* peer = NULL;
+#endif
     byte         bogusID[ID_LEN];
     byte         bogusIDSz = 0;
 
@@ -14752,6 +14755,13 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     }
 
     if (error == WOLFSSL_SUCCESS) {
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+        /* We don't want the peer member. We will free it at the end. */
+        if (sess->peer != NULL) {
+            peer = sess->peer;
+            sess->peer = NULL;
+        }
+#endif
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
         error = wolfSSL_DupSessionEx(sess, output, 1,
             preallocNonce, &preallocNonceLen, &preallocNonceUsed);
@@ -14841,6 +14851,12 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 
+#endif
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+    if (peer != NULL) {
+        wolfSSL_X509_free(peer);
+    }
 #endif
 
     return error;

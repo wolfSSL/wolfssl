@@ -1559,6 +1559,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
     }
 
 #elif defined(WOLFSSL_PTHREADS)
+
     #ifdef WOLFSSL_USE_RWLOCK
         int wc_InitRwLock(wolfSSL_RwLock* m)
         {
@@ -1568,7 +1569,6 @@ int wolfSSL_CryptHwMutexUnLock(void)
                 return BAD_MUTEX_E;
         }
 
-
         int wc_FreeRwLock(wolfSSL_RwLock* m)
         {
             if (pthread_rwlock_destroy(m) == 0)
@@ -1576,7 +1576,6 @@ int wolfSSL_CryptHwMutexUnLock(void)
             else
                 return BAD_MUTEX_E;
         }
-
 
         int wc_LockRwLock_Wr(wolfSSL_RwLock* m)
         {
@@ -1602,6 +1601,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
                 return BAD_MUTEX_E;
         }
     #endif
+
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
         if (pthread_mutex_init(m, 0) == 0)
@@ -2593,12 +2593,10 @@ int wolfSSL_CryptHwMutexUnLock(void)
         return wc_InitMutex(m);
     }
 
-
     int wc_FreeRwLock(wolfSSL_RwLock* m)
     {
         return wc_FreeMutex(m);
     }
-
 
     int wc_LockRwLock_Wr(wolfSSL_RwLock* m)
     {
