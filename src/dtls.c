@@ -291,24 +291,17 @@ static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
 }
 #endif
 
-#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
+#if defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
 #ifdef HAVE_SESSION_TICKET
 static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
-                            PskInfo* pskInfo, byte isTls13)
+                            int* resume)
 {
     WolfSSL_ConstVector tlsxSessionTicket;
     byte tempTicket[SESSION_TICKET_LEN];
-    InternalTicket* it;
-    int ret;
+    InternalTicket* it = NULL;
+    int ret = 0;
 
-    (void)isTls13;
-
-#if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
-    if (isTls13)
-        ret = TlsxFindByType(&tlsxSessionTicket, TLSX_PRE_SHARED_KEY, exts);
-    else
-#endif
-        ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
+    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
     if (ret != 0)
         return ret;
     if (tlsxSessionTicket.size == 0)
@@ -316,26 +309,20 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     if (tlsxSessionTicket.size > SESSION_TICKET_LEN)
         return 0;
     XMEMCPY(tempTicket, tlsxSessionTicket.elements, tlsxSessionTicket.size);
-    ret = DoDecryptTicket((WOLFSSL*)ssl, tempTicket,
-                          (word32)tlsxSessionTicket.size, &it);
-    if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE)
-        return 0;
-    /* Store info for later */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    pskInfo->pv = it->pv;
-#endif
-    pskInfo->cipherSuite0 = it->suite[0];
-    pskInfo->cipherSuite = it->suite[1];
-    ato16(it->namedGroup, &pskInfo->namedGroup);
-
-    ForceZero(it, sizeof(InternalTicket));
-    pskInfo->isValid = 1;
+    ret = DoDecryptTicket(ssl, tempTicket, (word32)tlsxSessionTicket.size, &it);
+    if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
+        /* This logic is only for TLS <= 1.2 tickets. Don't accept TLS 1.3. */
+        if (!IsAtLeastTLSv1_3(it->pv))
+            *resume = TRUE;
+    }
+    if (it != NULL)
+        ForceZero(it, sizeof(InternalTicket));
     return 0;
 }
 #endif /* HAVE_SESSION_TICKET */
 
 static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID,
-                               PskInfo* pskInfo)
+                               int* resume)
 {
     WOLFSSL_SESSION* sess;
     word32 sessRow;
@@ -353,17 +340,19 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
                 ssl->ctx->get_sess_cb((WOLFSSL*)ssl, sessionID.elements, ID_LEN,
                                       &unused);
             if (sess != NULL) {
-                /* Store info for later */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-                pskInfo->pv = sess->version;
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+                /* This logic is only for TLS <= 1.2 tickets. Don't accept
+                 * TLS 1.3. */
+                if (IsAtLeastTLSv1_3(sess->version))
+                    wolfSSL_FreeSession(ssl->ctx, sess);
+                else
 #endif
-                pskInfo->cipherSuite0 = sess->cipherSuite0;
-                pskInfo->cipherSuite = sess->cipherSuite;
-                pskInfo->namedGroup = sess->namedGroup;
-
-                pskInfo->isValid = 1;
-                wolfSSL_FreeSession(ssl->ctx, sess);
-                return 0;
+                {
+                    *resume = 1;
+                    wolfSSL_FreeSession(ssl->ctx, sess);
+                    return 0;
+                }
             }
         }
         if (ssl->ctx->internalCacheLookupOff)
@@ -372,15 +361,15 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 #endif
     ret = TlsSessionCacheGetAndLock(sessionID.elements, &sess, &sessRow, 1);
     if (ret == 0 && sess != NULL) {
-        /* Store info for later */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        pskInfo->pv = sess->version;
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+        /* This logic is only for TLS <= 1.2 tickets. Don't accept
+         * TLS 1.3. */
+        if (!IsAtLeastTLSv1_3(sess->version))
 #endif
-        pskInfo->cipherSuite0 = sess->cipherSuite0;
-        pskInfo->cipherSuite = sess->cipherSuite;
-        pskInfo->namedGroup = sess->namedGroup;
-
-        pskInfo->isValid = 1;
+        {
+            *resume = 1;
+        }
         TlsSessionCacheUnlockRow(sessRow);
     }
 
@@ -388,19 +377,18 @@ static int TlsSessionIdIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector sessionID
 }
 
 static int TlsResumptionIsValid(const WOLFSSL* ssl, WolfSSL_CH* ch,
-                                PskInfo* pskInfo, byte isTls13)
+                                int* resume)
 {
     int ret;
 
-    (void)isTls13;
 #ifdef HAVE_SESSION_TICKET
-    ret = TlsTicketIsValid(ssl, ch->extension, pskInfo, isTls13);
+    ret = TlsTicketIsValid(ssl, ch->extension, resume);
     if (ret != 0)
         return ret;
-    if (pskInfo->isValid)
+    if (*resume)
         return 0;
 #endif /* HAVE_SESSION_TICKET */
-    ret = TlsSessionIdIsValid(ssl, ch->sessionId, pskInfo);
+    ret = TlsSessionIdIsValid(ssl, ch->sessionId, resume);
     return ret;
 }
 #endif /* WOLFSSL_DTLS13 || WOLFSSL_DTLS_NO_HVR_ON_RESUME */
@@ -454,18 +442,16 @@ static int CopySupportedGroup(TLSX* src, TLSX** dst, void* heap)
 }
 #endif
 
-#if defined(WOLFSSL_DTLS13) && !defined(NO_PSK)
+#if defined(WOLFSSL_DTLS13) && \
+        (!defined(NO_PSK) || defined(HAVE_SESSION_TICKET))
 /* Very simplified version of CheckPreSharedKeys to find the current suite */
 static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                                 PskInfo* pskInfo, Suites* suites)
 {
     TLSX* pskExt = TLSX_Find(extensions, TLSX_PRE_SHARED_KEY);
-    int found = 0;
     PreSharedKey* current;
-    byte psk_key[MAX_PSK_KEY_LEN];
-    word32 psk_keySz;
     int i;
-    byte foundSuite[SUITE_LEN];
+    int ret;
 
     if (pskExt == NULL)
         return;
@@ -473,17 +459,61 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
     for (i = 0; i < suites->suiteSz; i += 2) {
         for (current = (PreSharedKey*)pskExt->data; current != NULL;
                 current = current->next) {
-            if (FindPskSuite(ssl, current, psk_key, &psk_keySz,
-                    suites->suites + i, &found, foundSuite) == 0) {
-                if (found) {
+#ifdef HAVE_SESSION_TICKET
+            {
+                /* Decode the identity. */
+                switch (current->decryptRet) {
+                    case PSK_DECRYPT_NONE:
+                        ret = DoClientTicket_ex(ssl, current);
+                        break;
+                    case PSK_DECRYPT_OK:
+                        ret = WOLFSSL_TICKET_RET_OK;
+                        break;
+                    case PSK_DECRYPT_CREATE:
+                        ret = WOLFSSL_TICKET_RET_CREATE;
+                        break;
+                    case PSK_DECRYPT_FAIL:
+                        ret = WOLFSSL_TICKET_RET_REJECT;
+                        break;
+                }
+                if (ret == WOLFSSL_TICKET_RET_OK) {
+                    if (DoClientTicketCheck(current, ssl->timeout,
+                            suites->suites + i) != 0) {
+                        continue;
+                    }
+
+                    pskInfo->cipherSuite0 = current->it->suite[0];
+                    pskInfo->cipherSuite  = current->it->suite[1];
+                    pskInfo->isValid      = 1;
+                    goto cleanup;
+                }
+            }
+#endif
+#ifndef NO_PSK
+            {
+                int found = 0;
+                byte psk_key[MAX_PSK_KEY_LEN];
+                word32 psk_keySz;
+                byte foundSuite[SUITE_LEN];
+                ret = FindPskSuite(ssl, current, psk_key, &psk_keySz,
+                        suites->suites + i, &found, foundSuite);
+                /* Clear the key just in case */
+                ForceZero(psk_key, sizeof(psk_key));
+                if (ret == 0 && found) {
                     pskInfo->cipherSuite0 = foundSuite[0];
                     pskInfo->cipherSuite  = foundSuite[1];
                     pskInfo->isValid      = 1;
-                    return;
+                    goto cleanup;
                 }
             }
+#endif
         }
     }
+
+cleanup:
+#ifdef HAVE_SESSION_TICKET
+    CleanupClientTickets((PreSharedKey*)pskExt->data);
+#endif
 }
 #endif
 
@@ -493,8 +523,12 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
 #error "WOLFSSL_SEND_HRR_COOKIE has to be defined to use DTLS 1.3 server"
 #endif
 
-static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
-                                    PskInfo* pskInfo)
+#ifdef WOLFSSL_PSK_ONE_ID
+#error WOLFSSL_PSK_ONE_ID is not compatible with stateless DTLS 1.3 server. \
+        wolfSSL needs to be able to make multiple calls for the same PSK.
+#endif
+
+static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 {
     int ret = -1;
     TLSX* parsedExts = NULL;
@@ -511,8 +545,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
     CipherSpecs specs;
     byte cookieHash[WC_MAX_DIGEST_SIZE];
     int cookieHashSz;
-
-    (void)pskInfo;
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    PskInfo pskInfo;
+    XMEMSET(&pskInfo, 0, sizeof(pskInfo));
+#endif
 
     XMEMSET(&cs, 0, sizeof(cs));
 
@@ -601,18 +637,13 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
          * and if they don't match we will error out there anyway. */
         byte modes;
 
-#ifndef NO_PSK
-        /* When we didn't find a valid ticket ask the user for the
-         * ciphersuite matching this identity */
-        if (!pskInfo->isValid) {
-            if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
-                    tlsx.elements, tlsx.size, ssl->heap) == 0)
-                FindPskSuiteFromExt(ssl, parsedExts, pskInfo, &suites);
-            /* Revert to full handshake if PSK parsing failed */
-        }
-#endif
+        /* Ask the user for the ciphersuite matching this identity */
+        if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
+                tlsx.elements, tlsx.size, ssl->heap) == 0)
+            FindPskSuiteFromExt(ssl, parsedExts, &pskInfo, &suites);
+        /* Revert to full handshake if PSK parsing failed */
 
-        if (pskInfo->isValid) {
+        if (pskInfo.isValid) {
             ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
                                  ch->extension);
             if (ret != 0)
@@ -638,9 +669,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch,
 #endif
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    if (usePSK && pskInfo->isValid) {
-        cs.cipherSuite0 = pskInfo->cipherSuite0;
-        cs.cipherSuite = pskInfo->cipherSuite;
+    if (usePSK && pskInfo.isValid) {
+        cs.cipherSuite0 = pskInfo.cipherSuite0;
+        cs.cipherSuite = pskInfo.cipherSuite;
 
         if (haveSG && !haveKS) {
             WOLFSSL_MSG("Client didn't send KeyShare or Supported Groups.");
@@ -737,15 +768,13 @@ dtls13_cleanup:
 }
 #endif
 
-static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13,
-                              PskInfo* pskInfo)
+static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
 {
     int ret;
     (void)isTls13;
-    (void)pskInfo;
 #ifdef WOLFSSL_DTLS13
     if (isTls13) {
-        ret = SendStatelessReplyDtls13(ssl, ch, pskInfo);
+        ret = SendStatelessReplyDtls13(ssl, ch);
     }
     else
 #endif
@@ -789,9 +818,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
     int ret;
     WolfSSL_CH ch;
     byte isTls13 = 0;
-    PskInfo pskInfo;
 
-    XMEMSET(&pskInfo, 0, sizeof(pskInfo));
     XMEMSET(&ch, 0, sizeof(ch));
 
     ssl->options.dtlsStateful = 0;
@@ -816,33 +843,21 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
     if (ret != 0)
         return ret;
 
-#if defined(WOLFSSL_DTLS13) || defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME)
-    ret = TlsResumptionIsValid(ssl, &ch, &pskInfo, isTls13);
-    if (ret != 0)
-        return ret;
-#endif
 #ifdef WOLFSSL_DTLS_NO_HVR_ON_RESUME
-    if (pskInfo.isValid) {
-        ssl->options.dtlsStateful = 1;
-        return 0;
-    }
-#endif
-
-#if defined(WOLFSSL_DTLS13) && defined(HAVE_SESSION_TICKET)
-    if (pskInfo.isValid) {
-        if (IsAtLeastTLSv1_3(pskInfo.pv)) {
-            if (!isTls13)
-                return VERSION_ERROR;
-        }
-        else {
-            if (isTls13)
-                return VERSION_ERROR;
+    if (!isTls13) {
+        int resume = FALSE;
+        ret = TlsResumptionIsValid(ssl, &ch, &resume);
+        if (ret != 0)
+            return ret;
+        if (resume) {
+            ssl->options.dtlsStateful = 1;
+            return 0;
         }
     }
 #endif
 
     if (ch.cookie.size == 0 && ch.cookieExt.size == 0) {
-        ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13, &pskInfo);
+        ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
     }
     else {
         byte cookieGood;
@@ -857,7 +872,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
                 ret = INVALID_PARAMETER;
             else
 #endif
-                ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13, &pskInfo);
+                ret = SendStatelessReply((WOLFSSL*)ssl, &ch, isTls13);
         }
         else
             ssl->options.dtlsStateful = 1;

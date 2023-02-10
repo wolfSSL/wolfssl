@@ -34547,7 +34547,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     }
 
-    int DoDecryptTicket(WOLFSSL* ssl, const byte* input, word32 len,
+    int DoDecryptTicket(const WOLFSSL* ssl, const byte* input, word32 len,
         InternalTicket **it)
     {
         ExternalTicket* et;
@@ -34589,7 +34589,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = WOLFSSL_TICKET_RET_REJECT;
         }
         else {
-            ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
+            /* Callback uses ssl without const but for DTLS, it really shouldn't
+             * modify its state. */
+            ret = ssl->ctx->ticketEncCb((WOLFSSL*)ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
@@ -34614,142 +34616,265 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-    /* Parse ticket sent by client, returns callback return value */
-    int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
+    static int DoClientTicketCheckVersion(const WOLFSSL* ssl,
+            InternalTicket* it)
     {
-        InternalTicket* it;
-        int             ret;
+        if (ssl->version.minor < it->pv.minor) {
+            WOLFSSL_MSG("Ticket has greater version");
+            return VERSION_ERROR;
+        }
+        else if (ssl->version.minor > it->pv.minor) {
+            if (IsAtLeastTLSv1_3(it->pv) != IsAtLeastTLSv1_3(ssl->version)) {
+                WOLFSSL_MSG("Tickets cannot be shared between "
+                                           "TLS 1.3 and TLS 1.2 and lower");
+                return VERSION_ERROR;
+            }
+
+            if (!ssl->options.downgrade) {
+                WOLFSSL_MSG("Ticket has lesser version");
+                return VERSION_ERROR;
+            }
+
+            WOLFSSL_MSG("Downgrading protocol due to ticket");
+
+            if (it->pv.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("Ticket has lesser version than allowed");
+                return VERSION_ERROR;
+            }
+        }
+        /* Check resumption master secret. */
+        if (IsAtLeastTLSv1_3(it->pv) &&
+                it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+            WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
+            return BAD_TICKET_ENCRYPT;
+        }
+        return 0;
+    }
+
+    /* Return 0 when check successful. <0 on failure. */
+    int DoClientTicketCheck(const PreSharedKey* psk, sword64 timeout,
+            const byte* suite)
+    {
+        word32 ticketAdd;
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+        word32 now;
+        sword64 diff;
+        word32 ticketSeen;        /* Time ticket seen (ms) */
+
+        ato32(psk->it->timestamp, &ticketSeen);
+
+        now = TimeNowInMilliseconds();
+        if (now == 0)
+            return GETTIME_ERROR;
+        /* Difference between now and time ticket constructed
+         * (from decrypted ticket). */
+        diff = now;
+        diff -= ticketSeen;
+        if (diff > timeout * 1000 ||
+            diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
+            return -1;
+#else
+        sword64 diff;
+        sword64 ticketSeen; /* Time ticket seen (ms) */
+        word32 seenHi, seenLo;
+
+        ato32(psk->it->timestamp               , &seenHi);
+        ato32(psk->it->timestamp + OPAQUE32_LEN, &seenLo);
+        ticketSeen = ((sword64)seenHi << 32) + seenLo;
+
+        diff = TimeNowInMilliseconds();
+        if (diff == 0)
+            return GETTIME_ERROR;
+        /* Difference between now and time ticket constructed
+         * (from decrypted ticket). */
+        diff -= ticketSeen;
+        if (diff > timeout * 1000 ||
+            diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
+            return -1;
+#endif
+        ato32(psk->it->ageAdd, &ticketAdd);
+        /* Subtract client's ticket age and unobfuscate. */
+        diff -= psk->ticketAge;
+        diff += ticketAdd;
+        /* Check session and ticket age timeout.
+         * Allow +/- 1000 milliseconds on ticket age.
+         */
+        if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000)
+            return -1;
+
+#ifndef WOLFSSL_PSK_ONE_ID
+        /* Check whether resumption is possible based on suites in SSL and
+         * ciphersuite in ticket.
+         */
+        if (XMEMCMP(suite, psk->it->suite, SUITE_LEN) != 0)
+            return -1;
+#else
+        if (!FindSuiteSSL(ssl, psk->it->suite))
+            return -1;
+#endif
+        return 0;
+    }
+
+    void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it)
+    {
+#ifdef WOLFSSL_TICKET_HAVE_ID
+        ssl->session->haveAltSessionID = 1;
+        XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
+        if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
+            WOLFSSL_MSG("Found session matching the session id"
+                        " found in the ticket");
+        }
+        else {
+            WOLFSSL_MSG("Can't find session matching the session id"
+                        " found in the ticket");
+        }
+#endif
+
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+            /* Copy the haveExtendedMasterSecret property from the ticket to
+             * the saved session, so the property may be checked later. */
+            ssl->session->haveEMS = it->haveEMS;
+            ato32((const byte*)&it->timestamp, &ssl->session->bornOn);
+#ifndef NO_RESUME_SUITE_CHECK
+            ssl->session->cipherSuite0 = it->suite[0];
+            ssl->session->cipherSuite = it->suite[1];
+#endif
+        }
+        else {
+#ifdef WOLFSSL_TLS13
+            /* This should have been already checked in
+             * DoClientTicketCheckVersion */
+            if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
+                WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
+                return;
+            }
+            /* Restore information to renegotiate. */
+#ifdef WOLFSSL_32BIT_MILLI_TIME
+            ato32(it->timestamp, &ssl->session->ticketSeen);
+#else
+            word32 seenHi, seenLo;
+
+            ato32(it->timestamp               , &seenHi);
+            ato32(it->timestamp + OPAQUE32_LEN, &seenLo);
+            ssl->session->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+#endif
+            ato32(it->ageAdd, &ssl->session->ticketAdd);
+            ssl->session->cipherSuite0 = it->suite[0];
+            ssl->session->cipherSuite = it->suite[1];
+#ifdef WOLFSSL_EARLY_DATA
+            ato32(it->maxEarlyDataSz, &ssl->session->maxEarlyDataSz);
+#endif
+            /* Resumption master secret. */
+            XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
+#if defined(WOLFSSL_TICKET_NONCE_MALLOC) && \
+     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+            if (ssl->session->ticketNonce.data
+                   != ssl->session->ticketNonce.dataStatic) {
+                XFREE(ssl->session->ticketNonce.data, ssl->heap,
+                    DYNAMIC_TYPE_SESSION_TICK);
+                ssl->session->ticketNonce.data =
+                    ssl->session->ticketNonce.dataStatic;
+            }
+#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
+            XMEMCPY(ssl->session->ticketNonce.data, it->ticketNonce,
+                it->ticketNonceLen);
+            ssl->session->ticketNonce.len = it->ticketNonceLen;
+            ato16(it->namedGroup, &ssl->session->namedGroup);
+#endif
+        }
+        ssl->version.minor = it->pv.minor;
+    }
+
+    /* Parse ticket sent by client, returns callback return value. Doesn't
+     * modify ssl and stores the InternalTicket inside psk */
+    int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk)
+    {
+        int decryptRet;
+        int ret;
 
         WOLFSSL_START(WC_FUNC_TICKET_DO);
-        WOLFSSL_ENTER("DoClientTicket");
+        WOLFSSL_ENTER("DoClientTicket_ex");
 
-        ret = DoDecryptTicket(ssl, input, len, &it);
-        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE) {
-            WOLFSSL_LEAVE("DoClientTicket", ret);
-            return ret;
+        decryptRet = DoDecryptTicket(ssl, psk->identity, psk->identityLen,
+                &psk->it);
+        switch (decryptRet) {
+        case WOLFSSL_TICKET_RET_OK:
+            psk->decryptRet = PSK_DECRYPT_OK;
+            break;
+        case WOLFSSL_TICKET_RET_CREATE:
+            psk->decryptRet = PSK_DECRYPT_CREATE;
+            break;
+        default:
+            psk->decryptRet = PSK_DECRYPT_FAIL;
+            return decryptRet;
         }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */
         wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
     #endif
 
-        /* get master secret */
-        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
-            if (ssl->version.minor < it->pv.minor) {
-                WOLFSSL_MSG("Ticket has greater version");
-                ret = VERSION_ERROR;
-                goto error;
-            }
-            else if (ssl->version.minor > it->pv.minor) {
-                if (IsAtLeastTLSv1_3(it->pv) != IsAtLeastTLSv1_3(ssl->version)) {
-                    WOLFSSL_MSG("Tickets cannot be shared between "
-                                               "TLS 1.3 and TLS 1.2 and lower");
-                    ret = VERSION_ERROR;
-                    goto error;
-                }
+        ret = DoClientTicketCheckVersion(ssl, psk->it);
+        if (ret != 0) {
+            psk->decryptRet = PSK_DECRYPT_FAIL;
+            return ret;
+        }
+        return decryptRet;
+    }
 
-                if (!ssl->options.downgrade) {
-                    WOLFSSL_MSG("Ticket has lesser version");
-                    ret = VERSION_ERROR;
-                    goto error;
-                }
+    /* Parse ticket sent by client, returns callback return value */
+    int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
+    {
+        int decryptRet;
+        int ret;
+        InternalTicket* it
 
-                WOLFSSL_MSG("Downgrading protocol due to ticket");
+        WOLFSSL_START(WC_FUNC_TICKET_DO);
+        WOLFSSL_ENTER("DoClientTicket");
 
-                if (it->pv.minor < ssl->options.minDowngrade) {
-                    WOLFSSL_MSG("Ticket has lesser version than allowed");
-                    ret = VERSION_ERROR;
-                    goto error;
-                }
-                ssl->version.minor = it->pv.minor;
-            }
+        decryptRet = DoDecryptTicket(ssl, input, len, &it);
+        if (decryptRet != WOLFSSL_TICKET_RET_OK &&
+                decryptRet != WOLFSSL_TICKET_RET_CREATE)
+            return decryptRet;
+    #ifdef WOLFSSL_CHECK_MEM_ZERO
+        /* Internal ticket successfully decrypted. */
+        wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
+    #endif
 
-#ifdef WOLFSSL_TICKET_HAVE_ID
-            {
-                ssl->session->haveAltSessionID = 1;
-                XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
-                if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
-                    WOLFSSL_MSG("Found session matching the session id"
-                                " found in the ticket");
-                }
-                else {
-                    WOLFSSL_MSG("Can't find session matching the session id"
-                                " found in the ticket");
-                }
-            }
+        ret = DoClientTicketCheckVersion(ssl, it);
+        if (ret != 0) {
+            ForceZero(it, sizeof(*it));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(it, sizeof(InternalTicket));
+#endif
+            return ret;
+        }
+
+        DoClientTicketFinalize(ssl, it);
+
+        ForceZero(it, sizeof(*it));
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+        wc_MemZero_Check(it, sizeof(InternalTicket));
 #endif
 
-            if (!IsAtLeastTLSv1_3(ssl->version)) {
-                XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
-                /* Copy the haveExtendedMasterSecret property from the ticket to
-                 * the saved session, so the property may be checked later. */
-                ssl->session->haveEMS = it->haveEMS;
-                ato32((const byte*)&it->timestamp, &ssl->session->bornOn);
-            #ifndef NO_RESUME_SUITE_CHECK
-                ssl->session->cipherSuite0 = it->suite[0];
-                ssl->session->cipherSuite = it->suite[1];
-            #endif
-            }
-            else {
-#ifdef WOLFSSL_TLS13
-                /* Restore information to renegotiate. */
-            #ifdef WOLFSSL_32BIT_MILLI_TIME
-                ato32(it->timestamp, &ssl->session->ticketSeen);
-            #else
-                word32 seenHi, seenLo;
+        return decryptRet;
+    }
 
-                ato32(it->timestamp               , &seenHi);
-                ato32(it->timestamp + OPAQUE32_LEN, &seenLo);
-                ssl->session->ticketSeen = ((sword64)seenHi << 32) + seenLo;
-            #endif
-                ato32(it->ageAdd, &ssl->session->ticketAdd);
-                ssl->session->cipherSuite0 = it->suite[0];
-                ssl->session->cipherSuite = it->suite[1];
-    #ifdef WOLFSSL_EARLY_DATA
-                ato32(it->maxEarlyDataSz, &ssl->session->maxEarlyDataSz);
-    #endif
-                /* Resumption master secret. */
-                XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
-                if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
-                    WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
-                    WOLFSSL_LEAVE("DoClientTicket", BAD_TICKET_ENCRYPT);
-                    return BAD_TICKET_ENCRYPT;
-                }
-#if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-                if (ssl->session->ticketNonce.data
-                       != ssl->session->ticketNonce.dataStatic) {
-                    XFREE(ssl->session->ticketNonce.data, ssl->heap,
-                        DYNAMIC_TYPE_SESSION_TICK);
-                    ssl->session->ticketNonce.data =
-                        ssl->session->ticketNonce.dataStatic;
-                }
-#endif /* defined(WOLFSSL_TICKET_NONCE_MALLOC) && FIPS_VERSION_GE(5,3) */
-                XMEMCPY(ssl->session->ticketNonce.data, it->ticketNonce,
-                    it->ticketNonceLen);
-                ssl->session->ticketNonce.len = it->ticketNonceLen;
-                ato16(it->namedGroup, &ssl->session->namedGroup);
+    void CleanupClientTickets(PreSharedKey* psk)
+    {
+        for (; psk != NULL; psk = psk->next) {
+            if (psk->decryptRet == PSK_DECRYPT_OK ||
+                    psk->decryptRet == PSK_DECRYPT_CREATE) {
+                psk->decryptRet = PSK_DECRYPT_NONE;
+                ForceZero(psk->identity, psk->identityLen);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+                /* We want to check the InternalTicket area since that is what
+                 * we registered in DoClientTicket_ex */
+                wc_MemZero_Check((((ExternalTicket*)psk->identity)->enc_ticket),
+                        sizeof(InternalTicket));
 #endif
             }
         }
-
-        ForceZero(it, sizeof(*it));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(it, sizeof(InternalTicket));
-#endif
-
-        WOLFSSL_LEAVE("DoClientTicket", ret);
-        WOLFSSL_END(WC_FUNC_TICKET_DO);
-
-        return ret;
-
-error:
-        ForceZero(it, sizeof(*it));
-#ifdef WOLFSSL_CHECK_MEM_ZERO
-        wc_MemZero_Check(it, sizeof(InternalTicket));
-#endif
-        WOLFSSL_ERROR_VERBOSE(ret);
-        return WOLFSSL_TICKET_RET_REJECT;
     }
 
 

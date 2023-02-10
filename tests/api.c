@@ -62844,6 +62844,129 @@ static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) \
+    && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+
+static WOLFSSL_CTX* test_TLS_13_ticket_different_ciphers_ctx = NULL;
+static WOLFSSL_SESSION* test_TLS_13_ticket_different_ciphers_session = NULL;
+static int test_TLS_13_ticket_different_ciphers_run = 0;
+
+static void test_TLS_13_ticket_different_ciphers_ssl_ready(WOLFSSL* ssl)
+{
+    switch (test_TLS_13_ticket_different_ciphers_run) {
+        case 0:
+            /* First run */
+            AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
+                            WOLFSSL_SUCCESS);
+            if (wolfSSL_is_server(ssl)) {
+                AssertNotNull(test_TLS_13_ticket_different_ciphers_ctx =
+                    wolfSSL_get_SSL_CTX(ssl));
+                AssertIntEQ(WOLFSSL_SUCCESS,
+                    wolfSSL_CTX_up_ref(test_TLS_13_ticket_different_ciphers_ctx));
+            }
+            break;
+        case 1:
+            /* Second run */
+            AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384:"
+                                                     "TLS13-AES128-GCM-SHA256"),
+                            WOLFSSL_SUCCESS);
+            if (!wolfSSL_is_server(ssl)) {
+                AssertIntEQ(wolfSSL_set_session(ssl,
+                        test_TLS_13_ticket_different_ciphers_session),
+                        WOLFSSL_SUCCESS);
+            }
+            break;
+        default:
+            /* Bad state? */
+            Fail(("Should not enter here"), ("Should not enter here"));
+    }
+}
+
+static void test_TLS_13_ticket_different_ciphers_on_result(WOLFSSL* ssl)
+{
+    switch (test_TLS_13_ticket_different_ciphers_run) {
+        case 0:
+            /* First run */
+            AssertNotNull(test_TLS_13_ticket_different_ciphers_session =
+                    wolfSSL_get1_session(ssl));
+            break;
+        case 1:
+            /* Second run */
+            AssertTrue(wolfSSL_session_reused(ssl));
+            break;
+        default:
+            /* Bad state? */
+            Fail(("Should not enter here"), ("Should not enter here"));
+    }
+}
+
+static int test_TLS_13_ticket_different_ciphers(void)
+{
+    /* Check that we handle the connection when the ticket doesn't match
+     * the first ciphersuite. */
+    callback_functions client_cbs, server_cbs;
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        int doUdp;
+    } params[] = {
+#ifdef WOLFSSL_DTLS13
+        /* Test that the stateless code handles sessions correctly */
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, 1},
+#endif
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 0},
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        test_TLS_13_ticket_different_ciphers_run = 0;
+
+        client_cbs.doUdp = server_cbs.doUdp = params[i].doUdp;
+
+        client_cbs.method = params[i].client_meth;
+        server_cbs.method = params[i].server_meth;
+
+        client_cbs.ssl_ready = test_TLS_13_ticket_different_ciphers_ssl_ready;
+        server_cbs.ssl_ready = test_TLS_13_ticket_different_ciphers_ssl_ready;
+
+        client_cbs.on_result = test_TLS_13_ticket_different_ciphers_on_result;
+
+        server_cbs.ticNoInit = 1;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertTrue(client_cbs.return_code);
+        AssertTrue(server_cbs.return_code);
+
+        test_TLS_13_ticket_different_ciphers_run++;
+
+        server_cbs.ctx = test_TLS_13_ticket_different_ciphers_ctx;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertTrue(client_cbs.return_code);
+        AssertTrue(server_cbs.return_code);
+
+        wolfSSL_SESSION_free(test_TLS_13_ticket_different_ciphers_session);
+        test_TLS_13_ticket_different_ciphers_session = NULL;
+        wolfSSL_CTX_free(test_TLS_13_ticket_different_ciphers_ctx);
+        test_TLS_13_ticket_different_ciphers_ctx = NULL;
+    }
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_TLS_13_ticket_different_ciphers(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -63844,6 +63967,7 @@ TEST_CASE testCases[] = {
         *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) */
     TEST_DECL(test_wolfSSL_CTX_set_ciphersuites),
     TEST_DECL(test_wolfSSL_CRL_CERT_REVOKED_alert),
+    TEST_DECL(test_TLS_13_ticket_different_ciphers),
     TEST_DECL(test_WOLFSSL_dtls_version_alert),
     TEST_DECL(test_ForceZero),
 

@@ -5658,68 +5658,33 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
     #ifdef HAVE_SESSION_TICKET
         /* Decode the identity. */
-        ret = DoClientTicket(ssl, current->identity, current->identityLen);
+        switch (current->decryptRet) {
+            case PSK_DECRYPT_NONE:
+                ret = DoClientTicket_ex(ssl, current);
+                break;
+            case PSK_DECRYPT_OK:
+                ret = WOLFSSL_TICKET_RET_OK;
+                break;
+            case PSK_DECRYPT_CREATE:
+                ret = WOLFSSL_TICKET_RET_CREATE;
+                break;
+            case PSK_DECRYPT_FAIL:
+                ret = WOLFSSL_TICKET_RET_REJECT;
+                break;
+        }
+
         #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E)
             return ret;
         #endif
 
         if (ret == WOLFSSL_TICKET_RET_OK) {
-        #ifdef WOLFSSL_32BIT_MILLI_TIME
-            word32 now;
-            sword64 diff;
-
-            now = TimeNowInMilliseconds();
-            if (now == 0)
-                return GETTIME_ERROR;
-            /* Difference between now and time ticket constructed
-             * (from decrypted ticket). */
-            diff = now;
-            diff -= ssl->session->ticketSeen;
-            if (diff > (sword64)ssl->timeout * 1000 ||
-                diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
+            if (DoClientTicketCheck(current, ssl->timeout, suite) != 0) {
+                current = current->next;
                 continue;
             }
-        #else
-            sword64 diff;
 
-            diff = TimeNowInMilliseconds();
-            if (diff == 0)
-                return GETTIME_ERROR;
-            /* Difference between now and time ticket constructed
-             * (from decrypted ticket). */
-            diff -= ssl->session->ticketSeen;
-            if (diff > (sword64)ssl->timeout * 1000 ||
-                diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
-                continue;
-            }
-        #endif
-            /* Subtract client's ticket age and unobfuscate. */
-            diff -= current->ticketAge;
-            diff += ssl->session->ticketAdd;
-            /* Check session and ticket age timeout.
-             * Allow +/- 1000 milliseconds on ticket age.
-             */
-            if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000)
-                continue;
-
-        #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
-            /* Check whether resumption is possible based on suites in SSL and
-             * ciphersuite in ticket.
-             */
-            if ((suite[0] != ssl->session->cipherSuite0) ||
-                                       (suite[1] != ssl->session->cipherSuite))
-                continue;
-        #else
-            {
-                byte s[2] = {
-                    ssl->session->cipherSuite0,
-                    ssl->session->cipherSuite,
-                };
-                if (!FindSuiteSSL(ssl, s))
-                    continue;
-            }
-        #endif
+            DoClientTicketFinalize(ssl, current->it);
 
             /* SERVER: using secret in session ticket for peer auth. */
             ssl->options.peerAuthGood = 1;
@@ -5893,13 +5858,23 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
                 suites->suites + i, usingPSK, &first);
         if (ret != 0) {
+#ifdef HAVE_SESSION_TICKET
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret != WC_PENDING_E)
+#endif
+                CleanupClientTickets((PreSharedKey*)ext->data);
+#endif
             WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
             return ret;
         }
     }
+#ifdef HAVE_SESSION_TICKET
+    CleanupClientTickets((PreSharedKey*)ext->data);
+#endif
 #else
     ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
         &first);
+    CleanupClientTickets((PreSharedKey*)ext->data);
     if (ret != 0) {
         WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
         return ret;

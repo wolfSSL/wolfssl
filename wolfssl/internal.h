@@ -3097,6 +3097,13 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Parse_ClientHello(const WOLFSSL* ssl,
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 
+enum PskDecryptReturn {
+    PSK_DECRYPT_NONE = 0,
+    PSK_DECRYPT_OK,
+    PSK_DECRYPT_CREATE,
+    PSK_DECRYPT_FAIL,
+};
+
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {
     word16               identityLen;             /* Length of identity */
@@ -3107,8 +3114,12 @@ typedef struct PreSharedKey {
     word32               binderLen;               /* Length of HMAC     */
     byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of handshake */
     byte                 hmac;                    /* HMAC algorithm     */
+#ifdef HAVE_SESSION_TICKET
+    InternalTicket*      it;                      /* ptr to ticket      */
+#endif
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */
+    byte                 decryptRet:3;            /* Ticket decrypt return */
     struct PreSharedKey* next;                    /* List pointer       */
 } PreSharedKey;
 
@@ -3933,13 +3944,8 @@ typedef struct TicketNonce {
 
 #ifdef WOLFSSL_DTLS
 typedef struct PskInfo {
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    /* Macro guard matches one for session->version */
-    ProtocolVersion pv;
-#endif
     byte cipherSuite0;
     byte cipherSuite;
-    word16 namedGroup;
     byte isValid:1;
 } PskInfo;
 #endif
@@ -5650,10 +5656,16 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
 #ifdef HAVE_SESSION_TICKET
-WOLFSSL_LOCAL int DoDecryptTicket(WOLFSSL* ssl, const byte* input, word32 len,
-    InternalTicket **it);
-#endif /* HAVE_SESSION_TICKET */
+WOLFSSL_LOCAL int DoDecryptTicket(const WOLFSSL* ssl, const byte* input,
+        word32 len, InternalTicket **it);
+/* Return 0 when check successful. <0 on failure. */
+WOLFSSL_LOCAL int DoClientTicketCheck(const PreSharedKey* psk, sword64 timeout,
+        const byte* suite);
+WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it);
+WOLFSSL_LOCAL void CleanupClientTickets(PreSharedKey* psk);
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
+WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk);
+#endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType);
