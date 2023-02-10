@@ -3834,7 +3834,10 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   for (; x >= 0; x--) {
      b[x] = 0;
   }
-  if ((i < a->used - 1) || ((a->dp[i] >> j) != 0)) {
+  if (i < a->used - 1) {
+      return FP_VAL;
+  }
+  if ((i == a->used - 1) && ((a->dp[i] >> j) != 0)) {
       return FP_VAL;
   }
 
