@@ -10916,6 +10916,14 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     if (aes->keylen == 16)
         return DCPAesEcbEncrypt(aes, out, in, sz);
 #endif
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        AES_ECB_encrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
+        blocks = 0;
+    }
+#endif
     while (blocks > 0) {
       int ret = wc_AesEncryptDirect(aes, out, in);
       if (ret != 0)
@@ -10943,6 +10951,14 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)
         return DCPAesEcbDecrypt(aes, out, in, sz);
+#endif
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        AES_ECB_decrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
+        blocks = 0;
+    }
 #endif
     while (blocks > 0) {
       int ret = wc_AesDecryptDirect(aes, out, in);
