@@ -26591,22 +26591,32 @@ done:
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
-static int ecc_ctx_kdf_salt_test(WC_RNG* rng)
+static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
 {
-    ecc_key a[1], b[1];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* plaintext;
+    byte* encrypted;
+    byte* decrypted;
+#else
+    byte plaintext[128];
+    byte encrypted[128];
+    byte decrypted[128];
+#endif
     ecEncCtx* aCtx = NULL;
     ecEncCtx* bCtx = NULL;
     const byte salt[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
         15};
     int ret = 0, aRet = -1, bRet = -1;
     const char* message = "Hello wolfSSL!";
-    byte plaintext[256];
-    byte encrypted[256];
-    byte decrypted[256];
-    word32 plaintextLen = sizeof(message), encryptLen = 256, decryptLen = 256;
+    word32 plaintextLen = sizeof(message), encryptLen = 128, decryptLen = 128;
 
-    if (ret == 0)
-        ret = aRet = wc_ecc_init(a);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    plaintext = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    encrypted = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decrypted = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    ret = aRet = wc_ecc_init(a);
 
     if (ret == 0)
         ret = bRet = wc_ecc_init(b);
@@ -26670,6 +26680,12 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng)
 
     if (bCtx != NULL)
         wc_ecc_ctx_free(bCtx);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(plaintext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(encrypted, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decrypted, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -27302,7 +27318,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     }
 #endif
     if (ret == 0) {
-        ret = ecc_ctx_kdf_salt_test(&rng);
+        ret = ecc_ctx_kdf_salt_test(&rng, userA, userB);
     }
 #endif
 
