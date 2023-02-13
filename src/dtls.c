@@ -115,6 +115,15 @@ int DtlsIgnoreError(int err)
 #define DTLS_COOKIE_SZ WC_SHA256_DIGEST_SIZE
 #endif /* !NO_SHA256 */
 
+#if defined(WOLFSSL_DTLS13) && (defined(HAVE_SESSION_TICKET) || \
+                                !defined(NO_PSK))
+typedef struct PskInfo {
+    byte cipherSuite0;
+    byte cipherSuite;
+    byte isValid:1;
+} PskInfo;
+#endif
+
 typedef struct WolfSSL_ConstVector {
     word32 size;
     const byte* elements;
@@ -266,7 +275,7 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
 #if (defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME) && defined(HAVE_SESSION_TICKET)) \
     || defined(WOLFSSL_DTLS13)
 static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
-    WolfSSL_ConstVector exts)
+    WolfSSL_ConstVector exts, int* tlsxFound)
 {
     word32 len, idx = 0;
     word16 type;
@@ -274,6 +283,7 @@ static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
 
     XMEMSET(ret, 0, sizeof(*ret));
     len = exts.size;
+    *tlsxFound = FALSE;
     /* type + len */
     while (len >= OPAQUE16_LEN + OPAQUE16_LEN) {
         ato16(exts.elements + idx, &type);
@@ -283,6 +293,7 @@ static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
             return BUFFER_ERROR;
         if (type == extType) {
             XMEMCPY(ret, &ext, sizeof(ext));
+            *tlsxFound = TRUE;
             return 0;
         }
         len = exts.size - idx;
@@ -300,8 +311,10 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     byte tempTicket[SESSION_TICKET_LEN];
     InternalTicket* it = NULL;
     int ret = 0;
+    int tlsxFound;
 
-    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts);
+    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts,
+                         &tlsxFound);
     if (ret != 0)
         return ret;
     if (tlsxSessionTicket.size == 0)
@@ -400,12 +413,13 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
     WolfSSL_ConstVector tlsxSupportedVersions;
     int ret;
     ProtocolVersion pv = ssl->version;
+    int tlsxFound;
 
     ret = TlsxFindByType(&tlsxSupportedVersions, TLSX_SUPPORTED_VERSIONS,
-                         ch->extension);
+                         ch->extension, &tlsxFound);
     if (ret != 0)
         return ret;
-    if (tlsxSupportedVersions.size == 0) {
+    if (!tlsxFound) {
         *isTls13 = 0;
         return 0;
     }
@@ -473,6 +487,7 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                         ret = WOLFSSL_TICKET_RET_CREATE;
                         break;
                     case PSK_DECRYPT_FAIL:
+                    default:
                         ret = WOLFSSL_TICKET_RET_REJECT;
                         break;
                 }
@@ -510,10 +525,12 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
         }
     }
 
+    /* Empty return necessary so we can have both the label and macro guard */
 cleanup:
 #ifdef HAVE_SESSION_TICKET
     CleanupClientTickets((PreSharedKey*)pskExt->data);
 #endif
+    return;
 }
 #endif
 
@@ -533,6 +550,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     int ret = -1;
     TLSX* parsedExts = NULL;
     WolfSSL_ConstVector tlsx;
+    int tlsxFound;
     Suites suites;
     byte haveSA = 0;
     byte haveKS = 0;
@@ -585,11 +603,13 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
     /* Signature algs */
     ret = TlsxFindByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
-                         ch->extension);
+                         ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
-    if (tlsx.size > OPAQUE16_LEN) {
+    if (tlsxFound) {
         WolfSSL_ConstVector sigAlgs;
+        if (tlsx.size < OPAQUE16_LEN)
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         ReadVector16(tlsx.elements, &sigAlgs);
         if (sigAlgs.size != tlsx.size - OPAQUE16_LEN)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
@@ -602,10 +622,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
     /* Supported groups */
     ret = TlsxFindByType(&tlsx, TLSX_SUPPORTED_GROUPS,
-                         ch->extension);
+                         ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
-    if (tlsx.size != 0) {
+    if (tlsxFound) {
         ret = TLSX_SupportedCurve_Parse(ssl, tlsx.elements,
                                      (word16)tlsx.size, 1, &parsedExts);
         if (ret != 0)
@@ -615,10 +635,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
     /* Key share */
     ret = TlsxFindByType(&tlsx, TLSX_KEY_SHARE,
-                         ch->extension);
+                         ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
-    if (tlsx.size != 0) {
+    if (tlsxFound) {
         ret = TLSX_KeyShare_Parse_ClientHello(ssl, tlsx.elements,
                                         (word16)tlsx.size, &parsedExts);
         if (ret != 0)
@@ -628,10 +648,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Pre-shared key */
-    ret = TlsxFindByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension);
+    ret = TlsxFindByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
-    if (tlsx.size != 0) {
+    if (tlsxFound) {
         /* Let's just assume that the binders are correct here. We will
          * actually verify this in the stateful part of the processing
          * and if they don't match we will error out there anyway. */
@@ -645,10 +665,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
         if (pskInfo.isValid) {
             ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
-                                 ch->extension);
+                                 ch->extension, &tlsxFound);
             if (ret != 0)
                 goto dtls13_cleanup;
-            if (tlsx.size == 0)
+            if (!tlsxFound)
                 ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
             ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
                                               client_hello, &modes);
@@ -832,7 +852,9 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
         if (ret != 0)
             return ret;
         if (isTls13) {
-            ret = TlsxFindByType(&ch.cookieExt, TLSX_COOKIE, ch.extension);
+            int tlsxFound;
+            ret = TlsxFindByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
+                                 &tlsxFound);
             if (ret != 0)
                 return ret;
         }

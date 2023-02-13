@@ -3942,14 +3942,6 @@ typedef struct TicketNonce {
 
 #endif
 
-#ifdef WOLFSSL_DTLS
-typedef struct PskInfo {
-    byte cipherSuite0;
-    byte cipherSuite;
-    byte isValid:1;
-} PskInfo;
-#endif
-
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
     /* WARNING Do not add fields here. They will be ignored in

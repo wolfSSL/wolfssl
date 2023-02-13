@@ -4404,10 +4404,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->options.dtls) {
         ret = Dtls13HandshakeSend(ssl, args->output, (word16)args->sendSz,
                                   (word16)args->idx, client_hello, 0);
-
-        WOLFSSL_LEAVE("SendTls13ClientHello", ret);
-        WOLFSSL_END(WC_FUNC_CLIENT_HELLO_SEND);
-        return ret;
+        break;
     }
 #endif /* WOLFSSL_DTLS13 */
 
