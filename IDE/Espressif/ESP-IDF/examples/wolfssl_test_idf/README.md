@@ -1,6 +1,10 @@
 # wolfSSL Crypt Test Example
 
-The Example contains of wolfSSL test program.
+The Example contains of wolfSSL IDF test program.
+
+This IDF version does NOT contain a local component and exists only to test wolfSSL installed to the ESP-IDF components directory.
+
+The recommended configuration is to have only the CMakeLists.txt in the local project components\wolfssl directory. See the [wolfssl_test](../wolfssl_test/README.md) example.
 
 1. `idf.py menuconfig` to configure the program.  
     1-1. Example Configuration ->

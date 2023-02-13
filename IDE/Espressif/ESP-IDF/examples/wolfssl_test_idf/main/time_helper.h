@@ -1,5 +1,5 @@
-/* user_settings.h
- *
+#ifndef _TIME_HELPER_H
+/*
  * Copyright (C) 2006-2023 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
@@ -18,26 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#ifndef _TLS_WIFI_H_
-#define _TLS_WIFI_H_
 
-#include "esp_idf_version.h"
-#include "esp_log.h"
-#include "esp_wifi.h"
-#if ESP_IDF_VERSION_MAJOR >= 4
-    #include "esp_event.h"
-#else
-    #include "esp_event_loop.h"
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#define DEFAULT_PORT                     11111
+int set_time(void);
 
-#define TLS_SMP_CLIENT_TASK_NAME         "tls_client_example"
-#define TLS_SMP_CLIENT_TASK_WORDS        10240
-#define TLS_SMP_CLIENT_TASK_PRIORITY     8
-
-#define TLS_SMP_WIFI_SSID                CONFIG_WIFI_SSID
-#define TLS_SMP_WIFI_PASS                CONFIG_WIFI_PASSWORD
-#define TLS_SMP_TARGET_HOST              CONFIG_TARGET_HOST
-
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
+
+#endif /* #ifndef _TIME_HELPER_H */

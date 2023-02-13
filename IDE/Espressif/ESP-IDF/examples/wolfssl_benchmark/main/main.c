@@ -23,12 +23,13 @@
 #include "sdkconfig.h"
 
 /* wolfSSL */
+#include <wolfssl/wolfcrypt/settings.h>
 #include <user_settings.h>
+#include <wolfssl/version.h>
 #ifndef WOLFSSL_ESPIDF
-#warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
+    #warning "problem with wolfSSL user_settings. Check components/wolfssl/include"
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
@@ -182,6 +183,51 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "CONFIG_IDF_TARGET = %s", CONFIG_IDF_TARGET);
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_STRING = %s", LIBWOLFSSL_VERSION_STRING);
+
+#if defined(WOLFSSL_MULTI_INSTALL_WARNING)
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "WARNING: Multiple wolfSSL installs found.");
+    ESP_LOGI(TAG, "Check ESP-IDF and local project [components] directory.");
+    ESP_LOGI(TAG, "");
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH = %s", LIBWOLFSSL_VERSION_GIT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_SHORT_HASH )
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_SHORT_HASH = %s", LIBWOLFSSL_VERSION_GIT_SHORT_HASH);
+#endif
+
+#if defined(LIBWOLFSSL_VERSION_GIT_HASH_DATE)
+    ESP_LOGI(TAG, "LIBWOLFSSL_VERSION_GIT_HASH_DATE = %s", LIBWOLFSSL_VERSION_GIT_HASH_DATE);
+#endif
+
+
+    /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* not available for C3 at this time */
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#else
+    ESP_LOGI(TAG, "CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#endif
+
+    /* all platforms: stack high water mark check */
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
     ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
 
 /* when using atecc608a on esp32-wroom-32se */
@@ -209,6 +255,7 @@ void app_main(void)
     /* wolfCrypt_Cleanup should always be called at completion,
     ** and is called in wolf_benchmark_task().
     */
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
     /* after the test, we'll just wait */
     while (1) {
