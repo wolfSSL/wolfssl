@@ -281,6 +281,7 @@ typedef union {
 #define NID_RSA_SHA3_256                1117
 #define NID_RSA_SHA3_384                1118
 #define NID_RSA_SHA3_512                1119
+#define NID_rsassaPss                   912
 #define NID_ecdsa_with_SHA1             416
 #define NID_ecdsa_with_SHA224           793
 #define NID_ecdsa_with_SHA256           794
