@@ -26606,9 +26606,11 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     ecEncCtx* bCtx = NULL;
     const byte salt[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
         15};
-    int ret = 0, aRet = -1, bRet = -1;
-    const char* message = "Hello wolfSSL!";
-    word32 plaintextLen = sizeof(message), encryptLen = 128, decryptLen = 128;
+    int ret = 0;
+    const char message[] = "Hello wolfSSL!";
+    word32 plaintextLen;
+    word32 encryptLen = 128;
+    word32 decryptLen = 128;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     plaintext = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -26616,70 +26618,78 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     decrypted = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    ret = aRet = wc_ecc_init(a);
+    wc_ecc_free(a);
+    wc_ecc_free(b);
 
-    if (ret == 0)
-        ret = bRet = wc_ecc_init(b);
+    ret = wc_ecc_init(a);
+    if (ret != 0)
+        ret = -10480;
+    if (ret == 0) {
+        ret = wc_ecc_init(b);
+        if (ret != 0)
+            ret = -10481;
+    }
 
-    if (ret == 0)
-        ret = wc_ecc_make_key(rng, 32, a);
-
+    ret = wc_ecc_make_key(rng, 32, a);
     if (ret == 0)
         ret = wc_ecc_make_key(rng, 32, b);
 
     /* create context */
     if (ret == 0) {
         aCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
-
         if (aCtx == NULL)
-            ret = -1;
+            ret = -10470;
     }
 
     if (ret == 0) {
         bCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
-
         if (bCtx == NULL)
-            ret = -1;
+            ret = -10471;
     }
 
     /* set salt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_ctx_set_kdf_salt(aCtx, salt, sizeof(salt));
-
-    if (ret == 0)
-        ret = wc_ecc_ctx_set_kdf_salt(bCtx, salt, sizeof(salt));
-
-    XMEMCPY(plaintext, message, XSTRLEN(message));
-
-    while (plaintextLen % AES_BLOCK_SIZE != 0) {
-        plaintextLen++;
+        if (ret != 0)
+            ret = -10472;
     }
 
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_kdf_salt(bCtx, salt, sizeof(salt));
+        if (ret != 0)
+            ret = 10473;
+    }
+
+    XMEMCPY(plaintext, message, XSTRLEN(message));
+    plaintextLen = (((word32)XSTRLEN(message) + AES_BLOCK_SIZE - 1) /
+        AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+    XMEMSET(plaintext + XSTRLEN(message), 0, plaintextLen - XSTRLEN(message));
+
     /* encrypt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_encrypt(a, b, plaintext, plaintextLen, encrypted,
             &encryptLen, aCtx);
+        if (ret != 0)
+            ret = -10474;
+    }
 
     /* decrypt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_decrypt(b, a, encrypted, encryptLen, decrypted,
             &decryptLen, bCtx);
+        if (ret != 0)
+            ret = -10475;
+    }
 
     /* compare */
-    if (ret == 0 && XMEMCMP(decrypted, (byte*)message, sizeof(message)) != 0)
-        ret = -1;
+    if (ret == 0 && XMEMCMP(decrypted, (byte*)message, XSTRLEN(message)) != 0)
+        ret = -10476;
 
-    if (aRet == 0)
-        wc_ecc_free(a);
+    wc_ecc_free(a);
+    wc_ecc_free(b);
 
-    if (bRet == 0)
-        wc_ecc_free(b);
-
-    if (aCtx != NULL)
-        wc_ecc_ctx_free(aCtx);
-
-    if (bCtx != NULL)
-        wc_ecc_ctx_free(bCtx);
+    wc_ecc_ctx_free(aCtx);
+    wc_ecc_ctx_free(bCtx);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(plaintext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -27317,6 +27327,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
         }
     }
 #endif
+#endif
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (ret == 0) {
         ret = ecc_ctx_kdf_salt_test(&rng, userA, userB);
     }
