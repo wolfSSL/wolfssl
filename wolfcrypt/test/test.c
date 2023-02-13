@@ -26055,32 +26055,32 @@ static int crypto_ecc_verify(const byte *key, uint32_t keySz,
     if (key == NULL || hash == NULL || sig == NULL || curveSz == 0 ||
         hashSz == 0 || keySz < (curveSz*2) || sigSz < (curveSz*2))
     {
-        return BAD_FUNC_ARG;
+        return -16100;
     }
 
     /* Setup the ECC key */
     ret = wc_ecc_init(&ecc);
     if (ret < 0) {
-        return ret;
+        return -16101;
     }
 
     ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
     if (ret != MP_OKAY) {
         wc_ecc_free(&ecc);
-        return ret;
+        return -16102;
     }
 
     /* Setup the signature r/s variables */
     ret = mp_init(&r);
     if (ret != MP_OKAY) {
         wc_ecc_free(&ecc);
-        return ret;
+        return -16103;
     }
     ret = mp_init(&s);
     if (ret != MP_OKAY) {
         mp_clear(&r);
         wc_ecc_free(&ecc);
-        return ret;
+        return -16104;
     }
 
     /* Import public key x/y */
@@ -26093,15 +26093,19 @@ static int crypto_ecc_verify(const byte *key, uint32_t keySz,
     );
     /* Make sure it was a public key imported */
     if (ret == 0 && ecc.type != ECC_PUBLICKEY) {
-        ret = ECC_BAD_ARG_E;
+        ret = -16105; /* ECC_BAD_ARG_E */
     }
 
     /* Import signature r/s */
     if (ret == 0) {
         ret = mp_read_unsigned_bin(&r, sig,  curveSz);
+        if (ret < 0)
+            ret = -16106;
     }
     if (ret == 0) {
         ret = mp_read_unsigned_bin(&s, sig + curveSz, curveSz);
+        if (ret < 0)
+            ret = -16107;
     }
 
     /* Verify ECC Signature */
@@ -26120,11 +26124,13 @@ static int crypto_ecc_verify(const byte *key, uint32_t keySz,
     #ifdef DEBUG_WOLFSSL
         printf("ECC non-block verify: %d times\n", count);
     #endif
+        if (ret < 0)
+            ret = -16108;
     }
 
     /* check verify result */
     if (ret == 0 && verify_res == 0) {
-        ret = SIG_VERIFY_E;
+        ret = -16109 /* SIG_VERIFY_E */;
     }
 
     mp_clear(&r);
@@ -26150,7 +26156,7 @@ static int crypto_ecc_sign(const byte *key, uint32_t keySz,
     if (key == NULL || hash == NULL || sig == NULL || sigSz == NULL ||
         curveSz == 0 || hashSz == 0 || keySz < curveSz || *sigSz < (curveSz*2))
     {
-        return BAD_FUNC_ARG;
+        return -16110 /* BAD_FUNC_ARG */;
     }
 
     /* Initialize signature result */
@@ -26159,26 +26165,26 @@ static int crypto_ecc_sign(const byte *key, uint32_t keySz,
     /* Setup the ECC key */
     ret = wc_ecc_init(&ecc);
     if (ret < 0) {
-        return ret;
+        return -16111;
     }
 
     ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
     if (ret != MP_OKAY) {
         wc_ecc_free(&ecc);
-        return ret;
+        return -16112;
     }
 
     /* Setup the signature r/s variables */
     ret = mp_init(&r);
     if (ret != MP_OKAY) {
         wc_ecc_free(&ecc);
-        return ret;
+        return -16113;
     }
     ret = mp_init(&s);
     if (ret != MP_OKAY) {
         mp_clear(&r);
         wc_ecc_free(&ecc);
-        return ret;
+        return -16114;
     }
 
     /* Import private key "k" */
@@ -26188,6 +26194,8 @@ static int crypto_ecc_sign(const byte *key, uint32_t keySz,
         &ecc,
         curveId     /* ECC Curve Id */
     );
+    if (ret < 0)
+        ret = -16115;
 
     if (ret == 0) {
         do {
@@ -26205,6 +26213,8 @@ static int crypto_ecc_sign(const byte *key, uint32_t keySz,
     #ifdef DEBUG_WOLFSSL
         printf("ECC non-block sign: %d times\n", count);
     #endif
+        if (ret < 0)
+            ret = -16116;
     }
 
     if (ret == 0) {
@@ -26245,28 +26255,40 @@ static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
     ret = wc_ecc_init(&keyA);
     if (ret == 0) {
         ret = wc_ecc_init(&keyB);
+        if (ret < 0)
+            ret = -16117;
     }
     if (ret == 0) {
         ret = wc_ecc_set_nonblock(&keyA, &nbCtxA);
+        if (ret < 0)
+            ret = -16118;
     }
     if (ret == 0) {
         ret = wc_ecc_set_nonblock(&keyB, &nbCtxB);
+        if (ret < 0)
+            ret = -16119;
     }
     if (ret == 0) {
         do {
             ret = wc_ecc_make_key_ex(rng, curveSz, &keyA, curveId);
             count++;
         } while (ret == FP_WOULDBLOCK);
+        if (ret < 0)
+            ret = -16120;
     }
 #ifdef DEBUG_WOLFSSL
     fprintf(stderr, "ECC non-block key gen: %d times\n", count);
 #endif
     if (ret == 0) {
         ret = wc_ecc_check_key(&keyA);
+        if (ret < 0)
+            ret = -16121;
     }
     if (ret == 0) {
         ret = wc_ecc_import_unsigned(&keyB, pubKey, pubKey + curveSz,
                                      privKey, curveId);
+        if (ret < 0)
+            ret = -16122;
     }
     count = 0;
     if (ret == 0) {
@@ -26274,6 +26296,8 @@ static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
             ret = wc_ecc_shared_secret(&keyA, &keyB, secretA, &secretSzA);
             count++;
         } while (ret == FP_WOULDBLOCK);
+        if (ret < 0)
+            ret = -16123;
     }
 #ifdef DEBUG_WOLFSSL
     fprintf(stderr, "ECC non-block shared secret: %d times\n", count);
@@ -26282,12 +26306,16 @@ static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
         do {
             ret = wc_ecc_shared_secret(&keyB, &keyA, secretB, &secretSzB);
         } while (ret == FP_WOULDBLOCK);
+        if (ret < 0)
+            ret = -16124;
     }
     if (ret == 0) {
         if (secretSzA != secretSzB ||
             XMEMCMP(secretA, secretB, secretSzA) != 0) {
             ret = -1;
         }
+        if (ret < 0)
+            ret = -16125;
     }
 
     wc_ecc_free(&keyA);
@@ -26313,7 +26341,7 @@ static int ecc_test_nonblock_ecdsa(int curveId, word32 curveSz,
 
     sig = (byte*)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
     if (sig == NULL) {
-        ret = -1;
+        ret = -16126;
     }
     if (ret == 0) {
         /* Sign hash using private key */
@@ -26591,6 +26619,7 @@ done:
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
+#if ((! defined(HAVE_FIPS)) || FIPS_VERSION_GE(5,3))
 static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -26604,11 +26633,13 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
 #endif
     ecEncCtx* aCtx = NULL;
     ecEncCtx* bCtx = NULL;
-    const byte salt[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-        15};
-    int ret = 0, aRet = -1, bRet = -1;
-    const char* message = "Hello wolfSSL!";
-    word32 plaintextLen = sizeof(message), encryptLen = 128, decryptLen = 128;
+    static const byte salt[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+                                  14, 15};
+    int ret = 0;
+    static const char message[] = "Hello wolfSSL!";
+    word32 plaintextLen;
+    word32 encryptLen = 128;
+    word32 decryptLen = 128;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     plaintext = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -26616,10 +26647,17 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     decrypted = XMALLOC(128, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    ret = aRet = wc_ecc_init(a);
+    wc_ecc_free(a);
+    wc_ecc_free(b);
 
-    if (ret == 0)
-        ret = bRet = wc_ecc_init(b);
+    ret = wc_ecc_init(a);
+    if (ret != 0)
+        ret = -10480;
+    if (ret == 0) {
+        ret = wc_ecc_init(b);
+        if (ret != 0)
+            ret = -10481;
+    }
 
     if (ret == 0)
         ret = wc_ecc_make_key(rng, 32, a);
@@ -26632,54 +26670,59 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
         aCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
 
         if (aCtx == NULL)
-            ret = -1;
+            ret = -10470;
     }
 
     if (ret == 0) {
         bCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
 
         if (bCtx == NULL)
-            ret = -1;
+            ret = -10471;
     }
 
     /* set salt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_ctx_set_kdf_salt(aCtx, salt, sizeof(salt));
-
-    if (ret == 0)
-        ret = wc_ecc_ctx_set_kdf_salt(bCtx, salt, sizeof(salt));
-
-    XMEMCPY(plaintext, message, XSTRLEN(message));
-
-    while (plaintextLen % AES_BLOCK_SIZE != 0) {
-        plaintextLen++;
+        if (ret != 0)
+            ret = 10472;
     }
 
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_kdf_salt(bCtx, salt, sizeof(salt));
+        if (ret != 0)
+            ret = 10473;
+    }
+
+    XMEMSET(plaintext, 0, 128);
+    XSTRLCPY((char *)plaintext, message, sizeof plaintext);
+    plaintextLen = (((word32)XSTRLEN(message) + AES_BLOCK_SIZE - 1) /
+                    AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+
     /* encrypt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_encrypt(a, b, plaintext, plaintextLen, encrypted,
             &encryptLen, aCtx);
+        if (ret != 0)
+            ret = -10474;
+    }
 
     /* decrypt */
-    if (ret == 0)
+    if (ret == 0) {
         ret = wc_ecc_decrypt(b, a, encrypted, encryptLen, decrypted,
             &decryptLen, bCtx);
+        if (ret != 0)
+            ret = -10475;
+    }
 
     /* compare */
-    if (ret == 0 && XMEMCMP(decrypted, (byte*)message, sizeof(message)) != 0)
-        ret = -1;
+    if (ret == 0 && XMEMCMP(decrypted, plaintext, plaintextLen) != 0)
+        ret = -10476;
 
-    if (aRet == 0)
-        wc_ecc_free(a);
+    wc_ecc_free(a);
+    wc_ecc_free(b);
 
-    if (bRet == 0)
-        wc_ecc_free(b);
-
-    if (aCtx != NULL)
-        wc_ecc_ctx_free(aCtx);
-
-    if (bCtx != NULL)
-        wc_ecc_ctx_free(bCtx);
+    wc_ecc_ctx_free(aCtx);
+    wc_ecc_ctx_free(bCtx);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(plaintext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -26689,6 +26732,7 @@ static int ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
 
     return ret;
 }
+#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 /* ecc_encrypt_e2e_test() uses wc_ecc_ctx_set_algo(), which was added in
  * wolfFIPS 5.3.
@@ -27317,6 +27361,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
         }
     }
 #endif
+#endif /* !NO_AES && WOLFSSL_AES_COUNTER */
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (ret == 0) {
         ret = ecc_ctx_kdf_salt_test(&rng, userA, userB);
     }
