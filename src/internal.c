@@ -6630,6 +6630,8 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     int ret = 0;
 
+    WOLFSSL_ENTER("ReinitSSL");
+
     /* arrays */
     if (!writeDup && ssl->arrays == NULL) {
         ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,

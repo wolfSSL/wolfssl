@@ -4367,8 +4367,10 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
             ssl->options.sentNotify = 1;  /* don't send close_notify twice */
-            if (ssl->options.closeNotify)
+            if (ssl->options.closeNotify) {
                 ret = WOLFSSL_SUCCESS;
+                ssl->options.shutdownDone = 1;
+            }
             else {
                 ret = WOLFSSL_SHUTDOWN_NOT_DONE;
                 WOLFSSL_LEAVE("SSL_shutdown()", ret);
@@ -14850,11 +14852,24 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         ret = WOLFSSL_FAILURE;
     }
 
-
-    if (ret == WOLFSSL_SUCCESS &&
-            wolfSSL_DupSession(session, ssl->session, 0) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Session duplicate failed");
-        ret = WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS) {
+#ifdef HAVE_STUNNEL
+        /* stunnel depends on the ex_data not being duplicated. Copy OpenSSL
+         * behaviour for now. */
+        if (session->type != WOLFSSL_SESSION_TYPE_CACHE) {
+            if (wolfSSL_SESSION_up_ref(session) == WOLFSSL_SUCCESS) {
+                wolfSSL_SESSION_free(ssl->session);
+                ssl->session = session;
+            }
+            else
+                ret = WOLFSSL_FAILURE;
+        }
+        else
+#endif
+        {
+            ret = wolfSSL_DupSession(session, ssl->session, 0);
+            WOLFSSL_MSG("Session duplicate failed");
+        }
     }
 
     /* Let's copy over the altSessionID for local cache purposes */
@@ -21055,7 +21070,7 @@ int wolfSSL_get_shutdown(const WOLFSSL* ssl)
 
     if (ssl) {
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-        if (ssl->options.handShakeState == NULL_STATE) {
+        if (ssl->options.shutdownDone) {
             /* The SSL object was possibly cleared with wolfSSL_clear after
              * a successful shutdown. Simulate a response for a full
              * bidirectional shutdown. */
@@ -21073,6 +21088,8 @@ int wolfSSL_get_shutdown(const WOLFSSL* ssl)
         }
 
     }
+
+    WOLFSSL_LEAVE("wolfSSL_get_shutdown", isShutdown);
     return isShutdown;
 }
 
