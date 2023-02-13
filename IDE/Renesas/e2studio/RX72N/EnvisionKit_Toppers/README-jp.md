@@ -32,7 +32,7 @@
 
  # 2. TOPPERSライブラリーのビルド  
  2-1.Toppersライブラリーのビルドの為、[https://www.toppers.jp/asp-d-download.html] より[asp-1.9.3 Renesas BSP 適用version]をダウンロードし[/wolfssl/IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/]に解凍します   
- 2-2.Toppersライブラリーのビルドの為、[https://www.toppers.jp/cfg-download.html]　より[コンフィギュレータ Release 1.9.6（Windows用バイナリ）]をダウンロードし[1.5]で解凍した[asp]ディレクトリに[cfg/cfg]ディレクトリを作成し中に[cfg.exe]として解凍します  
+ 2-2.Toppersライブラリーのビルドの為、[https://www.toppers.jp/cfg-download.html] より[コンフィギュレータ Release 1.9.6（Windows用バイナリ）]をダウンロードし[1.5]で解凍した[asp]ディレクトリに[cfg/cfg]ディレクトリを作成し中に[cfg.exe]として解凍します  
  2-3.Patch適用の為、以下に示すShellスクリプトを実行します  
    (EDMAC使用に必要なファイルをコピーします)
  ``` 
