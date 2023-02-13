@@ -38,7 +38,7 @@ This demo client and server run on "Toppers OS" and Renesas "RX72N EnvisionKit" 
   
   2-1.To build the Toppers library, download [asp-1.9.3 Renesas BSP version] from [https://www.toppers.jp/asp-d-download.html] and download [/wolfssl/ IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/]
   
-  2-2.To build the Toppers library, download [Configurator Release 1.9.6 (binary for Windows)] from [https://www.toppers.jp/cfg-download.html] and unzip it with [1.5] Create a [cfg/cfg] directory in the [asp] directory and extract it as [cfg.exe] inside
+  2-2.To build the Toppers library, download [Configurator Release 1.9.6 (binary for Windows)] from [https://www.toppers.jp/cfg-download.html] and unzip it with [2.1] Create a [cfg/cfg] directory in the [asp] directory and extract it as [cfg.exe] inside
   
   2-3.Execute the shell script shown below to apply the patch.
     (Copy the files necessary for using EDMAC)
