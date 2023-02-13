@@ -5149,13 +5149,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     opts->return_code = TEST_FAIL;
     cbf = opts->callbacks;
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (cbf != NULL && cbf->ctx) {
         ctx = cbf->ctx;
         sharedCtx = 1;
     }
     else
-#endif
     {
         WOLFSSL_METHOD* method = NULL;
         if (cbf != NULL && cbf->method != NULL) {
