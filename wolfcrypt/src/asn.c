@@ -10496,7 +10496,9 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dsaKeyASN_Length);
             GetASN_Int8Bit(&dataASN[DSAKEYASN_IDX_VER], &version);
             for (i = 0; i < DSA_INTS; i++) {
-                GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_P + i], GetDsaInt(key, i));
+                mp_int* n = GetDsaInt(key, i);
+                mp_clear(n);
+                GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_P + i], n);
             }
 
             /* Try simple OCTET_STRING form. */

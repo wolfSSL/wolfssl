@@ -44698,8 +44698,8 @@ static int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     AssertIntEQ(SHA1_Final(hash,&sha), WOLFSSL_SUCCESS);
 
     /* Initialize pkey with der format dsa key */
-    AssertNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &pkey,
-                &dsaKeyDer ,(long)dsaKeySz));
+    AssertNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &pkey, &dsaKeyDer,
+        (long)dsaKeySz));
 
     /* Test wolfSSL_EVP_PKEY_get1_DSA */
     /* Should Fail: NULL argument */
@@ -62379,7 +62379,7 @@ void ApiTest_PrintTestCases(void)
 {
     int i;
 
-    printf("All Test Cases:");
+    printf("All Test Cases:\n");
     for (i = 0; i < TEST_CASE_CNT; i++) {
         printf("%3d: %s\n", i + 1, testCases[i].name);
     }
@@ -62423,7 +62423,7 @@ int ApiTest_RunName(char* name)
     }
 
     printf("Test case name not found: %s\n", name);
-    printf("Use -list to see all test case names.\n");
+    printf("Use --list to see all test case names.\n");
     return BAD_FUNC_ARG;
 }
 
