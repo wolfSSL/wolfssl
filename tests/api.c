@@ -39705,6 +39705,14 @@ static int test_wolfSSL_CMAC(void)
     AssertIntEQ(outLen, AES_BLOCK_SIZE);
     CMAC_CTX_free(cmacCtx);
 
+    /* give a key too small for the cipher, verify we get failure */
+    cmacCtx = NULL;
+    AssertNotNull(cmacCtx = CMAC_CTX_new());
+    AssertNotNull(CMAC_CTX_get0_cipher_ctx(cmacCtx));
+    AssertIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_192_cbc(),
+        NULL), SSL_FAILURE);
+    CMAC_CTX_free(cmacCtx);
+
     res = TEST_RES_CHECK(1);
 #endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
     return res;

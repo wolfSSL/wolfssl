@@ -28568,6 +28568,13 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keyLen,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
+        /* Check input keyLen matches input cipher. */
+        if ((int) keyLen != wolfSSL_EVP_Cipher_key_length(cipher)) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
         ret = wc_InitCmac((Cmac*)ctx->internal, (const byte*)key,
                           (word32)keyLen, WC_CMAC_AES, NULL);
         if (ret != 0) {
