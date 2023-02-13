@@ -1817,7 +1817,7 @@ if(WOLFSSL_USER_SETTINGS)
         -DWOLFSSL_USER_SETTINGS_ASM")
 
     # Create user_settings_asm.h for use in assembly files (e.g. .S files).
-    execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+    execute_process(COMMAND $ENV{SHELL} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
                             "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
                     RESULT_VARIABLE USER_SETTINGS_ASM_RET)
     if (NOT USER_SETTINGS_ASM_RET EQUAL 0)
