@@ -77,7 +77,8 @@ $ pwd
 [個別インストール環境]/wolfssl/IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers/WolfSSLDemo
  patch --binary -p0 < ./bsp.patch
 ```
-
+Note:  
+スマートコンフィギュレーターを使用して[r_bsp],[r_cmt_rx]のコードを生成した場合、パッチを再適用する必要があります。  
 
   
  3-8.[3-1.]終了後プルダウンメニューから[プロジェクトのビルド(B)]キーを選択しビルド   
