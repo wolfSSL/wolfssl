@@ -65925,6 +65925,103 @@ static int test_wolfSSL_dtls13_null_cipher(void)
     return TEST_SKIPPED;
 }
 #endif
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
+    !defined(SINGLE_THREADED)
+
+static int test_dtls_msg_get_connected_port(int fd, word16 *port)
+{
+    SOCKADDR_S peer;
+    XSOCKLENT len;
+    int ret;
+
+    XMEMSET((byte*)&peer, 0, sizeof(peer));
+    len = sizeof(peer);
+    ret = getpeername(fd,  (SOCKADDR*)&peer, &len);
+    if (ret != 0 || len > sizeof(peer))
+        return -1;
+    switch (peer.ss_family) {
+#ifdef WOLFSSL_IPV6
+    case WOLFSSL_IP6: {
+        *port = ntohs(((SOCKADDR_IN6*)&peer)->sin6_port);
+        break;
+    }
+#endif /* WOLFSSL_IPV6 */
+    case WOLFSSL_IP4:
+        *port = ntohs(((SOCKADDR_IN*)&peer)->sin_port);
+        break;
+    default:
+        return -1;
+    }
+    return 0;
+}
+
+static int test_dtls_msg_from_other_peer_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
+{
+    char buf[1] = {'t'};
+    SOCKADDR_IN_T addr;
+    int sock_fd;
+    word16 port;
+    int err;
+
+    (void)ssl;
+    (void)ctx;
+
+    err = test_dtls_msg_get_connected_port(wolfSSL_get_fd(ssl), &port);
+    if (err != 0)
+        return -1;
+
+    sock_fd = socket(AF_INET_V, SOCK_DGRAM, 0);
+    if (sock_fd == -1)
+        return -1;
+    build_addr(&addr, wolfSSLIP, port, 1, 0);
+
+    /* send a packet to the server. Being another socket, the kernel will ensure
+     * the source port will be different. */
+    err = (int)sendto(sock_fd, buf, sizeof(buf), 0, (SOCKADDR*)&addr,
+        sizeof(addr));
+
+    close(sock_fd);
+    if (err == -1)
+        return -1;
+
+    return 0;
+}
+
+/* setup a SSL session but just after the handshake send a packet to the server
+ * with a source address different than the one of the connected client. The I/O
+ * callback EmbedRecvFrom should just ignore the packet. Sending of the packet
+ * is done in test_dtls_msg_from_other_peer_cb */
+static int test_dtls_msg_from_other_peer(void)
+{
+    callback_functions client_cbs;
+    callback_functions server_cbs;
+
+    XMEMSET((byte*)&client_cbs, 0, sizeof(client_cbs));
+    XMEMSET((byte*)&server_cbs, 0, sizeof(server_cbs));
+
+    client_cbs.method = wolfDTLSv1_2_client_method;
+    server_cbs.method = wolfDTLSv1_2_server_method;
+    client_cbs.doUdp = 1;
+    server_cbs.doUdp = 1;
+
+    test_wolfSSL_client_server_nofail_ex(&client_cbs, &server_cbs,
+        test_dtls_msg_from_other_peer_cb);
+
+    if (client_cbs.return_code != WOLFSSL_SUCCESS ||
+        server_cbs.return_code != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_dtls_msg_from_other_peer(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_TLS12) &&          \
+        *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&  \
+        *  !defined(SINGLE_THREADED) */
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -66963,6 +67060,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_override_alt_cert_chain),
     TEST_DECL(test_dtls13_bad_epoch_ch),
     TEST_DECL(test_wolfSSL_dtls13_null_cipher),
+    TEST_DECL(test_dtls_msg_from_other_peer),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
