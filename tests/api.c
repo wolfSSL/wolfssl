@@ -5435,6 +5435,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         input[idx] = '\0';
         fprintf(stderr, "Client message: %s\n", input);
     }
+    else if (idx < 0) {
+        goto done;
+    }
 
     if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg)) {
         /*err_sys("SSL_write failed");*/
