@@ -5583,6 +5583,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     byte          binder[WC_MAX_DIGEST_SIZE];
     word32        binderLen;
 
+    #ifdef NO_PSK
+        (void) suite; /* to avoid unused var warning when not used */
+    #endif
+
     WOLFSSL_ENTER("DoPreSharedKeys");
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
