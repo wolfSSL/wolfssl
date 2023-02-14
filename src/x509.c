@@ -12372,9 +12372,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_new_index");
 
-    WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(idx, arg, a, b, c);
-
-    return wolfssl_get_ex_new_index(CRYPTO_EX_INDEX_X509);
+    return wolfssl_get_ex_new_index(CRYPTO_EX_INDEX_X509, idx, arg, a, b, c);
 }
 #endif
 

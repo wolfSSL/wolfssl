@@ -69,6 +69,8 @@
  *    When only one PSK ID is used and only one call to the PSK callback can
  *    be made per connect.
  *    You cannot use wc_psk_client_cs_callback type callback on client.
+ * WOLFSSL_PRIORITIZE_PSK
+ *    During a handshake, prioritize PSK order instead of ciphersuite order.
  * WOLFSSL_CHECK_ALERT_ON_ERR
  *    Check for alerts during the handshake in the event of an error.
  * WOLFSSL_NO_CLIENT_CERT_ERROR
@@ -3245,7 +3247,7 @@ exit_buildmsg:
  * suite  Cipher suite to look for.
  * returns 1 when suite is found in SSL/TLS object's list and 0 otherwise.
  */
-static int FindSuiteSSL(WOLFSSL* ssl, byte* suite)
+static int FindSuiteSSL(const WOLFSSL* ssl, byte* suite)
 {
     word16 i;
     const Suites* suites = WOLFSSL_SUITES(ssl);
@@ -3544,12 +3546,18 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
 #ifdef HAVE_SESSION_TICKET
     if (psk->resumption) {
         if (clientHello) {
+            suite[0] = psk->cipherSuite0;
+            suite[1] = psk->cipherSuite;
+
             /* Ensure cipher suite is supported or changed suite to one with
              * the same MAC algorithm. */
             if (!FindSuiteSSL(ssl, suite)) {
                 WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
             }
+
+            ssl->options.cipherSuite0 = suite[0];
+            ssl->options.cipherSuite = suite[1];
 
             /* Setting mac for binder and keys for deriving EarlyData. */
             ret = SetCipherSpecs(ssl);
@@ -5481,6 +5489,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     byte        cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
     Arrays*     sa = ssl->arrays;
 
+    (void)suite;
+
     if (ssl->options.server_psk_tls13_cb != NULL) {
          sa->psk_keySz = ssl->options.server_psk_tls13_cb(ssl,
              sa->client_identity, sa->psk_key, MAX_PSK_KEY_LEN, &cipherName);
@@ -5499,11 +5509,12 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
     }
     if (found) {
         if (sa->psk_keySz > MAX_PSK_KEY_LEN) {
+            WOLFSSL_MSG("Key len too long in FindPsk()");
             ret = PSK_KEY_ERROR;
             WOLFSSL_ERROR_VERBOSE(ret);
         }
         if (ret == 0) {
-        #ifndef WOLFSSL_PSK_ONE_ID
+        #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
             /* Check whether PSK ciphersuite is in SSL. */
             found = (suite[0] == cipherSuite0) && (suite[1] == cipherSuite);
         #else
@@ -5525,7 +5536,7 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
             ssl->options.verifyPeer = 0;
 
             /* PSK age is always zero. */
-            if (psk->ticketAge != ssl->session->ticketAdd) {
+            if (psk->ticketAge != 0) {
                 ret = PSK_KEY_ERROR;
                 WOLFSSL_ERROR_VERBOSE(ret);
             }
@@ -5581,8 +5592,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
     }
 
     /* Look through all client's pre-shared keys for a match. */
-    current = (PreSharedKey*)ext->data;
-    while (current != NULL) {
+    for (current = (PreSharedKey*)ext->data; current != NULL;
+            current = current->next) {
     #ifndef NO_PSK
         if (current->identityLen > MAX_PSK_ID_LEN) {
             return BUFFER_ERROR;
@@ -5614,7 +5625,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             diff -= ssl->session->ticketSeen;
             if (diff > (sword64)ssl->timeout * 1000 ||
                 diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
-                current = current->next;
                 continue;
             }
         #else
@@ -5628,7 +5638,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             diff -= ssl->session->ticketSeen;
             if (diff > (sword64)ssl->timeout * 1000 ||
                 diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
-                current = current->next;
                 continue;
             }
         #endif
@@ -5638,30 +5647,24 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             /* Check session and ticket age timeout.
              * Allow +/- 1000 milliseconds on ticket age.
              */
-            if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000) {
-                current = current->next;
+            if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000)
                 continue;
-            }
 
-        #ifndef WOLFSSL_PSK_ONE_ID
+        #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
             /* Check whether resumption is possible based on suites in SSL and
              * ciphersuite in ticket.
              */
             if ((suite[0] != ssl->session->cipherSuite0) ||
-                                       (suite[1] != ssl->session->cipherSuite)) {
-                current = current->next;
+                                       (suite[1] != ssl->session->cipherSuite))
                 continue;
-            }
         #else
             {
                 byte s[2] = {
                     ssl->session->cipherSuite0,
                     ssl->session->cipherSuite,
                 };
-                if (!FindSuiteSSL(ssl, s)) {
-                    current = current->next;
+                if (!FindSuiteSSL(ssl, s))
                     continue;
-                }
             }
         #endif
 
@@ -5719,7 +5722,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         else
     #endif
         {
-            current = current->next;
             continue;
         }
 
@@ -5838,14 +5840,17 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen,
                 suites->suites + i, usingPSK, &first);
         if (ret != 0) {
+            WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
             return ret;
         }
     }
 #else
     ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
         &first);
-    if (ret != 0)
+    if (ret != 0) {
+        WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
         return ret;
+    }
 #endif
 
     if (*usingPSK) {

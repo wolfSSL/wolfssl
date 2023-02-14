@@ -6630,6 +6630,8 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     int ret = 0;
 
+    WOLFSSL_ENTER("ReinitSSL");
+
     /* arrays */
     if (!writeDup && ssl->arrays == NULL) {
         ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
@@ -6685,6 +6687,8 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     }
     (void)ctx;
+
+    ssl->options.shutdownDone = 0;
 
     return ret;
 }
@@ -12314,7 +12318,7 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     } else if (ret == ASN_NO_SIGNER_E) {
         alertWhy = unknown_ca;
     }
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+#ifdef OPENSSL_EXTRA
     else if (ret == CRL_CERT_REVOKED) {
         alertWhy = certificate_revoked;
     }
@@ -22778,6 +22782,8 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 
     WOLFSSL_ENTER("SendAlert");
 
+    WOLFSSL_MSG_EX("SendAlert: %d %s", type, AlertTypeToString(type));
+
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
         ret = !ssl->quic.method->send_alert(ssl, ssl->quic.enc_level_write, (uint8_t)type);
@@ -23162,7 +23168,11 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "OCSP Cert revoked";
 
     case CRL_CERT_REVOKED:
+#ifdef OPENSSL_EXTRA
+        return "certificate revoked";
+#else
         return "CRL Cert revoked";
+#endif
 
     case CRL_MISSING:
         return "CRL missing, not loaded";
@@ -23428,7 +23438,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "unable to get local issuer certificate";
 #endif
     case UNSUPPORTED_PROTO_VERSION:
-        #ifdef OPENSSL_ALL
+        #ifdef OPENSSL_EXTRA
         return "WRONG_SSL_VERSION";
         #else
         return "bad/unsupported protocol version";
@@ -24354,8 +24364,15 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
         len = (unsigned long)XSTRLEN(name);
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
-        if ((XSTRNCMP(name, cipher_names[i].name, len) == 0) &&
-            (cipher_names[i].name[len] == 0)) {
+        int found = (XSTRNCMP(name, cipher_names[i].name, len) == 0) &&
+                    (cipher_names[i].name[len] == 0);
+#ifndef NO_ERROR_STRINGS
+        if (!found)
+            found = (XSTRNCMP(name, cipher_names[i].name_iana, len) == 0) &&
+                    (cipher_names[i].name_iana[len] == 0);
+#endif
+
+        if (found) {
             *cipherSuite0 = cipher_names[i].cipherSuite0;
             *cipherSuite  = cipher_names[i].cipherSuite;
             *flags = cipher_names[i].flags;
@@ -24385,23 +24402,25 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 {
     int       ret              = 0;
     int       idx              = 0;
-    int       haveRSAsig       = 0;
-    int       haveECDSAsig     = 0;
-    int       haveFalconSig    = 0;
-    int       haveDilithiumSig = 0;
-    int       haveAnon         = 0;
+    word16    haveRSAsig       = 0;
+    word16    haveECDSAsig     = 0;
+    word16    haveFalconSig    = 0;
+    word16    haveDilithiumSig = 0;
+    word16    haveAnon         = 0;
+    word16    haveRSA          = 0;
 #ifdef OPENSSL_EXTRA
-    int       haveRSA          = 0;
-    int       haveDH           = 0;
-    int       haveECC          = 0;
-    int       haveStaticRSA    = 1; /* allowed by default if compiled in */
-    int       haveStaticECC    = 0;
-    int       haveNull         = 1; /* allowed by default if compiled in */
+    word16    haveDH           = 0;
+    word16    haveECC          = 0;
+    word16    haveStaticRSA    = 1; /* allowed by default if compiled in */
+    word16    haveStaticECC    = 0;
+    word16    haveNull         = 1; /* allowed by default if compiled in */
     int       callInitSuites   = 0;
-    int       havePSK          = 0;
+    word16    havePSK          = 0;
 #endif
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
+
+    (void)haveRSA;
 
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("SetCipherList parameter error");
@@ -24410,15 +24429,18 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
     if (next[0] == 0 || XSTRCMP(next, "ALL") == 0 ||
         XSTRCMP(next, "DEFAULT") == 0 || XSTRCMP(next, "HIGH") == 0) {
-        /* Add all ciphersuites except anonymous and null ciphers */
+        /* Add all ciphersuites except anonymous and null ciphers. Prefer RSA */
+#ifndef NO_RSA
+        haveRSA = 1;
+#endif
         InitSuites(suites, ctx->method->version,
 #ifndef NO_CERTS
                 ctx->privateKeySz,
 #else
                 0,
 #endif
-                1, 1, 1, 1,
-                   1, 1, 1, 1, 1, 0, 0, ctx->method->side);
+                haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 1, 1, 0, 0,
+                ctx->method->side);
         return 1; /* wolfSSL default */
     }
 
@@ -24428,7 +24450,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         int    i;
         word32 length;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-        int    allowing = 1;
+        word16 allowing = 1;
     #endif
 
         next = XSTRSTR(next, ":");
@@ -24738,12 +24760,12 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             suites->setSuites = 0; /* Force InitSuites */
             suites->hashSigAlgoSz = 0; /* Force InitSuitesHashSigAlgo call
                                         * inside InitSuites */
-            InitSuites(suites, ctx->method->version, keySz, (word16)haveRSA,
-                       (word16)havePSK, (word16)haveDH, (word16)haveECDSAsig,
-                       (word16)haveECC, (word16)haveStaticRSA,
-                       (word16)haveStaticECC, (word16)haveFalconSig,
-                       (word16)haveDilithiumSig, (word16)haveAnon,
-                       (word16)haveNull, ctx->method->side);
+            InitSuites(suites, ctx->method->version, keySz, haveRSA,
+                       havePSK, haveDH, haveECDSAsig,
+                       haveECC, haveStaticRSA,
+                       haveStaticECC, haveFalconSig,
+                       haveDilithiumSig, haveAnon,
+                       haveNull, ctx->method->side);
             /* Restore user ciphers ahead of defaults */
             XMEMMOVE(suites->suites + idx, suites->suites,
                     min(suites->suiteSz, WOLFSSL_MAX_SUITE_SZ-idx));
@@ -34440,7 +34462,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word16          inLen;
 
         WOLFSSL_START(WC_FUNC_TICKET_DO);
-        WOLFSSL_ENTER("DoClientTicket");
+        WOLFSSL_ENTER("DoDecryptTicket");
 
         if (len > SESSION_TICKET_LEN ||
             len < (word32)(sizeof(InternalTicket) + WOLFSSL_TICKET_FIXED_SZ)) {
@@ -34508,8 +34530,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoClientTicket");
 
         ret = DoDecryptTicket(ssl, input, len, &it);
-        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE)
+        if (ret != WOLFSSL_TICKET_RET_OK && ret != WOLFSSL_TICKET_RET_CREATE) {
+            WOLFSSL_LEAVE("DoClientTicket", ret);
             return ret;
+        }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */
         wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
@@ -34594,6 +34618,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
                 if (it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
                     WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
+                    WOLFSSL_LEAVE("DoClientTicket", BAD_TICKET_ENCRYPT);
                     return BAD_TICKET_ENCRYPT;
                 }
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \

@@ -4220,6 +4220,7 @@ typedef struct Options {
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
+    word16            shutdownDone:1;     /* we've completed a shutdown */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
@@ -6081,7 +6082,25 @@ WOLFSSL_LOCAL int GetX509Error(int e);
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
     defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || \
     defined(WOLFSSL_WPAS_SMALL)
-WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index);
+typedef struct CRYPTO_EX_cb_ctx {
+    long ctx_l;
+    void *ctx_ptr;
+    WOLFSSL_CRYPTO_EX_new* new_func;
+    WOLFSSL_CRYPTO_EX_free* free_func;
+    WOLFSSL_CRYPTO_EX_dup* dup_func;
+    struct CRYPTO_EX_cb_ctx* next;
+} CRYPTO_EX_cb_ctx;
+extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
+WOLFSSL_LOCAL void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
+WOLFSSL_LOCAL void crypto_ex_cb_setup_new_data(void *new_obj,
+        CRYPTO_EX_cb_ctx* cb_ctx, WOLFSSL_CRYPTO_EX_DATA* ex_data);
+WOLFSSL_LOCAL void crypto_ex_cb_free_data(void *obj, CRYPTO_EX_cb_ctx* cb_ctx,
+        WOLFSSL_CRYPTO_EX_DATA* ex_data);
+WOLFSSL_LOCAL int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
+        WOLFSSL_CRYPTO_EX_DATA *out, CRYPTO_EX_cb_ctx* cb_ctx);
+WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index, long ctx_l,
+        void* ctx_ptr, WOLFSSL_CRYPTO_EX_new* new_func,
+        WOLFSSL_CRYPTO_EX_dup* dup_func, WOLFSSL_CRYPTO_EX_free* free_func);
 #endif
 
 WOLFSSL_LOCAL WC_RNG* wolfssl_get_global_rng(void);
