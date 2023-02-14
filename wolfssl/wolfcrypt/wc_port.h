@@ -175,10 +175,6 @@
                 /* definitions are in linuxkm/linuxkm_wc_port.h */
             #else
                 #define WOLFSSL_PTHREADS
-                #ifdef HAVE_PTHREAD_RWLOCK_T
-                    #undef WOLFSSL_USE_RWLOCK
-                    #define WOLFSSL_USE_RWLOCK
-                #endif
                 #include <pthread.h>
             #endif
         #endif
