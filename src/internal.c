@@ -19124,6 +19124,16 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         return ssl->error;
     }
 
+    /* If checking alert on error (allowSocketErr == 1) do not try and
+     * process alerts for async or ocsp non blocking */
+#if defined(WOLFSSL_CHECK_ALERT_ON_ERR) && \
+    (defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP))
+    if (allowSocketErr == 1 && \
+        (ssl->error == WC_PENDING_E || ssl->error == OCSP_WANT_READ)) {
+        return ssl->error;
+    }
+#endif
+
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
     /* process any pending DTLS messages - this flow can happen with async */
     if (ssl->dtls_rx_msg_list != NULL) {
