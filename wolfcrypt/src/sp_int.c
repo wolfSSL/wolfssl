@@ -618,7 +618,12 @@ This library provides single precision (SP) integer math functions.
     while (0)
 /* Index of highest bit set. */
 #define SP_ASM_HI_BIT_SET_IDX(va, vi)                    \
-    vi = _BitScanReverse64(va)
+    do {                                                 \
+        unsigned long idx;                               \
+        _BitScanReverse64(&idx, va);                     \
+        vi = idx;                                        \
+    }                                                    \
+    while (0)
 #endif
 
 #if !defined(WOLFSSL_SP_DIV_WORD_HALF) && (!defined(_MSC_VER) || \
