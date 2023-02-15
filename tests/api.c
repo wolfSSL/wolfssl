@@ -5290,10 +5290,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_certificate_file(ssl, svrCertFile,
+    if (wolfSSL_use_certificate_file(ssl, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server cert chain file, "
@@ -5301,10 +5301,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+    if (wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server key file, "
