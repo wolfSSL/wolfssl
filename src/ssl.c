@@ -31868,14 +31868,16 @@ void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
     return NULL;
 }
 
-int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
-                                void* c)
+int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
+                                 WOLFSSL_CRYPTO_EX_new* new_func,
+                                 WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                 WOLFSSL_CRYPTO_EX_free* free_func)
 {
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx, arg, a,
-            b, c);
+    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX, idx, arg,
+                                    new_func, dup_func, free_func);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
