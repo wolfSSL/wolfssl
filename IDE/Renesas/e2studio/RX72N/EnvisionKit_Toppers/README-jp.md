@@ -17,10 +17,10 @@
 |Toppers OS|1.9.3|
 |Toppers コンフィギュレータ|1.9.6|
 |Renesas BSP r_bsp|7.10|
-|Renesas BSP r_cmt_rx|5.10|
+|Renesas BSP r_cmt_rx|5.10|  
 <br>
 
-
+#上記バージョンの指定については、下記に示す通り指定バージョンに修正を加える為、バージョンを使用バージョンを限定しています  
 # 以下に環境構築手順を示します
  # 1.wolfSSLライブラリーのビルド
   本デモに必要なToppersライブラリー、wolfSSLライブラリーを作成します  
