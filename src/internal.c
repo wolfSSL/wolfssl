@@ -6691,6 +6691,8 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     (void)ctx;
 
     ssl->options.shutdownDone = 0;
+    if (ssl->session != NULL)
+        ssl->session->side = (byte)ssl->options.side;
 
     return ret;
 }
@@ -34652,8 +34654,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     /* Return 0 when check successful. <0 on failure. */
-    int DoClientTicketCheck(const PreSharedKey* psk, sword64 timeout,
-            const byte* suite)
+    int DoClientTicketCheck(const WOLFSSL* ssl, const PreSharedKey* psk,
+            sword64 timeout, const byte* suite)
     {
         word32 ticketAdd;
 #ifdef WOLFSSL_32BIT_MILLI_TIME
@@ -34702,13 +34704,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000)
             return -1;
 
-#ifndef WOLFSSL_PSK_ONE_ID
+#if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
         /* Check whether resumption is possible based on suites in SSL and
          * ciphersuite in ticket.
          */
+        (void)ssl;
         if (XMEMCMP(suite, psk->it->suite, SUITE_LEN) != 0)
             return -1;
 #else
+        (void)suite;
         if (!FindSuiteSSL(ssl, psk->it->suite))
             return -1;
 #endif

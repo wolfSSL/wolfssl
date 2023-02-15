@@ -15035,8 +15035,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
     else {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
-        WOLFSSL_MSG("Session is expired but return success for \
-                              OpenSSL compatibility");
+        WOLFSSL_MSG("Session is expired but return success for "
+                    "OpenSSL compatibility");
         ret = WOLFSSL_SUCCESS;
 #else
         ret = WOLFSSL_FAILURE;  /* session timed out */

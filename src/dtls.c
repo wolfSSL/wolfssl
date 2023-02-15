@@ -492,7 +492,7 @@ static void FindPskSuiteFromExt(const WOLFSSL* ssl, TLSX* extensions,
                         break;
                 }
                 if (ret == WOLFSSL_TICKET_RET_OK) {
-                    if (DoClientTicketCheck(current, ssl->timeout,
+                    if (DoClientTicketCheck(ssl, current, ssl->timeout,
                             suites->suites + i) != 0) {
                         continue;
                     }

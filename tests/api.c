@@ -62845,7 +62845,8 @@ static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) \
     && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_AESGCM) && \
     !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
-    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
 
 static WOLFSSL_CTX* test_TLS_13_ticket_different_ciphers_ctx = NULL;
 static WOLFSSL_SESSION* test_TLS_13_ticket_different_ciphers_session = NULL;

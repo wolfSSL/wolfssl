@@ -5651,8 +5651,8 @@ WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDecryptTicket(const WOLFSSL* ssl, const byte* input,
         word32 len, InternalTicket **it);
 /* Return 0 when check successful. <0 on failure. */
-WOLFSSL_LOCAL int DoClientTicketCheck(const PreSharedKey* psk, sword64 timeout,
-        const byte* suite);
+WOLFSSL_LOCAL int DoClientTicketCheck(const WOLFSSL* ssl,
+        const PreSharedKey* psk, sword64 timeout, const byte* suite);
 WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it);
 WOLFSSL_LOCAL void CleanupClientTickets(PreSharedKey* psk);
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
@@ -5892,9 +5892,10 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
     WOLFSSL_LOCAL sword64 TimeNowInMilliseconds(void);
 #endif
 
-    WOLFSSL_LOCAL int FindSuiteMac(WOLFSSL* ssl, byte* suite);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
+
+WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
 
 #ifndef NO_CERTS
     WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag,

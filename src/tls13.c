@@ -3242,14 +3242,14 @@ exit_buildmsg:
 
 #if !defined(NO_WOLFSSL_CLIENT) || (!defined(NO_WOLFSSL_SERVER) && \
     (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
-    defined(WOLFSSL_PSK_ONE_ID)) \
+    (defined(WOLFSSL_PSK_ONE_ID) || defined(WOLFSSL_PRIORITIZE_PSK)))
 /* Find the cipher suite in the suites set in the SSL.
  *
  * ssl    SSL/TLS object.
  * suite  Cipher suite to look for.
  * returns 1 when suite is found in SSL/TLS object's list and 0 otherwise.
  */
-static int FindSuiteSSL(const WOLFSSL* ssl, byte* suite)
+int FindSuiteSSL(const WOLFSSL* ssl, byte* suite)
 {
     word16 i;
     const Suites* suites = WOLFSSL_SUITES(ssl);
@@ -5676,10 +5676,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         #endif
 
         if (ret == WOLFSSL_TICKET_RET_OK) {
-            if (DoClientTicketCheck(current, ssl->timeout, suite) != 0) {
-                current = current->next;
+            if (DoClientTicketCheck(ssl, current, ssl->timeout, suite) != 0)
                 continue;
-            }
 
             DoClientTicketFinalize(ssl, current->it);
 
