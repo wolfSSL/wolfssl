@@ -24,7 +24,6 @@
 #ifndef WOLFSSL_CRYPTO_H_
 #define WOLFSSL_CRYPTO_H_
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/openssl/compat_types.h>
 
 typedef struct WOLFSSL_INIT_SETTINGS {

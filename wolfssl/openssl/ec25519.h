@@ -24,6 +24,8 @@
 #ifndef WOLFSSL_EC25519_H_
 #define WOLFSSL_EC25519_H_
 
+#include <wolfssl/openssl/compat_types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

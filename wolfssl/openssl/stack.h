@@ -24,6 +24,9 @@
 #ifndef WOLFSSL_STACK_H_
 #define WOLFSSL_STACK_H_
 
+#include <wolfssl/openssl/compat_types.h>
+#include <wolfssl/openssl/ssl.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif

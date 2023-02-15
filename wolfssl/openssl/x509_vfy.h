@@ -24,6 +24,7 @@
 #ifndef WOLFSSL_x509_vfy_H_
 #define WOLFSSL_x509_vfy_H_
 
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/openssl/x509v3.h>
 
 #ifdef __cplusplus

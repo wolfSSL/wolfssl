@@ -8717,6 +8717,25 @@ esac
 
 rm cyassl/options.h.bak
 
+SAVE_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -I$srcdir"
+for header in wolfssl/openssl/*.h
+do
+    AC_CHECK_HEADER([$header], [], [
+            AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
+        ], [
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+    #endif
+    
+    #ifndef WOLFSSL_USER_SETTINGS
+        #include <wolfssl/options.h>
+    #endif
+    ])
+done
+CFLAGS=$SAVE_CFLAGS
+
+
 if test "$silent" != "yes"; then
 
 # output config summary

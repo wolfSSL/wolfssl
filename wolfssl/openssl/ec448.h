@@ -24,6 +24,8 @@
 #ifndef WOLFSSL_EC448_H_
 #define WOLFSSL_EC448_H_
 
+#include <wolfssl/openssl/compat_types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

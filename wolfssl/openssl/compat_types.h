@@ -63,4 +63,6 @@ typedef WOLFSSL_ENGINE         ENGINE;
 typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
+
 #endif /* !WOLFSSL_OPENSSL_COMPAT_TYPES_H_ */
