@@ -12368,11 +12368,15 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
      || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)                   \
      || defined(HAVE_LIGHTY))
 
-int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
+int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
+                                  WOLFSSL_CRYPTO_EX_new* new_func,
+                                  WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                  WOLFSSL_CRYPTO_EX_free* free_func)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(CRYPTO_EX_INDEX_X509, idx, arg, a, b, c);
+    return wolfssl_get_ex_new_index(CRYPTO_EX_INDEX_X509, idx, arg,
+                                    new_func, dup_func, free_func);
 }
 #endif
 

@@ -1289,6 +1289,7 @@ typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
 #define WOLF_CRYPTO_EX_INDEX__COUNT          16
 
 #ifdef HAVE_EX_DATA
+
 /* Helper macro to log that input arguments should not be used */
 #define WOLFSSL_CRYPTO_EX_DATA_IGNORE_PARAMS(a1, a2, a3, a4, a5) \
     (void)(a1);                                                  \
@@ -2751,7 +2752,12 @@ WOLFSSL_API unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
                               const WOLFSSL_SESSION* sess);
 WOLFSSL_API long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* session);
 WOLFSSL_API long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION* session);
-WOLFSSL_API int  wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b, void* c);
+#ifdef HAVE_EX_DATA
+WOLFSSL_API int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
+    WOLFSSL_CRYPTO_EX_new* new_func,
+    WOLFSSL_CRYPTO_EX_dup* dup_func,
+    WOLFSSL_CRYPTO_EX_free* free_func);
+#endif
 
 
 /* extra ends */
@@ -4848,8 +4854,12 @@ WOLFSSL_API int wolfSSL_X509_set_ex_data_with_cleanup(
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || defined(HAVE_SECRET_CALLBACK)
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl);
-WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
-    void *b, void *c);
+#ifdef HAVE_EX_DATA
+WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
+    WOLFSSL_CRYPTO_EX_new* new_func,
+    WOLFSSL_CRYPTO_EX_dup* dup_func,
+    WOLFSSL_CRYPTO_EX_free* free_func);
+#endif
 WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
     const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
 
