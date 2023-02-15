@@ -20,7 +20,7 @@ This demo client and server run on "Toppers OS" and Renesas "RX72N EnvisionKit" 
 |Renesas BSP r_cmt_rx|5.10|
 <br>
 
-
+#The above version designations are limited to the versions used in order to make modifications to the designated versions as shown below.
 # Build libraries
   # 1. Build the wolfSSL library
    Create the Toppers library and wolfSSL library required for this demo
