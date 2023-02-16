@@ -3249,8 +3249,13 @@ struct WOLFSSL_CTX {
     unsigned int maxTicketTls13;  /* maximum number of tickets to send */
     #endif
     byte        noTicketTls13:1;  /* TLS 1.3 Server won't create new Ticket */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
+#ifdef HAVE_SUPPORTED_CURVES
+    byte        onlyPskDheKe:1;   /* Only use (EC)DHE with PSK */
 #endif
+#endif
+#endif /* WOLFSSL_TLS13 */
     byte        mutualAuth:1;     /* Mutual authentication required */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
@@ -4233,7 +4238,12 @@ typedef struct Options {
     word16            havePeerVerify:1;   /* and peer's cert verify */
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
     word16            usingAnon_cipher:1; /* are we using an anon cipher */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     word16            noPskDheKe:1;       /* Don't use (EC)DHE with PSK */
+#ifdef HAVE_SUPPORTED_CURVES
+    word16            onlyPskDheKe:1;     /* Only use (EC)DHE with PSK */
+#endif
+#endif
     word16            partialWrite:1;     /* only one msg per write call */
     word16            quietShutdown:1;    /* don't send close notify */
     word16            certOnly:1;         /* stop once we get cert */

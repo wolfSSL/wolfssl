@@ -19852,7 +19852,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.noPskDheKe = 0;
+        ssl->options.onlyPskDheKe = 0;
+    #endif
     #ifdef HAVE_SESSION_TICKET
         #ifdef WOLFSSL_TLS13
         ssl->options.ticketsSent = 0;

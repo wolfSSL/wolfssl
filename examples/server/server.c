@@ -948,10 +948,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 64 */
+                                                                        /* 65 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1135,10 +1138,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 65 */
         NULL,
     },
 #endif
@@ -1292,6 +1298,9 @@ static void Usage(void)
 #ifdef CAN_FORCE_CURVE
     printf("%s", msg[++msgId]);     /* force-curve */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    printf("%s", msg[++msgId]);     /* --onlyPskDheKe */
+#endif
     printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
@@ -1399,6 +1408,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DTLS_CID
         {"cid", 2, 263},
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef HAVE_SUPPORTED_CURVES
+        {"onlyPskDheKe", 2, 264},
+#endif /* HAVE_SUPPORTED_CURVES */
         { 0, 0, 0 }
     };
 #endif
@@ -1491,6 +1503,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
+#ifdef HAVE_SUPPORTED_CURVES
+    int onlyPskDheKe = 0;
+#endif
 #endif
     int updateKeysIVs = 0;
 #ifndef NO_CERTS
@@ -2258,6 +2273,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             break;
 #endif /* WOLFSSL_CID */
+        case 264:
+#ifdef HAVE_SUPPORTED_CURVES
+        #ifdef WOLFSSL_TLS13
+            onlyPskDheKe = 1;
+        #endif
+#endif
+            break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2807,6 +2830,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
+#ifdef HAVE_SUPPORTED_CURVES
+    if (onlyPskDheKe)
+        wolfSSL_CTX_only_dhe_psk(ctx);
+#endif
 #endif
 #ifdef HAVE_SESSION_TICKET
 #ifdef WOLFSSL_TLS13

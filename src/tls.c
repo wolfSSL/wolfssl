@@ -12138,15 +12138,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             if (usingPSK)
             #endif
             {
-                byte modes;
+                byte modes = 0;
 
                 (void)usingPSK;
                 /* Pre-shared key modes: mandatory extension for resumption. */
-                modes = 1 << PSK_KE;
+            #ifdef HAVE_SUPPORTED_CURVES
+                if (!ssl->options.onlyPskDheKe)
+            #endif
+                {
+                    modes = 1 << PSK_KE;
+                }
             #if !defined(NO_DH) || defined(HAVE_ECC) || \
                               defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-                if (!ssl->options.noPskDheKe)
+                if (!ssl->options.noPskDheKe) {
                     modes |= 1 << PSK_DHE_KE;
+                }
             #endif
                 ret = TLSX_PskKeModes_Use(ssl, modes);
                 if (ret != 0)
@@ -12662,8 +12668,12 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                     TURN_OFF(semaphore,
                                      TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-                #ifdef HAVE_SUPPORTED_CURVES
-                    if (!ssl->options.noPskDheKe) {
+                #if defined(HAVE_SUPPORTED_CURVES)
+                #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                    if (!ssl->options.noPskDheKe)
+                #endif
+                    {
+                        /* Expect KeyShare extension in ServerHello. */
                         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
                     }
                 #endif
@@ -12692,8 +12702,13 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
         #ifdef HAVE_SUPPORTED_CURVES
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             if (!ssl->options.noPskDheKe)
+        #endif
+            {
+                /* Expect KeyShare extension in HelloRetryRequest. */
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+            }
         #endif
         #ifdef WOLFSSL_SEND_HRR_COOKIE
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
@@ -12798,8 +12813,13 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
                     TURN_OFF(semaphore,
                                      TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
             #ifdef HAVE_SUPPORTED_CURVES
+                #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     if (!ssl->options.noPskDheKe)
+                #endif
+                    {
+                        /* Write out KeyShare in ServerHello. */
                         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+                    }
             #endif
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
@@ -12826,8 +12846,13 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
         #ifdef HAVE_SUPPORTED_CURVES
+            #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                 if (!ssl->options.noPskDheKe)
+            #endif
+                {
+                    /* Write out KeyShare in HelloRetryRequest. */
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+                }
         #endif
                 /* Cookie is written below as last extension. */
                 break;

@@ -1261,9 +1261,12 @@ static const char* client_usage_msg[][70] = {
 #ifdef WOLFSSL_SYS_CA_CERTS
         "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+#endif
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 73 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 74 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1476,10 +1479,16 @@ static const char* client_usage_msg[][70] = {
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 71 */
 #endif
+#ifdef WOLFSSL_SYS_CA_CERTS
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+#endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 74 */
         NULL,
     },
 #endif
@@ -1704,6 +1713,9 @@ static void Usage(void)
 #ifdef WOLFSSL_SYS_CA_CERTS
     printf("%s", msg[++msgid]); /* --sys-ca-certs */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    printf("%s", msg[++msgid]); /* --onlyPskDheKe */
+#endif
 #ifdef WOLFSSL_SRTP
     printf("%s", msg[++msgid]);     /* dtls-srtp */
 #endif
@@ -1841,6 +1853,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_SYS_CA_CERTS
         { "sys-ca-certs", 0, 263 },
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        { "onlyPskDheKe", 0, 264 },
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -1928,6 +1943,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int onlyKeyShare = 0;
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
+#ifdef HAVE_SUPPORTED_CURVES
+    int onlyPskDheKe = 0;
+#endif
     int postHandAuth = 0;
 #endif
     int updateKeysIVs = 0;
@@ -2658,6 +2676,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 loadSysCaCerts = 1;
                 break;
 #endif
+            case 264:
+#ifdef HAVE_SUPPORTED_CURVES
+                #ifdef WOLFSSL_TLS13
+                    onlyPskDheKe = 1;
+                #endif
+#endif
+                break;
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -3377,6 +3402,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
+#ifdef HAVE_SUPPORTED_CURVES
+    if (onlyPskDheKe)
+        wolfSSL_CTX_only_dhe_psk(ctx);
+#endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     if (postHandAuth)

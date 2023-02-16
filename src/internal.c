@@ -2362,8 +2362,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->maxEarlyDataSz = MAX_EARLY_DATA_SZ;
 #endif
 
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #if defined(WOLFSSL_TLS13) && !defined(HAVE_SUPPORTED_CURVES)
     ctx->noPskDheKe = 1;
+#endif
 #endif
 
 #if defined(WOLFSSL_QT) && !defined(NO_PSK)
@@ -6928,7 +6930,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #ifdef HAVE_SESSION_TICKET
         ssl->options.noTicketTls13  = ctx->noTicketTls13;
     #endif
-    ssl->options.noPskDheKe = ctx->noPskDheKe;
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        ssl->options.noPskDheKe = ctx->noPskDheKe;
+        ssl->options.onlyPskDheKe = ctx->onlyPskDheKe;
+    #endif
     #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ssl->options.postHandshakeAuth = ctx->postHandshakeAuth;
         ssl->options.verifyPostHandshake = ctx->verifyPostHandshake;
