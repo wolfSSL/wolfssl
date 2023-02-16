@@ -67,7 +67,8 @@ $ perl ./configure -T rx72n_gcc
 $ make depend
 ```
 
-  2-6. Project [Properties] → [C/C++ Build] → [Environment] dialog [Environment variable to set] [Add] button, enter [C_PROJECT] in [Name:] in [New variable] dialog , enter ${ProjDirPath} for [Value:]    
+  2-6. Project [Properties] → [C/C++ Build] → [Environment] dialog [Environment variable to set] [Add] button, enter [C_PROJECT] in [Name:] in [New variable] dialog , enter ${ProjDirPath} for [Value:]  
+  
   2-7. Select [Open Project from File System...] in the menu
 
   2-8. Select [Toppers_app] from the git repository wolfssl/IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers Press [Select Folder]　　
