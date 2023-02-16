@@ -10,11 +10,13 @@ on:
     branches: [ '*' ]
 
 jobs:
-    call_docker-Espressif:
+    docker-Espressif:
         uses: ./.github/workflows/docker-Espressif.yml
-    call_multi-compiler:
+    multi-compiler:
         uses: ./.github/workflows/multi-compiler.yml
-    call_docker-OpenWrt:
+    docker-OpenWrt:
         uses: ./.github/workflows/docker-OpenWrt.yml
-    call_os-check:
+    os-check:
         uses: ./.github/workflows/os-check.yml
+    osp:
+        uses: ./.github/workflows/osp-check.yml
