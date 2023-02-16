@@ -191,6 +191,12 @@
  *     ClientCache by default for backwards compatibility. This define will
  *     make wolfSSL_get_session return a reference to ssl->session. The returned
  *     pointer will be freed with the related WOLFSSL object.
+ * SESSION_CACHE_DYNAMIC_MEM:
+ *     Dynamically allocate sessions for the session cache from the heap, as
+ *     opposed to the default which allocates from the stack.  Allocates
+ *     memory only when a session is added to the cache, frees memory after the
+ *     session is no longer being used.  Recommended for memory-constrained
+ *     systems.
  * WOLFSSL_SYS_CA_CERTS
  *     Enables ability to load system CA certs from the OS via
  *     wolfSSL_CTX_load_system_CA_certs.
@@ -6192,6 +6198,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         int totalCount;                        /* sessions ever on this row */
 #ifdef SESSION_CACHE_DYNAMIC_MEM
         WOLFSSL_SESSION* Sessions[SESSIONS_PER_ROW];
+        void* heap;
 #else
         WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
 #endif
@@ -11474,11 +11481,11 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
 #endif /* !NO_CLIENT_CACHE */
 
 /* TODO: Add SESSION_CACHE_DYNAMIC_MEM support for PERSIST_SESSION_CACHE.
-   Need a count of current sessions to get an accurate memsize (totalCount is
-   not decremented when sessions are removed).
-   Need to determine ideal layout for mem/filesave.
-   Also need mem/filesave checking to ensure not restoring non DYNAMIC_MEM cache.
-*/
+ * Need a count of current sessions to get an accurate memsize (totalCount is
+ * not decremented when sessions are removed).
+ * Need to determine ideal layout for mem/filesave.
+ * Also need mem/filesave checking to ensure not restoring non DYNAMIC_MEM cache.
+ */
 #if defined(PERSIST_SESSION_CACHE) && !defined(SESSION_CACHE_DYNAMIC_MEM)
 
 /* for persistence, if changes to layout need to increment and modify
@@ -14240,7 +14247,8 @@ int wolfSSL_Cleanup(void)
     for (i = 0; i < SESSION_ROWS; i++) {
         for (j = 0; j < SESSIONS_PER_ROW; j++) {
             if (SessionCache[i].Sessions[j]) {
-                XFREE(&SessionCache[i].Sessions[j], NULL, DYNAMIC_TYPE_SESSION);
+                XFREE(SessionCache[i].Sessions[j], SessionCache[i].heap,
+                      DYNAMIC_TYPE_SESSION);
                 SessionCache[i].Sessions[j] = NULL;
             }
         }
@@ -15309,10 +15317,10 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #ifdef SESSION_CACHE_DYNAMIC_MEM
     cacheSession = sessRow->Sessions[idx];
     if (cacheSession) {
-        XFREE(cacheSession, NULL, DYNAMIC_TYPE_SESSION);
+        XFREE(cacheSession, sessRow->heap, DYNAMIC_TYPE_SESSION);
         cacheSession = NULL;
     }
-    cacheSession = (WOLFSSL_SESSION*) XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
+    cacheSession = (WOLFSSL_SESSION*) XMALLOC(sizeof(WOLFSSL_SESSION), sessRow->heap,
                                               DYNAMIC_TYPE_SESSION);
     if (cacheSession == NULL) {
         return MEMORY_E;
@@ -15765,11 +15773,12 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
 #ifdef SESSION_CACHE_DYNAMIC_MEM
             if (row->Sessions[idx] &&
                 ticks < (row->Sessions[idx]->bornOn +
-                            row->Sessions[idx]->timeout) ) {
+                            row->Sessions[idx]->timeout) )
 #else
             if (ticks < (row->Sessions[idx].bornOn +
-                            row->Sessions[idx].timeout) ) {
+                            row->Sessions[idx].timeout) )
 #endif
+            {
                 now++;
             }
 
@@ -34327,7 +34336,7 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 #endif
 
 #ifdef SESSION_CACHE_DYNAMIC_MEM
-                    XFREE(cacheSession, NULL, DYNAMIC_TYPE_SESSION);
+                    XFREE(cacheSession, sessRow->heap, DYNAMIC_TYPE_SESSION);
                     sessRow->Sessions[i] = NULL;
 #endif
                     break;
