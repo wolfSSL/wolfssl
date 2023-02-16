@@ -5290,10 +5290,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_certificate_file(ssl, svrCertFile,
+    if (wolfSSL_use_certificate_file(ssl, certFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server cert chain file, "
@@ -5301,10 +5301,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #else
-    if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+    if (wolfSSL_use_PrivateKey_file(ssl, keyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
 #endif
         /*err_sys("can't load server key file, "
@@ -62942,6 +62942,15 @@ void ApiTest(void)
     printf(" Begin API Tests\n");
     fflush(stdout);
 
+    /* we must perform init and cleanup if not all tests are running */
+    if (!testAll) {
+    #ifdef WOLFCRYPT_ONLY
+        wolfCrypt_Init();
+    #else
+        wolfSSL_Init();
+    #endif
+    }
+
     for (i = 0; i < TEST_CASE_CNT; ++i) {
         /* When not testing all cases then skip if not marked for running. */
         if (!testAll && !testCases[i].run) {
@@ -62983,7 +62992,13 @@ void ApiTest(void)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-    wolfSSL_Cleanup();
+    if (!testAll) {
+    #ifdef WOLFCRYPT_ONLY
+        wolfCrypt_Cleanup();
+    #else
+        wolfSSL_Cleanup();
+    #endif
+    }
 
     (void)testDevId;
 
