@@ -67,11 +67,14 @@ $ perl ./configure -T rx72n_gcc
 $ make depend
 ```
 
-  2-6. Project [Properties] → [C/C++ Build] → [Environment] dialog [Environment variable to set] [Add] button, enter [C_PROJECT] in [Name:] in [New variable] dialog , enter ${ProjDirPath} for Value:.
+  2-6. Project [Properties] → [C/C++ Build] → [Environment] dialog [Environment variable to set] [Add] button, enter [C_PROJECT] in [Name:] in [New variable] dialog , enter ${ProjDirPath} for [Value:]    
+  2-7. Select [Open Project from File System...] in the menu
 
-  2-7. Click the created project in Project Explorer and select the [Build Project (B)] key from the pull-down menu to build.
+  2-8. Select [Toppers_app] from the git repository wolfssl/IDE/Renesas/e2studio/RX72N/EnvisionKit_Toppers Press [Select Folder]　　
 
-  2-8.[toppers_rx] will generate [libasp.a]
+  2-9. Click the created project in Project Explorer and select the [Build Project (B)] key from the pull-down menu to build.
+
+  2-10.[toppers_rx] will generate [libasp.a]
  
 # 3. Build the wolfSSLDemo project
 
