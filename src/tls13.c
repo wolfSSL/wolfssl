@@ -3655,7 +3655,10 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
                 ssl->options.cipherSuite  = psk->cipherSuite;
             }
             else {
-                byte pskCS[2] = { psk->cipherSuite0, psk->cipherSuite };
+                byte pskCS[2];
+                pskCS[0] = psk->cipherSuite0;
+                pskCS[1] = psk->cipherSuite;
+
                 /* Ensure PSK and negotiated cipher suites have same hash. */
                 if (SuiteMac(pskCS) != SuiteMac(suite)) {
                     WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
