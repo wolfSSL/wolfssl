@@ -164,7 +164,7 @@
 
 #ifdef _WIN32
     #include <windows.h>
-    #include <Wincrypt.h>
+    #include <wincrypt.h>
 
     /* mingw gcc does not support pragma comment, and the
      * linking with crypt32 is handled in configure.ac */

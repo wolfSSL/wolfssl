@@ -44,6 +44,7 @@ rm -rf ./certs
 rm -rf ./ctaocrypt
 rm -rf ./cyassl
 rm -rf ./doc
+rm -rf ./Docker
 # these use test.h, which are not portable
 rm -rf ./examples
 rm -rf ./IDE
@@ -55,6 +56,7 @@ rm -rf ./mcapi
 rm -rf ./mplabx
 rm -rf ./mqx
 rm -rf ./rpm
+rm -rf ./RTOS
 rm -rf ./scripts
 rm -rf ./sslSniffer
 rm -rf ./swig
@@ -63,7 +65,6 @@ rm -rf ./testsuite
 rm -rf ./tirtos
 rm -rf ./wolfcrypt/user-crypto
 rm -rf ./wrapper
-rm -rf ./zephyr
 rm -f -- *.rc *.supp *.ac *.am *.conf *.sh *.cproject *.project *.pl
 rm -f Vagrantfile SCRIPTS-LIST quit input resource.h
 
