@@ -3263,23 +3263,10 @@ static void bench_aesgcm_internal(int useDeviceID,
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmEncrypt(&enc[i], bench_cipher,
                         bench_plain, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
-#else
-                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
-                    if (ret == 0) {
-                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
-                            bench_plain, bench_size, bench_additional,
-                            aesAuthAddSz);
-                    }
-                    if (ret == 0) {
-                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
-                            AES_AUTH_TAG_SZ);
-                    }
-#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm;
@@ -3318,23 +3305,10 @@ exit_aes_gcm:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0,
                                       &times, numBlocks, &pending)) {
-#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmDecrypt(&dec[i], bench_plain,
                         bench_cipher, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
-#else
-                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
-                    if (ret == 0) {
-                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
-                            bench_cipher, bench_size, bench_additional,
-                            aesAuthAddSz);
-                    }
-                    if (ret == 0) {
-                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
-                            AES_AUTH_TAG_SZ);
-                    }
-#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
@@ -3370,6 +3344,160 @@ exit:
     WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+static void bench_aesgcm_stream_internal(int useDeviceID,
+    const byte* key, word32 keySz, const byte* iv,  word32 ivSz,
+    const char* encLabel, const char* decLabel)
+{
+    int    ret = 0, i, count = 0, times, pending = 0;
+    Aes    enc[BENCH_MAX_PENDING];
+#ifdef HAVE_AES_DECRYPT
+    Aes    dec[BENCH_MAX_PENDING];
+#endif
+    double start;
+
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesgcm_internal malloc failed\n");
+        goto exit;
+    }
+#endif
+
+    /* clear for done cleanup */
+    XMEMSET(enc, 0, sizeof(enc));
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(dec, 0, sizeof(dec));
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (bench_additional)
+#endif
+        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (bench_tag)
+#endif
+        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&enc[i], HEAP_HINT,
+                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesGcmSetKey(&enc[i], key, keySz);
+        if (ret != 0) {
+            printf("AesGcmSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    /* GCM uses same routine in backend for both encrypt and decrypt */
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
+                            bench_plain, bench_size, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
+                                            0, &times, &pending)) {
+                        goto exit_aes_gcm;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+exit_aes_gcm:
+    bench_stats_sym_finish(encLabel, useDeviceID, count, bench_size,
+                           start, ret);
+
+#ifdef HAVE_AES_DECRYPT
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&dec[i], HEAP_HINT,
+                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesGcmSetKey(&dec[i], key, keySz);
+        if (ret != 0) {
+            printf("AesGcmSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
+                            bench_cipher, bench_size, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]),
+                                            0, &times, &pending)) {
+                        goto exit_aes_gcm_dec;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+
+exit_aes_gcm_dec:
+    bench_stats_sym_finish(decLabel, useDeviceID, count, bench_size,
+                           start, ret);
+#endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_aesgcm failed: %d\n", ret);
+    }
+#ifdef HAVE_AES_DECRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&dec[i]);
+    }
+#endif
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&enc[i]);
+    }
+
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
+}
+#endif
+
 void bench_aesgcm(int useDeviceID)
 {
 #define AES_GCM_STRING(n, dir)  AES_AAD_STRING("AES-" #n "-GCM-" #dir)
@@ -3388,6 +3516,25 @@ void bench_aesgcm(int useDeviceID)
     bench_aesgcm_internal(useDeviceID, bench_key, 32, bench_iv, 12,
                           AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
 #endif
+#ifdef WOLFSSL_AESGCM_STREAM
+#undef AES_GCM_STRING
+#define AES_GCM_STRING(n, dir)  AES_AAD_STRING("AES-" #n "-GCM-STREAM-" #dir)
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+        && !defined(WOLFSSL_XILINX_CRYPT)                          \
+        ||  defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 16, bench_iv, 12,
+        AES_GCM_STRING(128, enc), AES_GCM_STRING(128, dec));
+#endif
+#if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+        && !defined(WOLFSSL_XILINX_CRYPT)
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 24, bench_iv, 12,
+        AES_GCM_STRING(192, enc), AES_GCM_STRING(192, dec));
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 32, bench_iv, 12,
+        AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
+#endif
+#endif /* WOLFSSL_AESGCM_STREAM */
 #undef AES_GCM_STRING
 }
 
