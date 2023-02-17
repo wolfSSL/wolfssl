@@ -191,7 +191,7 @@ cleanup()
     exit_status=$?
     for i in $(jobs -pr)
     do
-        kill -s HUP "$i"
+        kill -s KILL "$i"
     done
     remove_ready_file
     rm $CERT_DIR/$test_cnf
