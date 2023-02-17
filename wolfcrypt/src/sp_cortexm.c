@@ -23710,15 +23710,19 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_256_norm_8(r);
 
-            sp_256_from_mp(x, 8, priv);
-            sp_256_from_bin(e, 8, hash, (int)hashLen);
+            if (sp_256_iszero_8(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_256_from_mp(x, 8, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_256_from_bin(e, 8, hash, (int)hashLen);
 
-            err = sp_256_calc_s_8(s, r, k, x, e, tmp);
-        }
+                err = sp_256_calc_s_8(s, r, k, x, e, tmp);
 
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_256_iszero_8(s) == 0)) {
-            break;
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_256_iszero_8(s) == 0)) {
+                    break;
+                }
+            }
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
@@ -31035,15 +31039,19 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_384_norm_12(r);
 
-            sp_384_from_mp(x, 12, priv);
-            sp_384_from_bin(e, 12, hash, (int)hashLen);
+            if (sp_384_iszero_12(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_384_from_mp(x, 12, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_384_from_bin(e, 12, hash, (int)hashLen);
 
-            err = sp_384_calc_s_12(s, r, k, x, e, tmp);
-        }
+                err = sp_384_calc_s_12(s, r, k, x, e, tmp);
 
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_384_iszero_12(s) == 0)) {
-            break;
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_384_iszero_12(s) == 0)) {
+                    break;
+                }
+            }
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
@@ -39987,19 +39995,24 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_521_norm_17(r);
 
-            sp_521_from_mp(x, 17, priv);
-            sp_521_from_bin(e, 17, hash, (int)hashLen);
+            if (sp_521_iszero_17(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_521_from_mp(x, 17, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_521_from_bin(e, 17, hash, (int)hashLen);
 
-            if (hashLen == 66U) {
-                sp_521_rshift_17(e, e, 7);
+                /* Take 521 leftmost bits of hash. */
+                if (hashLen == 66U) {
+                    sp_521_rshift_17(e, e, 7);
+                }
+
+                err = sp_521_calc_s_17(s, r, k, x, e, tmp);
+
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_521_iszero_17(s) == 0)) {
+                    break;
+                }
             }
-
-            err = sp_521_calc_s_17(s, r, k, x, e, tmp);
-        }
-
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_521_iszero_17(s) == 0)) {
-            break;
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
