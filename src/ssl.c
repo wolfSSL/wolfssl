@@ -16813,7 +16813,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     void wolfSSL_set_quiet_shutdown(WOLFSSL* ssl, int mode)
     {
-        WOLFSSL_ENTER("wolfSSL_CTX_set_quiet_shutdown");
+        WOLFSSL_ENTER("wolfSSL_set_quiet_shutdown");
         if (mode)
             ssl->options.quietShutdown = 1;
     }
