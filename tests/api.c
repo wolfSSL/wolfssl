@@ -25626,6 +25626,15 @@ static int test_wc_ecc_rs_to_sig(void)
     XMEMSET(s, 0, keySz);
 
     ret = wc_ecc_rs_to_sig(R, S, sig, &siglen);
+    if (ret == 0) {
+        ret = wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, &slen);
+    #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+        if (ret == ASN_PARSE_E) {
+            ret = 0;
+        }
+    #endif
+    }
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_ecc_rs_to_sig(NULL, S, sig, &siglen);
@@ -25645,19 +25654,8 @@ static int test_wc_ecc_rs_to_sig(void)
             ret = wc_ecc_rs_to_sig(zeroStr, S, sig, &siglen);
         }
         if (ret == MP_ZERO_E) {
-            ret = 0;
+            ret = wc_ecc_sig_to_rs(NULL, siglen, r, &rlen, s, &slen);
         }
-        else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (ret == 0) {
-        ret = wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, &slen);
-    }
-    /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_ecc_sig_to_rs(NULL, siglen, r, &rlen, s, &slen);
         if (ret == ECC_BAD_ARG_E) {
             ret = wc_ecc_sig_to_rs(sig, siglen, NULL, &rlen, s, &slen);
         }
@@ -48286,6 +48284,51 @@ static int test_wc_ParseCert(void)
     return res;
 }
 
+/* Test wc_ParseCert decoding of various encodings and scenarios ensuring that
+ * the API safely errors out on badly-formed ASN input.
+ * NOTE: Test not compatible with released FIPS implementations!
+ */
+static int test_wc_ParseCert_Error(void)
+{
+    int res = TEST_SKIPPED;
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    DecodedCert decodedCert;
+
+    /* Certificate data */
+    const byte c0[] = { 0x30, 0x04, 0x30, 0x02, 0x02, 0x80, 0x00, 0x00};
+    const byte c1[] = { 0x30, 0x04, 0x30, 0x04, 0x02, 0x80, 0x00, 0x00};
+    const byte c2[] = { 0x30, 0x06, 0x30, 0x04, 0x02, 0x80, 0x00, 0x00};
+    const byte c3[] = { 0x30, 0x07, 0x30, 0x05, 0x02, 0x80, 0x10, 0x00, 0x00};
+    const byte c4[] = { 0x02, 0x80, 0x10, 0x00, 0x00};
+
+    /* Test data */
+    const struct testStruct {
+        const byte* c;
+        const int cSz;
+        const int expRet;
+    } t[] = {
+        {c0, sizeof(c0), ASN_PARSE_E}, /* Invalid bit-string length */
+        {c1, sizeof(c1), ASN_PARSE_E}, /* Invalid bit-string length */
+        {c2, sizeof(c2), ASN_PARSE_E}, /* Invalid integer length (zero) */
+        {c3, sizeof(c3), ASN_PARSE_E}, /* Valid INTEGER, but buffer too short */
+        {c4, sizeof(c4), ASN_PARSE_E}, /* Valid INTEGER, but not in bit-string */
+    };
+    const int tSz = (int)(sizeof(t) / sizeof(struct testStruct));
+
+    for (int i = 0; i < tSz; i++) {
+        WOLFSSL_MSG_EX("i == %d", i);
+        wc_InitDecodedCert(&decodedCert, t[i].c, t[i].cSz, NULL);
+        AssertIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), t[i].expRet);
+        wc_FreeDecodedCert(&decodedCert);
+    }
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_MakeCertWithPathLen(void)
 {
     int res = TEST_SKIPPED;
@@ -62421,6 +62464,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_SetSubject),
     TEST_DECL(test_CheckCertSignature),
     TEST_DECL(test_wc_ParseCert),
+    TEST_DECL(test_wc_ParseCert_Error),
     TEST_DECL(test_MakeCertWithPathLen),
 
     /* wolfCrypt ECC tests */

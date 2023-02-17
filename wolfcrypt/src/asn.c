@@ -1023,6 +1023,16 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 static int GetASN_Integer(const byte* input, word32 idx, int length,
                           int positive)
 {
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    /* Check contents consist of one or more octets. */
+    if (length == 0) {
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        WOLFSSL_MSG("Zero length INTEGER not allowed");
+    #endif
+        return ASN_PARSE_E;
+    }
+#endif
     if (input[idx] == 0) {
         /* Check leading zero byte required. */
         if ((length > 1) && ((input[idx + 1] & 0x80) == 0)) {
@@ -1053,6 +1063,16 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
  */
 static int GetASN_BitString(const byte* input, word32 idx, int length)
 {
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    /* Check contents consist of one or more octets. */
+    if (length == 0) {
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        WOLFSSL_MSG("Zero length BIT STRING not allowed");
+    #endif
+        return ASN_PARSE_E;
+    }
+#endif
     /* Ensure unused bits value is valid range. */
     if (input[idx] > 7) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
@@ -2098,7 +2118,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     /* Ensure zero return length on error. */
     *len = 0;
 
-    /* Check there is at least on byte available containing length information.
+    /* Check there is at least one byte available containing length information.
      */
     if ((idx + 1) > maxIdx) {
         WOLFSSL_MSG("GetLength - bad index on input");
@@ -2116,7 +2136,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         int minLen;
 
         /* Calculate minimum length to be encoded with bytes. */
-        if (b == 0x80) {
+        if (b == ASN_INDEF_LENGTH) {
             /* Indefinite length encoding - no length bytes. */
             minLen = 0;
         }
@@ -2156,7 +2176,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         length = b;
     }
 
-    /* When request, check the buffer has at least length bytes left. */
+    /* When requested, check the buffer has at least length bytes left. */
     if (check && ((idx + length) > maxIdx)) {
         WOLFSSL_MSG("GetLength - value exceeds buffer length");
         return BUFFER_E;
