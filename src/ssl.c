@@ -15325,6 +15325,8 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     if (cacheSession == NULL) {
         return MEMORY_E;
     }
+    XMEMSET(cacheSession, 0, sizeof(WOLFSSL_SESSION));
+    sessRow->Sessions[idx] = cacheSession;
 #else
     cacheSession = &sessRow->Sessions[idx];
 #endif
