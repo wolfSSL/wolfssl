@@ -23064,9 +23064,18 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
      * might be a buffereed private key so we need to decode it and then encode
      * the public part. */
     if (ret == 0) {
-        local_derSz = wolfSSL_EVP_PKEY_get_der(key, &local_der);
-        if (local_derSz <= 0) {
-            ret = WOLFSSL_FATAL_ERROR;
+        ret = wolfSSL_EVP_PKEY_get_der(key, &local_der);
+        if (ret <= 0) {
+            /* In this case, there was no buffered DER at all. This could be the
+             * case where the key that was passed in was generated. So now we
+             * have to create the local DER. */
+            local_derSz = wolfSSL_i2d_ECPrivateKey(key->ecc, &local_der);
+            if (local_derSz == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        } else {
+            local_derSz = ret;
+            ret = 0;
         }
     }
 
@@ -23084,6 +23093,10 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 
     if (ret == 0) {
         ret = wc_EccPublicKeyDecode(local_der, &inOutIdx, eccKey, local_derSz);
+        if (ret < 0) {
+            /* We now try again as x.963 [point type][x][opt y]. */
+            ret = wc_ecc_import_x963(local_der, local_derSz, eccKey);
+        }
     }
 
     if (ret == 0) {

@@ -11915,7 +11915,34 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
         }
         else {
             ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
-                derSz);
+                                        derSz);
+            if (ret < 0) {
+                ecc_key *tmp = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                    ((ecc_key*)key->internal)->heap, DYNAMIC_TYPE_ECC);
+                if (tmp == NULL) {
+                    ret = -1;
+                }
+                else {
+                    /* We now try again as x.963 [point type][x][opt y]. */
+                    ret = wc_ecc_init_ex(tmp, ((ecc_key*)key->internal)->heap,
+                                         INVALID_DEVID);
+                    if (ret == 0) {
+                        ret = wc_ecc_import_x963(derBuf, derSz, tmp);
+                        if (ret == 0) {
+                            /* Take ownership of new key - set tmp to the old
+                             * key which will then be freed below. */
+                            ecc_key *old = (ecc_key *)key->internal;
+                            key->internal = tmp;
+                            tmp = old;
+
+                            idx = derSz;
+                        }
+                        wc_ecc_free(tmp);
+                    }
+                    XFREE(tmp, ((ecc_key*)key->internal)->heap,
+                          DYNAMIC_TYPE_ECC);
+                }
+            }
         }
         if (ret < 0) {
             /* Error returned from wolfSSL. */
