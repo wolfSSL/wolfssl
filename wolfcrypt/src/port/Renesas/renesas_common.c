@@ -74,6 +74,29 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
     WOLFSSL_LEAVE("Renesas_cmn_RsaSignCb", ret);
     return ret;
 }
+/* This function is a callback passed to wolfSSL_CTX_SetRsaSignCheckCb.
+ * It tries to verify the signature passed to it by decrypting with a public
+ * key.  
+ * returns 0 on success, CRYPTOCB_UNAVAILABLE when public key is not set.
+ */
+WOLFSSL_LOCAL int Renesas_cmn_RsaSignCheckCb(WOLFSSL* ssl,
+                                unsigned char* sig, unsigned int sigSz,
+                                unsigned char** out,
+                                const unsigned char* keyDer, unsigned int keySz,
+                                void* ctx)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    WOLFSSL_ENTER("Renesas_cmn_RsaSignCheckCb");
+
+    #if defined(WOLFSSL_RENESAS_TSIP)
+    
+    return tsip_VerifyRsaPkcsCb(ssl, sig, sigSz, out, keyDer, keySz, ctx);
+    
+    #endif /* WOLFSSL_RENESAS_TSIP */
+
+    WOLFSSL_LEAVE("Renesas_cmn_RsaSignCheckCb", ret);
+    return ret;
+}
 
 WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
                                 const unsigned char* in, unsigned int inSz,
@@ -180,6 +203,23 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_AES_CBC */
     #endif /* !NO_AES || !NO_DES3 */
+    }
+    /* Is called for signing 
+     * Can handle only RSA PkCS#1v1.5 padding scheme here.
+    */
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+        #if !defined(NO_RSA)
+        if (info->pk.type == WC_PK_TYPE_RSA) {
+            if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT) {
+                ret = tsip_SignRsaPkcs(info, ctx);
+            }
+        }
+        #endif /* NO_RSA */
+        #if defined(HAVE_ECC)
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+            ret = tsip_SignEcdsa(info, ctx);
+        }
+        #endif /* HAVE_ECC */
     }
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
 
