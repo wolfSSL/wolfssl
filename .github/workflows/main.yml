@@ -18,5 +18,10 @@ jobs:
         uses: ./.github/workflows/docker-OpenWrt.yml
     os-check:
         uses: ./.github/workflows/os-check.yml
-    osp:
-        uses: ./.github/workflows/osp-check.yml
+    stunnel:
+        uses: ./.github/workflows/opensource/stunnel-check.yml
+    openvpn:
+        uses: ./.github/workflows/opensource/openvpn-check.yml
+# TODO: Currently this test fails. Enable it once it becomes passing.        
+#    haproxy:
+#        uses: ./.github/workflows/opensource/haproxy-check.yml
