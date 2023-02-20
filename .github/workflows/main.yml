@@ -10,18 +10,18 @@ on:
     branches: [ '*' ]
 
 jobs:
-    docker-Espressif:
+    espressif:
         uses: ./.github/workflows/docker-Espressif.yml
     multi-compiler:
         uses: ./.github/workflows/multi-compiler.yml
-    docker-OpenWrt:
+    openwrt:
         uses: ./.github/workflows/docker-OpenWrt.yml
     os-check:
         uses: ./.github/workflows/os-check.yml
     stunnel:
-        uses: ./.github/workflows/opensource/stunnel-check.yml
+        uses: ./.github/workflows/stunnel.yml
     openvpn:
-        uses: ./.github/workflows/opensource/openvpn-check.yml
+        uses: ./.github/workflows/openvpn.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
-#        uses: ./.github/workflows/opensource/haproxy-check.yml
+#        uses: ./.github/workflows/haproxy.yml

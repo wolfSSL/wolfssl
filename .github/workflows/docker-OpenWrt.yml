@@ -24,7 +24,7 @@ jobs:
                 path: src/.libs/libwolfssl.so
                 retention-days: 1
     compile_container:
-        name: OpenWrt test
+        name: Compile container
         runs-on: ubuntu-latest
         needs: build_library
         strategy:
@@ -37,8 +37,7 @@ jobs:
               with:
                 name: libwolfssl.so
                 path: Docker/OpenWrt/.
-            -
-              name: Build but dont push
+            - name: Build but dont push
               uses: docker/build-push-action@v3
               with:
                   context: Docker/OpenWrt
