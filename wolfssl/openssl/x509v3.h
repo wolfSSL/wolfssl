@@ -33,7 +33,7 @@
     extern "C" {
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #define EXFLAG_KUSAGE  0x2
 #define EXFLAG_XKUSAGE 0x4
@@ -165,7 +165,7 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb
 #define X509v3_get_ext_count      wolfSSL_sk_num
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef  __cplusplus
 }
