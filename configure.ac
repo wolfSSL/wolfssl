@@ -8727,6 +8727,7 @@ then
                 AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
             ], [
             #include <wolfssl/options.h>
+            extern int dummy_int_to_make_compiler_happy;
         ])
     done
     CFLAGS=$SAVE_CFLAGS
