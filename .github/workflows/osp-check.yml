@@ -1,4 +1,4 @@
-name: stunnel Tests
+name: OSP Tests
 
 on:
   workflow_call:
@@ -7,11 +7,10 @@ jobs:
   stunnel_check:
     strategy:
       matrix:
-        os: [ ubuntu-latest ]
         # List of releases to test
         ref: [ 5.67 ]
-    name: stunnel ${{ matrix.ref }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: stunnel ${{ matrix.ref }}
+    runs-on: ubuntu-latest
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -43,11 +42,10 @@ jobs:
   openvpn_check:
     strategy:
       matrix:
-        os: [ ubuntu-latest ]
         # List of refs to test
         ref: [ master, release/2.6, v2.6.0 ]
-    name: openvpn ${{ matrix.ref }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: openvpn ${{ matrix.ref }}
+    runs-on: ubuntu-latest
     steps:
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
@@ -75,11 +73,10 @@ jobs:
 #  haproxy_check:
 #    strategy:
 #      matrix:
-#        os: [ ubuntu-latest ]
 #        # List of refs to test
 #        ref: [ master ]
-#    name: haproxy ${{ matrix.ref }} on ${{ matrix.os }}
-#    runs-on: ${{ matrix.os }}
+#    name: haproxy ${{ matrix.ref }}
+#    runs-on: ubuntu-latest
 #    steps:
 #      - name: Build wolfSSL
 #        uses: wolfSSL/actions-build-autotools-project@v1
