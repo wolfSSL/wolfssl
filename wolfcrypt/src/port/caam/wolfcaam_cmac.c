@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CMAC)
+#if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CMAC) && defined(WOLFSSL_CAAM_CMAC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -93,7 +93,13 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
 
         /* first take care of any left overs */
         if (cmac->bufferSz > 0) {
-            word32 add = min(sz, AES_BLOCK_SIZE - cmac->bufferSz);
+            word32 add;
+
+            if (cmac->bufferSz > AES_BLOCK_SIZE) {
+                WOLFSSL_MSG("Error with CMAC buffer size");
+                return -1;
+            }
+            add = min(sz, (int)(AES_BLOCK_SIZE - cmac->bufferSz));
             XMEMCPY(&cmac->buffer[cmac->bufferSz], pt, add);
 
             cmac->bufferSz += add;

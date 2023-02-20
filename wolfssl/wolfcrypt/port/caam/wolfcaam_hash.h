@@ -58,5 +58,8 @@ WOLFSSL_LOCAL int wc_CAAM_Hmac(Hmac* hmac, int macType, const byte* msg,
     int msgSz, byte* digest);
 #endif
 
+#ifndef WC_CAAM_HASH_BLOCK
+    #define WC_CAAM_HASH_BLOCK 64
+#endif
 #endif
 

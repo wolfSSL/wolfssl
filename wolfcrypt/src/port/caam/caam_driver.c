@@ -571,6 +571,8 @@ Error caamAddJob(DESCSTRUCT* desc)
 
         pt = (unsigned int*)caam.ring.VirtualDesc;
     #if defined(WOLFSSL_CAAM_PRINT)
+        printf("Number of input ring slots available is %d\n",
+            CAAM_READ(baseAddr + CAAM_IRSAR_JR));
         printf("Doing Job :\n");
     #endif
         for (i = 0; i < desc->idx; i = i + 1) {
@@ -606,11 +608,6 @@ Error caamAddJob(DESCSTRUCT* desc)
     #endif
     }
     else {
-        #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        printf("SLOT = 0x%08X, IRJAR0 = 0x%08X\n", CAAM_READ(baseAddr + 0x0014),
-                CAAM_READ(baseAddr + CAAM_IRJAR0));
-        printf("Number of job in done queue = 0x%08X\n", CAAM_READ(baseAddr+ 0x103C));
-        #endif
         CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
         return CAAM_WAITING;
     }
@@ -1758,8 +1755,10 @@ static int SetupJobRing(struct JobRing* r)
     memset(r->VirtualDesc, 0, CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
 
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-    printf("Setting JOB IN  0x%08X\n", (unsigned int)caam.ring.JobIn);
-    printf("Setting JOB OUT 0x%08X\n", (unsigned int)caam.ring.JobOut);
+    printf("Setting JOB IN  address 0x%08X, size %d\n",
+        (unsigned int)caam.ring.JobIn, CAAM_JOBRING_SIZE);
+    printf("Setting JOB OUT address 0x%08X, size %d\n",
+        (unsigned int)caam.ring.JobOut, CAAM_JOBRING_SIZE);
     printf("Setting DESC 0x%08X\n", (unsigned int)caam.ring.Desc);
     #endif
 
@@ -1775,6 +1774,10 @@ static int SetupJobRing(struct JobRing* r)
     if (((CAAM_READ(r->BaseAddr + CAAM_STATUS) & 0x00000001) != 0) &&
         (CAAM_READ(r->BaseAddr + JRINTR_JR) != 0)) {
         unsigned int reg;
+
+    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+        printf("Job ring is busy, trying to flush it\n");
+    #endif
 
         /* JRCR job ring command register */
         CAAM_WRITE(r->BaseAddr + JRCR_JR, 0x2); /* park it  */
@@ -1796,28 +1799,52 @@ int InitCAAM(void)
     Error ret;
 
     /* map to memory addresses needed for accessing CAAM */
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using CAAM_BASE 0x%04X\n", CAAM_BASE);
+#endif
     ret = CAAM_SET_BASEADDR(&caam.baseAddr);
     if (ret != 0) {
         return ret;
     }
 
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using base address : 0x%04X\n", caam.baseAddr);
+#endif
     ret = SetupJobRing(&caam.ring);
     if (ret != 0) {
         WOLFSSL_MSG("Error initializing job ring");
         INTERRUPT_Panic();
         return ret;
     }
+#if defined(WOLFSSL_CAAM_PRINT)
+    printf("Using base ring address : 0x%04X\n", caam.ring.BaseAddr);
+#endif
 
     /* get CHA era */
     caam.vrs = CAAM_READ(caam.ring.BaseAddr + CAAM_CHA_CCBVID) >> 24;
-    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        printf("CAAM version = %04X\n",
-            CAAM_READ(caam.ring.BaseAddr + CAAM_VERSION_MS) & 0xFFFF);
-        printf("CAAM era = %d\n", caam.vrs);
-        printf("RNG revision number = %08X\n",
-            CAAM_READ(caam.ring.BaseAddr + CAAM_CRNR_LS));
-        printSecureMemoryInfo();
-    #endif
+#if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+    printf("CAAM version = %04X\n",
+        CAAM_READ(caam.ring.BaseAddr + CAAM_VERSION_MS) & 0xFFFF);
+    printf("CAAM era = %d\n", caam.vrs);
+    printf("RNG revision number = %08X\n",
+        CAAM_READ(caam.ring.BaseAddr + CAAM_CRNR_LS));
+    printSecureMemoryInfo();
+
+    /* Check if CAAM supports AES-GCM */
+    {
+        unsigned int chaVerLS =
+            CAAM_READ(caam.ring.BaseAddr + CAAM_CHA_VERSION_LS);
+        printf("\nCHA support\n");
+        printf("CHA Version LS = %04X\n", chaVerLS);
+        if (!(chaVerLS & CAAM_AES_HIGH_PERFORMANCE)) {
+            printf("High Performance AES module not supported, NO AES-GCM/XTS\n");
+        }
+        if (chaVerLS & CAAM_AES_LOW_POWER) {
+            printf("Low Power AES module found\n");
+        }
+        printf("\n");
+    }
+#endif
 
     /* when on i.MX8 with SECO the SECO has control of this */
     if (caam.vrs < 9) {

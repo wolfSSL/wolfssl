@@ -1776,29 +1776,86 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-/* if defined turn on all CAAM support */
-#ifdef WOLFSSL_IMX6_CAAM
-    #undef  WOLFSSL_IMX6_CAAM_RNG
-    #define WOLFSSL_IMX6_CAAM_RNG
+/* Setting supported CAAM algorithms */
+#ifdef WOLFSSL_IMX6Q_CAAM
+    #undef  WOLFSSL_CAAM
+    #define WOLFSSL_CAAM
 
-    #undef  WOLFSSL_IMX6_CAAM_BLOB
-    #define WOLFSSL_IMX6_CAAM_BLOB
-
-#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS)
-    /* large performance gain with HAVE_AES_ECB defined */
-    #undef HAVE_AES_ECB
-    #define HAVE_AES_ECB
-
-    /* @TODO used for now until plugging in caam aes use with qnx */
-    #undef WOLFSSL_AES_DIRECT
-    #define WOLFSSL_AES_DIRECT
+    /* hardware does not support AES-GCM and ECC
+     * has the low power AES module only (no high power with GCM) */
+    #define WOLFSSL_LP_ONLY_CAAM_AES
+    #define WOLFSSL_NO_CAAM_ECC
 #endif
+
+#ifdef WOLFSSL_SECO_CAAM
+    #define WOLFSSL_CAAM
+
+    #define WOLFSSL_HASH_KEEP
+    #define WOLFSSL_NO_CAAM_BLOB
 #endif
 
 #ifdef WOLFSSL_IMXRT1170_CAAM
     #define WOLFSSL_CAAM
-    #define WOLFSSL_CAAM_HASH
+
+    #define WOLFSSL_NO_CAAM_BLOB
+#endif
+
+/* OS specific support so far */
+#ifdef WOLFSSL_QNX_CAAM
+    /* shim layer for QNX hashing not yet implemented */
+    #define WOLFSSL_NO_CAAM_HASH
+#endif
+
+#ifdef WOLFSSL_CAAM
+    /* switch for all AES type algos */
+    #undef  WOLFSSL_CAAM_CIPHER
     #define WOLFSSL_CAAM_CIPHER
+    #ifdef WOLFSSL_CAAM_CIPHER
+        #ifndef WOLFSSL_LP_ONLY_CAAM_AES
+            /* GCM and XTS mode are only available in the high power module */
+            #define WOLFSSL_CAAM_AESGCM
+            #define WOLFSSL_CAAM_AESXTS
+        #endif
+        #define WOLFSSL_CAAM_AESCCM
+        #define WOLFSSL_CAAM_AESCTR
+        #define WOLFSSL_CAAM_AESCBC
+        #define WOLFSSL_CAAM_CMAC
+    #endif /* WOLFSSL_CAAM_CIPHER */
+    #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS) || \
+            defined(WOLFSSL_CMAC)
+        /* large performance gain with HAVE_AES_ECB defined */
+        #undef HAVE_AES_ECB
+        #define HAVE_AES_ECB
+
+        /* @TODO used for now until plugging in caam aes use with qnx */
+        #undef WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
+    #endif
+
+    /* switch for all hashing algos */
+    #ifndef WOLFSSL_NO_CAAM_HASH
+        #define WOLFSSL_CAAM_HASH
+    #endif
+    #if defined(WOLFSSL_DEVCRYPTO_HMAC)
+        /* HMAC is throught the devcrypto calls */
+        #define WOLFSSL_CAAM_HMAC
+    #endif
+
+    /* public key operations */
+    #ifndef WOLFSSL_NO_CAAM_ECC
+        #undef  WOLFSSL_CAAM_ECC
+        #define WOLFSSL_CAAM_ECC
+    #endif
+
+    /* so far curve25519 support was only done with the SECO */
+    #ifdef WOLFSSL_SECO_CAAM
+        #define WOLFSSL_CAAM_CURVE25519
+    #endif
+
+    /* Blob support */
+    #ifndef WOLFSSL_NO_CAAM_BLOB
+        #define WOLFSSL_CAAM_BLOB
+    #endif
 #endif
 
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */

@@ -93,8 +93,8 @@ int CAAM_SET_BASEADDR(CAAM_ADDRESS* baseAddr)
     void* vaddr;
 
     /* address range for CAAM is CAAM_BASE plus 0x10000 */
-    vaddr = mmap_device_io(0x0000FFFF, CAAM_BASE);
-    if (vaddr == (uintptr_t)MAP_FAILED) {
+    vaddr = (void*)mmap_device_io(0x0000FFFF, CAAM_BASE);
+    if (vaddr == MAP_FAILED) {
         WOLFSSL_MSG("Unable to map virtual memory");
         return -1;
     }
@@ -575,12 +575,14 @@ static int doAEAD(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 {
     int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[6] = {0};
+    CAAM_BUFFER tmp[6];
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0, algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL, *aad = NULL,
                   *tag = NULL;
     int keySz, ivSz = 0, inSz, outSz, aadSz = 0, tagSz = 0;
+
+    memset(tmp, 0, sizeof(tmp));
 
     /* get key info */
     keySz = args[1] & 0xFFFF; /* key size */
@@ -737,12 +739,14 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 {
     int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[6] = {0};
+    CAAM_BUFFER tmp[6];
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0;
     int algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
     int keySz, ivSz = 0, inSz, outSz;
+
+    memset(tmp, 0, sizeof(tmp));
 
     /* get key info */
     keySz = args[1] & 0xFFFF; /* key size */

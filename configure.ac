@@ -2344,35 +2344,40 @@ AC_ARG_ENABLE([caam],
     [ ENABLED_CAAM=$enableval ],
     [ ENABLED_CAAM=no ]
     )
-if test "$ENABLED_CAAM" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_IMX6_CAAM"
-fi
 
-if test "$ENABLED_CAAM" = "qnx"
+if test "$ENABLED_CAAM" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_IMX6_CAAM -DWOLFSSL_QNX_CAAM"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_ECC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CIPHER"
-fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM"
 
-if test "$ENABLED_CAAM" = "seco"
-then
-    SECO_DIR=$trylibsecodir
-    AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_SECO_CAAM -DWOLFSSL_HASH_KEEP"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_ECC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CIPHER"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_HMAC"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_HASH"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM_CURVE25519"
+    for v in `echo $ENABLED_CAAM | tr "," " "`
+    do
+      case $v in
+        qnx)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QNX_CAAM"
+            ENABLED_CAAM_QNX="yes"
+            ;;
 
-    AC_CHECK_LIB([hsm_lib],[hsm_open_session])
-    AC_CHECK_LIB([seco_nvm_manager],[seco_nvm_manager])
-    LIB_STATIC_ADD="$LIB_STATIC_ADD $SECO_DIR/lib/hsm_lib.a $SECO_DIR/lib/seco_nvm_manager.a"
-    LIB_ADD="$LIB_ADD -lz"
+        imx6q)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6Q_CAAM"
+            ;;
+
+        imx6ul)
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6UL_CAAM"
+            ;;
+
+        seco)
+            SECO_DIR=$trylibsecodir
+            AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_SECO_CAAM"
+
+            AC_CHECK_LIB([hsm_lib],[hsm_open_session])
+            AC_CHECK_LIB([seco_nvm_manager],[seco_nvm_manager])
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $SECO_DIR/lib/hsm_lib.a $SECO_DIR/lib/seco_nvm_manager.a"
+            LIB_ADD="$LIB_ADD -lz"
+            ;;
+
+      esac
+    done
 fi
 
 # INTEL AES-NI
@@ -7369,7 +7374,7 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" = "qnx" || test  "$ENABLED_CAAM" = "seco"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -8512,12 +8517,12 @@ AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx" || test "x$ENABLED_CAAM" = "xseco"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
-AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
+AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
+AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
