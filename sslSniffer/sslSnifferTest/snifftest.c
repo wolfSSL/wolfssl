@@ -840,25 +840,17 @@ static int DecodePacket(byte* packet, int length, int packetNumber, char err[])
     return hadBadPacket;
 }
 
+static char err[PCAP_ERRBUF_SIZE];
+
 #ifdef THREADED_SNIFFTEST
 static void* snifferWorker(void* arg)
 {
     SnifferWorker* worker = (SnifferWorker*)arg;
-    char err[PCAP_ERRBUF_SIZE];
 
-    ssl_InitSniffer_ex2(worker->id);
-    ssl_Trace("./tracefile.txt", err);
-    ssl_EnableRecovery(1, -1, err);
-#ifdef WOLFSSL_SNIFFER_WATCH
-    ssl_SetWatchKeyCallback(myWatchCb, err);
-#endif
-#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
-    ssl_SetStoreDataCallback(myStoreDataCb);
-#endif
+    ssl_InitSniffer_thread(worker->id);
 
     load_key(NULL, worker->server, worker->port, worker->keyFilesSrc,
              worker->passwd, err);
-
     /* continue processing the workers packets and keep expecting them
      * until the shutdown flag is set */
     while (!worker->shutdown) {
@@ -937,11 +929,6 @@ static void* snifferWorker(void* arg)
 
     } /* while (worker->head) */
 
-    /* Thread cleanup */
-    ssl_FreeSniffer();
-#if defined(HAVE_ECC) && defined(FP_ECC)
-    wc_ecc_fp_free();
-#endif
     return NULL;
 }
 #endif /* THREADED_SNIFFTEST */
@@ -956,7 +943,6 @@ int main(int argc, char** argv)
     int          i = 0, defDev = 0;
     int          packetNumber = 0;
     int          frame = ETHER_IF_FRAME_LEN;
-    char         err[PCAP_ERRBUF_SIZE];
     char         filter[32];
     const char  *keyFilesSrc = NULL;
     char         keyFilesBuf[MAX_FILENAME_SZ];
@@ -984,11 +970,9 @@ int main(int argc, char** argv)
 
     signal(SIGINT, sig_handler);
 
-
-#ifndef THREADED_SNIFFTEST
-    #ifndef _WIN32
+#ifndef _WIN32
     ssl_InitSniffer();   /* dll load on Windows */
-    #endif
+#endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);
     #ifdef WOLFSSL_SNIFFER_WATCH
@@ -997,7 +981,6 @@ int main(int argc, char** argv)
     #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
     ssl_SetStoreDataCallback(myStoreDataCb);
     #endif
-#endif
 
     if (argc == 1) {
         char cmdLineArg[128];

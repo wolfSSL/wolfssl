@@ -970,6 +970,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_TICKET_ID  = 1004,
         DYNAMIC_TYPE_SNIFFER_NAMED_KEY  = 1005,
         DYNAMIC_TYPE_SNIFFER_KEY        = 1006,
+        DYNAMIC_TYPE_SNIFFER_CONTEXT    = 1007,
     };
 
     /* max error buffer string size */

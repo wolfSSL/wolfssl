@@ -138,6 +138,10 @@
     /* Cache unclosed Sessions for 15 minutes since last used */
 #endif
 
+#if defined(HAVE_C___ATOMIC) && !defined(WC_NO_ASYNC_THREADING)
+    #define USE_ATOMIC
+#endif
+
 /* Misc constants */
 enum {
     MAX_SERVER_ADDRESS = 128, /* maximum server address length */
@@ -428,7 +432,6 @@ typedef struct NamedKey {
 
 /* Sniffer Server holds info for each server/port monitored */
 typedef struct SnifferServer {
-    WOLFSSL_CTX*   ctx;                          /* SSL context */
     char           address[MAX_SERVER_ADDRESS];  /* passed in server address */
     IpAddrInfo     server;                       /* network order address */
     int            port;                         /* server port */
@@ -439,6 +442,10 @@ typedef struct SnifferServer {
     struct SnifferServer* next;                  /* for list */
 } SnifferServer;
 
+typedef struct SnifferCtx {
+    WOLFSSL_CTX*   ctx;                          /* SSL context */
+    struct         SnifferCtx* next;             /* for list */
+} SnifferCtx;
 
 /* Session Flags */
 typedef struct Flags {
@@ -508,7 +515,8 @@ typedef struct KeyShareInfo {
 
 /* Sniffer Session holds info for each client/server SSL/TLS session */
 typedef struct SnifferSession {
-    SnifferServer* context;         /* server context */
+    SnifferServer* context;         /* sniffer server */
+    SnifferCtx*    snifferCtx;      /* sniffer context */
     WOLFSSL*       sslServer;       /* SSL server side decode */
     WOLFSSL*       sslClient;       /* SSL client side decode */
     IpAddrInfo     server;          /* server address in network byte order */
@@ -559,17 +567,30 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static THREAD_LS_T WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
-#ifndef HAVE_C___ATOMIC
+static WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
+#ifndef USE_ATOMIC
 static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
 #endif
 
+#ifndef WC_NO_ASYNC_THREADING
+THREAD_LS_T 
+#endif
+static WOLFSSL_GLOBAL SnifferCtx* CtxList = NULL;
+
+#ifndef WC_NO_ASYNC_THREADING
 /* Session Hash Table, mutex, and count */
-static THREAD_LS_T WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
-#ifndef HAVE_C___ATOMIC
+THREAD_LS_T 
+#endif
+static WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
+
+#ifndef USE_ATOMIC
 static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex;
 #endif
-static THREAD_LS_T WOLFSSL_GLOBAL int SessionCount = 0;
+
+#ifndef WC_NO_ASYNC_THREADING
+THREAD_LS_T
+#endif
+static WOLFSSL_GLOBAL int SessionCount = 0;
 
 static WOLFSSL_GLOBAL int RecoveryEnabled    = 0;  /* global switch */
 static WOLFSSL_GLOBAL int MaxRecoveryMemory  = -1;
@@ -618,7 +639,7 @@ static void UpdateMissedDataSessions(void)
 #endif
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    #ifdef HAVE_C___ATOMIC
+    #ifdef USE_ATOMIC
         #define LOCK_STAT()
         #define UNLOCK_STAT()
         #define NOLOCK_ADD_TO_STAT(x,y) ({ TraceStat(#x, y); \
@@ -635,7 +656,7 @@ static void UpdateMissedDataSessions(void)
         NOLOCK_INC_STAT(x); UNLOCK_STAT(); } while (0)
 #endif /* WOLFSSL_SNIFFER_STATS */
 
-#ifdef HAVE_C___ATOMIC
+#ifdef USE_ATOMIC
     #define LOCK_SESSION()
     #define UNLOCK_SESSION()
     #define LOCK_SERVER_LIST()
@@ -657,7 +678,7 @@ static void UpdateMissedDataSessions(void)
 void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
 #endif
@@ -712,7 +733,7 @@ void ssl_InitSniffer(void)
     ssl_InitSniffer_ex(devId);
 }
 
-void ssl_InitSniffer_ex2(int threadNum)
+void ssl_InitSniffer_thread(int threadNum)
 {
     int devId = GetDevId();
 
@@ -730,8 +751,6 @@ void ssl_InitSniffer_ex2(int threadNum)
 
     (void)devId;
     (void)threadNum;
-
-    ssl_InitSniffer_ex(devId);
 }
 
 #ifdef HAVE_SNI
@@ -762,6 +781,14 @@ static void FreeNamedKeyList(NamedKey* in)
 
 #endif
 
+/* Free Sniffer Context's resources/self */
+static void FreeSnifferCtx(SnifferCtx* snifferCtx)
+{
+    if (snifferCtx) {
+        wolfSSL_CTX_free(snifferCtx->ctx);
+    }
+    XFREE(snifferCtx, NULL, DYNAMIC_TYPE_SNIFFER_CONTEXT);
+}
 
 /* Free Sniffer Server's resources/self */
 static void FreeSnifferServer(SnifferServer* srv)
@@ -773,7 +800,6 @@ static void FreeSnifferServer(SnifferServer* srv)
         wc_UnLockMutex(&srv->namedKeysMutex);
         wc_FreeMutex(&srv->namedKeysMutex);
 #endif
-        wolfSSL_CTX_free(srv->ctx);
     }
     XFREE(srv, NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
 }
@@ -841,6 +867,8 @@ void ssl_FreeSniffer(void)
     SnifferServer*  removeServer;
     SnifferSession* session;
     SnifferSession* removeSession;
+    SnifferCtx*     snifferCtx;
+    SnifferCtx*     removeCtx;
     int i;
 
     LOCK_SERVER_LIST();
@@ -868,10 +896,19 @@ void ssl_FreeSniffer(void)
 
     UNLOCK_SESSION();
     UNLOCK_SERVER_LIST();
+
+    snifferCtx = CtxList;
+    while (snifferCtx) {
+        removeCtx = snifferCtx;
+        snifferCtx = snifferCtx->next;
+        FreeSnifferCtx(removeCtx);
+    }
+    CtxList = NULL;
+
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_FreeMutex(&RecoveryMutex);
 #endif
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
 #endif
@@ -893,6 +930,10 @@ void ssl_FreeSniffer(void)
         XFCLOSE(TraceFile);
         TraceFile = NULL;
     }
+
+#if defined(HAVE_ECC) && defined(FP_ECC)
+    wc_ecc_fp_free();
+#endif
 
     wolfSSL_Cleanup();
 }
@@ -1697,31 +1738,30 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
 static int CreateWatchSnifferServer(char* error)
 {
-    SnifferServer* sniffer;
+    SnifferCtx* snifferCtx;
 
-    sniffer = (SnifferServer*)XMALLOC(sizeof(SnifferServer), NULL,
-            DYNAMIC_TYPE_SNIFFER_SERVER);
-    if (sniffer == NULL) {
+    snifferCtx = (SnifferCtx*)XMALLOC(sizeof(SnifferCtx), NULL,
+            DYNAMIC_TYPE_SNIFFER_CONTEXT);
+
+    if (snifferCtx == NULL) {
         SetError(MEMORY_STR, error, NULL, 0);
         return -1;
     }
-    InitSnifferServer(sniffer);
-    sniffer->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    if (!sniffer->ctx) {
+
+    snifferCtx->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    if (!snifferCtx->ctx) {
         SetError(MEMORY_STR, error, NULL, 0);
-        FreeSnifferServer(sniffer);
+        FreeSnifferCtx(snifferCtx);
         return -1;
     }
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
     if (CryptoDeviceId != INVALID_DEVID)
-        wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+        wolfSSL_CTX_SetDevId(snifferCtx->ctx, CryptoDeviceId);
 #endif
 
-    /* add to server list */
-    LOCK_SERVER_LIST();
-    sniffer->next = ServerList;
-    ServerList = sniffer;
-    UNLOCK_SERVER_LIST();
+    /* add to context list */
+    snifferCtx->next = CtxList;
+    CtxList = snifferCtx;
 
     return 0;
 }
@@ -1734,10 +1774,12 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     char* error, int isEphemeralKey)
 {
     SnifferServer* sniffer;
+    SnifferCtx*    snifferCtx;
     int            ret;
     int            type = (typeKey == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
                                                       WOLFSSL_FILETYPE_ASN1;
     int            isNew = 0;
+    int            isNewCtx = 0;
     IpAddrInfo     serverIp;
 
 #ifdef HAVE_SNI
@@ -1784,10 +1826,12 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         }
     }
 
-    sniffer = ServerList;
-    while (sniffer != NULL &&
+    sniffer    = ServerList;
+    snifferCtx = CtxList;
+    while ((sniffer != NULL && snifferCtx != NULL) &&
             (!MatchAddr(sniffer->server, serverIp) || sniffer->port != port)) {
-        sniffer = sniffer->next;
+        sniffer    = sniffer->next;
+        snifferCtx = snifferCtx->next;
     }
 
     if (sniffer == NULL) {
@@ -1807,9 +1851,16 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->address[MAX_SERVER_ADDRESS-1] = '\0';
         sniffer->server = serverIp;
         sniffer->port = port;
+    }
 
-        sniffer->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-        if (!sniffer->ctx) {
+    if (snifferCtx == NULL) {
+        isNewCtx = 1;
+        snifferCtx = (SnifferCtx*)XMALLOC(sizeof(SnifferCtx),
+                     NULL, DYNAMIC_TYPE_SNIFFER_CONTEXT);
+
+        snifferCtx->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+
+        if (!snifferCtx->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
             FreeNamedKey(namedKey);
@@ -1819,16 +1870,16 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         }
     #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
         if (CryptoDeviceId != INVALID_DEVID)
-            wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+            wolfSSL_CTX_SetDevId(snifferCtx->ctx, CryptoDeviceId);
     #endif
     }
 
     if (name == NULL) {
         if (password) {
     #ifdef WOLFSSL_ENCRYPTED_KEYS
-            wolfSSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
+            wolfSSL_CTX_set_default_passwd_cb(snifferCtx->ctx, SetPassword);
             wolfSSL_CTX_set_default_passwd_cb_userdata(
-                                                 sniffer->ctx, (void*)password);
+                                            snifferCtx->ctx, (void*)password);
     #endif
         }
 
@@ -1836,7 +1887,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         if (isEphemeralKey) {
             /* auto detect key type with WC_PK_TYPE_NONE */
             /* keySz == 0 mean load file */
-            ret = wolfSSL_CTX_set_ephemeral_key(sniffer->ctx, WC_PK_TYPE_NONE,
+            ret = wolfSSL_CTX_set_ephemeral_key(snifferCtx->ctx, WC_PK_TYPE_NONE,
                 keyFile, keySz, type);
             if (ret == 0)
                 ret = WOLFSSL_SUCCESS;
@@ -1845,21 +1896,23 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     #endif
         {
             if (keySz == 0) {
-                ret = wolfSSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
+                ret = wolfSSL_CTX_use_PrivateKey_file(snifferCtx->ctx, keyFile, type);
             }
             else {
-                ret = wolfSSL_CTX_use_PrivateKey_buffer(sniffer->ctx,
+                ret = wolfSSL_CTX_use_PrivateKey_buffer(snifferCtx->ctx,
                                             (const byte*)keyFile, keySz, type);
             }
         }
         if (ret != WOLFSSL_SUCCESS) {
             SetError(KEY_FILE_STR, error, NULL, 0);
-            if (isNew)
+            if (isNew) {
                 FreeSnifferServer(sniffer);
+                FreeSnifferCtx(snifferCtx);
+            }
             return -1;
         }
     #ifdef WOLF_CRYPTO_CB
-        wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+        wolfSSL_CTX_SetDevId(snifferCtx->ctx, CryptoDeviceId);
     #endif
     }
 #ifdef HAVE_SNI
@@ -1874,6 +1927,10 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     if (isNew) {
         sniffer->next = ServerList;
         ServerList = sniffer;
+    }
+    if (isNewCtx) {
+        snifferCtx->next = CtxList;
+        CtxList = snifferCtx;
     }
 
 #ifndef WOLFSSL_STATIC_EPHEMERAL
@@ -2398,7 +2455,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     word32 idx;
     int ret;
     int devId = INVALID_DEVID;
-    WOLFSSL_CTX* ctx = session->context->ctx;
+    WOLFSSL_CTX* ctx = session->snifferCtx->ctx;
     WOLFSSL* ssl = session->sslServer;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -4962,14 +5019,14 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     SnifferSession* previous = 0;
     SnifferSession* current;
     word32          row = rowHint;
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     int             haveLock = 0;
 #endif
     Trace(REMOVE_SESSION_STR);
 
     if (ipInfo && tcpInfo)
         row = SessionHash(ipInfo, tcpInfo);
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     else
         haveLock = 1;
 #endif
@@ -4977,7 +5034,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     if (row >= HASH_SIZE)
         return;
 
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     if (!haveLock) {
         LOCK_SESSION();
     }
@@ -4999,7 +5056,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
         current  = current->next;
     }
 
-#ifndef HAVE_C___ATOMIC
+#ifndef USE_ATOMIC
     if (!haveLock) {
         UNLOCK_SESSION();
     }
@@ -5074,20 +5131,22 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->sni = NULL;
 #endif
 
-    session->context = GetSnifferServer(ipInfo, tcpInfo);
+    session->snifferCtx  = CtxList;
+    session->context     = GetSnifferServer(ipInfo, tcpInfo);
+
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return NULL;
     }
 
-    session->sslServer = wolfSSL_new(session->context->ctx);
+    session->sslServer = wolfSSL_new(session->snifferCtx->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return NULL;
     }
-    session->sslClient = wolfSSL_new(session->context->ctx);
+    session->sslClient = wolfSSL_new(session->snifferCtx->ctx);
     if (session->sslClient == NULL) {
         wolfSSL_free(session->sslServer);
         session->sslServer = 0;
@@ -7064,17 +7123,19 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
     int eventCount = 0;
     int i;
     SnifferServer* srv;
+    SnifferCtx*    snifferCtx;
 
     LOCK_SERVER_LIST();
 
     /* Iterate the open sniffer sessions calling wolfSSL_CTX_AsyncPoll */
     srv = ServerList;
+    snifferCtx = CtxList;
     while (srv) {
         int nMax = maxEvents - eventCount, nReady = 0;
         if (nMax <= 0) {
             break; /* out of room in events list */
         }
-        ret = wolfSSL_CTX_AsyncPoll(srv->ctx, events + nReady, nMax, flags,
+        ret = wolfSSL_CTX_AsyncPoll(snifferCtx->ctx, events + nReady, nMax, flags,
                                     &nReady);
         if (ret == 0) {
             eventCount += nReady;
@@ -7086,6 +7147,7 @@ int ssl_PollSniffer(WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags,
             break;
         }
         srv = srv->next;
+        snifferCtx = snifferCtx->next;
     }
 
     UNLOCK_SERVER_LIST();

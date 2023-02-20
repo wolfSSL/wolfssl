@@ -145,7 +145,7 @@ SSL_SNIFFER_API void ssl_InitSniffer(void);
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_InitSniffer_ex(int devId);
 WOLFSSL_API
-SSL_SNIFFER_API void ssl_InitSniffer_ex2(int threadNum);
+SSL_SNIFFER_API void ssl_InitSniffer_thread(int threadNum);
 
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_FreeSniffer(void);
