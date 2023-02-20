@@ -6783,6 +6783,10 @@ do
     ENABLED_SP_FF_4096=yes
     ;;
 
+  smallstack)
+    ENABLED_SP_SMALL_STACK=yes
+    ;;
+
   nomalloc)
     ENABLED_SP_NO_MALLOC=yes
     ;;
@@ -6866,6 +6870,10 @@ fi
 if test "$ENABLED_SP_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+fi
+if test "$ENABLED_SP_SMALL_STACK" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL_STACK"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL_STACK"
 fi
 if test "$ENABLED_SP_NO_MALLOC" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
