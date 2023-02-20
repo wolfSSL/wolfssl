@@ -1,4 +1,4 @@
-name: wolfSSL CI tests
+name: CI
 concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
@@ -10,11 +10,18 @@ on:
     branches: [ '*' ]
 
 jobs:
-    call_docker-Espressif:
+    espressif:
         uses: ./.github/workflows/docker-Espressif.yml
-    call_multi-compiler:
+    multi-compiler:
         uses: ./.github/workflows/multi-compiler.yml
-    call_docker-OpenWrt:
+    openwrt:
         uses: ./.github/workflows/docker-OpenWrt.yml
-    call_os-check:
+    os-check:
         uses: ./.github/workflows/os-check.yml
+    stunnel:
+        uses: ./.github/workflows/stunnel.yml
+    openvpn:
+        uses: ./.github/workflows/openvpn.yml
+# TODO: Currently this test fails. Enable it once it becomes passing.        
+#    haproxy:
+#        uses: ./.github/workflows/haproxy.yml

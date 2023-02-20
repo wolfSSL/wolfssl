@@ -8,79 +8,68 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-    name: make_check on ${{ matrix.os }}
+        config: [
+          # Add new configs here
+          '',
+          '--enable-all --enable-asn=template',
+          '--enable-all --enable-asn=original',
+        ]
+    name: make check
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: configure make check
-      run: |
-        ./configure
-        make
-        make check
-        make distcheck
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: ${{ matrix.config }}
+          check: true
 
-  make_check_enable_all:
+  make_user_settings:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-    name: make_check_enable_all on ${{ matrix.os }}
+        user-settings: [
+          # Add new user_settings.h here
+          'examples/configs/user_settings_all.h',
+        ]
+    name: make user_setting.h
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: configure all make check
-      run: |
-        ./configure --enable-all
-        make
-        make check
-        make distcheck
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: --enable-usersettings
+          check: true
+          user-settings: ${{ matrix.user-settings }}
 
-  make_check_enable_all_asn:
+  make_user_settings_testwolfcrypt:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-    name: make_check_enable_all_asn on ${{ matrix.os }}
+        user-settings: [
+          # Add new user_settings.h here
+          'examples/configs/user_settings_min_ecc.h',
+          'examples/configs/user_settings_wolfboot_keytools.h',
+          'examples/configs/user_settings_wolftpm.h',
+        ]
+    name: make user_setting.h (testwolfcrypt only)
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: configure all ASN template
-      run: |
-        ./configure --enable-all --enable-asn=template
-        make
-        make check
-        make distcheck
+      - name: Build and test wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: --enable-usersettings --disable-examples
+          check: false
+          user-settings: ${{ matrix.user-settings }}
 
-  make_user:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest ]
-    name: make_user on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: make user_settings_all.h
-      run: |
-        cp ./examples/configs/user_settings_all.h user_settings.h
-        ./configure --enable-usersettings
-        make
-        make check
+      - name: Run wolfcrypt/test/testwolfcrypt
+        run: ./wolfcrypt/test/testwolfcrypt
 
+  # Has to be dedicated function due to the sed call
   make_user_all:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-    name: make_user_all on ${{ matrix.os }}
+    name: make user_setting.h (with sed)
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -94,60 +83,6 @@ jobs:
         ./configure --enable-usersettings
         make
         make check
-
-  make_user_minecc:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest ]
-    name: make_user_minecc on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: user_settings_min_ecc.h
-      run: |
-        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
-  make_user_wolfboot:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest ]
-    name: make_user_wolfboot on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: user_settings_wolfboot_keytools.h
-      run: |
-        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
-  make_user_wolftpm:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest ]
-    name: make_user_wolftpm on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v3
-    - if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install automake libtool
-    - run: ./autogen.sh
-    - name: user_settings_wolftpm.h
-      run: |
-        cp ./examples/configs/user_settings_wolftpm.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
 
   windows_build:
     name: Windows Build Test
