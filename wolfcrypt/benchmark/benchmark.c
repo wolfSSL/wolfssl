@@ -969,7 +969,7 @@ static const char* bench_desc_words[][15] = {
     static THREAD_LS_T word64 _xthal_get_ccount_last = 0;
 
     /* TAG for ESP_LOGx() */
-    static char * TAG = "wolfssl_benchmark";
+    static const char* TAG = "wolfssl_benchmark";
 
     #define HAVE_GET_CYCLES
     #define INIT_CYCLE_COUNTER
@@ -2364,7 +2364,32 @@ static void* benchmarks_do(void* args)
         bench_sha512(1);
     #endif
     }
-#endif
+
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if (bench_all || (bench_digest_algs & BENCH_SHA512)) {
+    #ifndef NO_SW_BENCH
+        bench_sha512_224(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_sha512_224(1);
+    #endif
+    }
+#endif /* WOLFSSL_NOSHA512_224 */
+
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if (bench_all || (bench_digest_algs & BENCH_SHA512)) {
+    #ifndef NO_SW_BENCH
+        bench_sha512_256(0);
+    #endif
+    #ifdef BENCH_DEVID
+        bench_sha512_256(1);
+    #endif
+    }
+#endif /* WOLFSSL_NOSHA512_256 */
+#endif /* WOLFSSL_SHA512 */
+
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
     if (bench_all || (bench_digest_algs & BENCH_SHA3_224)) {
@@ -4848,6 +4873,196 @@ exit:
 
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
+
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+void bench_sha512_224(int useDeviceID)
+{
+    wc_Sha512_224 hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret = 0, i, count = 0, times, pending = 0;
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
+                     WC_SHA512_224_DIGEST_SIZE, HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
+                  WC_SHA512_224_DIGEST_SIZE, HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (digest_stream) {
+        /* init keys */
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            ret = wc_InitSha512_224_ex(&hash[i], HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("InitSha512_224_ex failed, ret = %d\n", ret);
+                goto exit;
+            }
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                          0, &times, numBlocks, &pending)) {
+                        ret = wc_Sha512_224Update(&hash[i], bench_plain,
+                            bench_size);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_sha512_224;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                          0, &times, numBlocks, &pending)) {
+                        ret = wc_Sha512_224Final(&hash[i], digest[i]);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_sha512_224;
+                        }
+                    }
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks; times++) {
+                ret = wc_InitSha512_224_ex(hash, HEAP_HINT,
+                    useDeviceID ? devId : INVALID_DEVID);
+                if (ret == 0)
+                    ret = wc_Sha512_224Update(hash, bench_plain, bench_size);
+                if (ret == 0)
+                    ret = wc_Sha512_224Final(hash, digest[0]);
+                if (ret != 0)
+                    goto exit_sha512_224;
+            } /* for times */
+            count += times;
+        } while (bench_stats_check(start));
+    }
+exit_sha512_224:
+    bench_stats_sym_finish("SHA-512/224", useDeviceID, count, bench_size,
+                           start, ret);
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha512_224Free(&hash[i]);
+    }
+
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
+#endif
+
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+void bench_sha512_256(int useDeviceID)
+{
+    wc_Sha512_256 hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret = 0, i, count = 0, times, pending = 0;
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING,
+                     WC_SHA512_256_DIGEST_SIZE, HEAP_HINT);
+    WC_INIT_ARRAY(digest, byte, BENCH_MAX_PENDING,
+                  WC_SHA512_256_DIGEST_SIZE, HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    if (digest_stream) {
+        /* init keys */
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            ret = wc_InitSha512_256_ex(&hash[i], HEAP_HINT,
+                useDeviceID ? devId : INVALID_DEVID);
+            if (ret != 0) {
+                printf("InitSha512_256_ex failed, ret = %d\n", ret);
+                goto exit;
+            }
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                          0, &times, numBlocks, &pending)) {
+                        ret = wc_Sha512_256Update(&hash[i], bench_plain,
+                            bench_size);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_sha512_256;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
+                                          0, &times, numBlocks, &pending)) {
+                        ret = wc_Sha512_256Final(&hash[i], digest[i]);
+                        if (!bench_async_handle(&ret,
+                            BENCH_ASYNC_GET_DEV(&hash[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_sha512_256;
+                        }
+                    }
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks; times++) {
+                ret = wc_InitSha512_256_ex(hash, HEAP_HINT,
+                    useDeviceID ? devId : INVALID_DEVID);
+                if (ret == 0)
+                    ret = wc_Sha512_256Update(hash, bench_plain, bench_size);
+                if (ret == 0)
+                    ret = wc_Sha512_256Final(hash, digest[0]);
+                if (ret != 0)
+                    goto exit_sha512_256;
+            } /* for times */
+            count += times;
+        } while (bench_stats_check(start));
+    }
+exit_sha512_256:
+    bench_stats_sym_finish("SHA-512/256", useDeviceID, count, bench_size,
+                           start, ret);
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha512_256Free(&hash[i]);
+    }
+
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
+
+#endif
+
 #endif
 
 
