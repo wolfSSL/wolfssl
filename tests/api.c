@@ -59319,7 +59319,7 @@ static void test_wolfSSL_dtls_send_ch_with_invalid_cookie(WOLFSSL* ssl)
 }
 #endif
 
-static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(WOLFSSL* ssl)
+static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
 {
 #ifndef NO_MD5
     enum wc_HashType hashType = WC_HASH_TYPE_MD5;
@@ -59332,7 +59332,7 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(WOLFSSL* ssl)
 #endif
     byte hashBuf[WC_MAX_DIGEST_SIZE];
     wc_HashAlg hash;
-    TLSX* exts = ssl->extensions;
+    const TLSX* exts = ssl->extensions;
     WOLFSSL sslCopy; /* Use a copy to omit certain fields */
     HS_Hashes* hsHashes = ssl->hsHashes; /* Is re-allocated in
                                           * InitHandshakeHashes */

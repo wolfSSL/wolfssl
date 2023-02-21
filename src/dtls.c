@@ -66,6 +66,8 @@ void DtlsResetState(WOLFSSL* ssl)
 #endif
     ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->keys.dtls_handshake_number = 0;
+    ssl->keys.dtls_sequence_number_hi = 0;
+    ssl->keys.dtls_sequence_number_lo = 0;
 
     /* Reset states */
     ssl->options.serverState = NULL_STATE;
