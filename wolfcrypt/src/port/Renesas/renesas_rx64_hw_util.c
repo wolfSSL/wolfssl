@@ -35,23 +35,23 @@ static int rx64_hw_CryptHwMutexInit_ = 0;
 * lock hw engine.
 * this should be called before using engine.
 */
-int rx64_hw_lock()
+int rx64_hw_lock(void)
 {
     int ret = 0;
 
     WOLFSSL_MSG("enter rx64_hw_lock");
 
-    if(rx64_hw_CryptHwMutexInit_ == 0){
+    if (rx64_hw_CryptHwMutexInit_ == 0){
         ret = wc_InitMutex(&rx64_hw_mutex);
-        if(ret == 0) {
+        if (ret == 0) {
             rx64_hw_CryptHwMutexInit_ = 1;
         } else {
             WOLFSSL_MSG(" mutex initialization failed.");
             return -1;
         }
     }
-    if(wc_LockMutex(&rx64_hw_mutex) != 0) {
-        /* this should not happens */
+    if (wc_LockMutex(&rx64_hw_mutex) != 0) {
+        /* this should not happen */
         return -1;
     }
 
@@ -62,7 +62,7 @@ int rx64_hw_lock()
 /*
 * release hw engine
 */
-void rx64_hw_unlock( void )
+void rx64_hw_unlock(void)
 {
     WOLFSSL_MSG("enter rx64_hw_unlock");
     /* unlock hw engine for next use */
@@ -71,25 +71,32 @@ void rx64_hw_unlock( void )
 }
 
 /* open RX64 HW drivers for use */
-void rx64_hw_Open( ) {
+void rx64_hw_Open(void)
+{
+    int ret = -1;
     if (rx64_hw_lock() == 0) {
         /* Enable the SHA coprocessor function. */
         R_Sha_Init();
         /* unlock hw */
         rx64_hw_unlock();
-    } else
+        ret = 0;
+    } else {
         WOLFSSL_MSG("Failed to lock rx64 hw \n");
+    }
+    return ret;
 }
 
 /* close RX64 HW driver */
-void rx64_hw_Close( ) {
+void rx64_hw_Close(void)
+{
     if (rx64_hw_lock() == 0) {
         /* Disable the SHA coprocessor function. */
         R_Sha_Close();
         /* unlock hw */
         rx64_hw_unlock();
-    } else
+    } else {
         WOLFSSL_MSG("Failed to unlock rx64 hw \n");
+    }
 }
 
 

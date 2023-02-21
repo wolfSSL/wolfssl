@@ -861,7 +861,8 @@ void wc_ShaFree(wc_Sha* sha)
     se050_hash_free(&sha->se050Ctx);
 #endif
 #if (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH))
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
+    defined(WOLFSSL_RENESAS_RX64_HASH)
     if (sha->msg != NULL) {
         XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha->msg = NULL;
@@ -869,13 +870,6 @@ void wc_ShaFree(wc_Sha* sha)
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);
-#endif
-#if defined(WOLFSSL_RENESAS_RX64_HASH)
-    wolfssl_RX64_HW_Hash* hw_sha = (wolfssl_RX64_HW_Hash*)sha;
-    if (hw_sha->msg != NULL) {
-        XFREE(hw_sha->msg, hw_sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hw_sha->msg = NULL;
-    }
 #endif
 }
 

@@ -1684,10 +1684,9 @@ static int InitSha256(wc_Sha256* sha256)
         KcapiHashFree(&sha224->kcapi);
     #endif
     #if defined(WOLFSSL_RENESAS_RX64_HASH)
-    wolfssl_RX64_HW_Hash* hw_sha = (wolfssl_RX64_HW_Hash*)sha224;
-    if (hw_sha->msg != NULL) {
-        XFREE(hw_sha->msg, hw_sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hw_sha->msg = NULL;
+    if (sha224->msg != NULL) {
+        XFREE(sha224->msg, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sha224->msg = NULL;
     }
     #endif
     }
@@ -1745,6 +1744,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
     (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)) || \
+    defined(WOLFSSL_RENESAS_RX64_HASH) || \
     defined(WOLFSSL_HASH_KEEP)
 
     if (sha256->msg != NULL) {
@@ -1780,13 +1780,6 @@ void wc_Sha256Free(wc_Sha256* sha256)
     }
     else {
         ESP_LOGV("sha256", "Hardware unlock not needed in wc_Sha256Free.");
-    }
-#endif
-#if defined(WOLFSSL_RENESAS_RX64_HASH)
-    wolfssl_RX64_HW_Hash* hw_sha = (wolfssl_RX64_HW_Hash*)sha256;
-    if (hw_sha->msg != NULL) {
-        XFREE(hw_sha->msg, hw_sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hw_sha->msg = NULL;
     }
 #endif
 }

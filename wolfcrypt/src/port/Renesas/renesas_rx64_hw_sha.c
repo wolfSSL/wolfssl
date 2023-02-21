@@ -128,10 +128,10 @@ int RX64_ShaCalc(byte* data, word32 len, byte* out, word32 sha_type)
         if (sha_type == RX64_SHA1) {
             ret = R_Sha1_HashDigest(&data[index], out, chunk_length, flag,
                                     &work_sha.sha1);
-        } else if(sha_type == RX64_SHA224) {
+        } else if (sha_type == RX64_SHA224) {
             ret = R_Sha224_HashDigest(&data[index], out, chunk_length, flag,
                                       &work_sha.sha224);
-        } else if(sha_type == RX64_SHA256) {
+        } else if (sha_type == RX64_SHA256) {
             ret = R_Sha256_HashDigest(&data[index], out, chunk_length, flag,
                                       &work_sha.sha256);
         }

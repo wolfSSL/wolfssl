@@ -244,6 +244,9 @@
 /* Uncomment next line if using RENESAS RA6M4 */
 /* #define WOLFSSL_RENESAS_RA6M4 */
 
+// Uncomment next line if using RENESAS RX64 hardware acceleration
+// #define WOLFSSL_RENESAS_RX64_HASH
+
 /* Uncomment next line if using Solaris OS*/
 /* #define WOLFSSL_SOLARIS */
 
@@ -367,6 +370,11 @@
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
     #endif
 #endif /* WOLFSSL_RENESAS_TSIP */
+
+#if !defined(WOLFSSL_NO_HASH_RAW) && defined(WOLFSSL_RENESAS_RX64_HASH)
+    /* RAW hash function APIs are not implemented with RX64 hardware acceleration */
+    #define WOLFSSL_NO_HASH_RAW
+#endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */

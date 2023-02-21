@@ -30,14 +30,12 @@
 extern "C" {
 #endif
 
-struct WOLFSSL;
-
-void  rx64_hw_Open(void);
+int rx64_hw_Open(void);
 void rx64_hw_Close(void);
 int rx64_hw_lock(void);
 void rx64_hw_unlock(void);
 
-#if (!defined(NO_SHA) || !defined(NO_SHA256))
+#if (!defined(NO_SHA) || defined(WOLFSSL_SHA224) || !defined(NO_SHA256))
 
 typedef enum
 {
@@ -56,12 +54,22 @@ typedef struct
     word32 sha_type;
 } wolfssl_RX64_HW_Hash;
 
-int RX64_ShaCalc(byte* data, word32 len, byte* out, word32 sha_type);
+#if !defined(NO_SHA)
+    typedef wolfssl_RX64_HW_Hash wc_Sha;
+#endif
 
-/* RAW hash function APIs are not implemented with RX64 hardware acceleration */
-#define WOLFSSL_NO_HASH_RAW
+#if !defined(NO_SHA256)
+    typedef wolfssl_RX64_HW_Hash wc_Sha256;
+#endif
 
-#endif /* NO_SHA */
+#if defined(WOLFSSL_SHA224)
+    typedef wolfssl_RX64_HW_Hash wc_Sha224;
+    #define WC_SHA224_TYPE_DEFINED
+#endif
+
+WOLFSSL_LOCAL int RX64_ShaCalc(byte* data, word32 len, byte* out, word32 sha_type);
+
+#endif /* !NO_SHA || WOLFSSL_SHA224 || !NO_SHA256 */
 
 #ifdef __cplusplus
 }
