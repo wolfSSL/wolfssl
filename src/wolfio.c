@@ -385,6 +385,15 @@ static int sockAddrEqual(
     return 0;
 }
 
+#ifndef WOLFSSL_IPV6
+static int PeerIsIpv6(const SOCKADDR_S *peer, XSOCKLENT len)
+{
+    if (len < sizeof(peer->ss_family))
+        return 0;
+    return peer->ss_family == WOLFSSL_IP6;
+}
+#endif /* !WOLFSSL_IPV6 */
+
 static int isDGramSock(int sfd)
 {
     char type = 0;
@@ -425,6 +434,12 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         peer = NULL;
     }
     else if (dtlsCtx->userSet) {
+#ifndef WOLFSSL_IPV6
+        if (PeerIsIpv6((SOCKADDR_S*)dtlsCtx->peer.sa, dtlsCtx->peer.sz)) {
+            WOLFSSL_MSG("ipv6 dtls peer set but no ipv6 support compiled");
+            return NOT_COMPILED_IN;
+        }
+#endif
         peer = &lclPeer;
         XMEMSET(&lclPeer, 0, sizeof(lclPeer));
         peerSz = sizeof(lclPeer);
@@ -617,6 +632,12 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     else if (!dtlsCtx->connected) {
         peer   = (const SOCKADDR_S*)dtlsCtx->peer.sa;
         peerSz = dtlsCtx->peer.sz;
+#ifndef WOLFSSL_IPV6
+        if (PeerIsIpv6(peer, peerSz)) {
+            WOLFSSL_MSG("ipv6 dtls peer setted but no ipv6 support compiled");
+            return NOT_COMPILED_IN;
+        }
+#endif
     }
 
     sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
