@@ -573,13 +573,13 @@ static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
 #endif
 
 #ifndef WC_NO_ASYNC_THREADING
-THREAD_LS_T 
+THREAD_LS_T
 #endif
 static WOLFSSL_GLOBAL SnifferCtx* CtxList = NULL;
 
 #ifndef WC_NO_ASYNC_THREADING
 /* Session Hash Table, mutex, and count */
-THREAD_LS_T 
+THREAD_LS_T
 #endif
 static WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
 
