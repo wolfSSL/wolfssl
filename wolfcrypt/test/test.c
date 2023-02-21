@@ -416,6 +416,14 @@ WOLFSSL_TEST_SUBROUTINE int  sha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sha224_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sha512_test(void);
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+WOLFSSL_TEST_SUBROUTINE int  sha512_224_test(void);
+#endif
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+WOLFSSL_TEST_SUBROUTINE int  sha512_256_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sha3_test(void);
 WOLFSSL_TEST_SUBROUTINE int  shake128_test(void);
@@ -930,11 +938,32 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #ifdef WOLFSSL_SHA512
-    if ( (ret = sha512_test()) != 0)
+    if ((ret = sha512_test()) != 0) {
         return err_sys("SHA-512  test failed!\n", ret);
-    else
+    }
+    else {
         TEST_PASS("SHA-512  test passed!\n");
-#endif
+    }
+
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if ((ret = sha512_224_test()) != 0) {
+        return err_sys("SHA-512/224  test failed!\n", ret);
+    }
+    else
+        TEST_PASS("SHA-512/224  test passed!\n");
+#endif /* !defined(WOLFSSL_NOSHA512_224) && !FIPS ... */
+
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+    if ((ret = sha512_256_test()) != 0) {
+        return err_sys("SHA-512/256  test failed!\n", ret);
+    }
+    else
+        TEST_PASS("SHA-512/256  test passed!\n");
+#endif /* !defined(WOLFSSL_NOSHA512_256) & !FIPS ... */
+
+#endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3
     if ( (ret = sha3_test()) != 0)
@@ -2875,6 +2904,9 @@ exit:
 #ifdef WOLFSSL_SHA512
 WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
 {
+    /*
+    ** See https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA512.pdf
+    */
     wc_Sha512 sha, shaCopy;
     byte      hash[WC_SHA512_DIGEST_SIZE];
     byte      hashcopy[WC_SHA512_DIGEST_SIZE];
@@ -3003,7 +3035,310 @@ exit:
 
     return ret;
 }
+
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+WOLFSSL_TEST_SUBROUTINE int sha512_224_test(void)
+{
+    /*
+    ** See https://csrc.nist.gov/Projects/cryptographic-standards-and-guidelines/example-values
+    **
+    ** NIST SHA512/224 Document Example:
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA512_224.pdf
+    */
+    wc_Sha512 sha, shaCopy;
+    byte      hash[WC_SHA512_224_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA512_224_DIGEST_SIZE];
+    int       ret = 0;
+
+    testVector a, b, c;
+    testVector test_sha[3];
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "";
+    a.output = "\x6e\xd0\xdd\x02"
+               "\x80\x6f\xa8\x9e" "\x25\xde\x06\x0c"
+               "\x19\xd3\xac\x86" "\xca\xbb\x87\xd6"
+               "\xa0\xdd\xd0\x5c" "\x33\x3b\x84\xf4";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = WC_SHA512_224_DIGEST_SIZE;
+
+    /*
+    ** See page 1 in above document for the SHA512/224 "abc" test:
+    */
+    b.input  = "abc";
+    /*
+    ** See page 1 in above document for the SHA512/224 "abc" test digest:
+    */
+    b.output = "\x46\x34\x27\x0f"
+               "\x70\x7b\x6a\x54" "\xda\xae\x75\x30"
+               "\x46\x08\x42\xe2" "\x0e\x37\xed\x26"
+               "\x5c\xee\xe9\xa4" "\x3e\x89\x24\xaa";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = WC_SHA512_224_DIGEST_SIZE;
+    /*
+    ** See page 4 in above for the 2-block test:
+    */
+    c.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    /*
+    ** see page 9 in above document for the 2-block test message digest:
+    */
+    c.output = "\x23\xfe\xc5\xbb"
+               "\x94\xd6\x0b\x23" "\x30\x81\x92\x64"
+               "\x0b\x0c\x45\x33" "\x35\xd6\x64\x73"
+               "\x4f\xe4\x0e\x72" "\x68\x67\x4a\xf9";
+    c.inLen  = XSTRLEN(c.input);
+    c.outLen = WC_SHA512_224_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+    test_sha[2] = c;
+
+    ret = wc_InitSha512_224_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -22400;
+    ret = wc_InitSha512_224_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_Sha512_224Free(&sha);
+        return -22401;
+    }
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha512_224Update(&sha, (byte*)test_sha[i].input,
+            (word32)test_sha[i].inLen);
+        if (ret != 0)
+            ERROR_OUT(-22402 - i, exit);
+        ret = wc_Sha512_224GetHash(&sha, hashcopy);
+        if (ret != 0)
+            ERROR_OUT(-22403 - i, exit);
+        ret = wc_Sha512_224Copy(&sha, &shaCopy);
+        if (ret != 0)
+            ERROR_OUT(-22404 - i, exit);
+        ret = wc_Sha512_224Final(&sha, hash);
+        if (ret != 0)
+            ERROR_OUT(-22405 - i, exit);
+        wc_Sha512_224Free(&shaCopy);
+
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_224_DIGEST_SIZE) != 0)
+            ERROR_OUT(-22406 - i, exit);
+
+
+        if (XMEMCMP(hash, hashcopy, WC_SHA512_224_DIGEST_SIZE) != 0)
+            ERROR_OUT(-22407 - i, exit);
+    }
+
+#ifndef NO_LARGE_HASH_TEST
+    /* BEGIN LARGE HASH TEST */ {
+    byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\x98\x68\xc3\xd9\xb9\xef\x17\x53"
+        "\x43\x66\x0e\x60\xdf\x29\xf8\xef"
+        "\x96\xe3\x93\x34\x8c\x6f\xc0\xeb"
+        "\x14\x6c\xcf\x6a";
+#else
+    const char* large_digest =
+        "\x26\x5f\x98\xd1\x76\x49\x71\x4e"
+        "\x82\xb7\x9d\x52\x32\x67\x9d\x56"
+        "\x91\xf5\x88\xc3\x05\xbb\x3f\x90"
+        "\xe2\x4e\x85\x05";
 #endif
+
+    for (i = 0; i < (int)sizeof(large_input); i++) {
+        large_input[i] = (byte)(i & 0xFF);
+    }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
+    times = 100;
+#endif
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha512_224Update(&sha, (byte*)large_input,
+            (word32)sizeof(large_input));
+        if (ret != 0)
+            ERROR_OUT(-22408, exit);
+    }
+    ret = wc_Sha512_224Final(&sha, hash);
+    if (ret != 0)
+        ERROR_OUT(-22409, exit);
+    if (XMEMCMP(hash, large_digest, WC_SHA512_224_DIGEST_SIZE) != 0)
+        ERROR_OUT(-22410, exit);
+
+#ifndef NO_UNALIGNED_MEMORY_TEST
+    /* Unaligned memory access test */
+    for (i = 1; i < 16; i++) {
+        ret = wc_Sha512_224Update(&sha, (byte*)large_input + i,
+            (word32)sizeof(large_input) - i);
+        if (ret != 0)
+            ERROR_OUT(-22411, exit);
+        ret = wc_Sha512_224Final(&sha, hash);
+    }
+#endif
+    } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
+
+exit:
+    wc_Sha512_224Free(&sha);
+    wc_Sha512_224Free(&shaCopy);
+
+    return ret;
+} /* sha512_224_test */
+#endif /* !defined(WOLFSSL_NOSHA512_224) && !FIPS ... */
+
+
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+
+WOLFSSL_TEST_SUBROUTINE int sha512_256_test(void)
+{
+    /*
+    ** See https://csrc.nist.gov/Projects/cryptographic-standards-and-guidelines/example-values
+    ** NIST SHA512/256 Document Example:
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA512_256.pdf
+    */
+    wc_Sha512 sha, shaCopy;
+    byte      hash[WC_SHA512_256_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA512_256_DIGEST_SIZE];
+    int       ret = 0;
+
+    testVector a, b, c;
+    testVector test_sha[3];
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "";
+    a.output = "\xc6\x72\xb8\xd1" "\xef\x56\xed\x28"
+               "\xab\x87\xc3\x62" "\x2c\x51\x14\x06"
+               "\x9b\xdd\x3a\xd7" "\xb8\xf9\x73\x74"
+               "\x98\xd0\xc0\x1e" "\xce\xf0\x96\x7a";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = WC_SHA512_256_DIGEST_SIZE;
+
+    /*
+    ** See page 1 of above document for "abc" example:
+    */
+    b.input  = "abc";
+    /*
+    ** See page 4 of above document for "abc" example digest:
+    */
+    b.output = "\x53\x04\x8e\x26" "\x81\x94\x1e\xf9"
+               "\x9b\x2e\x29\xb7" "\x6b\x4c\x7d\xab"
+               "\xe4\xc2\xd0\xc6" "\x34\xfc\x6d\x46"
+               "\xe0\xe2\xf1\x31" "\x07\xe7\xaf\x23";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = WC_SHA512_256_DIGEST_SIZE;
+
+    /*
+    ** See page 4 of above document for Two Block Message Sample:
+    */
+    c.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    /*
+    ** See page 10 of above document for Two Block Message Sample digest:
+    */
+    c.output = "\x39\x28\xe1\x84" "\xfb\x86\x90\xf8"
+               "\x40\xda\x39\x88" "\x12\x1d\x31\xbe"
+               "\x65\xcb\x9d\x3e" "\xf8\x3e\xe6\x14"
+               "\x6f\xea\xc8\x61" "\xe1\x9b\x56\x3a";
+    c.inLen  = XSTRLEN(c.input);
+    c.outLen = WC_SHA512_256_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+    test_sha[2] = c;
+
+    ret = wc_InitSha512_256_ex(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -25600;
+    ret = wc_InitSha512_256_ex(&shaCopy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_Sha512_256Free(&sha);
+        return -25601;
+    }
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha512_256Update(&sha, (byte*)test_sha[i].input,
+            (word32)test_sha[i].inLen);
+        if (ret != 0)
+            ERROR_OUT(-25602 - i, exit);
+        ret = wc_Sha512_256GetHash(&sha, hashcopy);
+        if (ret != 0)
+            ERROR_OUT(-25603 - i, exit);
+        ret = wc_Sha512_256Copy(&sha, &shaCopy);
+        if (ret != 0)
+            ERROR_OUT(-25604 - i, exit);
+        ret = wc_Sha512_256Final(&sha, hash);
+        if (ret != 0)
+            ERROR_OUT(-25605 - i, exit);
+        wc_Sha512_256Free(&shaCopy);
+
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_256_DIGEST_SIZE) != 0)
+            ERROR_OUT(-25606 - i, exit);
+
+
+        if (XMEMCMP(hash, hashcopy, WC_SHA512_256_DIGEST_SIZE) != 0)
+            ERROR_OUT(-25607 - i, exit);
+    }
+
+#ifndef NO_LARGE_HASH_TEST
+    /* BEGIN LARGE HASH TEST */ {
+    byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\x49\xcc\xbc\x7a\x93\x0b\x02\xb8"
+        "\xad\x9a\x46\x51\x00\x1f\x13\x80"
+        "\x35\x84\x36\xf1\xf2\x3c\xeb\xd8"
+        "\x41\xd4\x06\x8b\x1d\x19\xad\x72";
+#else
+    const char* large_digest =
+        "\x7a\xe3\x84\x05\xcb\x06\x22\x08"
+        "\x7e\x2c\x65\x89\x1f\x26\x45\xfd"
+        "\xad\xbc\x2e\x29\x83\x12\x84\x4b"
+        "\xf2\xa0\xde\xbe\x06\x11\xd7\x44";
+#endif
+
+    for (i = 0; i < (int)sizeof(large_input); i++) {
+        large_input[i] = (byte)(i & 0xFF);
+    }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
+    times = 100;
+#endif
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha512_256Update(&sha, (byte*)large_input,
+            (word32)sizeof(large_input));
+        if (ret != 0)
+            ERROR_OUT(-25608, exit);
+    }
+    ret = wc_Sha512_256Final(&sha, hash);
+    if (ret != 0)
+        ERROR_OUT(-25609, exit);
+    if (XMEMCMP(hash, large_digest, WC_SHA512_256_DIGEST_SIZE) != 0)
+        ERROR_OUT(-25610, exit);
+
+#ifndef NO_UNALIGNED_MEMORY_TEST
+    /* Unaligned memory access test */
+    for (i = 1; i < 16; i++) {
+        ret = wc_Sha512_256Update(&sha, (byte*)large_input + i,
+            (word32)sizeof(large_input) - i);
+        if (ret != 0)
+            ERROR_OUT(-25611, exit);
+        ret = wc_Sha512_256Final(&sha, hash);
+    }
+#endif
+    } /* END LARGE HASH TEST */
+#endif /* NO_LARGE_HASH_TEST */
+
+exit:
+    wc_Sha512_256Free(&sha);
+    wc_Sha512_256Free(&shaCopy);
+
+    return ret;
+} /* sha512_256_test */
+#endif /* !defined(WOLFSSL_NOSHA512_256) && !FIPS ... */
+
+#endif /* WOLFSSL_SHA512 */
 
 
 #ifdef WOLFSSL_SHA384
@@ -3238,6 +3573,9 @@ static int sha3_256_test(void)
         "\xe5\x00\xb6\x53\xca\x82\x27\x3b\x7b\xfa\xd8\x04\x5d\x85\xa4\x70";
 #endif
 
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-256_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\xa7\xff\xc6\xf8\xbf\x1e\xd7\x66\x51\xc1\x47\x56\xa0\x61\xd6"
                "\x62\xf5\x80\xff\x4d\xe4\x3b\x49\xfa\x82\xd8\x0a\x4b\x80\xf8"
@@ -3347,6 +3685,9 @@ static int sha3_384_test(void)
     int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-384_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\x0c\x63\xa7\x5b\x84\x5e\x4f\x7d\x01\x10\x7d\x85\x2e\x4c\x24"
                "\x85\xc5\x1a\x50\xaa\xaa\x94\xfc\x61\x99\x5e\x71\xbb\xee\x98"
@@ -3462,6 +3803,9 @@ static int sha3_512_test(void)
     int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA3-512_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\xa6\x9f\x73\xcc\xa2\x3a\x9a\xc5\xc8\xb5\x67\xdc\x18\x5a\x75"
                "\x6e\x97\xc9\x82\x16\x4f\xe2\x58\x59\xe0\xd1\xdc\xc1\x47\x5c"
@@ -3610,6 +3954,9 @@ static int shake128_absorb_test(wc_Shake* sha)
         "\xb4\x69\xed\xe7\xdb\x0f\x89\xd6\xbb\xcd\x1a\xff\xb4\xbe\x72\x26"
         "\xdc\x76\x79\xb3\x1a\x4b\xe6\x8d\x9b\x8e\xd9\xe9\xe6\xf9\xff\xa5";
 
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE128_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\x7f\x9c\x2b\xa4\xe8\x8f\x82\x7d\x61\x60\x45\x50\x76\x05\x85"
                "\x3e\xd7\x3b\x80\x93\xf6\xef\xbc\x88\xeb\x1a\x6e\xac\xfa\x66"
@@ -3780,6 +4127,9 @@ WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
         "\xa3\x66\x6c\x9b\x11\x84\x9d\x4a\x36\xbc\x8a\x0d\x4c\xe3\x39\xfa"
         "\xfa\x1b";
 
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE128_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\x7f\x9c\x2b\xa4\xe8\x8f\x82\x7d\x61\x60\x45\x50\x76\x05\x85"
                "\x3e\xd7\x3b\x80\x93\xf6\xef\xbc\x88\xeb\x1a\x6e\xac\xfa\x66"
@@ -3937,7 +4287,9 @@ static int shake256_absorb_test(wc_Shake* sha, byte *large_input_buf,
         "\xb7\x90\x0d\x1e\xfc\x47\xc0\x78\x28\x17\x66\xf3\x61\xc5\xe6\x11"
         "\x13\x46\x23\x5e\x1d\xc3\x83\x25\x66\x6c\x68\x1b\x30\xdd\xc4\xe6"
         "\x83\x8b\x0f\x23\x58\x7e\x06\x5f\x4a\x2b\xed\xc9\x6c\x97\x68\x44";
-
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE256_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\x46\xb9\xdd\x2b\x0b\xa8\x8d\x13\x23\x3b\x3f\xeb\x74\x3e\xeb"
                "\x24\x3f\xcd\x52\xea\x62\xb8\x1b\x82\xb5\x0c\x27\x64\x6e\xd5"
@@ -4100,7 +4452,9 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
         "\x8c\x68\xb7\xfb\xac\x55\x8a\x9b\x4d\x91\xe4\x9f\x72\xbb\x6e\x38"
         "\xaf\x21\x7d\x21\xaa\x98\x4e\x75\xc4\xb4\x1c\x7c\x50\x45\x54\xf9"
         "\xea\x26";
-
+    /*
+    ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE256_Msg0.pdf
+    */
     a.input  = "";
     a.output = "\x46\xb9\xdd\x2b\x0b\xa8\x8d\x13\x23\x3b\x3f\xeb\x74\x3e\xeb"
                "\x24\x3f\xcd\x52\xea\x62\xb8\x1b\x82\xb5\x0c\x27\x64\x6e\xd5"
@@ -19548,10 +19902,10 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             XMEMCMP(hash, f.output, WC_SHA512_DIGEST_SIZE) != 0) {
         return -8606;
     }
-#endif /* WOLFSSL_SHA512 */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     f.output = "\x23\xfe\xc5\xbb\x94\xd6\x0b\x23\x30\x81\x92\x64\x0b\x0c\x45"
@@ -19571,11 +19925,10 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             XMEMCMP(hash, f.output, WC_SHA512_224_DIGEST_SIZE) != 0) {
         return -8722;
     }
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+#endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     f.output = "\x39\x28\xe1\x84\xfb\x86\x90\xf8\x40\xda\x39\x88\x12\x1d\x31"
@@ -19596,8 +19949,8 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             XMEMCMP(hash, f.output, WC_SHA512_256_DIGEST_SIZE) != 0) {
         return -8723;
     }
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+#endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
+#endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
