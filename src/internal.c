@@ -30290,7 +30290,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                         goto exit_scv;
                     }
                 }
-                #if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+                #if defined(HAVE_ED25519) || defined(HAVE_ED448)
                 FALL_THROUGH;
                 #endif
             #endif /* WOLFSSL_CHECK_SIG_FAULTS */
@@ -32381,8 +32381,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     goto exit_sske;
                                 }
                             }
-                            #if defined(HAVE_CURVE25519) || \
-                                                          defined(HAVE_CURVE448)
+                            #if defined(HAVE_E25519) || defined(HAVE_ED448)
                             FALL_THROUGH;
                             #endif
                         #endif /*  WOLFSSL_CHECK_SIG_FAULTS */
