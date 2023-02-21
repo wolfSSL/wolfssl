@@ -2365,7 +2365,8 @@ static void* benchmarks_do(void* args)
     #endif
     }
 
-#if !defined(WOLFSSL_NOSHA512_224)
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     if (bench_all || (bench_digest_algs & BENCH_SHA512)) {
     #ifndef NO_SW_BENCH
         bench_sha512_224(0);
@@ -2376,7 +2377,8 @@ static void* benchmarks_do(void* args)
     }
 #endif /* WOLFSSL_NOSHA512_224 */
 
-#if !defined(WOLFSSL_NOSHA512_256)
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
     if (bench_all || (bench_digest_algs & BENCH_SHA512)) {
     #ifndef NO_SW_BENCH
         bench_sha512_256(0);
