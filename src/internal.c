@@ -34821,6 +34821,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = DoClientTicketCheckVersion(ssl, psk->it);
         if (ret != 0) {
             psk->decryptRet = PSK_DECRYPT_FAIL;
+            ForceZero(psk->identity, psk->identityLen);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(psk->it, sizeof(InternalTicket));
+#endif
             return ret;
         }
         return decryptRet;
