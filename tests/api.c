@@ -5687,8 +5687,6 @@ done:
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
 
-typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
-
 static int test_client_nofail(void* args, cbType cb)
 {
 #if !defined(NO_WOLFSSL_CLIENT)
@@ -5931,8 +5929,8 @@ done:
     return 0;
 }
 
-void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
-                                       callback_functions* server_cb)
+void test_wolfSSL_client_server_nofail_ex(callback_functions* client_cb,
+    callback_functions* server_cb, cbType client_on_handshake)
 {
     func_args client_args;
     func_args server_args;
@@ -5961,7 +5959,7 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, NULL);
+    test_client_nofail(&client_args, client_on_handshake);
     join_thread(serverThread);
 
     client_cb->return_code = client_args.return_code;
@@ -5973,6 +5971,13 @@ void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
     fdOpenSession(Task_self());
 #endif
 }
+
+void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
+    callback_functions* server_cb)
+{
+    test_wolfSSL_client_server_nofail_ex(client_cb, server_cb, NULL);
+}
+
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && \
    !defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
