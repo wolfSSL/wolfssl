@@ -5779,7 +5779,7 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret, length;
 
-    WOLFSSL_ENTER("GetObjectId()");
+    WOLFSSL_ENTER("GetObjectId");
 
     ret = GetASNObjectId(input, inOutIdx, &length, maxIdx);
     if (ret != 0)
@@ -5790,7 +5790,7 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
     ASNGetData dataASN[objectIdASN_Length];
     int ret;
 
-    WOLFSSL_ENTER("GetObjectId()");
+    WOLFSSL_ENTER("GetObjectId");
 
     /* Clear dynamic data and set OID type expected. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
@@ -6841,7 +6841,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         return LENGTH_ONLY_E;
     }
 
-    WOLFSSL_ENTER("wc_CreatePKCS8Key()");
+    WOLFSSL_ENTER("wc_CreatePKCS8Key");
 
     if (key == NULL || out == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
@@ -6914,7 +6914,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     word32 keyIdx = 0;
     word32 tmpAlgId = 0;
 
-    WOLFSSL_ENTER("wc_CreatePKCS8Key()");
+    WOLFSSL_ENTER("wc_CreatePKCS8Key");
 
     /* Check validity of parameters. */
     if (out == NULL && outSz != NULL) {
@@ -8785,7 +8785,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     (void)heap;
 
-    WOLFSSL_ENTER("EncryptContent()");
+    WOLFSSL_ENTER("EncryptContent");
 
     if (CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz) < 0)
         return ASN_INPUT_E;  /* Algo ID error */
@@ -8952,7 +8952,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     (void)heap;
 
-    WOLFSSL_ENTER("EncryptContent()");
+    WOLFSSL_ENTER("EncryptContent");
 
     /* Must have a output size to return or check. */
     if (outSz == NULL) {

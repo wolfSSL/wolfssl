@@ -1472,7 +1472,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
     int derLen = 0;
     int err;
 
-    WOLFSSL_ENTER("wolfSSL_d2i_RSAPrivateKey_bio()");
+    WOLFSSL_ENTER("wolfSSL_d2i_RSAPrivateKey_bio");
 
     /* Validate parameters. */
     err = (bio == NULL);
@@ -4120,7 +4120,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
 #endif
     int outLen = 0;
 
-    WOLFSSL_ENTER("RSA_public_encrypt");
+    WOLFSSL_ENTER("wolfSSL_RSA_public_encrypt");
 
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
@@ -4206,7 +4206,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     if (ret <= 0) {
         ret = -1;
     }
-    WOLFSSL_LEAVE("RSA_public_encrypt", ret);
+    WOLFSSL_LEAVE("wolfSSL_RSA_public_encrypt", ret);
     return ret;
 }
 
@@ -4233,7 +4233,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
 #endif
     int outLen = 0;
 
-    WOLFSSL_ENTER("RSA_private_decrypt");
+    WOLFSSL_ENTER("wolfSSL_RSA_private_decrypt");
 
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
@@ -4301,7 +4301,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     if (ret <= 0) {
         ret = -1;
     }
-    WOLFSSL_LEAVE("RSA_private_decrypt", ret);
+    WOLFSSL_LEAVE("wolfSSL_RSA_private_decrypt", ret);
     return ret;
 }
 
@@ -4324,7 +4324,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
 #endif
     int outLen = 0;
 
-    WOLFSSL_ENTER("RSA_public_decrypt");
+    WOLFSSL_ENTER("wolfSSL_RSA_public_decrypt");
 
     /* Validate parameters. */
     if ((len < 0) || (rsa == NULL) || (rsa->internal == NULL) ||
@@ -4386,7 +4386,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     if (ret <= 0) {
         ret = -1;
     }
-    WOLFSSL_LEAVE("RSA_public_decrypt", ret);
+    WOLFSSL_LEAVE("wolfSSL_RSA_public_decrypt", ret);
     return ret;
 }
 
@@ -4924,7 +4924,7 @@ WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits, unsigned char* seed,
 {
     WOLFSSL_DSA* dsa;
 
-    WOLFSSL_ENTER("wolfSSL_DSA_generate_parameters()");
+    WOLFSSL_ENTER("wolfSSL_DSA_generate_parameters");
 
     (void)cb;
     (void)CBArg;
@@ -8743,7 +8743,7 @@ int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth)
  */
 int EccEnumToNID(int n)
 {
-    WOLFSSL_ENTER("EccEnumToNID()");
+    WOLFSSL_ENTER("EccEnumToNID");
 
     switch(n) {
         case ECC_SECP192R1:
@@ -8821,7 +8821,7 @@ int NIDToEccEnum(int nid)
     /* -1 on error. */
     int id = -1;
 
-    WOLFSSL_ENTER("NIDToEccEnum()");
+    WOLFSSL_ENTER("NIDToEccEnum");
 
     switch (nid) {
         case NID_X9_62_prime192v1:
@@ -9979,7 +9979,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
     int compressed = ((form == POINT_CONVERSION_COMPRESSED) ? 1 : 0);
 #endif /* !HAVE_SELFTEST */
 
-    WOLFSSL_ENTER("EC_POINT_point2oct");
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_point2oct");
 
     /* No BN operations performed. */
     (void)ctx;

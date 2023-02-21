@@ -5175,7 +5175,7 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut)
  */
 int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng)
 {
-    WOLFSSL_ENTER("wc_ecc_make_pub");
+    WOLFSSL_ENTER("wc_ecc_make_pub_ex");
 
     return ecc_make_pub_ex(key, NULL, pubOut, rng);
 }

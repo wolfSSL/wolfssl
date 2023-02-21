@@ -234,7 +234,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
     {
         int _pthread_ret = pthread_cond_destroy(&crl->cond);
         if (_pthread_ret != 0)
-            WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL()");
+            WOLFSSL_MSG("pthread_cond_destroy failed in FreeCRL");
     }
 #endif
     wc_FreeMutex(&crl->crlLock);

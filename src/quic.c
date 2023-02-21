@@ -379,7 +379,7 @@ int wolfSSL_set_quic_transport_params(WOLFSSL* ssl,
     const QuicTransportParam* tp;
     int ret = WOLFSSL_SUCCESS;
 
-    WOLFSSL_ENTER("SSL_set_quic_transport_params");
+    WOLFSSL_ENTER("wolfSSL_set_quic_transport_params");
 
     if (!params || params_len == 0) {
         tp = NULL;
@@ -396,7 +396,7 @@ int wolfSSL_set_quic_transport_params(WOLFSSL* ssl,
     ssl->quic.transport_local = tp;
 
 cleanup:
-    WOLFSSL_LEAVE("SSL_set_quic_transport_params", ret);
+    WOLFSSL_LEAVE("wolfSSL_set_quic_transport_params", ret);
     return ret;
 }
 

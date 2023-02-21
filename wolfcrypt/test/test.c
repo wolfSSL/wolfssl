@@ -14604,7 +14604,7 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     if (ret < 0) {
         return ret;
     }
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     printf("RSA non-block sign: %d times\n", count);
 #endif
     signSz = ret;
@@ -14622,7 +14622,7 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     if (ret < 0) {
         return ret;
     }
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     printf("RSA non-block verify: %d times\n", count);
 #endif
 
@@ -14642,7 +14642,7 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     if (ret < 0) {
         return ret;
     }
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     printf("RSA non-block inline verify: %d times\n", count);
 #endif
 
@@ -26474,7 +26474,7 @@ static int crypto_ecc_verify(const byte *key, uint32_t keySz,
 
             /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
-    #ifdef DEBUG_WOLFSSL
+    #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
         printf("ECC non-block verify: %d times\n", count);
     #endif
         if (ret < 0)
@@ -26563,7 +26563,7 @@ static int crypto_ecc_sign(const byte *key, uint32_t keySz,
             /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
 
-    #ifdef DEBUG_WOLFSSL
+    #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
         printf("ECC non-block sign: %d times\n", count);
     #endif
         if (ret < 0)
@@ -26629,7 +26629,7 @@ static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
         if (ret < 0)
             ret = -16120;
     }
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     fprintf(stderr, "ECC non-block key gen: %d times\n", count);
 #endif
     if (ret == 0) {
@@ -26652,7 +26652,7 @@ static int ecc_test_nonblock_dhe(int curveId, word32 curveSz,
         if (ret < 0)
             ret = -16123;
     }
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     fprintf(stderr, "ECC non-block shared secret: %d times\n", count);
 #endif
     if (ret == 0) {
