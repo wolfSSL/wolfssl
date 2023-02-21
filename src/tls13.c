@@ -11084,12 +11084,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (alertType != invalid_alert) {
 #ifdef WOLFSSL_DTLS13
-        if (type == client_hello && ssl->options.dtls) {
-            /* We should continue with the same sequence number as the
-             * Client Hello. */
-            ssl->dtls13EncryptEpoch->nextSeqNumber =
-                    w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
-        }
+        if (type == client_hello && ssl->options.dtls)
+            DtlsSetSeqNumForReply(ssl);
 #endif
         SendAlert(ssl, alert_fatal, alertType);
     }

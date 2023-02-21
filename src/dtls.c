@@ -99,6 +99,26 @@ int DtlsIgnoreError(int err)
     }
 }
 
+void DtlsSetSeqNumForReply(WOLFSSL* ssl)
+{
+    /* We cover both DTLS 1.2 and 1.3 cases because we may be negotiating
+     * protocols. */
+    /* We should continue with the same sequence number as the
+     * Client Hello. */
+    ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+    ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->dtls13EncryptEpoch != NULL) {
+        ssl->dtls13EncryptEpoch->nextSeqNumber =
+                w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
+    }
+#endif
+    /* We should continue with the same handshake number as the
+     * Client Hello. */
+    ssl->keys.dtls_handshake_number =
+            ssl->keys.dtls_peer_handshake_number;
+}
+
 #if !defined(NO_WOLFSSL_SERVER)
 
 #if defined(NO_SHA) && defined(NO_SHA256)
