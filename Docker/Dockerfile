@@ -3,7 +3,7 @@ FROM $DOCKER_BASE_IMAGE
 
 USER root
 
-RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y build-essential autoconf libtool git gdb iputils-ping clang lldb bsdmainutils netcat gcc-multilib
+RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y build-essential autoconf libtool git gdb iputils-ping clang lldb bsdmainutils gcc-multilib gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu
 
 ARG USER=docker
 ARG UID=1000
