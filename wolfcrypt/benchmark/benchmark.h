@@ -67,8 +67,14 @@ void bench_sha224(int useDeviceID);
 void bench_sha256(int useDeviceID);
 void bench_sha384(int useDeviceID);
 void bench_sha512(int useDeviceID);
+#if !defined(WOLFSSL_NOSHA512_224) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 void bench_sha512_224(int useDeviceID);
+#endif
+#if !defined(WOLFSSL_NOSHA512_256) && \
+   (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 void bench_sha512_256(int useDeviceID);
+#endif
 void bench_sha3_224(int useDeviceID);
 void bench_sha3_256(int useDeviceID);
 void bench_sha3_384(int useDeviceID);
