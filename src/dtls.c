@@ -693,8 +693,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         cs.cipherSuite0 = pskInfo.cipherSuite0;
         cs.cipherSuite = pskInfo.cipherSuite;
 
-        if (haveSG && !haveKS) {
-            WOLFSSL_MSG("Client didn't send KeyShare or Supported Groups.");
+        /* https://datatracker.ietf.org/doc/html/rfc8446#section-9.2 */
+        if (haveSG ^ haveKS) {
+            WOLFSSL_MSG("Client needs to send both or none of KeyShare and "
+                        "SupportedGroups");
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
 
@@ -711,9 +713,10 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     else
 #endif
     {
+        /* https://datatracker.ietf.org/doc/html/rfc8446#section-9.2 */
         if (!haveKS || !haveSA || !haveSG) {
             WOLFSSL_MSG("Client didn't send KeyShare or SigAlgs or "
-                        "Supported Groups.");
+                        "SupportedGroups.");
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
         ret = MatchSuite_ex(ssl, &suites, &cs, parsedExts);
