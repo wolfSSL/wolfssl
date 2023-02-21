@@ -9110,13 +9110,14 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         list = (KeyShareEntry*)extension->data;
 
     if (extension && extension->resp == 1) {
-        int ret = 0;
+        /* Outside of the async case this path should not be taken. */
+        int ret = INCOMPLETE_DATA;
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* in async case make sure key generation is finalized */
         serverKSE = (KeyShareEntry*)extension->data;
-        if (serverKSE->lastRet == WC_PENDING_E) {
+        if (serverKSE && serverKSE->lastRet == WC_PENDING_E) {
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
-                *doHelloRetry = 1;
+                *searched = 1;
             ret = TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
         }
     #endif
