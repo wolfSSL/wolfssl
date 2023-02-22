@@ -774,7 +774,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define NID_id_pkix_OCSP_basic 74
 #define NID_any_policy 75
 #define NID_anyExtendedKeyUsage 76
-#define NID_givenName 99  /* 2.5.4.42 */
+#define NID_givenName 100  /* 2.5.4.42 */
 #define NID_initials 101  /* 2.5.4.43 */
 #define NID_title 106
 #define NID_description 107
