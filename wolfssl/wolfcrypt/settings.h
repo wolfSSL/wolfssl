@@ -2940,6 +2940,10 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */
 
+#if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)
+#error "Dynamic session cache currently does not support persistent session cache."
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
