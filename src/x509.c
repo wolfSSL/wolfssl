@@ -128,7 +128,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     DecodedCert cert[1];
 #endif
 
-    WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+    WOLFSSL_ENTER("wolfSSL_X509_get_ext_count");
     if (passedCert == NULL) {
         WOLFSSL_MSG("\tNot passed a certificate");
         return WOLFSSL_FAILURE;
@@ -4168,7 +4168,7 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk)
 {
-    WOLFSSL_ENTER("sk_GENERAL_NAME_free");
+    WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_free");
     wolfSSL_sk_X509_pop_free(sk, NULL);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
@@ -4221,7 +4221,7 @@ WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void)
     WOLFSSL_DIST_POINT* dp = NULL;
     WOLFSSL_DIST_POINT_NAME* dpn = NULL;
 
-    WOLFSSL_ENTER("DIST_POINT_new");
+    WOLFSSL_ENTER("wolfSSL_DIST_POINT_new");
 
     dp = (WOLFSSL_DIST_POINT*)XMALLOC(sizeof(WOLFSSL_DIST_POINT), NULL,
                                       DYNAMIC_TYPE_OPENSSL);
@@ -4322,7 +4322,7 @@ void wolfSSL_sk_DIST_POINT_pop_free(WOLFSSL_STACK* sk,
 
 void wolfSSL_sk_DIST_POINT_free(WOLFSSL_STACK* sk)
 {
-    WOLFSSL_ENTER("sk_DIST_POINT_free");
+    WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_free");
     wolfSSL_sk_free(sk);
 }
 
@@ -4856,7 +4856,7 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
 {
-    WOLFSSL_ENTER("X509_get_issuer_name");
+    WOLFSSL_ENTER("wolfSSL_X509_get_issuer_name");
     if (cert)
         return &cert->issuer;
     return NULL;
@@ -4986,7 +4986,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
     (void)ret;
 
-    WOLFSSL_ENTER("X509_get_pubkey");
+    WOLFSSL_ENTER("wolfSSL_X509_get_pubkey");
     if (x509 != NULL) {
         key = wolfSSL_EVP_PKEY_new_ex(x509->heap);
         if (key != NULL) {
@@ -8679,7 +8679,7 @@ void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg)
 /* Returns X509_ALGOR struct with signature algorithm */
 const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 {
-    WOLFSSL_ENTER("X509_get0_tbs_sigalg");
+    WOLFSSL_ENTER("wolfSSL_X509_get0_tbs_sigalg");
 
     if (x509 == NULL) {
         WOLFSSL_MSG("x509 struct NULL error");
@@ -8693,7 +8693,7 @@ const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
                             const void **ppval, const WOLFSSL_X509_ALGOR *algor)
 {
-    WOLFSSL_ENTER("X509_ALGOR_get0");
+    WOLFSSL_ENTER("wolfSSL_X509_ALGOR_get0");
 
     if (!algor) {
         WOLFSSL_MSG("algor object is NULL");
@@ -8790,7 +8790,7 @@ void wolfSSL_X509_PUBKEY_free(WOLFSSL_X509_PUBKEY *x)
 /* Returns X509_PUBKEY structure containing X509_ALGOR and EVP_PKEY */
 WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
 {
-    WOLFSSL_ENTER("X509_get_X509_PUBKEY");
+    WOLFSSL_ENTER("wolfSSL_X509_get_X509_PUBKEY");
 
     if (x509 == NULL) {
         WOLFSSL_MSG("x509 struct NULL error");
@@ -8806,7 +8806,7 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
      const unsigned char **pk, int *ppklen, WOLFSSL_X509_ALGOR **pa,
      WOLFSSL_X509_PUBKEY *pub)
 {
-    WOLFSSL_ENTER("X509_PUBKEY_get0_param");
+    WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get0_param");
 
     if (!pub || !pub->pubKeyOID) {
         WOLFSSL_MSG("X509_PUBKEY struct not populated");
@@ -9251,7 +9251,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         int i;
         #endif
 
-        WOLFSSL_ENTER("wolfSSL_X509_to_Cert()");
+        WOLFSSL_ENTER("wolfSSL_X509_to_Cert");
 
         if (x509 == NULL || cert == NULL) {
             return BAD_FUNC_ARG;
@@ -11095,7 +11095,7 @@ err:
         int nid = -1;
         WOLFSSL_X509_NAME_ENTRY* ne = NULL;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_txt()");
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_txt");
 
         if (txt == NULL) {
             return NULL;
@@ -11145,7 +11145,7 @@ err:
         WOLFSSL_X509_NAME_ENTRY* ne;
 
 #ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID()");
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID");
 #endif
 
         if (!data) {
@@ -11282,7 +11282,7 @@ err:
         int ret, i;
 
 #ifdef WOLFSSL_DEBUG_OPENSSL
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry()");
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry");
 #endif
 
         if (name == NULL || entry == NULL || entry->value == NULL) {
@@ -11530,7 +11530,7 @@ int wolfSSL_PEM_write_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
     int derSz;
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_REQ()");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_REQ");
 
     if (x == NULL || bp == NULL) {
         return WOLFSSL_FAILURE;
@@ -11579,7 +11579,7 @@ int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
     int derSz;
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_AUX()");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_AUX");
 
     if (bp == NULL || x == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
@@ -11624,7 +11624,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     int derSz = X509_BUFFER_SZ;
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509()");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509");
 
     if (bio == NULL || cert == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
@@ -12791,7 +12791,7 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 #if defined(OPENSSL_EXTRA)
 int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
 {
-    WOLFSSL_ENTER("X509_check_ca");
+    WOLFSSL_ENTER("wolfSSL_X509_check_ca");
 
     if (x509 == NULL)
         return WOLFSSL_FAILURE;
@@ -12943,7 +12943,7 @@ int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
  * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 {
-    WOLFSSL_ENTER("X509_set_subject_name");
+    WOLFSSL_ENTER("wolfSSL_X509_set_subject_name");
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 
@@ -12964,7 +12964,7 @@ int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
  * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 {
-    WOLFSSL_ENTER("X509_set_issuer_name");
+    WOLFSSL_ENTER("wolfSSL_X509_set_issuer_name");
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 

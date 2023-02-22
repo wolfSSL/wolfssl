@@ -8282,7 +8282,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
 {
     DtlsMsg* msg;
-    WOLFSSL_ENTER("DtlsMsgNew()");
+    WOLFSSL_ENTER("DtlsMsgNew");
 
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
@@ -8309,7 +8309,7 @@ DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap)
 void DtlsMsgDelete(DtlsMsg* item, void* heap)
 {
     (void)heap;
-    WOLFSSL_ENTER("DtlsMsgDelete()");
+    WOLFSSL_ENTER("DtlsMsgDelete");
 
     if (item != NULL) {
         while (item->fragBucketList != NULL) {
@@ -8327,7 +8327,7 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
 void DtlsMsgListDelete(DtlsMsg* head, void* heap)
 {
     DtlsMsg* next;
-    WOLFSSL_ENTER("DtlsMsgListDelete()");
+    WOLFSSL_ENTER("DtlsMsgListDelete");
     while (head) {
         next = head->next;
         DtlsMsgDelete(head, heap);
@@ -8342,7 +8342,7 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
 {
     DtlsMsg* head = ssl->dtls_tx_msg_list;
     DtlsMsg* next;
-    WOLFSSL_ENTER("DtlsTxMsgListClean()");
+    WOLFSSL_ENTER("DtlsTxMsgListClean");
     while (head) {
         next = head->next;
         if (VerifyForTxDtlsMsgDelete(ssl, head))
@@ -8554,7 +8554,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 {
     word32 fragOffsetEnd = fragOffset + fragSz;
 
-    WOLFSSL_ENTER("DtlsMsgSet()");
+    WOLFSSL_ENTER("DtlsMsgSet");
 
     if (msg == NULL || data == NULL || msg->sz != totalLen ||
             fragOffsetEnd > totalLen) {
@@ -8667,7 +8667,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
 DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq)
 {
-    WOLFSSL_ENTER("DtlsMsgFind()");
+    WOLFSSL_ENTER("DtlsMsgFind");
     while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
         head = head->next;
     }
@@ -8696,7 +8696,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
      */
 
     DtlsMsg* head = ssl->dtls_rx_msg_list;
-    WOLFSSL_ENTER("DtlsMsgStore()");
+    WOLFSSL_ENTER("DtlsMsgStore");
 
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
@@ -8738,7 +8738,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq, const byte* data,
 /* DtlsMsgInsert() is an in-order insert. */
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 {
-    WOLFSSL_ENTER("DtlsMsgInsert()");
+    WOLFSSL_ENTER("DtlsMsgInsert");
     if (head == NULL || (item->epoch <= head->epoch &&
                          item->seq   <  head->seq)) {
         item->next = head;
@@ -8780,7 +8780,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
     DtlsMsg* item;
     int ret = 0;
 
-    WOLFSSL_ENTER("DtlsMsgPoolSave()");
+    WOLFSSL_ENTER("DtlsMsgPoolSave");
 
     if (ssl->dtls_tx_msg_list_sz > DTLS_POOL_SZ) {
         WOLFSSL_ERROR(DTLS_POOL_SZ_E);
@@ -8818,7 +8818,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
 int DtlsMsgPoolTimeout(WOLFSSL* ssl)
 {
     int result = -1;
-    WOLFSSL_ENTER("DtlsMsgPoolTimeout()");
+    WOLFSSL_ENTER("DtlsMsgPoolTimeout");
     if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
         ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
         result = 0;
@@ -8831,7 +8831,7 @@ int DtlsMsgPoolTimeout(WOLFSSL* ssl)
 /* DtlsMsgPoolReset() deletes the stored transmit list. */
 void DtlsMsgPoolReset(WOLFSSL* ssl)
 {
-    WOLFSSL_ENTER("DtlsMsgPoolReset()");
+    WOLFSSL_ENTER("DtlsMsgPoolReset");
     if (ssl->dtls_tx_msg_list) {
         DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
         ssl->dtls_tx_msg_list = NULL;
@@ -8864,7 +8864,7 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
  */
 int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
 {
-    WOLFSSL_ENTER("VerifyForTxDtlsMsgDelete()");
+    WOLFSSL_ENTER("VerifyForTxDtlsMsgDelete");
     if (item->epoch < ssl->keys.dtls_epoch - 1)
         /* Messages not from current or previous epoch can be deleted */
         return 1;
@@ -8902,7 +8902,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
     DtlsMsg* pool;
     int epochOrder;
 
-    WOLFSSL_ENTER("DtlsMsgPoolSend()");
+    WOLFSSL_ENTER("DtlsMsgPoolSend");
 
     pool = ssl->dtls_tx_msg == NULL ? ssl->dtls_tx_msg_list : ssl->dtls_tx_msg;
 
@@ -15053,7 +15053,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (!ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
             if (ssl->CBIS != NULL) {
-                ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
             }
 #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -15069,7 +15069,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
             if (ssl->CBIS != NULL) {
-                ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, WOLFSSL_SUCCESS);
             }
 #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -15709,7 +15709,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->CBIS != NULL){
         ssl->cbmode = SSL_CB_MODE_READ;
         ssl->cbtype = type;
-        ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+        ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, WOLFSSL_SUCCESS);
     }
 #endif
 
@@ -15942,7 +15942,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int    ret = 0;
     word32 inputLength;
 
-    WOLFSSL_ENTER("DoHandShakeMsg()");
+    WOLFSSL_ENTER("DoHandShakeMsg");
 
     if (ssl->arrays == NULL) {
         byte   type;
@@ -16460,7 +16460,7 @@ int DtlsMsgDrain(WOLFSSL* ssl)
     DtlsMsg* item = ssl->dtls_rx_msg_list;
     int ret = 0;
 
-    WOLFSSL_ENTER("DtlsMsgDrain()");
+    WOLFSSL_ENTER("DtlsMsgDrain");
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
@@ -16505,7 +16505,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int ret = 0;
     int ignoreFinished = 0;
 
-    WOLFSSL_ENTER("DoDtlsHandShakeMsg()");
+    WOLFSSL_ENTER("DoDtlsHandShakeMsg");
 
     /* parse header */
     if (GetDtlsHandShakeHeader(ssl, input, inOutIdx, &type,
@@ -20201,13 +20201,13 @@ int SendChangeCipher(WOLFSSL* ssl)
     if (ssl->options.side == WOLFSSL_SERVER_END){
         ssl->options.serverState = SERVER_CHANGECIPHERSPEC_COMPLETE;
         if (ssl->CBIS != NULL)
-            ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+            ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, WOLFSSL_SUCCESS);
     }
     else{
         ssl->options.clientState =
             CLIENT_CHANGECIPHERSPEC_COMPLETE;
         if (ssl->CBIS != NULL)
-            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
     }
     #endif
 
@@ -21217,7 +21217,7 @@ int SendFinished(WOLFSSL* ssl)
             ssl->options.serverState = SERVER_FINISHED_COMPLETE;
             ssl->cbmode = SSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
-                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, WOLFSSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
@@ -21229,7 +21229,7 @@ int SendFinished(WOLFSSL* ssl)
             ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
             ssl->cbmode = SSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
-                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, WOLFSSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
@@ -22618,7 +22618,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 {
     int size;
 
-    WOLFSSL_ENTER("ReceiveData()");
+    WOLFSSL_ENTER("ReceiveData");
 
     /* reset error state */
     if (ssl->error == WANT_READ || ssl->error == WOLFSSL_ERROR_WANT_READ) {
@@ -26447,7 +26447,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #ifdef OPENSSL_EXTRA
         ssl->cbmode = SSL_CB_MODE_WRITE;
         if (ssl->CBIS != NULL)
-            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
 #endif
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -26579,7 +26579,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
         #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
-            ssl->CBIS(ssl, SSL_CB_HANDSHAKE_START, SSL_SUCCESS);
+            ssl->CBIS(ssl, SSL_CB_HANDSHAKE_START, WOLFSSL_SUCCESS);
         }
         #endif
 
@@ -28707,7 +28707,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
     ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
     ssl->cbmode = SSL_CB_MODE_WRITE;
     if (ssl->CBIS != NULL)
-        ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+        ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
 #endif
 
 #ifdef WOLFSSL_ASYNC_IO

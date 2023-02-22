@@ -2347,7 +2347,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     word32 certCiSz;
     word32 keyCiSz;
 
-    WOLFSSL_ENTER("wc_PKCS12_create()");
+    WOLFSSL_ENTER("wc_PKCS12_create");
 
     if (wc_InitRng_ex(&rng, heap, INVALID_DEVID) != 0) {
         return NULL;

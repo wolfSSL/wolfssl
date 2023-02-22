@@ -343,7 +343,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
     word32 idx = 0;
     int ret = 0;
 
-    WOLFSSL_ENTER("Dtls13ProcessBufferedMessages()");
+    WOLFSSL_ENTER("Dtls13ProcessBufferedMessages");
 
     while (msg != NULL) {
         idx = 0;

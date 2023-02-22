@@ -1739,7 +1739,7 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 #else
      return 0;
 #endif
-    WOLFSSL_ENTER("EVP_PKEY_CTX_free");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_free");
     if (ctx->pkey != NULL)
         wolfSSL_EVP_PKEY_free(ctx->pkey);
     if (ctx->peerKey != NULL)
@@ -1764,7 +1764,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 
     if (pkey == NULL) return 0;
     if (e != NULL) return 0;
-    WOLFSSL_ENTER("EVP_PKEY_CTX_new");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_new");
 
     ctx = (WOLFSSL_EVP_PKEY_CTX*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY_CTX), NULL,
             DYNAMIC_TYPE_PUBLIC_KEY);
@@ -1801,7 +1801,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding)
 {
     if (ctx == NULL) return 0;
-    WOLFSSL_ENTER("EVP_PKEY_CTX_set_rsa_padding");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_rsa_padding");
     ctx->padding = padding;
     return WOLFSSL_SUCCESS;
 }
@@ -1817,7 +1817,7 @@ int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     const EVP_MD* md)
 {
     if (ctx == NULL) return 0;
-    WOLFSSL_ENTER("EVP_PKEY_CTX_set_signature_md");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_signature_md");
 #ifndef NO_RSA
     ctx->md = md;
 #else
@@ -2254,7 +2254,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
 {
     int len = 0;
 
-    WOLFSSL_ENTER("EVP_PKEY_decrypt");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_decrypt");
 
     if (ctx == NULL || ctx->pkey == NULL) {
         WOLFSSL_MSG("Bad parameter.");
@@ -2318,7 +2318,7 @@ int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
 int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
-    WOLFSSL_ENTER("EVP_PKEY_decrypt_init");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_decrypt_init");
     switch (ctx->pkey->type) {
     case EVP_PKEY_RSA:
         ctx->op = EVP_PKEY_OP_DECRYPT;
@@ -2351,7 +2351,7 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
 {
     int len = 0;
 
-    WOLFSSL_ENTER("EVP_PKEY_encrypt");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt");
 
     if (ctx == NULL || ctx->pkey == NULL) {
         WOLFSSL_MSG("Bad parameter.");
@@ -2422,7 +2422,7 @@ int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
 int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
-    WOLFSSL_ENTER("EVP_PKEY_encrypt_init");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_encrypt_init");
 
     switch (ctx->pkey->type) {
     case EVP_PKEY_RSA:
@@ -2703,7 +2703,7 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     int bytes;
 
     if (pkey == NULL) return 0;
-    WOLFSSL_ENTER("EVP_PKEY_bits");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_bits");
     if ((bytes = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey)) ==0) return 0;
     return bytes*8;
 }
@@ -2923,7 +2923,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
 int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey == NULL) return 0;
-    WOLFSSL_ENTER("EVP_PKEY_size");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_size");
 
     switch (pkey->type) {
 #ifndef NO_RSA
@@ -4841,7 +4841,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     /* return a pointer to MD4 EVP type */
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void)
     {
-        WOLFSSL_ENTER("wolfSSL_EVP_md4");
+        WOLFSSL_ENTER("EVP_md4");
         return EVP_get_digestbyname("MD4");
     }
 
@@ -5675,7 +5675,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
         int ret = WOLFSSL_SUCCESS;
-        WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
+        WOLFSSL_ENTER("wolfSSL_EVP_MD_CTX_cleanup");
         if (ctx->pctx != NULL)
             wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
 
@@ -5777,7 +5777,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
     void wolfSSL_EVP_CIPHER_CTX_init(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
-        WOLFSSL_ENTER("EVP_CIPHER_CTX_init");
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_init");
         if (ctx) {
             XMEMSET(ctx, 0, sizeof(WOLFSSL_EVP_CIPHER_CTX));
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;   /* not yet initialized */
@@ -5801,7 +5801,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         (void)arg;
         (void)ptr;
 
-        WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_ctrl");
 
         switch(type) {
             case EVP_CTRL_INIT:
@@ -5987,7 +5987,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_CIPHER_CTX_cleanup(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
-        WOLFSSL_ENTER("EVP_CIPHER_CTX_cleanup");
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_cleanup");
         if (ctx) {
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))

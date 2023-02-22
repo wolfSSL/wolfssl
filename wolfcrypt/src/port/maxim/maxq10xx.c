@@ -1852,7 +1852,7 @@ static int maxq10xx_read_device_cert_der(byte* p_dest_buff, word32* p_len)
     int pk_offset = 0;
 #endif
 
-    WOLFSSL_ENTER("maxq10xx_read_device_cert_der()");
+    WOLFSSL_ENTER("maxq10xx_read_device_cert_der");
     if (!p_dest_buff || !p_len) {
         return BAD_FUNC_ARG;
     }
@@ -2025,7 +2025,7 @@ static int maxq10xx_tls12_ecc_shared_secret(WOLFSSL* ssl, ecc_key* otherKey,
     (void)outlen;
     (void)side;
 
-    WOLFSSL_ENTER("maxq10xx_ecc_shared_secret()");
+    WOLFSSL_ENTER("maxq10xx_ecc_shared_secret");
 
     if (ssl->specs.kea != ecc_diffie_hellman_kea) {
         WOLFSSL_MSG("MAXQ: key exchange algo not supported");
@@ -2215,7 +2215,7 @@ static int maxq10xx_create_dh_key(byte* p, word32 pSz, byte* g, word32 gSz,
     int rc;
     mxq_err_t mxq_rc;
 
-    WOLFSSL_ENTER("maxq10xx_create_dh_key()");
+    WOLFSSL_ENTER("maxq10xx_create_dh_key");
     if (!tls13active) {
         return NOT_COMPILED_IN;
     }
@@ -2278,7 +2278,7 @@ static int maxq10xx_dh_agree(WOLFSSL* ssl, struct DhKey* key,
     (void)priv;
     (void)privSz;
 
-    WOLFSSL_ENTER("maxq10xx_dh_agree()");
+    WOLFSSL_ENTER("maxq10xx_dh_agree");
 
     mxq_u2 csid_param = ssl->options.cipherSuite |
                         (ssl->options.cipherSuite0 << 8);
@@ -2330,7 +2330,7 @@ static int  maxq10xx_ecc_key_gen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     (void)ctx;
     (void)ssl;
 
-    WOLFSSL_ENTER("maxq10xx_ecc_key_gen()");
+    WOLFSSL_ENTER("maxq10xx_ecc_key_gen");
 
     if (tls13_ecc_obj_id == -1) {
         tls13_ecc_obj_id = alloc_temp_key_id();
@@ -2375,7 +2375,7 @@ static int maxq10xx_ecc_verify(WOLFSSL* ssl, const byte* sig,
     (void)keySz;
     (void)ctx;
 
-    WOLFSSL_ENTER("maxq10xx_ecc_verify()");
+    WOLFSSL_ENTER("maxq10xx_ecc_verify");
 
     if (!tls13active) {
         return CRYPTOCB_UNAVAILABLE;
@@ -2418,7 +2418,7 @@ static int maxq10xx_tls13_ecc_shared_secret(WOLFSSL* ssl, ecc_key* otherKey,
     (void)side;
     (void)pubKeySz;
 
-    WOLFSSL_ENTER("maxq10xx_ecc_shared_secret()");
+    WOLFSSL_ENTER("maxq10xx_ecc_shared_secret");
 
     rc = wc_ecc_export_public_raw(otherKey, qx, &qxLen, qy, &qyLen);
 
@@ -3331,7 +3331,7 @@ static int maxq10xx_perform_tls13_record_processing(WOLFSSL* ssl,
         return rc;
     }
 
-    WOLFSSL_MSG("MAXQ: MXQ_TLS13_Update_IV()");
+    WOLFSSL_MSG("MAXQ: MXQ_TLS13_Update_IV");
     mxq_rc = MXQ_TLS13_Update_IV( key_id, (mxq_u1 *)iv, ivSz);
     if (mxq_rc) {
         WOLFSSL_ERROR_MSG("MAXQ: MXQ_TLS13_Update_IV() failed");

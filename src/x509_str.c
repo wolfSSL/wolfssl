@@ -45,7 +45,7 @@
 WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 {
     WOLFSSL_X509_STORE_CTX* ctx;
-    WOLFSSL_ENTER("X509_STORE_CTX_new");
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_new");
 
     ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(sizeof(WOLFSSL_X509_STORE_CTX), NULL,
                                     DYNAMIC_TYPE_X509_CTX);
@@ -122,7 +122,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 /* free's extra data */
 void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    WOLFSSL_ENTER("X509_STORE_CTX_free");
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_free");
     if (ctx != NULL) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data);
@@ -715,7 +715,7 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     int ret;
     WOLFSSL_X509_STORE* store = NULL;
-    WOLFSSL_ENTER("SSL_X509_STORE_new");
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_new");
 
     if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
                                     DYNAMIC_TYPE_X509_STORE)) == NULL)
@@ -917,7 +917,7 @@ int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
     void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
-        WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb");
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_set_verify_cb");
         if (st != NULL) {
             st->verify_cb = verify_cb;
         }
@@ -927,7 +927,7 @@ int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
 WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
-    WOLFSSL_ENTER("SSL_X509_STORE_add_lookup");
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_add_lookup");
     if (store == NULL || m == NULL)
         return NULL;
 
@@ -1007,7 +1007,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     ReadDirCtx  readCtx[1];
 #endif
 
-    WOLFSSL_ENTER("X509_STORE_load_locations");
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_load_locations");
 
     if (str == NULL || str->cm == NULL || (file == NULL  && dir == NULL))
         return WOLFSSL_FAILURE;

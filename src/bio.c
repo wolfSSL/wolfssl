@@ -1040,7 +1040,7 @@ WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio)
 /* BIO_wpending returns the number of bytes pending to be written. */
 size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio)
 {
-    WOLFSSL_ENTER("BIO_wpending");
+    WOLFSSL_ENTER("wolfSSL_BIO_wpending");
 
     if (bio == NULL)
         return 0;
@@ -1913,7 +1913,7 @@ int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
 
 int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 {
-    WOLFSSL_ENTER("BIO_flush");
+    WOLFSSL_ENTER("wolfSSL_BIO_flush");
 
     if (bio == NULL)
         return WOLFSSL_FAILURE;
@@ -1962,7 +1962,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     {
         static WOLFSSL_BIO_METHOD meth;
 
-        WOLFSSL_ENTER("BIO_f_buffer");
+        WOLFSSL_ENTER("wolfSSL_BIO_f_buffer");
         meth.type = WOLFSSL_BIO_BUFFER;
 
         return &meth;
@@ -1972,11 +1972,12 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     long wolfSSL_BIO_set_write_buffer_size(WOLFSSL_BIO* bio, long size)
     {
         /* wolfSSL has internal buffer, compatibility only */
-        WOLFSSL_ENTER("BIO_set_write_buffer_size");
-        WOLFSSL_MSG("Buffer resize failed");
         WOLFSSL_STUB("BIO_set_write_buffer_size");
+
+        WOLFSSL_MSG("Buffer resize failed");
+
         (void)bio;
-        (void) size;
+        (void)size;
 
         /* Even though this is only a STUB at the moment many user applications
          * may attempt to use this. OpenSSL documentation specifies the return
@@ -2038,7 +2039,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     {
         WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
 
-        WOLFSSL_ENTER("BIO_new_socket");
+        WOLFSSL_ENTER("wolfSSL_BIO_new_socket");
         if (bio) {
             bio->type  = WOLFSSL_BIO_SOCKET;
             bio->shutdown = (byte)closeF;
@@ -2107,13 +2108,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_set_conn_port");
 
         if (!b || !port) {
-            WOLFSSL_ENTER("Bad parameter");
+            WOLFSSL_MSG("Bad parameter");
             return WOLFSSL_FAILURE;
         }
 
         p = XATOI(port);
         if (!p || p < 0) {
-            WOLFSSL_ENTER("Port parsing error");
+            WOLFSSL_MSG("Port parsing error");
             return WOLFSSL_FAILURE;
         }
 
@@ -2141,7 +2142,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_do_connect");
 
         if (!b) {
-            WOLFSSL_ENTER("Bad parameter");
+            WOLFSSL_MSG("Bad parameter");
             return WOLFSSL_FAILURE;
         }
 
@@ -2149,12 +2150,12 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             b = b->next;
 
         if (!b) {
-            WOLFSSL_ENTER("No socket BIO in chain");
+            WOLFSSL_MSG("No socket BIO in chain");
             return WOLFSSL_FAILURE;
         }
 
         if (wolfIO_TcpConnect(&sfd, b->ip, b->port, 0) < 0 ) {
-            WOLFSSL_ENTER("wolfIO_TcpConnect error");
+            WOLFSSL_MSG("wolfIO_TcpConnect error");
             return WOLFSSL_FAILURE;
         }
 
@@ -2178,13 +2179,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             b = b->next;
 
         if (!b) {
-            WOLFSSL_ENTER("No socket BIO in chain");
+            WOLFSSL_MSG("No socket BIO in chain");
             return WOLFSSL_FAILURE;
         }
 
         if (b->num == WOLFSSL_BIO_ERROR) {
             if (wolfIO_TcpBind(&sfd, b->port) < 0) {
-                WOLFSSL_ENTER("wolfIO_TcpBind error");
+                WOLFSSL_MSG("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
             }
             b->num = (int)sfd;
@@ -2194,13 +2195,13 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             WOLFSSL_BIO* new_bio;
             int newfd = wolfIO_TcpAccept(b->num, NULL, NULL);
             if (newfd < 0) {
-                WOLFSSL_ENTER("wolfIO_TcpBind error");
+                WOLFSSL_MSG("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
             }
             /* Create a socket BIO for using the accept'ed connection */
             new_bio = wolfSSL_BIO_new_socket(newfd, BIO_CLOSE);
             if (new_bio == NULL) {
-                WOLFSSL_ENTER("wolfSSL_BIO_new_socket error");
+                WOLFSSL_MSG("wolfSSL_BIO_new_socket error");
                 CloseSocket(newfd);
                 return WOLFSSL_FAILURE;
             }
@@ -2210,7 +2211,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                     wolfSSL_BIO_get_callback_arg(b));
             /* Push onto bio chain for user retrieval */
             if (wolfSSL_BIO_push(b, new_bio) == NULL) {
-                WOLFSSL_ENTER("wolfSSL_BIO_push error");
+                WOLFSSL_MSG("wolfSSL_BIO_push error");
                 /* newfd is closed when bio is free'd */
                 wolfSSL_BIO_free(new_bio);
                 return WOLFSSL_FAILURE;
@@ -2225,7 +2226,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     int wolfSSL_BIO_eof(WOLFSSL_BIO* b)
     {
         int ret = 0;
-        WOLFSSL_ENTER("BIO_eof");
+        WOLFSSL_ENTER("wolfSSL_BIO_eof");
 
         if (b == NULL)
             return 1; /* Undefined in OpenSSL. Let's signal we're done. */
@@ -2683,7 +2684,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     void wolfSSL_BIO_free_all(WOLFSSL_BIO* bio)
     {
-        WOLFSSL_ENTER("BIO_free_all");
+        WOLFSSL_ENTER("wolfSSL_BIO_free_all");
         while (bio) {
             WOLFSSL_BIO* next = bio->next;
             wolfSSL_BIO_free(bio);
@@ -2694,7 +2695,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
-        WOLFSSL_ENTER("BIO_push");
+        WOLFSSL_ENTER("wolfSSL_BIO_push");
         top->next    = append;
         append->prev = top;
 
@@ -3120,7 +3121,7 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
     WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
     int ret = 1;
 
-    WOLFSSL_ENTER("wolfSSL_BIO_new_bio_pair()");
+    WOLFSSL_ENTER("wolfSSL_BIO_new_bio_pair");
 
     if (bio1_p == NULL || bio2_p == NULL) {
         WOLFSSL_MSG("Bad Function Argument");

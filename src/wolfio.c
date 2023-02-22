@@ -401,7 +401,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     SOCKADDR_S* peer;
     XSOCKLENT peerSz = 0;
 
-    WOLFSSL_ENTER("EmbedReceiveFrom()");
+    WOLFSSL_ENTER("EmbedReceiveFrom");
 
     if (dtlsCtx->connected) {
         peer = NULL;
@@ -561,7 +561,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     const SOCKADDR_S* peer = NULL;
     XSOCKLENT peerSz = 0;
 
-    WOLFSSL_ENTER("EmbedSendTo()");
+    WOLFSSL_ENTER("EmbedSendTo");
 
     if (!isDGramSock(sd)) {
         /* Probably a TCP socket. peer and peerSz MUST be NULL and 0 */
@@ -596,7 +596,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int recvd;
     int sd = dtlsCtx->rfd;
 
-    WOLFSSL_ENTER("EmbedReceiveFromMcast()");
+    WOLFSSL_ENTER("EmbedReceiveFromMcast");
 
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags, NULL, NULL);
 
@@ -2290,7 +2290,7 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     NET_SOCK_RTN_CODE ret;
     NET_ERR err;
 
-    WOLFSSL_ENTER("MicriumReceiveFrom()");
+    WOLFSSL_ENTER("MicriumReceiveFrom");
 
 #ifdef WOLFSSL_DTLS
     {
@@ -2369,7 +2369,7 @@ int MicriumSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     NET_SOCK_RTN_CODE ret;
     NET_ERR err;
 
-    WOLFSSL_ENTER("MicriumSendTo()");
+    WOLFSSL_ENTER("MicriumSendTo");
 
     ret = NetSock_TxDataTo(sd, buf, sz, ssl->wflags,
                            (NET_SOCK_ADDR*)dtlsCtx->peer.sa,
