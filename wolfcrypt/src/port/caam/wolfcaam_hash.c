@@ -71,21 +71,22 @@ static int _InitSha(byte* ctx, word32 ctxSz, void* heap, int devId,
 {
     CAAM_BUFFER buf[1];
     word32 arg[4];
-    int ret;
+    int ret, idx = 0;
 
     /* Set buffer for context */
-    buf[0].BufferType = DataBuffer | LastBuffer;
-    buf[0].TheAddress = (CAAM_ADDRESS)ctx;
-    buf[0].Length     = ctxSz + WC_CAAM_CTXLEN;
+    buf[idx].BufferType = DataBuffer | LastBuffer;
+    buf[idx].TheAddress = (CAAM_ADDRESS)ctx;
+    buf[idx].Length     = ctxSz + WC_CAAM_CTXLEN;
 #if defined(__INTEGRITY) || defined(INTEGRITY)
-    buf[0].Transferred = 0;
+    buf[idx].Transferred = 0;
 #endif
+    idx++;
 
     arg[0] = CAAM_ALG_INIT;
     arg[1] = ctxSz + WC_CAAM_CTXLEN;
     arg[2] = (word32)devId;
 
-    if ((ret = wc_caamAddAndWait(buf, 1, arg, type)) != 0) {
+    if ((ret = wc_caamAddAndWait(buf, idx, arg, type)) != 0) {
         WOLFSSL_MSG("Error with CAAM SHA init");
         return ret;
     }
@@ -99,7 +100,7 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
 {
     CAAM_BUFFER buf[2];
     word32 arg[4];
-    int ret;
+    int ret, idx = 0;
     byte* local;
 
     if (sha == NULL ||(data == NULL && len > 0)) {
@@ -120,25 +121,27 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
 
         if (sha->buffLen == WC_CAAM_HASH_BLOCK) {
             /* Set buffer for context */
-            buf[0].BufferType = DataBuffer;
-            buf[0].TheAddress = (CAAM_ADDRESS)sha->ctx;
-            buf[0].Length     = digestSz + WC_CAAM_CTXLEN;
+            buf[idx].BufferType = DataBuffer;
+            buf[idx].TheAddress = (CAAM_ADDRESS)sha->ctx;
+            buf[idx].Length     = digestSz + WC_CAAM_CTXLEN;
         #if defined(__INTEGRITY) || defined(INTEGRITY)
-            buf[0].Transferred = 0;
+            buf[idx].Transferred = 0;
         #endif
+            idx++;
 
             /* data to update with */
-            buf[1].BufferType = DataBuffer | LastBuffer;
-            buf[1].TheAddress = (CAAM_ADDRESS)sha->buffer;
-            buf[1].Length     = sha->buffLen;
+            buf[idx].BufferType = DataBuffer | LastBuffer;
+            buf[idx].TheAddress = (CAAM_ADDRESS)sha->buffer;
+            buf[idx].Length     = sha->buffLen;
         #if defined(__INTEGRITY) || defined(INTEGRITY)
-            buf[1].Transferred = 0;
+            buf[idx].Transferred = 0;
         #endif
+            idx++;
 
             arg[0] = CAAM_ALG_UPDATE;
             arg[1] = digestSz + WC_CAAM_CTXLEN;
 
-            if ((ret = wc_caamAddAndWait(buf, 2, arg, type)) != 0) {
+            if ((ret = wc_caamAddAndWait(buf, idx, arg, type)) != 0) {
                 WOLFSSL_MSG("Error with CAAM SHA update");
                 return ret;
             }
@@ -150,27 +153,30 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
     if (len >= WC_CAAM_HASH_BLOCK) {
         word32 sz = len / WC_CAAM_HASH_BLOCK;
         sz = sz * WC_CAAM_HASH_BLOCK;
+        idx = 0;
 
         /* Set buffer for context */
-        buf[0].BufferType = DataBuffer;
-        buf[0].TheAddress = (CAAM_ADDRESS)sha->ctx;
-        buf[0].Length     = digestSz + WC_CAAM_CTXLEN;
+        buf[idx].BufferType = DataBuffer;
+        buf[idx].TheAddress = (CAAM_ADDRESS)sha->ctx;
+        buf[idx].Length     = digestSz + WC_CAAM_CTXLEN;
     #if defined(__INTEGRITY) || defined(INTEGRITY)
-        buf[0].Transferred = 0;
+        buf[idx].Transferred = 0;
     #endif
+        idx++;
 
         /* data to update with */
-        buf[1].BufferType = DataBuffer | LastBuffer;
-        buf[1].TheAddress = (CAAM_ADDRESS)data;
-        buf[1].Length     = sz;
+        buf[idx].BufferType = DataBuffer | LastBuffer;
+        buf[idx].TheAddress = (CAAM_ADDRESS)data;
+        buf[idx].Length     = sz;
     #if defined(__INTEGRITY) || defined(INTEGRITY)
-        buf[1].Transferred = 0;
+        buf[idx].Transferred = 0;
     #endif
+        idx++;
 
         arg[0] = CAAM_ALG_UPDATE;
         arg[1] = digestSz + WC_CAAM_CTXLEN;
 
-        if ((ret = wc_caamAddAndWait(buf, 2, arg, type)) != 0) {
+        if ((ret = wc_caamAddAndWait(buf, idx, arg, type)) != 0) {
             WOLFSSL_MSG("Error with CAAM SHA update");
             return ret;
         }
@@ -196,32 +202,34 @@ static int _ShaFinal(byte* ctx, word32 ctxSz, byte* in, word32 inSz, byte* out,
 {
     CAAM_BUFFER buf[2];
     word32 arg[4];
-    int ret;
+    int ret, idx = 0;
 
     if (ctx == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
     /* Set buffer for context */
-    buf[0].BufferType = DataBuffer;
-    buf[0].TheAddress = (CAAM_ADDRESS)ctx;
-    buf[0].Length     = ctxSz;
+    buf[idx].BufferType = DataBuffer;
+    buf[idx].TheAddress = (CAAM_ADDRESS)ctx;
+    buf[idx].Length     = ctxSz;
 #if defined(__INTEGRITY) || defined(INTEGRITY)
-    buf[0].Transferred = 0;
+    buf[idx].Transferred = 0;
 #endif
+    idx++;
 
     /* add any potential left overs */
-    buf[1].BufferType = DataBuffer | LastBuffer;
-    buf[1].TheAddress = (CAAM_ADDRESS)in;
-    buf[1].Length     = inSz;
+    buf[idx].BufferType = DataBuffer | LastBuffer;
+    buf[idx].TheAddress = (CAAM_ADDRESS)in;
+    buf[idx].Length     = inSz;
 #if defined(__INTEGRITY) || defined(INTEGRITY)
-    buf[1].Transferred = 0;
+    buf[idx].Transferred = 0;
 #endif
+    idx++;
 
     arg[0] = CAAM_ALG_FINAL;
     arg[1] = ctxSz + WC_CAAM_CTXLEN;
 
-    if ((ret = wc_caamAddAndWait(buf, 2, arg, type)) != 0) {
+    if ((ret = wc_caamAddAndWait(buf, idx, arg, type)) != 0) {
         WOLFSSL_MSG("Error with CAAM SHA Final");
         return ret;
     }

@@ -45,7 +45,7 @@ static caam_job_ring_interface_t jr2;
 static caam_job_ring_interface_t jr3;
 #endif
 
-wolfSSL_Mutex caamMutex;
+static wolfSSL_Mutex caamMutex;
 
 /* Initialize CAAM resources.
  * return 0 on success */
@@ -142,7 +142,7 @@ static int wc_CAAM_CommonHash(caam_handle_t* hndl, caam_hash_ctx_t *ctx,
         byte *tmpIn  = NULL;
 
         if ((wc_ptr_t)in % CAAM_BUFFER_ALIGN) {
-            /* input not alligned */
+            /* input not aligned */
             tmpIn = (byte*)XMALLOC(inSz + CAAM_BUFFER_ALIGN, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
             alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
@@ -169,7 +169,7 @@ static int wc_CAAM_CommonHash(caam_handle_t* hndl, caam_hash_ctx_t *ctx,
         size_t sz = digestSz;
 
         if ((wc_ptr_t)digest % CAAM_BUFFER_ALIGN) {
-            /* input not alligned */
+            /* input not aligned */
             tmpOut = (byte*)XMALLOC(sz + CAAM_BUFFER_ALIGN, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER);
             alignedOut = tmpOut + (CAAM_BUFFER_ALIGN -
@@ -301,7 +301,7 @@ static int DoAesCTR(unsigned int args[4], CAAM_BUFFER *buf, int sz)
     byte *alignedOut = NULL;
 
     if (buf[2].TheAddress % CAAM_BUFFER_ALIGN) {
-        /* input not alligned */
+        /* input not aligned */
         tmpIn = (byte*)XMALLOC(buf[2].Length + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
@@ -313,7 +313,7 @@ static int DoAesCTR(unsigned int args[4], CAAM_BUFFER *buf, int sz)
     }
 
     if (buf[3].TheAddress % CAAM_BUFFER_ALIGN) {
-        /* output not alligned */
+        /* output not aligned */
         tmpOut = (byte*)XMALLOC(buf[3].Length + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         alignedOut = tmpOut + (CAAM_BUFFER_ALIGN -
@@ -467,7 +467,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     }
 
     if ((wc_ptr_t)in % CAAM_BUFFER_ALIGN) {
-        /* input not alligned */
+        /* input not aligned */
         tmpIn = (byte*)XMALLOC(inlen + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
@@ -581,7 +581,7 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
     }
 
     if ((wc_ptr_t)hash % CAAM_BUFFER_ALIGN) {
-        /* input not alligned */
+        /* input not aligned */
         tmpIn = (byte*)XMALLOC(hashlen + CAAM_BUFFER_ALIGN, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         alignedIn = tmpIn + (CAAM_BUFFER_ALIGN -
