@@ -363,8 +363,10 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                 msg->sz, msg->sz);
 
         /* processing certificate_request triggers a connect. The error came
-         * from there, the message can be considered processed successfully */
-        if (ret == 0 || (msg->type == certificate_request &&
+         * from there, the message can be considered processed successfully.
+         * WANT_WRITE means that we are done with processing the msg and we are
+         * waiting to flush the output buffer. */
+        if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
                          ssl->options.handShakeDone && ret == WC_PENDING_E)) {
             Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
 

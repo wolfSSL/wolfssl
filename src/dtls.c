@@ -744,7 +744,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         /* TLSX_KeyShare_Choose is done deep inside MatchSuite_ex */
         ret = MatchSuite_ex(ssl, &suites, &cs, parsedExts);
         if (ret < 0) {
-            WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
+            WOLFSSL_MSG("Unsupported cipher suite, ClientHello DTLS 1.3");
             ERROR_OUT(INCOMPLETE_DATA, dtls13_cleanup);
         }
     }

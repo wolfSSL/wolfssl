@@ -6581,6 +6581,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ssl->options.sendVerify = SEND_CERT;
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
+    ssl->options.cookieGood = 0;
     if (ssl->options.sendCookie &&
             (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE
 #ifdef WOLFSSL_DTLS13
@@ -6599,22 +6600,17 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ret = RestartHandshakeHashWithCookie(ssl, (Cookie*)ext->data);
                 if (ret != 0)
                     goto exit_dch;
-                ssl->options.serverState = SERVER_HELLO_COMPLETE;
+                /* Don't change state here as we may want to enter
+                 * DoTls13ClientHello again. */
+                ssl->options.cookieGood = 1;
             }
             else {
-#ifdef WOLFSSL_DTLS13
-                if (ssl->options.dtls)
-                    ssl->options.serverState = NULL_STATE;
-                else
-#endif
-                    ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
+                ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
             }
         }
-        else
-#ifdef WOLFSSL_DTLS13
-            if (!ssl->options.dtls)
-#endif
-                ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
+        else {
+            ERROR_OUT(HRR_COOKIE_ERROR, exit_dch);
+        }
     }
 #endif
 
@@ -6659,12 +6655,14 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((ret = ALPN_Select(ssl)) != 0)
         goto exit_dch;
 #endif
-    /* Advance state and proceed */
-    ssl->options.asyncState = TLS_ASYNC_BUILD;
     } /* case TLS_ASYNC_BEGIN */
     FALL_THROUGH;
 
     case TLS_ASYNC_BUILD:
+    /* Advance state and proceed */
+    ssl->options.asyncState = TLS_ASYNC_DO;
+    FALL_THROUGH;
+
     case TLS_ASYNC_DO:
     {
 #ifndef NO_CERTS
@@ -6673,7 +6671,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret != WC_PENDING_E)
         #endif
-                WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
+                WOLFSSL_MSG("Unsupported cipher suite, ClientHello 1.3");
             goto exit_dch;
         }
     }
@@ -6695,8 +6693,29 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     /* Advance state and proceed */
-    ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+    ssl->options.asyncState = TLS_ASYNC_VERIFY;
     } /* case TLS_ASYNC_BUILD || TLS_ASYNC_DO */
+    FALL_THROUGH;
+
+    case TLS_ASYNC_VERIFY:
+    {
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SUPPORTED_CURVES)
+    /* Check if the KeyShare calculations from the previous state are complete.
+     * wolfSSL_AsyncPop advances ssl->options.asyncState so we may end up here
+     * with a pending calculation. */
+    TLSX* extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+    if (extension != NULL && extension->resp == 1) {
+        KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
+        if (serverKSE != NULL && serverKSE->lastRet == WC_PENDING_E) {
+            ret = TLSX_KeyShare_GenKey(ssl, serverKSE);
+            if (ret != 0)
+                goto exit_dch;
+        }
+    }
+#endif
+    /* Advance state and proceed */
+    ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+    }
     FALL_THROUGH;
 
     case TLS_ASYNC_FINALIZE:
@@ -6741,6 +6760,19 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     default:
         ret = INPUT_CASE_ERROR;
     } /* switch (ssl->options.asyncState) */
+
+#if defined(WOLFSSL_SEND_HRR_COOKIE)
+    if (ret == 0 && ssl->options.sendCookie && ssl->options.cookieGood &&
+            (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE
+#ifdef WOLFSSL_DTLS13
+                    /* DTLS cookie exchange should be done in stateless code in
+                     * DoClientHelloStateless. If we verified the cookie then
+                     * always advance the state. */
+                    || ssl->options.dtls
+#endif
+                    ))
+        ssl->options.serverState = SERVER_HELLO_COMPLETE;
+#endif
 
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
     if (ret == 0 && ssl->options.dtls && ssl->options.sendCookie &&

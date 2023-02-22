@@ -20125,7 +20125,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ) {
                 /* Shrink input buffer when we successfully finish record
                  * processing */
-                if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag)
+                if ((ret == 0) && ssl->buffers.inputBuffer.dynamicFlag)
                     ShrinkInputBuffer(ssl, NO_FORCED_FREE);
                 return ret;
             }

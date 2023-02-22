@@ -7393,7 +7393,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
  * ssl  The SSL/TLS object.
  * kse  The key share entry holding peer data.
  */
-static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
+int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
 {
     int ret;
     /* Named FFDHE groups have a bit set to identify them. */
@@ -9027,6 +9027,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     TLSX*           extension;
     SupportedCurve* curve = NULL;
     SupportedCurve* preferredCurve = NULL;
+    KeyShareEntry*  kse = NULL;
     int             preferredRank = WOLFSSL_MAX_GROUP_COUNT;
     int             rank;
 
@@ -9055,27 +9056,32 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
         return BAD_KEY_SHARE_DATA;
     }
 
-    /* Delete the old key share data list. */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    /* Check the old key share data list. */
     extension = TLSX_Find(*extensions, TLSX_KEY_SHARE);
     if (extension != NULL) {
-        KeyShareEntry* kse = (KeyShareEntry*)extension->data;
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* for async don't free, call `TLSX_KeyShare_Use` again */
-        if (kse && kse->lastRet != WC_PENDING_E)
-    #endif
-        {
-            TLSX_KeyShare_FreeAll(kse, ssl->heap);
-            extension->data = NULL;
+        kse = (KeyShareEntry*)extension->data;
+        /* We should not be computing keys if we are only going to advertise
+         * our choice here. */
+        if (kse != NULL && kse->lastRet == WC_PENDING_E) {
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+            return BAD_KEY_SHARE_DATA;
         }
     }
+    #endif
 
-    /* Add in the chosen group. */
-    ret = TLSX_KeyShare_Use(ssl, curve->name, 0, NULL, NULL, extensions);
-    if (ret != 0 && ret != WC_PENDING_E)
+    /* Push new KeyShare extension. This will also free the old one */
+    ret = TLSX_Push(extensions, TLSX_KEY_SHARE, NULL, ssl->heap);
+    if (ret != 0)
         return ret;
-
+    /* Extension got pushed to head */
+    extension = *extensions;
+    /* Push the selected curve */
+    ret = TLSX_KeyShare_New((KeyShareEntry**)&extension->data, curve->name,
+                            ssl->heap, &kse);
+    if (ret != 0)
+        return ret;
     /* Set extension to be in response. */
-    extension = TLSX_Find(*extensions, TLSX_KEY_SHARE);
     extension->resp = 1;
 #else
 
@@ -9114,7 +9120,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         int ret = INCOMPLETE_DATA;
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* in async case make sure key generation is finalized */
-        serverKSE = (KeyShareEntry*)extension->data;
+        KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
         if (serverKSE && serverKSE->lastRet == WC_PENDING_E) {
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
                 *searched = 1;
@@ -9168,13 +9174,29 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
     KeyShareEntry* serverKSE;
     KeyShareEntry* list = NULL;
 
-    if (ssl == NULL || ssl->options.side != WOLFSSL_SERVER_END ||
-            clientKSE == NULL)
+    if (ssl == NULL || ssl->options.side != WOLFSSL_SERVER_END)
         return BAD_FUNC_ARG;
 
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
     if (extension == NULL)
         return BAD_STATE_E;
+
+    if (clientKSE == NULL) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* Not necessarily an error. The key may have already been setup. */
+        if (extension != NULL && extension->resp == 1) {
+            serverKSE = (KeyShareEntry*)extension->data;
+            if (serverKSE != NULL) {
+                /* in async case make sure key generation is finalized */
+                if (serverKSE->lastRet == WC_PENDING_E)
+                    return TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
+                else if (serverKSE->lastRet == 0)
+                    return 0;
+            }
+        }
+#endif
+        return BAD_FUNC_ARG;
+    }
 
     /* Generate a new key pair except in the case of OQS KEM because we
      * are going to encapsulate and that does not require us to generate a
@@ -9230,7 +9252,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
     extension->data = (void *)serverKSE;
 
     extension->resp = 1;
-    return 0;
+    return ret;
 }
 
 /* Ensure there is a key pair that can be used for key exchange.

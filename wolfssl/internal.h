@@ -3084,6 +3084,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group,
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl,
                                              TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
                                        KeyShareEntry** kse, byte* searched);
 WOLFSSL_LOCAL int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE);
@@ -4389,10 +4390,13 @@ typedef struct Options {
     word16            tls13MiddleBoxCompat:1; /* TLSv1.3 middlebox compatibility */
 #endif
 #ifdef WOLFSSL_DTLS_CID
-    byte              useDtlsCID:1;
+    word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(HAVE_ECH)
-    byte              useEch:1;
+    word16            useEch:1;
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    word16            cookieGood:1;
 #endif
 
     /* need full byte values for this section */
