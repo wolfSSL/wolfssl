@@ -7673,11 +7673,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #ifdef WOLF_PRIVATE_KEY_ID
-        if (ssl != NULL && ssl->buffers.keyType == 0) {
+        if (ssl != NULL) {
             ssl->buffers.keyType = keyType;
             ssl->buffers.keySz = keySz;
         }
-        else if (ctx != NULL && ctx->privateKeyType == 0) {
+        else if (ctx != NULL) {
             ctx->privateKeyType = keyType;
             ctx->privateKeySz = keySz;
         }
