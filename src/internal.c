@@ -2030,7 +2030,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         }
     }
 
-    if (ret != 0 && buf != NULL) {
+    if (ret != 0 && ret != LENGTH_ONLY_E && buf != NULL) {
         /*in a fail case clear the buffer which could contain partial key info*/
         XMEMSET(buf, 0, *sz);
     }
