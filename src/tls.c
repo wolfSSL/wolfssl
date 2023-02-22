@@ -3218,6 +3218,10 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     #if defined(WOLFSSL_TLS13)
         if (ssl->options.tls1_3) {
+            if (ssl->buffers.certificate == NULL) {
+                WOLFSSL_MSG("Certificate buffer not set!");
+                return BUFFER_ERROR;
+            }
             cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
                                          DYNAMIC_TYPE_DCERT);
             if (cert == NULL) {
