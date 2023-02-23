@@ -340,7 +340,7 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     int nWordsForResult = bits2words(nBitsInX + nBitsInY);
 
     /* Make sure we are within capabilities of hardware. */
-    if ((nWordsForOperand * 8) > ESP_HW_MULTI_RSAMAX_BITS) {
+    if ((nWordsForOperand * BITS_IN_ONE_WORD) > ESP_HW_MULTI_RSAMAX_BITS) {
       ESP_LOGW(TAG, "exceeds max bit length(2048)");
       return -2;
     }
@@ -372,7 +372,7 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     DPORT_REG_WRITE(RSA_INTERRUPT_REG, 0); // 0 => no interrupt; 1 => interrupt on completion. 
 
     /* 3. Write number of words required for result. */
-    if (nWordsForOperand * 2 > ESP_HW_RSAMAX_BIT)
+    if (nWordsForOperand * BITS_IN_ONE_WORD * 2 > ESP_HW_RSAMAX_BIT)
     {
       ESP_LOGW(TAG, "result exceeds max bit length");
       return -2;
