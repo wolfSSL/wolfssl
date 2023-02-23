@@ -109,7 +109,7 @@ Benchmark complete
 
 ## Windows Visual Studio
 
-For building wolfCrypt Benchmark project in Visual Studio open the `benchmark.sln`. For newer Visual Studio version it may prompt for a one-way upgrade. Then you may have to right-click on the solution and choose `Retarget solution` to update the project files for your Visual Studio version.
+For building wolfCrypt Benchmark project in Visual Studio open the `benchmark.sln`. For newer Visual Studio version it may prompt for a one-way upgrade. If prompted to overwrite the `benchmark.vcxproj` project, select "No". Then you may have to right-click on the solution and choose `Retarget solution` to update the project files for your Visual Studio version.
 
 If you see an error about `rc.exe` then you'll need to update the "Target Platform Version". You can do this by right-clicking on the benchmark project -> General -> "Target Platform Version" and changing to 8.1 (needs to match the wolfssl library project).
 

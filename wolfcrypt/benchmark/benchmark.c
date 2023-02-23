@@ -77,7 +77,7 @@
      !defined(NO_ERROR_STRINGS) && !defined(NO_MAIN_DRIVER) &&        \
      !defined(BENCH_EMBEDDED))
     #include <errno.h>
-    #ifndef WOLFSSL_ZEPHYR
+    #if !defined(WOLFSSL_ZEPHYR) && !defined(_WIN32)
         #include <unistd.h>
     #endif
 #endif
@@ -6746,7 +6746,7 @@ void bench_dh(int useDeviceID)
     word32 pubSz2 = BENCH_DH_KEY_SIZE;
     word32 privSz2 = BENCH_DH_PRIV_SIZE;
     word32 agreeSz[BENCH_MAX_PENDING];
-#if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+#if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || defined(HAVE_FFDHE_4096)
 #ifdef HAVE_PUBLIC_FFDHE
     const DhParams *params = NULL;
 #else
