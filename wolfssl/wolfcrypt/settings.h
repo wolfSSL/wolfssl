@@ -1803,6 +1803,12 @@ extern void uITRON4_free(void *p) ;
 #endif
 #endif
 
+#ifdef WOLFSSL_IMXRT1170_CAAM
+    #define WOLFSSL_CAAM
+    #define WOLFSSL_CAAM_HASH
+    #define WOLFSSL_CAAM_CIPHER
+#endif
+
 /* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
 #if defined(WOLFSSL_IMXRT_DCP) && !defined(SINGLE_THREADED)
     #undef WOLFSSL_CRYPT_HW_MUTEX

@@ -301,6 +301,9 @@ function(generate_build_flags)
         set(BUILD_DEBUG "yes" PARENT_SCOPE)
     endif()
     set(BUILD_RC2 ${WOLFSSL_RC2} PARENT_SCOPE)
+    if(WOLFSSL_CAAM)
+        set(BUILD_CAAM "yes" PARENT_SCOPE)
+    endif()
 
     set(BUILD_FLAGS_GENERATED "yes" PARENT_SCOPE)
 endfunction()
@@ -889,6 +892,21 @@ function(generate_lib_src_list LIB_SOURCES)
 
     if(BUILD_CRYPTOAUTHLIB)
         list(APPEND LIB_SOURCES wolfcrypt/src/port/atmel/atmel.c)
+    endif()
+
+    if(BUILD_CAAM)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/caam/wolfcaam_init.c
+            wolfcrypt/src/port/caam/wolfcaam_qnx.c
+            wolfcrypt/src/port/caam/wolfcaam_seco.c
+            wolfcrypt/src/port/caam/wolfcaam_fsl_nxp.c
+            wolfcrypt/src/port/caam/wolfcaam_x25519.c
+            wolfcrypt/src/port/caam/wolfcaam_ecdsa.c
+            wolfcrypt/src/port/caam/wolfcaam_cmac.c
+            wolfcrypt/src/port/caam/wolfcaam_aes.c
+            wolfcrypt/src/port/caam/wolfcaam_hash.c
+            wolfcrypt/src/port/caam/wolfcaam_rsa.c
+            wolfcrypt/src/port/caam/wolfcaam_hmac.c)
     endif()
 
     set(LIB_SOURCES ${LIB_SOURCES} PARENT_SCOPE)

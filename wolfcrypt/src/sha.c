@@ -46,6 +46,10 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_IMXRT1170_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
+#endif
+
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -549,6 +553,9 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_IMXRT1170_CAAM
+   ret = wc_CAAM_HashInit(&sha->hndl, &sha->ctx, WC_HASH_TYPE_SHA);
+#endif
 
     return ret;
 }

@@ -39,7 +39,7 @@
 
 #define MAX_SECO_TIMEOUT 1000
 
-wolfSSL_Mutex caamMutex;
+static wolfSSL_Mutex caamMutex;
 static pthread_t tid;
 static uint32_t nvm_status = 0;
 static hsm_hdl_t hsm_session;

@@ -26,6 +26,10 @@
 
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifdef WOLFSSL_IMXRT1170_CAAM
+WOLFSSL_LOCAL int wc_CAAM_HashInit(caam_handle_t* hndl, caam_hash_ctx_t* ctx, int type);
+#endif
+
 #ifndef NO_SHA
 WOLFSSL_LOCAL int wc_CAAM_ShaHash(wc_Sha* sha, const byte* in, word32 inSz,
     byte* digest);

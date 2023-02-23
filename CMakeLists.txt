@@ -1803,6 +1803,14 @@ if (WOLFSSL_TLSX)
 endif()
 
 
+add_option("WOLFSSL_CAAM"
+    "Enable use of CAAM with NXP (default: disabled)"
+    "no" "yes;no")
+if (WOLFSSL_CAAM)
+   list(APPEND WOLFSSL_DEFINITIONS  "-DWOLFSSL_CAAM")
+endif()
+
+
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
 generate_build_flags()
@@ -2208,7 +2216,7 @@ if(NOT BUILD_FIPS OR BUILD_FIPS_V1)
     "wolfssl/wolfcrypt/fips.h")
 endif()
 
-if(NOT BUILD_QNXCAAM)
+if(NOT BUILD_QNXCAAM OR BUILD_CAAM)
   list(APPEND HEADER_EXCLUDE
     "wolfssl/wolfcrypt/port/caam"
     )

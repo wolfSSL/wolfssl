@@ -833,7 +833,13 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #ifndef XTIME
         #define XTIME(t1) fsl_time((t1))
     #endif
-
+#elif defined(FREESCALE_SNVS_RTC)
+    #include <time.h>
+    #include "fsl_snvs_hp.h"
+    time_t fsl_time(time_t* t);
+    #ifndef XTIME
+        #define XTIME(t1) fsl_time((t1))
+    #endif
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #ifdef FREESCALE_MQX_4_0
         #include <time.h>

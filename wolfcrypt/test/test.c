@@ -593,7 +593,7 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void);
 #endif
-#ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CAAM_BLOB
 WOLFSSL_TEST_SUBROUTINE int blob_test(void);
 #endif
 
@@ -1523,7 +1523,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("memcb    test passed!\n");
 #endif
 
-#ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CAAM_BLOB
     if ( (ret = blob_test()) != 0)
         return err_sys("blob     test failed!\n", ret);
     else
@@ -13433,15 +13433,21 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
         byte *c = NULL;
         byte *b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT,
                                  DYNAMIC_TYPE_TMP_BUFFER);
+        #ifndef WOLFSSL_NO_REALLOC
         if (b) {
             c = (byte*)XREALLOC(b, MEM_TEST_SZ+sizeof(word32), HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
             if (c)
                 b = c;
         }
+        #endif
         if (b)
             XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if ((b == NULL) || (c == NULL)) {
+        if ((b == NULL)
+        #ifndef WOLFSSL_NO_REALLOC
+                || (c == NULL)
+        #endif
+        ) {
             return -7217;
         }
     }
@@ -24212,7 +24218,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     /* create a new key since above test for loading key is not supported */
 #if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
     defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050) || \
-    defined(WOLFSSL_SECO_CAAM)
+    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0) {
         ERROR_OUT(-9861, done);
@@ -43534,7 +43540,7 @@ exit_memcb:
 #endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_NO_MALLOC */
 
 
-#ifdef WOLFSSL_IMX6_CAAM_BLOB
+#if defined(WOLFSSL_CAAM_BLOB)
 WOLFSSL_TEST_SUBROUTINE int blob_test(void)
 {
     int ret = 0;

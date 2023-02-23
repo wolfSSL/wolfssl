@@ -6843,7 +6843,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                                    byte* iv, int ivSz, byte* aad, word32 aadSz,
                                    byte* authTag, word32 authTagSz, byte* in,
-                                   int inSz, byte* out)
+                                   int inSz, byte* out, int devId, void* heap)
 {
     int ret;
 #ifndef NO_AES
@@ -6891,7 +6891,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
                 if (ret == 0)
@@ -6923,7 +6923,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesGcmSetKey(aes, key, keySz);
                 if (ret == 0)
@@ -6957,7 +6957,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesCcmSetKey(aes, key, keySz);
                 if (ret == 0)
@@ -6987,7 +6987,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
-            ret = wc_Des3Init(&des3, NULL, INVALID_DEVID);
+            ret = wc_Des3Init(&des3, heap, devId);
             if (ret == 0) {
                 ret = wc_Des3_SetKey(&des3, key, iv, DES_ENCRYPTION);
                 if (ret == 0)
@@ -7015,7 +7015,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
  * returns 0 on success */
 static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
         int keySz, byte* iv, int ivSz, byte* aad, word32 aadSz, byte* authTag,
-        word32 authTagSz, byte* in, int inSz, byte* out)
+        word32 authTagSz, byte* in, int inSz, byte* out, int devId, void* heap)
 {
     int ret;
 #ifndef NO_AES
@@ -7071,7 +7071,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
                 if (ret == 0)
@@ -7103,7 +7103,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesGcmSetKey(aes, key, keySz);
                 if (ret == 0)
@@ -7137,7 +7137,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                                       DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
-            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesCcmSetKey(aes, key, keySz);
                 if (ret == 0)
@@ -7166,7 +7166,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
-            ret = wc_Des3Init(&des3, NULL, INVALID_DEVID);
+            ret = wc_Des3Init(&des3, heap, devId);
             if (ret == 0) {
                 ret = wc_Des3_SetKey(&des3, key, iv, DES_DECRYPTION);
                 if (ret == 0)
@@ -7511,7 +7511,8 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
     if (ret == 0) {
         /* encrypt, normal */
         ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, (byte*)iv,
-                                      ivSz, NULL, 0, NULL, 0, out, outLen, out);
+                                      ivSz, NULL, 0, NULL, 0, out, outLen, out,
+                                      pkcs7->devId, pkcs7->heap);
     }
 
     if (ret == 0) {
@@ -7519,7 +7520,7 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
         lastBlock = out + (((outLen / blockSz) - 1) * blockSz);
         ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, lastBlock,
                                       blockSz, NULL, 0, NULL, 0, out,
-                                      outLen, out);
+                                      outLen, out, pkcs7->devId, pkcs7->heap);
     }
 
     if (ret == 0) {
@@ -7581,20 +7582,21 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
     /* decrypt last block */
     ret = wc_PKCS7_DecryptContent(pkcs7, algID, (byte*)kek, kekSz, tmpIv,
             blockSz, NULL, 0, NULL, 0, lastBlock, blockSz,
-            outTmp + inSz - blockSz);
+            outTmp + inSz - blockSz, pkcs7->devId, pkcs7->heap);
 
     if (ret == 0) {
         /* using last decrypted block as IV, decrypt [0 ... n-1] blocks */
         lastBlock = outTmp + inSz - blockSz;
         ret = wc_PKCS7_DecryptContent(pkcs7, algID, (byte*)kek, kekSz,
                 lastBlock, blockSz, NULL, 0, NULL, 0, (byte*)in, inSz - blockSz,
-                outTmp);
+                outTmp, pkcs7->devId, pkcs7->heap);
     }
 
     if (ret == 0) {
         /* decrypt using original kek and iv */
         ret = wc_PKCS7_DecryptContent(pkcs7, algID, (byte*)kek, kekSz,
-                (byte*)iv, ivSz, NULL, 0, NULL, 0, outTmp, inSz, outTmp);
+                (byte*)iv, ivSz, NULL, 0, NULL, 0, outTmp, inSz, outTmp,
+                pkcs7->devId, pkcs7->heap);
     }
 
     if (ret != 0) {
@@ -8375,7 +8377,8 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
             pkcs7->cekSz, tmpIv, blockSz, NULL, 0, NULL, 0, plain,
-            encryptedOutSz, encryptedContent);
+            encryptedOutSz, encryptedContent,
+            pkcs7->devId, pkcs7->heap);
 
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -10894,7 +10897,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             /* decrypt encryptedContent */
             ret = wc_PKCS7_DecryptContent(pkcs7, encOID, decryptedKey,
                     blockKeySz, tmpIv, expBlockSz, NULL, 0, NULL, 0,
-                    encryptedContent, encryptedContentSz, encryptedContent);
+                    encryptedContent, encryptedContentSz, encryptedContent,
+                    pkcs7->devId, pkcs7->heap);
             if (ret != 0) {
                 break;
             }
@@ -11308,7 +11312,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
             pkcs7->cekSz, nonce, nonceSz, aadBuffer, aadBufferSz, authTag,
-            sizeof(authTag), pkcs7->content, encryptedOutSz, encryptedContent);
+            sizeof(authTag), pkcs7->content, encryptedOutSz, encryptedContent,
+            pkcs7->devId, pkcs7->heap);
 
     if (aadBuffer) {
         XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12020,7 +12025,7 @@ authenv_atrbend:
             ret = wc_PKCS7_DecryptContent(pkcs7, encOID, decryptedKey,
                     blockKeySz, nonce, nonceSz, encodedAttribs, encodedAttribSz,
                     authTag, authTagSz, encryptedContent, encryptedContentSz,
-                    encryptedContent);
+                    encryptedContent, pkcs7->devId, pkcs7->heap);
             if (ret != 0) {
                 XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ret;
@@ -12213,7 +12218,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->encryptionKey,
             pkcs7->encryptionKeySz, tmpIv, blockSz, NULL, 0, NULL, 0,
-            plain, encryptedOutSz, encryptedContent);
+            plain, encryptedOutSz, encryptedContent,
+            pkcs7->devId, pkcs7->heap);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -12661,7 +12667,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                 ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
                             pkcs7->encryptionKey, pkcs7->encryptionKeySz, tmpIv,
                             expBlockSz, NULL, 0, NULL, 0, encryptedContent,
-                            encryptedContentSz, encryptedContent);
+                            encryptedContentSz, encryptedContent,
+                            pkcs7->devId, pkcs7->heap);
                 if (ret != 0) {
                     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 }

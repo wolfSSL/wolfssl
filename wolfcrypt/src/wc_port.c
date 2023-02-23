@@ -80,7 +80,7 @@
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6UL_CAAM) || defined(WOLFSSL_IMX6_CAAM_BLOB) || \
-    defined(WOLFSSL_SECO_CAAM)
+    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 #if defined(WOLFSSL_DEVCRYPTO)
@@ -347,7 +347,7 @@ int wolfCrypt_Init(void)
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6UL_CAAM) || defined(WOLFSSL_IMX6_CAAM_BLOB) || \
-    defined(WOLFSSL_SECO_CAAM)
+    defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
         if ((ret = wc_caamInit()) != 0) {
             return ret;
         }
@@ -433,7 +433,7 @@ int wolfCrypt_Cleanup(void)
 
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)  || \
-        defined(WOLFSSL_SECO_CAAM)
+        defined(WOLFSSL_SECO_CAAM) || defined(WOLFSSL_IMXRT1170_CAAM)
         wc_caamFree();
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
@@ -2785,6 +2785,34 @@ time_t fsl_time(time_t* t)
 {
     *t = RTC_GetSecondsTimerCount(RTC);
     return *t;
+}
+#endif
+
+#if defined(FREESCALE_SNVS_RTC)
+time_t fsl_time(time_t* t)
+{
+    struct tm tm_time;
+    time_t ret;
+
+    snvs_hp_rtc_datetime_t rtcDate;
+    snvs_hp_rtc_config_t snvsRtcConfig;
+
+    SNVS_HP_RTC_GetDefaultConfig(&snvsRtcConfig);
+    SNVS_HP_RTC_Init(SNVS, &snvsRtcConfig);
+
+    SNVS_HP_RTC_GetDatetime(SNVS, &rtcDate);
+
+    tm_time.tm_year  = rtcDate.year;
+    tm_time.tm_mon   = rtcDate.month;
+    tm_time.tm_mday  = rtcDate.day;
+    tm_time.tm_hour  = rtcDate.hour;
+    tm_time.tm_min   = rtcDate.minute;
+    tm_time.tm_sec   = rtcDate.second;
+
+    ret = mktime(&tm_time);
+    if (t != NULL)
+        *t = ret;
+    return ret;
 }
 #endif
 

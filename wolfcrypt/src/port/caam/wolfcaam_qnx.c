@@ -36,7 +36,7 @@
 
 /* for devctl use */
 int caamFd = -1;
-wolfSSL_Mutex caamMutex;
+static wolfSSL_Mutex caamMutex;
 
 /* return 0 on success */
 int wc_CAAMInitInterface()

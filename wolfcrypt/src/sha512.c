@@ -47,6 +47,10 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_IMXRT1170_CAAM
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
+#endif
+
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
     #define USE_SLOW_SHA512
@@ -606,7 +610,9 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-
+#ifdef WOLFSSL_IMXRT1170_CAAM
+     ret = wc_CAAM_HashInit(&sha512->hndl, &sha512->ctx, WC_HASH_TYPE_SHA512);
+#endif
     return ret;
 }
 
@@ -1436,7 +1442,9 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-
+#ifdef WOLFSSL_IMXRT1170_CAAM
+     ret = wc_CAAM_HashInit(&sha384->hndl, &sha384->ctx, WC_HASH_TYPE_SHA384);
+#endif
     return ret;
 }
 
