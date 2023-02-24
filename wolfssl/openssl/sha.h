@@ -42,6 +42,8 @@ typedef struct WOLFSSL_SHA_CTX {
 #if defined(STM32_HASH)
     void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(STM32_HASH_Context)) /
         sizeof(void*)];
+#elif defined(WOLFSSL_ESPWROOM32) && !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(WC_ESP32SHA)) / sizeof(void*)];
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
     void* holder[(112 + WC_ASYNC_DEV_SIZE + sizeof(caam_hash_ctx_t) +
         sizeof(caam_handle_t)) / sizeof(void*)];
@@ -334,4 +336,3 @@ WOLFSSL_API int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
 
 
 #endif /* WOLFSSL_SHA_H_ */
-
