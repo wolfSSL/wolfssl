@@ -3335,6 +3335,12 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
   if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
+  if (pa == 0) {
+    /* Nothing to do. Zero result and return. */
+    mp_zero(b);
+    return MP_OKAY;
+  }
+
 #ifdef WOLFSSL_SMALL_STACK
   W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
@@ -3453,6 +3459,12 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   pa = MIN(digs, a->used + b->used);
   if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
+
+  if (pa == 0) {
+    /* Nothing to do. Zero result and return. */
+    mp_zero(c);
+    return MP_OKAY;
+  }
 
 #ifdef WOLFSSL_SMALL_STACK
   W = (mp_digit*)XMALLOC(sizeof(mp_digit) * pa, NULL, DYNAMIC_TYPE_BIGINT);
