@@ -47384,6 +47384,64 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey(void)
     return res;
 }
 
+static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
+{
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_CERTS) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    EVP_PKEY* pkey;
+    const unsigned char* p;
+    unsigned char *der = NULL, *tmp = NULL;
+    int derLen;
+    unsigned char pub_buf[65];
+    const int pub_len = 65;
+    BN_CTX * ctx;
+    EC_GROUP * curve;
+    EC_KEY * ephemeral_key;
+    const EC_POINT * h;
+
+    /* Generate an x963 key pair and get public part into pub_buf */
+    AssertNotNull(ctx = BN_CTX_new());
+    AssertNotNull(curve = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(ephemeral_key = EC_KEY_new_by_curve_name(
+                  NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(ephemeral_key), 1);
+    AssertNotNull(h = EC_KEY_get0_public_key(ephemeral_key));
+    AssertIntEQ(pub_len, EC_POINT_point2oct(curve, h,
+                                            POINT_CONVERSION_UNCOMPRESSED,
+                                            pub_buf, pub_len, ctx));
+    /* Prepare the EVP_PKEY */
+    AssertNotNull(pkey = EVP_PKEY_new());
+
+    p = pub_buf;
+    /* Check that key can be successfully decoded. */
+    AssertNotNull(wolfSSL_d2i_PublicKey(EVP_PKEY_EC, &pkey, &p,
+        pub_len));
+
+    /* Check that key can be successfully encoded. */
+    AssertIntGE((derLen = wolfSSL_i2d_PublicKey(pkey, &der)), 0);
+    /* Ensure that the encoded version matches the original. */
+    AssertIntEQ(derLen, pub_len);
+    AssertIntEQ(XMEMCMP(der, pub_buf, derLen), 0);
+
+    /* Do same test except with pre-allocated buffer to ensure the der pointer
+     * is advanced. */
+    tmp = der;
+    AssertIntGE((derLen = wolfSSL_i2d_PublicKey(pkey, &tmp)), 0);
+    AssertIntEQ(derLen, pub_len);
+    AssertIntEQ(XMEMCMP(der, pub_buf, derLen), 0);
+    AssertTrue(der + derLen == tmp);
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    EVP_PKEY_free(pkey);
+    EC_KEY_free(ephemeral_key);
+    EC_GROUP_free(curve);
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_wolfSSL_d2i_and_i2d_DSAparams(void)
 {
     int res = TEST_SKIPPED;
@@ -62255,6 +62313,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_PKEY_up_ref),
     TEST_DECL(test_wolfSSL_EVP_Cipher_extra),
     TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey),
+    TEST_DECL(test_wolfSSL_d2i_and_i2d_PublicKey_ecc),
     TEST_DECL(test_wolfSSL_d2i_and_i2d_DSAparams),
     TEST_DECL(test_wolfSSL_i2d_PrivateKey),
     TEST_DECL(test_wolfSSL_OCSP_id_get0_info),
