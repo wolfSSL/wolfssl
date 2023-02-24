@@ -2907,9 +2907,10 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
     /*
     ** See https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA512.pdf
     */
-    wc_Sha512 sha, shaCopy;
+    wc_Sha512 sha, shaCopy, shaRawCopy;
     byte      hash[WC_SHA512_DIGEST_SIZE];
     byte      hashcopy[WC_SHA512_DIGEST_SIZE];
+    byte      hashRawCopy[WC_SHA512_DIGEST_SIZE];
     int       ret = 0;
 
     testVector a, b, c;
@@ -2968,6 +2969,10 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
         ret = wc_Sha512Copy(&sha, &shaCopy);
         if (ret != 0)
             ERROR_OUT(-2404 - i, exit);
+        XMEMCPY(&shaRawCopy, &sha, sizeof(wc_Sha512));
+        ret = wc_Sha512Final(&shaRawCopy, hashRawCopy);
+        if (ret != 0)
+            ERROR_OUT(-2414 - i, exit);
         ret = wc_Sha512Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2405 - i, exit);
@@ -2975,6 +2980,8 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2406 - i, exit);
+        if (XMEMCMP(hash, hashRawCopy, WC_SHA512_DIGEST_SIZE) != 0)
+            ERROR_OUT(-2417 - i, exit);
         if (XMEMCMP(hash, hashcopy, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2407 - i, exit);
     }
@@ -3009,6 +3016,13 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
             (word32)sizeof(large_input));
         if (ret != 0)
             ERROR_OUT(-2408, exit);
+        /* This next test is only interesting when hardware acceleration used.
+        ** We'll check how well single-use HW handles a second call from a copy
+        ** of the sha struct. In software, this should do nothing. With HW, it
+        ** should *not* interfere with the original sha hash calc. */
+        ret = wc_Sha512Final(&shaRawCopy, hashRawCopy);
+        if (ret != 0)
+            ERROR_OUT(-2418, exit);
     }
     ret = wc_Sha512Final(&sha, hash);
     if (ret != 0)
