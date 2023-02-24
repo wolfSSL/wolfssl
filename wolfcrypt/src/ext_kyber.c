@@ -305,6 +305,11 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
 int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
+    const char* algName = NULL;
+    OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameter. */
@@ -313,8 +318,6 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     }
 
 #ifdef HAVE_LIBOQS
-    const char* algName = NULL;
-    OQS_KEM *kem = NULL;
     if (ret == 0) {
         algName = OQS_ID2name(key->type);
         if (algName == NULL) {
@@ -394,6 +397,11 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
+    const char * algName = NULL;
+    OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameters. */
@@ -402,8 +410,6 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     }
 
 #ifdef HAVE_LIBOQS
-    const char * algName = NULL;
-    OQS_KEM *kem = NULL;
     if (ret == 0) {
         algName = OQS_ID2name(key->type);
         if (algName == NULL) {
@@ -478,6 +484,10 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 {
     int ret = 0;
     word32 ctlen = 0;
+#ifdef HAVE_LIBOQS
+    const char * algName = NULL;
+    OQS_KEM *kem = NULL;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
@@ -491,8 +501,6 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     }
 
 #ifdef HAVE_LIBOQS
-    const char * algName = NULL;
-    OQS_KEM *kem = NULL;
     if (ret == 0) {
         algName = OQS_ID2name(key->type);
         if (algName == NULL) {
