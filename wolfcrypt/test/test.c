@@ -2977,6 +2977,9 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
         if (ret != 0)
             ERROR_OUT(-2405 - i, exit);
         wc_Sha512Free(&shaCopy);
+        wc_Sha512Free(&shaRawCopy); /* this is a local variable, surely does
+                                    ** not actually need to be free'd? */
+       /* see https://cloud.wolfssl-test.com/jenkins/job/PRB-valgrind-check-v2/4286/console */
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2406 - i, exit);
