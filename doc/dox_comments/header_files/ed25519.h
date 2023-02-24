@@ -644,8 +644,8 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
     buffer.
 
     \return 0 Returned on successfully importing the Ed25519 key.
-    \return BAD_FUNC_ARG Returned if in or key evaluate to NULL, or if
-    privSz is less than ED25519_KEY_SIZE.
+    \return BAD_FUNC_ARG Returned if priv or key evaluate to NULL, or if
+    privSz is not equal to ED25519_KEY_SIZE.
 
     \param [in] priv Pointer to the buffer containing the private key.
     \param [in] privSz Length of the private key.
@@ -686,9 +686,9 @@ int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
     checked against the private key.
 
     \return 0 Returned on successfully importing the ed25519_key.
-    \return BAD_FUNC_ARG Returned if in or key evaluate to NULL, or if
-    either privSz is less than ED25519_KEY_SIZE or pubSz is less than
-    ED25519_PUB_KEY_SIZE.
+    \return BAD_FUNC_ARG Returned if priv or key evaluate to NULL; or if
+    either privSz is not equal to ED25519_KEY_SIZE nor ED25519_PRV_KEY_SIZE, or
+    pubSz is less than ED25519_PUB_KEY_SIZE.
 
     \param [in] priv Pointer to the buffer containing the private key.
     \param [in] privSz Length of the private key.
@@ -730,9 +730,9 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
     uncompressed keys. The public is checked against private key if not trusted.
 
     \return 0 Returned on successfully importing the ed25519_key.
-    \return BAD_FUNC_ARG Returned if in or key evaluate to NULL, or if
-    either privSz is less than ED25519_KEY_SIZE or pubSz is less than
-    ED25519_PUB_KEY_SIZE.
+    \return BAD_FUNC_ARG Returned if priv or key evaluate to NULL; or if
+    either privSz is not equal to ED25519_KEY_SIZE nor ED25519_PRV_KEY_SIZE, or
+    pubSz is less than ED25519_PUB_KEY_SIZE.
 
     \param [in] priv Pointer to the buffer containing the private key.
     \param [in] privSz Length of the private key.
@@ -817,7 +817,7 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
     the bytes written to this buffer in outLen.
 
     \return 0 Returned upon successfully exporting the private key.
-    \return ECC_BAD_ARG_E Returned if any of the input values evaluate to NULL.
+    \return BAD_FUNC_ARG Returned if any of the input values evaluate to NULL.
     \return BUFFER_E Returned if the buffer provided is not large enough
     to store the private key.
 
@@ -857,7 +857,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
     the bytes written to this buffer in outLen.
 
     \return 0 Returned upon successfully exporting the key pair.
-    \return ECC_BAD_ARG_E Returned if any of the input values evaluate to NULL.
+    \return BAD_FUNC_ARG Returned if any of the input values evaluate to NULL.
     \return BUFFER_E Returned if the buffer provided is not large enough
     to store the key pair.
 
@@ -902,7 +902,7 @@ int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
     in the buffer pub, and sets the bytes written to this buffer in pubSz.
 
     \return 0 Returned upon successfully exporting the key pair.
-    \return ECC_BAD_ARG_E Returned if any of the input values evaluate to NULL.
+    \return BAD_FUNC_ARG Returned if any of the input values evaluate to NULL.
     \return BUFFER_E Returned if the buffer provided is not large enough
     to store the key pair.
 
@@ -949,7 +949,8 @@ int wc_ed25519_export_key(ed25519_key* key,
     the private key.
 
     \return 0 Returned if the private and public key matched.
-    \return BAD_FUNC_ARGS Returned if the given key is NULL.
+    \return BAD_FUNC_ARG Returned if the given key is NULL.
+    \return PUBLIC_KEY_E Returned if the no public key availble or is invalid.
 
     \param [in] key Pointer to an ed25519_key structure holding a private and
     public key.
@@ -982,7 +983,7 @@ int wc_ed25519_check_key(ed25519_key* key);
     \brief This function returns the size of an Ed25519 - 32 bytes.
 
     \return ED25519_KEY_SIZE The size of a valid private key (32 bytes).
-    \return BAD_FUNC_ARGS Returned if the given key is NULL.
+    \return BAD_FUNC_ARG Returned if the given key is NULL.
 
     \param [in] key Pointer to an ed25519_key structure for which to get the
     key size.
