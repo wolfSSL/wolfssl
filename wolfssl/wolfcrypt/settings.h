@@ -2803,8 +2803,10 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef HAVE_PQM4
 #define HAVE_PQC
-#define HAVE_KYBER
+#define WOLFSSL_HAVE_KYBER
 #define WOLFSSL_KYBER512
+#define WOLFSSL_NO_KYBER768
+#define WOLFSSL_NO_KYBER1024
 #endif
 
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
