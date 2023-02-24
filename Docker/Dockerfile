@@ -3,7 +3,7 @@ FROM $DOCKER_BASE_IMAGE
 
 USER root
 
-ARG DEPS_WOLFSSL="build-essential autoconf libtool git gdb iputils-ping clang lldb bsdmainutils netcat gcc-multilib gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu"
+ARG DEPS_WOLFSSL="build-essential autoconf libtool git gdb iputils-ping clang lldb bsdmainutils netcat gcc-multilib"
 ARG DEPS_LIBOQS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind git"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
                     && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} \
