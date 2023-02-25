@@ -44,7 +44,7 @@ int wolf_test_task(void);
 
 #ifndef WC_TEST_RET_ENC
 #define WC_TEST_RET_ENC(line, i) \
-        (-((line) + (((unsigned)(i) & 0x7ff) * 1000000)))
+        (-((line) + ((int)((unsigned)(i) & 0x7ff) * 1000000)))
 #endif
 
 #ifndef WC_TEST_RET_LN
