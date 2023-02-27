@@ -25,6 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/ext_kyber.h>
@@ -304,8 +305,11 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
 int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     const char* algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameter. */
@@ -339,6 +343,7 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
             ret = BAD_FUNC_ARG;
         }
     }
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
@@ -352,8 +357,6 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     if (ret != 0) {
         ForceZero(key, sizeof(*key));
     }
-
-    OQS_KEM_free(kem);
 
     return ret;
 }
@@ -394,8 +397,11 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     const char * algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
+
     (void)rng;
 
     /* Validate parameters. */
@@ -421,6 +427,8 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
             ret = BAD_FUNC_ARG;
         }
     }
+
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
@@ -430,8 +438,6 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
         }
     }
 #endif /* HAVE_PQM4 */
-
-    OQS_KEM_free(kem);
 
     return ret;
 }
@@ -477,9 +483,11 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len)
 {
     int ret = 0;
-    const char * algName = NULL;
     word32 ctlen = 0;
+#ifdef HAVE_LIBOQS
+    const char * algName = NULL;
     OQS_KEM *kem = NULL;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (ss == NULL) || (ct == NULL)) {
@@ -510,17 +518,17 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
             ret = BAD_FUNC_ARG;
         }
     }
+
+    OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
 #ifdef HAVE_PQM4
     if (ret == 0) {
-        if (crypto_kem_enc(ss, ct, key->priv) != 0) {
+        if (crypto_kem_dec(ss, ct, key->priv) != 0) {
             WOLFSSL_MSG("PQM4 Decapsulation failure.");
             ret = BAD_FUNC_ARG;
         }
     }
 #endif /* HAVE_PQM4 */
-
-    OQS_KEM_free(kem);
 
     return ret;
 
