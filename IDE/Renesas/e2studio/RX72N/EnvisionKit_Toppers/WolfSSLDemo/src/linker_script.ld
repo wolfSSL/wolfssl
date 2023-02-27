@@ -19,8 +19,6 @@ SECTIONS
 	} > ROM
 	.text 0xFFE00000: AT(0xFFE00000)
 	{
-		*(C$VECT)
-		
 		*(.text)
 		*(.text.*)
 		*(P)
@@ -62,6 +60,7 @@ SECTIONS
 		*(C_1)
 		*(C_2)
 		*(C)
+		*(C$VECT)
 		_erodata = .;
 	} > ROM
 	gcc_exceptions_table :
