@@ -107,7 +107,6 @@ extern void timeTick(void *pdata);
 void taskDemoWolf(intptr_t exinf) 
 {
     uint32_t channel = 0;
-    wolfSSL_init();
     if (!init_ether()) 
         return ;
     R_CMT_CreatePeriodic(FREQ, &timeTick, &channel);
@@ -119,10 +118,17 @@ void taskDemoWolf(intptr_t exinf)
         if (dhcp_accept_flg == 1) {
             dly_tsk(100);
 #ifdef SSL_SERVER
-            wolfSSL_TLS_server_Wrapper();
+            if(wolfSSL_TLS_server_Wrapper() != E_OK) {
+                printf("wolfSSL client failure end of process\n");
+                break;
+            }
 #else
-            wolfSSL_TLS_client_Wrapper();
+           if(wolfSSL_TLS_client_Wrapper() != E_OK) {
+               printf("wolfSSL client failure end of process\n");
+               break;
+           }
 #endif
+
         }
     }
 }

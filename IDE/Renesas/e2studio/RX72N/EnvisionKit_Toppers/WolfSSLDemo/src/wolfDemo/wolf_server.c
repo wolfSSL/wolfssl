@@ -134,20 +134,7 @@ WOLFSSL_CTX *wolfSSL_TLS_server_init(void)
 }
 #define BUFF_SIZE 256
 char buff[BUFF_SIZE];
-void wolfSSL_TLS_server2(void)
-{
-    ID cepid = 1;
-    ID repid = 1;
-    ER ercd;
 
-    T_IPV4EP dst_addr = {0, 0};
-    if ((ercd = tcp_acp_cep(cepid, repid, &dst_addr, TMO_FEVR)) != E_OK) {
-         printf("ERROR TCP Accept: %d\n", ercd);
-         return;
-     }
-
-    ercd = 0;
-}
 
 void wolfSSL_TLS_server(void *v_ctx, func_args *args)
 {

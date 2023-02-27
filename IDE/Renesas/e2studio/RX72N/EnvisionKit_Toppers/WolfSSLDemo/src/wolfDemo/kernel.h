@@ -30,7 +30,10 @@ extern ER		iwup_tsk(ID tskid);
 extern ER		wup_tsk(ID tskid) ;
 extern ER		iwup_tsk(ID tskid) ;
 extern ER		rot_rdq(PRI tskpri);
+extern ER		dly_tsk(UW) ;
 #define TPRI_SELF		0
 #define _RI_CLOCK_TIMER (0)
-#define TRUE	true
+#ifndef TRUE
+ #define TRUE	true
+#endif
 #endif /* KERNEL_H */

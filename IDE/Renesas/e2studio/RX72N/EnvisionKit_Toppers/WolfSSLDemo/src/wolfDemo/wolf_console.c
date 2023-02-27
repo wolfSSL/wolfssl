@@ -23,6 +23,7 @@
 #include "wolfssl/ssl.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <r_t4_itcpip.h>
 #include "wolf_demo.h"
 
 extern void wolfSSL_TLS_server(void *v_ctx, func_args *args);
@@ -46,24 +47,29 @@ double current_time(int reset)
     return ((double)tick/FREQ) ;	
 }
 
-void wolfSSL_init(void)
-{
-    uint32_t channel;
-    wolfSSL_sv_ctx = wolfSSL_TLS_server_init();
-    wolfSSL_cl_ctx = wolfSSL_TLS_client_init();
-}
-
-void wolfSSL_TLS_client_Wrapper(void) {
+ER wolfSSL_TLS_client_Wrapper(void) {
     func_args args = {0};
-
+    ER   ercd = E_OK;
+    wolfSSL_cl_ctx = wolfSSL_TLS_client_init();
+    if(wolfSSL_cl_ctx == NULL) {
+    	printf("wolfSSL client initialization failure\n");
+        return 	E_SYS;
+    }
 	printf("Start TLS Client\n");
 
 	wolfSSL_TLS_client(wolfSSL_cl_ctx, &args);
+	return ercd;
 }
-void wolfSSL_TLS_server_Wrapper(void) {
+ER wolfSSL_TLS_server_Wrapper(void) {
     func_args args = {0};
-
+    ER   ercd = E_OK;
+    wolfSSL_sv_ctx = wolfSSL_TLS_server_init();
+    if(wolfSSL_sv_ctx == NULL) {
+    	printf("wolfSSL server initialization failure\n");
+        return 	E_SYS;
+    }
 	printf("Start TLS Server\n");
 
 	wolfSSL_TLS_server(wolfSSL_sv_ctx, &args);
+	return ercd;
 }
