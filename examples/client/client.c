@@ -66,11 +66,8 @@ static const char *wolfsentry_config_path = NULL;
 #include <wolfssl/certs_test.h>
 #endif
 
-#ifdef USE_FAST_MATH
-    /* included to inspect the size of FP_MAX_BITS */
-    /* need integer.h header to make sure right math version used */
-    #include <wolfssl/wolfcrypt/integer.h>
-#endif
+#include <wolfssl/wolfcrypt/wolfmath.h> /* for max bits */
+
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif

@@ -61817,7 +61817,7 @@ static void test_wolfSSL_CTX_StaticMemory_TLS(int tlsVer,
 }
 #endif /* WOLFSSL_STATIC_MEMORY && HAVE_IO_TESTS_DEPENDENCIES */
 
-#ifdef WOLFSSL_STATIC_MEMORY
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
 #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
         defined(SESSION_CERTS)
     #ifdef OPENSSL_EXTRA
@@ -61867,12 +61867,12 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 
     return TEST_RES_CHECK(1);
 }
-#endif /* WOLFSSL_STATIC_MEMORY */
+#endif /* WOLFSSL_STATIC_MEMORY && !WOLFCRYPT_ONLY */
 
 static int test_wolfSSL_CTX_StaticMemory(void)
 {
     int res = TEST_SKIPPED;
-#ifdef WOLFSSL_STATIC_MEMORY
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
     wolfSSL_method_func method_func;
     WOLFSSL_CTX* ctx;
     const int kMaxCtxClients = 2;
@@ -61945,7 +61945,7 @@ static int test_wolfSSL_CTX_StaticMemory(void)
 #endif /* HAVE_IO_TESTS_DEPENDENCIES */
 
     res = TEST_RES_CHECK(1);
-#endif
+#endif /* WOLFSSL_STATIC_MEMORY && !WOLFCRYPT_ONLY */
     return res;
 }
 

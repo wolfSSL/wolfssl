@@ -227,11 +227,10 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/arc4.h>
-#if defined(WC_NO_RNG)
-    #include <wolfssl/wolfcrypt/integer.h>
-#else
+#if !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
+#include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/signature.h>
 #include <wolfssl/wolfcrypt/rsa.h>
@@ -1737,6 +1736,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             printf("wolfCrypt_Init failed %d\n", ret);
             err_sys("Error with wolfCrypt_Init!\n", WC_TEST_RET_ENC_EC(ret));
         }
+
+    #ifdef HAVE_WC_INTROSPECTION
+        printf("Math: %s\n", wc_GetMathInfo());
+    #endif
 
 #ifdef WC_RNG_SEED_CB
     wc_SetSeed_Cb(wc_GenerateSeed);

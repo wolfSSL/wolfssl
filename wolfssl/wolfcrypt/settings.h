@@ -350,7 +350,6 @@
         #if defined(ESP32_USE_RSA_PRIMITIVE) && \
             !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
             #define WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
-            #define USE_FAST_MATH
             #define WOLFSSL_SMALL_STACK
         #endif
    #endif
@@ -449,7 +448,6 @@
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NO_BIG_INT
 #endif
@@ -554,7 +552,6 @@
 
 #ifdef WOLFSSL_PICOTCP_DEMO
     #define WOLFSSL_STM32
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define XMALLOC(s, h, type)  PICO_ZALLOC((s))
     #define XFREE(p, h, type)    PICO_FREE((p))
@@ -621,7 +618,6 @@
 
     #define HAVE_ECC
     #define ALT_ECC_SIZE
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
@@ -723,7 +719,6 @@
         #define NO_MAIN_DRIVER
         #define NO_WRITEV
         #define SINGLE_THREADED
-        #define USE_FAST_MATH
         #define TFM_TIMING_RESISTANT
         #define WOLFSSL_NRF51
         #define WOLFSSL_USER_IO
@@ -857,7 +852,6 @@ extern void uITRON4_free(void *p) ;
 
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NO_MAIN_DRIVER
 #endif
@@ -873,12 +867,10 @@ extern void uITRON4_free(void *p) ;
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
 
-    /* Use SP_MATH by default, unless
+    /* Enable SP math by default, unless fast math
      * specified in user_settings.
      */
     #ifndef USE_FAST_MATH
-        #define USE_SP_MATH
-        #define SP_MATH_ALL
         #define WOLFSSL_HAVE_SP_ECC
         #define SP_WORD_SIZE 32
         #define WOLFSSL_HAVE_SP_RSA
@@ -954,7 +946,6 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_HAVE_MAX
     #define WOLFSSL_HAVE_MIN
 
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define WC_RSA_BLINDING
     #define ECC_TIMING_RESISTANT
@@ -1154,9 +1145,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_RC4
 
     /* enable features */
-    #undef  USE_FAST_MATH
-    #define USE_FAST_MATH
-
     #define USE_CERT_BUFFERS_2048
     #define BENCH_EMBEDDED
 
@@ -1500,7 +1488,6 @@ extern void uITRON4_free(void *p) ;
         #define NO_WRITEV
     #endif
 
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
@@ -1540,7 +1527,6 @@ extern void uITRON4_free(void *p) ;
     #include  <stdio.h>
     #include <string.h>
 
-    #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
@@ -1893,7 +1879,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_ASN_TIME /* can not use headers such as windows.h */
     #define HAVE_AESGCM
     #define USE_CERT_BUFFERS_2048
-    #define USE_FAST_MATH
 #endif /* WOLFSSL_SGX */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
@@ -1988,6 +1973,13 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif
 #endif
+
+/* Verify that only one of the above multi-precision math libraries is enabled */
+#if (defined(WOLFSSL_SP_MATH_ALL) && \
+        (defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH))) || \
+    (defined(USE_FAST_MATH) && defined(USE_INTEGER_HEAP_MATH))
+    #error Cannot enable more than one multiple precision math library!
+#endif
 /*----------------------------------------------------------------------------*/
 
 
@@ -2050,7 +2042,8 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_KEY_IMPORT
         #define HAVE_ECC_KEY_IMPORT
     #endif
-    #ifndef NO_ECC_KEY_EXPORT
+    /* The ECC key export requires mp_int */
+    #if !defined(NO_ECC_KEY_EXPORT) && !defined(NO_BIG_INT)
         #undef HAVE_ECC_KEY_EXPORT
         #define HAVE_ECC_KEY_EXPORT
     #endif
@@ -2523,7 +2516,8 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* warning for not using harden build options (default with ./configure) */
-#ifndef WC_NO_HARDEN
+/* do not warn if big integer support is disabled */
+#if !defined(WC_NO_HARDEN) && !defined(NO_BIG_INT)
     #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
         (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
         (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \

@@ -38,7 +38,7 @@
     #include <stdint.h>
 #endif
 
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/wolfmath.h>
 #include <wolfssl/wolfcrypt/sp_int.h>
 
 #include <wolfssl/wolfcrypt/ecc.h>
