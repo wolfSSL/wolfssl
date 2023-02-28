@@ -633,31 +633,40 @@ static void render_error_message(const char* msg, int es)
         break;
     case WC_TEST_RET_TAG_EC:
 #ifdef NO_ERROR_STRINGS
-        err_sys_printf("%s error L=%d code=%d\n", msg, WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es));
+        err_sys_printf("%s error L=%d code=%d\n", msg,
+                       WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es));
 #else
         err_sys_printf("%s error L=%d code=%d (%s)\n", msg,
-                       WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es), wc_GetErrorString(-WC_TEST_RET_DEC_I(es)));
+                       WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es),
+                       wc_GetErrorString(-WC_TEST_RET_DEC_I(es)));
 #endif
         break;
     case WC_TEST_RET_TAG_ERRNO:
     {
-#if defined(_GNU_SOURCE) || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L))
+#if defined(_GNU_SOURCE) || \
+    (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L))
         char errno_buf[64], *errno_string;
 #if defined(_GNU_SOURCE)
-        errno_string = strerror_r(WC_TEST_RET_DEC_I(es), errno_buf, sizeof(errno_buf));
+        errno_string = strerror_r(WC_TEST_RET_DEC_I(es),
+                                  errno_buf, sizeof(errno_buf));
 #else
-        if (strerror_r(WC_TEST_RET_DEC_I(es), errno_buf, sizeof(errno_buf)) != 0)
+        if (strerror_r(WC_TEST_RET_DEC_I(es),
+                       errno_buf, sizeof(errno_buf)) != 0)
             XSTRLCPY(errno_buf, "?", sizeof(errno_buf));
         errno_string = errno_buf;
 #endif
-        err_sys_printf("%s error L=%d errno=%d (%s)\n", msg, WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es), errno_string);
+        err_sys_printf("%s error L=%d errno=%d (%s)\n", msg,
+                       WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es),
+                       errno_string);
 #else
-        err_sys_printf("%s error L=%d errno=%d\n", msg, WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es));
+        err_sys_printf("%s error L=%d errno=%d\n", msg,
+                       WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es));
 #endif
         break;
     }
     case WC_TEST_RET_TAG_I:
-        err_sys_printf("%s error L=%d i=%d\n", msg, WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es));
+        err_sys_printf("%s error L=%d i=%d\n", msg,
+                       WC_TEST_RET_DEC_LN(es), WC_TEST_RET_DEC_I(es));
         break;
     }
 
@@ -41819,6 +41828,8 @@ static int mp_test_set_is_bit(mp_int* a)
     #endif
     }
 #endif
+
+    (void)ret;
 
     return 0;
 }
