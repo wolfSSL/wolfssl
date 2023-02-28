@@ -5439,7 +5439,7 @@ exit:
 }
 #endif /* WOLFSSL_NOSHA3_512 */
 
-#ifndef WOLFSSL_NO_SHAKE128
+#ifdef WOLFSSL_SHAKE128
 void bench_shake128(int useDeviceID)
 {
     wc_Shake hash[BENCH_MAX_PENDING];
@@ -5532,7 +5532,7 @@ exit:
 
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
-#endif /* WOLFSSL_NO_SHAKE128 */
+#endif /* WOLFSSL_SHAKE128 */
 
 #ifdef WOLFSSL_SHAKE256
 void bench_shake256(int useDeviceID)
