@@ -1412,7 +1412,13 @@ int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
 
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) || defined(WOLFSSL_TLS13)
+#if defined(WOLFSSL_TLS13) || (!defined(NO_WOLFSSL_SERVER) \
+    && (defined(WOLFSSL_SRTP) || defined(HAVE_SESSION_TICKET) \
+    || defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO) \
+    || defined(HAVE_SUPPORTED_CURVES) || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) \
+    || defined(HAVE_CERTIFICATE_STATUS_REQUEST) || defined(HAVE_TRUNCATED_HMAC) \
+    || defined(HAVE_MAX_FRAGMENT) || defined(HAVE_TRUSTED_CA) || defined(HAVE_SNI) \
+    || defined(HAVE_ALPN)))
 /** Mark an extension to be sent back to the client. */
 static void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
