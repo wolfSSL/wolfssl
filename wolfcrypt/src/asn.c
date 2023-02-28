@@ -26078,6 +26078,9 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
         j = -1;
         /* Put DomainComponents before OrgUnitName. */
         while (FindMultiAttrib(name, type, &j)) {
+            if (GetCertNameId(i) != ASN_DOMAIN_COMPONENT) {
+                continue;
+            }
             if (dataASN != NULL && namesASN != NULL) {
                 if (idx > maxIdx - (int)rdnASN_Length) {
                     WOLFSSL_MSG("Wanted to write more ASN than allocated");
@@ -26136,6 +26139,9 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
         j = -1;
         /* Write all other attributes of this type. */
         while (FindMultiAttrib(name, type, &j)) {
+            if (GetCertNameId(i) == ASN_DOMAIN_COMPONENT) {
+                continue;
+            }
             if (dataASN != NULL && namesASN != NULL) {
                 if (idx > maxIdx - (int)rdnASN_Length) {
                     WOLFSSL_MSG("Wanted to write more ASN than allocated");

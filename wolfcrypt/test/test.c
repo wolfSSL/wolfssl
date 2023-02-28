@@ -13837,20 +13837,20 @@ static void initDefaultName(void)
     n = &certDefaultName.name[0];
     n->id   = ASN_ORGUNIT_NAME;
     n->type = CTC_UTF8;
-    n->sz   = sizeof("Development-2");
+    n->sz   = XSTRLEN("Development-2");
     XMEMCPY(n->value, "Development-2", sizeof("Development-2"));
 
     #if CTC_MAX_ATTRIB > 3
     n = &certDefaultName.name[1];
     n->id   = ASN_DOMAIN_COMPONENT;
     n->type = CTC_UTF8;
-    n->sz   = sizeof("com");
+    n->sz   = XSTRLEN("com");
     XMEMCPY(n->value, "com", sizeof("com"));
 
     n = &certDefaultName.name[2];
     n->id   = ASN_DOMAIN_COMPONENT;
     n->type = CTC_UTF8;
-    n->sz   = sizeof("wolfssl");
+    n->sz   = XSTRLEN("wolfssl");
     XMEMCPY(n->value, "wolfssl", sizeof("wolfssl"));
     #endif
 #endif /* WOLFSSL_MULTI_ATTRIB && WOLFSSL_TEST_CERT */
