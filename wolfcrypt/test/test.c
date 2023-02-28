@@ -664,6 +664,8 @@ static void render_error_message(const char* msg, int es)
 #undef err_sys_printf
 }
 
+static void print_fiducials(void);
+
 #ifdef HAVE_STACK_SIZE
 static THREAD_RETURN err_sys(const char* msg, int es)
 #else
@@ -671,6 +673,7 @@ static int err_sys(const char* msg, int es)
 #endif
 {
     render_error_message(msg, es);
+    print_fiducials();
 #ifdef WOLFSSL_LINUXKM
     EXIT_TEST(es);
 #else
@@ -764,8 +767,6 @@ static int wolfssl_pb_print(const char* msg, ...)
     }
 #endif
 
-static void print_fiducials(void);
-
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args)
 #else
@@ -787,7 +788,6 @@ int wolfcrypt_test(void* args)
 
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
-    print_fiducials();
     printf("------------------------------------------------------------------------------\n");
 
     if (args) {
@@ -4161,6 +4161,7 @@ exit:
 WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
 {
     wc_Shake  sha;
+    byte  hash[250];
 
     testVector a, b, c, d, e;
     testVector test_sha[5];
@@ -4183,7 +4184,6 @@ WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
         "\xa3\x66\x6c\x9b\x11\x84\x9d\x4a\x36\xbc\x8a\x0d\x4c\xe3\x39\xfa"
         "\xfa\x1b";
 
-    byte  hash[sizeof(large_digest) - 1];
 
     /*
     ** https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHAKE128_Msg0.pdf
@@ -4309,7 +4309,7 @@ WOLFSSL_TEST_SUBROUTINE int shake128_test(void)
     ret = wc_Shake128_Final(&sha, hash, (word32)sizeof(hash));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    if (XMEMCMP(hash, large_digest, sizeof(hash)) != 0)
+    if (XMEMCMP(hash, large_digest, sizeof(large_digest) - 1) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     } /* END LARGE HASH TEST */
 #endif /* NO_LARGE_HASH_TEST */
@@ -45419,7 +45419,7 @@ static const int fiducial4 = WC_TEST_RET_LN;
  * source code version match when in doubt.
  */
 static void print_fiducials(void) {
-    printf(" fiducial line numbers: %d %d %d %d\n",
+    printf(" [fiducial line numbers: %d %d %d %d]\n",
            fiducial1, fiducial2, fiducial3, fiducial4);
 }
 
