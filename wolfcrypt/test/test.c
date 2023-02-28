@@ -572,7 +572,8 @@ WOLFSSL_TEST_SUBROUTINE int  certext_test(void);
 WOLFSSL_TEST_SUBROUTINE int decodedCertCache_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int memory_test(void);
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
 WOLFSSL_TEST_SUBROUTINE int mp_test(void);
 #endif
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
@@ -1521,7 +1522,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #endif
 #endif
 
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
     if ( (ret = mp_test()) != 0)
         return err_sys("mp       test failed!\n", ret);
     else
@@ -40268,9 +40270,8 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7signed_test(void)
 
 #endif /* HAVE_PKCS7 */
 
-#ifdef WOLFSSL_PUBLIC_MP
-
-/* Need a static build to have access to symbols. */
+#if defined(WOLFSSL_PUBLIC_MP) && \
+    (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH))
 
 /* Maximum number of bytes in a number to test. */
 #define MP_MAX_TEST_BYTE_LEN      32
@@ -43200,7 +43201,7 @@ done:
     return ret;
 }
 
-#endif /* WOLFSSL_PUBLIC_MP */
+#endif /* WOLFSSL_PUBLIC_MP && (WOLFSSL_SP_MATH_ALL || USE_FAST_MATH) */
 
 
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
