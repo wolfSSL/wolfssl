@@ -42,54 +42,49 @@ int wolfcrypt_test_main(int argc, char** argv);
 int wolf_test_task(void);
 #endif
 
-#ifndef WC_TEST_RET_ENC
-#define WC_TEST_RET_ENC(line, i) \
-        (-((line) + ((int)((unsigned)(i) & 0x7ff) * 1000000)))
-#endif
+#ifndef WC_TEST_RET_HAVE_CUSTOM_MACROS
+
+#define WC_TEST_RET_TAG_NC     0
+#define WC_TEST_RET_TAG_EC     1
+#define WC_TEST_RET_TAG_ERRNO  2
+#define WC_TEST_RET_TAG_I      3
+
+#define WC_TEST_RET_ENC(line, i, tag)                           \
+        (-((line) + ((int)((unsigned)(i) & 0x7ff) * 100000) + ((tag) << 29)))
 
 #ifndef WC_TEST_RET_LN
 #define WC_TEST_RET_LN __LINE__
 #endif
 
-#ifndef WC_TEST_RET_ENC_I
-/* encode positive integer */
-#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, i)
-#endif
-
-#ifndef WC_TEST_RET_ENC_EC
-/* encode error code (negative integer) */
-#define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, -(ec))
-#endif
-
-#ifndef WC_TEST_RET_ENC_NC
 /* encode no code */
-#define WC_TEST_RET_ENC_NC (-WC_TEST_RET_LN)
-#endif
+#define WC_TEST_RET_ENC_NC WC_TEST_RET_ENC(WC_TEST_RET_LN, 0, WC_TEST_RET_TAG_NC)
 
-#ifndef WC_TEST_RET_ENC_ERRNO
+/* encode positive integer */
+#define WC_TEST_RET_ENC_I(i) WC_TEST_RET_ENC(WC_TEST_RET_LN, i, WC_TEST_RET_TAG_I)
+
+/* encode error code (negative integer) */
+#define WC_TEST_RET_ENC_EC(ec) WC_TEST_RET_ENC(WC_TEST_RET_LN, -(ec), WC_TEST_RET_TAG_EC)
+
 /* encode system/libc error code */
 #if defined(HAVE_ERRNO_H) && !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && !defined(WOLFSSL_USER_IO)
 #include <errno.h>
-#define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC_I(errno)
+#define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC(WC_TEST_RET_LN, errno, WC_TEST_RET_TAG_ERRNO)
 #else
 #define WC_TEST_RET_ENC_ERRNO WC_TEST_RET_ENC_NC
 #endif
-#endif
 
-#ifndef WC_TEST_RET_DEC_LN
+#define WC_TEST_RET_DEC_TAG(x) ((-(x)) >> 29)
+
 /* decode line number */
-#define WC_TEST_RET_DEC_LN(x) ((-(x)) % 1000000)
-#endif
+#define WC_TEST_RET_DEC_LN(x) (((-(x)) & ~(3 << 29)) % 100000)
 
-#ifndef WC_TEST_RET_DEC_I
 /* decode integer or errno */
-#define WC_TEST_RET_DEC_I(x) ((-(x)) / 1000000)
-#endif
+#define WC_TEST_RET_DEC_I(x) (((-(x)) & ~(3 << 29)) / 100000)
 
-#ifndef WC_TEST_RET_DEC_EC
 /* decode error code */
 #define WC_TEST_RET_DEC_EC(x) (-WC_TEST_RET_DEC_I(x))
-#endif
+
+#endif /* !WC_TEST_RET_HAVE_CUSTOM_MACROS */
 
 #ifdef __cplusplus
     }  /* extern "C" */
@@ -97,4 +92,3 @@ int wolf_test_task(void);
 
 
 #endif /* WOLFCRYPT_TEST_H */
-
