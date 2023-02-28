@@ -18472,17 +18472,17 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #ifndef WC_NO_RNG
     ret = dh_generate_test(&rng);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 
     ret = dh_fips_generate_test(&rng);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* !WC_NO_RNG */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     ret = dh_test_check_pubvalue();
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif
 
 #if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
@@ -38621,26 +38621,26 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7callback_test(byte* cert, word32 certSz, byte* 
 
     ret = verifyBundle(derBuf, derSz, 0);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     /* test choosing other key with keyID */
     derSz = FOURK_BUF;
     ret = generateBundle(derBuf, &derSz, p7AltKey, sizeof(p7AltKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     }
 
     ret = verifyBundle(derBuf, derSz, 1);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     /* test fail case with wrong keyID */
     derSz = FOURK_BUF;
     ret = generateBundle(derBuf, &derSz, p7DefKey, sizeof(p7DefKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
     }
 
     ret = verifyBundle(derBuf, derSz, 1);
@@ -43286,14 +43286,28 @@ static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
 #endif
 
     ret = mp_init(ki);
-    if (ret == 0)
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0) {
         ret = mp_set(ki, k);
-    if (ret == 0)
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
         ret = mp_sub_d(p1, 1, p2);
-    if (ret == 0)
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
         ret = mp_mul(p2, ki, p2);
-    if (ret == 0)
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
         ret = mp_add_d(p2, 1, p2);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
     mp_clear(ki);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -43325,20 +43339,33 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
 
     ret = mp_init_multi(x, y, NULL, NULL, NULL, NULL);
     if (ret != 0) {
-        ret = MP_MEM;
+        ret = WC_TEST_RET_ENC_EC(ret);
         goto out;
     }
     for (i = 0; ret == 0 && i < ecPairsSz; i++) {
         ret = mp_read_unsigned_bin(x, ecPairs[i].coeff, ecPairs[i].coeffSz);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
         /* p1 = 2^exp */
-        if (ret == 0)
-            ret = mp_2expt(y, ecPairs[i].exp);
+        ret = mp_2expt(y, ecPairs[i].exp);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
         /* p1 = p1 * m */
-        if (ret == 0)
-            ret = mp_mul(x, y, x);
+        ret = mp_mul(x, y, x);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
         /* p1 +=  */
-        if (ret == 0)
-            ret = mp_add(p1, x, p1);
+        ret = mp_add(p1, x, p1);
+        if (ret != 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+            break;
+        }
         mp_zero(x);
         mp_zero(y);
     }
@@ -43392,17 +43419,28 @@ WOLFSSL_TEST_SUBROUTINE int prime_test(void)
 #endif
 
     ret = wc_InitRng(&rng);
-    if (ret == 0)
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
+    if (ret == 0) {
         ret = mp_init_multi(n, p1, p2, p3, NULL, NULL);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
     if (ret == 0)
         ret = GenerateP(p1, p2, p3,
                 ecPairsA, sizeof(ecPairsA) / sizeof(ecPairsA[0]), kA);
-    if (ret == 0)
+    if (ret == 0) {
         ret = mp_mul(p1, p2, n);
-    if (ret == 0)
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    if (ret == 0) {
         ret = mp_mul(n, p3, n);
+        if (ret != 0)
+            ret = WC_TEST_RET_ENC_EC(ret);
+    }
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(ret, out);
 
     /* Check the old prime test using the number that false positives.
      * This test result should indicate as not prime. */
