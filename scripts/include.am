@@ -126,3 +126,8 @@ endif
 EXTRA_DIST += scripts/bench/bench_functions.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh
+
+EXTRA_DIST += \
+        scripts/config_check/README.md  \
+        scripts/config_check/cmd.txt    \
+        scripts/config_check/refresh.sh

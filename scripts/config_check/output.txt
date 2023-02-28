@@ -1,0 +1,1 @@
+After running the refresh.sh command, this file will contain the output history.

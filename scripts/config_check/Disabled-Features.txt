@@ -1,0 +1,1 @@
+After running the refresh.sh command, this file will contain a list of disabled wolfSSL features.
