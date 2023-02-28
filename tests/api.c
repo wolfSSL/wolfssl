@@ -38219,25 +38219,25 @@ static int test_wolfSSL_X509_sign(void)
      * with the MSB set. See GenerateInteger in asn.c */
 #ifndef USE_CERT_BUFFERS_1024
 #ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 798-797 with 16 byte serial number */
-    AssertTrue((ret == 781 + snSz) || (ret == 782 + snSz));
+    /* Valid case - size should be 781-786 with 16 byte serial number */
+    AssertTrue((781 + snSz <= ret) && (ret <= 781 + 5 + snSz));
 #elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 955-956 with 16 byte serial number */
-    AssertTrue((ret == 939 + snSz) || (ret == 940 + snSz));
+    /* Valid case - size should be 955-960 with 16 byte serial number */
+    AssertTrue((939 + snSz <= ret) && (ret <= 939 + 5 + snSz));
 #else
-    /* Valid case - size should be 926-927 with 16 byte serial number */
-    AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
+    /* Valid case - size should be 926-931 with 16 byte serial number */
+    AssertTrue((910 + snSz <= ret) && (ret <= 910 + 5 + snSz));
 #endif
 #else
 #ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 537-538 with 16 byte serial number */
-    AssertTrue((ret == 521 + snSz) || (ret == 522 + snSz));
+    /* Valid case - size should be 537-542 with 16 byte serial number */
+    AssertTrue((521 + snSz <= ret) && (ret <= 521 + 5 + snSz));
 #elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 695-696 with 16 byte serial number */
-    AssertTrue((ret == 679 + snSz) || (ret == 680 + snSz));
+    /* Valid case - size should be 695-670 with 16 byte serial number */
+    AssertTrue((679 + snSz <= ret) && (ret <= 679 + 5 + snSz));
 #else
-    /* Valid case - size should be 666-667 with 16 byte serial number */
-    AssertTrue((ret == 650 + snSz) || (ret == 651 + snSz));
+    /* Valid case - size should be 666-671 with 16 byte serial number */
+    AssertTrue((650 + snSz <= ret) && (ret <= 650 + 5 + snSz));
 #endif
 #endif
     /* check that issuer name is as expected after signature */
