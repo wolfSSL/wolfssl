@@ -6894,8 +6894,13 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesCbcEncrypt(aes, out, in, inSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async encrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -6926,9 +6931,14 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesGcmSetKey(aes, key, keySz);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesGcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async encrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -6960,9 +6970,14 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesCcmSetKey(aes, key, keySz);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesCcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async encrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -6990,8 +7005,13 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             ret = wc_Des3Init(&des3, heap, devId);
             if (ret == 0) {
                 ret = wc_Des3_SetKey(&des3, key, iv, DES_ENCRYPTION);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_Des3_CbcEncrypt(&des3, out, in, inSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async encrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &des3.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_Des3Free(&des3);
             }
             break;
@@ -7074,8 +7094,13 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesCbcDecrypt(aes, out, in, inSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async decrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -7106,9 +7131,14 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesGcmSetKey(aes, key, keySz);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesGcmDecrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async decrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -7140,9 +7170,14 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             ret = wc_AesInit(aes, heap, devId);
             if (ret == 0) {
                 ret = wc_AesCcmSetKey(aes, key, keySz);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_AesCcmDecrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async decrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
@@ -7169,8 +7204,13 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             ret = wc_Des3Init(&des3, heap, devId);
             if (ret == 0) {
                 ret = wc_Des3_SetKey(&des3, key, iv, DES_DECRYPTION);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_Des3_CbcDecrypt(&des3, out, in, inSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* async decrypt not available here, so block till done */
+                    ret = wc_AsyncWait(ret, &des3.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                }
                 wc_Des3Free(&des3);
             }
 
