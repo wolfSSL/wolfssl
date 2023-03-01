@@ -553,274 +553,7 @@ L_AES_ARM32_td:
 	.word	0x70d532b6
 	.word	0x74486c5c
 	.word	0x42d0b857
-	.text
-	.type	L_AES_ARM32_td4, %object
-	.size	L_AES_ARM32_td4, 256
-	.align	4
-L_AES_ARM32_td4:
-	.byte	0x52
-	.byte	0x9
-	.byte	0x6a
-	.byte	0xd5
-	.byte	0x30
-	.byte	0x36
-	.byte	0xa5
-	.byte	0x38
-	.byte	0xbf
-	.byte	0x40
-	.byte	0xa3
-	.byte	0x9e
-	.byte	0x81
-	.byte	0xf3
-	.byte	0xd7
-	.byte	0xfb
-	.byte	0x7c
-	.byte	0xe3
-	.byte	0x39
-	.byte	0x82
-	.byte	0x9b
-	.byte	0x2f
-	.byte	0xff
-	.byte	0x87
-	.byte	0x34
-	.byte	0x8e
-	.byte	0x43
-	.byte	0x44
-	.byte	0xc4
-	.byte	0xde
-	.byte	0xe9
-	.byte	0xcb
-	.byte	0x54
-	.byte	0x7b
-	.byte	0x94
-	.byte	0x32
-	.byte	0xa6
-	.byte	0xc2
-	.byte	0x23
-	.byte	0x3d
-	.byte	0xee
-	.byte	0x4c
-	.byte	0x95
-	.byte	0xb
-	.byte	0x42
-	.byte	0xfa
-	.byte	0xc3
-	.byte	0x4e
-	.byte	0x8
-	.byte	0x2e
-	.byte	0xa1
-	.byte	0x66
-	.byte	0x28
-	.byte	0xd9
-	.byte	0x24
-	.byte	0xb2
-	.byte	0x76
-	.byte	0x5b
-	.byte	0xa2
-	.byte	0x49
-	.byte	0x6d
-	.byte	0x8b
-	.byte	0xd1
-	.byte	0x25
-	.byte	0x72
-	.byte	0xf8
-	.byte	0xf6
-	.byte	0x64
-	.byte	0x86
-	.byte	0x68
-	.byte	0x98
-	.byte	0x16
-	.byte	0xd4
-	.byte	0xa4
-	.byte	0x5c
-	.byte	0xcc
-	.byte	0x5d
-	.byte	0x65
-	.byte	0xb6
-	.byte	0x92
-	.byte	0x6c
-	.byte	0x70
-	.byte	0x48
-	.byte	0x50
-	.byte	0xfd
-	.byte	0xed
-	.byte	0xb9
-	.byte	0xda
-	.byte	0x5e
-	.byte	0x15
-	.byte	0x46
-	.byte	0x57
-	.byte	0xa7
-	.byte	0x8d
-	.byte	0x9d
-	.byte	0x84
-	.byte	0x90
-	.byte	0xd8
-	.byte	0xab
-	.byte	0x0
-	.byte	0x8c
-	.byte	0xbc
-	.byte	0xd3
-	.byte	0xa
-	.byte	0xf7
-	.byte	0xe4
-	.byte	0x58
-	.byte	0x5
-	.byte	0xb8
-	.byte	0xb3
-	.byte	0x45
-	.byte	0x6
-	.byte	0xd0
-	.byte	0x2c
-	.byte	0x1e
-	.byte	0x8f
-	.byte	0xca
-	.byte	0x3f
-	.byte	0xf
-	.byte	0x2
-	.byte	0xc1
-	.byte	0xaf
-	.byte	0xbd
-	.byte	0x3
-	.byte	0x1
-	.byte	0x13
-	.byte	0x8a
-	.byte	0x6b
-	.byte	0x3a
-	.byte	0x91
-	.byte	0x11
-	.byte	0x41
-	.byte	0x4f
-	.byte	0x67
-	.byte	0xdc
-	.byte	0xea
-	.byte	0x97
-	.byte	0xf2
-	.byte	0xcf
-	.byte	0xce
-	.byte	0xf0
-	.byte	0xb4
-	.byte	0xe6
-	.byte	0x73
-	.byte	0x96
-	.byte	0xac
-	.byte	0x74
-	.byte	0x22
-	.byte	0xe7
-	.byte	0xad
-	.byte	0x35
-	.byte	0x85
-	.byte	0xe2
-	.byte	0xf9
-	.byte	0x37
-	.byte	0xe8
-	.byte	0x1c
-	.byte	0x75
-	.byte	0xdf
-	.byte	0x6e
-	.byte	0x47
-	.byte	0xf1
-	.byte	0x1a
-	.byte	0x71
-	.byte	0x1d
-	.byte	0x29
-	.byte	0xc5
-	.byte	0x89
-	.byte	0x6f
-	.byte	0xb7
-	.byte	0x62
-	.byte	0xe
-	.byte	0xaa
-	.byte	0x18
-	.byte	0xbe
-	.byte	0x1b
-	.byte	0xfc
-	.byte	0x56
-	.byte	0x3e
-	.byte	0x4b
-	.byte	0xc6
-	.byte	0xd2
-	.byte	0x79
-	.byte	0x20
-	.byte	0x9a
-	.byte	0xdb
-	.byte	0xc0
-	.byte	0xfe
-	.byte	0x78
-	.byte	0xcd
-	.byte	0x5a
-	.byte	0xf4
-	.byte	0x1f
-	.byte	0xdd
-	.byte	0xa8
-	.byte	0x33
-	.byte	0x88
-	.byte	0x7
-	.byte	0xc7
-	.byte	0x31
-	.byte	0xb1
-	.byte	0x12
-	.byte	0x10
-	.byte	0x59
-	.byte	0x27
-	.byte	0x80
-	.byte	0xec
-	.byte	0x5f
-	.byte	0x60
-	.byte	0x51
-	.byte	0x7f
-	.byte	0xa9
-	.byte	0x19
-	.byte	0xb5
-	.byte	0x4a
-	.byte	0xd
-	.byte	0x2d
-	.byte	0xe5
-	.byte	0x7a
-	.byte	0x9f
-	.byte	0x93
-	.byte	0xc9
-	.byte	0x9c
-	.byte	0xef
-	.byte	0xa0
-	.byte	0xe0
-	.byte	0x3b
-	.byte	0x4d
-	.byte	0xae
-	.byte	0x2a
-	.byte	0xf5
-	.byte	0xb0
-	.byte	0xc8
-	.byte	0xeb
-	.byte	0xbb
-	.byte	0x3c
-	.byte	0x83
-	.byte	0x53
-	.byte	0x99
-	.byte	0x61
-	.byte	0x17
-	.byte	0x2b
-	.byte	0x4
-	.byte	0x7e
-	.byte	0xba
-	.byte	0x77
-	.byte	0xd6
-	.byte	0x26
-	.byte	0xe1
-	.byte	0x69
-	.byte	0x14
-	.byte	0x63
-	.byte	0x55
-	.byte	0x21
-	.byte	0xc
-	.byte	0x7d
 #ifndef NO_AES
-	.text
-	.type	L_AES_SEK_ARM32_tep, %object
-	.size	L_AES_SEK_ARM32_tep, 4
-	.align	4
-L_AES_SEK_ARM32_tep:
-	.word	L_AES_ARM32_te
 	.text
 	.type	L_AES_SEK_ARM32_rcon, %object
 	.size	L_AES_SEK_ARM32_rcon, 40
@@ -842,8 +575,10 @@ L_AES_SEK_ARM32_rcon:
 	.type	AES_set_encrypt_key, %function
 AES_set_encrypt_key:
 	push	{r4, r5, r6, r7, r8, lr}
+	adr	r4, AES_set_encrypt_key
+	mov	r8, #AES_set_encrypt_key-L_AES_ARM32_te
+	sub	r8, r4, r8
 	adr	lr, L_AES_SEK_ARM32_rcon
-	ldr	r8, L_AES_SEK_ARM32_tep
 	cmp	r1, #0x80
 	beq	L_AES_set_encrypt_key_start_128
 	cmp	r1, #0xc0
@@ -1085,25 +820,16 @@ L_AES_set_encrypt_key_end:
 	.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 #ifdef HAVE_AES_DECRYPT
 	.text
-	.type	L_AES_IK_ARM32_tep, %object
-	.size	L_AES_IK_ARM32_tep, 4
-	.align	4
-L_AES_IK_ARM32_tep:
-	.word	L_AES_ARM32_te
-	.text
-	.type	L_AES_IK_ARM32_rcon, %object
-	.size	L_AES_IK_ARM32_rcon, 4
-	.align	4
-L_AES_IK_ARM32_rcon:
-	.word	L_AES_ARM32_td
-	.text
 	.align	4
 	.globl	AES_invert_key
 	.type	AES_invert_key, %function
 AES_invert_key:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ldr	r9, L_AES_IK_ARM32_tep
-	ldr	r10, L_AES_IK_ARM32_rcon
+	adr	r4, AES_invert_key
+	mov	r9, #AES_invert_key-L_AES_ARM32_te
+	mov	r10, #AES_invert_key-L_AES_ARM32_td
+	sub	r9, r4, r9
+	sub	r10, r4, r10
 	add	r8, r0, r1, lsl #4
 	mov	r11, r1
 L_AES_invert_key_loop:
@@ -1419,19 +1145,15 @@ L_AES_encrypt_block_nr:
 	.size	AES_encrypt_block,.-AES_encrypt_block
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
-	.type	L_AES_ARM32_tep, %object
-	.size	L_AES_ARM32_tep, 4
-	.align	4
-L_AES_ARM32_tep:
-	.word	L_AES_ARM32_te
-	.text
 	.align	4
 	.globl	AES_ECB_encrypt
 	.type	AES_ECB_encrypt, %function
 AES_ECB_encrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	adr	r4, AES_ECB_encrypt
+	mov	lr, #AES_ECB_encrypt-L_AES_ARM32_te
+	sub	lr, r4, lr
 	ldr	r12, [sp, #36]
-	ldr	lr, L_AES_ARM32_tep
 	cmp	r12, #10
 	beq	L_AES_ECB_encrypt_start_block_128
 	cmp	r12, #12
@@ -1545,12 +1267,6 @@ L_AES_ECB_encrypt_end:
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
 	.text
-	.type	L_AES_CBC_ARM32_tep, %object
-	.size	L_AES_CBC_ARM32_tep, 4
-	.align	4
-L_AES_CBC_ARM32_tep:
-	.word	L_AES_ARM32_te
-	.text
 	.align	4
 	.globl	AES_CBC_encrypt
 	.type	AES_CBC_encrypt, %function
@@ -1560,7 +1276,9 @@ AES_CBC_encrypt:
 	ldr	lr, [sp, #40]
 	ldm	lr, {r4, r5, r6, r7}
 	push	{lr}
-	ldr	lr, L_AES_CBC_ARM32_tep
+	adr	r8, AES_CBC_encrypt
+	mov	lr, #AES_CBC_encrypt-L_AES_ARM32_te
+	sub	lr, r8, lr
 	cmp	r12, #10
 	beq	L_AES_CBC_encrypt_start_block_128
 	cmp	r12, #12
@@ -1688,12 +1406,6 @@ L_AES_CBC_encrypt_end:
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
 	.text
-	.type	L_AES_CTR_ARM32_tep, %object
-	.size	L_AES_CTR_ARM32_tep, 4
-	.align	4
-L_AES_CTR_ARM32_tep:
-	.word	L_AES_ARM32_te
-	.text
 	.align	4
 	.globl	AES_CTR_encrypt
 	.type	AES_CTR_encrypt, %function
@@ -1708,7 +1420,9 @@ AES_CTR_encrypt:
 	rev	r7, r7
 	stm	lr, {r4, r5, r6, r7}
 	push	{lr}
-	ldr	lr, L_AES_CTR_ARM32_tep
+	adr	r8, AES_CTR_encrypt
+	mov	lr, #AES_CTR_encrypt-L_AES_ARM32_te
+	sub	lr, r8, lr
 	cmp	r12, #10
 	beq	L_AES_CTR_encrypt_start_block_128
 	cmp	r12, #12
@@ -1854,11 +1568,266 @@ L_AES_CTR_encrypt_end:
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
 	.text
-	.type	L_AES_ARM32_td4p, %object
-	.size	L_AES_ARM32_td4p, 4
+	.type	L_AES_ARM32_td4, %object
+	.size	L_AES_ARM32_td4, 256
 	.align	4
-L_AES_ARM32_td4p:
-	.word	L_AES_ARM32_td4
+L_AES_ARM32_td4:
+	.byte	0x52
+	.byte	0x9
+	.byte	0x6a
+	.byte	0xd5
+	.byte	0x30
+	.byte	0x36
+	.byte	0xa5
+	.byte	0x38
+	.byte	0xbf
+	.byte	0x40
+	.byte	0xa3
+	.byte	0x9e
+	.byte	0x81
+	.byte	0xf3
+	.byte	0xd7
+	.byte	0xfb
+	.byte	0x7c
+	.byte	0xe3
+	.byte	0x39
+	.byte	0x82
+	.byte	0x9b
+	.byte	0x2f
+	.byte	0xff
+	.byte	0x87
+	.byte	0x34
+	.byte	0x8e
+	.byte	0x43
+	.byte	0x44
+	.byte	0xc4
+	.byte	0xde
+	.byte	0xe9
+	.byte	0xcb
+	.byte	0x54
+	.byte	0x7b
+	.byte	0x94
+	.byte	0x32
+	.byte	0xa6
+	.byte	0xc2
+	.byte	0x23
+	.byte	0x3d
+	.byte	0xee
+	.byte	0x4c
+	.byte	0x95
+	.byte	0xb
+	.byte	0x42
+	.byte	0xfa
+	.byte	0xc3
+	.byte	0x4e
+	.byte	0x8
+	.byte	0x2e
+	.byte	0xa1
+	.byte	0x66
+	.byte	0x28
+	.byte	0xd9
+	.byte	0x24
+	.byte	0xb2
+	.byte	0x76
+	.byte	0x5b
+	.byte	0xa2
+	.byte	0x49
+	.byte	0x6d
+	.byte	0x8b
+	.byte	0xd1
+	.byte	0x25
+	.byte	0x72
+	.byte	0xf8
+	.byte	0xf6
+	.byte	0x64
+	.byte	0x86
+	.byte	0x68
+	.byte	0x98
+	.byte	0x16
+	.byte	0xd4
+	.byte	0xa4
+	.byte	0x5c
+	.byte	0xcc
+	.byte	0x5d
+	.byte	0x65
+	.byte	0xb6
+	.byte	0x92
+	.byte	0x6c
+	.byte	0x70
+	.byte	0x48
+	.byte	0x50
+	.byte	0xfd
+	.byte	0xed
+	.byte	0xb9
+	.byte	0xda
+	.byte	0x5e
+	.byte	0x15
+	.byte	0x46
+	.byte	0x57
+	.byte	0xa7
+	.byte	0x8d
+	.byte	0x9d
+	.byte	0x84
+	.byte	0x90
+	.byte	0xd8
+	.byte	0xab
+	.byte	0x0
+	.byte	0x8c
+	.byte	0xbc
+	.byte	0xd3
+	.byte	0xa
+	.byte	0xf7
+	.byte	0xe4
+	.byte	0x58
+	.byte	0x5
+	.byte	0xb8
+	.byte	0xb3
+	.byte	0x45
+	.byte	0x6
+	.byte	0xd0
+	.byte	0x2c
+	.byte	0x1e
+	.byte	0x8f
+	.byte	0xca
+	.byte	0x3f
+	.byte	0xf
+	.byte	0x2
+	.byte	0xc1
+	.byte	0xaf
+	.byte	0xbd
+	.byte	0x3
+	.byte	0x1
+	.byte	0x13
+	.byte	0x8a
+	.byte	0x6b
+	.byte	0x3a
+	.byte	0x91
+	.byte	0x11
+	.byte	0x41
+	.byte	0x4f
+	.byte	0x67
+	.byte	0xdc
+	.byte	0xea
+	.byte	0x97
+	.byte	0xf2
+	.byte	0xcf
+	.byte	0xce
+	.byte	0xf0
+	.byte	0xb4
+	.byte	0xe6
+	.byte	0x73
+	.byte	0x96
+	.byte	0xac
+	.byte	0x74
+	.byte	0x22
+	.byte	0xe7
+	.byte	0xad
+	.byte	0x35
+	.byte	0x85
+	.byte	0xe2
+	.byte	0xf9
+	.byte	0x37
+	.byte	0xe8
+	.byte	0x1c
+	.byte	0x75
+	.byte	0xdf
+	.byte	0x6e
+	.byte	0x47
+	.byte	0xf1
+	.byte	0x1a
+	.byte	0x71
+	.byte	0x1d
+	.byte	0x29
+	.byte	0xc5
+	.byte	0x89
+	.byte	0x6f
+	.byte	0xb7
+	.byte	0x62
+	.byte	0xe
+	.byte	0xaa
+	.byte	0x18
+	.byte	0xbe
+	.byte	0x1b
+	.byte	0xfc
+	.byte	0x56
+	.byte	0x3e
+	.byte	0x4b
+	.byte	0xc6
+	.byte	0xd2
+	.byte	0x79
+	.byte	0x20
+	.byte	0x9a
+	.byte	0xdb
+	.byte	0xc0
+	.byte	0xfe
+	.byte	0x78
+	.byte	0xcd
+	.byte	0x5a
+	.byte	0xf4
+	.byte	0x1f
+	.byte	0xdd
+	.byte	0xa8
+	.byte	0x33
+	.byte	0x88
+	.byte	0x7
+	.byte	0xc7
+	.byte	0x31
+	.byte	0xb1
+	.byte	0x12
+	.byte	0x10
+	.byte	0x59
+	.byte	0x27
+	.byte	0x80
+	.byte	0xec
+	.byte	0x5f
+	.byte	0x60
+	.byte	0x51
+	.byte	0x7f
+	.byte	0xa9
+	.byte	0x19
+	.byte	0xb5
+	.byte	0x4a
+	.byte	0xd
+	.byte	0x2d
+	.byte	0xe5
+	.byte	0x7a
+	.byte	0x9f
+	.byte	0x93
+	.byte	0xc9
+	.byte	0x9c
+	.byte	0xef
+	.byte	0xa0
+	.byte	0xe0
+	.byte	0x3b
+	.byte	0x4d
+	.byte	0xae
+	.byte	0x2a
+	.byte	0xf5
+	.byte	0xb0
+	.byte	0xc8
+	.byte	0xeb
+	.byte	0xbb
+	.byte	0x3c
+	.byte	0x83
+	.byte	0x53
+	.byte	0x99
+	.byte	0x61
+	.byte	0x17
+	.byte	0x2b
+	.byte	0x4
+	.byte	0x7e
+	.byte	0xba
+	.byte	0x77
+	.byte	0xd6
+	.byte	0x26
+	.byte	0xe1
+	.byte	0x69
+	.byte	0x14
+	.byte	0x63
+	.byte	0x55
+	.byte	0x21
+	.byte	0xc
+	.byte	0x7d
 	.text
 	.align	4
 	.globl	AES_decrypt_block
@@ -2031,7 +2000,7 @@ L_AES_decrypt_block_nr:
 	eor	r9, r9, r5
 	eor	r10, r10, r6
 	eor	r11, r11, r7
-	ldr	r12, L_AES_ARM32_td4p
+	adr	r12, L_AES_ARM32_td4
 	and	r7, r2, r10, lsr #8
 	lsr	r1, r8, #24
 	and	r4, r2, r9
@@ -2089,12 +2058,6 @@ L_AES_decrypt_block_nr:
 	.size	AES_decrypt_block,.-AES_decrypt_block
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
-	.type	L_AES_ARM32_tdp, %object
-	.size	L_AES_ARM32_tdp, 4
-	.align	4
-L_AES_ARM32_tdp:
-	.word	L_AES_ARM32_td
-	.text
 	.align	4
 	.globl	AES_ECB_decrypt
 	.type	AES_ECB_decrypt, %function
@@ -2102,7 +2065,9 @@ AES_ECB_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	ldr	r12, [sp, #36]
 	mov	r8, r12
-	ldr	lr, L_AES_ARM32_tdp
+	adr	r4, AES_ECB_decrypt
+	mov	lr, #AES_ECB_decrypt-L_AES_ARM32_td
+	sub	lr, r4, lr
 	cmp	r8, #10
 	beq	L_AES_ECB_decrypt_start_block_128
 	cmp	r8, #12
@@ -2216,12 +2181,6 @@ L_AES_ECB_decrypt_end:
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
 	.text
-	.type	L_AES_CBC_ARM32_tdp, %object
-	.size	L_AES_CBC_ARM32_tdp, 4
-	.align	4
-L_AES_CBC_ARM32_tdp:
-	.word	L_AES_ARM32_td
-	.text
 	.align	4
 	.globl	AES_CBC_decrypt
 	.type	AES_CBC_decrypt, %function
@@ -2232,8 +2191,10 @@ AES_CBC_decrypt:
 	ldr	lr, [sp, #64]
 	str	lr, [sp, #20]
 	str	r3, [sp]
+	adr	r8, AES_CBC_decrypt
+	mov	lr, #AES_CBC_decrypt-L_AES_ARM32_td
+	sub	lr, r8, lr
 	mov	r8, r12
-	ldr	lr, L_AES_CBC_ARM32_tdp
 	str	lr, [sp, #4]
 	cmp	r8, #10
 	beq	L_AES_CBC_decrypt_loop_block_128
@@ -3262,12 +3223,6 @@ L_GCM_gmult_len_start_block:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	GCM_gmult_len,.-GCM_gmult_len
 	.text
-	.type	L_AES_GCM_ARM32_tep, %object
-	.size	L_AES_GCM_ARM32_tep, 4
-	.align	4
-L_AES_GCM_ARM32_tep:
-	.word	L_AES_ARM32_te
-	.text
 	.align	4
 	.globl	AES_GCM_encrypt
 	.type	AES_GCM_encrypt, %function
@@ -3282,7 +3237,9 @@ AES_GCM_encrypt:
 	rev	r7, r7
 	stm	lr, {r4, r5, r6, r7}
 	push	{lr}
-	ldr	lr, L_AES_GCM_ARM32_tep
+	adr	r8, AES_GCM_encrypt
+	mov	lr, #AES_GCM_encrypt-L_AES_ARM32_te
+	sub	lr, r8, lr
 	cmp	r12, #10
 	beq	L_AES_GCM_encrypt_start_block_128
 	cmp	r12, #12
