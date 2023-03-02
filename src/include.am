@@ -612,12 +612,13 @@ if !BUILD_FIPS_CURRENT
 if BUILD_ECC
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ecc.c
 endif
+endif
+
 if BUILD_ECCSI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/eccsi.c
 endif
 if BUILD_SAKKE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sakke.c
-endif
 endif
 
 if !BUILD_FIPS_CURRENT
