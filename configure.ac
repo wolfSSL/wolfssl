@@ -8717,6 +8717,22 @@ esac
 
 rm cyassl/options.h.bak
 
+if test "$ENABLED_OPENSSLEXTRA" = "yes"
+then
+    SAVE_CFLAGS=$CFLAGS
+    CFLAGS="$CFLAGS -I$srcdir"
+    for header in wolfssl/openssl/*.h
+    do
+        AC_CHECK_HEADER([$header], [], [
+                AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
+            ], [
+            #include <wolfssl/options.h>
+            extern int dummy_int_to_make_compiler_happy;
+        ])
+    done
+    CFLAGS=$SAVE_CFLAGS
+fi
+
 if test "$silent" != "yes"; then
 
 # output config summary

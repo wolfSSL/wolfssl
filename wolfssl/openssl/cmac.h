@@ -23,6 +23,7 @@
 #define WOLFSSL_CMAC_H_
 
 #include <wolfssl/wolfcrypt/cmac.h>
+#include <wolfssl/openssl/compat_types.h>
 
 #ifdef __cplusplus
 extern "C" {
