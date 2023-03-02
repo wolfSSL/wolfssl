@@ -362,6 +362,20 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\aes_gcm_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\sp_x86_64_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>

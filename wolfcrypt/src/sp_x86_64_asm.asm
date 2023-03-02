@@ -20598,7 +20598,7 @@ _text SEGMENT READONLY PARA
 sp_2048_lshift_32 PROC
         push	r12
         push	r13
-        mov	rcx, r8
+        mov	cl, r8b
         mov	rax, rcx
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+216]
@@ -40446,7 +40446,7 @@ _text SEGMENT READONLY PARA
 sp_3072_lshift_48 PROC
         push	r12
         push	r13
-        mov	rcx, r8
+        mov	cl, r8b
         mov	rax, rcx
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+344]
@@ -53973,7 +53973,7 @@ _text SEGMENT READONLY PARA
 sp_4096_lshift_64 PROC
         push	r12
         push	r13
-        mov	rcx, r8
+        mov	cl, r8b
         mov	rax, rcx
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+472]
@@ -67878,7 +67878,7 @@ _text SEGMENT READONLY PARA
 sp_521_lshift_9 PROC
         push	r12
         push	r13
-        mov	rcx, r8
+        mov	cl, r8b
         mov	rax, rcx
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+32]
@@ -67925,7 +67925,7 @@ _text SEGMENT READONLY PARA
 sp_521_lshift_18 PROC
         push	r12
         push	r13
-        mov	rcx, r8
+        mov	cl, r8b
         mov	rax, rcx
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+104]
