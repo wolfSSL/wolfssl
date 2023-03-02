@@ -11475,7 +11475,7 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
 
 /* Copies ecc_key into new WOLFSSL_EC_KEY object
  *
- * Copies the internal represention as well.
+ * Copies the internal representation as well.
  *
  * @param [in] src  EC key to duplicate.
  *
@@ -13312,8 +13312,8 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
  * r and s untouched when sig is NULL.
  *
  * @param [in]  sig  ECDSA signature object.
- * @param [out] r    R field of ECDSA siganture as a BN. May be NULL.
- * @param [out] s    S field of ECDSA siganture as a BN. May be NULL.
+ * @param [out] r    R field of ECDSA signature as a BN. May be NULL.
+ * @param [out] s    S field of ECDSA signature as a BN. May be NULL.
  */
 void wolfSSL_ECDSA_SIG_get0(const WOLFSSL_ECDSA_SIG* sig,
     const WOLFSSL_BIGNUM** r, const WOLFSSL_BIGNUM** s)
@@ -13334,8 +13334,8 @@ void wolfSSL_ECDSA_SIG_get0(const WOLFSSL_ECDSA_SIG* sig,
 /* Set the pointers to the fields of the ECDSA signature.
  *
  * @param [in, out] sig  ECDSA signature object to update.
- * @param [in]      r    R field of ECDSA siganture as a BN.
- * @param [in]      s    S field of ECDSA siganture as a BN.
+ * @param [in]      r    R field of ECDSA signature as a BN.
+ * @param [in]      s    S field of ECDSA signature as a BN.
  * @return  1 on success.
  * @return  0 on error.
  */

@@ -19720,7 +19720,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             }
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                /* For TLS v1.1 the block size and explcit IV are added to idx,
+                /* For TLS v1.1 the block size and explicit IV are added to idx,
                  * so it needs to be included in this limit check */
                 if ((ssl->curSize - ssl->keys.padSz -
                         (ssl->buffers.inputBuffer.idx - startIdx) -
@@ -19741,7 +19741,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             else
        #endif
                 /* TLS13 plaintext limit is checked earlier before decryption */
-                /* For TLS v1.1 the block size and explcit IV are added to idx,
+                /* For TLS v1.1 the block size and explicit IV are added to idx,
                  * so it needs to be included in this limit check */
                 if (!IsAtLeastTLSv1_3(ssl->version)
                         && ssl->curSize - ssl->keys.padSz -
@@ -22762,7 +22762,7 @@ startScr:
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.handShakeDone &&
                                          ssl->curRL.type == handshake && peek) {
-            WOLFSSL_MSG("Got Handshake Messge in APP data");
+            WOLFSSL_MSG("Got Handshake Message in APP data");
             if (ssl->buffers.inputBuffer.length == 0) {
                 ssl->error = WOLFSSL_ERROR_WANT_READ;
                 return 0;
@@ -23151,7 +23151,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer length error";
 
     case PEER_KEY_ERROR:
-        return "cant decode peer key";
+        return "can't decode peer key";
 
     case ZERO_RETURN:
     case WOLFSSL_ERROR_ZERO_RETURN:
@@ -24254,7 +24254,7 @@ int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
     WOLFSSL_ENTER("IsCipherAEAD");
 
     if (n == NULL) {
-        WOLFSSL_MSG("bad function argumet. n is NULL.");
+        WOLFSSL_MSG("bad function argument. n is NULL.");
         return 0;
     }
 
@@ -25273,7 +25273,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             if (CmpEccStrength(hashAlgo, ssl->buffers.keySz) != 0)
                 continue;
 
-            /* Matched ECDSA exaclty - set chosen and finished. */
+            /* Matched ECDSA exactly - set chosen and finished. */
             ssl->options.hashAlgo = hashAlgo;
             ssl->options.sigAlgo = sigAlgo;
             ret = 0;
@@ -30131,7 +30131,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #ifndef NO_OLD_TLS
             else {
                 /* if old TLS load MD5 and SHA hash as value to sign
-                 * MD5 and SHA must be first two buffers in stucture */
+                 * MD5 and SHA must be first two buffers in structure */
                 XMEMCPY(ssl->buffers.sig.buffer,
                                 (byte*)&ssl->hsHashes->certHashes, FINISHED_SZ);
             }
@@ -36970,8 +36970,8 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
     return hash;
 }
 /* release all contents in stack, and then release stack itself. */
-/* Second argument is a function pointer to release resouces.    */
-/* It calls the function to release resouces when t is passed    */
+/* Second argument is a function pointer to release resources.   */
+/* It calls the function to release resources when it is passed  */
 /* instead of wolfSSL_BY_DIR_HASH_free().                        */
 void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
     void (*f) (WOLFSSL_BY_DIR_HASH*))
@@ -37155,8 +37155,8 @@ WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
     return entry;
 }
 /* release all contents in stack, and then release stack itself. */
-/* Second argument is a function pointer to release resouces.    */
-/* It calls the function to release resouces when t is passed    */
+/* Second argument is a function pointer to release resources.   */
+/* It calls the function to release resources when it is passed  */
 /* instead of wolfSSL_BY_DIR_entry_free().                       */
 void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
     void (*f) (WOLFSSL_BY_DIR_entry*))

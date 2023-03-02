@@ -449,7 +449,7 @@ typedef struct sp_ecc_ctx {
     /* Maximum value of partial in mul/sqr. */
     #define SP_MUL_SQR_MAX_PARTIAL  \
                                  (SP_MUL_SQR_DIGITS * ((1 << SP_WORD_SIZE) - 1))
-    /* Maximim value in an sp_int_word. */
+    /* Maximum value in an sp_int_word. */
     #define SP_INT_WORD_MAX         ((1 << (SP_WORD_SIZE * 2)) - 1)
 
     #if SP_MUL_SQR_MAX_PARTIAL > SP_INT_WORD_MAX
@@ -732,9 +732,9 @@ typedef struct sp_ecc_ctx {
  * completion.
  */
 #define FP_WOULDBLOCK   (-4)
-/* Unused error. Defined for backward compatability. */
+/* Unused error. Defined for backward compatibility. */
 #define MP_NOT_INF      (-5)
-/* Unused error. Defined for backward compatability. */
+/* Unused error. Defined for backward compatibility. */
 #define MP_RANGE        MP_NOT_INF
 
 #ifdef USE_FAST_MATH

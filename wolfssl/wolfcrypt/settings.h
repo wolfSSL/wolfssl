@@ -2697,7 +2697,7 @@ extern void uITRON4_free(void *p) ;
     #define NO_SESSION_CACHE
 #endif
 
-/* Use static ECC structs for Position Independant Code (PIC) */
+/* Use static ECC structs for Position Independent Code (PIC) */
 #if defined(__IAR_SYSTEMS_ICC__) && defined(__ROPI__)
     #define WOLFSSL_ECC_CURVE_STATIC
     #define WOLFSSL_NAMES_STATIC
@@ -2914,7 +2914,7 @@ extern void uITRON4_free(void *p) ;
 
 
 /* ---------------------------------------------------------------------------
- * Depricated Algorithm Handling
+ * Deprecated Algorithm Handling
  *   Unless allowed via a build macro, disable support
  * ---------------------------------------------------------------------------*/
 

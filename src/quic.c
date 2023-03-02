@@ -120,7 +120,7 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
             XMEMCPY(qr->data + qr->end, data, len);
             qr->end += len;
             consumed = len;
-            goto cleanup; /* len consumed, but qr->len still unkown */
+            goto cleanup; /* len consumed, but qr->len still unknown */
         }
         XMEMCPY(qr->data + qr->end, data, missing);
         qr->end += missing;

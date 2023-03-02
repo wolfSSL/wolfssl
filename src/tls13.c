@@ -8855,7 +8855,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
         #endif
             if (!validSigAlgo) {
-                WOLFSSL_MSG("Sig algo doesn't correspond to certficate");
+                WOLFSSL_MSG("Sig algo doesn't correspond to certificate");
                 ERROR_OUT(SIG_VERIFY_E, exit_dcv);
             }
 
@@ -9376,7 +9376,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
     if (ssl->options.dtls) {
         headerSz = DTLS_HANDSHAKE_HEADER_SZ;
         /* using isDtls instead of ssl->options.dtls will abide clang static
-           analyzer on unsing an uninitialized value */
+           analyzer on using an uninitialized value */
         isDtls = 1;
     }
 #endif /* WOLFSSL_DTLS13 */
@@ -10294,7 +10294,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->options.haveSessionId = 1;
 
-    /* Only add to cache when suppport built in and when the ticket contains
+    /* Only add to cache when support built in and when the ticket contains
      * an ID. Otherwise we have no way to actually retrieve the ticket from the
      * cache. */
 #if !defined(NO_SESSION_CACHE) && defined(WOLFSSL_TICKET_HAVE_ID)
@@ -10814,14 +10814,14 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 return OUT_OF_ORDER_E;
             }
             if (ssl->options.side == WOLFSSL_SERVER_END) {
-                WOLFSSL_MSG("HelloVerifyRequest recevied on the server");
+                WOLFSSL_MSG("HelloVerifyRequest received on the server");
                 WOLFSSL_ERROR_VERBOSE(SIDE_ERROR);
                 return SIDE_ERROR;
             }
             if (!ssl->options.downgrade ||
                 ssl->options.minDowngrade < DTLSv1_2_MINOR) {
                 WOLFSSL_MSG(
-                    "HelloVerifyRequest recevied but not DTLSv1.2 allowed");
+                    "HelloVerifyRequest received but not DTLSv1.2 allowed");
                 WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
                 return VERSION_ERROR;
             }
@@ -10982,7 +10982,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     &echInOutIdx,
                     ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
 
-                /* if the inner ech parsed successfully we have sucessfully
+                /* if the inner ech parsed successfully we have successfully
                  * handled the hello and can skip the whole message */
                 if (ret == 0)
                     *inOutIdx += size;

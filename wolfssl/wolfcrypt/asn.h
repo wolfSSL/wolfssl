@@ -269,7 +269,7 @@ typedef struct ASNGetData {
             /* Maximum length of buffer. */
             word32* length;
         } buffer;
-        /* Refernce to ASN.1 item's data. */
+        /* Reference to ASN.1 item's data. */
         struct {
             /* Pointer reference into input buffer. */
             const byte* data;
@@ -881,7 +881,7 @@ enum Misc_ASN {
 #else
     RSA_INTS            =   2,     /* RSA ints in private key */
 #endif
-    DSA_PARAM_INTS      =   3,     /* DSA paramater ints */
+    DSA_PARAM_INTS      =   3,     /* DSA parameter ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
     DSA_PUB_INTS        =   4,     /* DSA ints in public key */
     DSA_INTS            =   5,     /* DSA ints in private key */
@@ -1211,7 +1211,7 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_TIMESTAMP_OID   = 78,  /* 1.3.6.1.5.5.7.3.8, id-kp-timeStamping    */
     EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
 
-    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authenticaiton */
+    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authentication */
     EKU_SSH_CLIENT_AUTH_OID    = ID_KP(21), /* id-kp-secureShellClient */
     EKU_SSH_MSCL_OID           = 264,
         /* 1.3.6.1.4.1.311.20.2.2, MS Smart Card Logon */

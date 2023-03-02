@@ -92,9 +92,9 @@ typedef struct Dtls13RecordPlaintextHeader {
 #define DTLS13_LEN_SIZE 2
 /* size of the flags in the unified header */
 #define DTLS13_HDR_FLAGS_SIZE 1
-/* size of the sequence number wher SEQ_LEN_BIT is present */
+/* size of the sequence number where SEQ_LEN_BIT is present */
 #define DTLS13_SEQ_16_LEN 2
-/* size of the sequence number wher SEQ_LEN_BIT is not present */
+/* size of the sequence number where SEQ_LEN_BIT is not present */
 #define DTLS13_SEQ_8_LEN 1
 
 /* fixed bits mask to detect unified header  */
@@ -432,7 +432,7 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
     return 0;
 }
 
-/* Handshake header DTLS only fields are not inlcuded in the transcript hash */
+/* Handshake header DTLS only fields are not included in the transcript hash */
 int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
 {
     int ret;
@@ -1186,7 +1186,7 @@ word16 Dtls13GetRlHeaderLength(WOLFSSL* ssl, byte isEncrypted)
 
 /**
  * Dtls13GetHeadersLength() - return length of record + handshake header
- * @ssl: ssl oject
+ * @ssl: ssl object
  * @type: type of handshake in the message
  */
 word16 Dtls13GetHeadersLength(WOLFSSL* ssl, enum HandShakeType type)
@@ -1941,7 +1941,7 @@ int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq, byte increment)
 
     if (order == PEER_ORDER) {
         nativeSeq = &ssl->keys.curSeq;
-        /* never increment seq number for curent record. In DTLS seq number are
+        /* never increment seq number for current record. In DTLS seq number are
            explicit */
         increment = 0;
     }
@@ -2435,7 +2435,7 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
 
     /* we have two timeouts, a shorter (dtls13FastTimeout = 1) and a longer
        one. When the shorter expires we only send ACKs, as it normally means
-       that some messages we are waiting for dont't arrive yet. But we
+       that some messages we are waiting for don't arrive yet. But we
        retransmit our buffered messages only if the longer timeout
        expires. fastTimeout is 1/4 of the longer timeout */
     if (ssl->dtls13FastTimeout) {

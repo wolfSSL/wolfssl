@@ -1137,7 +1137,7 @@ void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CTX *ctx)
 /**
  * set flag value into WOLFSSL_CONF_CTX
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure to be set
- * @param flags falg value to be OR'd
+ * @param flags flag value to be OR'd
  * @return OR'd flag value, otherwise 0
  */
 unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx,
@@ -1579,7 +1579,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
  * @param cctx a pointer to WOLFSSL_CONF_CTX structure
  * @param cmd  configuration command
  * @return The SSL_CONF_TYPE_* type or SSL_CONF_TYPE_UNKNOWN if an
- *         unvalid command
+ *         invalid command
  */
 int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
 {

@@ -69,7 +69,7 @@ typedef struct WOLFSSL_RSA_METHOD {
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 #define WOLFSSL_RSA_TYPE_DEFINED
-/* RSA key compatable with OpenSSL. */
+/* RSA key compatible with OpenSSL. */
 typedef struct WOLFSSL_RSA {
     WOLFSSL_BIGNUM* n;              /* Modulus. */
     WOLFSSL_BIGNUM* e;              /* Public exponent. */

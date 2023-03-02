@@ -2877,7 +2877,7 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             /* read enough break out */
             if (read >= sz) {
                 /* if more pbuf's are left in the chain then increment the
-                 * ref count for next in chain and free all from begining till
+                 * ref count for next in chain and free all from beginning till
                  * next */
                 if (current != NULL) {
                     pbuf_ref(current);

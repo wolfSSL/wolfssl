@@ -2253,7 +2253,7 @@ struct CRL_Entry {
     RevokedCert* certs;             /* revoked cert list  */
 #endif
     int     totalCerts;             /* number on list     */
-    int     version;                /* version of certficate */
+    int     version;                /* version of certificate */
     int     verified;
     byte*   toBeSigned;
     word32  tbsSz;
