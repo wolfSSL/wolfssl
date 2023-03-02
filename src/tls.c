@@ -7299,7 +7299,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret == 0) {
         ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
         if (ret != 0) {
-            WOLFSSL_MSG("Failed to intialize Kyber Key.");
+            WOLFSSL_MSG("Failed to initialize Kyber Key.");
         }
     }
 
@@ -11531,7 +11531,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
 
-        /* if we encountered an error propigate it */
+        /* if we encountered an error propagate it */
         if (ret != 0)
             break;
     }

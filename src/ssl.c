@@ -7124,7 +7124,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (GetSequence(buff, &inOutIdx, &length, (word32)sz) >= 0) {
                 length += inOutIdx; /* include leading sequence */
             }
-            /* get length using octect string (allowed for private key types) */
+            /* get length using octet string (allowed for private key types) */
             else if (type == PRIVATEKEY_TYPE &&
                     GetOctetString(buff, &inOutIdx, &length, (word32)sz) >= 0) {
                 length += inOutIdx; /* include leading oct string */
@@ -23147,7 +23147,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 #ifdef HAVE_ECC
 
     /* We need to get the DER, then convert it to a public key. But what we get
-     * might be a buffereed private key so we need to decode it and then encode
+     * might be a buffered private key so we need to decode it and then encode
      * the public part. */
     if (ret == 0) {
         ret = wolfSSL_EVP_PKEY_get_der(key, &local_der);
