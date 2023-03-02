@@ -869,8 +869,13 @@ static hsm_err_t wc_SEC_AES_Common(unsigned int args[4], CAAM_BUFFER* buf,
     if (err == HSM_NO_ERROR) {
         XMEMSET(&cipher_args, 0, sizeof(cipher_args));
         cipher_args.key_identifier = args[3]; /* black key / HSM */
-        cipher_args.iv      = (uint8_t*)buf[1].TheAddress;
-        cipher_args.iv_size = buf[1].Length;
+        if (algo == HSM_CIPHER_ONE_GO_ALGO_AES_ECB) {
+            cipher_args.iv_size = 0; /* no iv with AES-ECB */
+        }
+        else {
+            cipher_args.iv      = (uint8_t*)buf[1].TheAddress;
+            cipher_args.iv_size = buf[1].Length;
+        }
 
         cipher_args.cipher_algo = algo;
         dir = args[0] & 0xFFFF; /* extract direction enc/dec from input args */
@@ -912,8 +917,8 @@ static hsm_err_t wc_SEC_AES_Common(unsigned int args[4], CAAM_BUFFER* buf,
 static hsm_err_t wc_SECO_AESECB(unsigned int args[4], CAAM_BUFFER* buf, int sz)
 {
     return wc_SEC_AES_Common(args, buf, sz, HSM_CIPHER_ONE_GO_ALGO_AES_ECB,
-        (uint8_t*)buf[2].TheAddress, buf[2].Length,
-        (uint8_t*)buf[3].TheAddress, buf[3].Length);
+        (uint8_t*)buf[1].TheAddress, buf[1].Length,
+        (uint8_t*)buf[2].TheAddress, buf[2].Length);
 }
 
 
