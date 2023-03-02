@@ -1928,6 +1928,11 @@ extern void uITRON4_free(void *p) ;
     #define XGEN_ALIGN
 #endif
 
+#if defined(__mips) || defined(__mips64) || \
+    defined(WOLFSSL_SP_MIPS64) || defined(WOLFSSL_SP_MIPS)
+    #undef WOLFSSL_SP_INT_DIGIT_ALIGN
+    #define WOLFSSL_SP_INT_DIGIT_ALIGN
+#endif
 
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */

@@ -29260,15 +29260,10 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 {
     int sigSz = 0;
     void* heap = NULL;
-    CertSignCtx* certSignCtx;
-#ifndef WOLFSSL_ASYNC_CRYPT
     CertSignCtx  certSignCtx_lcl;
+    CertSignCtx* certSignCtx = &certSignCtx_lcl;
 
-    certSignCtx = &certSignCtx_lcl;
-    XMEMSET(certSignCtx, 0, sizeof(CertSignCtx));
-#else
-    certSignCtx = NULL;
-#endif
+    XMEMSET(certSignCtx, 0, sizeof(*certSignCtx));
 
     if (requestSz < 0)
         return requestSz;
@@ -29294,12 +29289,6 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
         return NOT_COMPILED_IN;
     #endif /* HAVE_ECC */
     }
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (certSignCtx == NULL) {
-        return BAD_FUNC_ARG;
-    }
-#endif
 
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
