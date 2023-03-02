@@ -74,10 +74,18 @@ decouple library dependencies with standard string, memory and so on.
 
     #ifndef WOLFSSL_TYPES
         #ifndef byte
+            /* If using C++ C17 or later and getting:
+             *   "error: reference to 'byte' is ambiguous", this is caused by
+             * cstddef conflict with "std::byte" in
+             *   "enum class byte : unsigned char {};".
+             * This can occur if the user application is using "std" as the
+             * default namespace before including wolfSSL headers.
+             * Workarounds: https://github.com/wolfSSL/wolfssl/issues/5400
+             */
             typedef unsigned char  byte;
+        #endif
             typedef   signed char  sword8;
             typedef unsigned char  word8;
-        #endif
         #ifdef WC_16BIT_CPU
             typedef          int   sword16;
             typedef unsigned int   word16;

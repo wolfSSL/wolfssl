@@ -2033,7 +2033,8 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp, sctp);
+    build_addr(&addr, (useAnyAddr ? (const char*)INADDR_ANY : wolfSSLIP),
+        *port, udp, sctp);
     tcp_socket(sockfd, udp, sctp);
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
@@ -2111,7 +2112,8 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1, 0);
+    build_addr(&addr, (useAnyAddr ? (const char*)INADDR_ANY : wolfSSLIP),
+        port, 1, 0);
     tcp_socket(sockfd, 1, 0);
 
 

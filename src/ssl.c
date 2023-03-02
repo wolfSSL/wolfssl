@@ -8868,8 +8868,8 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
 
     for (i = 0; ret == WOLFSSL_SUCCESS &&
          i < sizeof(trustDomains)/sizeof(*trustDomains); ++i) {
-        stat = SecTrustSettingsCopyCertificates(trustDomains[i], &certs);
-
+        stat = SecTrustSettingsCopyCertificates(
+            (SecTrustSettingsDomain)trustDomains[i], &certs);
         if (stat == errSecSuccess) {
             numCerts = CFArrayGetCount(certs);
             for (j = 0; j < numCerts; ++j) {
