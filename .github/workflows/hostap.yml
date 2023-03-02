@@ -1,0 +1,92 @@
+name: hostap and wpa-supplicant Tests
+
+on:
+  workflow_call:
+
+jobs:
+  wpa_supplicant_test:
+    strategy:
+      matrix:
+        # Fix the versions of hostap and osp to not break testing when a new
+        # patch is added in to osp. hostap_cherry_pick is used to apply the
+        # commit that updates the certificates used for testing.
+        include:
+          - hostap_ref: hostap_2_10
+            # For openssl 1.1
+            os: ubuntu-20.04
+            hostap_cherry_pick: 698c05da2bd3233b005d45873caa852bc29b32c5
+            tests: sae
+            # The commit that the dpp patch in osp is based on
+          - hostap_ref: b607d2723e927a3446d89aed813f1aa6068186bb
+            os: ubuntu-latest
+            osp_ref: ad5b52a49b3cc2a5bfb47ccc1d6a5137132e9446
+            hostap_cherry_pick: 698c05da2bd3233b005d45873caa852bc29b32c5
+            tests: sae
+    name: wolfssl in wpa-supplicant
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libpcap0.8 libpcap-dev curl libcurl4-openssl-dev \
+            libnl-3-dev binutils-dev libssl-dev
+
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-wpas
+          install: true
+
+      - name: Checkout hostap
+        uses: actions/checkout@v3
+        with:
+          repository: julek-wolfssl/hostap-mirror 
+          path: hostap
+          ref: ${{ matrix.hostap_ref }}
+
+      - if: ${{ matrix.hostap_cherry_pick }}
+        name: Cherry pick certificate update
+        working-directory: hostap
+        run: git cherry-pick -n ${{ matrix.hostap_cherry_pick }}
+
+      - if: ${{ matrix.osp_ref }}
+        name: Checkout OSP
+        uses: actions/checkout@v3
+        with:
+          repository: wolfssl/osp
+          path: osp
+          ref: ${{ matrix.osp_ref }}
+
+      - if: ${{ matrix.osp_ref }}
+        name: Apply patch files
+        working-directory: hostap
+        run: |
+          for f in $GITHUB_WORKSPACE/osp/hostap-patches/pending/*
+          do
+            patch -p1 < $f
+          done
+
+      - name: Setup wpa_supplicant config file
+        working-directory: hostap/wpa_supplicant
+        run: |
+          cp ../tests/hwsim/example-wpa_supplicant.config .config
+          sed 's/^CONFIG_TLS=openssl$/#CONFIG_TLS=openssl/g' -i .config
+          sed 's/^#CONFIG_TLS=wolfssl$/CONFIG_TLS=wolfssl/g' -i .config
+          cat <<EOF >> .config
+            CFLAGS += -I$GITHUB_WORKSPACE/build-dir/include -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+            LIBS += -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+          EOF
+
+      - name: Build hostap
+        working-directory: hostap/tests/hwsim/
+        run: ./build.sh
+
+      - name: Run tests
+        working-directory: hostap/tests/hwsim/
+        run: |
+          sudo ./start.sh
+          sudo ./run-tests.py ${{ matrix.tests }}
+          sudo ./stop.sh
+
+
