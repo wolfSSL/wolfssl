@@ -12220,6 +12220,8 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     *inOutIdx += status_length;
 
+    FreeOcspResponse(response);
+
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
         XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
