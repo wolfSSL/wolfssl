@@ -40329,15 +40329,25 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
 #ifdef WOLFSSL_CERT_REQ
     {
         unsigned char srv_pkcs9p[] = "Server";
+        unsigned char fvrtDrnk[] = "tequila";
+        unsigned char* der = NULL;
         char* subject;
         AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_pkcs9_contentType,
             MBSTRING_ASC, srv_pkcs9p, -1, -1, 0), SSL_SUCCESS);
 
+        AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_favouriteDrink,
+            MBSTRING_ASC, fvrtDrnk, -1, -1, 0), SSL_SUCCESS);
+
+        AssertIntGT(wolfSSL_i2d_X509_NAME(nm, &der), 0);
+        AssertNotNull(der);
+
         subject = X509_NAME_oneline(nm, 0, 0);
+        AssertNotNull(XSTRSTR(subject, "favouriteDrink=tequila"));
     #ifdef DEBUG_WOLFSSL
         fprintf(stderr, "\n\t%s\n", subject);
     #endif
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 #endif
 
