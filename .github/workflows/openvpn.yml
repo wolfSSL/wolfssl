@@ -22,14 +22,29 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev linux-libc-dev man2html libcmocka-dev python3-docutils libtool automake autoconf libnl-genl-3-dev
 
-      - name: Build and test openvpn
+      - if: ${{ matrix.ref != 'master' }}
+        name: Build and test openvpn with fsanitize
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           repository: OpenVPN/openvpn
           ref: ${{ matrix.ref }}
           path: openvpn
           configure: >-
-            --with-crypto-library=wolfssl 
+            --with-crypto-library=wolfssl
+            WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl"
+            WOLFSSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
+            CFLAGS="-fsanitize=address -fno-omit-frame-pointer -O2"
+          check: true
+
+      - if: ${{ matrix.ref == 'master' }}
+        name: Build and test openvpn without fsanitize
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: OpenVPN/openvpn
+          ref: ${{ matrix.ref }}
+          path: openvpn
+          configure: >-
+            --with-crypto-library=wolfssl
             WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include/ -I$GITHUB_WORKSPACE/build-dir/include/wolfssl"
             WOLFSSL_LIBS="-L$GITHUB_WORKSPACE/build-dir/lib -lwolfssl"
           check: true
