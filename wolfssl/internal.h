@@ -283,6 +283,12 @@
    CHACHA-POLY.
 */
 
+/* Allow disabling SHA1 cipher suites without disabling wolfCrypt SHA1 by
+ * defining NO_TLS_SHA1 */
+#ifdef NO_SHA
+    #define NO_TLS_SHA1
+#endif
+
 /* Check that if WOLFSSL_MAX_STRENGTH is set that all the required options are
  * not turned off. */
 #if defined(WOLFSSL_MAX_STRENGTH) && \
@@ -307,7 +313,7 @@
 #ifndef WOLFSSL_AEAD_ONLY
     #if !defined(NO_RSA) && !defined(NO_RC4)
         #if defined(WOLFSSL_STATIC_RSA)
-            #if !defined(NO_SHA)
+            #if !defined(NO_TLS_SHA1)
                 #define BUILD_SSL_RSA_WITH_RC4_128_SHA
             #endif
             #if !defined(NO_MD5)
@@ -317,7 +323,7 @@
     #endif
 
     #if !defined(NO_RSA) && !defined(NO_DES3)
-        #if !defined(NO_SHA)
+        #if !defined(NO_TLS_SHA1)
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
@@ -326,7 +332,7 @@
 #endif /* !WOLFSSL_AEAD_ONLY */
 
     #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
-        #if !defined(NO_SHA) && defined(HAVE_AES_CBC)
+        #if !defined(NO_TLS_SHA1) && defined(HAVE_AES_CBC)
             #if defined(WOLFSSL_STATIC_RSA)
                 #ifdef WOLFSSL_AES_128
                     #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
@@ -367,7 +373,7 @@
     #if defined(HAVE_CAMELLIA) && !defined(NO_TLS) && !defined(NO_CAMELLIA_CBC)
         #ifndef NO_RSA
           #if defined(WOLFSSL_STATIC_RSA)
-            #if !defined(NO_SHA)
+            #if !defined(NO_TLS_SHA1)
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
             #endif
@@ -377,7 +383,7 @@
             #endif
           #endif
             #if !defined(NO_DH)
-              #if !defined(NO_SHA)
+              #if !defined(NO_TLS_SHA1)
                 #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
                 #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
               #endif
@@ -391,7 +397,7 @@
 
 #if defined(WOLFSSL_STATIC_PSK)
     #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
-        #if !defined(NO_SHA)
+        #if !defined(NO_TLS_SHA1)
             #ifdef WOLFSSL_AES_128
                 #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
             #endif
@@ -436,7 +442,7 @@
                 #ifndef NO_MD5
                     #define BUILD_TLS_RSA_WITH_NULL_MD5
                 #endif
-                #if !defined(NO_SHA)
+                #if !defined(NO_TLS_SHA1)
                     #define BUILD_TLS_RSA_WITH_NULL_SHA
                 #endif
                 #ifndef NO_SHA256
@@ -445,7 +451,7 @@
             #endif
         #endif
         #if !defined(NO_PSK) && defined(WOLFSSL_STATIC_PSK)
-            #if !defined(NO_SHA)
+            #if !defined(NO_TLS_SHA1)
                 #define BUILD_TLS_PSK_WITH_NULL_SHA
             #endif
             #ifndef NO_SHA256
@@ -460,7 +466,7 @@
     #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
         !defined(NO_RSA)
 
-        #if !defined(NO_SHA)
+        #if !defined(NO_TLS_SHA1)
             #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
             #endif
@@ -482,7 +488,7 @@
     #endif
 
     #if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
-        !defined(NO_AES) && !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        !defined(NO_AES) && !defined(NO_TLS_SHA1) && defined(WOLFSSL_AES_128)
         #ifdef HAVE_AES_CBC
             #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
         #endif
@@ -516,7 +522,7 @@
     #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                      defined(HAVE_CURVE448)) && !defined(NO_TLS)
         #if !defined(NO_AES)
-            #if !defined(NO_SHA) && defined(HAVE_AES_CBC)
+            #if !defined(NO_TLS_SHA1) && defined(HAVE_AES_CBC)
                 #if !defined(NO_RSA)
                     #ifdef WOLFSSL_AES_128
                         #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -553,7 +559,7 @@
                         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
                     #endif
                 #endif
-            #endif /* NO_SHA */
+            #endif /* NO_TLS_SHA1 */
             #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
                                                            defined(HAVE_AES_CBC)
                 #if !defined(NO_RSA)
@@ -620,7 +626,7 @@
             #endif
         #endif /* NO_AES */
         #if !defined(NO_RC4)
-            #if !defined(NO_SHA)
+            #if !defined(NO_TLS_SHA1)
                 #if !defined(NO_RSA)
                     #ifndef WOLFSSL_AEAD_ONLY
                         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
@@ -643,7 +649,7 @@
             #endif
         #endif
         #if !defined(NO_DES3)
-            #ifndef NO_SHA
+            #ifndef NO_TLS_SHA1
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
                     #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
@@ -659,10 +665,10 @@
                 #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
                 #endif
-            #endif /* NO_SHA */
+            #endif /* NO_TLS_SHA1 */
         #endif
         #if defined(HAVE_NULL_CIPHER)
-            #if !defined(NO_SHA)
+            #if !defined(NO_TLS_SHA1)
                 #if defined(HAVE_ECC) || \
                         (defined(HAVE_CURVE25519) && defined(HAVE_ED25519)) || \
                         (defined(HAVE_CURVE448) && defined(HAVE_ED448))
