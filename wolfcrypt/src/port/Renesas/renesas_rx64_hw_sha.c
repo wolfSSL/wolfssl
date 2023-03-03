@@ -115,16 +115,18 @@ int RX64_ShaCalc(byte* data, word32 len, byte* out, word32 sha_type)
 
     rx64_hw_lock();
     do {
-        // The hardware functions can only accept UINT16_MAX bytes at a time.
-        // To work around this break the buffer up into chunks and pass the
-        // R_SHA_FINISH flag with the last chunk.
+        /*
+        The hardware functions can only accept UINT16_MAX bytes at a time.
+        To work around this break the buffer up into chunks and pass the
+        R_SHA_FINISH flag with the last chunk.
+        */
         if (len - index <= UINT16_MAX) {
             flag = flag | R_SHA_FINISH;
             chunk_length = len - index;
         } else {
             chunk_length = UINT16_MAX;
         }
-        // Based on the hash type call the correct hardware function.
+        /* Based on the hash type call the correct hardware function. */
         if (sha_type == RX64_SHA1) {
             ret = R_Sha1_HashDigest(&data[index], out, chunk_length, flag,
                                     &work_sha.sha1);
@@ -136,7 +138,7 @@ int RX64_ShaCalc(byte* data, word32 len, byte* out, word32 sha_type)
                                       &work_sha.sha256);
         }
         if (ret != R_PROCESS_COMPLETE) {
-            // On failure break, unlock hardware, return error.
+            /* On failure break, unlock hardware, return error. */
             break;
         }
         index += chunk_length;
@@ -284,7 +286,7 @@ static int RX64_HashFinal(wolfssl_RX64_HW_Hash* hash, byte* out)
     }
     else
     {
-        // Utilize RX64 SHA HW Acceleration for normal SHA operations.
+        /* Utilize RX64 SHA HW Acceleration for normal SHA operations. */
         ret = RX64_ShaCalc(hash->msg, hash->len, out, hash->sha_type);
         if (ret != R_PROCESS_COMPLETE)
         {

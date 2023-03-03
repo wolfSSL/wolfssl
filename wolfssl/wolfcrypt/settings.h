@@ -244,8 +244,8 @@
 /* Uncomment next line if using RENESAS RA6M4 */
 /* #define WOLFSSL_RENESAS_RA6M4 */
 
-// Uncomment next line if using RENESAS RX64 hardware acceleration
-// #define WOLFSSL_RENESAS_RX64_HASH
+/* Uncomment next line if using RENESAS RX64 hardware acceleration */
+/* #define WOLFSSL_RENESAS_RX64_HASH */
 
 /* Uncomment next line if using Solaris OS*/
 /* #define WOLFSSL_SOLARIS */
