@@ -21266,8 +21266,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         cert->badDate = 0;
         cert->criticalExt = 0;
         if ((ret = DecodeToKey(cert, verify)) < 0) {
-            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
+            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
                 cert->badDate = ret;
+                if (verify == VERIFY_SKIP_DATE)
+                    ret = 0;
+            }
             else
                 return ret;
         }
@@ -21510,6 +21513,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             ret = DecodeCert(cert, verify, &cert->criticalExt);
             if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
                 cert->badDate = ret;
+                if (verify == VERIFY_SKIP_DATE)
+                    ret = 0;
             }
             else if (ret < 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
