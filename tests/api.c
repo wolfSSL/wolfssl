@@ -48353,6 +48353,7 @@ static int test_wc_ParseCert_Error(void)
     (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     DecodedCert decodedCert;
+    int i;
 
     /* Certificate data */
     const byte c0[] = { 0x30, 0x04, 0x30, 0x02, 0x02, 0x80, 0x00, 0x00};
@@ -48375,7 +48376,7 @@ static int test_wc_ParseCert_Error(void)
     };
     const int tSz = (int)(sizeof(t) / sizeof(struct testStruct));
 
-    for (int i = 0; i < tSz; i++) {
+    for (i = 0; i < tSz; i++) {
         WOLFSSL_MSG_EX("i == %d", i);
         wc_InitDecodedCert(&decodedCert, t[i].c, t[i].cSz, NULL);
         AssertIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), t[i].expRet);
