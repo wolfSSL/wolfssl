@@ -138,7 +138,7 @@
     /* Cache unclosed Sessions for 15 minutes since last used */
 #endif
 
-#if defined(HAVE_C___ATOMIC) && !defined(WC_NO_ASYNC_THREADING)
+#if defined(HAVE_C___ATOMIC) && !defined(NO_SNIFFER_THREADING)
     #define USE_ATOMIC
 #endif
 
@@ -572,25 +572,21 @@ static WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
 static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
 #endif
 
-#ifndef WC_NO_ASYNC_THREADING
-THREAD_LS_T
-#endif
-static WOLFSSL_GLOBAL SnifferCtx* CtxList = NULL;
-
-#ifndef WC_NO_ASYNC_THREADING
+#ifndef NO_SNIFFER_THREADING
+/* Struct containing sniffer WOLFSSL_CTX */
+static THREAD_LS_T WOLFSSL_GLOBAL SnifferCtx* CtxList = NULL;
 /* Session Hash Table, mutex, and count */
-THREAD_LS_T
-#endif
+static THREAD_LS_T WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
+static THREAD_LS_T WOLFSSL_GLOBAL int SessionCount = 0;
+#else
+static WOLFSSL_GLOBAL SnifferCtx* CtxList = NULL;
 static WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
+static WOLFSSL_GLOBAL int SessionCount = 0;
+#endif
 
 #ifndef USE_ATOMIC
 static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex;
 #endif
-
-#ifndef WC_NO_ASYNC_THREADING
-THREAD_LS_T
-#endif
-static WOLFSSL_GLOBAL int SessionCount = 0;
 
 static WOLFSSL_GLOBAL int RecoveryEnabled    = 0;  /* global switch */
 static WOLFSSL_GLOBAL int MaxRecoveryMemory  = -1;
