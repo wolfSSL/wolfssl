@@ -8721,7 +8721,7 @@ if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
     SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS -I$srcdir"
-    for header in wolfssl/openssl/*.h
+    for header in "${srcdir}"/wolfssl/openssl/*.h
     do
         AC_CHECK_HEADER([$header], [], [
                 AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
