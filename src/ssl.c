@@ -10728,7 +10728,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
 }
 #endif /* WOLF_PRIVATE_KEY_ID */
 
-#ifndef NO_CERTS // NOLINT(readability-redundant-preprocessor)
+#ifndef NO_CERTS /* // NOLINT(readability-redundant-preprocessor) */
 
 #ifndef NO_CHECK_PRIVATE_KEY
 /* Check private against public in certificate for match
@@ -40933,7 +40933,8 @@ int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
             WOLFSSL_MSG("wc_InitRng error");
             return WOLFSSL_FAILURE;
         }
-        p7->rng = &rng; // cppcheck-suppress autoVariables
+        p7->rng = &rng; /* cppcheck-suppress autoVariables
+                         */
     }
 
     if ((len = wc_PKCS7_EncodeSignedData(p7, NULL, 0)) < 0) {

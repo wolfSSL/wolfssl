@@ -266,6 +266,24 @@ typedef struct w64wrapper {
     #define WOLFSSL_MAX_16BIT 0xffffU
     #define WOLFSSL_MAX_32BIT 0xffffffffU
 
+    #ifndef WARN_UNUSED_RESULT
+        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
+            #define WARN_UNUSED_RESULT __must_check
+        #elif defined(__GNUC__) && (__GNUC__ >= 4)
+            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+        #else
+            #define WARN_UNUSED_RESULT
+        #endif
+    #endif /* WARN_UNUSED_RESULT */
+
+    #ifndef WC_MAYBE_UNUSED
+        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+            #define WC_MAYBE_UNUSED __attribute__((unused))
+        #else
+            #define WC_MAYBE_UNUSED
+        #endif
+    #endif /* WC_MAYBE_UNUSED */
+
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
     #ifndef NO_INLINE
@@ -299,18 +317,13 @@ typedef struct w64wrapper {
             #define WC_INLINE
         #endif
     #else
-        #ifdef __GNUC__
-            #define WC_INLINE __attribute__((unused))
-        #else
-            #define WC_INLINE
-        #endif
+        #define WC_INLINE WC_MAYBE_UNUSED
     #endif
     #endif
 
     #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
         #define INLINE WC_INLINE
     #endif
-
 
     /* set up rotate style */
     #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && \
@@ -327,7 +340,6 @@ typedef struct w64wrapper {
            instructions  */
         #define FAST_ROTATE
     #endif
-
 
     /* set up thread local storage if available */
     #ifdef HAVE_THREAD_LS
@@ -362,24 +374,6 @@ typedef struct w64wrapper {
         #undef  FALL_THROUGH
         #define FALL_THROUGH
     #endif
-
-    #ifndef WARN_UNUSED_RESULT
-        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
-            #define WARN_UNUSED_RESULT __must_check
-        #elif defined(__GNUC__) && (__GNUC__ >= 4)
-            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-        #else
-            #define WARN_UNUSED_RESULT
-        #endif
-    #endif /* WARN_UNUSED_RESULT */
-
-    #ifndef WC_MAYBE_UNUSED
-        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
-            #define WC_MAYBE_UNUSED __attribute__((unused))
-        #else
-            #define WC_MAYBE_UNUSED
-        #endif
-    #endif /* WC_MAYBE_UNUSED */
 
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \

@@ -6348,7 +6348,6 @@ AC_ARG_ENABLE([examples],
     )
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
-AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
@@ -8717,11 +8716,11 @@ esac
 
 rm cyassl/options.h.bak
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes"
+if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS -I$srcdir"
-    for header in wolfssl/openssl/*.h
+    for header in "${srcdir}"/wolfssl/openssl/*.h
     do
         AC_CHECK_HEADER([$header], [], [
                 AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])

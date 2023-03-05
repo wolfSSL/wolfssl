@@ -53420,12 +53420,12 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     return res;
 }
 
-#ifndef NO_INLINE
+/* include misc.c here regardless of NO_INLINE, because misc.c implementations
+ * have default (hidden) visibility, and in the absence of visibility, it's
+ * benign to mask out the library implementation.
+ */
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
-#else
-#include <wolfssl/wolfcrypt/misc.h>
-#endif
 
 static int test_ForceZero(void)
 {
