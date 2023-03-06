@@ -5375,7 +5375,7 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
 {
     int ret;
 
-    if (*ctx_c == NULL) {
+    if (ctx_c != NULL && *ctx_c == NULL) {
         *ctx_c = wolfSSL_CTX_new(method_c());
         if (*ctx_c == NULL)
             return -1;
@@ -5391,7 +5391,7 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
         }
     }
 
-    if (*ctx_s == NULL) {
+    if (ctx_s != NULL && *ctx_s == NULL) {
         *ctx_s = wolfSSL_CTX_new(method_s());
         if (*ctx_s == NULL)
             return -1;
@@ -5412,14 +5412,14 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
         }
     }
 
-    if (ssl_c != NULL) {
+    if (ctx_c != NULL && ssl_c != NULL) {
         *ssl_c = wolfSSL_new(*ctx_c);
         if (*ssl_c == NULL)
             return -1;
         wolfSSL_SetIOWriteCtx(*ssl_c, ctx);
         wolfSSL_SetIOReadCtx(*ssl_c, ctx);
     }
-    if (ssl_s != NULL) {
+    if (ctx_s != NULL && ssl_s != NULL) {
         *ssl_s = wolfSSL_new(*ctx_s);
         if (*ssl_s == NULL)
             return -1;
