@@ -11125,6 +11125,11 @@ err:
                                             dataSz) == WOLFSSL_SUCCESS) {
                     ne->set = 1;
                 }
+                else {
+                    /* Free the ASN1_STRING if it is not set. */
+                    wolfSSL_ASN1_STRING_free(ne->value);
+                    ne->value = NULL;
+                }
             }
         }
 
@@ -11173,6 +11178,11 @@ err:
             if (wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz)
                     == WOLFSSL_SUCCESS) {
                 ne->set = 1;
+            }
+            else {
+                /* Free the ASN1_STRING if it is not set. */
+                wolfSSL_ASN1_STRING_free(ne->value);
+                ne->value = NULL;
             }
         }
 
