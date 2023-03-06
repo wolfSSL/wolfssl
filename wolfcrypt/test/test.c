@@ -48,6 +48,13 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #if defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
     #include <wolfssl/ssl.h>
     #define err_sys err_sys_remap /* remap err_sys */
@@ -285,6 +292,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#include <wolfssl/wolfcrypt/ascon.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -590,6 +598,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes192_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aes256_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  aesofb_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  cmac_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ascon_hash256_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ascon_aead128_test(void);
 #if defined(WOLFSSL_SIPHASH)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  siphash_test(void);
 #endif
@@ -1945,6 +1955,18 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("ChaCha20-Poly1305 AEAD test failed!\n", ret);
     else
         TEST_PASS("ChaCha20-Poly1305 AEAD test passed!\n");
+#endif
+
+#ifdef HAVE_ASCON
+    if ( (ret = ascon_hash256_test()) != 0)
+        return err_sys("ASCON Hash test failed!\n", ret);
+    else
+        TEST_PASS("ASCON Hash test passed!\n");
+
+    if ( (ret = ascon_aead128_test()) != 0)
+        return err_sys("ASCON AEAD test failed!\n", ret);
+    else
+        TEST_PASS("ASCON AEAD test passed!\n");
 #endif
 
 #if defined(HAVE_XCHACHA) && defined(HAVE_POLY1305)
@@ -8784,6 +8806,214 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha20_poly1305_aead_test(void)
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
+#ifdef HAVE_ASCON
+#include <wolfcrypt/test/ascon-kat.h>
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
+{
+    WOLFSSL_SMALL_STACK_STATIC byte msg[1024];
+    byte mdOut[ASCON_HASH256_SZ];
+    const size_t test_rounds = sizeof(msg) + 1; /* +1 to test 0-len msg */
+
+    wc_AsconHash256 asconHash;
+    int err;
+    word32 i;
+
+    if (XELEM_CNT(ascon_hash256_output) != test_rounds)
+        return WC_TEST_RET_ENC_EC(BAD_FUNC_ARG);
+
+    /* init msg buffer */
+    for (i = 0; i < sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    for (i = 0; i < test_rounds; i++) {
+        XMEMSET(mdOut, 0, sizeof(mdOut));
+        err = wc_AsconHash256_Init(&asconHash);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Update(&asconHash, msg, i);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Final(&asconHash, mdOut);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
+            return WC_TEST_RET_ENC_NC;
+        wc_AsconHash256_Deinit(&asconHash);
+    }
+
+    /* Test separated update */
+    for (i = 0; i < test_rounds; i++) {
+        word32 half_i = i / 2;
+        XMEMSET(mdOut, 0, sizeof(mdOut));
+        err = wc_AsconHash256_Init(&asconHash);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Update(&asconHash, msg, half_i);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Update(&asconHash, msg + half_i, i - half_i);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        err = wc_AsconHash256_Final(&asconHash, mdOut);
+        if (err != 0)
+            return WC_TEST_RET_ENC_EC(err);
+        if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
+            return WC_TEST_RET_ENC_NC;
+        wc_AsconHash256_Deinit(&asconHash);
+    }
+
+    return 0;
+}
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
+{
+    word32 i;
+    wc_AsconAEAD128 asconAEAD;
+    int err;
+
+    for (i = 0; i < XELEM_CNT(ascon_aead128_kat); i++) {
+        byte key[ASCON_AEAD128_KEY_SZ];
+        byte nonce[ASCON_AEAD128_NONCE_SZ];
+        byte pt[32]; /* longest plaintext we test is 32 bytes */
+        word32 ptSz;
+        byte ad[32]; /* longest AD we test is 32 bytes */
+        word32 adSz;
+        byte ct[48]; /* longest ciphertext we test is 32 bytes + 16 bytes tag */
+        word32 ctSz;
+        word32 j;
+        byte tag[ASCON_AEAD128_TAG_SZ];
+        byte buf[32]; /* longest buffer we test is 32 bytes */
+
+        XMEMSET(key, 0, sizeof(key));
+        XMEMSET(nonce, 0, sizeof(nonce));
+        XMEMSET(pt, 0, sizeof(pt));
+        XMEMSET(ad, 0, sizeof(ad));
+        XMEMSET(ct, 0, sizeof(ct));
+        XMEMSET(tag, 0, sizeof(tag));
+
+        /* Convert HEX strings to byte stream */
+        for (j = 0; ascon_aead128_kat[i][0][j] != '\0'; j += 2) {
+            key[j/2] = HexCharToByte(ascon_aead128_kat[i][0][j]) << 4 |
+                       HexCharToByte(ascon_aead128_kat[i][0][j+1]);
+        }
+        for (j = 0; ascon_aead128_kat[i][1][j] != '\0'; j += 2) {
+            nonce[j/2] = HexCharToByte(ascon_aead128_kat[i][1][j]) << 4 |
+                         HexCharToByte(ascon_aead128_kat[i][1][j+1]);
+        }
+        for (j = 0; ascon_aead128_kat[i][2][j] != '\0'; j += 2) {
+            pt[j/2] = HexCharToByte(ascon_aead128_kat[i][2][j]) << 4 |
+                      HexCharToByte(ascon_aead128_kat[i][2][j+1]);
+        }
+        ptSz = j/2;
+        for (j = 0; ascon_aead128_kat[i][3][j] != '\0'; j += 2) {
+            ad[j/2] = HexCharToByte(ascon_aead128_kat[i][3][j]) << 4 |
+                      HexCharToByte(ascon_aead128_kat[i][3][j+1]);
+        }
+        adSz = j/2;
+        for (j = 0; ascon_aead128_kat[i][4][j] != '\0'; j += 2) {
+            ct[j/2] = HexCharToByte(ascon_aead128_kat[i][4][j]) << 4 |
+                      HexCharToByte(ascon_aead128_kat[i][4][j+1]);
+        }
+        ctSz = j/2 - ASCON_AEAD128_TAG_SZ;
+
+        for (j = 0; j < 4; j++) {
+            err = wc_AsconAEAD128_Init(&asconAEAD);
+            if (err != 0)
+                return WC_TEST_RET_ENC_EC(err);
+
+            err = wc_AsconAEAD128_SetKey(&asconAEAD, key);
+            if (err != 0)
+                return WC_TEST_RET_ENC_EC(err);
+
+            err = wc_AsconAEAD128_SetNonce(&asconAEAD, nonce);
+            if (err != 0)
+                return WC_TEST_RET_ENC_EC(err);
+
+            err = wc_AsconAEAD128_SetAD(&asconAEAD, ad, adSz);
+            if (err != 0)
+                return WC_TEST_RET_ENC_EC(err);
+
+            if (j == 0) {
+                /* Encryption test */
+                err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, buf, pt, ptSz);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(buf, ct, ptSz) != 0)
+                    return WC_TEST_RET_ENC_NC;
+
+                err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, tag);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(tag, ct + ptSz, ASCON_AEAD128_TAG_SZ) != 0)
+                    return WC_TEST_RET_ENC_NC;
+            }
+            else if (j == 1) {
+                /* Decryption test */
+                err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, buf, ct, ctSz);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(buf, pt, ctSz) != 0)
+                    return WC_TEST_RET_ENC_NC;
+
+                err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, ct + ctSz);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+            }
+            else if (j == 2) {
+                /* Split encryption test */
+                err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, buf, pt,
+                                                    ptSz/2);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                err = wc_AsconAEAD128_EncryptUpdate(&asconAEAD, buf + (ptSz/2),
+                                                pt + (ptSz/2), ptSz - (ptSz/2));
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(buf, ct, ptSz) != 0)
+                    return WC_TEST_RET_ENC_NC;
+
+                err = wc_AsconAEAD128_EncryptFinal(&asconAEAD, tag);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(tag, ct + ptSz, ASCON_AEAD128_TAG_SZ) != 0)
+                    return WC_TEST_RET_ENC_NC;
+
+            }
+            else if (j == 3) {
+                /* Split decryption test */
+                err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, buf, ct,
+                                                    ctSz/2);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                err = wc_AsconAEAD128_DecryptUpdate(&asconAEAD, buf + (ctSz/2),
+                                                ct + (ctSz/2), ctSz - (ctSz/2));
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+                if (XMEMCMP(buf, pt, ctSz) != 0)
+                    return WC_TEST_RET_ENC_NC;
+
+                err = wc_AsconAEAD128_DecryptFinal(&asconAEAD, ct + ctSz);
+                if (err != 0)
+                    return WC_TEST_RET_ENC_EC(err);
+
+            }
+
+
+            wc_AsconAEAD128_Deinit(&asconAEAD);
+        }
+    }
+
+    return 0;
+}
+#endif /* HAVE_ASCON */
 
 #ifndef NO_DES3
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des_test(void)

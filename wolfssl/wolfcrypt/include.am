@@ -4,6 +4,7 @@
 nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/aes.h \
                          wolfssl/wolfcrypt/arc4.h \
+                         wolfssl/wolfcrypt/ascon.h \
                          wolfssl/wolfcrypt/asn.h \
                          wolfssl/wolfcrypt/asn_public.h \
                          wolfssl/wolfcrypt/poly1305.h \
