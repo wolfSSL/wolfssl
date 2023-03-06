@@ -9987,6 +9987,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_businessCategory: return ASN_BUS_CAT;
         case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         case NID_postalCode: return ASN_POSTAL_CODE;
+        case NID_favouriteDrink: return ASN_FAVOURITE_DRINK;
         default:
             WOLFSSL_MSG("Attribute NID not found");
             return -1;
