@@ -66,7 +66,7 @@ typedef struct WOLFSSL_BIGNUM {
     #endif
 #endif
 
-#define WOLFSSL_BN_RAND_TOP_ANY     -1
+#define WOLFSSL_BN_RAND_TOP_ANY     (-1)
 #define WOLFSSL_BN_RAND_TOP_ONE     0
 #define WOLFSSL_BN_RAND_TOP_TWO     1
 

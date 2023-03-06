@@ -8720,7 +8720,11 @@ if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS -I$srcdir"
-    for header in "${srcdir}"/wolfssl/openssl/*.h
+    build_pwd="$(pwd)"
+    cd "$srcdir"
+    openssl_headers=$(echo wolfssl/openssl/*.h)
+    cd "$build_pwd"
+    for header in $openssl_headers
     do
         AC_CHECK_HEADER([$header], [], [
                 AC_MSG_ERROR([Error including $header. Possible circular dependency introduced or missing include.])
