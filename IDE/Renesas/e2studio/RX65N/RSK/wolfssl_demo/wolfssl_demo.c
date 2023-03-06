@@ -61,7 +61,7 @@
 
 #define TLSSERVER_IP      "192.168.1.14"
 #define TLSSERVER_PORT    11111
-#define YEAR 2022
+#define YEAR 2023
 #define MON  3
 #define FREQ 10000 /* Hz */
 
@@ -196,8 +196,7 @@ static void Tls_client_init(const char* cipherlist)
         printf("client can't set cipher list");
     }
 
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS)
 
     if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
                                                          != WOLFSSL_SUCCESS) {
@@ -303,7 +302,18 @@ static void Tls_client()
             printf("ERROR tsip_use_PrivateKey_buffer\n");
         }
     }
-    
+    # if defined(WOLFSSL_CHECK_SIG_FAULTS)
+    if (ret == 0){
+        ret = tsip_use_PublicKey_buffer(ssl,
+                (const char*)g_key_block_data.encrypted_user_ecc256_public_key,
+                sizeof(g_key_block_data.encrypted_user_ecc256_public_key),
+                TSIP_ECCP256);
+        if (ret != 0) {
+            printf("ERROR tsip_use_PublicKey_buffer\n");
+        }
+    }
+    #endif /* WOLFSSL_CHECK_SIG_FAULTS */
+ 
     #else
 
     /* DER format ECC private key */
@@ -323,12 +333,9 @@ static void Tls_client()
 
 #else
 
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_TLS13)
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     
-    /* Note 1: TSIP asks RSA client key pair for client authentication.  
-     * Note 2: as of TSIP v1.15, client authentication is not supported by TSIP
-     * for RSA certificate on TLS1.3.
-     */
+    /* Note: TSIP asks RSA client key pair for client authentication.  */
 
     /* TSIP specific RSA private key */
     if (ret == 0) {
@@ -363,7 +370,7 @@ static void Tls_client()
         }
     }
 
-    #endif /* WOLFSSL_RENESAS_TSIP_TLS && !WOLFSSL_TLS13 */
+    #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
 #endif /* USE_ECC_CERT */
 

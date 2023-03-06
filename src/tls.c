@@ -7121,7 +7121,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->keyLen = keySize;
         kse->pubKeyLen = keySize * 2 + 1;
 
-    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenEccKeyPair(ssl, kse);
         if (ret != CRYPTOCB_UNAVAILABLE) {
             return ret;
@@ -7925,7 +7925,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
             ssl->peerEccKeyPresent = 0;
         }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >= 115)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenSharedSecret(ssl, keyShareEntry);
         if (ret != CRYPTOCB_UNAVAILABLE) {
             return ret;

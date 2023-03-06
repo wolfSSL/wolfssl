@@ -37,9 +37,10 @@
  *      113: TSIPv1.13
  *      114: TSIPv1.14
  *      115: TSIPv1.15
+ *      117: TSIPv1.17
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
-  #define WOLFSSL_RENESAS_TSIP_VER     115
+  #define WOLFSSL_RENESAS_TSIP_VER     117
 
 
 /*-- TLS version definitions  --------------------------------------------------
@@ -108,6 +109,11 @@
    * 
    */
   #define USE_ECC_CERT
+
+  /* Enable WOLFSSL_CHECK_SIG_FAULTS definition when self-verify for
+   * Ecc signature is required. It is disabled by default.
+   */
+  /*#define WOLFSSL_CHECK_SIG_FAULTS*/
 
   /* In this example application, Root CA cert buffer named 
    * "ca_ecc_cert_der_256" is used under the following macro definition 

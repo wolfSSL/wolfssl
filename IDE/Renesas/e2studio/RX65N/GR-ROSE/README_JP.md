@@ -33,7 +33,7 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |IDE| Renesas e2Studio Version:2022-01 |
 |エミュレーター| E1, E2エミュレーターLite |
 |Toolchain|CCRX v3.04.00|
-|TSIP| TSIP v1.15|
+|TSIP| TSIP v1.17|
 <br>
 
 本サンプルプログラムのプロジェクトには以下のFITコンポーネントを使用する設定ファイルが用意されています。
@@ -50,7 +50,7 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.15.l|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.17.l|r_tsip_rx|
 
 （注意）2022年4月現在、TIPSv1.15はFITコンポーネントとしてスマートコンフィギュレータパースペクティブのコンポーネントの追加操作では追加できないようです。後ほど説明する手動での追加方法を使って追加してください。<br>
 
@@ -145,7 +145,7 @@ testアプリケーションのビルドの準備が整ったので、ビルド�
 
 ### 8.1 testアプリケーションのサポートするTLSバージョン
 <br>
-TSIPv1.15以降を使用する場合には、これまでのTLS1.2に加えてTLS1.3プロトコルが使用できます。{board-name-folder}/common/user_settings.hに既定で以下のマクロ定義が設定されています。
+TLS1.2に加えてTLS1.3プロトコルが使用できます。{board-name-folder}/common/user_settings.hに既定で以下のマクロ定義が設定されています。
 <br><br>
 
 ```
@@ -304,8 +304,8 @@ Received: I hear you fa shizzle!
 -----
 
 クライアント認証機能は以下のようにサポートしています。
--	TLS1.3ではECDSA証明書はTSIPを使って処理し、RSA証明書はソフトウエアで処理します。
--	TLS1.2ではECDSA証明書とRSA証明書は共にTSIPを使って処理します。
+-	ECDSA証明書あるいはRSA証明書はTSIPを使って処理します。
+
 
 (1) クライアント証明書のロード
 wolfSSL_CTX_use_certificate_buffer あるいはwolfSSL_CTX_use_certificate_chain_buffer_format を使ってクライアント証明書をロードしてください。
@@ -336,14 +336,10 @@ user_settings.hにWOLF_PRIVATE_KEY_IDの定義を行ってください。
 
 ## 11. 制限事項
 -----
-TSIPv1.15をサポートしたwolfSSLでは以下の機能制限があります。
+TSIPv1.17をサポートしたwolfSSLでは以下の機能制限があります。
 
 1. TLSハンドシェーク中にサーバーと交換したメッセージパケットが平文でメモリ上に蓄積されています。これはハンドシェークメッセージのハッシュ計算に使用されます。内容はセッション終了時に削除されます。
 
-2. TLS1.3ではTSIPを使ったクライアント認証機能はECDSAクライアント証明書の場合にのみサポートされます。RSA証明書の場合はソフトウエアでの処理となります。
+2. TSIPを使ってのセッション再開およびearly dataはサポートされません。
 
-3. TLS1.3ではTSIPを使ったサーバー認証機能のうち、CertificateVerifyメッセージの検証はソフトウエアでの処理となります。
-
-4. TSIPを使ってのセッション再開およびearly dataはサポートされません。
-
-上記制限事項1~4は次版以降のTSIPによって改善が見込まれています。
+上記制限事項は次版以降のTSIPあるいはwolfSSLによって改善が見込まれています。
