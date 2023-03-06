@@ -24514,7 +24514,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     if (XSTRCMP(substrCurrent, "ECDHE") == 0 ||
                         XSTRCMP(substrCurrent, "RSA")   == 0 ||
                         XSTRCMP(substrCurrent, "DHE")   == 0) {
-                        XMEMCPY(name, substrCurrent, length);
+                        if (name != substrCurrent)
+                            XMEMMOVE(name, substrCurrent, length);
                         name[length] = '\0';
                         break;
                     }

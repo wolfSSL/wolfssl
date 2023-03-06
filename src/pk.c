@@ -764,53 +764,6 @@ static int wolfssl_der_length(const unsigned char* seq, int len)
 
 #endif /* OPENSSL_EXTRA */
 
-#if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
-/* Too many defines to check explicitly - prototype it and always include
- * for RSA and DH. */
-WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local);
-
-/* Make a random number generator or get global if possible.
- *
- * Global may not be available and NULL will be returned.
- *
- * @param [in, out] rng    Local random number generator.
- * @param [out]     local  Local random number generator returned.
- * @return  NULL on failure.
- * @return  A random number generator object.
- */
-WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
-{
-    WC_RNG* ret = NULL;
-
-    /* Assume not local until one created. */
-    *local = 0;
-
-#ifdef WOLFSSL_SMALL_STACK
-    /* Allocate RNG object . */
-    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-#endif
-    /* Check we have a local RNG object and initialize. */
-    if ((rng != NULL) && (wc_InitRng(rng) == 0)) {
-        ret = rng;
-        *local = 1;
-    }
-    if (ret == NULL) {
-    #ifdef HAVE_GLOBAL_RNG
-        WOLFSSL_MSG("Bad RNG Init, trying global");
-    #endif
-        ret = wolfssl_make_global_rng();
-    }
-
-    if (ret != rng) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-#endif
-    }
-
-    return ret;
-}
-#endif
-
 /*******************************************************************************
  * START OF RSA API
  ******************************************************************************/
@@ -2464,13 +2417,13 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
         RsaKey* key = (RsaKey*)rsa->internal;
 
         /* Copy modulus. */
-        ret = SetIndividualExternal(&rsa->n, &key->n);
+        ret = wolfssl_bn_set_value(&rsa->n, &key->n);
         if (ret != 1) {
             WOLFSSL_ERROR_MSG("rsa n error");
         }
         if (ret == 1) {
             /* Copy public exponent. */
-            ret = SetIndividualExternal(&rsa->e, &key->e);
+            ret = wolfssl_bn_set_value(&rsa->e, &key->e);
             if (ret != 1) {
                 WOLFSSL_ERROR_MSG("rsa e error");
             }
@@ -2479,21 +2432,21 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
         if (key->type == RSA_PRIVATE) {
             if (ret == 1) {
                 /* Copy private exponent. */
-                ret = SetIndividualExternal(&rsa->d, &key->d);
+                ret = wolfssl_bn_set_value(&rsa->d, &key->d);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa d error");
                 }
             }
             if (ret == 1) {
                 /* Copy first prime. */
-                ret = SetIndividualExternal(&rsa->p, &key->p);
+                ret = wolfssl_bn_set_value(&rsa->p, &key->p);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa p error");
                 }
             }
             if (ret == 1) {
                 /* Copy second prime. */
-                ret = SetIndividualExternal(&rsa->q, &key->q);
+                ret = wolfssl_bn_set_value(&rsa->q, &key->q);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa q error");
                 }
@@ -2501,21 +2454,21 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
         #ifndef RSA_LOW_MEM
             if (ret == 1) {
                 /* Copy d mod p-1. */
-                ret = SetIndividualExternal(&rsa->dmp1, &key->dP);
+                ret = wolfssl_bn_set_value(&rsa->dmp1, &key->dP);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa dP error");
                 }
             }
             if (ret == 1) {
                 /* Copy d mod q-1. */
-                ret = SetIndividualExternal(&rsa->dmq1, &key->dQ);
+                ret = wolfssl_bn_set_value(&rsa->dmq1, &key->dQ);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa dq error");
                 }
             }
             if (ret == 1) {
                 /* Copy 1/q mod p. */
-                ret = SetIndividualExternal(&rsa->iqmp, &key->u);
+                ret = wolfssl_bn_set_value(&rsa->iqmp, &key->u);
                 if (ret != 1) {
                     WOLFSSL_ERROR_MSG("rsa u error");
                 }
@@ -2562,14 +2515,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         RsaKey* key = (RsaKey*)rsa->internal;
 
         /* Copy down modulus if available. */
-        if ((rsa->n != NULL) && (SetIndividualInternal(rsa->n, &key->n) != 1)) {
+        if ((rsa->n != NULL) && (wolfssl_bn_get_value(rsa->n, &key->n) != 1)) {
             WOLFSSL_ERROR_MSG("rsa n key error");
             ret = -1;
         }
 
         /* Copy down public exponent if available. */
         if ((ret == 1) && (rsa->e != NULL) &&
-                (SetIndividualInternal(rsa->e, &key->e) != 1)) {
+                (wolfssl_bn_get_value(rsa->e, &key->e) != 1)) {
             WOLFSSL_ERROR_MSG("rsa e key error");
             ret = -1;
         }
@@ -2579,7 +2532,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 
         /* Copy down private exponent if available. */
         if ((ret == 1) && (rsa->d != NULL)) {
-            if (SetIndividualInternal(rsa->d, &key->d) != 1) {
+            if (wolfssl_bn_get_value(rsa->d, &key->d) != 1) {
                 WOLFSSL_ERROR_MSG("rsa d key error");
                 ret = -1;
             }
@@ -2591,14 +2544,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 
         /* Copy down first prime if available. */
         if ((ret == 1) && (rsa->p != NULL) &&
-                (SetIndividualInternal(rsa->p, &key->p) != 1)) {
+                (wolfssl_bn_get_value(rsa->p, &key->p) != 1)) {
             WOLFSSL_ERROR_MSG("rsa p key error");
             ret = -1;
         }
 
         /* Copy down second prime if available. */
         if ((ret == 1) && (rsa->q != NULL) &&
-                (SetIndividualInternal(rsa->q, &key->q) != 1)) {
+                (wolfssl_bn_get_value(rsa->q, &key->q) != 1)) {
             WOLFSSL_ERROR_MSG("rsa q key error");
             ret = -1;
         }
@@ -2606,21 +2559,21 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
     #ifndef RSA_LOW_MEM
         /* Copy down d mod p-1 if available. */
         if ((ret == 1) && (rsa->dmp1 != NULL) &&
-                (SetIndividualInternal(rsa->dmp1, &key->dP) != 1)) {
+                (wolfssl_bn_get_value(rsa->dmp1, &key->dP) != 1)) {
             WOLFSSL_ERROR_MSG("rsa dP key error");
             ret = -1;
         }
 
         /* Copy down d mod q-1 if available. */
         if ((ret == 1) && (rsa->dmp1 != NULL) &&
-                (SetIndividualInternal(rsa->dmq1, &key->dQ) != 1)) {
+                (wolfssl_bn_get_value(rsa->dmq1, &key->dQ) != 1)) {
             WOLFSSL_ERROR_MSG("rsa dQ key error");
             ret = -1;
         }
 
         /* Copy down 1/q mod p if available. */
         if ((ret == 1) && (rsa->iqmp != NULL) &&
-                (SetIndividualInternal(rsa->iqmp, &key->u) != 1)) {
+                (wolfssl_bn_get_value(rsa->iqmp, &key->u) != 1)) {
             WOLFSSL_ERROR_MSG("rsa u key error");
             ret = -1;
         }
@@ -4752,27 +4705,27 @@ int SetDsaExternal(WOLFSSL_DSA* dsa)
 
     key = (DsaKey*)dsa->internal;
 
-    if (SetIndividualExternal(&dsa->p, &key->p) != 1) {
+    if (wolfssl_bn_set_value(&dsa->p, &key->p) != 1) {
         WOLFSSL_MSG("dsa p key error");
         return -1;
     }
 
-    if (SetIndividualExternal(&dsa->q, &key->q) != 1) {
+    if (wolfssl_bn_set_value(&dsa->q, &key->q) != 1) {
         WOLFSSL_MSG("dsa q key error");
         return -1;
     }
 
-    if (SetIndividualExternal(&dsa->g, &key->g) != 1) {
+    if (wolfssl_bn_set_value(&dsa->g, &key->g) != 1) {
         WOLFSSL_MSG("dsa g key error");
         return -1;
     }
 
-    if (SetIndividualExternal(&dsa->pub_key, &key->y) != 1) {
+    if (wolfssl_bn_set_value(&dsa->pub_key, &key->y) != 1) {
         WOLFSSL_MSG("dsa y key error");
         return -1;
     }
 
-    if (SetIndividualExternal(&dsa->priv_key, &key->x) != 1) {
+    if (wolfssl_bn_set_value(&dsa->priv_key, &key->x) != 1) {
         WOLFSSL_MSG("dsa x key error");
         return -1;
     }
@@ -4798,25 +4751,25 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
     key = (DsaKey*)dsa->internal;
 
     if (dsa->p != NULL &&
-        SetIndividualInternal(dsa->p, &key->p) != 1) {
+        wolfssl_bn_get_value(dsa->p, &key->p) != 1) {
         WOLFSSL_MSG("rsa p key error");
         return -1;
     }
 
     if (dsa->q != NULL &&
-        SetIndividualInternal(dsa->q, &key->q) != 1) {
+        wolfssl_bn_get_value(dsa->q, &key->q) != 1) {
         WOLFSSL_MSG("rsa q key error");
         return -1;
     }
 
     if (dsa->g != NULL &&
-        SetIndividualInternal(dsa->g, &key->g) != 1) {
+        wolfssl_bn_get_value(dsa->g, &key->g) != 1) {
         WOLFSSL_MSG("rsa g key error");
         return -1;
     }
 
     if (dsa->pub_key != NULL) {
-        if (SetIndividualInternal(dsa->pub_key, &key->y) != 1) {
+        if (wolfssl_bn_get_value(dsa->pub_key, &key->y) != 1) {
             WOLFSSL_MSG("rsa pub_key error");
             return -1;
         }
@@ -4826,7 +4779,7 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
     }
 
     if (dsa->priv_key != NULL) {
-        if (SetIndividualInternal(dsa->priv_key, &key->x) != 1) {
+        if (wolfssl_bn_get_value(dsa->priv_key, &key->x) != 1) {
             WOLFSSL_MSG("rsa priv_key error");
             return -1;
         }
@@ -5573,15 +5526,15 @@ WOLFSSL_DSA* wolfSSL_d2i_DSAparams(WOLFSSL_DSA** dsa, const unsigned char** der,
         err = GetInt(&internalKey->g, *der, &idx, (word32)derLen) != 0;
     }
     if (err == 0) {
-        err = SetIndividualExternal(&ret->p, &internalKey->p)
+        err = wolfssl_bn_set_value(&ret->p, &internalKey->p)
                 != 1;
     }
     if (err == 0) {
-        err = SetIndividualExternal(&ret->q, &internalKey->q)
+        err = wolfssl_bn_set_value(&ret->q, &internalKey->q)
                 != 1;
     }
     if (err == 0) {
-        err = SetIndividualExternal(&ret->g, &internalKey->g)
+        err = wolfssl_bn_set_value(&ret->g, &internalKey->g)
                 != 1;
     }
     if (err == 0 && dsa != NULL) {
@@ -6097,21 +6050,21 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
         return NULL;
     }
 
-    if (SetIndividualExternal(&dsa->p, &key->p) != 1) {
+    if (wolfssl_bn_set_value(&dsa->p, &key->p) != 1) {
         WOLFSSL_MSG("dsa p key error");
         FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
 
-    if (SetIndividualExternal(&dsa->q, &key->q) != 1) {
+    if (wolfssl_bn_set_value(&dsa->q, &key->q) != 1) {
         WOLFSSL_MSG("dsa q key error");
         FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
 
-    if (SetIndividualExternal(&dsa->g, &key->g) != 1) {
+    if (wolfssl_bn_set_value(&dsa->g, &key->g) != 1) {
         WOLFSSL_MSG("dsa g key error");
         FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
@@ -6146,26 +6099,26 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
     key = (DhKey*)dh->internal;
 
     if (dsa->p != NULL &&
-        SetIndividualInternal(((WOLFSSL_DSA*)dsa)->p, &key->p)
+        wolfssl_bn_get_value(((WOLFSSL_DSA*)dsa)->p, &key->p)
                                                            != 1) {
         WOLFSSL_MSG("rsa p key error");
         wolfSSL_DH_free(dh);
         return NULL;
     }
     if (dsa->g != NULL &&
-        SetIndividualInternal(((WOLFSSL_DSA*)dsa)->g, &key->g)
+        wolfssl_bn_get_value(((WOLFSSL_DSA*)dsa)->g, &key->g)
                                                            != 1) {
         WOLFSSL_MSG("rsa g key error");
         wolfSSL_DH_free(dh);
         return NULL;
     }
 
-    if (SetIndividualExternal(&dh->p, &key->p) != 1) {
+    if (wolfssl_bn_set_value(&dh->p, &key->p) != 1) {
         WOLFSSL_MSG("dsa p key error");
         wolfSSL_DH_free(dh);
         return NULL;
     }
-    if (SetIndividualExternal(&dh->g, &key->g) != 1) {
+    if (wolfssl_bn_set_value(&dh->g, &key->g) != 1) {
         WOLFSSL_MSG("dsa g key error");
         wolfSSL_DH_free(dh);
         return NULL;
@@ -7749,21 +7702,21 @@ int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
 
     if ((ret == 1) && (elm & ELEMENT_P)) {
         /* Set the prime. */
-        if (SetIndividualExternal(&dh->p, &key->p) != 1) {
+        if (wolfssl_bn_set_value(&dh->p, &key->p) != 1) {
             WOLFSSL_ERROR_MSG("dh param p error");
             ret = -1;
         }
     }
     if ((ret == 1) && (elm & ELEMENT_G)) {
         /* Set the generator. */
-        if (SetIndividualExternal(&dh->g, &key->g) != 1) {
+        if (wolfssl_bn_set_value(&dh->g, &key->g) != 1) {
             WOLFSSL_ERROR_MSG("dh param g error");
             ret = -1;
         }
     }
     if ((ret == 1) && (elm & ELEMENT_Q)) {
         /* Set the order. */
-        if (SetIndividualExternal(&dh->q, &key->q) != 1) {
+        if (wolfssl_bn_set_value(&dh->q, &key->q) != 1) {
             WOLFSSL_ERROR_MSG("dh param q error");
             ret = -1;
         }
@@ -7771,14 +7724,14 @@ int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
 #ifdef WOLFSSL_DH_EXTRA
     if ((ret == 1) && (elm & ELEMENT_PRV)) {
         /* Set the private key. */
-        if (SetIndividualExternal(&dh->priv_key, &key->priv) != 1) {
+        if (wolfssl_bn_set_value(&dh->priv_key, &key->priv) != 1) {
             WOLFSSL_ERROR_MSG("No DH Private Key");
             ret = -1;
         }
     }
     if ((ret == 1) && (elm & ELEMENT_PUB)) {
         /* Set the public key. */
-        if (SetIndividualExternal(&dh->pub_key, &key->pub) != 1) {
+        if (wolfssl_bn_set_value(&dh->pub_key, &key->pub) != 1) {
             WOLFSSL_ERROR_MSG("No DH Public Key");
             ret = -1;
         }
@@ -7839,20 +7792,20 @@ int SetDhInternal(WOLFSSL_DH* dh)
     }
     if (ret == 1) {
         /* Transfer prime. */
-        if (SetIndividualInternal(dh->p, &key->p) != 1) {
+        if (wolfssl_bn_get_value(dh->p, &key->p) != 1) {
             ret = -1;
         }
     }
     if (ret == 1) {
         /* Transfer generator. */
-        if (SetIndividualInternal(dh->g, &key->g) != 1) {
+        if (wolfssl_bn_get_value(dh->g, &key->g) != 1) {
             ret = -1;
         }
     }
 #ifdef HAVE_FFDHE_Q
     /* Transfer order if available. */
     if ((ret == 1) && (dh->q != NULL)) {
-        if (SetIndividualInternal(dh->q, &key->q) != 1) {
+        if (wolfssl_bn_get_value(dh->q, &key->q) != 1) {
             ret = -1;
         }
     }
@@ -7861,14 +7814,14 @@ int SetDhInternal(WOLFSSL_DH* dh)
     /* Transfer private key if available. */
     if ((ret == 1) && (dh->priv_key != NULL) &&
             (!wolfSSL_BN_is_zero(dh->priv_key))) {
-        if (SetIndividualInternal(dh->priv_key, &key->priv) != 1) {
+        if (wolfssl_bn_get_value(dh->priv_key, &key->priv) != 1) {
             ret = -1;
         }
     }
     /* Transfer public key if available. */
     if ((ret == 1) && (dh->pub_key != NULL) &&
             (!wolfSSL_BN_is_zero(dh->pub_key))) {
-        if (SetIndividualInternal(dh->pub_key, &key->pub) != 1) {
+        if (wolfssl_bn_get_value(dh->pub_key, &key->pub) != 1) {
             ret = -1;
         }
     }
@@ -8100,7 +8053,7 @@ int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
         wolfSSL_BN_free(dh->pub_key);
         dh->pub_key = pub_key;
     #ifdef WOLFSSL_DH_EXTRA
-        if (SetIndividualInternal(dh->pub_key, &key->pub) != 1) {
+        if (wolfssl_bn_get_value(dh->pub_key, &key->pub) != 1) {
             ret = 0;
         }
     #endif
@@ -8111,7 +8064,7 @@ int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
         wolfSSL_BN_clear_free(dh->priv_key);
         dh->priv_key = priv_key;
     #ifdef WOLFSSL_DH_EXTRA
-        if (SetIndividualInternal(dh->priv_key, &key->priv) != 1) {
+        if (wolfssl_bn_get_value(dh->priv_key, &key->priv) != 1) {
             ret = 0;
         }
     #endif
@@ -9457,18 +9410,18 @@ static int ec_point_internal_set(WOLFSSL_EC_POINT *p)
         ecc_point* point = (ecc_point*)p->internal;
 
         /* Set X ordinate if available. */
-        if ((p->X != NULL) && (SetIndividualInternal(p->X, point->x) != 1)) {
+        if ((p->X != NULL) && (wolfssl_bn_get_value(p->X, point->x) != 1)) {
             WOLFSSL_MSG("ecc point X error");
             ret = -1;
         }
         /* Set Y ordinate if available. */
-        if ((ret == 1) && (p->Y != NULL) && (SetIndividualInternal(p->Y,
+        if ((ret == 1) && (p->Y != NULL) && (wolfssl_bn_get_value(p->Y,
                 point->y) != 1)) {
             WOLFSSL_MSG("ecc point Y error");
             ret = -1;
         }
         /* Set Z ordinate if available. */
-        if ((ret == 1) && (p->Z != NULL) && (SetIndividualInternal(p->Z,
+        if ((ret == 1) && (p->Z != NULL) && (wolfssl_bn_get_value(p->Z,
                 point->z) != 1)) {
             WOLFSSL_MSG("ecc point Z error");
             ret = -1;
@@ -9504,17 +9457,17 @@ static int ec_point_external_set(WOLFSSL_EC_POINT *p)
         ecc_point* point = (ecc_point*)p->internal;
 
         /* Set X ordinate. */
-        if (SetIndividualExternal(&p->X, point->x) != 1) {
+        if (wolfssl_bn_set_value(&p->X, point->x) != 1) {
             WOLFSSL_MSG("ecc point X error");
             ret = -1;
         }
         /* Set Y ordinate. */
-        if ((ret == 1) && (SetIndividualExternal(&p->Y, point->y) != 1)) {
+        if ((ret == 1) && (wolfssl_bn_set_value(&p->Y, point->y) != 1)) {
             WOLFSSL_MSG("ecc point Y error");
             ret = -1;
         }
         /* Set Z ordinate. */
-        if ((ret == 1) && (SetIndividualExternal(&p->Z, point->z) != 1)) {
+        if ((ret == 1) && (wolfssl_bn_set_value(&p->Z, point->z) != 1)) {
             WOLFSSL_MSG("ecc point Z error");
             ret = -1;
         }
@@ -12583,7 +12536,7 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
         /* set the external privkey */
         if ((ret == 1) && (key->type == ECC_PRIVATEKEY) &&
-                (SetIndividualExternal(&eckey->priv_key, &key->k) != 1)) {
+                (wolfssl_bn_set_value(&eckey->priv_key, &key->k) != 1)) {
             WOLFSSL_MSG("ec priv key error");
             ret = -1;
         }
@@ -12654,7 +12607,7 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
 
         /* set privkey */
         if ((ret == 1) && (eckey->priv_key != NULL)) {
-            if (SetIndividualInternal(eckey->priv_key, &key->k) != 1) {
+            if (wolfssl_bn_get_value(eckey->priv_key, &key->k) != 1) {
                 WOLFSSL_MSG("ec key priv error");
                 ret = -1;
             }

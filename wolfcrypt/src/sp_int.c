@@ -18158,12 +18158,17 @@ int sp_prime_is_prime_ex(const sp_int* a, int trials, int* result, WC_RNG* rng)
     if ((a == NULL) || (result == NULL) || (rng == NULL)) {
         err = MP_VAL;
     }
-
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if ((err == MP_OKAY) && (a->sign == MP_NEG)) {
         err = MP_VAL;
     }
 #endif
+
+    /* Ensure trials is valid. Maximum based on number of small primes
+     * available. */
+    if ((err == MP_OKAY) && ((trials <= 0) || (trials > SP_PRIME_SIZE))) {
+        err = MP_VAL;
+    }
 
     if ((err == MP_OKAY) && sp_isone(a)) {
         ret = MP_NO;
