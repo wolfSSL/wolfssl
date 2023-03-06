@@ -5253,7 +5253,11 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
     (defined(HAVE_SESSION_TICKET)  && !defined(WOLFSSL_NO_TLS12) &&            \
     !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                              \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&              \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB))
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB))  || \
+    (defined(WOLFSSL_EXTRA_ALERTS) && !defined(WOLFSSL_NO_TLS12) &&            \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) &&                           \
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED) &&                    \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT))
 #define TEST_MEMIO_BUF_SZ (64 * 1024)
 struct test_memio_ctx
 {
@@ -5425,6 +5429,9 @@ static WC_INLINE int test_memio_setup(struct test_memio_ctx *ctx,
             return -1;
         wolfSSL_SetIOWriteCtx(*ssl_s, ctx);
         wolfSSL_SetIOReadCtx(*ssl_s, ctx);
+#if !defined(NO_DH)
+        SetDH(*ssl_s);
+#endif
     }
 
     return 0;
