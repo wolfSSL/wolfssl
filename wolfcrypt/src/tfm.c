@@ -5090,6 +5090,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         return FP_VAL;
     if (a->sign == FP_NEG)
         return FP_VAL;
+    if (t <= 0 || t > FP_PRIME_SIZE)
+        return FP_VAL;
 
     if (fp_isone(a)) {
         *result = FP_NO;
