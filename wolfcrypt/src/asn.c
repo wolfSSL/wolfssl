@@ -31117,7 +31117,7 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     if ((ret == 0) && (version < 1 || version > 3)) {
         ret = ASN_PARSE_E;
     }
-#ifndef WOLFSSL_RELAXED_ASN_PARSING
+#ifndef WOLFSSL_NO_ASN_STRICT
     /* Only version 2 and above can have a seed. */
     if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_PARAM_SEED].tag != 0) &&
             (version < 2)) {
