@@ -739,18 +739,22 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 {
     int ret = EOK, i = 0;
     DESCSTRUCT desc;
-    CAAM_BUFFER tmp[6];
+    CAAM_BUFFER tmp[6] = {0};
     iov_t in_iovs[6], out_iovs[2];
     int inIdx = 0, outIdx = 0;
     int algo;
     unsigned char *key = NULL, *iv = NULL, *in = NULL, *out = NULL;
     int keySz, ivSz = 0, inSz, outSz;
 
-    memset(tmp, 0, sizeof(tmp));
-
     /* get key info */
     keySz = args[1] & 0xFFFF; /* key size */
-    key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
+    inSz = args[2]; /* input size */
+    outSz = args[2]; /* output size */
+    if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
+        ivSz = 16;
+    }
+
+    key   = (unsigned char*)CAAM_ADR_MAP(0, keySz + inSz + outSz + ivSz, 0);
     if (key == NULL) {
         ret = ECANCELED;
     }
@@ -761,7 +765,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     if (ret == EOK) {
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
             ivSz = 16;
-            iv   = (unsigned char*)CAAM_ADR_MAP(0, ivSz, 0);
+            iv   = key + keySz + inSz;
             if (iv == NULL) {
                 ret = ECANCELED;
             }
@@ -772,8 +776,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* get input buffer */
     if (ret == EOK) {
-        inSz = args[2]; /* input size */
-        in   = (unsigned char*)CAAM_ADR_MAP(0, inSz, 0);
+        in   = key + keySz;
         if (in == NULL) {
             ret = ECANCELED;
         }
@@ -783,8 +786,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* create output buffer to store results */
     if (ret == EOK) {
-        outSz = args[2]; /* output size */
-        out   = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
+        out   = key + keySz + inSz + ivSz;
         if (out == NULL) {
             ret = ECANCELED;
         }
@@ -826,19 +828,18 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         tmp[i].TheAddress = (CAAM_ADDRESS)out;
 
         caamDescInit(&desc, algo, args, tmp, 6);
-        if (caamAes(&desc, tmp, args) != Success) {
+        if (caamAesCombined(&desc, tmp, args) != Success) {
             ret = ECANCELED;
         }
     }
 
     /* sync the new IV/MAC and output buffer */
     if (ret == EOK) {
+        CAAM_ADR_SYNC(key, keySz + inSz + ivSz + outSz);
         if (type == WC_CAAM_AESCBC || type == WC_CAAM_AESCTR) {
-            CAAM_ADR_SYNC(iv, ivSz);
             SETIOV(&out_iovs[1], iv, ivSz);
             outIdx++;
         }
-        CAAM_ADR_SYNC(out, outSz);
         SETIOV(&out_iovs[0], out, outSz);
         outIdx++;
 
@@ -848,13 +849,7 @@ static int doAES(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (key != NULL)
-        CAAM_ADR_UNMAP(key, 0, keySz, 0);
-    if (iv != NULL)
-        CAAM_ADR_UNMAP(iv, 0, ivSz, 0);
-    if (in != NULL)
-        CAAM_ADR_UNMAP(in, 0, inSz, 0);
-    if (out != NULL)
-        CAAM_ADR_UNMAP(out, 0, outSz, 0);
+        CAAM_ADR_UNMAP(key, 0, keySz + inSz + ivSz + outSz, 0);
 
     return ret;
 }
@@ -881,7 +876,7 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg,
     if (args[0] == CAAM_BLACK_KEY_SM) {
         privSz = sizeof(unsigned int);
     }
-    
+
     /* private key */
     tmp[0].Length = privSz;
     priv = (unsigned char*)CAAM_ADR_MAP(0, privSz, 0);
