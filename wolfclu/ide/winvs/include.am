@@ -1,0 +1,6 @@
+# vim:ft=automake
+# included from top level Makefile.am
+# ALl path should be given relative to root directory
+
+EXTRA_DIST+=ide/winvs/README.md
+EXTRA_DIST+=ide/winvs/user_settings.h

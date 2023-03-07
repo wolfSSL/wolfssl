@@ -1,0 +1,43 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+wolfclu_wolfssl_SOURCES = wolfclu/src/clu_main.c \
+                    wolfclu/src/clu_log.c \
+					wolfclu/src/tools/clu_funcs.c \
+					wolfclu/src/tools/clu_hex_to_bin.c \
+					wolfclu/src/tools/clu_rand.c \
+					wolfclu/src/crypto/clu_crypto_setup.c \
+					wolfclu/src/crypto/clu_encrypt.c \
+					wolfclu/src/crypto/clu_decrypt.c \
+					wolfclu/src/crypto/clu_evp_crypto.c \
+					wolfclu/src/hash/clu_hash_setup.c \
+					wolfclu/src/hash/clu_hash.c \
+					wolfclu/src/hash/clu_alg_hash.c \
+					wolfclu/src/benchmark/clu_bench_setup.c \
+					wolfclu/src/benchmark/clu_benchmark.c \
+					wolfclu/src/x509/clu_request_setup.c \
+					wolfclu/src/x509/clu_ca_setup.c \
+					wolfclu/src/x509/clu_cert_setup.c \
+					wolfclu/src/x509/clu_parse.c \
+					wolfclu/src/x509/clu_config.c \
+					wolfclu/src/x509/clu_x509_sign.c \
+					wolfclu/src/genkey/clu_genkey_setup.c \
+					wolfclu/src/genkey/clu_genkey.c \
+					wolfclu/src/ecparam/clu_ecparam.c \
+					wolfclu/src/sign-verify/clu_sign.c \
+					wolfclu/src/sign-verify/clu_verify.c \
+				    wolfclu/src/sign-verify/clu_x509_verify.c \
+				    wolfclu/src/sign-verify/clu_crl_verify.c \
+				    wolfclu/src/sign-verify/clu_sign_verify_setup.c \
+				    wolfclu/src/sign-verify/clu_dgst_setup.c \
+				    wolfclu/src/certgen/clu_certgen_ed25519.c \
+				    wolfclu/src/certgen/clu_certgen_rsa.c \
+				    wolfclu/src/pkey/clu_rsa.c \
+				    wolfclu/src/pkey/clu_pkey.c \
+				    wolfclu/src/pkcs/clu_pkcs12.c \
+				    wolfclu/src/client/client.c \
+				    wolfclu/src/client/clu_client_setup.c \
+				    wolfclu/src/dsa/clu_dsa.c \
+				    wolfclu/src/dh/clu_dh.c
+

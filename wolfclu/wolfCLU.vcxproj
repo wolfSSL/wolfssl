@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{CFC6FB69-7DA4-4E35-851E-776010E92FB3}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>wolfssl</TargetName>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>wolfssl</TargetName>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>wolfssl</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>wolfssl</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;WOLFCLU_EXPORTS;WOLFSSL_LIB;_WINDLL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir);.;./../wolfssl/;../wolfssl/IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>Ws2_32.lib;wolfssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../wolfssl/Debug/Win32;../wolfssl/Release/Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;WOLFCLU_EXPORTS;WOLFSSL_LIB;_WINDLL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir);.;./../wolfssl/;../wolfssl/IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>Ws2_32.lib;wolfssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../wolfssl/Debug/Win32;../wolfssl/Release/Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);.;./../wolfssl/;../wolfssl/IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;WOLFCLU_EXPORTS;WOLFSSL_LIB;_WINDLL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Ws2_32.lib;wolfssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../wolfssl/Debug/x64;../wolfssl/Release/x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);.;./../wolfssl/;../wolfssl/IDE/WIN;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;WOLFCLU_EXPORTS;WOLFSSL_LIB;_WINDLL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>Ws2_32.lib;wolfssl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>../wolfssl/Debug/x64;../wolfssl/Release/x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\benchmark\clu_benchmark.c" />
+    <ClCompile Include="src\benchmark\clu_bench_setup.c" />
+    <ClCompile Include="src\certgen\clu_certgen_ed25519.c" />
+    <ClCompile Include="src\certgen\clu_certgen_rsa.c" />
+    <ClCompile Include="src\client\client.c" />
+    <ClCompile Include="src\client\clu_client_setup.c" />
+    <ClCompile Include="src\clu_log.c" />
+    <ClCompile Include="src\clu_main.c" />
+    <ClCompile Include="src\crypto\clu_crypto_setup.c" />
+    <ClCompile Include="src\crypto\clu_decrypt.c" />
+    <ClCompile Include="src\crypto\clu_encrypt.c" />
+    <ClCompile Include="src\crypto\clu_evp_crypto.c" />
+    <ClCompile Include="src\dh\clu_dh.c" />
+    <ClCompile Include="src\dsa\clu_dsa.c" />
+    <ClCompile Include="src\ecparam\clu_ecparam.c" />
+    <ClCompile Include="src\genkey\clu_genkey.c" />
+    <ClCompile Include="src\genkey\clu_genkey_setup.c" />
+    <ClCompile Include="src\hash\clu_hash.c" />
+    <ClCompile Include="src\hash\clu_hash_setup.c" />
+    <ClCompile Include="src\hash\clu_alg_hash.c" />
+    <ClCompile Include="src\pkcs\clu_pkcs12.c" />
+    <ClCompile Include="src\pkey\clu_pkey.c" />
+    <ClCompile Include="src\pkey\clu_rsa.c" />
+    <ClCompile Include="src\sign-verify\clu_crl_verify.c" />
+    <ClCompile Include="src\sign-verify\clu_dgst_setup.c" />
+    <ClCompile Include="src\sign-verify\clu_sign.c" />
+    <ClCompile Include="src\sign-verify\clu_sign_verify_setup.c" />
+    <ClCompile Include="src\sign-verify\clu_verify.c" />
+    <ClCompile Include="src\sign-verify\clu_x509_verify.c" />
+    <ClCompile Include="src\tools\clu_funcs.c" />
+    <ClCompile Include="src\tools\clu_hex_to_bin.c" />
+    <ClCompile Include="src\tools\clu_rand.c" />
+    <ClCompile Include="src\x509\clu_ca_setup.c" />
+    <ClCompile Include="src\x509\clu_cert_setup.c" />
+    <ClCompile Include="src\x509\clu_config.c" />
+    <ClCompile Include="src\x509\clu_parse.c" />
+    <ClCompile Include="src\x509\clu_request_setup.c" />
+    <ClCompile Include="src\x509\clu_x509_sign.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\wolfssl\IDE\WIN\USER_SETTINGS.H" />
+    <ClInclude Include="wolfclu\certgen\clu_certgen.h" />
+    <ClInclude Include="wolfclu\client.h" />
+    <ClInclude Include="wolfclu\clu_error_codes.h" />
+    <ClInclude Include="wolfclu\clu_header_main.h" />
+    <ClInclude Include="wolfclu\clu_log.h" />
+    <ClInclude Include="wolfclu\clu_optargs.h" />
+    <ClInclude Include="wolfclu\genkey\clu_genkey.h" />
+    <ClInclude Include="wolfclu\pkey\clu_pkey.h" />
+    <ClInclude Include="wolfclu\sign-verify\clu_sign.h" />
+    <ClInclude Include="wolfclu\sign-verify\clu_sign_verify_setup.h" />
+    <ClInclude Include="wolfclu\sign-verify\clu_verify.h" />
+    <ClInclude Include="wolfclu\version.h" />
+    <ClInclude Include="wolfclu\x509\clu_cert.h" />
+    <ClInclude Include="wolfclu\x509\clu_parse.h" />
+    <ClInclude Include="wolfclu\x509\clu_request.h" />
+    <ClInclude Include="wolfclu\x509\clu_x509_sign.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

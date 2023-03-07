@@ -181,6 +181,7 @@ include rpm/include.am
 include linuxkm/include.am
 include zephyr/include.am
 include RTOS/nuttx/include.am
+include wolfclu/include.am
 
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO

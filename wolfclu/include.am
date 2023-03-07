@@ -1,0 +1,12 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+
+if BUILD_WOLFCLU
+noinst_PROGRAMS += wolfclu/wolfssl
+include wolfclu/wolfclu/include.am
+include wolfclu/src/include.am
+wolfclu_wolfssl_LDADD = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
+wolfclu_wolfssl_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+wolfclu_wolfssl_CFLAGS = $(WOLFSENTRY_INCLUDE) $(AM_CFLAGS)
+endif
+

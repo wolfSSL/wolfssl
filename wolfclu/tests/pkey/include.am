@@ -1,0 +1,9 @@
+# vim:ft=automake
+# included from top level Makefile.am
+# ALl path should be given relative to root directory
+
+dist_noinst_SCRIPTS+=tests/pkey/pkey-test.sh
+dist_noinst_SCRIPTS+=tests/pkey/ecparam-test.sh
+dist_noinst_SCRIPTS+=tests/pkey/rsa-test.sh
+
+

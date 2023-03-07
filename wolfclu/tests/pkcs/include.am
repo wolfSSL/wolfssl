@@ -1,0 +1,6 @@
+# vim:ft=automake
+# included from top level Makefile.am
+# ALl path should be given relative to root directory
+
+dist_noinst_SCRIPTS+=tests/pkcs/pkcs12-test.sh
+
