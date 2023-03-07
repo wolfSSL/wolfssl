@@ -575,18 +575,6 @@ char* wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
  */
 static int wolfssl_bn_radix2bn(WOLFSSL_BIGNUM** bn, const char* str, int radix)
 {
-#if defined(USE_FAST_MATH) && (!defined(OPENSSL_EXTRA) && defined(NO_DSA) && \
-        !defined(HAVE_ECC))
-    /* in this build case mp_read_radix is not available */
-    WOLFSSL_ENTER("wolfSSL_BN_bn2dec");
-    WOLFSSL_MSG("BN mp_read_radix not available");
-
-    (void)bn;
-    (void)str;
-    (void)radix;
-
-    return 0;
-#else
     int ret = 1;
     WOLFSSL_BIGNUM* a = NULL;
 
@@ -620,7 +608,6 @@ static int wolfssl_bn_radix2bn(WOLFSSL_BIGNUM** bn, const char* str, int radix)
         *bn = NULL;
     }
     return ret;
-#endif
 }
 
 /* Decode hex string into a big number.
