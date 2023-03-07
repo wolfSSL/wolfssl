@@ -215,6 +215,7 @@
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
+        #define WOLF_PRIVATE_KEY_ID
     #endif
 
 #else

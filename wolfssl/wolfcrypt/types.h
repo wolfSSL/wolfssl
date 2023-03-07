@@ -48,12 +48,20 @@ decouple library dependencies with standard string, memory and so on.
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         typedef void (*wolfSSL_ex_data_cleanup_routine_t)(void *data);
         #endif
-    typedef struct WOLFSSL_CRYPTO_EX_DATA {
-        void* ex_data[MAX_EX_DATA];
-        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_ex_data_cleanup_routine_t ex_data_cleanup_routines[MAX_EX_DATA];
-        #endif
-    } WOLFSSL_CRYPTO_EX_DATA;
+        typedef struct WOLFSSL_CRYPTO_EX_DATA {
+            void* ex_data[MAX_EX_DATA];
+            #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+            wolfSSL_ex_data_cleanup_routine_t
+                ex_data_cleanup_routines[MAX_EX_DATA];
+            #endif
+        } WOLFSSL_CRYPTO_EX_DATA;
+        typedef void (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+                WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+        typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+                const WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx,
+                long argV, void* arg);
+        typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+                WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
     #endif
 
     #if defined(WORDS_BIGENDIAN)

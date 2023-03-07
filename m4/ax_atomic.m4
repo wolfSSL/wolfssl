@@ -31,5 +31,6 @@ AC_DEFUN([AC_C___ATOMIC],
 if test $ac_cv_c___atomic = yes; then
   AC_DEFINE([HAVE_C___ATOMIC], 1,
            [Define to 1 if __atomic operations work.])
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_C___ATOMIC=1"
 fi
 ])# AC_C___ATOMIC

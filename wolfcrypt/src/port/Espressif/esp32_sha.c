@@ -632,8 +632,7 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
 
     #if defined(WOLFSSL_SHA384)
         case SHA2_384:
-            SHA_LOAD_REG = SHA_384_LOAD_REG;
-            SHA_BUSY_REG = SHA_384_BUSY_REG;
+            DPORT_REG_WRITE(SHA_384_LOAD_REG, 1);
             break;
     #endif
 

@@ -9304,7 +9304,7 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     /* Check validity of parameters. */
     if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
-            ((ivSz == 0) && (iv != NULL)) || (ivSz > AES_BLOCK_SIZE) ||
+            ((ivSz == 0) && (iv != NULL)) ||
             ((ivSz > 0) && (iv == NULL))) {
         ret = BAD_FUNC_ARG;
     }
@@ -10681,8 +10681,8 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_AFALG
-    aes->alFd = -1;
-    aes->rdFd = -1;
+    aes->alFd = WC_SOCK_NOTSET;
+    aes->rdFd = WC_SOCK_NOTSET;
 #endif
 #ifdef WOLFSSL_KCAPI_AES
     aes->handle = NULL;
@@ -10786,9 +10786,11 @@ void wc_AesFree(Aes* aes)
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
     if (aes->rdFd > 0) { /* negative is error case */
         close(aes->rdFd);
+        aes->rdFd = WC_SOCK_NOTSET;
     }
     if (aes->alFd > 0) {
         close(aes->alFd);
+        aes->alFd = WC_SOCK_NOTSET;
     }
 #endif /* WOLFSSL_AFALG */
 #ifdef WOLFSSL_KCAPI_AES
@@ -10931,6 +10933,14 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     if (aes->keylen == 16)
         return DCPAesEcbEncrypt(aes, out, in, sz);
 #endif
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        AES_ECB_encrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
+        blocks = 0;
+    }
+#endif
     while (blocks > 0) {
       int ret = wc_AesEncryptDirect(aes, out, in);
       if (ret != 0)
@@ -10958,6 +10968,14 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #ifdef WOLFSSL_IMXRT_DCP
     if (aes->keylen == 16)
         return DCPAesEcbDecrypt(aes, out, in, sz);
+#endif
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        AES_ECB_decrypt(in, out, sz, (byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
+        blocks = 0;
+    }
 #endif
     while (blocks > 0) {
       int ret = wc_AesDecryptDirect(aes, out, in);
@@ -12031,8 +12049,17 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 RESTORE_VECTOR_REGISTERS();
                 return BUFFER_E;
             }
-            XMEMCPY(out, buf, sz);
-            XMEMCPY(buf, in, sz);
+            if (in != out) {
+                XMEMCPY(out, buf, sz);
+                XMEMCPY(buf, in, sz);
+            }
+            else {
+                byte buf2[AES_BLOCK_SIZE];
+
+                XMEMCPY(buf2, buf, sz);
+                XMEMCPY(buf, in, sz);
+                XMEMCPY(out, buf2, sz);
+            }
 
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             ret = wc_AesEncryptDirect(aes, out - AES_BLOCK_SIZE, buf);
@@ -12362,15 +12389,6 @@ static WARN_UNUSED_RESULT int AesSivCipher(
         ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    if (ret == 0) {
-        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
-        if (aes == NULL) {
-            ret = MEMORY_E;
-        }
-    }
-#endif
-
     if (ret == 0) {
         if (enc == 1) {
             ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, data,
@@ -12386,6 +12404,15 @@ static WARN_UNUSED_RESULT int AesSivCipher(
             XMEMCPY(sivTmp, siv, AES_BLOCK_SIZE);
         }
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+        if (aes == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
 
     if (ret == 0) {
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);

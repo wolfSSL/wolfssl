@@ -100,7 +100,8 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
-The L5 and WB55 support ECC PKA acceleration, which is enabled with `WOLFSSL_STM32_PKA`.
+The PKA acceleration for ECC is avaialble on some U5, L5 and WB55 chips.
+This is enabled with `WOLFSSL_STM32_PKA`. You can see some of the benchmarks [here](STM32_Benchmarks.md).
 
 To disable hardware crypto acceleration you can define:
 

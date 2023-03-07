@@ -1293,7 +1293,7 @@ static const char* bench_result_words2[][5] = {
 
 /* maximum runtime for each benchmark */
 #ifndef BENCH_MIN_RUNTIME_SEC
-    #define BENCH_MIN_RUNTIME_SEC   1.0f
+    #define BENCH_MIN_RUNTIME_SEC   1.0F
 #endif
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
@@ -1666,43 +1666,36 @@ static WC_INLINE int bench_stats_check(double start)
 }
 
 /* return text for units and scale the value of blocks as needed for base2 */
-static WC_INLINE const char* specified_base2_blockType(double * blocks)
+static const char* get_blocktype_base10(double* blocks)
 {
     const char* rt;
 
-#if (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G)  \
-     || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB) )
+#if (  defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "GB/s"
     *blocks /= (1000UL * 1000UL * 1000UL);
     rt = "GiB";
-
-#elif (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M)  \
-       || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "MB/s"
     *blocks /= (1024UL * 1024UL);
     rt = "MiB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_K) \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "KB/s"
     *blocks /= 1024;
     rt = "KiB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B) )
+#elif  defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     #undef  WOLFSSL_FIXED_UNITS_PER_SEC
     #define WOLFSSL_FIXED_UNITS_PER_SEC "bytes/s"
     (void)(*blocks); /* no adjustment, just appease compiler for not used */
     rt = "bytes";
-
 #else
-
-    /* if no user-specified, auto-scale each metric (results vary)
-    **
-    ** determine if we should show as KB or MB or bytes. No GiB here.
-    */
+    /* If no user-specified, auto-scale each metric (results vary).
+     * Determine if we should show as KB or MB or bytes. No GiB here. */
     if (*blocks > (1024UL * 1024UL)) {
         *blocks /= (1024UL * 1024UL);
         rt = "MiB";
@@ -1714,56 +1707,49 @@ static WC_INLINE const char* specified_base2_blockType(double * blocks)
     else {
         rt = "bytes";
     }
-
 #endif
 
     return rt;
-} /* specified_base2_blockType() */
+}
 
 /* return text for units and scale the value of blocks as needed */
-static WC_INLINE const char* specified_blockType(double * blocks)
+static const char* get_blocktype(double* blocks)
 {
     const char* rt;
 
-#if (   defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G)  \
-     || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB) )
+#if (  defined(WOLFSSL_BENCHMARK_FIXED_UNITS_G) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_GB))
     *blocks /= (1000UL * 1000UL * 1000UL);
     rt = "GB";
-
-#elif (    defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) \
-       || defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_M) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_MB))
     *blocks /= (1000UL * 1000UL);
     rt = "MB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_K)  \
-       || defined (WOLFSSL_BENCHMARK_FIXED_UNITS_KB) )
+#elif (defined(WOLFSSL_BENCHMARK_FIXED_UNITS_K) || \
+       defined(WOLFSSL_BENCHMARK_FIXED_UNITS_KB))
     *blocks /= (1000UL);
     rt = "KB";
-
-#elif (   defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)  )
+#elif     defined (WOLFSSL_BENCHMARK_FIXED_UNITS_B)
     (void)(*blocks); /* no adjustment, just appease compiler */
     rt = "bytes";
-
 #else
-        /* if not user-specified, auto-scale each metric (results vary)
-        **
-        ** determine if we should show as KB or MB or bytes
-        */
-        if (*blocks > (1000UL * 1000UL)) {
-            *blocks /= (1000UL * 1000UL);
-            rt = "MB";
-        }
-        else if (*blocks > 1000) {
-            *blocks /= 1000; /* make KB */
-            rt = "KB";
-        }
-        else {
-            rt = "bytes";
-        } /* rt auto-assigned */
-#endif /* WOLFSSL_BENCHMARK UNITS */
+    /* If not user-specified, auto-scale each metric (results vary).
+     * Determine if we should show as KB or MB or bytes */
+    if (*blocks > (1000UL * 1000UL)) {
+        *blocks /= (1000UL * 1000UL);
+        rt = "MB";
+    }
+    else if (*blocks > 1000) {
+        *blocks /= 1000; /* make KB */
+        rt = "KB";
+    }
+    else {
+        rt = "bytes";
+    }
+#endif
 
     return rt;
-} /* specified_blockType */
+}
 
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
  * except for AES direct that operates on AES_BLOCK_SIZE blocks */
@@ -1825,14 +1811,14 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     }
 
     /* determine if we have fixed units, or auto-scale bits or bytes for units.
-    ** note that the blockType text is assigned AND the blocks param is scaled.
-    */
+     * note that the blockType text is assigned AND the blocks param is scaled.
+     */
     if (base2) {
-        blockType = specified_base2_blockType(&blocks);
-    } /* is base2 bit counter */
+        blockType = get_blocktype(&blocks);
+    }
     else {
-        blockType = specified_blockType(&blocks);
-    } /* not base2, is byte counter */
+        blockType = get_blocktype_base10(&blocks);
+    }
 
     /* calculate blocks per second */
     if (total > 0) {
@@ -3277,23 +3263,10 @@ static void bench_aesgcm_internal(int useDeviceID,
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmEncrypt(&enc[i], bench_cipher,
                         bench_plain, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
-#else
-                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
-                    if (ret == 0) {
-                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
-                            bench_plain, bench_size, bench_additional,
-                            aesAuthAddSz);
-                    }
-                    if (ret == 0) {
-                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
-                            AES_AUTH_TAG_SZ);
-                    }
-#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm;
@@ -3332,23 +3305,10 @@ exit_aes_gcm:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0,
                                       &times, numBlocks, &pending)) {
-#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmDecrypt(&dec[i], bench_plain,
                         bench_cipher, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
-#else
-                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
-                    if (ret == 0) {
-                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
-                            bench_cipher, bench_size, bench_additional,
-                            aesAuthAddSz);
-                    }
-                    if (ret == 0) {
-                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
-                            AES_AUTH_TAG_SZ);
-                    }
-#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]),
                                             0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
@@ -3384,6 +3344,160 @@ exit:
     WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+static void bench_aesgcm_stream_internal(int useDeviceID,
+    const byte* key, word32 keySz, const byte* iv,  word32 ivSz,
+    const char* encLabel, const char* decLabel)
+{
+    int    ret = 0, i, count = 0, times, pending = 0;
+    Aes    enc[BENCH_MAX_PENDING];
+#ifdef HAVE_AES_DECRYPT
+    Aes    dec[BENCH_MAX_PENDING];
+#endif
+    double start;
+
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesgcm_internal malloc failed\n");
+        goto exit;
+    }
+#endif
+
+    /* clear for done cleanup */
+    XMEMSET(enc, 0, sizeof(enc));
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(dec, 0, sizeof(dec));
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (bench_additional)
+#endif
+        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (bench_tag)
+#endif
+        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&enc[i], HEAP_HINT,
+                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesGcmSetKey(&enc[i], key, keySz);
+        if (ret != 0) {
+            printf("AesGcmSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    /* GCM uses same routine in backend for both encrypt and decrypt */
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
+                            bench_plain, bench_size, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
+                                            0, &times, &pending)) {
+                        goto exit_aes_gcm;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+exit_aes_gcm:
+    bench_stats_sym_finish(encLabel, useDeviceID, count, bench_size,
+                           start, ret);
+
+#ifdef HAVE_AES_DECRYPT
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&dec[i], HEAP_HINT,
+                        useDeviceID ? devId: INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesGcmSetKey(&dec[i], key, keySz);
+        if (ret != 0) {
+            printf("AesGcmSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
+                            bench_cipher, bench_size, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]),
+                                            0, &times, &pending)) {
+                        goto exit_aes_gcm_dec;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_check(start));
+
+exit_aes_gcm_dec:
+    bench_stats_sym_finish(decLabel, useDeviceID, count, bench_size,
+                           start, ret);
+#endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_aesgcm failed: %d\n", ret);
+    }
+#ifdef HAVE_AES_DECRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&dec[i]);
+    }
+#endif
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&enc[i]);
+    }
+
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
+}
+#endif
+
 void bench_aesgcm(int useDeviceID)
 {
 #define AES_GCM_STRING(n, dir)  AES_AAD_STRING("AES-" #n "-GCM-" #dir)
@@ -3402,6 +3516,25 @@ void bench_aesgcm(int useDeviceID)
     bench_aesgcm_internal(useDeviceID, bench_key, 32, bench_iv, 12,
                           AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
 #endif
+#ifdef WOLFSSL_AESGCM_STREAM
+#undef AES_GCM_STRING
+#define AES_GCM_STRING(n, dir)  AES_AAD_STRING("AES-" #n "-GCM-STREAM-" #dir)
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+        && !defined(WOLFSSL_XILINX_CRYPT)                          \
+        ||  defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 16, bench_iv, 12,
+        AES_GCM_STRING(128, enc), AES_GCM_STRING(128, dec));
+#endif
+#if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+        && !defined(WOLFSSL_XILINX_CRYPT)
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 24, bench_iv, 12,
+        AES_GCM_STRING(192, enc), AES_GCM_STRING(192, dec));
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_aesgcm_stream_internal(useDeviceID, bench_key, 32, bench_iv, 12,
+        AES_GCM_STRING(256, enc), AES_GCM_STRING(256, dec));
+#endif
+#endif /* WOLFSSL_AESGCM_STREAM */
 #undef AES_GCM_STRING
 }
 
@@ -5126,7 +5259,7 @@ void bench_shake128(int useDeviceID)
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
                                           0, &times, numBlocks, &pending)) {
                         ret = wc_Shake128_Update(&hash[i], bench_plain,
-                            BENCH_SIZE);
+                            bench_size);
                         if (!bench_async_handle(&ret,
                             BENCH_ASYNC_GET_DEV(&hash[i]), 0,
                                                 &times, &pending)) {
@@ -5162,7 +5295,7 @@ void bench_shake128(int useDeviceID)
                 ret = wc_InitShake128(hash, HEAP_HINT,
                     useDeviceID ? devId : INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Shake128_Update(hash, bench_plain, BENCH_SIZE);
+                    ret = wc_Shake128_Update(hash, bench_plain, bench_size);
                 if (ret == 0)
                     ret = wc_Shake128_Final(hash, digest[0],
                         WC_SHA3_128_BLOCK_SIZE);
@@ -5221,7 +5354,7 @@ void bench_shake256(int useDeviceID)
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]),
                                           0, &times, numBlocks, &pending)) {
                         ret = wc_Shake256_Update(&hash[i], bench_plain,
-                            BENCH_SIZE);
+                            bench_size);
                         if (!bench_async_handle(&ret,
                             BENCH_ASYNC_GET_DEV(&hash[i]), 0,
                                                 &times, &pending)) {
@@ -5257,7 +5390,7 @@ void bench_shake256(int useDeviceID)
                 ret = wc_InitShake256(hash, HEAP_HINT,
                     useDeviceID ? devId : INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Shake256_Update(hash, bench_plain, BENCH_SIZE);
+                    ret = wc_Shake256_Update(hash, bench_plain, bench_size);
                 if (ret == 0)
                     ret = wc_Shake256_Final(hash, digest[0],
                         WC_SHA3_256_BLOCK_SIZE);
@@ -8576,16 +8709,22 @@ void benchmark_configure(int block_size)
  * str   Algorithm string to print.
  * line  Length of line used so far.
  */
+#ifndef BENCH_MAX_LINE
+#define BENCH_MAX_LINE 80
+#endif
 static void print_alg(const char* str, int* line)
 {
-    int optLen;
-
-    optLen = (int)XSTRLEN(str) + 1;
-    if (optLen + *line > 80) {
-        printf("\n             ");
-        *line = 13;
+    const char* const ident = "             ";
+    if (*line == 0) {
+        fputs(ident, stdout);
+        *line = (int)XSTRLEN(ident);
     }
-    *line += optLen;
+    printf(" %s", str);
+    *line += (int)XSTRLEN(str) + 1;
+    if (*line > BENCH_MAX_LINE) {
+        printf("\n");
+        *line = 0;
+    }
 }
 #endif /* WOLFSSL_BENCHMARK_ALL */
 
@@ -8645,37 +8784,26 @@ static void Usage(void)
     e++;
 #ifndef WOLFSSL_BENCHMARK_ALL
     printf("%s", bench_Usage_msg1[lng_index][e]);   /* option -<alg> */
-    printf("             ");
-    line = 13;
+    line = 0;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
-        print_alg(bench_cipher_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_cipher_opt[i].str, &line);
     for (i=0; bench_digest_opt[i].str != NULL; i++)
-        print_alg(bench_digest_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_digest_opt[i].str, &line);
     for (i=0; bench_mac_opt[i].str != NULL; i++)
-        print_alg(bench_mac_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_mac_opt[i].str, &line);
     for (i=0; bench_asym_opt[i].str != NULL; i++)
-        print_alg(bench_asym_opt[i].str + 1, &line);
-    printf("\n             ");
-    line = 13;
+        print_alg(bench_asym_opt[i].str, &line);
     for (i=0; bench_other_opt[i].str != NULL; i++)
-        print_alg(bench_other_opt[i].str + 1, &line);
-    printf("\n             ");
+        print_alg(bench_other_opt[i].str, &line);
 #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
-    line = 13;
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
-        print_alg(bench_pq_asym_opt[i].str + 1, &line);
+        print_alg(bench_pq_asym_opt[i].str, &line);
 #if defined(HAVE_LIBOQS)
     for (i=0; bench_pq_asym_opt2[i].str != NULL; i++)
-        print_alg(bench_pq_asym_opt2[i].str + 1, &line);
-    printf("\n");
+        print_alg(bench_pq_asym_opt2[i].str, &line);
 #endif /* HAVE_LIBOQS */
 #endif /* HAVE_PQC */
+    printf("\n");
 #endif /* !WOLFSSL_BENCHMARK_ALL */
     e++;
     printf("%s", bench_Usage_msg1[lng_index][e++]); /* option -lng */

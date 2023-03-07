@@ -138,18 +138,18 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 61
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x1fffffffffffffffL;
         s = 61U - s;
@@ -179,12 +179,12 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 61) {
             r[j] &= 0x1fffffffffffffffL;
@@ -3417,18 +3417,18 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 57
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
@@ -3458,12 +3458,12 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;
@@ -7090,18 +7090,18 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 60
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0xfffffffffffffffL;
         s = 60U - s;
@@ -7131,12 +7131,12 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 60) {
             r[j] &= 0xfffffffffffffffL;
@@ -10300,18 +10300,18 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 57
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
@@ -10341,12 +10341,12 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;
@@ -14158,18 +14158,18 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 59
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x7ffffffffffffffL;
         s = 59U - s;
@@ -14199,12 +14199,12 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 59) {
             r[j] &= 0x7ffffffffffffffL;
@@ -17227,18 +17227,18 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 53
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x1fffffffffffffL;
         s = 53U - s;
@@ -17268,12 +17268,12 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 53) {
             r[j] &= 0x1fffffffffffffL;
@@ -21479,18 +21479,18 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 52
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0xfffffffffffffL;
         s = 52U - s;
@@ -21520,12 +21520,12 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 52) {
             r[j] &= 0xfffffffffffffL;
@@ -26689,15 +26689,19 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_256_norm_5(r);
 
-            sp_256_from_mp(x, 5, priv);
-            sp_256_from_bin(e, 5, hash, (int)hashLen);
+            if (sp_256_iszero_5(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_256_from_mp(x, 5, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_256_from_bin(e, 5, hash, (int)hashLen);
 
-            err = sp_256_calc_s_5(s, r, k, x, e, tmp);
-        }
+                err = sp_256_calc_s_5(s, r, k, x, e, tmp);
 
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_256_iszero_5(s) == 0)) {
-            break;
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_256_iszero_5(s) == 0)) {
+                    break;
+                }
+            }
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
@@ -28360,18 +28364,18 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 55
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x7fffffffffffffL;
         s = 55U - s;
@@ -28401,12 +28405,12 @@ static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 55) {
             r[j] &= 0x7fffffffffffffL;
@@ -34157,15 +34161,19 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_384_norm_7(r);
 
-            sp_384_from_mp(x, 7, priv);
-            sp_384_from_bin(e, 7, hash, (int)hashLen);
+            if (sp_384_iszero_7(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_384_from_mp(x, 7, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_384_from_bin(e, 7, hash, (int)hashLen);
 
-            err = sp_384_calc_s_7(s, r, k, x, e, tmp);
-        }
+                err = sp_384_calc_s_7(s, r, k, x, e, tmp);
 
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_384_iszero_7(s) == 0)) {
-            break;
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_384_iszero_7(s) == 0)) {
+                    break;
+                }
+            }
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
@@ -35938,18 +35946,18 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 58
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x3ffffffffffffffL;
         s = 58U - s;
@@ -35979,12 +35987,12 @@ static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 58) {
             r[j] &= 0x3ffffffffffffffL;
@@ -41622,20 +41630,25 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
                 (sp_digit)0 - (sp_digit)(c >= 0));
             sp_521_norm_9(r);
 
-            sp_521_from_mp(x, 9, priv);
-            sp_521_from_bin(e, 9, hash, (int)hashLen);
+            if (sp_521_iszero_9(r) == 0) {
+                /* x is modified in calculation of s. */
+                sp_521_from_mp(x, 9, priv);
+                /* s ptr == e ptr, e is modified in calculation of s. */
+                sp_521_from_bin(e, 9, hash, (int)hashLen);
 
-            if (hashLen == 66U) {
-                sp_521_rshift_9(e, e, 7);
-                e[8] |= ((sp_digit)hash[0]) << 49;
+                /* Take 521 leftmost bits of hash. */
+                if (hashLen == 66U) {
+                    sp_521_rshift_9(e, e, 7);
+                    e[8] |= ((sp_digit)hash[0]) << 49;
+                }
+
+                err = sp_521_calc_s_9(s, r, k, x, e, tmp);
+
+                /* Check that signature is usable. */
+                if ((err == MP_OKAY) && (sp_521_iszero_9(s) == 0)) {
+                    break;
+                }
             }
-
-            err = sp_521_calc_s_9(s, r, k, x, e, tmp);
-        }
-
-        /* Check that signature is usable. */
-        if ((err == MP_OKAY) && (sp_521_iszero_9(s) == 0)) {
-            break;
         }
 #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
         i = 1;
@@ -43925,18 +43938,18 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
 
     for (i = 0; i < size; i++) {
         sp_digit mask =
-            (((sp_digit)(a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
+            (((sp_digit)((int)a->used - i - 1)) >> (SP_WORD_SIZE - 1)) - 1;
         r[i] = a->dp[j] & mask;
         j += (int)(((sp_digit)1) -
-                   (((sp_digit)(a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
+                   (((sp_digit)((int)a->used - i - 2)) >> (SP_WORD_SIZE - 1)));
     }
 #elif DIGIT_BIT > 57
-    int i;
+    unsigned int i;
     int j = 0;
     word32 s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i] << s);
         r[j] &= 0x1ffffffffffffffL;
         s = 57U - s;
@@ -43966,12 +43979,12 @@ static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i;
+    unsigned int i;
     int j = 0;
     int s = 0;
 
     r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
+    for (i = 0; i < (unsigned int)a->used && j < size; i++) {
         r[j] |= ((sp_digit)a->dp[i]) << s;
         if (s + DIGIT_BIT >= 57) {
             r[j] &= 0x1ffffffffffffffL;

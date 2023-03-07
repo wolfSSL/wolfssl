@@ -3820,7 +3820,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 {
-#if DIGIT_BIT == 64 || DIGIT_BIT == 32
+#if DIGIT_BIT == 64 || DIGIT_BIT == 32 || DIGIT_BIT == 16
   int i = 0;
   int j = 0;
   int x;
@@ -3833,6 +3833,12 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   }
   for (; x >= 0; x--) {
      b[x] = 0;
+  }
+  if (i < a->used - 1) {
+      return FP_VAL;
+  }
+  if ((i == a->used - 1) && ((a->dp[i] >> j) != 0)) {
+      return FP_VAL;
   }
 
   return FP_OKAY;
@@ -3861,6 +3867,9 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
+  if (!fp_iszero(t)) {
+      return FP_VAL;
+  }
   return FP_OKAY;
 #endif
 }

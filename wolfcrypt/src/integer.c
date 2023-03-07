@@ -2512,13 +2512,13 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 1), NULL,
+  W = (mp_word*)XMALLOC(sizeof(mp_word) * (n->used * 2 + 2), NULL,
     DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
 
-  XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 1));
+  XMEMSET(W, 0, sizeof(mp_word) * (n->used * 2 + 2));
 
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
@@ -5006,7 +5006,7 @@ LBL_B:mp_clear (&b);
 
 #endif /* (WOLFSSL_KEY_GEN && !NO_RSA) || !NO_DH || !NO_DSA */
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA))
 
 static const int USE_BBS = 1;
 
@@ -5077,6 +5077,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
     return MP_OKAY;
 }
 
+#endif
+
+#if defined(WOLFSSL_KEY_GEN)
 
 /* computes least common multiple as |a*b|/(a, b) */
 int mp_lcm (mp_int * a, mp_int * b, mp_int * c)

@@ -1,12 +1,6 @@
-name: Test Espressif examples on various official Docker containers
-concurrency:
-  group: ${{ github.ref }}
-
+name: Espressif examples tests
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
-  pull_request:
-    branches: [ '*' ]
+  workflow_call:
 
 jobs:
   espressif_latest:

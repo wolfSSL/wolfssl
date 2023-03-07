@@ -170,6 +170,9 @@
 
 #define BIO_FP_WRITE               0x04
 
+/* You shouldn't free up or change the data if BIO_FLAGS_MEM_RDONLY is set */
+#define BIO_FLAGS_MEM_RDONLY       0x200
+
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 

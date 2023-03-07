@@ -1,26 +1,20 @@
-name: GitHub Action Tests
-concurrency:
-  group: ${{ github.ref }}
+name: Ubuntu-Macos-Windows Tests
 
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
-  pull_request:
-    branches: [ '*' ]
+  workflow_call:
 
 jobs:
-  macos_build:
-    name: macOS Build Test
-    runs-on: macos-latest
+  make_check:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_check on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-
-    - name: brew
+    - if: ${{ matrix.os == 'macos-latest' }}
       run: brew install automake libtool
-
-    - name: autogen
-      run: ./autogen.sh
-
+    - run: ./autogen.sh
     - name: configure make check
       run: |
         ./configure
@@ -28,65 +22,17 @@ jobs:
         make check
         make distcheck
 
-    - name: configure all make check
-      run: |
-        ./configure --enable-all
-        make
-        make check
-        make distcheck
-
-    - name: configure all ASN template
-      run: |
-        ./configure --enable-all --enable-asn=template
-        make
-        make check
-        make distcheck
-
-    - name: make user_settings_all.h
-      run: |
-        cp ./examples/configs/user_settings_all.h user_settings.h
-        ./configure --enable-usersettings
-        make
-        make check
-
-    - name: user_settings_all.h with compatibility layer
-      run: |
-        cp ./examples/configs/user_settings_all.h user_settings.h
-        sed -i -e "s/if 0/if 1/" user_settings.h
-        ./configure --enable-usersettings
-        make
-        make check
-
-    - name: user_settings_min_ecc.h
-      run: |
-        cp ./examples/configs/user_settings_min_ecc.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
-    - name: user_settings_wolfboot_keytools.h
-      run: |
-        cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
-        ./configure --enable-usersettings --disable-examples
-        make
-        ./wolfcrypt/test/testwolfcrypt
-
-  ubuntu_build:
-    name: Ubuntu Build Test
-    runs-on: ubuntu-latest
+  make_check_enable_all:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_check_enable_all on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-
-    - name: autogen
-      run: ./autogen.sh
-
-    - name: configure make check
-      run: |
-        ./configure
-        make
-        make check
-        make distcheck
-
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: configure all make check
       run: |
         ./configure --enable-all
@@ -94,6 +40,17 @@ jobs:
         make check
         make distcheck
 
+  make_check_enable_all_asn:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_check_enable_all_asn on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: configure all ASN template
       run: |
         ./configure --enable-all --enable-asn=template
@@ -101,6 +58,17 @@ jobs:
         make check
         make distcheck
 
+  make_user:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: make user_settings_all.h
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -108,6 +76,17 @@ jobs:
         make
         make check
 
+  make_user_all:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_all on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_all.h with compatibility layer
       run: |
         cp ./examples/configs/user_settings_all.h user_settings.h
@@ -116,6 +95,17 @@ jobs:
         make
         make check
 
+  make_user_minecc:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_minecc on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_min_ecc.h
       run: |
         cp ./examples/configs/user_settings_min_ecc.h user_settings.h
@@ -123,9 +113,38 @@ jobs:
         make
         ./wolfcrypt/test/testwolfcrypt
 
+  make_user_wolfboot:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_wolfboot on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
     - name: user_settings_wolfboot_keytools.h
       run: |
         cp ./examples/configs/user_settings_wolfboot_keytools.h user_settings.h
+        ./configure --enable-usersettings --disable-examples
+        make
+        ./wolfcrypt/test/testwolfcrypt
+
+  make_user_wolftpm:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    name: make_user_wolftpm on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ matrix.os == 'macos-latest' }}
+      run: brew install automake libtool
+    - run: ./autogen.sh
+    - name: user_settings_wolftpm.h
+      run: |
+        cp ./examples/configs/user_settings_wolftpm.h user_settings.h
         ./configure --enable-usersettings --disable-examples
         make
         ./wolfcrypt/test/testwolfcrypt
@@ -157,4 +176,3 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:PlatformToolset=v142 /p:Platform=${{env.BUILD_PLATFORM}} /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
-

@@ -931,7 +931,7 @@ endif()
 # DH
 add_option("WOLFSSL_DH"
     "Enable DH (default: enabled)"
-    "yes" "yes;no")
+    "yes" "yes;no;const")
 
 if(WOLFSSL_OPENSSH)
     override_cache(WOLFSSL_DH "yes")
@@ -944,6 +944,11 @@ else()
       list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
       override_cache(WOLFSSL_DH "no")
     endif()
+endif()
+
+if("${WOLFSSL_DH}" STREQUAL "const")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_DH_CONST")
+    set(WOLFSSL_DH_CONST "yes")
 endif()
 
 # TODO: - Anonymous
@@ -1812,7 +1817,7 @@ if(WOLFSSL_USER_SETTINGS)
         -DWOLFSSL_USER_SETTINGS_ASM")
 
     # Create user_settings_asm.h for use in assembly files (e.g. .S files).
-    execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
+    execute_process(COMMAND $ENV{SHELL} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/user_settings_asm.sh
                             "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}"
                     RESULT_VARIABLE USER_SETTINGS_ASM_RET)
     if (NOT USER_SETTINGS_ASM_RET EQUAL 0)
@@ -1949,10 +1954,12 @@ elseif(APPLE)
             ${SECURITY_FRAMEWORK})
     endif()
 else()
-    # DH requires math (m) library
-    target_link_libraries(wolfssl
-        PUBLIC
-            m)
+    if(WOLFSSL_DH AND NOT WOLFSSL_DH_CONST)
+        # DH requires math (m) library
+        target_link_libraries(wolfssl
+            PUBLIC
+                m)
+    endif()
 endif()
 
 ####################################################

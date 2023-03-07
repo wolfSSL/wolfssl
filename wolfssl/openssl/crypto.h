@@ -25,6 +25,7 @@
 #define WOLFSSL_CRYPTO_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/compat_types.h>
 
 typedef struct WOLFSSL_INIT_SETTINGS {
     char* appname;
@@ -37,8 +38,12 @@ typedef struct WOLFSSL_CRYPTO_THREADID {
 typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
-typedef void (CRYPTO_free_func)(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
-        long argl, void* argp);
+
+#ifdef HAVE_EX_DATA
+typedef WOLFSSL_CRYPTO_EX_new CRYPTO_new_func;
+typedef WOLFSSL_CRYPTO_EX_dup CRYPTO_dup_func;
+typedef WOLFSSL_CRYPTO_EX_free CRYPTO_free_func;
+#endif
 
 #include <wolfssl/openssl/opensslv.h>
 #include <wolfssl/openssl/conf.h>
@@ -148,6 +153,7 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define CRYPTO_THREAD_write_lock wc_LockMutex
 #define CRYPTO_THREAD_lock_free wc_FreeMutex
 
+#define CRYPTO_get_ex_data wolfSSL_CRYPTO_get_ex_data
 #define CRYPTO_set_ex_data wolfSSL_CRYPTO_set_ex_data
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_EX_DATA */

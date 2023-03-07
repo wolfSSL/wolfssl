@@ -47,12 +47,12 @@ public class wolfSSL_TLS_PSK_Server
     /// <returns>size of key set</returns>
     public static uint my_psk_server_cb(IntPtr ssl, string identity, IntPtr key, uint max_key)
     {
-        /* perform a check on the identity sent across 
+        /* perform a check on the identity sent across
          * log function must be set for print out of logging information
          */
         wolfssl.log(wolfssl.INFO_LOG, "PSK Client Identity = " + identity);
 
-        /* Use desired key, note must be a key smaller than max key size parameter 
+        /* Use desired key, note must be a key smaller than max key size parameter
             Replace this with desired key. Is trivial one for testing */
         if (max_key < 4)
             return 0;

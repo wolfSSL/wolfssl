@@ -499,19 +499,18 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
+#ifdef __MINGW32__
+#define SIZE_FMT "%d"
+#define SIZE_TYPE int
+#else
+#define SIZE_FMT "%zu"
+#define SIZE_TYPE size_t
+#endif
         printf(
-        #if !defined(__MINGW32__)
-            "wolfSSL Server Benchmark %zu bytes\n"
-        #else
-            "wolfSSL Server Benchmark %d bytes\n"
-        #endif
+            "wolfSSL Server Benchmark " SIZE_FMT " bytes\n"
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
-    #if !defined(__MINGW32__)
-            throughput,
-    #else
-            (int)throughput,
-    #endif
+            (SIZE_TYPE)throughput,
             rx_time * 1000, throughput / rx_time / 1024 / 1024,
             tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
@@ -949,10 +948,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 64 */
+                                                                        /* 65 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1136,10 +1138,13 @@ static const char* server_usage_msg[][65] = {
             "                        Note: requires TLS1.3\n",
                                                                         /* 63 */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 64 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 64 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 65 */
         NULL,
     },
 #endif
@@ -1293,6 +1298,9 @@ static void Usage(void)
 #ifdef CAN_FORCE_CURVE
     printf("%s", msg[++msgId]);     /* force-curve */
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    printf("%s", msg[++msgId]);     /* --onlyPskDheKe */
+#endif
     printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
@@ -1400,6 +1408,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DTLS_CID
         {"cid", 2, 263},
 #endif /* WOLFSSL_DTLS_CID */
+#ifdef HAVE_SUPPORTED_CURVES
+        {"onlyPskDheKe", 2, 264},
+#endif /* HAVE_SUPPORTED_CURVES */
         { 0, 0, 0 }
     };
 #endif
@@ -1492,6 +1503,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
+#ifdef HAVE_SUPPORTED_CURVES
+    int onlyPskDheKe = 0;
+#endif
 #endif
     int updateKeysIVs = 0;
 #ifndef NO_CERTS
@@ -2259,6 +2273,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             break;
 #endif /* WOLFSSL_CID */
+        case 264:
+#ifdef HAVE_SUPPORTED_CURVES
+        #ifdef WOLFSSL_TLS13
+            onlyPskDheKe = 1;
+        #endif
+#endif
+            break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2808,6 +2830,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
+#ifdef HAVE_SUPPORTED_CURVES
+    if (onlyPskDheKe)
+        wolfSSL_CTX_only_dhe_psk(ctx);
+#endif
 #endif
 #ifdef HAVE_SESSION_TICKET
 #ifdef WOLFSSL_TLS13
@@ -3715,7 +3741,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    wolfsentry_ret =
+        wolfsentry_shutdown(WOLFSENTRY_CONTEXT_ARGS_OUT_EX4(&wolfsentry, NULL));
     if (wolfsentry_ret < 0) {
         fprintf(stderr,
                 "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",

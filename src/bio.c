@@ -128,19 +128,24 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
         bio->rdIdx += sz;
 
         if (bio->rdIdx >= bio->wrSz) {
-            /* All data read resize down to WOLFSSL_BIO_RESIZE_THRESHOLD */
-            if (bio->mem_buf->max > WOLFSSL_BIO_RESIZE_THRESHOLD &&
-                    wolfSSL_BUF_MEM_resize(bio->mem_buf,
-                        WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
-                WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
-                return WOLFSSL_BIO_ERROR;
+            if (bio->flags & BIO_FLAGS_MEM_RDONLY) {
+                bio->wrSz = bio->wrSzReset;
             }
-            bio->wrSz = 0;
-            bio->rdIdx = 0;
-            bio->mem_buf->length = 0;
+            else {
+                /* All data read resize down to WOLFSSL_BIO_RESIZE_THRESHOLD */
+                if (bio->mem_buf->max > WOLFSSL_BIO_RESIZE_THRESHOLD &&
+                    wolfSSL_BUF_MEM_resize(bio->mem_buf, WOLFSSL_BIO_RESIZE_THRESHOLD) == 0) {
+                    WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
+                    return WOLFSSL_BIO_ERROR;
+                }
+                bio->rdIdx = 0;
+                bio->wrSz = 0;
+                bio->mem_buf->length = 0;
+            }
             bio->ptr = bio->mem_buf->data;
         }
-        else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD) {
+        else if (bio->rdIdx >= WOLFSSL_BIO_RESIZE_THRESHOLD &&
+                !(bio->flags & BIO_FLAGS_MEM_RDONLY)) {
             /* Resize the memory so we are not taking up more than necessary.
              * memmove reverts internally to memcpy if areas don't overlap */
             XMEMMOVE(bio->mem_buf->data, bio->mem_buf->data + bio->rdIdx,
@@ -516,6 +521,9 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         WOLFSSL_MSG("one of input parameters is null");
         return WOLFSSL_FAILURE;
     }
+    if (bio->flags & BIO_FLAGS_MEM_RDONLY) {
+        return WOLFSSL_FAILURE;
+    }
 
     if (len == 0)
         return WOLFSSL_SUCCESS; /* Return early to make logic simpler */
@@ -535,6 +543,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
     bio->ptr = bio->mem_buf->data;
     bio->num = (int)bio->mem_buf->max;
     bio->wrSz += len;
+    bio->wrIdx += len;
 
     return len;
 }
@@ -766,14 +775,14 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 int wolfSSL_BIO_up_ref(WOLFSSL_BIO* bio)
 {
     if (bio) {
-    #ifndef SINGLE_THREADED
-        if (wc_LockMutex(&bio->refMutex) != 0) {
+        int ret;
+        wolfSSL_RefInc(&bio->ref, &ret);
+    #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+        if (ret != 0) {
             WOLFSSL_MSG("Failed to lock BIO mutex");
         }
-    #endif
-        bio->refCount++;
-    #ifndef SINGLE_THREADED
-        wc_UnLockMutex(&bio->refMutex);
+    #else
+        (void)ret;
     #endif
 
         return WOLFSSL_SUCCESS;
@@ -1431,15 +1440,20 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
 
         case WOLFSSL_BIO_MEMORY:
             bio->rdIdx = 0;
-            bio->wrIdx = 0;
-            bio->wrSz  = 0;
-            XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
-            bio->ptr = NULL;
-            bio->num = 0;
-            if (bio->mem_buf != NULL) {
-                bio->mem_buf->data = NULL;
-                bio->mem_buf->length = 0;
-                bio->mem_buf->max = 0;
+            if (bio->flags & BIO_FLAGS_MEM_RDONLY) {
+                bio->wrIdx = bio->wrSzReset;
+                bio->wrSz  = bio->wrSzReset;
+            }
+            else {
+                bio->wrSz  = 0;
+                XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                bio->ptr = NULL;
+                bio->num = 0;
+                if (bio->mem_buf != NULL) {
+                    bio->mem_buf->data = NULL;
+                    bio->mem_buf->length = 0;
+                    bio->mem_buf->max = 0;
+                }
             }
             return 0;
 
@@ -2495,14 +2509,19 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             }
 
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            bio->refCount = 1;
-            #ifndef SINGLE_THREADED
-            if (wc_InitMutex(&bio->refMutex) != 0) {
-                wolfSSL_BIO_free(bio);
-                WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
-                return NULL;
-            }
+            {
+                int ret;
+                wolfSSL_RefInit(&bio->ref, &ret);
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                if (ret != 0) {
+                    wolfSSL_BIO_free(bio);
+                    WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
+                    return NULL;
+                }
+            #else
+                (void)ret;
             #endif
+            }
         #endif
 
         }
@@ -2537,6 +2556,8 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         bio->ptr = bio->mem_buf->data;
         if (len > 0 && bio->ptr != NULL) {
             XMEMCPY(bio->ptr, buf, len);
+            bio->flags |= BIO_FLAGS_MEM_RDONLY;
+            bio->wrSzReset = bio->wrSz;
         }
 
         return bio;
@@ -2566,32 +2587,22 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 }
             }
 
-        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-            #ifndef SINGLE_THREADED
-            if (wc_LockMutex(&bio->refMutex) != 0) {
-                WOLFSSL_MSG("Couldn't lock BIO mutex");
-                return WOLFSSL_FAILURE;
-            }
-            #endif
-
-            /* only free if all references to it are done */
-            bio->refCount--;
-            if (bio->refCount == 0) {
-                doFree = 1;
-            }
-
-            #ifndef SINGLE_THREADED
-            wc_UnLockMutex(&bio->refMutex);
-            #endif
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            wolfSSL_RefDec(&bio->ref, &doFree, &ret);
 
             if (!doFree) {
                 /* return success if BIO ref count is not 1 yet */
+            #ifdef WOLFSSL_REFCNT_ERROR_RETURN
+                return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE ;
+            #else
+                (void)ret;
                 return WOLFSSL_SUCCESS;
-            }
-            #ifndef SINGLE_THREADED
-            wc_FreeMutex(&bio->refMutex);
             #endif
+            }
+        #ifndef SINGLE_THREADED
+            wolfSSL_RefFree(&bio->ref);
         #endif
+    #endif
 
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
             wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);

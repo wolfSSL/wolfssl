@@ -64,8 +64,12 @@ extern ${variable.value} ${variable.name};
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
 /* ------------------------------------------------------------------------- */
+/* Setup default (No crypto hardware acceleration or TLS UART test).
+ * Use undef in platform section to enable it.
+ */
 #define NO_STM32_HASH
 #define NO_STM32_CRYPTO
+#define NO_TLS_UART_TEST
 
 #if defined(STM32WB55xx)
     #define WOLFSSL_STM32WB
@@ -97,6 +101,9 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
+    #define HAL_CONSOLE_UART huart3
+#elif defined(STM32H723xx)
+    #define WOLFSSL_STM32H7
     #define HAL_CONSOLE_UART huart3
 #elif defined(STM32L4A6xx)
     #define WOLFSSL_STM32L4
@@ -130,12 +137,12 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32F4
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST
+    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
-    #define WOLFSSL_GENSEED_FORTEST
+    #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
 #elif defined(STM32U575xx) || defined(STM32U585xx)
     #define HAL_CONSOLE_UART huart1
     #define WOLFSSL_STM32U5

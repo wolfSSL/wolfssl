@@ -72,7 +72,7 @@ xcopy "$(ProjectDir)..\..\..\certs\server-cert.pem" "$(TargetDir)" /Y /R
 xcopy "$(ProjectDir)..\..\..\certs\dh2048.pem" "$(TargetDir)" /Y /R
 xcopy "$(ProjectDir)..\..\..\certs\ca-cert.pem" "$(TargetDir)" /Y /R</PreBuildEvent>
   </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>

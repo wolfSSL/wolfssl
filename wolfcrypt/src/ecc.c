@@ -3465,8 +3465,10 @@ exit:
 
    (void)a;
 
-   /* k can't have more bits than modulus count plus 1 */
-   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+   /* For supported curves the order is the same length in bits as the modulus.
+    * Can't have more than order bits for the scalar.
+    */
+   if (mp_count_bits(k) > mp_count_bits(modulus)) {
        return ECC_OUT_OF_RANGE_E;
    }
    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
@@ -5782,6 +5784,10 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId)
 {
     int ret = 0;
+#ifdef WOLFSSL_SE050
+    /* SE050 TLS users store a word32 at id, need to cast back */
+    word32* keyPtr = NULL;
+#endif
 
     if (key == NULL)
         ret = BAD_FUNC_ARG;
@@ -5793,6 +5799,13 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(key->id, id, len);
         key->idLen = len;
+    #ifdef WOLFSSL_SE050
+        /* Set SE050 ID from word32, populate ecc_key with public from SE050 */
+        if (len == (int)sizeof(word32)) {
+            keyPtr = (word32*)key->id;
+            ret = wc_ecc_use_key_id(key, *keyPtr, 0);
+        }
+    #endif
     }
 
     return ret;
@@ -11866,6 +11879,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
    int      x, err;
    unsigned y, z = 0, bitlen, bitpos, lut_gap;
    int first;
+   int tk_zeroize = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
    tk = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
@@ -11884,6 +11898,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 
    if ((err = mp_copy(k, tk)) != MP_OKAY)
        goto done;
+   tk_zeroize = 1;
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
    mp_memzero_add("accel_fp_mul tk", tk);
@@ -12004,7 +12019,10 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
 done:
    /* cleanup */
    mp_clear(order);
-   mp_forcezero(tk);
+   /* Ensure it was initialized. */
+   if (tk_zeroize) {
+       mp_forcezero(tk);
+   }
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
@@ -13035,7 +13053,7 @@ int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len)
     ctx->kdfSaltSz = len;
 
     if (ctx->protocol == REQ_RESP_CLIENT) {
-        ctx->srvSt = ecSRV_SALT_SET;
+        ctx->cliSt = ecCLI_SALT_SET;
     }
     else if (ctx->protocol == REQ_RESP_SERVER) {
         ctx->srvSt = ecSRV_SALT_SET;
