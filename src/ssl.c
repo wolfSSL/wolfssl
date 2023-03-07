@@ -13505,6 +13505,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
                     ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
                 #endif
+#ifdef WOLFSSL_EXTRA_ALERTS
+                    if (ssl->error == NO_PEER_KEY ||
+                        ssl->error == PSK_KEY_ERROR) {
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                    }
+#endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
