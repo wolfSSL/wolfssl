@@ -31117,11 +31117,13 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     if ((ret == 0) && (version < 1 || version > 3)) {
         ret = ASN_PARSE_E;
     }
+#ifndef WOLFSSL_RELAXED_ASN_PARSING
     /* Only version 2 and above can have a seed. */
     if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_PARAM_SEED].tag != 0) &&
             (version < 2)) {
         ret = ASN_PARSE_E;
     }
+#endif
     /* Only version 2 and above can have a hash algorithm. */
     if ((ret == 0) && (dataASN[ECCSPECIFIEDASN_IDX_HASH_SEQ].tag != 0) &&
             (version < 2)) {
