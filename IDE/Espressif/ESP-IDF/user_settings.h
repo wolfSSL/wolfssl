@@ -38,16 +38,16 @@
 
 /* #define DEBUG_WOLFSSL_VERBOSE */
 
-// Enable key generation:
-// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#rsa-key-generation
+/* Enable key generation:
+https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#rsa-key-generation */
 #define WOLFSSL_KEY_GEN
 
-// Enable certificate generation: 
-// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-generation
+/* Enable certificate generation: 
+https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-generation */
 #define WOLFSSL_CERT_GEN
 
-// Enable certificate request generation: 
-// https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-signing-request-csr-generation
+/* Enable certificate request generation: 
+https://www.wolfssl.com/documentation/manuals/wolfssl/chapter07.html#certificate-signing-request-csr-generation */
 #define WOLFSSL_CERT_REQ
 
 #define BENCH_EMBEDDED
@@ -66,19 +66,36 @@
 #define NO_FILESYSTEM
 
 #define HAVE_AESGCM
-/* when you want to use SHA384 */
+
+/* 
+Enable SHA-384 support 
+See: https://www.wolfssl.com/documentation/manuals/wolfssl/chapter02.html#wolfssl_sha384
+Note: currently not working. See https://github.com/gojimmypi/wolfssl/tree/ED25519_SHA2_fix/ */
 /* #define WOLFSSL_SHA384 */
+
+
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
 
 // ED25519 test fails on ESP32 & ESP32s3
-// #define HAVE_ED25519
+/* Enable ES25519 support. 
+Currently failing for ESP32 & ESP32s3.
+See: https://github.com/wolfSSL/wolfssl/issues/5948
+and: https://github.com/gojimmypi/wolfssl/tree/ED25519_SHA2_fix/ */
+/*  #define HAVE_ED25519   */
+
+/* Disable SHA-512/224 & SHA-512/256; currently not working. 
+See https://github.com/gojimmypi/wolfssl/tree/ED25519_SHA2_fix/ */
+#define WOLFSSL_NOSHA512_224
+#define WOLFSSL_NOSHA512_256
 
 /* AES-192 is not supported on the ESP32s3; is available for ESP32
  * and may be available for other devices. */
+#if !defined(CONFIG_IDF_TARGET_ESP32S3)
 #define NO_AES_192
+#endif
 
 /* when you want to use pkcs7 */
 /* #define HAVE_PKCS7 */
@@ -116,8 +133,12 @@
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */
-/* #define WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
 /* #define WOLFSSL_ATECC508A_DEBUG          */
+
+/* Note: WOLFSSL_ESP32WROOM32_CRYPT_DEBUG not available for ESP32s3 due
+to issue including "esp_timer.h". See https://github.com/gojimmypi/wolfssl/tree/ED25519_SHA2_fix/
+for pending solution. */
+/* #define WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
 
 /* date/time                               */
 /* if it cannot adjust time in the device, */

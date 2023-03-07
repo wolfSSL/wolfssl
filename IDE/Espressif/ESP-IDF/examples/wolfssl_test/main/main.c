@@ -177,8 +177,6 @@ void app_main(void)
         #error "ESP32WROOM32_CRYPT not yet supported on ESP32-C3"
     #elif defined(CONFIG_IDF_TARGET_ESP32S2)
         #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S2"
-    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-        #error "ESP32WROOM32_CRYPT not yet supported on ESP32-S3"
     #else
         ESP_LOGI(TAG, "ESP32WROOM32_CRYPT is enabled.");
     #endif

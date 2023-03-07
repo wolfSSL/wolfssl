@@ -1,0 +1,2 @@
+# Exclude sdkconfig backups created by idf.py etc (e.g., sdkconfig.old). 
+*.old
