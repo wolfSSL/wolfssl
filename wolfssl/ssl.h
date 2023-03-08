@@ -1557,6 +1557,11 @@ WOLFSSL_API int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name,
         int typ);
 WOLFSSL_API WOLFSSL_GENERAL_NAMES* wolfSSL_GENERAL_NAMES_dup(
                                              WOLFSSL_GENERAL_NAMES* gns);
+WOLFSSL_API int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
+                                                    WOLFSSL_ASN1_OBJECT* oid,
+                                                    WOLFSSL_ASN1_TYPE* value);
+
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_GENERAL_NAME_new(void *cmpFunc);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,
                                              WOLFSSL_GENERAL_NAME* gn);
 WOLFSSL_API WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(
@@ -4279,6 +4284,9 @@ WOLFSSL_API int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x, int loc);
 WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_create_by_OBJ(
+        WOLFSSL_X509_EXTENSION* ex, WOLFSSL_ASN1_OBJECT *obj, int crit,
+        WOLFSSL_ASN1_STRING *data);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_dup(
         WOLFSSL_X509_EXTENSION* src);
 WOLFSSL_API int wolfSSL_sk_X509_EXTENSION_push(WOLFSSL_STACK* sk,
@@ -4316,6 +4324,9 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio,
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio,
                                                WOLFSSL_X509** x509);
+#if !defined(NO_FILESYSTEM)
+WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_REQ_fp(XFILE fp, WOLFSSL_X509 **req);
+#endif
 #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 

@@ -4238,6 +4238,10 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 /* Free wolfSSL X509 type */
 void FreeX509(WOLFSSL_X509* x509)
 {
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL) \
+    &&  defined( WOLFSSL_CUSTOM_OID)
+    int idx;
+    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL && WOLFSSL_CUSTOM_OID */
     if (x509 == NULL)
         return;
 
@@ -4318,7 +4322,15 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->reqAttributes) {
             wolfSSL_sk_pop_free(x509->reqAttributes, NULL);
         }
-    #endif /* WOLFSSL_CERT_REQ */
+    #ifdef WOLFSSL_CUSTOM_OID
+        for (idx = 0; idx < x509->customExtCount; idx++) {
+            XFREE(x509->custom_exts[idx].oid, x509->heap,
+                  DYNAMIC_TYPE_X509_EXT);
+            XFREE(x509->custom_exts[idx].val, x509->heap,
+                  DYNAMIC_TYPE_X509_EXT);
+        }
+    #endif /* WOLFSSL_CUSTOM_OID */
+    #endif /* WOLFSSL_CERT_REQ && OPENSSL_ALL */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;

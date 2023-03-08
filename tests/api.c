@@ -43264,6 +43264,142 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
     return res;
 }
 
+/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+static int test_GENERAL_NAME_set0_othername(void) {
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+    const char * cert_fname = "./certs/server-cert.der";
+    const char * key_fname = "./certs/server-key.der";
+    X509* x509 = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* upn_oid = NULL;
+    ASN1_UTF8STRING *utf8str = NULL;
+    ASN1_TYPE *value = NULL;
+    X509_EXTENSION * ext = NULL;
+
+    byte* pt = NULL;
+    byte der[4096];
+    int derSz = 0;
+    EVP_PKEY* priv = NULL;
+    FILE* f = NULL;
+
+    AssertNotNull(f = fopen(cert_fname, "rb"));
+    AssertNotNull(x509 = d2i_X509_fp(f, NULL));
+    fclose(f);
+    AssertNotNull(gn = GENERAL_NAME_new());
+    AssertNotNull(upn_oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    AssertNotNull(utf8str = ASN1_UTF8STRING_new());
+    AssertIntEQ(ASN1_STRING_set(utf8str, "othername@wolfssl.com", -1), 1);
+    AssertNotNull(value = ASN1_TYPE_new());
+    ASN1_TYPE_set(value, V_ASN1_UTF8STRING, utf8str);
+    AssertIntEQ(GENERAL_NAME_set0_othername(gn, upn_oid, value), 1);
+    AssertNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    AssertIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    AssertNotNull(ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    AssertIntEQ(X509_add_ext(x509, ext, -1), 1);
+    AssertNotNull(f = fopen(key_fname, "rb"));
+    AssertIntGT(derSz = (int)fread(der, 1, sizeof(der), f), 0);
+    fclose(f);
+    pt = der;
+    AssertNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                        (const unsigned char**)&pt, derSz));
+    AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    ASN1_OBJECT_free(upn_oid);
+    X509_EXTENSION_free(ext);
+    X509_free(x509);
+    EVP_PKEY_free(priv);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
+/* Note the lack of wolfSSL_ prefix...this is a compatability layer test. */
+static int test_othername_and_SID_ext(void) {
+    int res = TEST_SKIPPED;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
+    defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM)
+
+    const char* csr_fname = "./certs/csr.signed.der";
+    const char* key_fname = "./certs/server-key.der";
+
+    byte der[4096];
+    int derSz = 0;
+    X509_REQ* x509 = NULL;
+    STACK_OF(X509_EXTENSION) *exts = NULL;
+
+    X509_EXTENSION * san_ext = NULL;
+    GENERAL_NAME* gn = NULL;
+    GENERAL_NAMES* gns = NULL;
+    ASN1_OBJECT* upn_oid = NULL;
+    ASN1_UTF8STRING *utf8str = NULL;
+    ASN1_TYPE *value = NULL;
+
+    /* SID extension. SID data format explained here:
+     * https://blog.qdsecurity.se/2022/05/27/manually-injecting-a-sid-in-a-certificate/
+     */
+    uint8_t SidExtension[] = {
+    48, 64, 160, 62, 6,  10, 43, 6,  1,  4,  1,  130, 55, 25, 2,  1,  160,
+    48, 4,  46,  83, 45, 49, 45, 53, 45, 50, 49, 45,  50, 56, 52, 51, 57,
+    48, 55, 52,  49, 56, 45, 51, 57, 50, 54, 50, 55,  55, 52, 50, 49, 45,
+    51, 56, 49,  53, 57, 57, 51, 57, 55, 50, 45, 52,  54, 48, 49};
+    X509_EXTENSION *sid_ext = NULL;
+    ASN1_OBJECT* sid_oid = NULL;
+    ASN1_OCTET_STRING *sid_data = NULL;
+
+    EVP_PKEY* priv = NULL;
+    FILE* f = NULL;
+    byte* pt = NULL;
+
+    AssertNotNull(f = fopen(csr_fname, "rb"));
+    AssertNotNull(x509 = d2i_X509_REQ_fp(f, NULL));
+    fclose(f);
+    AssertIntEQ(X509_REQ_set_version(x509, 2), 1);
+    AssertNotNull(gn = GENERAL_NAME_new());
+    AssertNotNull(upn_oid = OBJ_txt2obj("1.3.6.1.4.1.311.20.2.3", 1));
+    AssertNotNull(utf8str = ASN1_UTF8STRING_new());
+    AssertIntEQ(ASN1_STRING_set(utf8str, "othername@wolfssl.com", -1), 1);
+    AssertNotNull(value = ASN1_TYPE_new());
+    ASN1_TYPE_set(value, V_ASN1_UTF8STRING, utf8str);
+    AssertIntEQ(GENERAL_NAME_set0_othername(gn, upn_oid, value), 1);
+    AssertNotNull(gns = sk_GENERAL_NAME_new(NULL));
+    AssertIntEQ(sk_GENERAL_NAME_push(gns, gn), 1);
+    AssertNotNull(san_ext = X509V3_EXT_i2d(NID_subject_alt_name, 0, gns));
+    AssertNotNull(sid_oid = OBJ_txt2obj("1.3.6.1.4.1.311.25.2", 1));
+    AssertNotNull(sid_data = ASN1_OCTET_STRING_new());
+    ASN1_OCTET_STRING_set(sid_data, SidExtension, sizeof(SidExtension));
+    AssertNotNull(sid_ext = X509_EXTENSION_create_by_OBJ(NULL, sid_oid, 0,
+                                                         sid_data));
+    AssertNotNull(exts = sk_X509_EXTENSION_new_null());
+    AssertIntEQ(sk_X509_EXTENSION_push(exts, san_ext), 1);
+    AssertIntEQ(sk_X509_EXTENSION_push(exts, sid_ext), 2);
+    AssertIntEQ(X509_REQ_add_extensions(x509, exts), 1);
+    AssertNotNull(f = fopen(key_fname, "rb"));
+    AssertIntGT(derSz = (int)fread(der, 1, sizeof(der), f), 0);
+    fclose(f);
+    pt = der;
+    AssertNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                        (const unsigned char**)&pt, derSz));
+    AssertIntGT(X509_REQ_sign(x509, priv, EVP_sha256()), 0);
+    pt = der;
+    AssertIntGT(derSz = i2d_X509_REQ(x509, &pt), 0);
+    sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+    ASN1_OBJECT_free(upn_oid);
+    ASN1_OBJECT_free(sid_oid);
+    ASN1_OCTET_STRING_free(sid_data);
+    X509_REQ_free(x509);
+    EVP_PKEY_free(priv);
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
 
 static int test_wolfSSL_X509_set_name(void)
 {
@@ -45135,7 +45271,6 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     const char* x400Str  = "X400Name:<unsupported>";
     const char* ediStr   = "EdiPartyName:<unsupported>";
 
-
     /* BIO to output */
     AssertNotNull(out = BIO_new(BIO_s_mem()));
 
@@ -45261,6 +45396,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     AssertIntEQ(XSTRNCMP((const char*)outbuf, x400Str, XSTRLEN(x400Str)), 0);
 
+    /* Restore to GEN_IA5 (default) to avoid memory leak. */
+    gn->type = GEN_IA5;
     GENERAL_NAME_free(gn);
 
     /* test for GEN_EDIPARTY */
@@ -45273,6 +45410,8 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
     AssertIntEQ(XSTRNCMP((const char*)outbuf, ediStr, XSTRLEN(ediStr)), 0);
 
+    /* Restore to GEN_IA5 (default) to avoid memory leak. */
+    gn->type = GEN_IA5;
     GENERAL_NAME_free(gn);
 
     BIO_free(out);
@@ -65153,6 +65292,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_OBJ_txt2obj),
     TEST_DECL(test_wolfSSL_PEM_write_bio_X509),
     TEST_DECL(test_wolfSSL_X509_NAME_ENTRY),
+    TEST_DECL(test_GENERAL_NAME_set0_othername),
+    TEST_DECL(test_othername_and_SID_ext),
     TEST_DECL(test_wolfSSL_X509_set_name),
     TEST_DECL(test_wolfSSL_X509_set_notAfter),
     TEST_DECL(test_wolfSSL_X509_set_notBefore),

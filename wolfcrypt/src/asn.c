@@ -14574,6 +14574,49 @@ word32 SetExplicit(byte number, word32 len, byte* output)
                      output);
 }
 
+#if defined(OPENSSL_EXTRA)
+/* Encode an Othername into DER.
+ *
+ * @param [in]  name    Pointer to the WOLFSSL_ASN1_OTHERNAME to be encoded.
+ * @param [out] output  Buffer to encode into. If NULL, don't encode.
+ * @return  Number of bytes encoded or WOLFSSL_FAILURE if name parameter is bad.
+ */
+word32 SetOthername(void *name, byte *output)
+{
+    WOLFSSL_ASN1_OTHERNAME *nm = (WOLFSSL_ASN1_OTHERNAME *)name;
+    char *nameStr = NULL;
+    int nameSz = 0;
+    word32 len = 0;
+
+    if ((nm == NULL) || (nm->value == NULL)) {
+        WOLFSSL_MSG("otherName value is NULL");
+        return WOLFSSL_FAILURE;
+    }
+
+    nameStr = nm->value->value.utf8string->data;
+    nameSz = nm->value->value.utf8string->length;
+
+    len = nm->type_id->objSz +
+          SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL) +
+          SetHeader(CTC_UTF8, nameSz, NULL) + nameSz;
+
+    if (output != NULL) {
+        /* otherName OID */
+        XMEMCPY(output, nm->type_id->obj, nm->type_id->objSz);
+        output += nm->type_id->objSz;
+
+        output += SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2,
+                            output);
+
+        output += SetHeader(CTC_UTF8, nameSz, output);
+
+        XMEMCPY(output, nameStr, nameSz);
+        output += nameSz;
+    }
+
+    return len;
+}
+#endif /* OPENSSL_EXTRA */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
@@ -25949,7 +25992,7 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
         i = idx;
 #endif
         output[idx] = (byte) (ASN_CONTEXT_SPECIFIC | curName->type);
-        if (curName->type == ASN_DIR_TYPE) {
+        if (curName->type == ASN_DIR_TYPE || curName->type == ASN_OTHER_TYPE) {
             output[idx] |= ASN_CONSTRUCTED;
         }
         idx++;
