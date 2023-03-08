@@ -112,7 +112,9 @@ struct WC_PKCS12 {
     word32 oid; /* DATA / Enveloped DATA ... */
     byte   indefinite;
 #ifdef ASN_BER_TO_DER
-    byte*  der; /* DER encoded version of message */
+    byte*  safeDer; /* der encoded version of message */
+    byte*  der; /* der encoded version of message */
+    word32 safeDersz;
     word32 derSz;
 #endif
 };
@@ -197,6 +199,10 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     if (pkcs12->der != NULL) {
         XFREE(pkcs12->der, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         pkcs12->der = NULL;
+    }
+    if (pkcs12->safeDer != NULL) {
+        XFREE(pkcs12->safeDer, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        pkcs12->safeDer = NULL;
     }
 #endif
 
@@ -287,23 +293,22 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
 #ifdef ASN_BER_TO_DER
      if (pkcs12->indefinite) {
-        byte* der;
-
         if ((ret = wc_BerToDer(input, safe->dataSz, NULL,
-                         (word32*)&size)) != LENGTH_ONLY_E) {
+                            &pkcs12->safeDersz)) != LENGTH_ONLY_E) {
             WOLFSSL_MSG("Not BER sequence");
             return ASN_PARSE_E;
         }
 
-        der = (byte*)XMALLOC(size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        if (der == NULL) {
+        pkcs12->safeDer = (byte*)XMALLOC(pkcs12->safeDersz, pkcs12->heap,
+                DYNAMIC_TYPE_PKCS);
+        if (pkcs12->safeDer == NULL) {
             freeSafe(safe, pkcs12->heap);
             return MEMORY_E;
         }
 
-        ret = wc_BerToDer(input, safe->dataSz, der, (word32*)&size);
+        ret = wc_BerToDer(input, safe->dataSz, pkcs12->safeDer, &pkcs12->safeDersz);
 
-        input = der;
+        input = pkcs12->safeDer;
      }
 #endif /* ASN_BER_TO_DER */
 
@@ -763,7 +768,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 #ifdef ASN_BER_TO_DER
     /* If indef, skip EOF */
     if (pkcs12->indefinite) {
-        while(der[idx] == ASN_EOC) {
+        while(der[idx] == ASN_EOC && idx < totalSz) {
             idx+=1;
         }
     }
@@ -1147,8 +1152,8 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
 #ifdef ASN_BER_TO_DER
 /* append data to encrypted content cache in PKCS12 structure
  * return buffer on success, NULL on error */
-static byte* PKCS12_ConcatonateContent(byte* mergedData, word32* mergedSz,
-        byte* in, word32 inSz)
+static byte* PKCS12_ConcatonateContent(WC_PKCS12* pkcs12,byte* mergedData,
+        word32* mergedSz, byte* in, word32 inSz)
 {
     byte* oldContent;
     word32 oldContentSz;
@@ -1161,7 +1166,8 @@ static byte* PKCS12_ConcatonateContent(byte* mergedData, word32* mergedSz,
     oldContentSz = *mergedSz;
 
     /* re-allocate new buffer to fit appended data */
-    mergedData = (byte*)XMALLOC(oldContentSz + inSz, NULL, DYNAMIC_TYPE_PKCS);
+    mergedData = (byte*)XMALLOC(oldContentSz + inSz, pkcs12->heap,
+            DYNAMIC_TYPE_PKCS);
 
     if (oldContent != NULL) {
         XMEMCPY(mergedData, oldContent, oldContentSz);
@@ -1169,24 +1175,18 @@ static byte* PKCS12_ConcatonateContent(byte* mergedData, word32* mergedSz,
     XMEMCPY(mergedData + oldContentSz, in, inSz);
     *mergedSz += inSz;
 
-    XFREE(oldContent, NULL, DYNAMIC_TYPE_PKCS);
+    XFREE(oldContent, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 
     return mergedData;
 }
 
-
-
-static int PKCS12_HandleIndefinite(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
-        word32* idx)
+/* Check if constructed [0] is seen after wc_BerToDer() or not.
+ * returns 1 if seen, 0 if not, ASN_PARSE_E on error */
+static int PKCS12_CheckConstructedZero(byte* data, word32 dataSz, word32* idx)
 {
-    byte*  mergedData = NULL; /* buffer for concatonated strings */
-    word32 mergedSz = 0;      /* total size of merged strings */
     word32 oid;
-    int    encryptedContentSz = 0;
-    int    originalEncSz = 0;
     int    ret = 0;
-    int    curIdx = *idx;
-    int    saveIdx, number, size;
+    int    number, size;
     byte   tag;
 
     if (GetSequence(data, idx, &size, dataSz) < 0) {
@@ -1216,54 +1216,70 @@ static int PKCS12_HandleIndefinite(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
         ret = ASN_PARSE_E;
     }
     else if (ret == 0 && tag == 0xa0) {
-        data[*idx-1] = ASN_LONG_LENGTH;
-        saveIdx = *idx;
-
-        if (GetLength(data, idx, &originalEncSz, dataSz) < 0) {
-            ret = ASN_PARSE_E;
-        }
-
-        /* Loop through octet strings and concatonate them without
-         * the tags and length */
-        while ((int)*idx < originalEncSz + curIdx) {
-            if (GetASNTag(data, idx, &tag, dataSz) < 0) {
-                ret = ASN_PARSE_E;
-            }
-            if (ret == 0 && (tag != ASN_OCTET_STRING)) {
-                ret = ASN_PARSE_E;
-            }
-            if (ret == 0 && GetLength(data, idx,
-                        &encryptedContentSz, dataSz) <= 0) {
-                ret = ASN_PARSE_E;
-            }
-            if (ret == 0) {
-                if (mergedData == NULL) {
-                    mergedData = (byte*)XMALLOC(encryptedContentSz,
-                                pkcs12->heap, DYNAMIC_TYPE_PKCS);
-                    if (mergedData == NULL) {
-                        ret = MEMORY_E;
-                    }
-                }
-                mergedData = PKCS12_ConcatonateContent(mergedData,
-                        &mergedSz, &data[*idx], encryptedContentSz);
-            }
-            if (ret != 0) {
-                break;
-            }
-            *idx += encryptedContentSz;
-        }
-
-        *idx = saveIdx;
-
-        *idx += SetLength(mergedSz, &data[*idx]);
-
-        /* Copy over concatonated octet strings into data buffer */
-        XMEMCPY(&data[*idx], mergedData, mergedSz);
-
-        *idx += 1;
+        ret = 1;
     }
 
-    *idx = curIdx;
+    return ret;
+}
+
+/* Manually coalesce definite length octet strings into one unconstructed
+ * definite length octet string.
+ * returns 0 on success, negative on failure */
+static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
+        word32 dataSz, word32* idx, int* curIdx)
+{
+    byte*  mergedData = NULL; /* buffer for concatonated strings */
+    word32 mergedSz = 0;      /* total size of merged strings */
+    int    encryptedContentSz = 0;
+    int    originalEncSz = 0;
+    int    ret = 0;
+    int    saveIdx;
+    byte   tag;
+
+    saveIdx = *idx;
+
+    if (GetLength(data, idx, &originalEncSz, dataSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+
+    /* Loop through octet strings and concatonate them without
+     * the tags and length */
+    while ((int)*idx < originalEncSz + *curIdx) {
+        if (GetASNTag(data, idx, &tag, dataSz) < 0) {
+            ret = ASN_PARSE_E;
+        }
+        if (ret == 0 && (tag != ASN_OCTET_STRING)) {
+            ret = ASN_PARSE_E;
+        }
+        if (ret == 0 && GetLength(data, idx,
+                    &encryptedContentSz, dataSz) <= 0) {
+            ret = ASN_PARSE_E;
+        }
+        if (ret == 0) {
+            if (mergedData == NULL) {
+                mergedData = (byte*)XMALLOC(encryptedContentSz,
+                            pkcs12->heap, DYNAMIC_TYPE_PKCS);
+                if (mergedData == NULL) {
+                    ret = MEMORY_E;
+                }
+            }
+            mergedData = PKCS12_ConcatonateContent(pkcs12, mergedData,
+                    &mergedSz, &data[*idx], encryptedContentSz);
+        }
+        if (ret != 0) {
+            break;
+        }
+        *idx += encryptedContentSz;
+    }
+
+    *idx = saveIdx;
+
+    *idx += SetLength(mergedSz, &data[*idx]);
+
+    /* Copy over concatonated octet strings into data buffer */
+    XMEMCPY(&data[*idx], mergedData, mergedSz);
+
+    XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 
     return ret;
 }
@@ -1291,8 +1307,11 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     WC_DerCertList* tailList = NULL;
     byte* buf             = NULL;
     word32 i, oid;
-    int ret, pswSz;
     word32 algId;
+    int ret, pswSz;
+#ifdef ASN_BER_TO_DER
+    int curIdx;
+#endif
 
     WOLFSSL_ENTER("wc_PKCS12_parse");
 
@@ -1372,14 +1391,19 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
 
 #ifdef ASN_BER_TO_DER
+            curIdx = idx;
             /* If indefinite length format, ensure it is in the ASN format
              * the DecryptContent() expects */
-            if (pkcs12->indefinite) {
-                ret = PKCS12_HandleIndefinite(pkcs12, data, ci->dataSz, &idx);
+            if (pkcs12->indefinite && PKCS12_CheckConstructedZero(data,
+                                                    ci->dataSz, &idx) == 1) {
+                data[idx-1] = ASN_LONG_LENGTH;
+                ret = PKCS12_CoalesceOctetStrings(pkcs12, data, ci->dataSz,
+                                                  &idx, &curIdx);
                 if (ret < 0) {
                     goto exit_pk12par;
                 }
             }
+            idx = curIdx;
 #endif
 
         /* decrypted content overwrites input buffer */
