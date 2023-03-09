@@ -32660,7 +32660,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                        defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES)
-        if (!TLSX_ValidateSupportedCurves(ssl, first, second, cs)) {
+        if (!TLSX_ValidateSupportedCurves(ssl, first, second,
+                                          &cs->ecdhCurveOID)) {
             WOLFSSL_MSG("Don't have matching curves");
             return 0;
         }

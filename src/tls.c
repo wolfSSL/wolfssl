@@ -4544,7 +4544,7 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, const byte* input,
 
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
-                                 CipherSuite* cs) {
+                                 word32* ecdhCurveOID) {
     TLSX*           extension = NULL;
     SupportedCurve* curve     = NULL;
     word32          oid       = 0;
@@ -4856,29 +4856,30 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
         }
     }
 
+    *ecdhCurveOID = ssl->ecdhCurveOID;
     /* Choose the default if it is at the required strength. */
 #ifdef HAVE_ECC
-    if (ssl->ecdhCurveOID == 0 && defSz == ssl->eccTempKeySz)
+    if (*ecdhCurveOID == 0 && defSz == ssl->eccTempKeySz)
 #else
-    if (ssl->ecdhCurveOID == 0)
+    if (*ecdhCurveOID == 0)
 #endif
     {
         key = 1;
-        cs->ecdhCurveOID = defOid;
+        *ecdhCurveOID = defOid;
     }
     /* Choose any curve at the required strength. */
-    if (ssl->ecdhCurveOID == 0) {
+    if (*ecdhCurveOID == 0) {
         key = 1;
-        cs->ecdhCurveOID = currOid;
+        *ecdhCurveOID = currOid;
     }
     /* Choose the default if it is at the next highest strength. */
-    if (cs->ecdhCurveOID == 0 && defSz == nextSz)
-        cs->ecdhCurveOID = defOid;
+    if (*ecdhCurveOID == 0 && defSz == nextSz)
+        *ecdhCurveOID = defOid;
     /* Choose any curve at the next highest strength. */
-    if (cs->ecdhCurveOID == 0)
-        cs->ecdhCurveOID = nextOid;
+    if (*ecdhCurveOID == 0)
+        *ecdhCurveOID = nextOid;
     /* No curve and ephemeral ECC suite requires a matching curve. */
-    if (cs->ecdhCurveOID == 0 && ephmSuite)
+    if (*ecdhCurveOID == 0 && ephmSuite)
         key = 0;
 
     return key;
@@ -4886,6 +4887,27 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
 #endif
 
 #endif /* NO_WOLFSSL_SERVER */
+
+
+int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap)
+{
+    TLSX* extension;
+    int ret;
+
+    extension = TLSX_Find(src, TLSX_SUPPORTED_GROUPS);
+    if (extension != NULL) {
+        SupportedCurve* curve;
+        curve = (SupportedCurve*)extension->data;
+        for (curve = (SupportedCurve*)extension->data; curve != NULL;
+                curve = curve->next) {
+            ret = TLSX_UseSupportedCurve(dst, curve->name, heap);
+            if (ret != WOLFSSL_SUCCESS)
+                return MEMORY_E;
+        }
+    }
+
+    return 0;
+}
 
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 {

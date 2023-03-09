@@ -296,7 +296,7 @@ static int ParseClientHello(const byte* input, word32 helloSz, WolfSSL_CH* ch)
 
 #if (defined(WOLFSSL_DTLS_NO_HVR_ON_RESUME) && defined(HAVE_SESSION_TICKET)) \
     || defined(WOLFSSL_DTLS13)
-static int TlsxFindByType(WolfSSL_ConstVector* ret, word16 extType,
+static int FindExtByType(WolfSSL_ConstVector* ret, word16 extType,
     WolfSSL_ConstVector exts, int* tlsxFound)
 {
     word32 len, idx = 0;
@@ -335,7 +335,7 @@ static int TlsTicketIsValid(const WOLFSSL* ssl, WolfSSL_ConstVector exts,
     int ret = 0;
     int tlsxFound;
 
-    ret = TlsxFindByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts,
+    ret = FindExtByType(&tlsxSessionTicket, TLSX_SESSION_TICKET, exts,
                          &tlsxFound);
     if (ret != 0)
         return ret;
@@ -437,7 +437,7 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
     ProtocolVersion pv = ssl->version;
     int tlsxFound;
 
-    ret = TlsxFindByType(&tlsxSupportedVersions, TLSX_SUPPORTED_VERSIONS,
+    ret = FindExtByType(&tlsxSupportedVersions, TLSX_SUPPORTED_VERSIONS,
                          ch->extension, &tlsxFound);
     if (ret != 0)
         return ret;
@@ -453,26 +453,6 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
         *isTls13 = 1;
     else
         *isTls13 = 0;
-
-    return 0;
-}
-
-static int CopySupportedGroup(TLSX* src, TLSX** dst, void* heap)
-{
-    TLSX* extension;
-    int ret;
-
-    extension = TLSX_Find(src, TLSX_SUPPORTED_GROUPS);
-    if (extension != NULL) {
-        SupportedCurve* curve;
-        curve = (SupportedCurve*)extension->data;
-        for (curve = (SupportedCurve*)extension->data; curve != NULL;
-                curve = curve->next) {
-            ret = TLSX_UseSupportedCurve(dst, curve->name, heap);
-            if (ret != WOLFSSL_SUCCESS)
-                return MEMORY_E;
-        }
-    }
 
     return 0;
 }
@@ -619,12 +599,12 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     /* Set that this is a response extension */
     parsedExts->resp = 1;
 
-    ret = CopySupportedGroup(ssl->extensions, &parsedExts, ssl->heap);
+    ret = TLSX_SupportedCurve_Copy(ssl->extensions, &parsedExts, ssl->heap);
     if (ret != 0)
         goto dtls13_cleanup;
 
     /* Signature algs */
-    ret = TlsxFindByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
+    ret = FindExtByType(&tlsx, TLSX_SIGNATURE_ALGORITHMS,
                          ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
@@ -643,7 +623,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     }
 
     /* Supported groups */
-    ret = TlsxFindByType(&tlsx, TLSX_SUPPORTED_GROUPS,
+    ret = FindExtByType(&tlsx, TLSX_SUPPORTED_GROUPS,
                          ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
@@ -656,7 +636,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     }
 
     /* Key share */
-    ret = TlsxFindByType(&tlsx, TLSX_KEY_SHARE,
+    ret = FindExtByType(&tlsx, TLSX_KEY_SHARE,
                          ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
@@ -670,7 +650,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Pre-shared key */
-    ret = TlsxFindByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension, &tlsxFound);
+    ret = FindExtByType(&tlsx, TLSX_PRE_SHARED_KEY, ch->extension, &tlsxFound);
     if (ret != 0)
         goto dtls13_cleanup;
     if (tlsxFound) {
@@ -686,7 +666,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         /* Revert to full handshake if PSK parsing failed */
 
         if (pskInfo.isValid) {
-            ret = TlsxFindByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
+            ret = FindExtByType(&tlsx, TLSX_PSK_KEY_EXCHANGE_MODES,
                                  ch->extension, &tlsxFound);
             if (ret != 0)
                 goto dtls13_cleanup;
@@ -760,7 +740,7 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
     }
 
     /* This is required to correctly generate the hash */
-    ret = SetCipherSpecs_ex(WOLFSSL_SERVER_END, cs.cipherSuite0,
+    ret = GetCipherSpec(WOLFSSL_SERVER_END, cs.cipherSuite0,
                          cs.cipherSuite, &specs, NULL);
     if (ret != 0)
         goto dtls13_cleanup;
@@ -879,7 +859,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input,
             return ret;
         if (isTls13) {
             int tlsxFound;
-            ret = TlsxFindByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
+            ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
                                  &tlsxFound);
             if (ret != 0)
                 return ret;

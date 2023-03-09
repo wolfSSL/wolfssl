@@ -2899,6 +2899,7 @@ typedef struct PointFormat {
     struct PointFormat* next;   /* List Behavior */
 } PointFormat;
 
+WOLFSSL_LOCAL int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap);
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
                                                                     void* heap);
 
@@ -2907,7 +2908,7 @@ WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first,
-                                               byte second, CipherSuite* cs);
+                                               byte second, word32* ecdhCurveOID);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
@@ -5690,7 +5691,7 @@ WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr);
 WOLFSSL_LOCAL const char* AlertTypeToString(int type);
 
 WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL* ssl);
-WOLFSSL_LOCAL int SetCipherSpecs_ex(word16 side, byte cipherSuite0,
+WOLFSSL_LOCAL int GetCipherSpec(word16 side, byte cipherSuite0,
         byte cipherSuite, CipherSpecs* specs, Options* opts);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL* ssl);
 

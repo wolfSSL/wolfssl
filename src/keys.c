@@ -44,7 +44,7 @@
 
 int SetCipherSpecs(WOLFSSL* ssl)
 {
-    int ret = SetCipherSpecs_ex(ssl->options.side, ssl->options.cipherSuite0,
+    int ret = GetCipherSpec(ssl->options.side, ssl->options.cipherSuite0,
                                 ssl->options.cipherSuite, &ssl->specs,
                                 &ssl->options);
     if (ret == 0) {
@@ -97,6 +97,8 @@ int SetCipherSpecs(WOLFSSL* ssl)
 }
 
 /**
+ * Populate specs with the specification of the chosen ciphersuite. If opts is
+ * not NULL then the appropriate options will also be set.
  *
  * @param side         [in] WOLFSSL_SERVER_END or WOLFSSL_CLIENT_END
  * @param cipherSuite0 [in]
@@ -105,7 +107,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
  * @param opts         [in/out] Options can be NULL
  * @return
  */
-int SetCipherSpecs_ex(word16 side, byte cipherSuite0, byte cipherSuite,
+int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
                       CipherSpecs* specs, Options* opts)
 {
     word16 havePSK = 0;
