@@ -42,6 +42,8 @@
 
 /*
 ASN Options:
+ * NO_ASN_TIME_CHECK: Disables ASN time checks (avoiding the ASN_BEFORE_DATE_E
+ * and ASN_AFTER_DATE_E errors).
  * NO_ASN_TIME: Disables time parts of the ASN code for systems without an RTC
     or wishing to save space.
  * IGNORE_NAME_CONSTRAINTS: Skip ASN name checks.
@@ -14153,7 +14155,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
     else
         cert->afterDateLen  = (int)(cert->srcIdx - startIdx);
 
-#ifndef NO_ASN_TIME
+#ifndef NO_ASN_TIME_CHECK
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
             !XVALIDATE_DATE(date, format, dateType)) {
         if (dateType == BEFORE) {
@@ -20028,7 +20030,7 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
         ret = ASN_DATE_SZ_E;
     }
 
-#ifndef NO_ASN_TIME
+#ifndef NO_ASN_TIME_CHECK
     /* Check date is a valid string and BEFORE or AFTER now. */
     if ((ret == 0) &&
             (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType))) {
@@ -33631,7 +33633,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                                                 &single->status->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
 
-#ifndef NO_ASN_TIME
+#ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
     if (!XVALIDATE_DATE(single->status->thisDate, single->status->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
@@ -33667,7 +33669,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                                                 &single->status->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
 
-#ifndef NO_ASN_TIME
+#ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
         if (!XVALIDATE_DATE(single->status->nextDate, single->status->nextDateFormat, AFTER))
             return ASN_AFTER_DATE_E;
@@ -33764,7 +33766,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
         /* Store the thisDate format - only one possible. */
         cs->thisDateFormat = ASN_GENERALIZED_TIME;
-    #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
+    #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and BEFORE now. */
         if (!XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, BEFORE)) {
             ret = ASN_BEFORE_DATE_E;
@@ -33787,7 +33789,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
             (dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT].tag != 0)) {
         /* Store the nextDate format - only one possible. */
         cs->nextDateFormat = ASN_GENERALIZED_TIME;
-    #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
+    #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and AFTER now. */
         if (!XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, AFTER)) {
             ret = ASN_AFTER_DATE_E;
@@ -36319,6 +36321,7 @@ end:
         ret = PaseCRL_CheckSignature(dcrl, buff, cm);
     }
 
+    (void)verify;
     FREE_ASNGETDATA(dataASN, dcrl->heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
