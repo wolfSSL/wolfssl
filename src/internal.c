@@ -21496,8 +21496,7 @@ int SendCertificate(WOLFSSL* ssl)
     #ifdef OPENSSL_EXTRA
         if (ssl->version.major == SSLv3_MAJOR
             && ssl->version.minor == SSLv3_MINOR){
-            SendAlert(ssl, alert_warning, no_certificate);
-            return 0;
+            return SendAlert(ssl, alert_warning, no_certificate);
         } else {
     #endif
             certSz = 0;
@@ -36896,6 +36895,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     {
         int ad = 0;
         int sniRet = 0;
+        int ret = 0;
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
@@ -36904,7 +36904,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             switch (sniRet) {
                 case warning_return:
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
-                    SendAlert(ssl, alert_warning, ad);
+                    ret = SendAlert(ssl, alert_warning, ad);
                     break;
                 case fatal_return:
                     WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
@@ -36917,7 +36917,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     break;
             }
         }
-        return 0;
+        return ret;
     }
 #endif /* HAVE_SNI */
 
