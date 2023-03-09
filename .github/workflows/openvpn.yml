@@ -20,7 +20,11 @@ jobs:
           install: true
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev linux-libc-dev man2html libcmocka-dev python3-docutils libtool automake autoconf libnl-genl-3-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install liblzo2-dev libpam0g-dev liblz4-dev libcap-ng-dev \
+                     linux-libc-dev man2html libcmocka-dev python3-docutils \
+                     libtool automake autoconf libnl-genl-3-dev libnl-genl-3-200
 
       - if: ${{ matrix.ref != 'master' }}
         name: Build and test openvpn with fsanitize
