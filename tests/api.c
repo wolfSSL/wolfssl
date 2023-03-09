@@ -28630,16 +28630,111 @@ static int test_wc_PKCS7_VerifySignedData(void)
     word32      hashSz = wc_HashGetDigestSize(hashType);
 
 #ifndef NO_RSA
+    PKCS7DecodedAttrib* decodedAttrib = NULL;
+
+    /* contentType OID (1.2.840.113549.1.9.3) */
+    static const byte contentTypeOid[] =
+        { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01, 0x09, 0x03 };
+
+    /* PKCS#7 DATA content type (contentType defaults to DATA) */
+    static const byte dataType[] =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01 };
+
+    /* messageDigest OID (1.2.840.113549.1.9.4) */
+    static const byte messageDigestOid[] =
+        { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04 };
+
+    /* signingTime OID () */
+    static const byte signingTimeOid[] =
+        { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x05};
+
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    int dateLength = 0;
+    byte dateFormat;
+    const byte* datePart = NULL;
+    struct tm timearg;
+    time_t now;
+    struct tm* nowTm = NULL;
+    struct tm tmpTimeStorage;
+    struct tm* tmpTime = &tmpTimeStorage;
+#endif /* !NO_ASN && !NO_ASN_TIME */
+
     /* Success test with RSA certs/key */
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
                                                   (word32)sizeof(data),
                                                   0, 0, 0, RSA_TYPE)), 0);
 
+    /* calculate hash for content, used later */
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, hashType, hashBuf);
+        }
+        wc_HashFree(&hash, hashType);
+    }
+    AssertIntEQ(ret, 0);
+
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-#endif
+
+    /* Check that decoded signed attributes are correct */
+
+    /* messageDigest should be first */
+    decodedAttrib = pkcs7->decodedAttrib;
+    AssertNotNull(decodedAttrib);
+    AssertIntEQ(decodedAttrib->oidSz, (word32)sizeof(messageDigestOid));
+    AssertIntEQ(XMEMCMP(decodedAttrib->oid, messageDigestOid,
+                        decodedAttrib->oidSz), 0);
+    /* + 2 for OCTET STRING and length bytes */
+    AssertIntEQ(decodedAttrib->valueSz, hashSz + 2);
+    AssertNotNull(decodedAttrib->value);
+    AssertIntEQ(XMEMCMP(decodedAttrib->value + 2, hashBuf, hashSz), 0);
+
+    /* signingTime should be second */
+    decodedAttrib = decodedAttrib->next;
+    AssertNotNull(decodedAttrib);
+    AssertIntEQ(decodedAttrib->oidSz, (word32)sizeof(signingTimeOid));
+    AssertIntEQ(XMEMCMP(decodedAttrib->oid, signingTimeOid,
+                        decodedAttrib->oidSz), 0);
+
+    AssertIntGT(decodedAttrib->valueSz, 0);
+    AssertNotNull(decodedAttrib->value);
+
+    /* Verify signingTime if ASN and time are available */
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    AssertIntEQ(wc_GetDateInfo(decodedAttrib->value, decodedAttrib->valueSz,
+                               &datePart, &dateFormat, &dateLength), 0);
+    AssertNotNull(datePart);
+    AssertIntGT(dateLength, 0);
+    XMEMSET(&timearg, 0, sizeof(timearg));
+    AssertIntEQ(wc_GetDateAsCalendarTime(datePart, dateLength, dateFormat,
+                                         &timearg), 0);
+
+    /* Get current time and compare year/month/day against attribute value */
+    AssertIntEQ(wc_GetTime(&now, sizeof(now)), 0);
+    nowTm = (struct tm*)XGMTIME((time_t*)&now, tmpTime);
+    AssertNotNull(nowTm);
+
+    AssertIntEQ(timearg.tm_year, nowTm->tm_year);
+    AssertIntEQ(timearg.tm_mon, nowTm->tm_mon);
+    AssertIntEQ(timearg.tm_mday, nowTm->tm_mday);
+#endif /* !NO_ASN && !NO_ASN_TIME */
+
+    /* contentType should be third */
+    decodedAttrib = decodedAttrib->next;
+    AssertNotNull(decodedAttrib);
+    AssertIntEQ(decodedAttrib->oidSz, (word32)sizeof(contentTypeOid));
+    AssertIntEQ(XMEMCMP(decodedAttrib->oid, contentTypeOid,
+                        decodedAttrib->oidSz), 0);
+    AssertIntEQ(decodedAttrib->valueSz, (int)sizeof(dataType) + 2);
+    AssertNotNull(decodedAttrib->value);
+    AssertIntEQ(XMEMCMP(decodedAttrib->value + 2, dataType,
+                        sizeof(dataType)), 0);
+#endif /* !NO_RSA */
+
 #ifdef HAVE_ECC
     #ifndef NO_RSA
     wc_PKCS7_Free(pkcs7);
@@ -28656,7 +28751,7 @@ static int test_wc_PKCS7_VerifySignedData(void)
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
-#endif
+#endif /* HAVE_ECC */
 
     /* Test bad args. */
 #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -28702,17 +28797,6 @@ static int test_wc_PKCS7_VerifySignedData(void)
 
     /* verify using pre-computed content digest only (no content) */
     {
-        /* calculate hash for content */
-        ret = wc_HashInit(&hash, hashType);
-        if (ret == 0) {
-            ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
-            if (ret == 0) {
-                ret = wc_HashFinal(&hash, hashType, hashBuf);
-            }
-            wc_HashFree(&hash, hashType);
-        }
-        AssertIntEQ(ret, 0);
-
         AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         AssertIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
         AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,

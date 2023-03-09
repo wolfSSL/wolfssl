@@ -13605,7 +13605,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         /* -1 below excludes null terminator */
         *data_ptr = (byte)ASN_UTC_TIME_SIZE - 1; data_ptr++; data_len++;
         XMEMCPY(data_ptr, (byte *)uf_time, ASN_UTC_TIME_SIZE - 1);
-        *data_ptr += ASN_UTC_TIME_SIZE - 1;
+        data_ptr += ASN_UTC_TIME_SIZE - 1;
     }
     else if (data_len == ASN_GENERALIZED_TIME_SIZE-1) {
         /* increment data_len for ASN length byte after adding the data_ptr */
@@ -13613,7 +13613,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         /* -1 below excludes null terminator */
         *data_ptr = (byte)ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++; data_len++;
         XMEMCPY(data_ptr, (byte*)uf_time, ASN_GENERALIZED_TIME_SIZE - 1);
-        *data_ptr += ASN_GENERALIZED_TIME_SIZE - 1;
+        data_ptr += ASN_GENERALIZED_TIME_SIZE - 1;
     }
     else {
         WOLFSSL_MSG("Invalid time size returned");
