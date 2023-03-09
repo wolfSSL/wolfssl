@@ -16684,8 +16684,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
 
             /* test if no ':' char was found and test that the next two
              * chars are "//" to match the pattern "://" */
-            if (i >= len - 2 || (input[idx + i + 1] != '/' ||
-                                 input[idx + i + 2] != '/')) {
+            if (input[idx + i] != ':' || i == 0 || i == len) {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
                 WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                 return ASN_ALT_NAME_E;
