@@ -10530,9 +10530,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
         else {
             WOLFSSL_MSG("SSL version error");
-            /* send alert per RFC5246 Appendix E. Backward Compatibility */
-            if (ssl->options.side == WOLFSSL_CLIENT_END)
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
         }
@@ -10541,7 +10538,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
     if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA)) {
-        SendAlert(ssl, alert_fatal, record_overflow);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
     }
@@ -19351,8 +19347,25 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     continue;
             }
 #endif
-            if (ret != 0)
+            if (ret != 0) {
+                switch (ret) {
+                case VERSION_ERROR:
+                    /* send alert per RFC5246 Appendix E. Backward
+                     * Compatibility */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END)
+                        SendAlert(ssl, alert_fatal,
+                            wolfssl_alert_protocol_version);
+                    break;
+#ifdef HAVE_MAX_FRAGMENT
+                case LENGTH_ERROR:
+                    SendAlert(ssl, alert_fatal, record_overflow);
+                    break;
+#endif /* HAVE_MAX_FRAGMENT */
+default:
+                    break;
+                }
                 return ret;
+            }
 
 #ifdef WOLFSSL_TLS13
             if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
