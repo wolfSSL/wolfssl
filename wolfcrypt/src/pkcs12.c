@@ -156,11 +156,14 @@ static void freeSafe(AuthenticatedSafe* safe, void* heap)
         ContentInfo* ci = safe->CI;
         safe->CI = ci->next;
         XFREE(ci, heap, DYNAMIC_TYPE_PKCS);
+        ci = NULL;
     }
     if (safe->data != NULL) {
         XFREE(safe->data, heap, DYNAMIC_TYPE_PKCS);
+        safe->data = NULL;
     }
     XFREE(safe, heap, DYNAMIC_TYPE_PKCS);
+    safe = NULL;
 
     (void)heap;
 }
@@ -207,6 +210,7 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
 #endif
 
     XFREE(pkcs12, NULL, DYNAMIC_TYPE_PKCS);
+    pkcs12 = NULL;
 }
 
 

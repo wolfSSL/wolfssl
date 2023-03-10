@@ -9672,6 +9672,9 @@ static int test_wolfSSL_PKCS12(void)
     AssertNotNull(pkey);
     AssertNotNull(cert);
 
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_X509_free(cert);
+
     /* check parse with extra certs kept */
     ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, &ca);
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
