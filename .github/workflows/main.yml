@@ -22,6 +22,8 @@ jobs:
         uses: ./.github/workflows/stunnel.yml
     openvpn:
         uses: ./.github/workflows/openvpn.yml
+    hostap:
+        uses: ./.github/workflows/hostap.yml
 # TODO: Currently this test fails. Enable it once it becomes passing.        
 #    haproxy:
 #        uses: ./.github/workflows/haproxy.yml
