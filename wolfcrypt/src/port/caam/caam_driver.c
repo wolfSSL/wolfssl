@@ -79,6 +79,7 @@ Error caamAddJob(DESCSTRUCT* desc);
 Error caamDoJob(DESCSTRUCT* desc);
 
 
+
 /******************************************************************************
   Internal CAAM Job Ring and partition functions
   ****************************************************************************/
@@ -1124,37 +1125,22 @@ static int caamAesInternal(DESCSTRUCT* desc,
 }
 
 
-/* AES operations follow the buffer sequence of KEY -> (IV) -> Input -> Output
+/* Scattered memory, does a mapping for each variable. Less performant than
+ * caamAesCombined.
+ * AES operations follow the buffer sequence of KEY -> (IV) -> Input -> Output
  */
 int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 {
-    Value ofst = 0;
-    Error err;
-    int ivSz = 0;
     void *iv = NULL, *key, *in, *out;
-    int keySz;
-    int inSz;
-    int outSz;
+    int ivSz = 0, keySz, inSz, outSz;
     int idx = 0;
-    int state = CAAM_ALG_UPDATE;
 
-    unsigned int keyPhy;
-
-    if (desc->state != CAAM_ENC && desc->state != CAAM_DEC) {
-        return CAAM_ARGS_E;
-    }
-
-    keySz = buf[idx].Length;
-    if (keySz != 16 && keySz != 24 && keySz != 32) {
-        WOLFSSL_MSG("Bad AES key size found");
-        return CAAM_ARGS_E;
-    }
+    unsigned int keyPhy = 0, inPhy = 0, outPhy = 0, ivPhy = 0;
 
     /* map and copy over key */
-    key = (void*)buf[idx].TheAddress;
+    key    = (void*)buf[idx].TheAddress;
+    keySz  = buf[idx].Length;
     keyPhy = CAAM_ADR_TO_PHYSICAL(key, keySz);
-    desc->desc[desc->idx++] = (CAAM_KEY | CAAM_CLASS1 | CAAM_NWB) + keySz;
-    desc->desc[desc->idx++] = keyPhy;
     idx++;
 
     /* get IV if needed by algorithm */
@@ -1163,22 +1149,11 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
             break;
 
         case CAAM_AESCTR:
-            ofst = 0x00001000;
-            /* fall through because states are the same only the offset changes */
-
         case CAAM_AESCBC:
         {
-            int maxSz = 16; /* default to CBC/CTR max size */
-
-            ivSz = buf[idx].Length;
-            if (ivSz != maxSz) {
-                WOLFSSL_MSG("Invalid AES-CBC IV size\n");
-                return CAAM_ARGS_E;
-            }
-
-            iv = (void*)buf[idx].TheAddress;
-            desc->desc[desc->idx++] = (CAAM_LOAD_CTX | CAAM_CLASS1 | ofst) + maxSz;
-            desc->desc[desc->idx++] = (CAAM_ADDRESS)CAAM_ADR_TO_PHYSICAL(iv, ivSz);
+            ivSz  = buf[idx].Length;
+            iv    = (void*)buf[idx].TheAddress;
+            ivPhy = CAAM_ADR_TO_PHYSICAL(iv, ivSz);
             idx++;
          }
          break;
@@ -1188,48 +1163,31 @@ int caamAes(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
             return CAAM_ARGS_E;
     }
 
-    /* write operation */
-    desc->desc[desc->idx++] = CAAM_OP | CAAM_CLASS1 | desc->type |
-             state | desc->state;
-
     /* get input */
-    inSz = buf[idx].Length;
-    in   = (void*)buf[idx].TheAddress;
+    inSz  = buf[idx].Length;
+    in    = (void*)buf[idx].TheAddress;
+    inPhy = CAAM_ADR_TO_PHYSICAL(in, inSz);
     idx++;
 
     /* set output */
-    outSz = buf[idx].Length;
-    out   = (void*)buf[idx].TheAddress;
+    outSz  = buf[idx].Length;
+    out    = (void*)buf[idx].TheAddress;
+    outPhy = CAAM_ADR_TO_PHYSICAL(out, outSz);
     idx++;
 
-    /* set input/output in descriptor */
-    caamAddFIFOLPhy(desc, keyPhy + keySz, inSz, FIFOL_TYPE_LC1);
-    caamAddFIFOS(desc, out, outSz);
-
-    /* store updated IV */
-    switch (desc->type) {
-        case CAAM_AESCBC:
-        case CAAM_AESCTR:
-        if (ivSz > 0) {
-            desc->desc[desc->idx++] = CAAM_STORE_CTX | CAAM_CLASS1 | ofst | 16;
-            desc->desc[desc->idx++] = (CAAM_ADDRESS)CAAM_ADR_TO_PHYSICAL(iv, ivSz);
-        }
-        break;
-    }
-
-    do {
-        err = caamDoJob(desc);
-    } while (err == CAAM_WAITING);
-
-    return err;
+    return caamAesInternal(desc, keyPhy, keySz, ivPhy, ivSz, inPhy, inSz,
+            outPhy, outSz);
 }
 
 
-/* When a single buffer is used [key] [in] [iv] [out] for optimization */
-int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
+/* When a single buffer is used [key] [in] [iv] [out] for optimization
+ * phyMem is non 0 when the physical memory location is already known
+ */
+int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4],
+    unsigned int phyMem)
 {
     int idx = 0;
-    unsigned int keyPhy, inPhy, ivPhy, outPhy;
+    unsigned int keyPhy;
     int keySz, inSz, ivSz = 0, outSz;
     void* pt;
 
@@ -1263,11 +1221,17 @@ int caamAesCombined(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     outSz = buf[idx].Length;
     idx++;
 
-    keyPhy = CAAM_ADR_TO_PHYSICAL(pt, keySz + inSz + ivSz + outSz);
+    if (phyMem != 0) {
+        keyPhy = phyMem;
+    }
+    else {
+        keyPhy = CAAM_ADR_TO_PHYSICAL(pt, keySz + inSz + ivSz + outSz);
+    }
 
-    return caamAesInternal(desc, keyPhy, keySz, keyPhy + keySz + inSz,ivSz,
-    keyPhy + keySz, inSz,
-    keyPhy + keySz + inSz + ivSz, outSz);
+    return caamAesInternal(desc, keyPhy, keySz,
+            keyPhy + keySz + inSz,ivSz,            /* IV */
+            keyPhy + keySz, inSz,                  /* IN buffer */
+            keyPhy + keySz + inSz + ivSz, outSz);  /* OUT buffer */
 }
 
 
