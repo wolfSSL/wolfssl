@@ -159,14 +159,12 @@ struct OS_Seed {
 #ifdef HAVE_HASHDRBG
 struct DRBG_internal {
     word32 reseedCtr;
-    word32 lastBlock;
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
     void* heap;
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
-    byte   matchCount;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256 sha256;
 #endif

@@ -489,8 +489,6 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
     }
     if (ret == DRBG_SUCCESS) {
         drbg->reseedCtr = 1;
-        drbg->lastBlock = 0;
-        drbg->matchCount = 0;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -541,7 +539,6 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
     int i;
     int len;
-    word32 checkBlock;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256* sha = &drbg->sha256;
 #else
@@ -590,23 +587,6 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
         if (ret == 0) {
-            XMEMCPY(&checkBlock, digest, sizeof(word32));
-            if (drbg->reseedCtr > 1 && checkBlock == drbg->lastBlock) {
-                if (drbg->matchCount == 1) {
-                    return DRBG_CONT_FAILURE;
-                }
-                else {
-                    if (i == (len-1)) {
-                        len++;
-                    }
-                    drbg->matchCount = 1;
-                }
-            }
-            else {
-                drbg->matchCount = 0;
-                drbg->lastBlock = checkBlock;
-            }
-
             if (out != NULL && outSz != 0) {
                 if (outSz >= OUTPUT_BLOCK_LEN) {
                     XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
@@ -762,8 +742,6 @@ static int Hash_DRBG_Instantiate(DRBG_internal* drbg, const byte* seed, word32 s
                                     sizeof(drbg->V), NULL, 0) == DRBG_SUCCESS) {
 
         drbg->reseedCtr = 1;
-        drbg->lastBlock = 0;
-        drbg->matchCount = 0;
         ret = DRBG_SUCCESS;
     }
 
