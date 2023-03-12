@@ -42702,7 +42702,8 @@ static int clientSessRemCountFree = 0;
 static int serverSessRemCountFree = 0;
 static WOLFSSL_CTX* serverSessCtx = NULL;
 static WOLFSSL_SESSION* serverSess = NULL;
-#ifndef NO_SESSION_CACHE_REF
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+        !defined(NO_SESSION_CACHE_REF)
 static WOLFSSL_CTX* clientSessCtx = NULL;
 static WOLFSSL_SESSION* clientSess = NULL;
 #endif
@@ -42744,7 +42745,8 @@ static void SessRemSslSetupCb(WOLFSSL* ssl)
     *mallocedData = SSL_is_server(ssl);
     if (!*mallocedData) {
         clientSessRemCountMalloc++;
-#ifndef NO_SESSION_CACHE_REF
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+        !defined(NO_SESSION_CACHE_REF)
         AssertNotNull(clientSess = SSL_get1_session(ssl));
         AssertIntEQ(SSL_CTX_up_ref(clientSessCtx = SSL_get_SSL_CTX(ssl)),
                 SSL_SUCCESS);
@@ -42815,7 +42817,8 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Both should have been allocated */
     AssertIntEQ(clientSessRemCountMalloc, 1);
     AssertIntEQ(serverSessRemCountMalloc, 1);
-#ifdef NO_SESSION_CACHE_REF
+#if (!defined(WOLFSSL_TLS13) || !defined(HAVE_SESSION_TICKET)) && \
+        defined(NO_SESSION_CACHE_REF)
     /* Client session should not be added to cache so this should be free'd when
      * the SSL object was being free'd */
     AssertIntEQ(clientSessRemCountFree, 1);
@@ -42848,7 +42851,8 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Need to free the references that we kept */
     SSL_CTX_free(serverSessCtx);
     SSL_SESSION_free(serverSess);
-#ifndef NO_SESSION_CACHE_REF
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+        !defined(NO_SESSION_CACHE_REF)
     SSL_CTX_free(clientSessCtx);
     SSL_SESSION_free(clientSess);
 #endif
