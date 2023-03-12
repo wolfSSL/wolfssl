@@ -1027,27 +1027,25 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     /* Check contents consist of one or more octets. */
     if (length == 0) {
-    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
         WOLFSSL_MSG("Zero length INTEGER not allowed");
-    #endif
         return ASN_PARSE_E;
     }
 #endif
     if (input[idx] == 0) {
         /* Check leading zero byte required. */
         if ((length > 1) && ((input[idx + 1] & 0x80) == 0)) {
-        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
             WOLFSSL_MSG("Zero not required on INTEGER");
-        #endif
+        #ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
             return ASN_PARSE_E;
+        #endif
         }
     }
     /* Check whether a leading zero byte was required. */
     else if (positive && (input[idx] & 0x80)) {
-    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
         WOLFSSL_MSG("INTEGER is negative");
-    #endif
+    #ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
         return ASN_EXPECT_0_E;
+    #endif /* WOLFSSL_ASN_INT_LEAD_0_ANY */
     }
 
     return 0;
