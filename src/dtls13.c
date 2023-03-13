@@ -123,6 +123,7 @@ WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
     WOLFSSL_METHOD* method;
 
     WOLFSSL_ENTER("DTLSv1_3_client_method_ex");
+    (void)heap;
 
     method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
         DYNAMIC_TYPE_METHOD);
@@ -145,6 +146,7 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
     WOLFSSL_METHOD* method;
 
     WOLFSSL_ENTER("DTLSv1_3_server_method_ex");
+    (void)heap;
 
     method = (WOLFSSL_METHOD*)XMALLOC(sizeof(WOLFSSL_METHOD), heap,
         DYNAMIC_TYPE_METHOD);
@@ -330,7 +332,8 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
 
 static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
 {
-    ssl->keys.dtls_expected_peer_handshake_number++;
+    if (ssl->options.dtlsStateful)
+        ssl->keys.dtls_expected_peer_handshake_number++;
 
     /* we need to send ACKs on the last message of a flight that needs explicit
        acknowledgment */
@@ -360,8 +363,10 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                 msg->sz, msg->sz);
 
         /* processing certificate_request triggers a connect. The error came
-         * from there, the message can be considered processed successfully */
-        if (ret == 0 || (msg->type == certificate_request &&
+         * from there, the message can be considered processed successfully.
+         * WANT_WRITE means that we are done with processing the msg and we are
+         * waiting to flush the output buffer. */
+        if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
                          ssl->options.handShakeDone && ret == WC_PENDING_E)) {
             Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
 
@@ -432,8 +437,39 @@ static int Dtls13SendNow(WOLFSSL* ssl, enum HandShakeType handshakeType)
     return 0;
 }
 
+/* Handshake header DTLS only fields are not included in the transcript hash.
+ * body points to the body of the DTLSHandshake message. */
+int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
+        const byte* body, word32 length, CipherSpecs* specs)
+{
+    /* msg_type(1) + length (3) */
+    byte header[OPAQUE32_LEN];
+    int ret;
+    wc_HashAlg hashCtx;
+    int type = wolfSSL_GetHmacType_ex(specs);
+
+    header[0] = (byte)client_hello;
+    c32to24(length, header + 1);
+
+    ret = wc_HashInit_ex(&hashCtx, type, ssl->heap, ssl->devId);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hashCtx, type, header, OPAQUE32_LEN);
+        if (ret == 0)
+            ret = wc_HashUpdate(&hashCtx, type, body, length);
+        if (ret == 0)
+            ret = wc_HashFinal(&hashCtx, type, hash);
+        if (ret == 0) {
+            *hashSz = wc_HashGetDigestSize(type);
+            if (*hashSz < 0)
+                ret = *hashSz;
+        }
+        wc_HashFree(&hashCtx, type);
+    }
+    return ret;
+}
+
 /* Handshake header DTLS only fields are not included in the transcript hash */
-int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
+int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input, word16 length)
 {
     int ret;
 
@@ -441,18 +477,18 @@ int Dtls13HashHandshake(WOLFSSL* ssl, const byte* output, word16 length)
         return BAD_FUNC_ARG;
 
     /* msg_type(1) + length (3) */
-    ret = HashRaw(ssl, output, OPAQUE32_LEN);
+    ret = HashRaw(ssl, input, OPAQUE32_LEN);
     if (ret != 0)
         return ret;
 
-    output += OPAQUE32_LEN;
+    input += OPAQUE32_LEN;
     length -= OPAQUE32_LEN;
 
     /* message_seq(2) + fragment_offset(3) + fragment_length(3) */
-    output += OPAQUE64_LEN;
+    input += OPAQUE64_LEN;
     length -= OPAQUE64_LEN;
 
-    return HashRaw(ssl, output, length);
+    return HashRaw(ssl, input, length);
 }
 
 static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
@@ -612,12 +648,14 @@ static void Dtls13RtxFlushBuffered(WOLFSSL* ssl, byte keepNewSessionTicket)
     ssl->dtls13Rtx.rtxRecordTailPtr = prevNext;
 }
 
-static Dtls13RecordNumber* Dtls13NewRecordNumber(WOLFSSL* ssl, w64wrapper epoch,
-    w64wrapper seq)
+static Dtls13RecordNumber* Dtls13NewRecordNumber(w64wrapper epoch,
+    w64wrapper seq, void* heap)
 {
     Dtls13RecordNumber* rn;
 
-    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), ssl->heap,
+    (void)heap;
+
+    rn = (Dtls13RecordNumber*)XMALLOC(sizeof(*rn), heap,
         DYNAMIC_TYPE_DTLS_MSG);
     if (rn == NULL)
         return NULL;
@@ -635,7 +673,7 @@ static int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
 
     WOLFSSL_ENTER("Dtls13RtxAddAck");
 
-    rn = Dtls13NewRecordNumber(ssl, epoch, seq);
+    rn = Dtls13NewRecordNumber(epoch, seq, ssl->heap);
     if (rn == NULL)
         return MEMORY_E;
 

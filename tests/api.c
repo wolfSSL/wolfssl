@@ -5149,13 +5149,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     opts->return_code = TEST_FAIL;
     cbf = opts->callbacks;
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (cbf != NULL && cbf->ctx) {
         ctx = cbf->ctx;
         sharedCtx = 1;
     }
     else
-#endif
     {
         WOLFSSL_METHOD* method = NULL;
         if (cbf != NULL && cbf->method != NULL) {
@@ -37629,7 +37627,6 @@ static int test_wolfSSL_DTLS_either_side(void)
     callback_functions client_cb;
     callback_functions server_cb;
 
-/* create a failed connection and inspect the error */
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -59334,11 +59331,196 @@ static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
 }
 
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
+static void test_wolfSSL_dtls_send_ch_with_invalid_cookie(WOLFSSL* ssl)
+{
+    int fd, ret;
+    byte ch_msh_invalid_cookie[] = {
+      0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02,
+      0x4e, 0x01, 0x00, 0x02, 0x42, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02,
+      0x42, 0xfe, 0xfd, 0x69, 0xca, 0x77, 0x60, 0x6f, 0xfc, 0xd1, 0x5b, 0x60,
+      0x5d, 0xf1, 0xa6, 0x5c, 0x44, 0x71, 0xae, 0xca, 0x62, 0x19, 0x0c, 0xb6,
+      0xf7, 0x2c, 0xa6, 0xd5, 0xd2, 0x99, 0x9d, 0x18, 0xae, 0xac, 0x11, 0x00,
+      0x00, 0x00, 0x36, 0x13, 0x01, 0x13, 0x02, 0x13, 0x03, 0xc0, 0x2c, 0xc0,
+      0x2b, 0xc0, 0x30, 0xc0, 0x2f, 0x00, 0x9f, 0x00, 0x9e, 0xcc, 0xa9, 0xcc,
+      0xa8, 0xcc, 0xaa, 0xc0, 0x27, 0xc0, 0x23, 0xc0, 0x28, 0xc0, 0x24, 0xc0,
+      0x0a, 0xc0, 0x09, 0xc0, 0x14, 0xc0, 0x13, 0x00, 0x6b, 0x00, 0x67, 0x00,
+      0x39, 0x00, 0x33, 0xcc, 0x14, 0xcc, 0x13, 0xcc, 0x15, 0x01, 0x00, 0x01,
+      0xe2, 0x00, 0x2b, 0x00, 0x03, 0x02, 0xfe, 0xfc, 0x00, 0x0d, 0x00, 0x20,
+      0x00, 0x1e, 0x06, 0x03, 0x05, 0x03, 0x04, 0x03, 0x02, 0x03, 0x08, 0x06,
+      0x08, 0x0b, 0x08, 0x05, 0x08, 0x0a, 0x08, 0x04, 0x08, 0x09, 0x06, 0x01,
+      0x05, 0x01, 0x04, 0x01, 0x03, 0x01, 0x02, 0x01, 0x00, 0x2c, 0x00, 0x45,
+      0x00, 0x43, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x2d, 0x00,
+      0x03, 0x02, 0x00, 0x01, 0x00, 0x0a, 0x00, 0x0c, 0x00, 0x0a, 0x00, 0x19,
+      0x00, 0x18, 0x00, 0x17, 0x00, 0x15, 0x01, 0x00, 0x00, 0x16, 0x00, 0x00,
+      0x00, 0x33, 0x01, 0x4b, 0x01, 0x49, 0x00, 0x17, 0x00, 0x41, 0x04, 0x7c,
+      0x5a, 0xc2, 0x5a, 0xfd, 0xcd, 0x2b, 0x08, 0xb2, 0xeb, 0x8e, 0xc0, 0x02,
+      0x03, 0x9d, 0xb1, 0xc1, 0x0d, 0x7b, 0x7f, 0x46, 0x43, 0xdf, 0xf3, 0xee,
+      0x2b, 0x78, 0x0e, 0x29, 0x8c, 0x42, 0x11, 0x2c, 0xde, 0xd7, 0x41, 0x0f,
+      0x28, 0x94, 0x80, 0x41, 0x70, 0xc4, 0x17, 0xfd, 0x6d, 0xfa, 0xee, 0x9a,
+      0xf2, 0xc4, 0x15, 0x4c, 0x5f, 0x54, 0xb6, 0x78, 0x6e, 0xf9, 0x63, 0x27,
+      0x33, 0xb8, 0x7b, 0x01, 0x00, 0x01, 0x00, 0xd4, 0x46, 0x62, 0x9c, 0xbf,
+      0x8f, 0x1b, 0x65, 0x9b, 0xf0, 0x29, 0x64, 0xd8, 0x50, 0x0e, 0x74, 0xf1,
+      0x58, 0x10, 0xc9, 0xd9, 0x82, 0x5b, 0xd9, 0xbe, 0x14, 0xdf, 0xde, 0x86,
+      0xb4, 0x2e, 0x15, 0xee, 0x4f, 0xf6, 0x74, 0x9e, 0x59, 0x11, 0x36, 0x2d,
+      0xb9, 0x67, 0xaa, 0x5a, 0x09, 0x9b, 0x45, 0xf1, 0x01, 0x4c, 0x4e, 0xf6,
+      0xda, 0x6a, 0xae, 0xa7, 0x73, 0x7b, 0x2e, 0xb6, 0x24, 0x89, 0x99, 0xb7,
+      0x52, 0x16, 0x62, 0x0a, 0xab, 0x58, 0xf8, 0x3f, 0x10, 0x5b, 0x83, 0xfd,
+      0x7b, 0x81, 0x77, 0x81, 0x8d, 0xef, 0x24, 0x56, 0x6d, 0xba, 0x49, 0xd4,
+      0x8b, 0xb5, 0xa0, 0xb1, 0xc9, 0x8c, 0x32, 0x95, 0x1c, 0x5e, 0x0a, 0x4b,
+      0xf6, 0x00, 0x50, 0x0a, 0x87, 0x99, 0x59, 0xcf, 0x6f, 0x9d, 0x02, 0xd0,
+      0x1b, 0xa1, 0x96, 0x45, 0x28, 0x76, 0x40, 0x33, 0x28, 0xc9, 0xa1, 0xfd,
+      0x46, 0xab, 0x2c, 0x9e, 0x5e, 0xc6, 0x74, 0x19, 0x9a, 0xf5, 0x9b, 0x51,
+      0x11, 0x4f, 0xc8, 0xb9, 0x99, 0x6b, 0x4e, 0x3e, 0x31, 0x64, 0xb4, 0x92,
+      0xf4, 0x0d, 0x41, 0x4b, 0x2c, 0x65, 0x23, 0xf7, 0x47, 0xe3, 0xa5, 0x2e,
+      0xe4, 0x9c, 0x2b, 0xc9, 0x41, 0x22, 0x83, 0x8a, 0x23, 0xef, 0x29, 0x7e,
+      0x4f, 0x3f, 0xa3, 0xbf, 0x73, 0x2b, 0xd7, 0xcc, 0xc8, 0xc6, 0xe9, 0xbc,
+      0x01, 0xb7, 0x32, 0x63, 0xd4, 0x7e, 0x7f, 0x9a, 0xaf, 0x5f, 0x05, 0x31,
+      0x53, 0xd6, 0x1f, 0xa2, 0xd0, 0xdf, 0x67, 0x56, 0xf1, 0x9c, 0x4a, 0x9d,
+      0x83, 0xb4, 0xef, 0xb3, 0xf2, 0xcc, 0xf1, 0x91, 0x6c, 0x47, 0xc3, 0x8b,
+      0xd0, 0x92, 0x79, 0x3d, 0xa0, 0xc0, 0x3a, 0x57, 0x26, 0x6d, 0x0a, 0xad,
+      0x5f, 0xad, 0xb4, 0x74, 0x48, 0x4a, 0x51, 0xe1, 0xb5, 0x82, 0x0a, 0x4c,
+      0x4f, 0x9d, 0xaf, 0xee, 0x5a, 0xa2, 0x4d, 0x4d, 0x5f, 0xe0, 0x17, 0x00,
+      0x23, 0x00, 0x00
+    };
+    byte alert_reply[50];
+    byte expected_alert_reply[] = {
+        0x15, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+        0x02, 0x02, 0x2f
+    };
+
+    fd = wolfSSL_get_fd(ssl);
+    ret = (int)send(fd, ch_msh_invalid_cookie, sizeof(ch_msh_invalid_cookie), 0);
+    AssertIntGT(ret, 0);
+    /* should reply with an illegal_parameter reply */
+    ret = (int)recv(fd, alert_reply, sizeof(alert_reply), 0);
+    AssertIntEQ(ret, sizeof(expected_alert_reply));
+    AssertIntEQ(XMEMCMP(alert_reply, expected_alert_reply, sizeof(expected_alert_reply)), 0);
+}
+#endif
+
+static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
+{
+#ifndef NO_MD5
+    enum wc_HashType hashType = WC_HASH_TYPE_MD5;
+#elif !defined(NO_SHA)
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+#elif !defined(NO_SHA256)
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA256;
+#else
+    #error "We need a digest to hash the WOLFSSL object"
+#endif
+    byte hashBuf[WC_MAX_DIGEST_SIZE];
+    wc_HashAlg hash;
+    const TLSX* exts = ssl->extensions;
+    WOLFSSL sslCopy; /* Use a copy to omit certain fields */
+    HS_Hashes* hsHashes = ssl->hsHashes; /* Is re-allocated in
+                                          * InitHandshakeHashes */
+
+    XMEMCPY(&sslCopy, ssl, sizeof(*ssl));
+    XMEMSET(hashBuf, 0, sizeof(hashBuf));
+
+    /* Following fields are not important to compare */
+    sslCopy.buffers.inputBuffer.buffer = NULL;
+    sslCopy.buffers.inputBuffer.bufferSize = 0;
+    sslCopy.buffers.inputBuffer.dynamicFlag = 0;
+    sslCopy.buffers.inputBuffer.offset = 0;
+    sslCopy.error = 0;
+    sslCopy.curSize = 0;
+    sslCopy.keys.curSeq_lo = 0;
+    XMEMSET(&sslCopy.curRL, 0, sizeof(sslCopy.curRL));
+#ifdef WOLFSSL_DTLS13
+    XMEMSET(&sslCopy.keys.curSeq, 0, sizeof(sslCopy.keys.curSeq));
+    sslCopy.dtls13FastTimeout = 0;
+#endif
+    sslCopy.keys.dtls_peer_handshake_number = 0;
+    XMEMSET(&sslCopy.alert_history, 0, sizeof(sslCopy.alert_history));
+    sslCopy.hsHashes = NULL;
+#ifdef WOLFSSL_ASYNC_IO
+#ifdef WOLFSSL_ASYNC_CRYPT
+    sslCopy.asyncDev = NULL;
+#endif
+    sslCopy.async = NULL;
+#endif
+
+    AssertIntEQ(wc_HashInit(&hash, hashType), 0);
+    AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)&sslCopy, sizeof(sslCopy)), 0);
+    /* hash extension list */
+    while (exts != NULL) {
+        AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)exts, sizeof(*exts)), 0);
+        exts = exts->next;
+    }
+    /* Hash suites */
+    if (sslCopy.suites != NULL) {
+        AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)sslCopy.suites,
+                sizeof(struct Suites)), 0);
+    }
+    /* Hash hsHashes */
+    AssertIntEQ(wc_HashUpdate(&hash, hashType, (byte*)hsHashes,
+            sizeof(*hsHashes)), 0);
+    AssertIntEQ(wc_HashFinal(&hash, hashType, hashBuf), 0);
+    AssertIntEQ(wc_HashFree(&hash, hashType), 0);
+
+    return MakeWordFromHash(hashBuf);
+}
+
+static CallbackIORecv test_wolfSSL_dtls_compare_stateless_cb;
+static int test_wolfSSL_dtls_compare_stateless_cb_call_once;
+static int test_wolfSSL_dtls_compare_stateless_read_cb_once(WOLFSSL *ssl,
+        char *buf, int sz, void *ctx)
+{
+    if (test_wolfSSL_dtls_compare_stateless_cb_call_once) {
+        test_wolfSSL_dtls_compare_stateless_cb_call_once = 0;
+        return test_wolfSSL_dtls_compare_stateless_cb(ssl, buf, sz, ctx);
+    }
+    else {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+}
+
+static void test_wolfSSL_dtls_compare_stateless(WOLFSSL* ssl)
+{
+    /* Compare the ssl object before and after one ClientHello msg */
+    SOCKET_T fd = wolfSSL_get_fd(ssl);
+    int res;
+    int err;
+    word32 initHash;
+
+    test_wolfSSL_dtls_compare_stateless_cb = ssl->CBIORecv;
+    test_wolfSSL_dtls_compare_stateless_cb_call_once = 1;
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    ssl->CBIORecv = test_wolfSSL_dtls_compare_stateless_read_cb_once;
+
+    initHash = test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl);
+    (void)initHash;
+
+    res = tcp_select(fd, 5);
+    /* We are expecting a msg. A timeout indicates failure. */
+    AssertIntEQ(res, TEST_RECV_READY);
+
+    res = wolfSSL_accept(ssl);
+    err = wolfSSL_get_error(ssl, res);
+    AssertIntEQ(res, WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(err, WOLFSSL_ERROR_WANT_READ);
+
+    AssertIntEQ(initHash, test_wolfSSL_dtls_stateless_HashWOLFSSL(ssl));
+
+    wolfSSL_dtls_set_using_nonblock(ssl, 0);
+    ssl->CBIORecv = test_wolfSSL_dtls_compare_stateless_cb;
+
+}
+
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
 static void test_wolfSSL_dtls_enable_hrrcookie(WOLFSSL* ssl)
 {
     int ret;
     ret = wolfSSL_send_hrr_cookie(ssl, NULL, 0);
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
+    test_wolfSSL_dtls_compare_stateless(ssl);
 }
 #endif
 
@@ -59353,10 +59535,12 @@ static int test_wolfSSL_dtls_stateless(void)
         ssl_callback server_ssl_ready;
     } test_params[] = {
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
-                test_wolfSSL_dtls_send_ch, NULL},
+                test_wolfSSL_dtls_send_ch, test_wolfSSL_dtls_compare_stateless},
 #if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_SEND_HRR_COOKIE)
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
                 test_wolfSSL_dtls_send_ch, test_wolfSSL_dtls_enable_hrrcookie},
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
+                test_wolfSSL_dtls_send_ch_with_invalid_cookie, test_wolfSSL_dtls_enable_hrrcookie},
 #endif
     };
 
@@ -62748,6 +62932,130 @@ static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
 }
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) \
+    && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && defined(WOLFSSL_AES_128) && \
+    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+
+static WOLFSSL_CTX* test_TLS_13_ticket_different_ciphers_ctx = NULL;
+static WOLFSSL_SESSION* test_TLS_13_ticket_different_ciphers_session = NULL;
+static int test_TLS_13_ticket_different_ciphers_run = 0;
+
+static void test_TLS_13_ticket_different_ciphers_ssl_ready(WOLFSSL* ssl)
+{
+    switch (test_TLS_13_ticket_different_ciphers_run) {
+        case 0:
+            /* First run */
+            AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES128-GCM-SHA256"),
+                            WOLFSSL_SUCCESS);
+            if (wolfSSL_is_server(ssl)) {
+                AssertNotNull(test_TLS_13_ticket_different_ciphers_ctx =
+                    wolfSSL_get_SSL_CTX(ssl));
+                AssertIntEQ(WOLFSSL_SUCCESS,
+                    wolfSSL_CTX_up_ref(test_TLS_13_ticket_different_ciphers_ctx));
+            }
+            break;
+        case 1:
+            /* Second run */
+            AssertIntEQ(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384:"
+                                                     "TLS13-AES128-GCM-SHA256"),
+                            WOLFSSL_SUCCESS);
+            if (!wolfSSL_is_server(ssl)) {
+                AssertIntEQ(wolfSSL_set_session(ssl,
+                        test_TLS_13_ticket_different_ciphers_session),
+                        WOLFSSL_SUCCESS);
+            }
+            break;
+        default:
+            /* Bad state? */
+            Fail(("Should not enter here"), ("Should not enter here"));
+    }
+}
+
+static void test_TLS_13_ticket_different_ciphers_on_result(WOLFSSL* ssl)
+{
+    switch (test_TLS_13_ticket_different_ciphers_run) {
+        case 0:
+            /* First run */
+            AssertNotNull(test_TLS_13_ticket_different_ciphers_session =
+                    wolfSSL_get1_session(ssl));
+            break;
+        case 1:
+            /* Second run */
+            AssertTrue(wolfSSL_session_reused(ssl));
+            break;
+        default:
+            /* Bad state? */
+            Fail(("Should not enter here"), ("Should not enter here"));
+    }
+}
+
+static int test_TLS_13_ticket_different_ciphers(void)
+{
+    /* Check that we handle the connection when the ticket doesn't match
+     * the first ciphersuite. */
+    callback_functions client_cbs, server_cbs;
+    struct test_params {
+        method_provider client_meth;
+        method_provider server_meth;
+        int doUdp;
+    } params[] = {
+#ifdef WOLFSSL_DTLS13
+        /* Test that the stateless code handles sessions correctly */
+        {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, 1},
+#endif
+        {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, 0},
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
+        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
+        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
+
+        test_TLS_13_ticket_different_ciphers_run = 0;
+
+        client_cbs.doUdp = server_cbs.doUdp = params[i].doUdp;
+
+        client_cbs.method = params[i].client_meth;
+        server_cbs.method = params[i].server_meth;
+
+        client_cbs.ssl_ready = test_TLS_13_ticket_different_ciphers_ssl_ready;
+        server_cbs.ssl_ready = test_TLS_13_ticket_different_ciphers_ssl_ready;
+
+        client_cbs.on_result = test_TLS_13_ticket_different_ciphers_on_result;
+
+        server_cbs.ticNoInit = 1;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertTrue(client_cbs.return_code);
+        AssertTrue(server_cbs.return_code);
+
+        test_TLS_13_ticket_different_ciphers_run++;
+
+        server_cbs.ctx = test_TLS_13_ticket_different_ciphers_ctx;
+
+        test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
+
+        AssertTrue(client_cbs.return_code);
+        AssertTrue(server_cbs.return_code);
+
+        wolfSSL_SESSION_free(test_TLS_13_ticket_different_ciphers_session);
+        test_TLS_13_ticket_different_ciphers_session = NULL;
+        wolfSSL_CTX_free(test_TLS_13_ticket_different_ciphers_ctx);
+        test_TLS_13_ticket_different_ciphers_ctx = NULL;
+    }
+
+    return TEST_RES_CHECK(1);
+}
+#else
+static int test_TLS_13_ticket_different_ciphers(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -63748,6 +64056,7 @@ TEST_CASE testCases[] = {
         *  !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) */
     TEST_DECL(test_wolfSSL_CTX_set_ciphersuites),
     TEST_DECL(test_wolfSSL_CRL_CERT_REVOKED_alert),
+    TEST_DECL(test_TLS_13_ticket_different_ciphers),
     TEST_DECL(test_WOLFSSL_dtls_version_alert),
     TEST_DECL(test_ForceZero),
 

@@ -170,7 +170,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else
-    #define WOLFSSL_MSG_EX(...)
+    #define WOLFSSL_MSG_EX(...) do{} while(0)
 #endif
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);

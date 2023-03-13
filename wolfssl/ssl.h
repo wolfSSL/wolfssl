@@ -729,6 +729,7 @@ typedef struct WOLFSSL_RAND_METHOD {
  * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
  */
 enum AlertDescription {
+    invalid_alert                   =  -1,
     close_notify                    =   0,
     unexpected_message              =  10,
     bad_record_mac                  =  20,

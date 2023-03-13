@@ -13288,6 +13288,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.dtls   = 1;
             ssl->options.tls    = 1;
             ssl->options.tls1_1 = 1;
+            ssl->options.dtlsStateful = 1;
         }
         #endif
 
@@ -13837,6 +13838,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.dtls   = 1;
             ssl->options.tls    = 1;
             ssl->options.tls1_1 = 1;
+            if (!IsDtlsNotSctpMode(ssl) || !IsDtlsNotSrtpMode(ssl) ||
+                    IsSCR(ssl))
+                ssl->options.dtlsStateful = 1;
         }
     #endif
 
@@ -15031,8 +15035,8 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     }
     else {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
-        WOLFSSL_MSG("Session is expired but return success for \
-                              OpenSSL compatibility");
+        WOLFSSL_MSG("Session is expired but return success for "
+                    "OpenSSL compatibility");
         ret = WOLFSSL_SUCCESS;
 #else
         ret = WOLFSSL_FAILURE;  /* session timed out */
@@ -35408,7 +35412,7 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
-int wolfSSL_curve_is_disabled(WOLFSSL* ssl, word16 curve_id)
+int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
     return (curve_id <= WOLFSSL_ECC_MAX &&
             ssl->disabledCurves &&
