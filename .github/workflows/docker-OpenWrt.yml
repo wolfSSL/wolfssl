@@ -28,6 +28,7 @@ jobs:
         runs-on: ubuntu-latest
         needs: build_library
         strategy:
+            fail-fast: false
             matrix:
                 release: [ "22.03-SNAPSHOT", "21.02-SNAPSHOT" ] # some other versions: 21.02.0 21.02.5 22.03.0 22.03.3 snapshot
         steps:

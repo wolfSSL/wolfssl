@@ -6,6 +6,7 @@ on:
 jobs:
   haproxy_check:
     strategy:
+      fail-fast: false
       matrix:
         # List of refs to test
         ref: [ master ]
