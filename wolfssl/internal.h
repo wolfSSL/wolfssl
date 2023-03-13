@@ -5656,12 +5656,16 @@ WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDecryptTicket(const WOLFSSL* ssl, const byte* input,
         word32 len, InternalTicket **it);
 /* Return 0 when check successful. <0 on failure. */
+WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it);
+
+#ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int DoClientTicketCheck(const WOLFSSL* ssl,
         const PreSharedKey* psk, sword64 timeout, const byte* suite);
-WOLFSSL_LOCAL void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it);
 WOLFSSL_LOCAL void CleanupClientTickets(PreSharedKey* psk);
-WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk);
+#endif
+
+WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 #endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
 #ifdef WOLFSSL_TLS13
