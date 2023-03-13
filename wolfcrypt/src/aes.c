@@ -9269,6 +9269,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(
 /* Initialize an AES GCM cipher for encryption or decryption.
  *
  * Must call wc_AesInit() before calling this function.
+ * Call wc_AesGcmSetIV() before calling this function to generate part of IV.
+ * Call wc_AesGcmSetExtIV() before calling this function to cache IV.
  *
  * @param [in, out] aes   AES object.
  * @param [in]      key   Buffer holding key.
@@ -9309,14 +9311,9 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     }
 
     if (ret == 0) {
-        /* Setup with IV if needed. */
-        if (iv != NULL) {
-            /* Cache the IV in AES GCM object. */
-            XMEMCPY((byte*)aes->reg, iv, ivSz);
-            aes->nonceSz = ivSz;
-        }
-        else if (aes->nonceSz != 0) {
-            /* Copy out the cached copy. */
+        /* No IV passed in, check for cached IV. */
+        if ((iv == NULL) && (aes->nonceSz != 0)) {
+            /* Use the cached copy. */
             iv = (byte*)aes->reg;
             ivSz = aes->nonceSz;
         }
@@ -9366,9 +9363,13 @@ int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
     return wc_AesGcmInit(aes, key, len, iv, ivSz);
 }
 
-/* Initialize an AES GCM cipher for encryption or decryption. Get IV.
+/* Initialize an AES GCM cipher for encryption. Get IV.
  *
+ * Must call wc_AesGcmSetIV() to generate part of IV before calling this
+ * function.
  * Must call wc_AesInit() before calling this function.
+ *
+ * See wc_AesGcmEncrypt_ex() for non-streaming version of getting IV out.
  *
  * @param [in, out] aes   AES object.
  * @param [in]      key   Buffer holding key.
@@ -9376,14 +9377,27 @@ int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
  * @param [in]      iv    Buffer holding IV/nonce.
  * @param [in]      ivSz  Length of IV/nonce in bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
- *          is NULL, or the IV is NULL and no previous IV has been set.
+ * @return  BAD_FUNC_ARG when aes is NULL, key length is non-zero but key
+ *          is NULL, or the IV is NULL or ivOutSz is not the same as cached
+ *          nonce size.
  */
 int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
     word32 ivOutSz)
 {
-    XMEMCPY(ivOut, aes->reg, ivOutSz);
-    return wc_AesGcmInit(aes, key, len, NULL, 0);
+    int ret;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || (ivOut == NULL) || (ivOutSz != aes->nonceSz)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        /* Copy out the IV including generated part for decryption. */
+        XMEMCPY(ivOut, aes->reg, ivOutSz);
+        /* Initialize AES GCM cipher with key and cached Iv. */
+        ret = wc_AesGcmInit(aes, key, len, NULL, 0);
+    }
+
+    return ret;
 }
 
 /* Update the AES GCM for encryption with data and/or authentication data.
@@ -9522,6 +9536,9 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
 /* Initialize an AES GCM cipher for decryption.
  *
  * Must call wc_AesInit() before calling this function.
+ *
+ * Call wc_AesGcmSetExtIV() before calling this function to use FIPS external IV
+ * instead.
  *
  * @param [in, out] aes   AES object.
  * @param [in]      key   Buffer holding key.
