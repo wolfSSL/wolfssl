@@ -16,6 +16,11 @@ elif [ "${AM_BWRAPPED-}" != "yes" ]; then
     unset AM_BWRAPPED
 fi
 
+# Workaround to not pollute the certs folder with our files that can impact other tests
+RUNNING_DIR=$(mktemp -d)
+cp -rp . $RUNNING_DIR/.
+cd $RUNNING_DIR
+
 revocation_code="-361"
 exit_code=1
 counter=0
@@ -30,9 +35,7 @@ server_pid=$no_pid
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
 ready_file=`pwd`/wolfssl_crl_ready$$
-CERT_DIR_ORIG=certs
-CERT_DIR=$(mktemp -d -p `pwd`)
-cp -rp $CERT_DIR_ORIG/* $CERT_DIR/.
+CERT_DIR=certs
 
 remove_ready_file() {
     if test -e "$ready_file"; then
@@ -65,7 +68,7 @@ trap abort_trap INT TERM
 # instead use "exit <some value>" and this function will run automatically
 restore_file_system() {
     remove_ready_file
-    rm -rf "$CERT_DIR"
+    cd / && rm -rf "$RUNNING_DIR"
 }
 trap restore_file_system EXIT
 
