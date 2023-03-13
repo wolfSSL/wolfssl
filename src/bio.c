@@ -3210,6 +3210,37 @@ int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio)
     return ret;
 }
 
+int wolfSSL_BIO_sock_should_retry(int err)
+{
+    if (err != 0 && err != -1) {
+        return 0;
+    }
+
+    err = wolfSSL_LastError(err);
+    return wolfSSL_BIO_sock_non_fatal_error(err);
+}
+
+int wolfSSL_BIO_sock_non_fatal_error(int err)
+{
+    switch (err) {
+        case SOCKET_EWOULDBLOCK:
+        case SOCKET_ECONNREFUSED:
+        case SOCKET_EINTR:
+    #if defined(EAGAIN) && EAGAIN != SOCKET_EWOULDBLOCK
+        case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
+    #endif
+    #if defined(EINPROGRESS)
+        case EINPROGRESS:
+    #endif
+    #if defined(EALREADY)
+        case EALREADY:
+    #endif
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 #endif /* OPENSSL_ALL */
 
 #endif /* WOLFSSL_BIO_INCLUDED */

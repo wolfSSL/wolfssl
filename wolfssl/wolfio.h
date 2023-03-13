@@ -448,6 +448,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 #endif
 #endif /* WOLFSSL_NO_SOCK */
 
+WOLFSSL_API int wolfSSL_LastError(int err);
 
 WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
 WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);

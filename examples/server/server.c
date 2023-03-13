@@ -223,17 +223,6 @@ static WC_INLINE int TranslateReturnCode(int old, int sd)
     return old;
 }
 
-static WC_INLINE int wolfSSL_LastError(void)
-{
-#ifdef USE_WINDOWS_API
-    return WSAGetLastError();
-#elif defined(EBSNET)
-    return xn_getlasterror();
-#else
-    return errno;
-#endif
-}
-
 /* wolfSSL Sock Addr */
 struct WOLFSSL_TEST_SOCKADDR {
     unsigned int  sz; /* sockaddr size */
@@ -291,7 +280,7 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = TranslateReturnCode(sent, sd);
 
     if (sent < 0) {
-        err = wolfSSL_LastError();
+        err = wolfSSL_LastError(-1);
         WOLFSSL_MSG("Embed Send To error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {

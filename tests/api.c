@@ -41690,6 +41690,97 @@ static int test_wolfSSL_BIO_should_retry(void)
     return res;
 }
 
+static int test_wolfSSL_BIO_sock_should_retry(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(USE_WOLFSSL_IO)
+    tcp_ready ready;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    SOCKET_T sockfd = 0;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL*     ssl;
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  msgSz = (int)XSTRLEN(msg);
+    int  ret;
+    BIO* bio;
+
+    printf(testingFmt, "wolfSSL_BIO_sock_should_retry()");
+
+    XMEMSET(&server_args, 0, sizeof(func_args));
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    AssertIntEQ(wolfSSL_CTX_clear_mode(ctx, SSL_MODE_AUTO_RETRY), 0);
+#endif
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+
+    /* force retry */
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+    wolfSSL_SSLSetIORecv(ssl, forceWantRead);
+
+    AssertNotNull(bio = BIO_new(BIO_f_ssl()));
+    BIO_set_ssl(bio, ssl, BIO_CLOSE);
+
+    AssertIntLE(BIO_write(bio, msg, msgSz), 0);
+    AssertIntNE(BIO_sock_should_retry(-1), 0);
+
+
+    /* now perform successful connection */
+    wolfSSL_SSLSetIORecv(ssl, EmbedReceive);
+    AssertIntEQ(BIO_write(bio, msg, msgSz), msgSz);
+    BIO_read(bio, reply, sizeof(reply));
+    ret = wolfSSL_get_error(ssl, -1);
+    if (ret == WOLFSSL_ERROR_WANT_READ || ret == WOLFSSL_ERROR_WANT_WRITE) {
+        AssertIntNE(BIO_sock_should_retry(-1), 0);
+    }
+    else {
+        AssertIntEQ(BIO_sock_should_retry(-1), 0);
+    }
+    AssertIntEQ(XMEMCMP(reply, "I hear you fa shizzle!",
+                XSTRLEN("I hear you fa shizzle!")), 0);
+    BIO_free(bio);
+    wolfSSL_CTX_free(ctx);
+
+    join_thread(serverThread);
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+#endif
+
+    return 0;
+}
+
 static int test_wolfSSL_BIO_connect(void)
 {
     int res = TEST_SKIPPED;
@@ -63392,6 +63483,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_BIO_puts),
     TEST_DECL(test_wolfSSL_BIO_dump),
     TEST_DECL(test_wolfSSL_BIO_should_retry),
+    TEST_DECL(test_wolfSSL_BIO_sock_should_retry),
     TEST_DECL(test_wolfSSL_d2i_PUBKEY),
     TEST_DECL(test_wolfSSL_BIO_write),
     TEST_DECL(test_wolfSSL_BIO_connect),
