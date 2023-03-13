@@ -6,6 +6,7 @@ on:
 jobs:
   stunnel_check:
     strategy:
+      fail-fast: false
       matrix:
         # List of releases to test
         ref: [ 5.67 ]

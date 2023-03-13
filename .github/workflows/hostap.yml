@@ -7,7 +7,6 @@ jobs:
   # Build wpa_supplicant with wolfSSL and hostapd with OpenSSL and interop.
   hostap_test:
     strategy:
-      # TODO remove this in final PR
       fail-fast: false
       matrix:
         # should hostapd be compiled with wolfssl

@@ -6,6 +6,7 @@ on:
 jobs:
   openvpn_check:
     strategy:
+      fail-fast: false
       matrix:
         # List of refs to test
         ref: [ master, release/2.6, v2.6.0 ]
