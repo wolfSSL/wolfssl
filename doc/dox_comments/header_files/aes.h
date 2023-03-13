@@ -871,7 +871,7 @@ int wc_AesXtsFree(XtsAes* aes);
 
     //heap hint could be set here if used
 
-    wc_AesInit(&aes, hint, devId);
+    wc_AesInit(&enc, hint, devId);
     \endcode
 
     \sa wc_AesSetKey
@@ -898,9 +898,9 @@ int  wc_AesInit(Aes* aes, void* heap, int devId);
 
     //heap hint could be set here if used
 
-    wc_AesInit(&aes, hint, devId);
+    wc_AesInit(&enc, hint, devId);
     // ... do some interesting things ...
-    wc_AesFree(&aes);
+    wc_AesFree(&enc);
     \endcode
 
     \sa wc_AesInit
