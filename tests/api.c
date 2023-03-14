@@ -63055,7 +63055,333 @@ static int test_TLS_13_ticket_different_ciphers(void)
     return TEST_SKIPPED;
 }
 #endif
+#if defined(WOLFSSL_EXTRA_ALERTS) && !defined(WOLFSSL_NO_TLS12) &&             \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
 
+#define TEST_WRONG_CS_CLIENT "TLS_DHE_RSA_WITH_AES_128_CBC_SHA"
+
+byte test_extra_alerts_wrong_cs_sh[] = {
+  0x16, 0x03, 0x03, 0x00, 0x56, 0x02, 0x00, 0x00, 0x52, 0x03, 0x03, 0xef,
+  0x0c, 0x30, 0x98, 0xa2, 0xac, 0xfa, 0x68, 0xe9, 0x3e, 0xaa, 0x5c, 0xcf,
+  0xa7, 0x42, 0x72, 0xaf, 0xa0, 0xe8, 0x39, 0x2b, 0x3e, 0x81, 0xa7, 0x7a,
+  0xa5, 0x62, 0x8a, 0x0e, 0x41, 0xba, 0xda, 0x20, 0x18, 0x9f, 0xe1, 0x8c,
+  0x1d, 0xc0, 0x37, 0x9c, 0xf4, 0x90, 0x5d, 0x8d, 0xa0, 0x79, 0xa7, 0x4b,
+  0xa8, 0x79, 0xdf, 0xcd, 0x8d, 0xf5, 0xb5, 0x50, 0x5f, 0xf1, 0xdb, 0x4d,
+  0xbb, 0x07, 0x54, 0x1c,
+  0x00, 0x02, /* TLS_RSA_WITH_NULL_SHA */
+  0x00, 0x00, 0x0a, 0x00, 0x0b, 0x00,
+  0x02, 0x01, 0x00, 0x00, 0x17, 0x00, 0x00
+};
+
+static int test_extra_alerts_wrong_cs(void)
+{
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_ALERT_HISTORY h;
+    WOLFSSL *ssl_c = NULL;
+    int ret, err;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ret = test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_2_client_method, NULL);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    ret = wolfSSL_set_cipher_list(ssl_c, TEST_WRONG_CS_CLIENT);
+    if (ret != WOLFSSL_SUCCESS) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        return TEST_SKIPPED;
+    }
+
+    /* CH */
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    /* consume CH */
+    test_ctx.s_len = 0;
+    /* inject SH */
+    XMEMCPY(test_ctx.c_buff, test_extra_alerts_wrong_cs_sh,
+        sizeof(test_extra_alerts_wrong_cs_sh));
+    test_ctx.c_len = sizeof(test_extra_alerts_wrong_cs_sh);
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err == WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+    ret = wolfSSL_get_alert_history(ssl_c, &h);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    if (h.last_tx.code != illegal_parameter)
+        return TEST_FAIL;
+    if (h.last_tx.level != alert_fatal)
+        return TEST_FAIL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_extra_alerts_wrong_cs(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_EXTRA_ALERTS) &&             \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+static void test_remove_msg(byte *msg, int tail_len, int *len, int msg_length)
+{
+    tail_len -= msg_length;
+    XMEMMOVE(msg, msg + msg_length, tail_len);
+    *len = *len - msg_length;
+}
+
+static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
+    byte *found)
+{
+    const unsigned int  _HANDSHAKE_HEADER_SZ = 4;
+    const unsigned int _RECORD_HEADER_SZ = 5;
+    const int _change_cipher_hs = 55;
+    const int _change_cipher = 20;
+    const int _handshake = 22;
+    unsigned int tail_len;
+    byte *idx, *curr;
+    word8 currType;
+    word16 rLength;
+    word32 hLength;
+
+    idx = buf;
+    tail_len = *len;
+    *found = 0;
+    while (tail_len > _RECORD_HEADER_SZ) {
+        curr = idx;
+        currType = *idx;
+        ato16(idx + 3, &rLength);
+        idx += _RECORD_HEADER_SZ;
+        tail_len -= _RECORD_HEADER_SZ;
+
+        if (tail_len < rLength)
+            return -1;
+
+        if (type == _change_cipher_hs && currType == _change_cipher) {
+            if (rLength != 1)
+                return -1;
+            /* match */
+            test_remove_msg(curr, *len - (int)(curr - buf),
+                len, _RECORD_HEADER_SZ + 1);
+            *found = 1;
+            return 0;
+        }
+
+        if (currType != _handshake) {
+            idx += rLength;
+            tail_len -= rLength;
+            continue;
+        }
+
+        if (rLength < _HANDSHAKE_HEADER_SZ)
+            return -1;
+        currType = *idx;
+        ato24(idx+1, &hLength);
+        hLength += _HANDSHAKE_HEADER_SZ;
+        if (tail_len < hLength)
+            return -1;
+        if (currType != type) {
+            idx += hLength;
+            tail_len -= hLength;
+            continue;
+        }
+
+        /* match */
+        test_remove_msg(curr, *len - (int)(curr - buf), len,
+            hLength + _RECORD_HEADER_SZ);
+        *found = 1;
+        return 0;
+    }
+
+    /* not found */
+    return 0;
+}
+
+static int test_remove_hs_message(byte hs_message_type,
+    int extra_round, byte alert_type)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    int ret, err;
+    byte found;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    ret = wolfSSL_accept(ssl_s);
+    err = wolfSSL_get_error(ssl_s, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    if (extra_round) {
+        ret = wolfSSL_connect(ssl_c);
+        err = wolfSSL_get_error(ssl_c, ret);
+        if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+            return TEST_FAIL;
+
+        /* this will complete handshake from server side */
+        ret = wolfSSL_accept(ssl_s);
+        if (ret != WOLFSSL_SUCCESS)
+            return TEST_FAIL;
+    }
+
+    ret = test_remove_hs_msg_from_buffer(test_ctx.c_buff,
+         &test_ctx.c_len, hs_message_type, &found);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    if (!found) {
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+        return TEST_SKIPPED;
+    }
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err == WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+    ret = wolfSSL_get_alert_history(ssl_c, &h);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    if (alert_type != 0xff && h.last_tx.code != alert_type)
+        return TEST_FAIL;
+    if (h.last_tx.level != alert_fatal)
+        return TEST_FAIL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return TEST_SUCCESS;
+}
+
+static int test_extra_alerts_skip_hs(void)
+{
+    const byte _server_key_exchange = 12;
+    const byte _server_hello = 2;
+    const byte _certificate = 11;
+    int ret;
+
+    /* server_hello */
+    ret = test_remove_hs_message(_server_hello, 0,
+        unexpected_message);
+    if (ret == TEST_FAIL)
+        return ret;
+    ret = test_remove_hs_message(_certificate, 0,
+        0xff);
+    if (ret == TEST_FAIL)
+        return ret;
+    ret = test_remove_hs_message(_server_key_exchange, 0,
+        unexpected_message);
+    if (ret == TEST_FAIL)
+        return ret;
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_extra_alerts_skip_hs(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
+#if !defined(WOLFSSL_NO_TLS12) && defined(HAVE_IO_TESTS_DEPENDENCIES) &&       \
+    defined(WOLFSSL_EXTRA_ALERTS) && !defined(NO_PSK) && !defined(NO_DH)
+
+static unsigned int test_server_psk_cb(WOLFSSL* ssl, const char* id,
+    unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)id;
+    (void)key_max_len;
+    /* zero means error */
+    key[0] = 0x10;
+    return 1;
+}
+
+static int test_extra_alerts_bad_psk(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_ALERT_HISTORY h;
+    int ret, err;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
+    if (ret != 0)
+        return TEST_FAIL;
+
+    ret = wolfSSL_set_cipher_list(ssl_c, "DHE-PSK-AES128-GCM-SHA256");
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    ret = wolfSSL_set_cipher_list(ssl_s, "DHE-PSK-AES128-GCM-SHA256");
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+
+    wolfSSL_set_psk_server_callback(ssl_s, test_server_psk_cb);
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    ret = wolfSSL_accept(ssl_s);
+    err = wolfSSL_get_error(ssl_s, ret);
+    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+
+    ret = wolfSSL_connect(ssl_c);
+    err = wolfSSL_get_error(ssl_c, ret);
+    if (ret == WOLFSSL_SUCCESS || err == WOLFSSL_ERROR_WANT_READ)
+        return TEST_FAIL;
+    ret = wolfSSL_get_alert_history(ssl_c, &h);
+    if (ret != WOLFSSL_SUCCESS)
+        return TEST_FAIL;
+    if (h.last_tx.code != handshake_failure)
+        return TEST_FAIL;
+    if (h.last_tx.level != alert_fatal)
+        return TEST_FAIL;
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return TEST_SUCCESS;
+}
+#else
+static int test_extra_alerts_bad_psk(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -64072,6 +64398,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_various_pathlen_chains),
 #endif
     TEST_DECL(test_ticket_ret_create),
+    TEST_DECL(test_extra_alerts_wrong_cs),
+    TEST_DECL(test_extra_alerts_skip_hs),
+    TEST_DECL(test_extra_alerts_bad_psk),
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */

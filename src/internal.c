@@ -14728,10 +14728,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* SESSION_CERTS */
 
     ret = ProcessPeerCerts(ssl, input, inOutIdx, size);
-#ifdef WOLFSSL_EXTRA_ALERTS
-    if (ret == BUFFER_ERROR || ret == ASN_PARSE_E)
-        SendAlert(ssl, alert_fatal, decode_error);
-#endif
 
 #ifdef OPENSSL_EXTRA
     ssl->options.serverState = SERVER_CERT_COMPLETE;
@@ -15008,9 +15004,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (sniff == NO_SNIFF) {
         if (XMEMCMP(input + *inOutIdx, &ssl->hsHashes->verifyHashes,size) != 0){
             WOLFSSL_MSG("Verify finished error on hashes");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-            SendAlert(ssl, alert_fatal, decrypt_error);
-    #endif
             WOLFSSL_ERROR_VERBOSE(VERIFY_FINISHED_ERROR);
             return VERIFY_FINISHED_ERROR;
         }
@@ -15134,9 +15127,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
         #endif
             if (ssl->msgsReceived.got_client_hello) {
                 WOLFSSL_MSG("Duplicate ClientHello received");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, unexpected_message);
-    #endif
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
@@ -15428,9 +15418,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
         #endif
             if (ssl->msgsReceived.got_client_key_exchange) {
                 WOLFSSL_MSG("Duplicate ClientKeyExchange received");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, unexpected_message);
-    #endif
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
@@ -15463,9 +15450,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
             if (ssl->msgsReceived.got_change_cipher == 0) {
                 WOLFSSL_MSG("Finished received before ChangeCipher");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, unexpected_message);
-    #endif
                 WOLFSSL_ERROR_VERBOSE(NO_CHANGE_CIPHER_E);
                 return NO_CHANGE_CIPHER_E;
             }
@@ -15519,9 +15503,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 if (!ssl->options.resuming &&
                                ssl->msgsReceived.got_client_key_exchange == 0) {
                     WOLFSSL_MSG("No ClientKeyExchange before ChangeCipher");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-                    SendAlert(ssl, alert_fatal, unexpected_message);
-    #endif
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
@@ -16052,6 +16033,61 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
+#ifdef WOLFSSL_EXTRA_ALERTS
+void SendFatalAlertOnly(WOLFSSL *ssl, int error)
+{
+    int why;
+
+    /* already sent a more specific fatal alert  */
+    if (ssl->alert_history.last_tx.level == alert_fatal)
+        return;
+
+    switch (error) {
+        /* not fatal errors */
+    case WANT_WRITE:
+    case WANT_READ:
+    case ZERO_RETURN:
+#ifdef WOLFSSL_ASYNC
+    case WC_PENGIND_E:
+#endif
+        return;
+    case BUFFER_ERROR:
+    case ASN_PARSE_E:
+    case COMPRESSION_ERROR:
+        why = decode_error;
+        break;
+    case MATCH_SUITE_ERROR:
+        why = illegal_parameter;
+        break;
+    case VERIFY_FINISHED_ERROR:
+    case SIG_VERIFY_E:
+        why = decrypt_error;
+        break;
+    case DUPLICATE_MSG_E:
+    case NO_CHANGE_CIPHER_E:
+    case OUT_OF_ORDER_E:
+        why = unexpected_message;
+        break;
+    case ECC_OUT_OF_RANGE_E:
+        why = bad_record_mac;
+        break;
+    case VERSION_ERROR:
+    default:
+        why = handshake_failure;
+        break;
+    }
+
+    SendAlert(ssl, alert_fatal, why);
+}
+#else
+void SendFatalAlertOnly(WOLFSSL *ssl, int error)
+{
+    (void)ssl;
+    (void)error;
+    /* no op */
+}
+#endif /* WOLFSSL_EXTRA_ALERTS */
+
 #ifdef WOLFSSL_DTLS
 
 static int _DtlsCheckWindow(WOLFSSL* ssl)
@@ -16456,7 +16492,6 @@ static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_DTLS13 */
 
-
 int DtlsMsgDrain(WOLFSSL* ssl)
 {
     DtlsMsg* item = ssl->dtls_rx_msg_list;
@@ -16481,6 +16516,9 @@ int DtlsMsgDrain(WOLFSSL* ssl)
     #endif
         if (ret == 0) {
             DtlsTxMsgListClean(ssl);
+        }
+        else if (!IsAtLeastTLSv1_3(ssl->version)) {
+            SendFatalAlertOnly(ssl, ret);
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E) {
@@ -19784,6 +19822,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                                          ssl->buffers.inputBuffer.buffer,
                                                          &ssl->buffers.inputBuffer.idx,
                                                          ssl->buffers.inputBuffer.length);
+                                if (ret != 0)
+                                    SendFatalAlertOnly(ssl, ret);
                         }
 #endif
 #ifdef WOLFSSL_DTLS13
@@ -19820,6 +19860,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->buffers.inputBuffer.length);
+                        if (ret != 0)
+                            SendFatalAlertOnly(ssl, ret);
 #else
                         ret = BUFFER_ERROR;
 #endif
@@ -30290,7 +30332,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                         goto exit_scv;
                     }
                 }
-                #if defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+                #if defined(HAVE_ED25519) || defined(HAVE_ED448)
                 FALL_THROUGH;
                 #endif
             #endif /* WOLFSSL_CHECK_SIG_FAULTS */
@@ -32381,8 +32423,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     goto exit_sske;
                                 }
                             }
-                            #if defined(HAVE_CURVE25519) || \
-                                                          defined(HAVE_CURVE448)
+                            #if defined(HAVE_E25519) || defined(HAVE_ED448)
                             FALL_THROUGH;
                             #endif
                         #endif /*  WOLFSSL_CHECK_SIG_FAULTS */
@@ -33227,9 +33268,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
-#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
-                SendAlert(ssl, alert_fatal, handshake_failure);
-#endif
                 ret = VERSION_ERROR;
                 goto out;
             }
@@ -33243,9 +33281,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (belowMinDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
-#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
-                SendAlert(ssl, alert_fatal, handshake_failure);
-#endif
                 ret = VERSION_ERROR;
                 goto out;
             }
@@ -33743,12 +33778,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret == 0)
             ret = MatchSuite(ssl, clSuites);
 
-#ifdef WOLFSSL_EXTRA_ALERTS
-        if (ret == BUFFER_ERROR)
-            SendAlert(ssl, alert_fatal, decode_error);
-        else if (ret < 0)
-            SendAlert(ssl, alert_fatal, handshake_failure);
-#endif
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ENCRYPT_THEN_MAC) && \
     !defined(WOLFSSL_AEAD_ONLY)
         if (ret == 0 && ssl->options.encThenMac &&
@@ -35928,18 +35957,12 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
                         /* import peer ECC key */
                         if ((args->idx - args->begin) + OPAQUE8_LEN > size) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            SendAlert(ssl, alert_fatal, decode_error);
-                        #endif
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
                         args->length = input[args->idx++];
 
                         if ((args->idx - args->begin) + args->length > size) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            SendAlert(ssl, alert_fatal, decode_error);
-                        #endif
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
@@ -36124,9 +36147,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         args->idx += OPAQUE16_LEN;
 
                         if ((args->idx - args->begin) + clientPubSz > size) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            SendAlert(ssl, alert_fatal, decode_error);
-                        #endif
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
