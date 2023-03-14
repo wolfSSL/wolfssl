@@ -35,3 +35,7 @@ To build in momentics IDE:
 - CMAC with and without black keys
 - TRNG used by default to seed Hash DRBG
 - AES operations (CTR)
+
+### Performance
+
+Typically on smaller block sizes (~ less than 7k) operations are slower with CAAM than software implementations. There is a tunable macro WOLFSSL_CAAM_QNX_MEMORY which sets the size of an internal buffer used currently with AES operations for performance. By default it is set to 250k but can be defined to smaller or larger values. If the block size being encrypted/decrypted does not fit within the buffer size then there will be a big performance hit.
