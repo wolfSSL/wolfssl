@@ -743,7 +743,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                     strIdx += 2;
                     startIdx = strIdx;
                 }
-                while (*strIdx && (XISALNUM(*strIdx) || *strIdx == '_'))
+                while (*strIdx && (XISALNUM((int)(*strIdx)) || *strIdx == '_'))
                     strIdx++;
                 endIdx = strIdx;
                 if (startIdx == endIdx) {
