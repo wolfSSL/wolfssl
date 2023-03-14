@@ -34638,15 +34638,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
         }
+    #ifdef WOLFSSL_TLS13
         /* Check resumption master secret. */
         if (IsAtLeastTLSv1_3(it->pv) &&
                 it->ticketNonceLen > MAX_TICKET_NONCE_STATIC_SZ) {
             WOLFSSL_MSG("Unsupported ticketNonce len in ticket");
             return BAD_TICKET_ENCRYPT;
         }
+    #endif
         return 0;
     }
 
+#if defined(WOLFSSL_TLS13)
     /* Return 0 when check successful. <0 on failure. */
     int DoClientTicketCheck(const WOLFSSL* ssl, const PreSharedKey* psk,
             sword64 timeout, const byte* suite)
@@ -34712,6 +34715,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         return 0;
     }
+#endif /* WOLFSSL_SLT13 */
 
     void DoClientTicketFinalize(WOLFSSL* ssl, InternalTicket* it)
     {
@@ -34784,6 +34788,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->version.minor = it->pv.minor;
     }
 
+#if defined(WOLFSSL_TLS13)
     /* Parse ticket sent by client, returns callback return value. Doesn't
      * modify ssl and stores the InternalTicket inside psk */
     int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk)
@@ -34823,6 +34828,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         return decryptRet;
     }
+#endif /* WOLFSL_TLS13 */
 
     /* Parse ticket sent by client, returns callback return value */
     int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
@@ -34862,6 +34868,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return decryptRet;
     }
 
+#ifdef WOLFSSL_TLS13
     void CleanupClientTickets(PreSharedKey* psk)
     {
         for (; psk != NULL; psk = psk->next) {
@@ -34878,6 +34885,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
     }
+#endif /* WOLFSSL_TLS13 */
 
 
     /* send Session Ticket */
