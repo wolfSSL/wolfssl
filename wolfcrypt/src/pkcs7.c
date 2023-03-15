@@ -1975,16 +1975,27 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 
     /* add custom signed attributes if set */
     if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
+        /* Signed messageDigest must be present if any signed attributes are
+         * RFC 5652 section 11.2 */
+        if (pkcs7->skipDefaultSignedAttribs != 0) {
+            hashSz = wc_HashGetDigestSize(esd->hashType);
+            if (hashSz < 0)
+                return hashSz;
+
+            cannedAttribs[0].oid     = messageDigestOid;
+            cannedAttribs[0].oidSz   = messageDigestOidSz;
+            cannedAttribs[0].value   = esd->contentDigest;
+            cannedAttribs[0].valueSz = hashSz + 2;  /* ASN.1 heading */
+            esd->signedAttribsCount++;
+            esd->signedAttribsSz += EncodeAttributes(
+                &esd->signedAttribs[atrIdx], 1, cannedAttribs, 1);
+            atrIdx++;
+        }
+
         esd->signedAttribsCount += pkcs7->signedAttribsSz;
-    #ifdef NO_ASN_TIME
         esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
                                   esd->signedAttribsCount,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-    #else
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[atrIdx],
-                                  esd->signedAttribsCount,
-                                  pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-    #endif
     }
 
 #ifdef NO_ASN_TIME
