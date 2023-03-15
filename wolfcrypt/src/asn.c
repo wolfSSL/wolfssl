@@ -13634,9 +13634,9 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
-#else
-    (void)tmpTime;
 #endif
+    /* Needed in case XGMTIME does not use the tmpTime argument. */
+    (void)tmpTime;
 
     WOLFSSL_ENTER("GetFormattedTime");
 

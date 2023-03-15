@@ -26,6 +26,7 @@
 /* settings.h is only included for wolfSSL version and IAR build warnings
  * wolfssl/wolfcrypt/- path includes other than
  * wolfssl/wolfcrypt/port/caam/caam_* should be avoided!! */
+#undef WC_NO_HARDEN
 #define WC_NO_HARDEN /* silence warning, it is irrelavent here */
 #include <wolfssl/wolfcrypt/settings.h>
 

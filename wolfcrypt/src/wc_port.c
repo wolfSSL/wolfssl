@@ -3028,7 +3028,7 @@ time_t stm32_hal_time(time_t *t1)
     RTC_TimeTypeDef time;
     RTC_DateTypeDef date;
 
-    XMEMSET(tm_time, 0, sizeof(struct tm));
+    XMEMSET(&tm_time, 0, sizeof(struct tm));
 
     /* order of GetTime followed by GetDate required here due to STM32 HW
      * requirement */
