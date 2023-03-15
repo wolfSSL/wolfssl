@@ -2550,6 +2550,8 @@ typedef struct Keys {
 #endif
 } Keys;
 
+/* Forward declare opaque pointer to make available for func def */
+typedef struct Options Options;
 
 
 /** TLS Extensions - RFC 6066 */
@@ -2709,8 +2711,6 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
 
 WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
                                       word16 length, byte msgType, int* found);
-/* Forward declare opaque pointer to make available for func def */
-typedef struct Options Options;
 WOLFSSL_LOCAL int TLSX_SupportedVersions_Parse(const WOLFSSL* ssl,
         const byte* input, word16 length, byte msgType, ProtocolVersion* pv,
         Options* opts, TLSX** exts);
