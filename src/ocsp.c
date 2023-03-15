@@ -398,7 +398,7 @@ end:
     } else if ((ret == ocsp->error) && (ocspResponse->single->status->status == CERT_UNKNOWN)) {
         WOLFSSL_MSG("OCSP unknown");
         ret = OCSP_CERT_UNKNOWN;
-    } else if ((ret != OCSP_CERT_REVOKED) && (ret != ocsp->error)) {
+    } else if (ret != OCSP_CERT_REVOKED) {
         WOLFSSL_MSG("OCSP lookup failure");
         ret = OCSP_LOOKUP_FAIL;
     }
