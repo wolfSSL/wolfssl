@@ -467,7 +467,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
             return ret;
         }
         WOLFSSL_LEAVE("CheckOcspRequest", ocsp->error);
-        return ocsp->error;
+        return ret;
     }
 #endif
 
