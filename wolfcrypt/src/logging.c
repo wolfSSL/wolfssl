@@ -1215,7 +1215,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return BAD_MUTEX_E;
+        return -BAD_MUTEX_E;
     }
 
     idx = getErrorNodeCurrentIdx();
@@ -1248,7 +1248,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return BAD_MUTEX_E;
+        return -BAD_MUTEX_E;
     }
 
     ret = pullErrorNode(NULL, NULL, NULL);
