@@ -10132,9 +10132,14 @@ static int test_wolfSSL_URI(void)
     defined(OPENSSL_EXTRA))
     WOLFSSL_X509* x509;
     const char uri[] = "./certs/client-uri-cert.pem";
+    const char urn[] = "./certs/client-absolute-urn.pem";
     const char badUri[] = "./certs/client-relative-uri.pem";
 
     x509 = wolfSSL_X509_load_certificate_file(uri, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    wolfSSL_FreeX509(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(urn, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
     wolfSSL_FreeX509(x509);
 
