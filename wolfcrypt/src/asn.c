@@ -33274,6 +33274,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
             return ASN_PARSE_E;
     }
 
+    if (idx >= size)
+        return BUFFER_E;
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     single->status->thisDateAsn = source + idx;
     localIdx = 0;
@@ -33281,6 +33284,10 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                     (byte*)&single->status->thisDateParsed.type,
                     &single->status->thisDateParsed.length, size) < 0)
         return ASN_PARSE_E;
+
+    if (idx + localIdx >= size)
+        return BUFFER_E;
+
     XMEMCPY(single->status->thisDateParsed.data,
             single->status->thisDateAsn + localIdx - single->status->thisDateParsed.length,
             single->status->thisDateParsed.length);
@@ -33313,6 +33320,10 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                         (byte*)&single->status->nextDateParsed.type,
                         &single->status->nextDateParsed.length, size) < 0)
             return ASN_PARSE_E;
+
+        if (idx + localIdx >= size)
+            return BUFFER_E;
+
         XMEMCPY(single->status->nextDateParsed.data,
                 single->status->nextDateAsn + localIdx - single->status->nextDateParsed.length,
                 single->status->nextDateParsed.length);
