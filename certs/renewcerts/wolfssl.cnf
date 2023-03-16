@@ -296,6 +296,13 @@ authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:false
 subjectAltName=URI:https://www.wolfssl.com
 
+# test parsing absolute URN
+[ absolute_urn ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+subjectAltName=URI:urn:example:test
+
 # test parsing relative URI
 [ relative_uri ]
 subjectKeyIdentifier=hash
