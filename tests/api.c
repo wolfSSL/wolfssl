@@ -31344,6 +31344,91 @@ static int test_wc_CertPemToDer(void)
     return res;
 }
 
+static int test_wc_KeyPemToDer(void)
+{
+    int res = TEST_SKIPPED;
+
+#if defined(WOLFSSL_PEM_TO_DER) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+    int ret;
+    const byte cert_buf[] = \
+    "-----BEGIN PRIVATE KEY-----\n"
+    "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDMG5KgWxP002pA\n"
+    "QJIdA4H5N0oM1Wf0LrHcos5RYUlrHDkC2b5p2BUpVRPmgDAFD2+8leim98x0BvcB\n"
+    "k48TNzrVynuwyVEY664+iQyzEBO5v27HPRydOddprbLCvRO036XINGIjauy1jHFi\n"
+    "HaDVx3bexSwgp9aefUGAszFXi4q1J4GacV7Cr2b/wBqUHqWv4ZXPu6R9/UYngTkD\n"
+    "UDJL5gLlLfcLzNyyodKPHPCIAKdWn6mSVdcHk8XVpK4y9lgz4E7YDWA6ohKZgWgG\n"
+    "2RDha8CMilFMDgYa0G0SiS9g3PQx0qh3AMXJJsKSVhScFCZufAE0kV6KvjP7jAqP\n"
+    "XBiSkRGPAgMBAAECggEAW7hmRyY2jRX2UMJThrM9VIs6fRLnYI0dQ0tsEJj536ay\n"
+    "nevQjArc05KWW0Yujg+WRDZPcry3RUqd9Djlmhp/F3Si6dpF1b+PMS3wJYVrf9Sd\n"
+    "SO5W7faArU4vnyBNe0HnY1Ta5xSVI65lg1RSIs88RTZwsooJwXYDGf0shq0/21CE\n"
+    "V8HOb27DDYNcEnm35lzaONjFnMqQQT2Vs9anRrPiSEXNleEvTgLVXZtGTyCGTz6v\n"
+    "x86Y8eSWL9YNHvPE1I+mDPuocfSR7eRNgRu7SK3mn94W5mqd7Ns072YKX/2XN1mO\n"
+    "66+ZFHO6v4dK1u7cSjuwrU1EhLHpUsgDz6Bna5InyQKBgQDv5l8RPy8UneKSADaf\n"
+    "M5L/5675I/5t4nqVjvbnQje00YveLTAEjlJBNR93Biln3sYgnvNamYDCxyEuUZ/I\n"
+    "S/vmBL9PoxfGZow4FcsIBOEbIn3E0SYJgCBNWthquUvGpKsYDnThJuhO+1cVmxAJ\n"
+    "BUOjLFnJYHM0a+Vmk9GexT2OBwKBgQDZzkUBOK7Im3eiYytFocUJyhqMH30d49X9\n"
+    "ujC7kGw4UWAqVe7YCSvlBa8nzWpRWK2kRpu3M0272RU0V4geyWqT+nr/SvRRPtNP\n"
+    "F5dY8l3yR7hjtSejqqjOfBcZT6ETJxI4tiG0+Nl5BlfM5M+0nxnkWpRcHuOR3j79\n"
+    "YUFERyN+OQKBgQCjlOKeUAc6d65W/+4/AFvsQ378Q57qLtSHxsR1TKHPmlNVXFqx\n"
+    "wJo1/JNIBduWCEHxXHF0BdfW+RGXE/FwEt/hKLuLAhrkHmjelX2sKieU6R/5ZOQa\n"
+    "9lMQbDHGFDOncAF6leD85hriQGBRSzrT69MDIOrYdfwYcroqCAGX0cb3YQKBgQC8\n"
+    "iIFQylj5SyHmjcMSNjKSA8CxFDzAV8yPIdE3Oo+CvGXqn5HsrRuy1hXE9VmXapR8\n"
+    "A6ackSszdHiXY0FvrNe1mfdH7wDHJwPQjdIzazCJHS3uGQxj7sDKY7226ie6pXJv\n"
+    "ZrCMr2/IBAaSVGm6ppHKCeIsT4ybYm7R85KEYLPHeQKBgBeJOMBinXQfWN/1jT9b\n"
+    "6Ywrutvp2zP8hVxQGSZJ0WG4iewZyFLsPUlbWRXOSYNPElHmdD0ZomdLVm+lSpAA\n"
+    "XSH5FJ/IFCwqq7Eft6Gf8NFRV+NjPMUny+PnjHe4oFP8YK/Ek22K3ttNG8Hw69Aw\n"
+    "AQue5o6oVfhgLiJzMdo/77gw\n"
+    "-----END PRIVATE KEY-----\n";
+    const int cert_sz = sizeof(cert_buf);
+    const char cert_pw[] = "password";
+    int cert_dersz = 0;
+    byte* cert_der = NULL;
+
+    /* Bad arg: Cert buffer is NULL */
+    ret = wc_KeyPemToDer(NULL, cert_sz, cert_der, cert_dersz, "");
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    /* Bad arg: Cert DER buffer non-NULL but size zero (or less) */
+    ret = wc_KeyPemToDer(cert_buf, cert_sz, (byte*)&cert_der, 0, "");
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    /* Test normal operation */
+    cert_dersz = cert_sz; /* DER will be smaller than PEM */
+    cert_der = (byte*)malloc(cert_dersz);
+    AssertNotNull(cert_der);
+    if (cert_der) {
+        ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz, cert_pw);
+        AssertIntGE(ret, 0);
+        AssertIntLE(ret, cert_sz);
+        free(cert_der);
+        cert_der = NULL;
+        ret = 0;
+    }
+
+    if (ret == 0) {
+        /* Test NULL for DER buffer to return needed DER buffer size */
+        ret = wc_KeyPemToDer(cert_buf, cert_sz, NULL, 0, "");
+        AssertIntGT(ret, 0);
+        AssertIntLE(ret, cert_sz);
+        cert_dersz = ret;
+        cert_der = (byte*)malloc(cert_dersz);
+        AssertNotNull(cert_der);
+        if (cert_der) {
+            ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz, cert_pw);
+            AssertIntGE(ret, 0);
+            AssertIntLE(ret, cert_sz);
+            free(cert_der);
+            cert_der = NULL;
+            ret = 0;
+        }
+    }
+
+    res = TEST_RES_CHECK(1);
+#endif
+    return res;
+}
+
 static int test_wc_PubKeyPemToDer(void)
 {
     int res = TEST_SKIPPED;
@@ -31363,17 +31448,38 @@ static int test_wc_PubKeyPemToDer(void)
     if (ret == 0) {
         cert_dersz = cert_sz; /* DER will be smaller than PEM */
         cert_der = (byte*)malloc(cert_dersz);
+        AssertNotNull(cert_der);
         if (cert_der) {
-            ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz,
-                cert_der, (int)cert_dersz);
+            ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz, cert_der,
+                (int)cert_dersz);
             AssertIntGE(ret, 0);
+            free(cert_der);
+            cert_der = NULL;
+            ret = 0;
         }
     }
 
-    if (cert_der)
-        free(cert_der);
-    if (cert_buf)
+    if (ret == 0) {
+        /* Test NULL for DER buffer to return needed DER buffer size */
+        ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz, NULL, 0);
+        AssertIntGT(ret, 0);
+        AssertIntLE(ret, cert_sz);
+        cert_dersz = ret;
+        cert_der = (byte*)malloc(cert_dersz);
+        AssertNotNull(cert_der);
+        if (cert_der) {
+            ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz, cert_der,
+                (int)cert_dersz);
+            AssertIntGE(ret, 0);
+            free(cert_der);
+            cert_der = NULL;
+            ret = 0;
+        }
+    }
+
+    if (cert_buf) {
         free(cert_buf);
+    }
 
     res = TEST_RES_CHECK(1);
 #endif
@@ -63517,6 +63623,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PemToDer),
     TEST_DECL(test_wc_AllocDer),
     TEST_DECL(test_wc_CertPemToDer),
+    TEST_DECL(test_wc_KeyPemToDer),
     TEST_DECL(test_wc_PubKeyPemToDer),
     TEST_DECL(test_wc_PemPubKeyToDer),
     TEST_DECL(test_wc_GetPubKeyDerFromCert),

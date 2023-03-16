@@ -23220,7 +23220,7 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
 
     WOLFSSL_ENTER("wc_KeyPemToDer");
 
-    if (pem == NULL || buff == NULL || buffSz <= 0) {
+    if (pem == NULL || (buff != NULL && buffSz <= 0)) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
     }
@@ -23249,15 +23249,17 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
     if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
+    else if (buff == NULL) {
+        WOLFSSL_MSG("Return needed der buff length");
+        ret = der->length;
+    }
+    else if (der->length <= (word32)buffSz) {
+        XMEMCPY(buff, der->buffer, der->length);
+        ret = der->length;
+    }
     else {
-        if (der->length <= (word32)buffSz) {
-            XMEMCPY(buff, der->buffer, der->length);
-            ret = der->length;
-        }
-        else {
-            WOLFSSL_MSG("Bad der length");
-            ret = BAD_FUNC_ARG;
-        }
+        WOLFSSL_MSG("Bad der length");
+        ret = BAD_FUNC_ARG;
     }
 
     FreeDer(&der);
@@ -23310,7 +23312,8 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 
 #ifdef WOLFSSL_PEM_TO_DER
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-/* Return bytes written to buff or < 0 for error */
+/* Return bytes written to buff, needed buff size if buff is NULL, or less than
+   zero for error */
 int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
                            unsigned char* buff, int buffSz)
 {
@@ -23319,7 +23322,7 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 
     WOLFSSL_ENTER("wc_PubKeyPemToDer");
 
-    if (pem == NULL || buff == NULL || buffSz <= 0) {
+    if (pem == NULL || (buff != NULL && buffSz <= 0)) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
     }
@@ -23328,15 +23331,17 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
     if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
+    else if (buff == NULL) {
+        WOLFSSL_MSG("Return needed der buff length");
+        ret = der->length;
+    }
+    else if (der->length <= (word32)buffSz) {
+        XMEMCPY(buff, der->buffer, der->length);
+        ret = der->length;
+    }
     else {
-        if (der->length <= (word32)buffSz) {
-            XMEMCPY(buff, der->buffer, der->length);
-            ret = der->length;
-        }
-        else {
-            WOLFSSL_MSG("Bad der length");
-            ret = BAD_FUNC_ARG;
-        }
+        WOLFSSL_MSG("Bad der length");
+        ret = BAD_FUNC_ARG;
     }
 
     FreeDer(&der);
