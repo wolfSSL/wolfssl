@@ -2041,7 +2041,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
 {
     int ret = 1;
     byte* pem = NULL;
-    int pLen;
+    int pLen = 0;
 
     (void)cb;
     (void)arg;
@@ -11325,6 +11325,8 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     int doFree = 0;
     int err;
 
+    (void)err;
+
     WOLFSSL_ENTER("wolfSSL_EC_KEY_free");
 
     if (key != NULL) {
@@ -12261,7 +12263,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
 {
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
     int ret = 1;
-    byte* derBuf;
+    byte* derBuf = NULL;
     int der_max_len = 0;
     int derSz = 0;
 
