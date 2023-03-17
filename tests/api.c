@@ -10135,9 +10135,14 @@ static int test_wolfSSL_URI(void)
     defined(OPENSSL_EXTRA))
     WOLFSSL_X509* x509;
     const char uri[] = "./certs/client-uri-cert.pem";
+    const char urn[] = "./certs/client-absolute-urn.pem";
     const char badUri[] = "./certs/client-relative-uri.pem";
 
     x509 = wolfSSL_X509_load_certificate_file(uri, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    wolfSSL_FreeX509(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(urn, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
     wolfSSL_FreeX509(x509);
 
@@ -42414,11 +42419,13 @@ static int test_wolfSSL_SESSION(void)
     WOLFSSL_SESSION* sess;
     WOLFSSL_SESSION* sess_copy;
 #ifdef OPENSSL_EXTRA
+#ifdef HAVE_EXT_CACHE
     unsigned char* sessDer = NULL;
     unsigned char* ptr     = NULL;
+    int sz;
+#endif
     const unsigned char context[] = "user app context";
     unsigned int contextSz = (unsigned int)sizeof(context);
-    int sz;
 #endif
     int ret, err;
     SOCKET_T sockfd;
@@ -42587,7 +42594,7 @@ static int test_wolfSSL_SESSION(void)
     sess_copy = NULL;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
     /* get session from DER and update the timeout */
     AssertIntEQ(wolfSSL_i2d_SSL_SESSION(NULL, &sessDer), BAD_FUNC_ARG);
     AssertIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, &sessDer)), 0);

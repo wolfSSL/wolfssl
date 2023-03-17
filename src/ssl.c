@@ -6398,7 +6398,7 @@ int wolfSSL_Init(void)
     #endif
         if ((ret == WOLFSSL_SUCCESS) &&
             (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS)) {
-            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
+            WOLFSSL_MSG("wolfSSL_RAND_seed failed");
             ret = WC_INIT_E;
         }
 #endif

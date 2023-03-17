@@ -16666,7 +16666,11 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
 
     #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
         /* Verify RFC 5280 Sec 4.2.1.6 rule:
-            "The name MUST NOT be a relative URI" */
+            "The name MUST NOT be a relative URI"
+            As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
+            a scheme and hier-part.  So the only strict requirement is a ':'
+            being present after the scheme.  If a '/' is present as part of the
+            hier-part, it must come after the ':' (see RFC 3986 Sec 3). */
         {
             int i;
 
@@ -16682,10 +16686,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
                 }
             }
 
-            /* test if no ':' char was found and test that the next two
-             * chars are "//" to match the pattern "://" */
-            if (i >= len - 2 || (input[idx + i + 1] != '/' ||
-                                 input[idx + i + 2] != '/')) {
+            /* test if scheme is missing or hier-part is empty */
+            if (input[idx + i] != ':' || i == 0 || i == len) {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
                 WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                 return ASN_ALT_NAME_E;
@@ -17122,7 +17124,11 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
 
         #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
-                "The name MUST NOT be a relative URI" */
+                "The name MUST NOT be a relative URI"
+                As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
+                a scheme and hier-part.  So the only strict requirement is a ':'
+                being present after the scheme.  If a '/' is present as part of the
+                hier-part, it must come after the ':' (see RFC 3986 Sec 3). */
 
             {
                 int i;
@@ -17139,10 +17145,8 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                     }
                 }
 
-                /* test if no ':' char was found and test that the next two
-                 * chars are "//" to match the pattern "://" */
-                if (i >= strLen - 2 || (input[idx + i + 1] != '/' ||
-                                        input[idx + i + 2] != '/')) {
+                /* test if scheme is missing or hier-part is empty */
+                if (input[idx + i] != ':' || i == 0 || i == strLen) {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
                     WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                     return ASN_ALT_NAME_E;
@@ -21266,8 +21270,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         cert->badDate = 0;
         cert->criticalExt = 0;
         if ((ret = DecodeToKey(cert, verify)) < 0) {
-            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
+            if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
                 cert->badDate = ret;
+                if (verify == VERIFY_SKIP_DATE)
+                    ret = 0;
+            }
             else
                 return ret;
         }
@@ -21510,6 +21517,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             ret = DecodeCert(cert, verify, &cert->criticalExt);
             if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
                 cert->badDate = ret;
+                if (verify == VERIFY_SKIP_DATE)
+                    ret = 0;
             }
             else if (ret < 0) {
                 WOLFSSL_ERROR_VERBOSE(ret);
