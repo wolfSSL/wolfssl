@@ -675,8 +675,8 @@ enum DN_Tags {
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_USER_ID       = 0x12,   /* UserID */
 #ifdef WOLFSSL_CERT_NAME_ALL
-    ASN_NAME          = 0x2a,   /* name */
-    ASN_GIVEN_NAME    = 0x29,   /* GN */
+    ASN_NAME          = 0x29,   /* name */
+    ASN_GIVEN_NAME    = 0x2a,   /* GN */
     ASN_INITIALS      = 0x2b,   /* initials */
     ASN_DNQUALIFIER   = 0x2e,   /* dnQualifier */
 #endif /* WOLFSSL_CERT_NAME_ALL */
