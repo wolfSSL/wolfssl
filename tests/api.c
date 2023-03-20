@@ -30728,6 +30728,30 @@ static int test_wolfSSL_X509_NAME(void)
     AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, &tmp)), 0);
     XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
 
+#ifdef WOLFSSL_CERT_NAME_ALL
+    /* test for givenName and name */
+    {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        const byte gName[] = "test-given-name";
+        const byte name[] = "test-name";
+
+        entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, NID_givenName,
+            ASN_UTF8STRING, gName, sizeof(gName));
+        AssertNotNull(entry);
+        wolfSSL_X509_NAME_add_entry((X509_NAME*)b, entry, -1, 0);
+        wolfSSL_X509_NAME_ENTRY_free(entry);
+
+        entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, NID_name,
+            ASN_UTF8STRING, name, sizeof(name));
+        AssertNotNull(entry);
+        wolfSSL_X509_NAME_add_entry((X509_NAME*)b, entry, -1, 0);
+        wolfSSL_X509_NAME_ENTRY_free(entry);
+
+        tmp = NULL;
+        AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, &tmp)), 0);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+#endif
 
     AssertNotNull(b = X509_NAME_dup((X509_NAME*)a));
 #ifndef OPENSSL_EXTRA_X509_SMALL
