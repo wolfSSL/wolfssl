@@ -63272,7 +63272,7 @@ static int test_extra_alerts_wrong_cs(void)
 #endif
 
 #if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_EXTRA_ALERTS) &&             \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_SP_MATH)
 
 static void test_remove_msg(byte *msg, int tail_len, int *len, int msg_length)
 {
@@ -63361,35 +63361,32 @@ static int test_remove_hs_message(byte hs_message_type,
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ret = test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method);
-    if (ret != 0)
-        return TEST_FAIL;
+    AssertIntEQ(ret, 0);
 
     ret = wolfSSL_connect(ssl_c);
     err = wolfSSL_get_error(ssl_c, ret);
-    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
-        return TEST_FAIL;
+    AssertIntNE(ret, WOLFSSL_SUCCESS);
+    AssertIntEQ(err, WOLFSSL_ERROR_WANT_READ);
 
     ret = wolfSSL_accept(ssl_s);
     err = wolfSSL_get_error(ssl_s, ret);
-    if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
-        return TEST_FAIL;
+    AssertIntNE(ret, WOLFSSL_SUCCESS);
+    AssertIntEQ(err, WOLFSSL_ERROR_WANT_READ);
 
     if (extra_round) {
         ret = wolfSSL_connect(ssl_c);
         err = wolfSSL_get_error(ssl_c, ret);
-        if (ret == WOLFSSL_SUCCESS || err != WOLFSSL_ERROR_WANT_READ)
-            return TEST_FAIL;
+        AssertIntNE(ret, WOLFSSL_SUCCESS);
+        AssertIntEQ(err, WOLFSSL_ERROR_WANT_READ);
 
         /* this will complete handshake from server side */
         ret = wolfSSL_accept(ssl_s);
-        if (ret != WOLFSSL_SUCCESS)
-            return TEST_FAIL;
+        AssertIntEQ(ret, WOLFSSL_SUCCESS);
     }
 
     ret = test_remove_hs_msg_from_buffer(test_ctx.c_buff,
          &test_ctx.c_len, hs_message_type, &found);
-    if (ret != 0)
-        return TEST_FAIL;
+    AssertIntEQ(ret, 0);
 
     if (!found) {
         wolfSSL_free(ssl_c);
@@ -63401,11 +63398,10 @@ static int test_remove_hs_message(byte hs_message_type,
 
     ret = wolfSSL_connect(ssl_c);
     err = wolfSSL_get_error(ssl_c, ret);
-    if (ret == WOLFSSL_SUCCESS || err == WOLFSSL_ERROR_WANT_READ)
-        return TEST_FAIL;
+    AssertIntNE(ret, WOLFSSL_SUCCESS);
+    AssertIntNE(err, WOLFSSL_ERROR_WANT_READ);
     ret = wolfSSL_get_alert_history(ssl_c, &h);
-    if (ret != WOLFSSL_SUCCESS)
-        return TEST_FAIL;
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
     if (alert_type != 0xff && h.last_tx.code != alert_type)
         return TEST_FAIL;
     if (h.last_tx.level != alert_fatal)
@@ -63429,16 +63425,13 @@ static int test_extra_alerts_skip_hs(void)
     /* server_hello */
     ret = test_remove_hs_message(_server_hello, 0,
         unexpected_message);
-    if (ret == TEST_FAIL)
-        return ret;
+    AssertIntNE(ret, TEST_FAIL);
     ret = test_remove_hs_message(_certificate, 0,
         0xff);
-    if (ret == TEST_FAIL)
-        return ret;
+    AssertIntNE(ret, TEST_FAIL);
     ret = test_remove_hs_message(_server_key_exchange, 0,
         unexpected_message);
-    if (ret == TEST_FAIL)
-        return ret;
+    AssertIntNE(ret, TEST_FAIL);
 
     return TEST_SUCCESS;
 }

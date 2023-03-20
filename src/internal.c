@@ -2404,7 +2404,7 @@ void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 /* free all ech configs in the list */
 static void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
 {
@@ -2591,7 +2591,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     }
     #endif
 #endif
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     FreeEchConfigs(ctx->echConfigs, ctx->heap);
     ctx->echConfigs = NULL;
 #endif
@@ -6934,8 +6934,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.noPskDheKe = ctx->noPskDheKe;
+    #ifdef HAVE_SUPPORTED_CURVES
         ssl->options.onlyPskDheKe = ctx->onlyPskDheKe;
-    #endif
+    #endif /* HAVE_SUPPORTED_CURVES */
+    #endif /* HAVE_SESSION_TICKET || !NO_PSK */
     #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ssl->options.postHandshakeAuth = ctx->postHandshakeAuth;
         ssl->options.verifyPostHandshake = ctx->verifyPostHandshake;
@@ -7612,8 +7614,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         FreeHandshakeHashes(ssl);
         ssl->options.useEch = 0;
     }
-#endif
-#endif
+#endif /* HAVE_ECH */
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     ForceZero(&ssl->clientFinished, TLS_FINISHED_SZ_MAX);
     ForceZero(&ssl->serverFinished, TLS_FINISHED_SZ_MAX);

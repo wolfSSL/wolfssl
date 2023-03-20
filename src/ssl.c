@@ -450,7 +450,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 };
 #endif
 
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 /* create the hpke key and ech config to send to clients */
 int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
     word16 kemId, word16 kdfId, word16 aeadId)
@@ -1039,7 +1039,7 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* HAVE_ECH */
+#endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)

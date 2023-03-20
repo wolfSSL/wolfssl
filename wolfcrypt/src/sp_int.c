@@ -4607,6 +4607,12 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 #define WOLFSSL_SP_SUB_D
 #endif
 /* Determine when mp_read_radix with a radix of 10 is required. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || \
+    !defined(NO_DSA) || defined(OPENSSL_EXTRA)
+#define WOLFSSL_SP_READ_RADIX_16
+#endif
+/* Determine when mp_read_radix with a radix of 10 is required. */
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
     !defined(WOLFSSL_RSA_VERIFY_ONLY)
 #define WOLFSSL_SP_READ_RADIX_10
@@ -17103,8 +17109,7 @@ int sp_to_unsigned_bin_at_pos(int o, const sp_int* a, unsigned char* out)
 }
 #endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || !defined(NO_DSA)
+#ifdef WOLFSSL_SP_READ_RADIX_16
 /* Convert hexadecimal number as string in big-endian format to a
  * multi-precision number.
  *
@@ -17172,8 +17177,7 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * HAVE_ECC || !NO_DSA */
+#endif /* WOLFSSL_SP_READ_RADIX_16 */
 
 #ifdef WOLFSSL_SP_READ_RADIX_10
 /* Convert decimal number as string in big-endian format to a multi-precision
@@ -17228,8 +17232,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 }
 #endif /* WOLFSSL_SP_READ_RADIX_10 */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || !defined(NO_DSA)
+#if defined(WOLFSSL_SP_READ_RADIX_16) || defined(WOLFSSL_SP_READ_RADIX_10)
 /* Convert a number as string in big-endian format to a big number.
  * Only supports base-16 (hexadecimal) and base-10 (decimal).
  *
@@ -17302,8 +17305,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * HAVE_ECC || !NO_DSA */
+#endif /* WOLFSSL_SP_READ_RADIX_16 || WOLFSSL_SP_READ_RADIX_10 */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)

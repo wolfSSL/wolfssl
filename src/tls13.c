@@ -5869,7 +5869,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #else
     ret = DoPreSharedKeys(ssl, input, helloSz - bindersLen, suite, usingPSK,
         &first);
-    CleanupClientTickets((PreSharedKey*)ext->data);
     if (ret != 0) {
         WOLFSSL_MSG_EX("DoPreSharedKeys: %d", ret);
         return ret;
@@ -12825,15 +12824,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_THIRD_REPLY_DONE :
-#if defined(HAVE_SUPPORTED_CURVES) && (defined(HAVE_SESSION_TICKET) || \
-    !defined(NO_PSK))
+    #ifdef HAVE_SUPPORTED_CURVES
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             if (!ssl->options.noPskDheKe)
-#endif
+        #endif
             {
                 ssl->error = TLSX_KeyShare_DeriveSecret(ssl);
                 if (ssl->error != 0)
                     return WOLFSSL_FATAL_ERROR;
             }
+    #endif
 
             if ((ssl->error = SendTls13EncryptedExtensions(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);

@@ -33786,7 +33786,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
     int ret = 0;
     byte version;
     word32 dateSz, idx = *ioIndex;
-    OcspEntry* single;
+    OcspEntry* single = NULL;
 
     WOLFSSL_ENTER("DecodeResponseData");
 

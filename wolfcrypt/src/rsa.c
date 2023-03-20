@@ -4529,16 +4529,6 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
     *isPrime = MP_NO;
 
-    if (q != NULL) {
-        int valid = 0;
-        /* 5.4 - check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
-        ret = wc_CompareDiffPQ(p, q, nlen, &valid);
-        if ((ret != MP_OKAY) || (!valid)) goto notOkay;
-        prime = q;
-    }
-    else
-        prime = p;
-
 #ifdef WOLFSSL_SMALL_STACK
     if (((tmp1 = (mp_int *)XMALLOC(sizeof(*tmp1), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
         ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)) {
@@ -4549,6 +4539,16 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
     ret = mp_init_multi(tmp1, tmp2, NULL, NULL, NULL, NULL);
     if (ret != MP_OKAY) goto notOkay;
+
+    if (q != NULL) {
+        int valid = 0;
+        /* 5.4 - check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
+        ret = wc_CompareDiffPQ(p, q, nlen, &valid);
+        if ((ret != MP_OKAY) || (!valid)) goto notOkay;
+        prime = q;
+    }
+    else
+        prime = p;
 
     /* 4.4,5.5 - Check that prime >= (2^(1/2))(2^((nlen/2)-1))
      *           This is a comparison against lowerBound */
