@@ -35655,7 +35655,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         if (ret != 0)
                             return ret;
                     }
-                    else {
+                    else if (length == 1) {
                         dcrl->crlNumber = buf[idx];
                     }
                 }
