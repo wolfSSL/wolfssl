@@ -10530,9 +10530,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
         else {
             WOLFSSL_MSG("SSL version error");
-            /* send alert per RFC5246 Appendix E. Backward Compatibility */
-            if (ssl->options.side == WOLFSSL_CLIENT_END)
-                SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
         }
@@ -10541,7 +10538,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
     if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA)) {
-        SendAlert(ssl, alert_fatal, record_overflow);
         WOLFSSL_ERROR_VERBOSE(LENGTH_ERROR);
         return LENGTH_ERROR;
     }
@@ -19351,8 +19347,25 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     continue;
             }
 #endif
-            if (ret != 0)
+            if (ret != 0) {
+                switch (ret) {
+                case VERSION_ERROR:
+                    /* send alert per RFC5246 Appendix E. Backward
+                     * Compatibility */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END)
+                        SendAlert(ssl, alert_fatal,
+                            wolfssl_alert_protocol_version);
+                    break;
+#ifdef HAVE_MAX_FRAGMENT
+                case LENGTH_ERROR:
+                    SendAlert(ssl, alert_fatal, record_overflow);
+                    break;
+#endif /* HAVE_MAX_FRAGMENT */
+default:
+                    break;
+                }
                 return ret;
+            }
 
 #ifdef WOLFSSL_TLS13
             if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
@@ -21496,8 +21509,7 @@ int SendCertificate(WOLFSSL* ssl)
     #ifdef OPENSSL_EXTRA
         if (ssl->version.major == SSLv3_MAJOR
             && ssl->version.minor == SSLv3_MINOR){
-            SendAlert(ssl, alert_warning, no_certificate);
-            return 0;
+            return SendAlert(ssl, alert_warning, no_certificate);
         } else {
     #endif
             certSz = 0;
@@ -36896,6 +36908,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     {
         int ad = 0;
         int sniRet = 0;
+        int ret = 0;
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
@@ -36904,7 +36917,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             switch (sniRet) {
                 case warning_return:
                     WOLFSSL_MSG("Error in custom sni callback. Warning alert");
-                    SendAlert(ssl, alert_warning, ad);
+                    ret = SendAlert(ssl, alert_warning, ad);
                     break;
                 case fatal_return:
                     WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
@@ -36917,7 +36930,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     break;
             }
         }
-        return 0;
+        return ret;
     }
 #endif /* HAVE_SNI */
 
