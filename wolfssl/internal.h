@@ -1449,7 +1449,11 @@ enum Misc {
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     KE_GROUP_LEN =  2,         /* key exchange group length */
-    SERVER_ID_LEN = 20,        /* server session id length  */
+#if defined(NO_SHA) && !defined(NO_SHA256)
+    SERVER_ID_LEN = WC_SHA256_DIGEST_SIZE,
+#else
+    SERVER_ID_LEN = WC_SHA_DIGEST_SIZE,
+#endif
 
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */

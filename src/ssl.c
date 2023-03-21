@@ -11495,11 +11495,24 @@ int wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
 {
     WOLFSSL_SESSION* session = NULL;
+    byte idHash[SERVER_ID_LEN];
 
     WOLFSSL_ENTER("wolfSSL_SetServerID");
 
     if (ssl == NULL || id == NULL || len <= 0)
         return BAD_FUNC_ARG;
+
+    if (len > SERVER_ID_LEN) {
+#if defined(NO_SHA) && !defined(NO_SHA256)
+        if (wc_Sha256Hash(id, len, idHash) != 0)
+            return WOLFSSL_FAILURE;
+#else
+        if (wc_ShaHash(id, len, idHash) != 0)
+            return WOLFSSL_FAILURE;
+#endif
+        id = idHash;
+        len = SERVER_ID_LEN;
+    }
 
     if (newSession == 0) {
         session = wolfSSL_GetSessionClient(ssl, id, len);
@@ -11517,8 +11530,8 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
     if (session == NULL) {
         WOLFSSL_MSG("Valid ServerID not cached already");
 
-        ssl->session->idLen = (word16)min(SERVER_ID_LEN, (word32)len);
-        XMEMCPY(ssl->session->serverID, id, ssl->session->idLen);
+        ssl->session->idLen = (word16)len;
+        XMEMCPY(ssl->session->serverID, id, len);
     }
 #ifdef HAVE_EXT_CACHE
     else {
