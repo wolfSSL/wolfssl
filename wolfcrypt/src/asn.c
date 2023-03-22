@@ -16686,8 +16686,15 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
                 }
             }
 
-            /* test if scheme is missing or hier-part is empty */
-            if (input[idx + i] != ':' || i == 0 || i == len) {
+            /* test hier-part is empty */
+            if (i == 0 || i == len) {
+                WOLFSSL_MSG("\tEmpty or malformed URI");
+                WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
+                return ASN_ALT_NAME_E;
+            }
+
+            /* test if scheme is missing  */
+            if (input[idx + i] != ':') {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
                 WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                 return ASN_ALT_NAME_E;
@@ -17145,8 +17152,15 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                     }
                 }
 
-                /* test if scheme is missing or hier-part is empty */
-                if (input[idx + i] != ':' || i == 0 || i == strLen) {
+                /* test hier-part is empty */
+                if (i == 0 || i == strLen) {
+                    WOLFSSL_MSG("\tEmpty or malformed URI");
+                    WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
+                    return ASN_ALT_NAME_E;
+                }
+
+                /* test if scheme is missing */
+                if (input[idx + i] != ':') {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
                     WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                     return ASN_ALT_NAME_E;
