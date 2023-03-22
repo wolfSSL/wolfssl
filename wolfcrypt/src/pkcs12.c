@@ -156,14 +156,11 @@ static void freeSafe(AuthenticatedSafe* safe, void* heap)
         ContentInfo* ci = safe->CI;
         safe->CI = ci->next;
         XFREE(ci, heap, DYNAMIC_TYPE_PKCS);
-        ci = NULL;
     }
     if (safe->data != NULL) {
         XFREE(safe->data, heap, DYNAMIC_TYPE_PKCS);
-        safe->data = NULL;
     }
     XFREE(safe, heap, DYNAMIC_TYPE_PKCS);
-    safe = NULL;
 
     (void)heap;
 }
@@ -188,29 +185,23 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     if (pkcs12->signData != NULL) {
         if (pkcs12->signData->digest != NULL) {
             XFREE(pkcs12->signData->digest, heap, DYNAMIC_TYPE_DIGEST);
-            pkcs12->signData->digest = NULL;
         }
         if (pkcs12->signData->salt != NULL) {
             XFREE(pkcs12->signData->salt, heap, DYNAMIC_TYPE_SALT);
-            pkcs12->signData->salt = NULL;
         }
         XFREE(pkcs12->signData, heap, DYNAMIC_TYPE_PKCS);
-        pkcs12->signData = NULL;
     }
 
 #ifdef ASN_BER_TO_DER
     if (pkcs12->der != NULL) {
         XFREE(pkcs12->der, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        pkcs12->der = NULL;
     }
     if (pkcs12->safeDer != NULL) {
         XFREE(pkcs12->safeDer, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        pkcs12->safeDer = NULL;
     }
 #endif
 
     XFREE(pkcs12, NULL, DYNAMIC_TYPE_PKCS);
-    pkcs12 = NULL;
 }
 
 
@@ -297,8 +288,8 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
 #ifdef ASN_BER_TO_DER
      if (pkcs12->indefinite) {
-        if ((ret = wc_BerToDer(input, safe->dataSz, NULL,
-                            &pkcs12->safeDersz)) != LENGTH_ONLY_E) {
+        if (wc_BerToDer(input, safe->dataSz, NULL,
+                        &pkcs12->safeDersz) != LENGTH_ONLY_E) {
             WOLFSSL_MSG("Not BER sequence");
             return ASN_PARSE_E;
         }
@@ -311,6 +302,10 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         }
 
         ret = wc_BerToDer(input, safe->dataSz, pkcs12->safeDer, &pkcs12->safeDersz);
+        if (ret < 0) {
+            freeSafe(safe, pkcs12->heap);
+            return ret;
+        }
 
         input = pkcs12->safeDer;
      }
@@ -707,36 +702,36 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 
     #ifdef ASN_BER_TO_DER
      if (size == 0) {
-         if ((ret = wc_BerToDer(der, totalSz, NULL,
-                         (word32*)&size)) != LENGTH_ONLY_E) {
+         if (wc_BerToDer(der, totalSz, NULL,
+                         (word32*)&size) != LENGTH_ONLY_E) {
              WOLFSSL_MSG("Not BER sequence");
              return ASN_PARSE_E;
          }
 
-        pkcs12->der = (byte*)XMALLOC(size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        if (pkcs12->der == NULL)
-            return MEMORY_E;
-        ret = wc_BerToDer(der, derSz, pkcs12->der, (word32*)&size);
-        if (ret < 0) {
-            return ret;
-        }
+         pkcs12->der = (byte*)XMALLOC(size, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+         if (pkcs12->der == NULL)
+             return MEMORY_E;
+         ret = wc_BerToDer(der, derSz, pkcs12->der, (word32*)&size);
+         if (ret < 0) {
+             return ret;
+         }
 
-        der  = pkcs12->der;
-        derSz = pkcs12->derSz = size;
-        totalSz = size;
-        idx = 0;
+         der  = pkcs12->der;
+         pkcs12->derSz = size;
+         totalSz = size;
+         idx = 0;
 
-        if ((ret = GetSequence(der, &idx, &size, totalSz)) < 0) {
-            WOLFSSL_MSG("Failed to get PKCS12 sequence");
-            return ASN_PARSE_E;
-        }
+         if (GetSequence(der, &idx, &size, totalSz) < 0) {
+             WOLFSSL_MSG("Failed to get PKCS12 sequence");
+             return ASN_PARSE_E;
+         }
 
-        /* get version */
-        if ((ret = GetMyVersion(der, &idx, &version, totalSz)) < 0) {
-            return ret;
-        }
+         /* get version */
+         if ((ret = GetMyVersion(der, &idx, &version, totalSz)) < 0) {
+             return ret;
+         }
 
-        pkcs12->indefinite = 1;
+         pkcs12->indefinite = 1;
 
      }
      else
@@ -772,7 +767,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 #ifdef ASN_BER_TO_DER
     /* If indef, skip EOF */
     if (pkcs12->indefinite) {
-        while(der[idx] == ASN_EOC && idx < totalSz) {
+        while((idx < totalSz) && (der[idx] == ASN_EOC)) {
             idx+=1;
         }
     }
@@ -1280,10 +1275,12 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
 
     *idx += SetLength(mergedSz, &data[*idx]);
 
-    /* Copy over concatonated octet strings into data buffer */
-    XMEMCPY(&data[*idx], mergedData, mergedSz);
+    if (mergedSz > 0) {
+        /* Copy over concatonated octet strings into data buffer */
+        XMEMCPY(&data[*idx], mergedData, mergedSz);
 
-    XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+    }
 
     return ret;
 }

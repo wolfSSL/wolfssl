@@ -28661,8 +28661,10 @@ static int test_wc_PKCS7_VerifySignedData(void)
     struct tm timearg;
     time_t now;
     struct tm* nowTm = NULL;
+#ifdef NEED_TMP_TIME
     struct tm tmpTimeStorage;
     struct tm* tmpTime = &tmpTimeStorage;
+#endif
 #endif /* !NO_ASN && !NO_ASN_TIME */
 
     /* Success test with RSA certs/key */
@@ -31452,7 +31454,6 @@ static int test_wc_KeyPemToDer(void)
             AssertIntLE(ret, cert_sz);
             free(cert_der);
             cert_der = NULL;
-            ret = 0;
         }
     }
 
@@ -31505,7 +31506,6 @@ static int test_wc_PubKeyPemToDer(void)
             AssertIntGE(ret, 0);
             free(cert_der);
             cert_der = NULL;
-            ret = 0;
         }
     }
 
