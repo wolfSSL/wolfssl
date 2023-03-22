@@ -3381,8 +3381,15 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
 
     /* already went through them */
-    if (cert->altNamesNext == NULL)
+    if (cert->altNamesNext == NULL) {
+#ifdef WOLFSSL_MULTICIRCULATE_ALTNAMELIST
+        /* Reset altNames List to head
+         * so that caller can circulate the list again
+         */
+        cert->altNamesNext = cert->altNames;
+#endif
         return NULL;
+    }
 
     ret = cert->altNamesNext->name;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
