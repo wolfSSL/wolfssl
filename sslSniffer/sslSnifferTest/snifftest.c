@@ -572,7 +572,7 @@ static int SnifferAsyncPollQueue(byte** data, char* err, SSLInfo* sslInfo,
                 ret = ssl_DecodePacketAsync(asyncQueue[i].packet,
                     asyncQueue[i].length, 0, data, err, sslInfo, NULL);
                 asyncQueue[i].lastRet = ret;
-                if (ret >= 0) {
+                if (ret != WC_PENDING_E) {
                     /* done, so free and break to process below */
                     XFREE(asyncQueue[i].packet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     asyncQueue[i].packet = NULL;
