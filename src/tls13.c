@@ -3349,12 +3349,14 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     TLSX* ext;
     word16 cookieSz = 0;
 
+    if (hash == NULL || hashSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
     cookie[cookieSz++] = (byte)hashSz;
-    if (hashSz > 0) {
-        XMEMCPY(cookie + cookieSz, hash, hashSz);
-        cookieSz += hashSz;
-    }
+    XMEMCPY(cookie + cookieSz, hash, hashSz);
+    cookieSz += hashSz;
     cookie[cookieSz++] = cipherSuite0;
     cookie[cookieSz++] = cipherSuite;
     if ((ext = TLSX_Find(*exts, TLSX_KEY_SHARE)) != NULL) {
