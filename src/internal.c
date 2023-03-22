@@ -30725,7 +30725,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case INVALID_PARAMETER:
             case HRR_COOKIE_ERROR:
                 return illegal_parameter;
-                break;
             case INCOMPLETE_DATA:
                 return missing_extension;
             case MATCH_SUITE_ERROR:
@@ -34796,11 +34795,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_32BIT_MILLI_TIME
             ato32(it->timestamp, &ssl->session->ticketSeen);
 #else
-            word32 seenHi, seenLo;
+            {
+                word32 seenHi, seenLo;
 
-            ato32(it->timestamp               , &seenHi);
-            ato32(it->timestamp + OPAQUE32_LEN, &seenLo);
-            ssl->session->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+                ato32(it->timestamp               , &seenHi);
+                ato32(it->timestamp + OPAQUE32_LEN, &seenLo);
+                ssl->session->ticketSeen = ((sword64)seenHi << 32) + seenLo;
+            }
 #endif
             ato32(it->ageAdd, &ssl->session->ticketAdd);
             ssl->session->cipherSuite0 = it->suite[0];

@@ -4897,7 +4897,6 @@ int TLSX_SupportedCurve_Copy(TLSX* src, TLSX** dst, void* heap)
     extension = TLSX_Find(src, TLSX_SUPPORTED_GROUPS);
     if (extension != NULL) {
         SupportedCurve* curve;
-        curve = (SupportedCurve*)extension->data;
         for (curve = (SupportedCurve*)extension->data; curve != NULL;
                 curve = curve->next) {
             ret = TLSX_UseSupportedCurve(dst, curve->name, heap);
