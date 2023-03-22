@@ -2610,12 +2610,12 @@ typedef enum {
 #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
 #endif
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     TLSX_ECH                        = 0xfe0d, /* from draft-ietf-tls-esni-13 */
 #endif
 } TLSX_Type;
 
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 
 typedef enum {
     ECH_TYPE_OUTER = 0,
@@ -3627,7 +3627,7 @@ struct WOLFSSL_CTX {
         const WOLFSSL_QUIC_METHOD *method;
     } quic;
 #endif
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
 #endif
 };
@@ -4397,7 +4397,7 @@ typedef struct Options {
 #ifdef WOLFSSL_DTLS_CID
     word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     word16            useEch:1;
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -4463,7 +4463,7 @@ typedef struct Arrays {
     byte            psk_key[MAX_PSK_KEY_LEN];
 #endif
     byte            clientRandom[RAN_LEN];
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     byte            clientRandomInner[RAN_LEN];
 #endif
     byte            serverRandom[RAN_LEN];
@@ -5031,7 +5031,7 @@ struct WOLFSSL {
     byte            serverSecret[SECRET_LEN];
 #endif
     HS_Hashes*      hsHashes;
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     HS_Hashes*      hsHashesEch;
 #endif
     void*           IOCB_ReadCtx;
@@ -5493,7 +5493,7 @@ struct WOLFSSL {
                                           * content have not been handled yet by quic */
     } quic;
 #endif /* WOLFSSL_QUIC */
-#if defined(HAVE_ECH)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
 #endif
 };
