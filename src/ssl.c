@@ -698,7 +698,9 @@ int wolfSSL_SetEchConfigs(WOLFSSL* ssl, const byte* echConfigs,
                 (WOLFSSL_EchConfig*)XMALLOC(sizeof(WOLFSSL_EchConfig),
                 ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             configList = workingConfig;
-            workingConfig->next = NULL;
+            if (workingConfig != NULL) {
+                workingConfig->next = NULL;
+            }
         }
         else {
             lastConfig = workingConfig;

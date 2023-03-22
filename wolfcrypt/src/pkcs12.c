@@ -1167,13 +1167,13 @@ static byte* PKCS12_ConcatonateContent(WC_PKCS12* pkcs12,byte* mergedData,
     /* re-allocate new buffer to fit appended data */
     mergedData = (byte*)XMALLOC(oldContentSz + inSz, pkcs12->heap,
             DYNAMIC_TYPE_PKCS);
-
-    if (oldContent != NULL) {
-        XMEMCPY(mergedData, oldContent, oldContentSz);
+    if (mergedData != NULL) {
+        if (oldContent != NULL) {
+            XMEMCPY(mergedData, oldContent, oldContentSz);
+        }
+        XMEMCPY(mergedData + oldContentSz, in, inSz);
+        *mergedSz += inSz;
     }
-    XMEMCPY(mergedData + oldContentSz, in, inSz);
-    *mergedSz += inSz;
-
     XFREE(oldContent, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 
     return mergedData;
@@ -1186,7 +1186,7 @@ static int PKCS12_CheckConstructedZero(byte* data, word32 dataSz, word32* idx)
     word32 oid;
     int    ret = 0;
     int    number, size;
-    byte   tag;
+    byte   tag = 0;
 
     if (GetSequence(data, idx, &size, dataSz) < 0) {
         ret = ASN_PARSE_E;
@@ -1214,7 +1214,7 @@ static int PKCS12_CheckConstructedZero(byte* data, word32 dataSz, word32* idx)
     if (ret == 0 && GetASNTag(data, idx, &tag, dataSz) < 0) {
         ret = ASN_PARSE_E;
     }
-    else if (ret == 0 && tag == 0xa0) {
+    else if (ret == 0 && tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC)) {
         ret = 1;
     }
 
@@ -1264,6 +1264,9 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
             }
             mergedData = PKCS12_ConcatonateContent(pkcs12, mergedData,
                     &mergedSz, &data[*idx], encryptedContentSz);
+            if (mergedData == NULL) {
+                ret = MEMORY_E;
+            }
         }
         if (ret != 0) {
             break;
