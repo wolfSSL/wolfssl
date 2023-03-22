@@ -17146,7 +17146,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 }
 
                 /* test if scheme is missing or hier-part is empty */
-                if (input[idx + i] != ':' || i == 0 || i == strLen) {
+                if (i == 0 || i == strLen || input[idx + i] != ':') {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
                     WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
                     return ASN_ALT_NAME_E;
