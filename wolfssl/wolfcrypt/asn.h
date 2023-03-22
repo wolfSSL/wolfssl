@@ -116,6 +116,7 @@ enum ASN_Tags {
     ASN_APPLICATION       = 0x40,
     ASN_CONTEXT_SPECIFIC  = 0x80,
     ASN_PRIVATE           = 0xC0,
+    ASN_CLASS_MASK        = 0xC0,
 
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,

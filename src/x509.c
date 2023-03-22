@@ -231,10 +231,6 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
         return;
 
     if (x->obj != NULL) {
-        if (x->obj->pathlen != NULL) {
-            wolfSSL_ASN1_INTEGER_free(x->obj->pathlen);
-            x->obj->pathlen = NULL;
-        }
         wolfSSL_ASN1_OBJECT_free(x->obj);
     }
 
@@ -10078,7 +10074,6 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
                 return WOLFSSL_FATAL_ERROR;
             }
             totalBytes += ret;
-            wolfSSL_OPENSSL_free(cano_data->data);
             wolfSSL_ASN1_STRING_free(cano_data);
         }
     }

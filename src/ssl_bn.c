@@ -50,6 +50,35 @@
  * Constructor/Destructor/Initializer APIs
  ******************************************************************************/
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+/* Set big number to be negative.
+ *
+ * @param [in, out] bn   Big number to make negative.
+ * @param [in]      neg  Whether number is negative.
+ * @return  1 on success.
+ * @return  -1 when bn or internal representation of bn is NULL.
+ */
+static int wolfssl_bn_set_neg(WOLFSSL_BIGNUM* bn, int neg)
+{
+    int ret = 1;
+
+    if (BN_IS_NULL(bn)) {
+        WOLFSSL_MSG("bn NULL error");
+        ret = -1;
+    }
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    else if (neg) {
+        mp_setneg((mp_int*)bn->internal);
+    }
+    else {
+        ((mp_int*)bn->internal)->sign = MP_ZPOS;
+    }
+#endif
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA && !NO_ASN */
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Get the internal representation value into an MP integer.
  *
