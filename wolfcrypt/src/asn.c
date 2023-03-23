@@ -24427,7 +24427,19 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     if (ret == 0) {
         /* Calculate the size of the encoded public point. */
         PRIVATE_KEY_UNLOCK();
+    #if defined(HAVE_COMP_KEY) && defined(HAVE_FIPS) && \
+            defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        /* in earlier versions of FIPS the get length functionality is not
+         * available with compressed keys */
+        pubSz = key->dp ? key->dp->size : MAX_ECC_BYTES;
+        if (comp)
+            pubSz = 1 + pubSz;
+        else
+            pubSz = 1 + 2 * pubSz;
+        ret = LENGTH_ONLY_E;
+    #else
         ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
+    #endif
         PRIVATE_KEY_LOCK();
         /* LENGTH_ONLY_E on success. */
         if (ret == LENGTH_ONLY_E) {
