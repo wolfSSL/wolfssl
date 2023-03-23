@@ -401,7 +401,15 @@ generate_port() {
 generate_port
 openssl s_server $V4V6_FLAG -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
 openssl_pid=$!
-sleep 0.1
+MAX_TIMEOUT=10
+until nc -z localhost $port # Wait for openssl to be ready
+do
+    sleep 0.05
+    if [ "$MAX_TIMEOUT" == "0" ]; then
+        break
+    fi
+    ((MAX_TIMEOUT--))
+done
 
 printf '%s\n\n' "------------- TEST CASE 6 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned
