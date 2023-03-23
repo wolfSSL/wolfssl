@@ -9954,9 +9954,8 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
                usedLength);
     }
 
-    ForceZero(ssl->buffers.inputBuffer.buffer -
-        ssl->buffers.inputBuffer.offset,
-        ssl->buffers.inputBuffer.bufferSize);
+    ForceZero(ssl->buffers.inputBuffer.buffer,
+        ssl->buffers.inputBuffer.length);
     XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
@@ -10177,9 +10176,8 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 
     if (ssl->buffers.inputBuffer.dynamicFlag) {
         if (IsEncryptionOn(ssl, 1)) {
-            ForceZero(ssl->buffers.inputBuffer.buffer -
-                ssl->buffers.inputBuffer.offset,
-                ssl->buffers.inputBuffer.bufferSize);
+            ForceZero(ssl->buffers.inputBuffer.buffer,
+                ssl->buffers.inputBuffer.length);
         }
         XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
               ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
