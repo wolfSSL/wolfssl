@@ -4377,24 +4377,28 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
     switch (hashAlgo) {
     #ifndef NO_SHA
         case sha_mac:
+            ssl->options.dontFreeDigest=1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
             ssl->buffers.digest.length = WC_SHA_DIGEST_SIZE;
             break;
     #endif /* !NO_SHA */
     #ifndef NO_SHA256
         case sha256_mac:
+            ssl->options.dontFreeDigest=1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
             ssl->buffers.digest.length = WC_SHA256_DIGEST_SIZE;
             break;
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
+            ssl->options.dontFreeDigest=1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
             ssl->buffers.digest.length = WC_SHA384_DIGEST_SIZE;
             break;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case sha512_mac:
+            ssl->options.dontFreeDigest=1;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
             ssl->buffers.digest.length = WC_SHA512_DIGEST_SIZE;
             break;
@@ -7530,9 +7534,12 @@ void FreeKeyExchange(WOLFSSL* ssl)
 
     /* Cleanup digest buffer */
     if (ssl->buffers.digest.buffer) {
-        XFREE(ssl->buffers.digest.buffer, ssl->heap, DYNAMIC_TYPE_DIGEST);
+        if(!ssl->options.dontFreeDigest) {
+            XFREE(ssl->buffers.digest.buffer, ssl->heap, DYNAMIC_TYPE_DIGEST);
+        }
         ssl->buffers.digest.buffer = NULL;
         ssl->buffers.digest.length = 0;
+        ssl->options.dontFreeDigest=0;
     }
 
     /* Free handshake key */
@@ -26216,6 +26223,14 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
          ssl->buffers.digest.length = (unsigned int)digest_sz;
 
         /* buffer for hash */
+        if(!ssl->buffers.digest.buffer) {
+            if(!ssl->options.dontFreeDigest) {
+                XFREE(ssl->buffers.digest.buffer, ssl->heap,
+                    DYNAMIC_TYPE_DIGEST);
+            }
+        }
+        ssl->options.dontFreeDigest=0;
+
         ssl->buffers.digest.buffer = (byte*)XMALLOC(ssl->buffers.digest.length,
             ssl->heap, DYNAMIC_TYPE_DIGEST);
         if (ssl->buffers.digest.buffer == NULL) {
@@ -30454,8 +30469,16 @@ exit_scv:
 #endif /* WOLFSSL_ASYNC_IO */
 
     /* Digest is not allocated, so do this to prevent free */
+    if(ssl->buffers.digest.buffer) {
+        if(!ssl->options.dontFreeDigest) {
+            /*This should not happen*/
+            XFREE(ssl->buffers.digest.buffer,
+                ssl->heap, DYNAMIC_TYPE_DIGEST);
+        }
+    }
     ssl->buffers.digest.buffer = NULL;
     ssl->buffers.digest.length = 0;
+    ssl->options.dontFreeDigest=0;
 
     /* Final cleanup */
 #ifdef WOLFSSL_ASYNC_IO
@@ -31938,8 +31961,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             TypeHash(ssl->options.hashAlgo));
 
                                     /* Replace sig buffer with new one */
-                                    XFREE(ssl->buffers.digest.buffer, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
+                                    if(!ssl->options.dontFreeDigest) {
+                                        XFREE(ssl->buffers.digest.buffer,
+                                            ssl->heap, DYNAMIC_TYPE_DIGEST);
+                                    }
+                                    ssl->options.dontFreeDigest=0;
                                     ssl->buffers.digest.buffer = encodedSig;
                                 }
 
@@ -32156,8 +32182,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             TypeHash(ssl->options.hashAlgo));
 
                                     /* Replace sig buffer with new one */
-                                    XFREE(ssl->buffers.digest.buffer, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
+                                    if(!ssl->options.dontFreeDigest) {
+                                        XFREE(ssl->buffers.digest.buffer,
+                                            ssl->heap, DYNAMIC_TYPE_DIGEST);
+                                    }
+                                    ssl->options.dontFreeDigest=0;
                                     ssl->buffers.digest.buffer = encodedSig;
                                 }
                                 break;
@@ -34246,8 +34275,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             SendAlert(ssl, alert_fatal, bad_certificate);
     #endif
         /* Digest is not allocated, so do this to prevent free */
+        if(ssl->buffers.digest.buffer) {
+            if(!ssl->options.dontFreeDigest) {
+                /*This should not happen*/
+                XFREE(ssl->buffers.digest.buffer,
+                    ssl->heap, DYNAMIC_TYPE_DIGEST);
+            }
+        }
         ssl->buffers.digest.buffer = NULL;
         ssl->buffers.digest.length = 0;
+        ssl->options.dontFreeDigest=0;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Cleanup async */
