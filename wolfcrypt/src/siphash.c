@@ -744,6 +744,12 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         "cmp    %w[outSz], #8\n\t"
         "b.eq   L_siphash_8_end\n\t"
 
+    : [in] "+r" (in), [inSz] "+r" (inSz)
+    : [key] "r" (key), [out] "r" (out) , [outSz] "r" (outSz)
+    : "memory", "x8", "x9", "x10", "x11", "x12", "x13");
+
+    __asm__ __volatile__ (
+
         "mov    w13, #0xee\n\t"
         "eor    x10, x10, x13\n\t"
 #if WOLFSSL_SIPHASH_DROUNDS == 2

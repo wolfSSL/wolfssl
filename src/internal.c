@@ -16041,8 +16041,8 @@ void SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case WANT_WRITE:
     case WANT_READ:
     case ZERO_RETURN:
-#ifdef WOLFSSL_ASYNC
-    case WC_PENGIND_E:
+#ifdef WOLFSSL_ASYNC_CRYPT
+    case WC_PENDING_E:
 #endif
         return;
 

@@ -651,7 +651,8 @@ static void render_error_message(const char* msg, int es)
  * infelicitous...
  */
 #if !defined(STRING_USER) && !defined(NO_ERROR_STRINGS) &&      \
-    (defined(_GNU_SOURCE) || defined(__USE_GNU) ||              \
+    (defined(__STDC_VERSION__) && (__STDC_VERSION__ > 199901L)) &&      \
+    ((defined(__GLIBC__) && (__GLIBC__ >= 2)) ||                \
      (defined(__USE_XOPEN2K) &&                                 \
       defined(_POSIX_C_SOURCE) &&                               \
       (_POSIX_C_SOURCE >= 200112L)))
