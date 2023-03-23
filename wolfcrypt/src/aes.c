@@ -2970,6 +2970,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             defined(WOLFSSL_AES_128)
         case 16:
         #ifdef WOLFSSL_CHECK_MEM_ZERO
+            temp = (word32)-1;
             wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
         #endif
             while (1)
@@ -3002,6 +3003,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             defined(WOLFSSL_AES_192)
         case 24:
         #ifdef WOLFSSL_CHECK_MEM_ZERO
+            temp = (word32)-1;
             wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
         #endif
             /* for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack */
@@ -3037,6 +3039,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             defined(WOLFSSL_AES_256)
         case 32:
         #ifdef WOLFSSL_CHECK_MEM_ZERO
+            temp = (word32)-1;
             wc_MemZero_Add("wc_AesSetKeyLocal temp", &temp, sizeof(temp));
         #endif
             while (1)
@@ -4459,9 +4462,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                sz--;
             }
 
-        #ifdef WOLFSSL_CHECK_MEM_ZERO
-            wc_MemZero_Add("wc_AesCtrEncrypt scratch", scratch, AES_BLOCK_SIZE);
-        #endif
         #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
             !defined(XTRANSFORM_AESCTRBLOCK)
             if (in != out && sz >= AES_BLOCK_SIZE) {
@@ -4485,6 +4485,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             else
         #endif
             {
+            #ifdef WOLFSSL_CHECK_MEM_ZERO
+                wc_MemZero_Add("wc_AesCtrEncrypt scratch", scratch,
+                    AES_BLOCK_SIZE);
+            #endif
                 /* do as many block size ops as possible */
                 while (sz >= AES_BLOCK_SIZE) {
                 #ifdef XTRANSFORM_AESCTRBLOCK

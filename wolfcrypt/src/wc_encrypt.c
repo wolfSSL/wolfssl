@@ -341,6 +341,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 #endif /* WOLFSSL_SMALL_STACK */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(key, 0xff, WC_MAX_SYM_KEY_SIZE);
     wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
 #endif
 
@@ -503,6 +504,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
     if (ret == 0) {
     #ifdef WOLFSSL_CHECK_MEM_ZERO
+        XMEMSET(key, 0xff, PKCS_MAX_KEY_SIZE);
         wc_MemZero_Add("wc_CryptKey key", key, PKCS_MAX_KEY_SIZE);
     #endif
 

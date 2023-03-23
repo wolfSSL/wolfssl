@@ -4775,6 +4775,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
       goto out;
     }
 #endif
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(p, 0, sizeof(*p));
+    XMEMSET(q, 0, sizeof(*q));
+    XMEMSET(tmp1, 0, sizeof(*tmp1));
+    XMEMSET(tmp2, 0, sizeof(*tmp2));
+    XMEMSET(tmp3, 0, sizeof(*tmp3));
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {

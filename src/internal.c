@@ -7600,10 +7600,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     ForceZero(&ssl->keys, sizeof(Keys));
 
 #ifdef WOLFSSL_TLS13
-    if (ssl->options.tls1_3) {
-        ForceZero(&ssl->clientSecret, sizeof(ssl->clientSecret));
-        ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
-    }
+    ForceZero(&ssl->clientSecret, sizeof(ssl->clientSecret));
+    ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
 
 #if defined(HAVE_ECH)
     if (ssl->options.useEch == 1) {
@@ -34858,7 +34856,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Internal ticket successfully decrypted. */
-        wc_MemZero_Add("Do Client Ticket internal", it, sizeof(InternalTicket));
+        wc_MemZero_Add("Do Client Ticket internal", psk->it,
+            sizeof(InternalTicket));
     #endif
 
         ret = DoClientTicketCheckVersion(ssl, psk->it);
