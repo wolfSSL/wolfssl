@@ -59,12 +59,12 @@ WOLFSSL_LOCAL
 void   ByteReverseWords(word32* out, const word32* in, word32 byteCount);
 
 WOLFSSL_LOCAL
-void XorWordsOut(wolfssl_word* r, const wolfssl_word* a, const wolfssl_word* b,
-                 word32 n);
+void XorWordsOut(wolfssl_word** r, const wolfssl_word** a,
+        const wolfssl_word** b, word32 n);
 WOLFSSL_LOCAL
 void xorbufout(void* out, const void* buf, const void* mask, word32 count);
 WOLFSSL_LOCAL
-void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n);
+void XorWords(wolfssl_word** r, const wolfssl_word** a, word32 n);
 WOLFSSL_LOCAL
 void xorbuf(void* buf, const void* mask, word32 count);
 
