@@ -16045,6 +16045,12 @@ void SendFatalAlertOnly(WOLFSSL *ssl, int error)
     case WC_PENGIND_E:
 #endif
         return;
+
+    /* peer already disconnected and ssl is possibly in bad state
+     * don't try to send an alert */
+    case SOCKET_ERROR_E:
+        return;
+
     case BUFFER_ERROR:
     case ASN_PARSE_E:
     case COMPRESSION_ERROR:
