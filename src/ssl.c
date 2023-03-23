@@ -20029,6 +20029,16 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->extensions = NULL;
     #endif
 
+        if (ssl->keys.encryptionOn) {
+            ForceZero(ssl->buffers.inputBuffer.buffer -
+                ssl->buffers.inputBuffer.offset,
+                ssl->buffers.inputBuffer.bufferSize);
+        #ifdef WOLFSSL_CHECK_MEM_ZERO
+            wc_MemZero_Check(ssl->buffers.inputBuffer.buffer -
+                ssl->buffers.inputBuffer.offset,
+                ssl->buffers.inputBuffer.bufferSize);
+        #endif
+        }
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 

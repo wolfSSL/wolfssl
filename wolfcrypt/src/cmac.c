@@ -293,6 +293,8 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
     }
 #endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
+    XMEMSET(((unsigned char *)cmac) + sizeof(Aes), 0xff,
+        sizeof(Cmac) - sizeof(Aes));
     /* Aes part is checked by wc_AesFree. */
     wc_MemZero_Add("wc_AesCmacGenerate cmac",
         ((unsigned char *)cmac) + sizeof(Aes), sizeof(Cmac) - sizeof(Aes));
