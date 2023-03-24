@@ -2965,6 +2965,12 @@ extern void uITRON4_free(void *p) ;
 #error "Dynamic session cache currently does not support persistent session cache."
 #endif
 
+#ifdef WOLFSSL_HARDEN_TLS
+    #ifdef HAVE_TRUNCATED_HMAC
+        #error "Truncated HMAC Extension not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.6"
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
