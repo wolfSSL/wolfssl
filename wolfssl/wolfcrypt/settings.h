@@ -2969,6 +2969,9 @@ extern void uITRON4_free(void *p) ;
     #ifdef HAVE_TRUNCATED_HMAC
         #error "Truncated HMAC Extension not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.6"
     #endif
+    #ifndef NO_OLD_TLS
+        #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
+    #endif
 #endif
 
 #ifdef __cplusplus

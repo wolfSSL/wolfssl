@@ -3492,7 +3492,7 @@ AC_ARG_ENABLE([oldtls],
     [ ENABLED_OLD_TLS=yes ]
     )
 
-if test "$ENABLED_CRYPTONLY" = "yes"
+if test "$ENABLED_CRYPTONLY" = "yes" || test "x$ENABLED_HARDEN_TLS" != "xno"
 then
     ENABLED_OLD_TLS=no
 fi
