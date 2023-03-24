@@ -2017,13 +2017,29 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
     #else
-        #if FIPS_VERSION_GE(2,0)
+        #ifdef WOLFSSL_HARDEN_TLS
+            /* SHOULD NOT negotiate cipher suites that use algorithms offering
+             * less than 128 bits of security.
+             * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+             * Using guidance from section 5.6.1
+             * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+            #define ECC_MIN_KEY_SZ 256
+        #elif FIPS_VERSION_GE(2,0)
             /* FIPSv2 and ready (for now) includes 192-bit support */
             #define ECC_MIN_KEY_SZ 192
         #else
             #define ECC_MIN_KEY_SZ 224
         #endif
     #endif
+#endif
+
+#if defined(WOLFSSL_HARDEN_TLS) && ECC_MIN_KEY_SZ < 256
+    /* SHOULD NOT negotiate cipher suites that use algorithms offering
+     * less than 128 bits of security.
+     * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+     * Using guidance from section 5.6.1
+     * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+    #error "For 128 bits of security ECC needs at least 256 bit keys"
 #endif
 
 /* ECC Configs */

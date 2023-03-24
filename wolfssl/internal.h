@@ -661,7 +661,12 @@
                 #endif
             #endif
         #endif
-        #if !defined(NO_DES3)
+        #if !defined(NO_DES3) && !defined(WOLFSSL_HARDEN_TLS)
+            /* SHOULD NOT negotiate cipher suites that use algorithms offering
+             * less than 128 bits of security.
+             * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+             * Using guidance from section 5.6.1
+             * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
             #ifndef NO_SHA
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
@@ -724,7 +729,7 @@
                                                              defined(HAVE_ED448)
                 #define BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
             #endif
-            #ifndef NO_DH && !defined(WOLFSSL_HARDEN_TLS)
+            #if !defined(NO_DH) && !defined(WOLFSSL_HARDEN_TLS)
                 /* SHOULD NOT negotiate cipher suites based on ephemeral
                  * finite-field Diffie-Hellman key agreement (i.e., "TLS_DHE_*"
                  * suites). https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
@@ -984,6 +989,9 @@
     #ifdef WOLFSSL_STATIC_DH
         #error "Static DH ciphers not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.1"
     #endif
+    #ifdef HAVE_ANON
+        #error "At least the server side has to be authenticated"
+    #endif
 #endif
 
 /* actual cipher values, 2nd byte */
@@ -1172,11 +1180,26 @@ enum {
 
 /* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
-    #ifdef WOLFSSL_MAX_STRENGTH
+    #ifdef WOLFSSL_HARDEN_TLS
+        /* SHOULD NOT negotiate cipher suites that use algorithms offering
+         * less than 128 bits of security.
+         * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+         * Using guidance from section 5.6.1
+         * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+        #define WOLFSSL_MIN_DHKEY_BITS 3072
+    #elif defined(WOLFSSL_MAX_STRENGTH)
         #define WOLFSSL_MIN_DHKEY_BITS 2048
     #else
         #define WOLFSSL_MIN_DHKEY_BITS 1024
     #endif
+#endif
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_DHKEY_BITS < 3072
+    /* SHOULD NOT negotiate cipher suites that use algorithms offering
+     * less than 128 bits of security.
+     * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+     * Using guidance from section 5.6.1
+     * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+    #error "For 128 bits of security DH needs at least 3072 bit keys"
 #endif
 #if (WOLFSSL_MIN_DHKEY_BITS % 8)
     #error DH minimum bit size must be multiple of 8
@@ -1204,6 +1227,10 @@ enum {
     #error DH maximum bit size must not be greater than 16384
 #endif
 #define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
+
+#if WOLFSSL_MAX_DHKEY_BITS < WOLFSSL_MIN_DHKEY_BITS
+#error "WOLFSSL_MAX_DHKEY_BITS has to be greater than WOLFSSL_MIN_DHKEY_BITS"
+#endif
 
 #ifndef MAX_PSK_ID_LEN
     /* max psk identity/hint supported */
@@ -1800,12 +1827,27 @@ enum Misc {
 
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
-    #ifdef WOLFSSL_MAX_STRENGTH
+    #ifdef WOLFSSL_HARDEN_TLS
+        /* SHOULD NOT negotiate cipher suites that use algorithms offering
+         * less than 128 bits of security.
+         * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+         * Using guidance from section 5.6.1
+         * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+        #define WOLFSSL_MIN_RSA_BITS 3072
+    #elif defined(WOLFSSL_MAX_STRENGTH)
         #define WOLFSSL_MIN_RSA_BITS 2048
     #else
         #define WOLFSSL_MIN_RSA_BITS 1024
     #endif
 #endif /* WOLFSSL_MIN_RSA_BITS */
+#if defined(WOLFSSL_HARDEN_TLS) && WOLFSSL_MIN_RSA_BITS < 3072
+    /* SHOULD NOT negotiate cipher suites that use algorithms offering
+     * less than 128 bits of security.
+     * https://www.rfc-editor.org/rfc/rfc9325#section-4.1
+     * Using guidance from section 5.6.1
+     * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf */
+    #error "For 128 bits of security RSA needs at least 3072 bit keys"
+#endif
 #if (WOLFSSL_MIN_RSA_BITS % 8)
     /* This is to account for the example case of a min size of 2050 bits but
        still allows 2049 bit key. So we need the measurement to be in bytes. */
