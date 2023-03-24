@@ -2972,6 +2972,7 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_TLS
         #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
     #endif
+    /* Ciphersuite check done in internal.h */
 #endif
 
 #ifdef __cplusplus
